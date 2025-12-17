@@ -31,6 +31,8 @@ A native macOS MySQL database client built with SwiftUI.
 - [x] Row numbers column
 - [x] Column resizing and reordering
 - [x] Alternating row colors
+- [x] Column sorting via SQL ORDER BY (click header to sort)
+- [x] Sort indicators (▲/▼) in column headers
 
 ### Inline Cell Editing
 - [x] Double-click to edit cells
@@ -38,6 +40,7 @@ A native macOS MySQL database client built with SwiftUI.
 - [x] Empty string display with "Empty" placeholder
 - [x] DEFAULT value support
 - [x] Modified cell highlighting (yellow background)
+- [x] Per-tab change tracking (preserved when switching tabs)
 
 ### SQL Function Support
 - [x] NOW() and CURRENT_TIMESTAMP() recognition
@@ -55,6 +58,7 @@ A native macOS MySQL database client built with SwiftUI.
 - [x] Generate UPDATE/INSERT/DELETE SQL
 - [x] Commit all changes at once
 - [x] Discard changes with restore
+- [x] Confirm discard when closing tab with changes
 
 ---
 
@@ -70,21 +74,21 @@ A native macOS MySQL database client built with SwiftUI.
 - [x] Manual trigger (Ctrl+Space)
 
 ### Data Export
-- [ ] Export to CSV
-- [ ] Export to JSON
+- [x] Export to CSV
+- [x] Export to JSON
+- [x] Copy to clipboard (tab-separated)
 - [ ] Export to SQL (INSERT statements)
-- [ ] Copy as INSERT statement
 
 ### Query History
-- [ ] Auto-save executed queries
-- [ ] Query history panel
-- [ ] Re-run previous queries
+- [x] Auto-save executed queries
+- [x] Query history panel
+- [x] Re-run previous queries
 - [ ] Favorite/bookmark queries
 
 ### Table Structure
-- [ ] View table columns and types
-- [ ] View indexes
-- [ ] View foreign keys
+- [x] View table columns and types
+- [x] View indexes
+- [x] View foreign keys
 - [ ] CREATE TABLE statement preview
 
 ---
@@ -114,7 +118,6 @@ A native macOS MySQL database client built with SwiftUI.
 - PostgreSQL support
 - SQLite support
 - Dark/Light theme toggle
-- Query auto-complete
 - ER diagram visualization
 - Data import from CSV/JSON
 - Stored procedure execution
@@ -126,5 +129,6 @@ A native macOS MySQL database client built with SwiftUI.
 
 | Version | Date | Highlights |
 |---------|------|------------|
-| 0.1.0 | Dec 2024 | Initial release with core features |
-| 0.2.0 | Dec 2024 | Data grid editing, SQL function support |
+| 0.1.0 | Dec 2025 | Initial release with core features |
+| 0.2.0 | Dec 2025 | Data grid editing, SQL function support |
+| 0.3.0 | Dec 2025 | Column sorting, per-tab state, export/history/structure views |

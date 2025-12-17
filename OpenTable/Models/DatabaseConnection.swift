@@ -7,15 +7,58 @@
 
 import Foundation
 
+// MARK: - SSH Configuration
+
+/// SSH authentication method
+enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
+    case password = "Password"
+    case privateKey = "Private Key"
+
+    var id: String { rawValue }
+
+    var iconName: String {
+        switch self {
+        case .password: return "key.fill"
+        case .privateKey: return "doc.text.fill"
+        }
+    }
+}
+
+/// SSH tunnel configuration for database connections
+struct SSHConfiguration: Codable, Hashable {
+    var enabled: Bool = false
+    var host: String = ""
+    var port: Int = 22
+    var username: String = ""
+    var authMethod: SSHAuthMethod = .password
+    var privateKeyPath: String = ""  // Path to identity file (e.g., ~/.ssh/id_rsa)
+    var useSSHConfig: Bool = true  // Auto-fill from ~/.ssh/config when selecting host
+
+    /// Check if SSH configuration is complete enough for connection
+    var isValid: Bool {
+        guard enabled else { return true }  // Not enabled = valid (skip SSH)
+        guard !host.isEmpty, !username.isEmpty else { return false }
+
+        switch authMethod {
+        case .password:
+            return true  // Password will be provided separately
+        case .privateKey:
+            return !privateKeyPath.isEmpty
+        }
+    }
+}
+
+// MARK: - Database Type
+
 /// Represents the type of database
 enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     case mysql = "MySQL"
     case mariadb = "MariaDB"
     case postgresql = "PostgreSQL"
     case sqlite = "SQLite"
-    
+
     var id: String { rawValue }
-    
+
     /// SF Symbol name for each database type
     var iconName: String {
         switch self {
@@ -27,7 +70,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return "doc.fill"
         }
     }
-    
+
     /// Default port for each database type
     var defaultPort: Int {
         switch self {
@@ -47,7 +90,8 @@ struct DatabaseConnection: Identifiable, Hashable {
     var database: String
     var username: String
     var type: DatabaseType
-    
+    var sshConfig: SSHConfiguration
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -55,7 +99,8 @@ struct DatabaseConnection: Identifiable, Hashable {
         port: Int = 3306,
         database: String = "",
         username: String = "root",
-        type: DatabaseType = .mysql
+        type: DatabaseType = .mysql,
+        sshConfig: SSHConfiguration = SSHConfiguration()
     ) {
         self.id = id
         self.name = name
@@ -64,6 +109,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.database = database
         self.username = username
         self.type = type
+        self.sshConfig = sshConfig
     }
 }
 
@@ -94,6 +140,6 @@ extension DatabaseConnection {
             database: "~/Documents/data.sqlite",
             username: "",
             type: .sqlite
-        )
+        ),
     ]
 }
