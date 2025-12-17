@@ -38,9 +38,16 @@ final class DatabaseManager: ObservableObject {
         status = .connecting
         lastError = nil
 
+        // DEBUG: Print SSH config
+        print("[DatabaseManager] Connecting to: \(connection.name)")
+        print("[DatabaseManager] SSH Enabled: \(connection.sshConfig.enabled)")
+        print("[DatabaseManager] SSH Host: \(connection.sshConfig.host)")
+        print("[DatabaseManager] Original port: \(connection.port)")
+
         // Create SSH tunnel if needed
         var effectiveConnection = connection
         if connection.sshConfig.enabled {
+            print("[DatabaseManager] Creating SSH tunnel...")
             let sshPassword = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
             let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
                 connectionId: connection.id,
@@ -54,6 +61,8 @@ final class DatabaseManager: ObservableObject {
                 remotePort: connection.port
             )
 
+            print("[DatabaseManager] Tunnel created on port: \(tunnelPort)")
+
             // Create a modified connection that uses the tunnel
             effectiveConnection = DatabaseConnection(
                 id: connection.id,
@@ -65,6 +74,8 @@ final class DatabaseManager: ObservableObject {
                 type: connection.type,
                 sshConfig: SSHConfiguration()  // Disable SSH for actual driver
             )
+        } else {
+            print("[DatabaseManager] SSH NOT enabled, connecting directly")
         }
 
         // Create appropriate driver with effective connection

@@ -18,14 +18,14 @@ enum StructureTab: String, CaseIterable {
 struct TableStructureView: View {
     let tableName: String
     let connection: DatabaseConnection
-    
+
     @State private var selectedTab: StructureTab = .columns
     @State private var columns: [ColumnInfo] = []
     @State private var indexes: [IndexInfo] = []
     @State private var foreignKeys: [ForeignKeyInfo] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Tab picker
@@ -36,9 +36,9 @@ struct TableStructureView: View {
             }
             .pickerStyle(.segmented)
             .padding()
-            
+
             Divider()
-            
+
             // Content
             if isLoading {
                 ProgressView("Loading structure...")
@@ -67,9 +67,9 @@ struct TableStructureView: View {
             await loadStructure()
         }
     }
-    
+
     // MARK: - Columns Tab
-    
+
     private var columnsTable: some View {
         Table(columns) {
             TableColumn("Name") { column in
@@ -84,27 +84,27 @@ struct TableStructureView: View {
                 }
             }
             .width(min: 120, ideal: 150)
-            
+
             TableColumn("Type") { column in
                 Text(column.dataType)
                     .foregroundColor(.secondary)
                     .font(.system(.body, design: .monospaced))
             }
             .width(min: 100, ideal: 120)
-            
+
             TableColumn("Nullable") { column in
                 Image(systemName: column.isNullable ? "checkmark.circle" : "xmark.circle")
                     .foregroundColor(column.isNullable ? .green : .red)
             }
             .width(70)
-            
+
             TableColumn("Default") { column in
                 Text(column.defaultValue ?? "-")
                     .foregroundColor(.secondary)
                     .font(.system(.body, design: .monospaced))
             }
             .width(min: 80, ideal: 120)
-            
+
             TableColumn("Extra") { column in
                 Text(column.extra ?? "-")
                     .foregroundColor(.secondary)
@@ -112,9 +112,9 @@ struct TableStructureView: View {
             .width(min: 80, ideal: 100)
         }
     }
-    
+
     // MARK: - Indexes Tab
-    
+
     private var indexesTable: some View {
         Group {
             if indexes.isEmpty {
@@ -137,19 +137,19 @@ struct TableStructureView: View {
                         }
                     }
                     .width(min: 150, ideal: 200)
-                    
+
                     TableColumn("Columns") { index in
                         Text(index.columns.joined(separator: ", "))
                             .font(.system(.body, design: .monospaced))
                     }
                     .width(min: 150, ideal: 250)
-                    
+
                     TableColumn("Type") { index in
                         Text(index.type)
                             .foregroundColor(.secondary)
                     }
                     .width(80)
-                    
+
                     TableColumn("Unique") { index in
                         Image(systemName: index.isUnique ? "checkmark.circle.fill" : "circle")
                             .foregroundColor(index.isUnique ? .green : .secondary)
@@ -159,9 +159,9 @@ struct TableStructureView: View {
             }
         }
     }
-    
+
     // MARK: - Foreign Keys Tab
-    
+
     private var foreignKeysTable: some View {
         Group {
             if foreignKeys.isEmpty {
@@ -173,13 +173,13 @@ struct TableStructureView: View {
                             .fontWeight(.medium)
                     }
                     .width(min: 150, ideal: 200)
-                    
+
                     TableColumn("Column") { fk in
                         Text(fk.column)
                             .font(.system(.body, design: .monospaced))
                     }
                     .width(min: 100, ideal: 150)
-                    
+
                     TableColumn("References") { fk in
                         HStack(spacing: 2) {
                             Text(fk.referencedTable)
@@ -191,13 +191,13 @@ struct TableStructureView: View {
                         }
                     }
                     .width(min: 150, ideal: 200)
-                    
+
                     TableColumn("On Delete") { fk in
                         Text(fk.onDelete)
                             .foregroundColor(fk.onDelete == "CASCADE" ? .orange : .secondary)
                     }
                     .width(90)
-                    
+
                     TableColumn("On Update") { fk in
                         Text(fk.onUpdate)
                             .foregroundColor(fk.onUpdate == "CASCADE" ? .orange : .secondary)
@@ -207,9 +207,9 @@ struct TableStructureView: View {
             }
         }
     }
-    
+
     // MARK: - Empty State
-    
+
     private func emptyState(_ message: String) -> some View {
         VStack(spacing: 8) {
             Image(systemName: "tray")
@@ -220,32 +220,33 @@ struct TableStructureView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     // MARK: - Load Data
-    
+
     private func loadStructure() async {
         isLoading = true
         errorMessage = nil
-        
-        let driver = DatabaseDriverFactory.createDriver(for: connection)
-        
+
+        // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
+        guard let driver = await DatabaseManager.shared.activeDriver else {
+            errorMessage = "Not connected"
+            isLoading = false
+            return
+        }
+
         do {
-            try await driver.connect()
-            
             // Load all in parallel
             async let columnsTask = driver.fetchColumns(table: tableName)
             async let indexesTask = driver.fetchIndexes(table: tableName)
             async let fkTask = driver.fetchForeignKeys(table: tableName)
-            
+
             columns = try await columnsTask
             indexes = try await indexesTask
             foreignKeys = try await fkTask
-            
-            driver.disconnect()
         } catch {
             errorMessage = error.localizedDescription
         }
-        
+
         isLoading = false
     }
 }

@@ -23,6 +23,7 @@ struct MainContentView: View {
     @State private var showCloseTabAlert: Bool = false
     @State private var schemaProvider: SQLSchemaProvider = SQLSchemaProvider()
     @State private var cursorPosition: Int = 0  // For query-at-cursor execution
+    @State private var currentQueryTask: Task<Void, Never>?  // Track running query to cancel on new query
 
     private var currentTab: QueryTab? {
         tabManager.selectedTab
@@ -99,7 +100,7 @@ struct MainContentView: View {
             }
         }
         .task {
-            await testConnection()
+            await establishConnection()
             await loadSchema()
             queryHistory = QueryHistoryManager.shared.loadHistory()
         }
@@ -277,12 +278,6 @@ struct MainContentView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 180)
-
-                Button(action: { runQuery() }) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .buttonStyle(.borderless)
-                .help("Refresh Data")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -547,11 +542,10 @@ struct MainContentView: View {
 
     // MARK: - Actions
 
-    private func testConnection() async {
-        let driver = DatabaseDriverFactory.createDriver(for: connection)
+    /// Establish connection using DatabaseManager (with SSH tunnel support)
+    private func establishConnection() async {
         do {
-            try await driver.connect()
-            driver.disconnect()
+            try await DatabaseManager.shared.connect(to: connection)
         } catch {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = error.localizedDescription
@@ -560,18 +554,22 @@ struct MainContentView: View {
     }
 
     private func loadSchema() async {
-        let driver = DatabaseDriverFactory.createDriver(for: connection)
-        do {
-            try await driver.connect()
-            await schemaProvider.loadSchema(using: driver, connection: connection)
-            driver.disconnect()
-        } catch {
-            print("[MainContentView] Failed to load schema: \(error)")
+        // Use activeDriver from DatabaseManager (already connected with SSH tunnel if enabled)
+        guard let driver = await DatabaseManager.shared.activeDriver else {
+            print("[MainContentView] Failed to load schema: No active driver")
+            return
         }
+        await schemaProvider.loadSchema(using: driver, connection: connection)
     }
 
     private func runQuery() {
         guard let index = tabManager.selectedTabIndex else { return }
+
+        // Cancel any previous running query to prevent race conditions
+        // This is critical for SSH connections where rapid sorting can cause
+        // multiple queries to return out of order, leading to EXC_BAD_ACCESS
+        currentQueryTask?.cancel()
+
         guard !tabManager.tabs[index].isExecuting else { return }
 
         tabManager.tabs[index].isExecuting = true
@@ -595,51 +593,90 @@ struct MainContentView: View {
         let tableName = extractTableName(from: sql)
         let isEditable = tableName != nil
 
-        Task {
+        currentQueryTask = Task {
             do {
                 let result = try await executeQueryAsync(sql: sql, connection: conn)
 
                 // Fetch column defaults if editable table
                 var columnDefaults: [String: String?] = [:]
                 if isEditable, let tableName = tableName {
-                    let driver = DatabaseDriverFactory.createDriver(for: conn)
-                    try await driver.connect()
-                    let columnInfo = try await driver.fetchColumns(table: tableName)
-                    driver.disconnect()
-
-                    for col in columnInfo {
-                        columnDefaults[col.name] = col.defaultValue
+                    // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
+                    if let driver = await DatabaseManager.shared.activeDriver {
+                        let columnInfo = try await driver.fetchColumns(table: tableName)
+                        for col in columnInfo {
+                            columnDefaults[col.name] = col.defaultValue
+                        }
                     }
+                }
+
+                // ===== CRITICAL: Deep copy ALL data BEFORE leaving this async context =====
+                // Create NEW String objects to avoid any reference to underlying C buffers
+                var safeColumns: [String] = []
+                for col in result.columns {
+                    safeColumns.append(String(col))
+                }
+
+                var safeRows: [QueryResultRow] = []
+                for row in result.rows {
+                    var safeValues: [String?] = []
+                    for val in row {
+                        if let v = val {
+                            safeValues.append(String(v))
+                        } else {
+                            safeValues.append(nil)
+                        }
+                    }
+                    safeRows.append(QueryResultRow(values: safeValues))
+                }
+
+                let safeExecutionTime = result.executionTime
+                let safeRowCount = result.rowCount
+                let safeFirstColumn: String? = safeColumns.first
+
+                // Copy columnDefaults too
+                var safeColumnDefaults: [String: String?] = [:]
+                for (key, value) in columnDefaults {
+                    safeColumnDefaults[String(key)] = value.map { String($0) }
+                }
+
+                let safeTableName = tableName.map { String($0) }
+
+                // Check if task was cancelled (e.g., user triggered another sort)
+                // This prevents race conditions where cancelled queries still try to update UI
+                guard !Task.isCancelled else {
+                    await MainActor.run {
+                        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                            tabManager.tabs[idx].isExecuting = false
+                        }
+                    }
+                    return
                 }
 
                 // Find tab by ID (index may have changed) - must update on main thread
                 await MainActor.run {
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        tabManager.tabs[idx].resultColumns = result.columns
-                        tabManager.tabs[idx].columnDefaults = columnDefaults
-                        tabManager.tabs[idx].resultRows = result.toQueryResultRows()
-                        tabManager.tabs[idx].executionTime = result.executionTime
+                        tabManager.tabs[idx].resultColumns = safeColumns
+                        tabManager.tabs[idx].columnDefaults = safeColumnDefaults
+                        tabManager.tabs[idx].resultRows = safeRows
+                        tabManager.tabs[idx].executionTime = safeExecutionTime
                         tabManager.tabs[idx].isExecuting = false
                         tabManager.tabs[idx].lastExecutedAt = Date()
-                        tabManager.tabs[idx].tableName = tableName
+                        tabManager.tabs[idx].tableName = safeTableName
                         tabManager.tabs[idx].isEditable = isEditable
 
                         // Configure change manager for this table
-                        changeManager.tableName = tableName ?? ""
-                        changeManager.columns = result.columns
-                        // Default to first column as primary key (usually 'id')
-                        changeManager.primaryKeyColumn = result.columns.first
-
-                        // Force table reload with fresh data
-                        changeManager.reloadVersion += 1
+                        changeManager.clearChanges()
+                        changeManager.tableName = safeTableName ?? ""
+                        changeManager.columns = safeColumns
+                        changeManager.primaryKeyColumn = safeFirstColumn
                     }
 
                     // Save to history
                     let entry = QueryHistoryEntry(
                         query: sql,
                         connectionName: conn.name,
-                        rowCount: result.rowCount,
-                        executionTime: result.executionTime,
+                        rowCount: safeRowCount,
+                        executionTime: safeExecutionTime,
                         wasSuccessful: true
                     )
                     QueryHistoryManager.shared.addEntry(entry)
@@ -667,11 +704,8 @@ struct MainContentView: View {
     private func executeQueryAsync(sql: String, connection: DatabaseConnection) async throws
         -> QueryResult
     {
-        let driver = DatabaseDriverFactory.createDriver(for: connection)
-        try await driver.connect()
-        let result = try await driver.execute(query: sql)
-        driver.disconnect()
-        return result
+        // Use DatabaseManager to execute query - this ensures proper thread safety
+        return try await DatabaseManager.shared.execute(query: sql)
     }
 
     /// Extract table name from a simple SELECT query
@@ -903,8 +937,10 @@ struct MainContentView: View {
 
         Task {
             do {
-                let driver = DatabaseDriverFactory.createDriver(for: connection)
-                try await driver.connect()
+                // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
+                guard let driver = await DatabaseManager.shared.activeDriver else {
+                    throw DatabaseError.notConnected
+                }
 
                 // Execute each statement
                 let statements = sql.components(separatedBy: ";").filter {
@@ -927,8 +963,6 @@ struct MainContentView: View {
                         queryHistory = QueryHistoryManager.shared.loadHistory()
                     }
                 }
-
-                driver.disconnect()
 
                 // Clear pending changes since they're now saved
                 await MainActor.run {

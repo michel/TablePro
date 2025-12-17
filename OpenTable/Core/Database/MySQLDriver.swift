@@ -2,34 +2,19 @@
 //  MySQLDriver.swift
 //  OpenTable
 //
-//  MySQL/MariaDB database driver using mysql CLI
+//  MySQL/MariaDB database driver using libmariadb (MariaDB Connector/C)
 //
 
 import Foundation
 
-/// Thread-safe class for accumulating data from async pipe handlers
-/// Used to satisfy Swift 6 concurrency requirements for process output handling
-private final class DataAccumulator: @unchecked Sendable {
-    private nonisolated(unsafe) var _data = Data()
-    private let lock = NSLock()
-
-    nonisolated func append(_ newData: Data) {
-        lock.lock()
-        _data.append(newData)
-        lock.unlock()
-    }
-
-    nonisolated var data: Data {
-        lock.lock()
-        defer { lock.unlock() }
-        return _data
-    }
-}
-
-/// MySQL/MariaDB database driver using command-line interface
+/// MySQL/MariaDB database driver using libmariadb
+/// Supports MySQL 5.7+, MySQL 8.x (all auth methods), and MariaDB
 final class MySQLDriver: DatabaseDriver {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
+
+    /// The underlying MariaDB connection
+    private var mariadbConnection: MariaDBConnection?
 
     init(connection: DatabaseConnection) {
         self.connection = connection
@@ -40,17 +25,34 @@ final class MySQLDriver: DatabaseDriver {
     func connect() async throws {
         status = .connecting
 
-        // Test connection by running a simple query
+        // Get password from Keychain
+        let password = ConnectionStorage.shared.loadPassword(for: connection.id)
+
+        // Create connection
+        let conn = MariaDBConnection(
+            host: connection.host,
+            port: connection.port,
+            user: connection.username,
+            password: password,
+            database: connection.database
+        )
+
         do {
-            _ = try await executeCommand("SELECT 1")
+            try await conn.connect()
+            mariadbConnection = conn
             status = .connected
+        } catch let error as MariaDBError {
+            status = .error(error.message)
+            throw DatabaseError.connectionFailed(error.localizedDescription ?? "Connection failed")
         } catch {
             status = .error(error.localizedDescription)
-            throw error
+            throw DatabaseError.connectionFailed(error.localizedDescription)
         }
     }
 
     func disconnect() {
+        mariadbConnection?.disconnect()
+        mariadbConnection = nil
         status = .disconnected
     }
 
@@ -66,131 +68,37 @@ final class MySQLDriver: DatabaseDriver {
     func execute(query: String) async throws -> QueryResult {
         let startTime = Date()
 
-        let output = try await executeCommand(query)
+        guard let conn = mariadbConnection else {
+            throw DatabaseError.notConnected
+        }
 
-        // Parse tab-separated output from mysql CLI
-        // Note: MySQL batch mode escapes special characters in field values:
-        // - Newlines become \n (literal backslash-n)
-        // - Tabs become \t (literal backslash-t)
-        // - Backslashes become \\ (double backslash)
-        // We split by actual newlines (record separators) then unescape field values
-        let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
+        do {
+            let result = try await conn.executeQuery(query)
 
-        // If empty, try to get columns from table name (for SELECT * queries)
-        if lines.isEmpty {
-            // Try to extract table name from SELECT query
-            if let tableName = extractTableName(from: query) {
-                let columns = try await fetchColumnNames(for: tableName)
-                return QueryResult(
-                    columns: columns,
-                    rows: [],
-                    rowsAffected: 0,
-                    executionTime: Date().timeIntervalSince(startTime),
-                    error: nil
-                )
+            // Handle empty result for SELECT queries - try to get column names from table
+            if result.columns.isEmpty && result.rows.isEmpty {
+                if let tableName = extractTableName(from: query) {
+                    let columns = try await fetchColumnNames(for: tableName)
+                    return QueryResult(
+                        columns: columns,
+                        rows: [],
+                        rowsAffected: Int(result.affectedRows),
+                        executionTime: Date().timeIntervalSince(startTime),
+                        error: nil
+                    )
+                }
             }
 
             return QueryResult(
-                columns: [],
-                rows: [],
-                rowsAffected: 0,
+                columns: result.columns,
+                rows: result.rows,
+                rowsAffected: Int(result.affectedRows),
                 executionTime: Date().timeIntervalSince(startTime),
                 error: nil
             )
+        } catch let error as MariaDBError {
+            throw DatabaseError.queryFailed(error.localizedDescription ?? "Query failed")
         }
-
-        // First line is headers
-        let columns = lines[0].components(separatedBy: "\t")
-
-        // Remaining lines are data
-        var rows: [[String?]] = []
-        for i in 1..<lines.count {
-            let values = lines[i].components(separatedBy: "\t").map { value -> String? in
-                if value == "NULL" {
-                    return nil
-                }
-                // Unescape MySQL batch mode escape sequences
-                return unescapeMySQLValue(value)
-            }
-            rows.append(values)
-        }
-
-        return QueryResult(
-            columns: columns,
-            rows: rows,
-            rowsAffected: 0,
-            executionTime: Date().timeIntervalSince(startTime),
-            error: nil
-        )
-    }
-
-    /// Unescape MySQL batch mode escape sequences
-    /// MySQL -B mode escapes: \n -> newline, \t -> tab, \\ -> backslash, \0 -> null byte
-    /// Note: We keep \0 as-is instead of converting to actual null bytes because
-    /// null bytes can cause string truncation issues in UI components (NSTextField, etc.)
-    /// and in Swift String operations. PHP serialized data commonly contains \0 for
-    /// protected/private property markers which we want to preserve for display.
-    private func unescapeMySQLValue(_ value: String) -> String {
-        var result = ""
-        var iterator = value.makeIterator()
-
-        while let char = iterator.next() {
-            if char == "\\" {
-                if let next = iterator.next() {
-                    switch next {
-                    case "n": result.append("\n")
-                    case "t": result.append("\t")
-                    case "r": result.append("\r")
-                    case "\\": result.append("\\")
-                    case "0":
-                        // Keep escaped null as visible representation instead of actual null byte
-                        // Null bytes can truncate strings in many contexts
-                        result.append("\\0")
-                    default:
-                        // Unknown escape, keep as-is
-                        result.append("\\")
-                        result.append(next)
-                    }
-                } else {
-                    // Trailing backslash
-                    result.append("\\")
-                }
-            } else {
-                result.append(char)
-            }
-        }
-
-        return result
-    }
-
-    /// Extract table name from SELECT query
-    private func extractTableName(from query: String) -> String? {
-        let pattern = "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?"
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-            let match = regex.firstMatch(in: query, range: NSRange(query.startIndex..., in: query)),
-            let range = Range(match.range(at: 1), in: query)
-        else {
-            return nil
-        }
-        return String(query[range])
-    }
-
-    /// Fetch column names using DESCRIBE
-    private func fetchColumnNames(for tableName: String) async throws -> [String] {
-        let output = try await executeCommand("DESCRIBE `\(tableName)`")
-        let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
-
-        // Skip header row (Field, Type, Null, Key, Default, Extra)
-        guard lines.count > 1 else { return [] }
-
-        var columns: [String] = []
-        for i in 1..<lines.count {
-            let parts = lines[i].components(separatedBy: "\t")
-            if let columnName = parts.first {
-                columns.append(columnName)
-            }
-        }
-        return columns
     }
 
     // MARK: - Schema
@@ -246,8 +154,8 @@ final class MySQLDriver: DatabaseDriver {
         for row in result.rows {
             guard row.count >= 11,
                 let indexName = row[2],  // Key_name
-                let columnName = row[4]
-            else {  // Column_name
+                let columnName = row[4]  // Column_name
+            else {
                 continue
             }
 
@@ -289,8 +197,8 @@ final class MySQLDriver: DatabaseDriver {
                 kcu.REFERENCED_COLUMN_NAME,
                 rc.DELETE_RULE,
                 rc.UPDATE_RULE
-            FROM `information_schema`.`KEY_COLUMN_USAGE` kcu
-            JOIN `information_schema`.`REFERENTIAL_CONSTRAINTS` rc
+            FROM information_schema.KEY_COLUMN_USAGE kcu
+            JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
                 ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
                 AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
             WHERE kcu.TABLE_SCHEMA = '\(dbName)'
@@ -329,12 +237,18 @@ final class MySQLDriver: DatabaseDriver {
         let baseQuery = stripLimitOffset(from: query)
         let countQuery = "SELECT COUNT(*) AS cnt FROM (\(baseQuery)) AS __count_subquery__"
 
-        let output = try await executeCommand(countQuery)
-        let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
+        let result = try await execute(query: countQuery)
 
-        // Skip header (cnt), get first data row
-        guard lines.count > 1 else { return 0 }
-        return Int(lines[1].trimmingCharacters(in: .whitespaces)) ?? 0
+        // Get the count from first row, first column
+        guard let firstRow = result.rows.first,
+            !firstRow.isEmpty,
+            let countStr = firstRow[0],
+            let count = Int(countStr)
+        else {
+            return 0
+        }
+
+        return count
     }
 
     func fetchRows(query: String, offset: Int, limit: Int) async throws -> QueryResult {
@@ -342,6 +256,33 @@ final class MySQLDriver: DatabaseDriver {
         let baseQuery = stripLimitOffset(from: query)
         let paginatedQuery = "\(baseQuery) LIMIT \(limit) OFFSET \(offset)"
         return try await execute(query: paginatedQuery)
+    }
+
+    // MARK: - Helpers
+
+    /// Extract table name from SELECT query
+    private func extractTableName(from query: String) -> String? {
+        let pattern = "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?"
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+            let match = regex.firstMatch(in: query, range: NSRange(query.startIndex..., in: query)),
+            let range = Range(match.range(at: 1), in: query)
+        else {
+            return nil
+        }
+        return String(query[range])
+    }
+
+    /// Fetch column names using DESCRIBE
+    private func fetchColumnNames(for tableName: String) async throws -> [String] {
+        let result = try await execute(query: "DESCRIBE `\(tableName)`")
+
+        var columns: [String] = []
+        for row in result.rows {
+            if let columnName = row.first ?? nil {
+                columns.append(columnName)
+            }
+        }
+        return columns
     }
 
     /// Remove LIMIT and OFFSET clauses from a query
@@ -363,120 +304,5 @@ final class MySQLDriver: DatabaseDriver {
         }
 
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    // MARK: - Helpers
-
-    private func executeCommand(_ query: String) async throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/mysql")
-
-        var arguments = [
-            "-h", connection.host,
-            "-P", String(connection.port),
-            "-u", connection.username,
-            "-B",  // Batch mode (tab-separated)
-            "--column-names",  // Always show column headers
-            "--default-auth=caching_sha2_password",  // Use modern auth plugin for MySQL 8+
-            "-e", query,
-        ]
-
-        if !connection.database.isEmpty {
-            arguments.insert(contentsOf: ["-D", connection.database], at: 0)
-        }
-
-        // Get password from Keychain
-        if let password = ConnectionStorage.shared.loadPassword(for: connection.id),
-            !password.isEmpty
-        {
-            arguments.append("-p\(password)")
-        }
-
-        process.arguments = arguments
-
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        let outputAccumulator = DataAccumulator()
-        let errorAccumulator = DataAccumulator()
-
-        let outputHandle = outputPipe.fileHandleForReading
-        let errorHandle = errorPipe.fileHandleForReading
-
-        return try await withCheckedThrowingContinuation { continuation in
-            // Set up async reading of stdout
-            outputHandle.readabilityHandler = { handle in
-                let data = handle.availableData
-                if data.isEmpty {
-                    outputHandle.readabilityHandler = nil
-                } else {
-                    outputAccumulator.append(data)
-                }
-            }
-
-            // Set up async reading of stderr
-            errorHandle.readabilityHandler = { handle in
-                let data = handle.availableData
-                if data.isEmpty {
-                    errorHandle.readabilityHandler = nil
-                } else {
-                    errorAccumulator.append(data)
-                }
-            }
-
-            process.terminationHandler = { proc in
-                // Ensure we read any remaining data
-                outputHandle.readabilityHandler = nil
-                errorHandle.readabilityHandler = nil
-
-                // Read any remaining data in the pipes
-                outputAccumulator.append(outputHandle.readDataToEndOfFile())
-                errorAccumulator.append(errorHandle.readDataToEndOfFile())
-
-                let outputData = outputAccumulator.data
-                let errorData = errorAccumulator.data
-
-                if proc.terminationStatus == 0 {
-                    // Try UTF-8 first, then fall back to ISO Latin 1 for non-UTF-8 data
-                    let output: String
-                    if let utf8String = String(data: outputData, encoding: .utf8) {
-                        output = utf8String
-                    } else if let latin1String = String(data: outputData, encoding: .isoLatin1) {
-                        print(
-                            "[MySQLDriver] Warning: Output contained non-UTF-8 data, using Latin-1 fallback"
-                        )
-                        output = latin1String
-                    } else {
-                        print(
-                            "[MySQLDriver] Error: Could not decode output data (\(outputData.count) bytes)"
-                        )
-                        output = ""
-                    }
-
-                    // Debug: log if output is suspiciously empty for a SELECT query
-                    if output.isEmpty && outputData.count > 0 {
-                        print(
-                            "[MySQLDriver] Warning: Output data was \(outputData.count) bytes but decoded to empty string"
-                        )
-                    }
-
-                    continuation.resume(returning: output)
-                } else {
-                    let errorMsg = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                    continuation.resume(throwing: DatabaseError.queryFailed(errorMsg))
-                }
-            }
-
-            do {
-                try process.run()
-            } catch {
-                outputHandle.readabilityHandler = nil
-                errorHandle.readabilityHandler = nil
-                continuation.resume(
-                    throwing: DatabaseError.connectionFailed(error.localizedDescription))
-            }
-        }
     }
 }

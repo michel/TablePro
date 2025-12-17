@@ -63,18 +63,14 @@ actor SQLSchemaProvider {
             return cached
         }
 
-        // Need to create a new connection to fetch columns
-        guard let connection = connectionInfo else {
-            print("[SQLSchemaProvider] No connection info for column loading")
+        // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
+        guard let driver = await DatabaseManager.shared.activeDriver else {
+            print("[SQLSchemaProvider] No active driver for column loading")
             return []
         }
 
         do {
-            let driver = await MainActor.run { DatabaseDriverFactory.createDriver(for: connection) }
-            try await driver.connect()
             let columns = try await driver.fetchColumns(table: tableName)
-            _ = await MainActor.run { driver.disconnect() }
-
             columnCache[tableName.lowercased()] = columns
             return columns
         } catch {

@@ -56,6 +56,9 @@ struct RowChange: Identifiable, Equatable {
 }
 
 /// Manager for tracking and applying data changes
+/// @MainActor ensures thread-safe access to all properties - critical for avoiding EXC_BAD_ACCESS
+/// when multiple queries complete simultaneously (e.g., rapid sorting over SSH tunnel)
+@MainActor
 final class DataChangeManager: ObservableObject {
     @Published var changes: [RowChange] = []
     @Published var hasChanges: Bool = false

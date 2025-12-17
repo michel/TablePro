@@ -101,24 +101,32 @@ struct DataGridView: NSViewRepresentable {
         // Check if data source changed or changes were cleared (after save)
         let versionChanged = coordinator.lastReloadVersion != changeManager.reloadVersion
 
+        // Use cached values for comparison to avoid potential issues with deallocated provider
+        let oldRowCount = coordinator.cachedRowCount
+        let oldColumnCount = coordinator.cachedColumnCount
+        let newRowCount = rowProvider.totalRowCount
+        let newColumnCount = rowProvider.columns.count
+
         // Check if row data changed (for sorting - same count but different order)
         let rowDataChanged: Bool = {
-            if coordinator.rowProvider.totalRowCount != rowProvider.totalRowCount {
+            if oldRowCount != newRowCount {
                 return true
             }
-            // Compare first row to detect sort changes
-            if let oldFirstRow = coordinator.rowProvider.row(at: 0),
-                let newFirstRow = rowProvider.row(at: 0),
-                oldFirstRow.values != newFirstRow.values
-            {
-                return true
+            // Only compare first row if counts match and both have data
+            if oldRowCount > 0 && newRowCount > 0 {
+                if let oldFirstRow = coordinator.rowProvider.row(at: 0),
+                    let newFirstRow = rowProvider.row(at: 0),
+                    oldFirstRow.values != newFirstRow.values
+                {
+                    return true
+                }
             }
             return false
         }()
 
         let needsReload =
-            coordinator.rowProvider.totalRowCount != rowProvider.totalRowCount
-            || coordinator.rowProvider.columns != rowProvider.columns
+            oldRowCount != newRowCount
+            || oldColumnCount != newColumnCount
             || versionChanged
             || rowDataChanged
 
@@ -127,6 +135,7 @@ struct DataGridView: NSViewRepresentable {
 
         // Update coordinator references
         coordinator.rowProvider = rowProvider
+        coordinator.updateCache()  // Update cached counts after provider change
         coordinator.changeManager = changeManager
         coordinator.isEditable = isEditable
         coordinator.onCommit = onCommit
@@ -237,6 +246,10 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     // Track reload version to detect changes cleared
     var lastReloadVersion: Int = 0
 
+    // Cache column count and row count to avoid accessing potentially invalid provider
+    private(set) var cachedRowCount: Int = 0
+    private(set) var cachedColumnCount: Int = 0
+
     // Cell reuse identifiers
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     private let rowNumberCellIdentifier = NSUserInterfaceItemIdentifier("RowNumberCell")
@@ -257,6 +270,14 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         self.onCommit = onCommit
         self.onRefresh = onRefresh
         self.onCellEdit = onCellEdit
+        super.init()
+        updateCache()
+    }
+
+    /// Update cached counts from current rowProvider
+    func updateCache() {
+        cachedRowCount = rowProvider.totalRowCount
+        cachedColumnCount = rowProvider.columns.count
     }
 
     /// Callback when column header clicked for sorting
@@ -270,7 +291,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     // MARK: - NSTableViewDataSource
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        return rowProvider.totalRowCount
+        // Use cached count for safety - updated when provider changes
+        return cachedRowCount
     }
 
     // MARK: - NSTableViewDelegate
@@ -332,6 +354,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             ])
         }
 
+        // Boundary check
+        guard row >= 0 && row < cachedRowCount else {
+            cell.stringValue = ""
+            return cellView
+        }
+
         cell.stringValue = "\(row + 1)"
 
         // Style deleted rows
@@ -388,8 +416,20 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         cell.delegate = self
         cell.identifier = cellIdentifier  // For editing callbacks
 
+        // Boundary check - return empty cell if row is out of bounds
+        guard row >= 0 && row < cachedRowCount else {
+            cell.stringValue = ""
+            return cellView
+        }
+
         // Get row data
         guard let rowData = rowProvider.row(at: row) else {
+            cell.stringValue = ""
+            return cellView
+        }
+
+        // Boundary check for column
+        guard columnIndex >= 0 && columnIndex < cachedColumnCount else {
             cell.stringValue = ""
             return cellView
         }
@@ -833,9 +873,6 @@ final class ClickableTableHeaderView: NSTableHeaderView {
         // Convert to data column index (subtract 1 for row number column)
         let dataColumnIndex = columnIndex - 1
         if dataColumnIndex >= 0 {
-            print(
-                "DEBUG: Column header clicked, dataColumnIndex: \(dataColumnIndex), onSort is \(onSort == nil ? "nil" : "set")"
-            )
             onSort?(dataColumnIndex)
         }
 

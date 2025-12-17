@@ -10,7 +10,7 @@ import SwiftUI
 /// Tab bar showing all open query tabs
 struct QueryTabBar: View {
     @ObservedObject var tabManager: QueryTabManager
-    
+
     var body: some View {
         HStack(spacing: 0) {
             // Tabs
@@ -30,9 +30,9 @@ struct QueryTabBar: View {
                 }
                 .padding(.horizontal, 4)
             }
-            
+
             Spacer()
-            
+
             // Add tab button
             Button(action: { tabManager.addTab() }) {
                 Image(systemName: "plus")
@@ -48,24 +48,24 @@ struct QueryTabBar: View {
         .frame(height: 32)
         .background(Color(nsColor: .windowBackgroundColor))
     }
-    
+
     @ViewBuilder
     private func tabContextMenu(for tab: QueryTab) -> some View {
         Button("Duplicate Tab") {
             tabManager.duplicateTab(tab)
         }
-        
+
         Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") {
             tabManager.togglePin(tab)
         }
-        
+
         Divider()
-        
+
         Button("Close Tab") {
             tabManager.closeTab(tab)
         }
         .disabled(tabManager.tabs.count <= 1)
-        
+
         Button("Close Other Tabs") {
             let pinnedTabs = tabManager.tabs.filter { $0.isPinned || $0.id == tab.id }
             tabManager.tabs = pinnedTabs.isEmpty ? [tab] : pinnedTabs
@@ -81,9 +81,9 @@ struct TabItem: View {
     let isSelected: Bool
     let onSelect: () -> Void
     let onClose: () -> Void
-    
+
     @State private var isHovering = false
-    
+
     var body: some View {
         HStack(spacing: 6) {
             // Pin indicator
@@ -92,7 +92,7 @@ struct TabItem: View {
                     .font(.caption2)
                     .foregroundStyle(.orange)
             }
-            
+
             // Executing indicator
             if tab.isExecuting {
                 ProgressView()
@@ -103,13 +103,13 @@ struct TabItem: View {
                     .font(.caption2)
                     .foregroundStyle(tab.tabType == .table ? .blue : .secondary)
             }
-            
+
             // Title
             Text(tab.title)
-                .font(.caption)
+                .font(.system(size: 12, weight: .medium))
                 .lineLimit(1)
                 .foregroundStyle(isSelected ? .primary : .secondary)
-            
+
             // Close button
             if isHovering && !tab.isPinned {
                 Button(action: onClose) {

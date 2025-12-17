@@ -247,12 +247,17 @@ struct TableBrowserView: View {
         isLoading = true
         errorMessage = nil
 
-        let driver = DatabaseDriverFactory.createDriver(for: connection)
+        // Use activeDriver from DatabaseManager (observer pattern ensures this is called when driver is ready)
+        guard let driver = await DatabaseManager.shared.activeDriver else {
+            await MainActor.run {
+                errorMessage = "Not connected"
+                isLoading = false
+            }
+            return
+        }
 
         do {
-            try await driver.connect()
             let fetchedTables = try await driver.fetchTables()
-            driver.disconnect()
 
             await MainActor.run {
                 tables = fetchedTables
