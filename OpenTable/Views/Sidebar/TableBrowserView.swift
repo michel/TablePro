@@ -13,12 +13,14 @@ struct TableBrowserView: View {
     let onSelectQuery: (String) -> Void
     var onOpenTable: ((String) -> Void)?  // Click to open table
     var activeTableName: String?  // Currently active table (synced with tab)
-    
+
     @State private var tables: [TableInfo] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var searchText: String = ""
-    
+    @State private var selectedIndex: Int? = nil  // Keyboard navigation index
+    @FocusState private var isFocused: Bool  // Focus state for keyboard navigation
+
     /// Filtered tables based on search text
     private var filteredTables: [TableInfo] {
         if searchText.isEmpty {
@@ -26,7 +28,7 @@ struct TableBrowserView: View {
         }
         return tables.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
@@ -34,9 +36,9 @@ struct TableBrowserView: View {
                 Text("Tables")
                     .font(.headline)
                     .foregroundStyle(.secondary)
-                
+
                 Spacer()
-                
+
                 Button(action: loadTables) {
                     Image(systemName: "arrow.clockwise")
                         .font(.caption)
@@ -46,17 +48,17 @@ struct TableBrowserView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            
+
             // Search field
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.tertiary)
                     .font(.caption)
-                
+
                 TextField("Filter tables...", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(.body, design: .default))
-                
+
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -72,9 +74,9 @@ struct TableBrowserView: View {
             .cornerRadius(6)
             .padding(.horizontal, 8)
             .padding(.bottom, 8)
-            
+
             Divider()
-            
+
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -114,73 +116,144 @@ struct TableBrowserView: View {
         .task {
             await loadTablesAsync()
         }
+        .onKeyPress(.downArrow) {
+            navigateDown()
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            navigateUp()
+            return .handled
+        }
+        .onKeyPress(.return) {
+            openSelectedTable()
+            return .handled
+        }
+        .onChange(of: searchText) { _, _ in
+            // Reset selection when search changes
+            selectedIndex = filteredTables.isEmpty ? nil : 0
+        }
     }
-    
+
     private var tableList: some View {
-        List {
-            ForEach(filteredTables) { table in
-                HStack(spacing: 6) {
-                    Image(systemName: table.type == .view ? "eye" : "tablecells")
-                        .font(.caption)
-                        .foregroundStyle(table.type == .view ? .purple : .blue)
-                    
-                    Text(table.name)
-                        .font(.system(.body, design: .monospaced))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    
-                    Spacer()
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(filteredTables.enumerated()), id: \.element.id) { index, table in
+                        HStack(spacing: 6) {
+                            Image(systemName: table.type == .view ? "eye" : "tablecells")
+                                .font(.caption)
+                                .foregroundStyle(table.type == .view ? .purple : .blue)
+
+                            Text(table.name)
+                                .font(.system(.body, design: .monospaced))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+
+                            Spacer()
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            backgroundColorForItem(table: table, index: index)
+                        )
+                        .cornerRadius(4)
+                        .contentShape(Rectangle())
+                        .id(table.id)
+                        .onTapGesture {
+                            selectedIndex = index
+                            isFocused = true  // Take focus for keyboard navigation
+                            onOpenTable?(table.name)
+                        }
+                        .contextMenu {
+                            Button("Copy Table Name") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(table.name, forType: .string)
+                            }
+                        }
+                    }
                 }
-                .padding(.vertical, 2)
                 .padding(.horizontal, 4)
-                .background(
-                    activeTableName == table.name ?
-                        Color.accentColor.opacity(0.2) :
-                        Color.clear
-                )
-                .cornerRadius(4)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    // Single-click to open table data
-                    onOpenTable?(table.name)
-                }
-                .contextMenu {
-                    Button("SELECT * FROM \(table.name)") {
-                        onSelectQuery("SELECT * FROM \(table.name);")
-                    }
-                    Button("SELECT COUNT(*) FROM \(table.name)") {
-                        onSelectQuery("SELECT COUNT(*) FROM \(table.name);")
-                    }
-                    Divider()
-                    Button("Copy Table Name") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(table.name, forType: .string)
+                .padding(.vertical, 4)
+            }
+            .focusable()
+            .focused($isFocused)
+            .focusEffectDisabled()
+            .onChange(of: selectedIndex) { _, newIndex in
+                // Scroll to selected item
+                if let index = newIndex, index < filteredTables.count {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        proxy.scrollTo(filteredTables[index].id, anchor: .center)
                     }
                 }
-                .listRowSeparator(.hidden)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
     }
-    
+
+    /// Determine background color for a table item
+    private func backgroundColorForItem(table: TableInfo, index: Int) -> Color {
+        if activeTableName == table.name {
+            return Color.accentColor.opacity(0.2)
+        } else if selectedIndex == index {
+            return Color.secondary.opacity(0.15)
+        }
+        return Color.clear
+    }
+
+    // MARK: - Keyboard Navigation
+
+    private func navigateDown() {
+        guard !filteredTables.isEmpty else { return }
+
+        if let current = selectedIndex {
+            selectedIndex = min(current + 1, filteredTables.count - 1)
+        } else {
+            selectedIndex = 0
+        }
+
+        // Auto-open the selected table
+        if let index = selectedIndex, index < filteredTables.count {
+            onOpenTable?(filteredTables[index].name)
+        }
+    }
+
+    private func navigateUp() {
+        guard !filteredTables.isEmpty else { return }
+
+        if let current = selectedIndex {
+            selectedIndex = max(current - 1, 0)
+        } else {
+            selectedIndex = filteredTables.count - 1
+        }
+
+        // Auto-open the selected table
+        if let index = selectedIndex, index < filteredTables.count {
+            onOpenTable?(filteredTables[index].name)
+        }
+    }
+
+    private func openSelectedTable() {
+        guard let index = selectedIndex, index < filteredTables.count else { return }
+        onOpenTable?(filteredTables[index].name)
+    }
+
     private func loadTables() {
         Task {
             await loadTablesAsync()
         }
     }
-    
+
     private func loadTablesAsync() async {
         isLoading = true
         errorMessage = nil
-        
+
         let driver = DatabaseDriverFactory.createDriver(for: connection)
-        
+
         do {
             try await driver.connect()
             let fetchedTables = try await driver.fetchTables()
             driver.disconnect()
-            
+
             await MainActor.run {
                 tables = fetchedTables
                 isLoading = false
@@ -192,7 +265,7 @@ struct TableBrowserView: View {
             }
         }
     }
-    
+
 }
 
 #Preview {

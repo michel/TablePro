@@ -5,12 +5,13 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import Combine
 import SwiftUI
 
 /// Main content view combining query editor and results table
 struct MainContentView: View {
     let connection: DatabaseConnection
-    
+
     @StateObject private var tabManager = QueryTabManager()
     @StateObject private var changeManager = DataChangeManager()
 
@@ -19,13 +20,14 @@ struct MainContentView: View {
     @State private var queryHistory: [QueryHistoryEntry] = []
     @State private var selectedRowIndices: Set<Int> = []
     @State private var showDiscardAlert: Bool = false
+    @State private var showCloseTabAlert: Bool = false
     @State private var schemaProvider: SQLSchemaProvider = SQLSchemaProvider()
     @State private var cursorPosition: Int = 0  // For query-at-cursor execution
-    
+
     private var currentTab: QueryTab? {
         tabManager.selectedTab
     }
-    
+
     var body: some View {
         HSplitView {
             // Table Browser (left) - toggle with Cmd+1
@@ -44,14 +46,14 @@ struct MainContentView: View {
                 )
                 .frame(minWidth: 150, idealWidth: 220, maxWidth: 400)
             }
-            
+
             // Main content (right)
             VStack(spacing: 0) {
                 // Tab bar
                 QueryTabBar(tabManager: tabManager)
-                
+
                 Divider()
-                
+
                 // Content for selected tab
                 if let tab = currentTab {
                     if tab.tabType == .query {
@@ -70,26 +72,26 @@ struct MainContentView: View {
                     Image(systemName: "sidebar.left")
                 }
                 .help("Toggle Table Browser")
-                
+
                 HStack(spacing: 6) {
                     Circle()
                         .fill(Color.green)
                         .frame(width: 8, height: 8)
-                    
+
                     Image(systemName: connection.type.iconName)
                         .foregroundStyle(connection.type.themeColor)
-                    
+
                     Text(connection.name)
                         .fontWeight(.medium)
                 }
             }
-            
+
             ToolbarItemGroup(placement: .primaryAction) {
                 Button(action: { showHistory.toggle() }) {
                     Image(systemName: "clock.arrow.circlepath")
                 }
                 .help("Query History")
-                
+
                 if currentTab?.isExecuting == true {
                     ProgressView()
                         .controlSize(.small)
@@ -123,12 +125,12 @@ struct MainContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .closeCurrentTab)) { _ in
-            if let tab = currentTab {
-                if tabManager.tabs.count > 1 {
-                    tabManager.closeTab(tab)
+            if currentTab != nil {
+                // Check for unsaved changes before closing
+                if changeManager.hasChanges {
+                    showCloseTabAlert = true
                 } else {
-                    // Last tab - go back to home (deselect connection)
-                    NotificationCenter.default.post(name: .deselectConnection, object: nil)
+                    closeCurrentTab()
                 }
             }
         }
@@ -149,18 +151,68 @@ struct MainContentView: View {
             deleteSelectedRows()
         }
         .alert("Discard Changes?", isPresented: $showDiscardAlert) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
             Button("Discard", role: .destructive) {
+                // Clear both changeManager and tab's stored pending changes
                 changeManager.clearChanges()
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].pendingChanges = TabPendingChanges()
+                }
                 runQuery()
             }
         } message: {
             Text("You have unsaved changes. Do you want to discard them and refresh?")
         }
+        .alert("Close Tab?", isPresented: $showCloseTabAlert) {
+            Button("Cancel", role: .cancel) {}
+            Button("Discard & Close", role: .destructive) {
+                // Clear both changeManager and tab's stored pending changes
+                changeManager.clearChanges()
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].pendingChanges = TabPendingChanges()
+                }
+                closeCurrentTab()
+            }
+        } message: {
+            Text("You have unsaved changes. Close this tab and discard changes?")
+        }
+        .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
+            // Save state to the old tab before switching
+            if let oldId = oldTabId,
+                let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId })
+            {
+                // Save pending changes
+                tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
+                // Save row selection
+                tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
+            }
+
+            // Restore state from the new tab
+            if let newId = newTabId,
+                let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId })
+            {
+                let newTab = tabManager.tabs[newIndex]
+
+                // Restore pending changes
+                if newTab.pendingChanges.hasChanges {
+                    changeManager.restoreState(
+                        from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
+                } else {
+                    // Clear changeManager for tabs without pending changes
+                    changeManager.discardChanges()
+                    changeManager.tableName = newTab.tableName ?? ""
+                    changeManager.columns = newTab.resultColumns
+                    changeManager.primaryKeyColumn = newTab.resultColumns.first
+                }
+
+                // Restore row selection
+                selectedRowIndices = newTab.selectedRowIndices
+            }
+        }
     }
-    
+
     // MARK: - Query Tab Content
-    
+
     private func queryTabContent(tab: QueryTab) -> some View {
         VSplitView {
             // Query Editor (top)
@@ -180,11 +232,11 @@ struct MainContentView: View {
                 )
             }
             .frame(minHeight: 100, idealHeight: 200)
-            
+
             // Results Table + History (bottom)
             VStack(spacing: 0) {
                 resultsSection(tab: tab)
-                
+
                 // History panel at bottom
                 if showHistory {
                     historyPanel
@@ -192,9 +244,9 @@ struct MainContentView: View {
             }
         }
     }
-    
+
     // MARK: - Table Tab Content
-    
+
     private func tableTabContent(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
             // Toolbar with Data/Structure toggle
@@ -203,59 +255,41 @@ struct MainContentView: View {
                     .foregroundStyle(.blue)
                 Text(tab.tableName ?? tab.title)
                     .font(.headline)
-                
+
                 Spacer()
-                
+
                 // Data/Structure toggle
-                Picker("", selection: Binding(
-                    get: { tab.showStructure ? "structure" : "data" },
-                    set: { newValue in
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].showStructure = (newValue == "structure")
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { tab.showStructure ? "structure" : "data" },
+                        set: { newValue in
+                            DispatchQueue.main.async {
+                                if let index = tabManager.selectedTabIndex {
+                                    tabManager.tabs[index].showStructure = (newValue == "structure")
+                                }
+                            }
                         }
-                    }
-                )) {
+                    )
+                ) {
                     Label("Data", systemImage: "tablecells").tag("data")
                     Label("Structure", systemImage: "list.bullet.rectangle").tag("structure")
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 180)
-                
+
                 Button(action: { runQuery() }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh Data")
-                
-                if !tab.resultColumns.isEmpty && !tab.showStructure {
-                    Button(action: {
-                        ResultExporter.copyToClipboard(columns: tab.resultColumns, rows: tab.resultRows)
-                    }) {
-                        Image(systemName: "doc.on.clipboard")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("Copy to Clipboard")
-                    
-                    Menu {
-                        Button("Export as CSV...") {
-                            ResultExporter.exportToCSVFile(columns: tab.resultColumns, rows: tab.resultRows)
-                        }
-                        Button("Export as JSON...") {
-                            ResultExporter.exportToJSONFile(columns: tab.resultColumns, rows: tab.resultRows)
-                        }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    .menuStyle(.borderlessButton)
-                    .help("Export Results")
-                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(Color(nsColor: .windowBackgroundColor))
-            
+
             Divider()
-            
+
             // Show structure view or data view based on toggle
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
@@ -265,10 +299,10 @@ struct MainContentView: View {
                 if let error = tab.errorMessage {
                     errorBanner(error)
                 }
-                
+
                 DataGridView(
                     rowProvider: InMemoryRowProvider(
-                        rows: tab.resultRows,
+                        rows: sortedRows(for: tab),
                         columns: tab.resultColumns,
                         columnDefaults: tab.columnDefaults
                     ),
@@ -281,30 +315,34 @@ struct MainContentView: View {
                     onCellEdit: { rowIndex, colIndex, newValue in
                         updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
                     },
-                    selectedRowIndices: $selectedRowIndices
+                    onSort: { columnIndex in
+                        handleSort(columnIndex: columnIndex)
+                    },
+                    selectedRowIndices: $selectedRowIndices,
+                    sortState: sortStateBinding
                 )
                 .frame(maxHeight: .infinity, alignment: .top)
             }
-            
+
             // History panel at bottom
             if showHistory {
                 historyPanel
             }
-            
+
             statusBar
         }
     }
-    
+
     // MARK: - Results Section (shared)
-    
+
     private func resultsSection(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
             resultsToolbar
-            
+
             if let error = tab.errorMessage {
                 errorBanner(error)
             }
-            
+
             // Show structure view or data view based on toggle
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
@@ -312,7 +350,7 @@ struct MainContentView: View {
             } else {
                 DataGridView(
                     rowProvider: InMemoryRowProvider(
-                        rows: tab.resultRows,
+                        rows: sortedRows(for: tab),
                         columns: tab.resultColumns,
                         columnDefaults: tab.columnDefaults
                     ),
@@ -325,29 +363,38 @@ struct MainContentView: View {
                     onCellEdit: { rowIndex, colIndex, newValue in
                         updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
                     },
-                    selectedRowIndices: $selectedRowIndices
+                    onSort: { columnIndex in
+                        handleSort(columnIndex: columnIndex)
+                    },
+                    selectedRowIndices: $selectedRowIndices,
+                    sortState: sortStateBinding
                 )
                 .frame(maxHeight: .infinity, alignment: .top)
             }
-            
+
             statusBar
         }
         .frame(minHeight: 150)
-    }    
+    }
     // MARK: - Results Toolbar
-    
+
     private var resultsToolbar: some View {
         HStack {
             // Data/Structure toggle for table tabs
             if let tab = currentTab, tab.tabType == .table, tab.tableName != nil {
-                Picker("", selection: Binding(
-                    get: { tab.showStructure ? "structure" : "data" },
-                    set: { newValue in
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].showStructure = (newValue == "structure")
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { tab.showStructure ? "structure" : "data" },
+                        set: { newValue in
+                            DispatchQueue.main.async {
+                                if let index = tabManager.selectedTabIndex {
+                                    tabManager.tabs[index].showStructure = (newValue == "structure")
+                                }
+                            }
                         }
-                    }
-                )) {
+                    )
+                ) {
                     Label("Data", systemImage: "tablecells").tag("data")
                     Label("Structure", systemImage: "list.bullet.rectangle").tag("structure")
                 }
@@ -358,9 +405,9 @@ struct MainContentView: View {
                     .font(.headline)
                     .foregroundStyle(.secondary)
             }
-            
+
             Spacer()
-            
+
             if let tab = currentTab, !tab.resultColumns.isEmpty, !tab.showStructure {
                 Button(action: {
                     ResultExporter.copyToClipboard(columns: tab.resultColumns, rows: tab.resultRows)
@@ -369,13 +416,15 @@ struct MainContentView: View {
                 }
                 .buttonStyle(.borderless)
                 .help("Copy to Clipboard")
-                
+
                 Menu {
                     Button("Export as CSV...") {
-                        ResultExporter.exportToCSVFile(columns: tab.resultColumns, rows: tab.resultRows)
+                        ResultExporter.exportToCSVFile(
+                            columns: tab.resultColumns, rows: tab.resultRows)
                     }
                     Button("Export as JSON...") {
-                        ResultExporter.exportToJSONFile(columns: tab.resultColumns, rows: tab.resultRows)
+                        ResultExporter.exportToJSONFile(
+                            columns: tab.resultColumns, rows: tab.resultRows)
                     }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
@@ -388,21 +437,21 @@ struct MainContentView: View {
         .padding(.vertical, 6)
         .background(Color(nsColor: .windowBackgroundColor))
     }
-    
+
     // MARK: - History Panel
-    
+
     private var historyPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             Divider()
-            
+
             HStack {
                 Text("History")
                     .font(.caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
-                
+
                 Spacer()
-                
+
                 Button("Clear") {
                     QueryHistoryManager.shared.clearHistory()
                     queryHistory = []
@@ -412,7 +461,7 @@ struct MainContentView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            
+
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(queryHistory.prefix(20)) { entry in
@@ -427,7 +476,7 @@ struct MainContentView: View {
                                     .font(.system(.caption, design: .monospaced))
                                     .lineLimit(1)
                                     .foregroundStyle(.primary)
-                                
+
                                 Text(entry.executedAt, style: .relative)
                                     .font(.caption2)
                                     .foregroundStyle(.tertiary)
@@ -444,9 +493,9 @@ struct MainContentView: View {
         }
         .background(Color(nsColor: .controlBackgroundColor))
     }
-    
+
     // MARK: - Status Bar
-    
+
     private var statusBar: some View {
         HStack {
             if let time = currentTab?.executionTime {
@@ -456,34 +505,33 @@ struct MainContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            
+
             Spacer()
-            
+
             if let tab = currentTab, !tab.resultRows.isEmpty {
                 Text("\(tab.resultRows.count) rows")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            
 
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .background(Color(nsColor: .controlBackgroundColor))
     }
-    
+
     // MARK: - Error Banner
-    
+
     private func errorBanner(_ message: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-            
+
             Text(message)
                 .font(.caption)
-            
+
             Spacer()
-            
+
             Button("Dismiss") {
                 if let index = tabManager.selectedTabIndex {
                     tabManager.tabs[index].errorMessage = nil
@@ -496,9 +544,9 @@ struct MainContentView: View {
         .padding(.vertical, 6)
         .background(Color.orange.opacity(0.15))
     }
-    
+
     // MARK: - Actions
-    
+
     private func testConnection() async {
         let driver = DatabaseDriverFactory.createDriver(for: connection)
         do {
@@ -510,7 +558,7 @@ struct MainContentView: View {
             }
         }
     }
-    
+
     private func loadSchema() async {
         let driver = DatabaseDriverFactory.createDriver(for: connection)
         do {
@@ -521,34 +569,36 @@ struct MainContentView: View {
             print("[MainContentView] Failed to load schema: \(error)")
         }
     }
-    
+
     private func runQuery() {
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
-        
+
         tabManager.tabs[index].isExecuting = true
         tabManager.tabs[index].executionTime = nil
         tabManager.tabs[index].errorMessage = nil
-        
-        // Clear pending changes when running new query
-        changeManager.discardChanges()
-        
+
+        // Note: We don't discard changes here anymore - changes persist until:
+        // 1. User saves (Cmd+S)
+        // 2. User explicitly discards (via alert)
+        // 3. Tab is closed
+
         let fullQuery = tabManager.tabs[index].query
-        
+
         // Extract query at cursor position (like TablePlus)
         let sql = extractQueryAtCursor(from: fullQuery, at: cursorPosition)
-        
+
         let conn = connection
         let tabId = tabManager.tabs[index].id
-        
+
         // Detect table name from simple SELECT queries
         let tableName = extractTableName(from: sql)
         let isEditable = tableName != nil
-        
+
         Task {
             do {
                 let result = try await executeQueryAsync(sql: sql, connection: conn)
-                
+
                 // Fetch column defaults if editable table
                 var columnDefaults: [String: String?] = [:]
                 if isEditable, let tableName = tableName {
@@ -556,12 +606,12 @@ struct MainContentView: View {
                     try await driver.connect()
                     let columnInfo = try await driver.fetchColumns(table: tableName)
                     driver.disconnect()
-                    
+
                     for col in columnInfo {
                         columnDefaults[col.name] = col.defaultValue
                     }
                 }
-                
+
                 // Find tab by ID (index may have changed) - must update on main thread
                 await MainActor.run {
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
@@ -573,17 +623,17 @@ struct MainContentView: View {
                         tabManager.tabs[idx].lastExecutedAt = Date()
                         tabManager.tabs[idx].tableName = tableName
                         tabManager.tabs[idx].isEditable = isEditable
-                        
+
                         // Configure change manager for this table
                         changeManager.tableName = tableName ?? ""
                         changeManager.columns = result.columns
                         // Default to first column as primary key (usually 'id')
                         changeManager.primaryKeyColumn = result.columns.first
-                        
+
                         // Force table reload with fresh data
                         changeManager.reloadVersion += 1
                     }
-                    
+
                     // Save to history
                     let entry = QueryHistoryEntry(
                         query: sql,
@@ -595,13 +645,13 @@ struct MainContentView: View {
                     QueryHistoryManager.shared.addEntry(entry)
                     queryHistory = QueryHistoryManager.shared.loadHistory()
                 }
-                
+
             } catch {
                 if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                     tabManager.tabs[idx].errorMessage = error.localizedDescription
                     tabManager.tabs[idx].isExecuting = false
                 }
-                
+
                 // Save failed query to history
                 let entry = QueryHistoryEntry(
                     query: sql,
@@ -613,43 +663,48 @@ struct MainContentView: View {
             }
         }
     }
-    
-    private func executeQueryAsync(sql: String, connection: DatabaseConnection) async throws -> QueryResult {
+
+    private func executeQueryAsync(sql: String, connection: DatabaseConnection) async throws
+        -> QueryResult
+    {
         let driver = DatabaseDriverFactory.createDriver(for: connection)
         try await driver.connect()
         let result = try await driver.execute(query: sql)
         driver.disconnect()
         return result
     }
-    
+
     /// Extract table name from a simple SELECT query
     private func extractTableName(from sql: String) -> String? {
-        let pattern = #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#
-        
+        let pattern =
+            #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#
+
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
-              let range = Range(match.range(at: 1), in: sql) else {
+            let match = regex.firstMatch(
+                in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
+            let range = Range(match.range(at: 1), in: sql)
+        else {
             return nil
         }
-        
+
         return String(sql[range])
     }
-    
+
     /// Extract the SQL statement at the cursor position (semicolon-delimited)
     /// This enables TablePlus-like behavior: execute only the current query, not all queries
     private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
         let trimmed = fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return trimmed }
-        
+
         // If no semicolons, return the entire query
         guard trimmed.contains(";") else { return trimmed }
-        
+
         // Split by semicolon but keep track of positions
         var statements: [(text: String, range: Range<Int>)] = []
         var currentStart = 0
         var inString = false
         var stringChar: Character = "\""
-        
+
         for (i, char) in fullQuery.enumerated() {
             // Track string literals to avoid splitting on semicolons inside strings
             if char == "'" || char == "\"" {
@@ -660,53 +715,63 @@ struct MainContentView: View {
                     inString = false
                 }
             }
-            
+
             // Found a statement delimiter
             if char == ";" && !inString {
-                let statement = String(fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)..<fullQuery.index(fullQuery.startIndex, offsetBy: i)])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let statement = String(
+                    fullQuery[
+                        fullQuery.index(
+                            fullQuery.startIndex, offsetBy: currentStart)..<fullQuery.index(
+                                fullQuery.startIndex, offsetBy: i)]
+                )
+                .trimmingCharacters(in: .whitespacesAndNewlines)
                 if !statement.isEmpty {
                     statements.append((text: statement, range: currentStart..<(i + 1)))
                 }
                 currentStart = i + 1
             }
         }
-        
+
         // Don't forget the last statement (may not end with ;)
         if currentStart < fullQuery.count {
-            let remaining = String(fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)...])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let remaining = String(
+                fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)...]
+            )
+            .trimmingCharacters(in: .whitespacesAndNewlines)
             if !remaining.isEmpty {
                 statements.append((text: remaining, range: currentStart..<fullQuery.count))
             }
         }
-        
+
         // Find the statement containing the cursor position
         let safePosition = min(max(0, position), fullQuery.count)
         for statement in statements {
-            if statement.range.contains(safePosition) || statement.range.upperBound == safePosition {
+            if statement.range.contains(safePosition) || statement.range.upperBound == safePosition
+            {
                 return statement.text
             }
         }
-        
+
         // If cursor is at end or no match, return last statement
         return statements.last?.text ?? trimmed
     }
-    
+
     /// Update cell value in the current tab's resultRows
     private func updateCellInTab(rowIndex: Int, columnIndex: Int, value: String?) {
         guard let index = tabManager.selectedTabIndex,
-              rowIndex < tabManager.tabs[index].resultRows.count else { return }
-        
+            rowIndex < tabManager.tabs[index].resultRows.count
+        else { return }
+
         // Update the underlying data so it persists across UI refreshes
         tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = value
     }
-    
+
     /// Delete selected rows (Delete key)
     private func deleteSelectedRows() {
         guard let index = tabManager.selectedTabIndex,
-              !selectedRowIndices.isEmpty else { return }
-        
+            !selectedRowIndices.isEmpty
+        else { return }
+
         // Mark each selected row for deletion
         for rowIndex in selectedRowIndices.sorted(by: >) {
             if rowIndex < tabManager.tabs[index].resultRows.count {
@@ -714,37 +779,141 @@ struct MainContentView: View {
                 changeManager.recordRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
             }
         }
-        
+
         // Clear selection after marking for deletion
         selectedRowIndices.removeAll()
     }
-    
+
+    // MARK: - Column Sorting
+
+    /// Binding for the current tab's sort state
+    private var sortStateBinding: Binding<SortState> {
+        Binding(
+            get: {
+                guard let index = tabManager.selectedTabIndex else {
+                    return SortState()
+                }
+                return tabManager.tabs[index].sortState
+            },
+            set: { newValue in
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].sortState = newValue
+                }
+            }
+        )
+    }
+
+    /// Get rows for a tab (sorting is done via SQL ORDER BY, so just return as-is)
+    private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
+        return tab.resultRows
+    }
+
+    /// Handle column header click for sorting (uses SQL ORDER BY)
+    private func handleSort(columnIndex: Int) {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+
+        let tab = tabManager.tabs[tabIndex]
+        guard columnIndex < tab.resultColumns.count else { return }
+
+        let columnName = tab.resultColumns[columnIndex]
+        var currentSort = tab.sortState
+
+        // Toggle direction if same column, otherwise start ascending
+        if currentSort.columnIndex == columnIndex {
+            currentSort.direction.toggle()
+        } else {
+            currentSort.columnIndex = columnIndex
+            currentSort.direction = .ascending
+        }
+
+        // Update sort state
+        tabManager.tabs[tabIndex].sortState = currentSort
+
+        // Build ORDER BY clause
+        let orderDirection = currentSort.direction == .ascending ? "ASC" : "DESC"
+
+        // Get base query (remove any existing ORDER BY)
+        var baseQuery = tab.query
+        if let orderByRange = baseQuery.range(
+            of: "ORDER BY", options: [.caseInsensitive, .backwards])
+        {
+            // Find the end of ORDER BY clause (before LIMIT or end of query)
+            let afterOrderBy = baseQuery[orderByRange.upperBound...]
+            if let limitRange = afterOrderBy.range(of: "LIMIT", options: .caseInsensitive) {
+                // Keep LIMIT, remove ORDER BY clause
+                let beforeOrderBy = baseQuery[..<orderByRange.lowerBound]
+                let limitClause = baseQuery[limitRange.lowerBound...]
+                baseQuery = String(beforeOrderBy) + String(limitClause)
+            } else if afterOrderBy.range(of: ";") != nil {
+                // Remove ORDER BY until semicolon
+                baseQuery = String(baseQuery[..<orderByRange.lowerBound]) + ";"
+            } else {
+                // Remove ORDER BY until end
+                baseQuery = String(baseQuery[..<orderByRange.lowerBound])
+            }
+        }
+
+        // Insert ORDER BY before LIMIT (if exists) or at end
+        let orderByClause = "ORDER BY `\(columnName)` \(orderDirection)"
+        if let limitRange = baseQuery.range(of: "LIMIT", options: .caseInsensitive) {
+            let beforeLimit = baseQuery[..<limitRange.lowerBound].trimmingCharacters(
+                in: .whitespaces)
+            let limitClause = baseQuery[limitRange.lowerBound...]
+            tabManager.tabs[tabIndex].query = "\(beforeLimit) \(orderByClause) \(limitClause)"
+        } else {
+            // Remove trailing semicolon and add ORDER BY
+            let trimmed = baseQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasSuffix(";") {
+                tabManager.tabs[tabIndex].query = String(trimmed.dropLast()) + " \(orderByClause);"
+            } else {
+                tabManager.tabs[tabIndex].query = "\(trimmed) \(orderByClause)"
+            }
+        }
+
+        // Re-execute query to fetch sorted data
+        runQuery()
+    }
+
+    /// Close the current tab or go back to home if it's the last tab
+    private func closeCurrentTab() {
+        guard let tab = currentTab else { return }
+
+        if tabManager.tabs.count > 1 {
+            tabManager.closeTab(tab)
+        } else {
+            // Last tab - go back to home (deselect connection)
+            NotificationCenter.default.post(name: .deselectConnection, object: nil)
+        }
+    }
+
     /// Save pending changes (Cmd+S)
     private func saveChanges() {
         guard changeManager.hasChanges else { return }
-        
+
         let statements = changeManager.generateSQL()
         guard !statements.isEmpty else { return }
-        
+
         let sql = statements.joined(separator: ";\n")
         executeCommitSQL(sql)
     }
-    
+
     /// Execute commit SQL and refresh data
     private func executeCommitSQL(_ sql: String) {
         guard !sql.isEmpty else { return }
-        
+
         Task {
             do {
                 let driver = DatabaseDriverFactory.createDriver(for: connection)
                 try await driver.connect()
-                
+
                 // Execute each statement
-                let statements = sql.components(separatedBy: ";").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-                
+                let statements = sql.components(separatedBy: ";").filter {
+                    !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                }
+
                 for statement in statements {
                     _ = try await driver.execute(query: statement)
-                    
+
                     // Add to history
                     await MainActor.run {
                         let entry = QueryHistoryEntry(
@@ -758,17 +927,21 @@ struct MainContentView: View {
                         queryHistory = QueryHistoryManager.shared.loadHistory()
                     }
                 }
-                
+
                 driver.disconnect()
-                
+
                 // Clear pending changes since they're now saved
                 await MainActor.run {
                     changeManager.clearChanges()
+                    // Also clear the tab's stored pending changes
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].pendingChanges = TabPendingChanges()
+                    }
                 }
-                
+
                 // Refresh the current query to show updated data
                 runQuery()
-                
+
             } catch {
                 if let index = tabManager.selectedTabIndex {
                     tabManager.tabs[index].errorMessage = error.localizedDescription
@@ -776,14 +949,26 @@ struct MainContentView: View {
             }
         }
     }
-    
-    /// Open table data on double-click (like TablePlus)
+
+    /// Open table data (TablePlus-style smart tab behavior)
+    /// - Reuses clean table tabs instead of creating new ones
+    /// - Creates new tab if current tab has unsaved changes or is a query tab
+    /// - Preserves pending changes per-tab when switching
     private func openTableData(_ tableName: String) {
-        // Create or switch to table tab
-        tabManager.addTableTab(tableName: tableName)
-        
-        // Auto-execute query
-        runQuery()
+        // Note: Save/restore of pending changes is handled by onChange(of: selectedTabId)
+        // which fires whenever the selected tab changes
+
+        // Use smart tab opening - reuse clean table tabs
+        // Returns true if we need to run query (new/replaced tab), false if just switching to existing
+        let needsQuery = tabManager.openTableTabSmart(
+            tableName: tableName, hasUnsavedChanges: changeManager.hasChanges)
+
+        // Clear selection for new/replaced tabs (prevents old selection from leaking)
+        // For existing tabs, onChange will restore their saved selection
+        if needsQuery {
+            selectedRowIndices = []
+            runQuery()
+        }
     }
 }
 
