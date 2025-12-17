@@ -7,6 +7,16 @@
 
 import Foundation
 
+/// Represents a row of query results for UI display
+struct QueryResultRow: Identifiable, Equatable {
+    let id = UUID()
+    var values: [String?]
+    
+    static func == (lhs: QueryResultRow, rhs: QueryResultRow) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
 /// Result of a database query execution
 struct QueryResult {
     let columns: [String]
@@ -55,9 +65,9 @@ enum DatabaseError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .connectionFailed(let message):
-            return "Connection failed: \(message)"
+            return message
         case .queryFailed(let message):
-            return "Query failed: \(message)"
+            return message
         case .invalidCredentials:
             return "Invalid username or password"
         case .fileNotFound(let path):
@@ -93,6 +103,27 @@ struct ColumnInfo: Identifiable, Hashable {
     let isPrimaryKey: Bool
     let defaultValue: String?
     let extra: String?
+}
+
+/// Information about a table index
+struct IndexInfo: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let columns: [String]
+    let isUnique: Bool
+    let isPrimary: Bool
+    let type: String  // BTREE, HASH, FULLTEXT, etc.
+}
+
+/// Information about a foreign key relationship
+struct ForeignKeyInfo: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let column: String
+    let referencedTable: String
+    let referencedColumn: String
+    let onDelete: String  // CASCADE, SET NULL, RESTRICT, NO ACTION
+    let onUpdate: String
 }
 
 /// Connection status

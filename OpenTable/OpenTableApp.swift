@@ -24,8 +24,13 @@ struct OpenTableApp: App {
                 .keyboardShortcut("n", modifiers: .command)
             }
             
-            // File menu - Close Tab
+            // File menu - Save & Close
             CommandGroup(after: .newItem) {
+                Button("Save Changes") {
+                    NotificationCenter.default.post(name: .saveChanges, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: .command)
+                
                 Button("Close Tab") {
                     NotificationCenter.default.post(name: .closeCurrentTab, object: nil)
                 }
@@ -39,12 +44,22 @@ struct OpenTableApp: App {
                 }
                 .keyboardShortcut(.return, modifiers: .command)
                 
+                Button("Refresh Data") {
+                    NotificationCenter.default.post(name: .refreshData, object: nil)
+                }
+                .keyboardShortcut("r", modifiers: .command)
+                
                 Button("Format Query") {
                     NotificationCenter.default.post(name: .formatQuery, object: nil)
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
                 
                 Divider()
+                
+                Button("Delete Selected Rows") {
+                    NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+                }
+                .keyboardShortcut(.delete, modifiers: [])
                 
                 Button("Clear Query") {
                     NotificationCenter.default.post(name: .clearQuery, object: nil)
@@ -102,4 +117,7 @@ extension Notification.Name {
     static let copyResults = Notification.Name("copyResults")
     static let closeCurrentTab = Notification.Name("closeCurrentTab")
     static let deselectConnection = Notification.Name("deselectConnection")
+    static let saveChanges = Notification.Name("saveChanges")
+    static let refreshData = Notification.Name("refreshData")
+    static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
 }

@@ -13,10 +13,14 @@ struct MainContentView: View {
     
     @StateObject private var tabManager = QueryTabManager()
     @StateObject private var changeManager = DataChangeManager()
-    @State private var connectionState: String = "Connecting..."
+
     @State private var showTableBrowser: Bool = true
     @State private var showHistory: Bool = false
     @State private var queryHistory: [QueryHistoryEntry] = []
+    @State private var selectedRowIndices: Set<Int> = []
+    @State private var showDiscardAlert: Bool = false
+    @State private var schemaProvider: SQLSchemaProvider = SQLSchemaProvider()
+    @State private var cursorPosition: Int = 0  // For query-at-cursor execution
     
     private var currentTab: QueryTab? {
         tabManager.selectedTab
@@ -24,7 +28,7 @@ struct MainContentView: View {
     
     var body: some View {
         HSplitView {
-            // Table Browser (left)
+            // Table Browser (left) - toggle with Cmd+1
             if showTableBrowser {
                 TableBrowserView(
                     connection: connection,
@@ -38,7 +42,7 @@ struct MainContentView: View {
                     },
                     activeTableName: currentTab?.tableName
                 )
-                .frame(minWidth: 180, idealWidth: 220, maxWidth: 300)
+                .frame(minWidth: 150, idealWidth: 220, maxWidth: 400)
             }
             
             // Main content (right)
@@ -69,7 +73,7 @@ struct MainContentView: View {
                 
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(connectionState == "Connected" ? Color.green : Color.orange)
+                        .fill(Color.green)
                         .frame(width: 8, height: 8)
                     
                     Image(systemName: connection.type.iconName)
@@ -94,6 +98,7 @@ struct MainContentView: View {
         }
         .task {
             await testConnection()
+            await loadSchema()
             queryHistory = QueryHistoryManager.shared.loadHistory()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleTableBrowser)) { _ in
@@ -127,6 +132,31 @@ struct MainContentView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .saveChanges)) { _ in
+            // Cmd+S to save changes
+            saveChanges()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshData)) { _ in
+            // Cmd+R to refresh data - warn if pending changes
+            if changeManager.hasChanges {
+                showDiscardAlert = true
+            } else {
+                runQuery()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
+            // Delete key to mark selected rows for deletion
+            deleteSelectedRows()
+        }
+        .alert("Discard Changes?", isPresented: $showDiscardAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Discard", role: .destructive) {
+                changeManager.clearChanges()
+                runQuery()
+            }
+        } message: {
+            Text("You have unsaved changes. Do you want to discard them and refresh?")
+        }
     }
     
     // MARK: - Query Tab Content
@@ -144,18 +174,22 @@ struct MainContentView: View {
                             }
                         }
                     ),
-                    onExecute: runQuery
+                    cursorPosition: $cursorPosition,
+                    onExecute: runQuery,
+                    schemaProvider: schemaProvider
                 )
+            }
+            .frame(minHeight: 100, idealHeight: 200)
+            
+            // Results Table + History (bottom)
+            VStack(spacing: 0) {
+                resultsSection(tab: tab)
                 
-                // History panel
+                // History panel at bottom
                 if showHistory {
                     historyPanel
                 }
             }
-            .frame(minHeight: 100, idealHeight: 200)
-            
-            // Results Table (bottom)
-            resultsSection(tab: tab)
         }
     }
     
@@ -163,7 +197,7 @@ struct MainContentView: View {
     
     private func tableTabContent(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
-            // Toolbar with refresh button
+            // Toolbar with Data/Structure toggle
             HStack {
                 Image(systemName: "tablecells")
                     .foregroundStyle(.blue)
@@ -172,13 +206,28 @@ struct MainContentView: View {
                 
                 Spacer()
                 
+                // Data/Structure toggle
+                Picker("", selection: Binding(
+                    get: { tab.showStructure ? "structure" : "data" },
+                    set: { newValue in
+                        if let index = tabManager.selectedTabIndex {
+                            tabManager.tabs[index].showStructure = (newValue == "structure")
+                        }
+                    }
+                )) {
+                    Label("Data", systemImage: "tablecells").tag("data")
+                    Label("Structure", systemImage: "list.bullet.rectangle").tag("structure")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+                
                 Button(action: { runQuery() }) {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
                 .help("Refresh Data")
                 
-                if !tab.resultColumns.isEmpty {
+                if !tab.resultColumns.isEmpty && !tab.showStructure {
                     Button(action: {
                         ResultExporter.copyToClipboard(columns: tab.resultColumns, rows: tab.resultRows)
                     }) {
@@ -207,28 +256,40 @@ struct MainContentView: View {
             
             Divider()
             
-            // Results
-            if let error = tab.errorMessage {
-                errorBanner(error)
+            // Show structure view or data view based on toggle
+            if tab.showStructure, let tableName = tab.tableName {
+                TableStructureView(tableName: tableName, connection: connection)
+                    .frame(maxHeight: .infinity)
+            } else {
+                // Data view
+                if let error = tab.errorMessage {
+                    errorBanner(error)
+                }
+                
+                DataGridView(
+                    rowProvider: InMemoryRowProvider(
+                        rows: tab.resultRows,
+                        columns: tab.resultColumns,
+                        columnDefaults: tab.columnDefaults
+                    ),
+                    changeManager: changeManager,
+                    isEditable: tab.isEditable,
+                    onCommit: { sql in
+                        executeCommitSQL(sql)
+                    },
+                    onRefresh: { runQuery() },
+                    onCellEdit: { rowIndex, colIndex, newValue in
+                        updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
+                    },
+                    selectedRowIndices: $selectedRowIndices
+                )
+                .frame(maxHeight: .infinity, alignment: .top)
             }
             
-            EditableResultsTableView(
-                columns: tab.resultColumns,
-                rows: Binding(
-                    get: { tab.resultRows },
-                    set: { newRows in
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].resultRows = newRows
-                        }
-                    }
-                ),
-                changeManager: changeManager,
-                isEditable: tab.isEditable,
-                onCommit: { sql in
-                    executeCommitSQL(sql)
-                }
-            )
-            .frame(maxHeight: .infinity, alignment: .top)
+            // History panel at bottom
+            if showHistory {
+                historyPanel
+            }
             
             statusBar
         }
@@ -244,23 +305,30 @@ struct MainContentView: View {
                 errorBanner(error)
             }
             
-            EditableResultsTableView(
-                columns: tab.resultColumns,
-                rows: Binding(
-                    get: { tab.resultRows },
-                    set: { newRows in
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].resultRows = newRows
-                        }
-                    }
-                ),
-                changeManager: changeManager,
-                isEditable: tab.isEditable,
-                onCommit: { sql in
-                    executeCommitSQL(sql)
-                }
-            )
-            .frame(maxHeight: .infinity, alignment: .top)
+            // Show structure view or data view based on toggle
+            if tab.showStructure, let tableName = tab.tableName {
+                TableStructureView(tableName: tableName, connection: connection)
+                    .frame(maxHeight: .infinity)
+            } else {
+                DataGridView(
+                    rowProvider: InMemoryRowProvider(
+                        rows: tab.resultRows,
+                        columns: tab.resultColumns,
+                        columnDefaults: tab.columnDefaults
+                    ),
+                    changeManager: changeManager,
+                    isEditable: tab.isEditable,
+                    onCommit: { sql in
+                        executeCommitSQL(sql)
+                    },
+                    onRefresh: { runQuery() },
+                    onCellEdit: { rowIndex, colIndex, newValue in
+                        updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
+                    },
+                    selectedRowIndices: $selectedRowIndices
+                )
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
             
             statusBar
         }
@@ -270,13 +338,30 @@ struct MainContentView: View {
     
     private var resultsToolbar: some View {
         HStack {
-            Text("Results")
-                .font(.headline)
-                .foregroundStyle(.secondary)
+            // Data/Structure toggle for table tabs
+            if let tab = currentTab, tab.tabType == .table, tab.tableName != nil {
+                Picker("", selection: Binding(
+                    get: { tab.showStructure ? "structure" : "data" },
+                    set: { newValue in
+                        if let index = tabManager.selectedTabIndex {
+                            tabManager.tabs[index].showStructure = (newValue == "structure")
+                        }
+                    }
+                )) {
+                    Label("Data", systemImage: "tablecells").tag("data")
+                    Label("Structure", systemImage: "list.bullet.rectangle").tag("structure")
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 180)
+            } else {
+                Text("Results")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+            }
             
             Spacer()
             
-            if let tab = currentTab, !tab.resultColumns.isEmpty {
+            if let tab = currentTab, !tab.resultColumns.isEmpty, !tab.showStructure {
                 Button(action: {
                     ResultExporter.copyToClipboard(columns: tab.resultColumns, rows: tab.resultRows)
                 }) {
@@ -380,9 +465,7 @@ struct MainContentView: View {
                     .foregroundStyle(.secondary)
             }
             
-            Text(connectionState)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
@@ -420,13 +503,22 @@ struct MainContentView: View {
         let driver = DatabaseDriverFactory.createDriver(for: connection)
         do {
             try await driver.connect()
-            connectionState = "Connected"
             driver.disconnect()
         } catch {
-            connectionState = "Failed"
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = error.localizedDescription
             }
+        }
+    }
+    
+    private func loadSchema() async {
+        let driver = DatabaseDriverFactory.createDriver(for: connection)
+        do {
+            try await driver.connect()
+            await schemaProvider.loadSchema(using: driver, connection: connection)
+            driver.disconnect()
+        } catch {
+            print("[MainContentView] Failed to load schema: \(error)")
         }
     }
     
@@ -441,7 +533,11 @@ struct MainContentView: View {
         // Clear pending changes when running new query
         changeManager.discardChanges()
         
-        let sql = tabManager.tabs[index].query
+        let fullQuery = tabManager.tabs[index].query
+        
+        // Extract query at cursor position (like TablePlus)
+        let sql = extractQueryAtCursor(from: fullQuery, at: cursorPosition)
+        
         let conn = connection
         let tabId = tabManager.tabs[index].id
         
@@ -453,31 +549,52 @@ struct MainContentView: View {
             do {
                 let result = try await executeQueryAsync(sql: sql, connection: conn)
                 
-                // Find tab by ID (index may have changed)
-                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                    tabManager.tabs[idx].resultColumns = result.columns
-                    tabManager.tabs[idx].resultRows = result.toQueryResultRows()
-                    tabManager.tabs[idx].executionTime = result.executionTime
-                    tabManager.tabs[idx].isExecuting = false
-                    tabManager.tabs[idx].lastExecutedAt = Date()
-                    tabManager.tabs[idx].tableName = tableName
-                    tabManager.tabs[idx].isEditable = isEditable
+                // Fetch column defaults if editable table
+                var columnDefaults: [String: String?] = [:]
+                if isEditable, let tableName = tableName {
+                    let driver = DatabaseDriverFactory.createDriver(for: conn)
+                    try await driver.connect()
+                    let columnInfo = try await driver.fetchColumns(table: tableName)
+                    driver.disconnect()
                     
-                    // Configure change manager for this table
-                    changeManager.tableName = tableName ?? ""
-                    changeManager.columns = result.columns
+                    for col in columnInfo {
+                        columnDefaults[col.name] = col.defaultValue
+                    }
                 }
                 
-                // Save to history
-                let entry = QueryHistoryEntry(
-                    query: sql,
-                    connectionName: conn.name,
-                    rowCount: result.rowCount,
-                    executionTime: result.executionTime,
-                    wasSuccessful: true
-                )
-                QueryHistoryManager.shared.addEntry(entry)
-                queryHistory = QueryHistoryManager.shared.loadHistory()
+                // Find tab by ID (index may have changed) - must update on main thread
+                await MainActor.run {
+                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                        tabManager.tabs[idx].resultColumns = result.columns
+                        tabManager.tabs[idx].columnDefaults = columnDefaults
+                        tabManager.tabs[idx].resultRows = result.toQueryResultRows()
+                        tabManager.tabs[idx].executionTime = result.executionTime
+                        tabManager.tabs[idx].isExecuting = false
+                        tabManager.tabs[idx].lastExecutedAt = Date()
+                        tabManager.tabs[idx].tableName = tableName
+                        tabManager.tabs[idx].isEditable = isEditable
+                        
+                        // Configure change manager for this table
+                        changeManager.tableName = tableName ?? ""
+                        changeManager.columns = result.columns
+                        // Default to first column as primary key (usually 'id')
+                        changeManager.primaryKeyColumn = result.columns.first
+                        
+                        // Force table reload with fresh data
+                        changeManager.reloadVersion += 1
+                    }
+                    
+                    // Save to history
+                    let entry = QueryHistoryEntry(
+                        query: sql,
+                        connectionName: conn.name,
+                        rowCount: result.rowCount,
+                        executionTime: result.executionTime,
+                        wasSuccessful: true
+                    )
+                    QueryHistoryManager.shared.addEntry(entry)
+                    queryHistory = QueryHistoryManager.shared.loadHistory()
+                }
                 
             } catch {
                 if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
@@ -518,6 +635,101 @@ struct MainContentView: View {
         return String(sql[range])
     }
     
+    /// Extract the SQL statement at the cursor position (semicolon-delimited)
+    /// This enables TablePlus-like behavior: execute only the current query, not all queries
+    private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
+        let trimmed = fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return trimmed }
+        
+        // If no semicolons, return the entire query
+        guard trimmed.contains(";") else { return trimmed }
+        
+        // Split by semicolon but keep track of positions
+        var statements: [(text: String, range: Range<Int>)] = []
+        var currentStart = 0
+        var inString = false
+        var stringChar: Character = "\""
+        
+        for (i, char) in fullQuery.enumerated() {
+            // Track string literals to avoid splitting on semicolons inside strings
+            if char == "'" || char == "\"" {
+                if !inString {
+                    inString = true
+                    stringChar = char
+                } else if char == stringChar {
+                    inString = false
+                }
+            }
+            
+            // Found a statement delimiter
+            if char == ";" && !inString {
+                let statement = String(fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)..<fullQuery.index(fullQuery.startIndex, offsetBy: i)])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if !statement.isEmpty {
+                    statements.append((text: statement, range: currentStart..<(i + 1)))
+                }
+                currentStart = i + 1
+            }
+        }
+        
+        // Don't forget the last statement (may not end with ;)
+        if currentStart < fullQuery.count {
+            let remaining = String(fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)...])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !remaining.isEmpty {
+                statements.append((text: remaining, range: currentStart..<fullQuery.count))
+            }
+        }
+        
+        // Find the statement containing the cursor position
+        let safePosition = min(max(0, position), fullQuery.count)
+        for statement in statements {
+            if statement.range.contains(safePosition) || statement.range.upperBound == safePosition {
+                return statement.text
+            }
+        }
+        
+        // If cursor is at end or no match, return last statement
+        return statements.last?.text ?? trimmed
+    }
+    
+    /// Update cell value in the current tab's resultRows
+    private func updateCellInTab(rowIndex: Int, columnIndex: Int, value: String?) {
+        guard let index = tabManager.selectedTabIndex,
+              rowIndex < tabManager.tabs[index].resultRows.count else { return }
+        
+        // Update the underlying data so it persists across UI refreshes
+        tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = value
+    }
+    
+    /// Delete selected rows (Delete key)
+    private func deleteSelectedRows() {
+        guard let index = tabManager.selectedTabIndex,
+              !selectedRowIndices.isEmpty else { return }
+        
+        // Mark each selected row for deletion
+        for rowIndex in selectedRowIndices.sorted(by: >) {
+            if rowIndex < tabManager.tabs[index].resultRows.count {
+                let originalRow = tabManager.tabs[index].resultRows[rowIndex].values
+                changeManager.recordRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
+            }
+        }
+        
+        // Clear selection after marking for deletion
+        selectedRowIndices.removeAll()
+    }
+    
+    /// Save pending changes (Cmd+S)
+    private func saveChanges() {
+        guard changeManager.hasChanges else { return }
+        
+        let statements = changeManager.generateSQL()
+        guard !statements.isEmpty else { return }
+        
+        let sql = statements.joined(separator: ";\n")
+        executeCommitSQL(sql)
+    }
+    
     /// Execute commit SQL and refresh data
     private func executeCommitSQL(_ sql: String) {
         guard !sql.isEmpty else { return }
@@ -532,16 +744,34 @@ struct MainContentView: View {
                 
                 for statement in statements {
                     _ = try await driver.execute(query: statement)
+                    
+                    // Add to history
+                    await MainActor.run {
+                        let entry = QueryHistoryEntry(
+                            query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
+                            connectionName: connection.name,
+                            rowCount: 1,
+                            executionTime: 0,
+                            wasSuccessful: true
+                        )
+                        QueryHistoryManager.shared.addEntry(entry)
+                        queryHistory = QueryHistoryManager.shared.loadHistory()
+                    }
                 }
                 
                 driver.disconnect()
+                
+                // Clear pending changes since they're now saved
+                await MainActor.run {
+                    changeManager.clearChanges()
+                }
                 
                 // Refresh the current query to show updated data
                 runQuery()
                 
             } catch {
                 if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage = "Commit failed: \(error.localizedDescription)"
+                    tabManager.tabs[index].errorMessage = error.localizedDescription
                 }
             }
         }

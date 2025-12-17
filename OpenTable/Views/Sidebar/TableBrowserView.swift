@@ -15,10 +15,17 @@ struct TableBrowserView: View {
     var activeTableName: String?  // Currently active table (synced with tab)
     
     @State private var tables: [TableInfo] = []
-    @State private var expandedTables: Set<String> = []
-    @State private var tableColumns: [String: [ColumnInfo]] = [:]
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var searchText: String = ""
+    
+    /// Filtered tables based on search text
+    private var filteredTables: [TableInfo] {
+        if searchText.isEmpty {
+            return tables
+        }
+        return tables.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -39,6 +46,32 @@ struct TableBrowserView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
+            
+            // Search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.tertiary)
+                    .font(.caption)
+                
+                TextField("Filter tables...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(.body, design: .default))
+                
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                            .font(.caption)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .cornerRadius(6)
+            .padding(.horizontal, 8)
+            .padding(.bottom, 8)
             
             Divider()
             
@@ -64,6 +97,16 @@ struct TableBrowserView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredTables.isEmpty {
+                VStack {
+                    Image(systemName: "magnifyingglass")
+                        .font(.title)
+                        .foregroundStyle(.tertiary)
+                    Text("No matching tables")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 tableList
             }
@@ -75,77 +118,43 @@ struct TableBrowserView: View {
     
     private var tableList: some View {
         List {
-            ForEach(tables) { table in
-                DisclosureGroup(
-                    isExpanded: Binding(
-                        get: { expandedTables.contains(table.name) },
-                        set: { isExpanded in
-                            if isExpanded {
-                                expandedTables.insert(table.name)
-                                loadColumns(for: table.name)
-                            } else {
-                                expandedTables.remove(table.name)
-                            }
-                        }
-                    )
-                ) {
-                    // Columns
-                    if let columns = tableColumns[table.name] {
-                        ForEach(columns) { column in
-                            HStack(spacing: 6) {
-                                Image(systemName: column.isPrimaryKey ? "key.fill" : "minus")
-                                    .font(.caption2)
-                                    .foregroundColor(column.isPrimaryKey ? .yellow : .gray)
-                                    .frame(width: 12)
-                                
-                                Text(column.name)
-                                    .font(.system(.caption, design: .monospaced))
-                                
-                                Spacer()
-                                
-                                Text(column.dataType)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.leading, 8)
-                        }
+            ForEach(filteredTables) { table in
+                HStack(spacing: 6) {
+                    Image(systemName: table.type == .view ? "eye" : "tablecells")
+                        .font(.caption)
+                        .foregroundStyle(table.type == .view ? .purple : .blue)
+                    
+                    Text(table.name)
+                        .font(.system(.body, design: .monospaced))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    
+                    Spacer()
+                }
+                .padding(.vertical, 2)
+                .padding(.horizontal, 4)
+                .background(
+                    activeTableName == table.name ?
+                        Color.accentColor.opacity(0.2) :
+                        Color.clear
+                )
+                .cornerRadius(4)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Single-click to open table data
+                    onOpenTable?(table.name)
+                }
+                .contextMenu {
+                    Button("SELECT * FROM \(table.name)") {
+                        onSelectQuery("SELECT * FROM \(table.name);")
                     }
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: table.type == .view ? "eye" : "tablecells")
-                            .font(.caption)
-                            .foregroundStyle(table.type == .view ? .purple : .blue)
-                        
-                        Text(table.name)
-                            .font(.system(.body, design: .monospaced))
-                        
-                        Spacer()
+                    Button("SELECT COUNT(*) FROM \(table.name)") {
+                        onSelectQuery("SELECT COUNT(*) FROM \(table.name);")
                     }
-                    .padding(.vertical, 2)
-                    .padding(.horizontal, 4)
-                    .background(
-                        activeTableName == table.name ?
-                            Color.accentColor.opacity(0.2) :
-                            Color.clear
-                    )
-                    .cornerRadius(4)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        // Single-click to open table data
-                        onOpenTable?(table.name)
-                    }
-                    .contextMenu {
-                        Button("SELECT * FROM \(table.name)") {
-                            onSelectQuery("SELECT * FROM \(table.name);")
-                        }
-                        Button("SELECT COUNT(*) FROM \(table.name)") {
-                            onSelectQuery("SELECT COUNT(*) FROM \(table.name);")
-                        }
-                        Divider()
-                        Button("Copy Table Name") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(table.name, forType: .string)
-                        }
+                    Divider()
+                    Button("Copy Table Name") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(table.name, forType: .string)
                     }
                 }
                 .listRowSeparator(.hidden)
@@ -184,25 +193,6 @@ struct TableBrowserView: View {
         }
     }
     
-    private func loadColumns(for tableName: String) {
-        guard tableColumns[tableName] == nil else { return }
-        
-        Task {
-            let driver = DatabaseDriverFactory.createDriver(for: connection)
-            
-            do {
-                try await driver.connect()
-                let columns = try await driver.fetchColumns(table: tableName)
-                driver.disconnect()
-                
-                await MainActor.run {
-                    tableColumns[tableName] = columns
-                }
-            } catch {
-                print("Failed to load columns for \(tableName): \(error)")
-            }
-        }
-    }
 }
 
 #Preview {

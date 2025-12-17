@@ -30,8 +30,22 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch columns for a specific table
     func fetchColumns(table: String) async throws -> [ColumnInfo]
     
+    /// Fetch indexes for a specific table
+    func fetchIndexes(table: String) async throws -> [IndexInfo]
+    
+    /// Fetch foreign keys for a specific table
+    func fetchForeignKeys(table: String) async throws -> [ForeignKeyInfo]
+    
     /// Test the connection (connect and immediately disconnect)
     func testConnection() async throws -> Bool
+    
+    // MARK: - Paginated Query Support
+    
+    /// Fetch total row count for a query (wraps with COUNT(*))
+    func fetchRowCount(query: String) async throws -> Int
+    
+    /// Fetch rows with LIMIT/OFFSET pagination
+    func fetchRows(query: String, offset: Int, limit: Int) async throws -> QueryResult
 }
 
 /// Default implementation for common operations

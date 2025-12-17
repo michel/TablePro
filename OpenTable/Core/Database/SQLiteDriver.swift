@@ -183,6 +183,106 @@ final class SQLiteDriver: DatabaseDriver {
         }
     }
     
+    func fetchIndexes(table: String) async throws -> [IndexInfo] {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+        
+        // Get list of indexes for this table
+        let indexListQuery = "PRAGMA index_list('\(table)')"
+        let indexListResult = try await execute(query: indexListQuery)
+        
+        var indexes: [IndexInfo] = []
+        
+        for row in indexListResult.rows {
+            guard row.count >= 3,
+                  let indexName = row[1] else { continue }
+            
+            let isUnique = row[2] == "1"
+            let origin = row.count >= 4 ? (row[3] ?? "c") : "c"  // c=CREATE INDEX, pk=PRIMARY KEY
+            
+            // Get columns for this index
+            let indexInfoQuery = "PRAGMA index_info('\(indexName)')"
+            let indexInfoResult = try await execute(query: indexInfoQuery)
+            
+            let columns = indexInfoResult.rows.compactMap { $0.count >= 3 ? $0[2] : nil }
+            
+            indexes.append(IndexInfo(
+                name: indexName,
+                columns: columns,
+                isUnique: isUnique,
+                isPrimary: origin == "pk",
+                type: "BTREE"
+            ))
+        }
+        
+        return indexes.sorted { $0.isPrimary && !$1.isPrimary }
+    }
+    
+    func fetchForeignKeys(table: String) async throws -> [ForeignKeyInfo] {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+        
+        let query = "PRAGMA foreign_key_list('\(table)')"
+        let result = try await execute(query: query)
+        
+        return result.rows.compactMap { row in
+            guard row.count >= 5,
+                  let refTable = row[2],
+                  let fromCol = row[3],
+                  let toCol = row[4] else {
+                return nil
+            }
+            
+            let id = row[0] ?? "0"
+            let onUpdate = row.count >= 6 ? (row[5] ?? "NO ACTION") : "NO ACTION"
+            let onDelete = row.count >= 7 ? (row[6] ?? "NO ACTION") : "NO ACTION"
+            
+            return ForeignKeyInfo(
+                name: "fk_\(table)_\(id)",
+                column: fromCol,
+                referencedTable: refTable,
+                referencedColumn: toCol,
+                onDelete: onDelete,
+                onUpdate: onUpdate
+            )
+        }
+    }
+    
+    // MARK: - Paginated Query Support
+    
+    func fetchRowCount(query: String) async throws -> Int {
+        let baseQuery = stripLimitOffset(from: query)
+        let countQuery = "SELECT COUNT(*) FROM (\(baseQuery))"
+        
+        let result = try await execute(query: countQuery)
+        guard let firstRow = result.rows.first, let countStr = firstRow.first else { return 0 }
+        return Int(countStr ?? "0") ?? 0
+    }
+    
+    func fetchRows(query: String, offset: Int, limit: Int) async throws -> QueryResult {
+        let baseQuery = stripLimitOffset(from: query)
+        let paginatedQuery = "\(baseQuery) LIMIT \(limit) OFFSET \(offset)"
+        return try await execute(query: paginatedQuery)
+    }
+    
+    private func stripLimitOffset(from query: String) -> String {
+        var result = query
+        
+        let limitPattern = "(?i)\\s+LIMIT\\s+\\d+"
+        if let regex = try? NSRegularExpression(pattern: limitPattern) {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
+        }
+        
+        let offsetPattern = "(?i)\\s+OFFSET\\s+\\d+"
+        if let regex = try? NSRegularExpression(pattern: offsetPattern) {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
+        }
+        
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
     // MARK: - Helpers
     
     private func expandPath(_ path: String) -> String {

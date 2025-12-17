@@ -140,6 +140,124 @@ final class PostgreSQLDriver: DatabaseDriver {
         }
     }
     
+    func fetchIndexes(table: String) async throws -> [IndexInfo] {
+        let query = """
+            SELECT
+                i.relname AS index_name,
+                ARRAY_AGG(a.attname ORDER BY array_position(ix.indkey, a.attnum)) AS columns,
+                ix.indisunique AS is_unique,
+                ix.indisprimary AS is_primary,
+                am.amname AS index_type
+            FROM pg_index ix
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_class t ON t.oid = ix.indrelid
+            JOIN pg_am am ON am.oid = i.relam
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+            WHERE t.relname = '\(table)'
+            GROUP BY i.relname, ix.indisunique, ix.indisprimary, am.amname
+            ORDER BY ix.indisprimary DESC, i.relname
+            """
+        
+        let result = try await execute(query: query)
+        
+        return result.rows.compactMap { row in
+            guard row.count >= 5,
+                  let name = row[0],
+                  let columnsStr = row[1] else {
+                return nil
+            }
+            
+            // Parse PostgreSQL array format: {col1,col2}
+            let columns = columnsStr
+                .trimmingCharacters(in: CharacterSet(charactersIn: "{}"))
+                .components(separatedBy: ",")
+            
+            return IndexInfo(
+                name: name,
+                columns: columns,
+                isUnique: row[2] == "t",
+                isPrimary: row[3] == "t",
+                type: row[4]?.uppercased() ?? "BTREE"
+            )
+        }
+    }
+    
+    func fetchForeignKeys(table: String) async throws -> [ForeignKeyInfo] {
+        let query = """
+            SELECT
+                tc.constraint_name,
+                kcu.column_name,
+                ccu.table_name AS referenced_table,
+                ccu.column_name AS referenced_column,
+                rc.delete_rule,
+                rc.update_rule
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+            JOIN information_schema.referential_constraints rc
+                ON tc.constraint_name = rc.constraint_name
+            JOIN information_schema.constraint_column_usage ccu
+                ON rc.unique_constraint_name = ccu.constraint_name
+            WHERE tc.table_name = '\(table)'
+                AND tc.constraint_type = 'FOREIGN KEY'
+            ORDER BY tc.constraint_name
+            """
+        
+        let result = try await execute(query: query)
+        
+        return result.rows.compactMap { row in
+            guard row.count >= 6,
+                  let name = row[0],
+                  let column = row[1],
+                  let refTable = row[2],
+                  let refColumn = row[3] else {
+                return nil
+            }
+            
+            return ForeignKeyInfo(
+                name: name,
+                column: column,
+                referencedTable: refTable,
+                referencedColumn: refColumn,
+                onDelete: row[4] ?? "NO ACTION",
+                onUpdate: row[5] ?? "NO ACTION"
+            )
+        }
+    }
+    
+    // MARK: - Paginated Query Support
+    
+    func fetchRowCount(query: String) async throws -> Int {
+        let baseQuery = stripLimitOffset(from: query)
+        let countQuery = "SELECT COUNT(*) FROM (\(baseQuery)) AS __count_subquery__"
+        
+        let result = try await execute(query: countQuery)
+        guard let firstRow = result.rows.first, let countStr = firstRow.first else { return 0 }
+        return Int(countStr ?? "0") ?? 0
+    }
+    
+    func fetchRows(query: String, offset: Int, limit: Int) async throws -> QueryResult {
+        let baseQuery = stripLimitOffset(from: query)
+        let paginatedQuery = "\(baseQuery) LIMIT \(limit) OFFSET \(offset)"
+        return try await execute(query: paginatedQuery)
+    }
+    
+    private func stripLimitOffset(from query: String) -> String {
+        var result = query
+        
+        let limitPattern = "(?i)\\s+LIMIT\\s+\\d+"
+        if let regex = try? NSRegularExpression(pattern: limitPattern) {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
+        }
+        
+        let offsetPattern = "(?i)\\s+OFFSET\\s+\\d+"
+        if let regex = try? NSRegularExpression(pattern: offsetPattern) {
+            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
+        }
+        
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
     // MARK: - Helpers
     
     private func executeCommand(_ query: String) async throws -> String {

@@ -1,0 +1,204 @@
+//
+//  SQLCompletionProvider.swift
+//  OpenTable
+//
+//  Main orchestrator for SQL autocomplete
+//
+
+import Foundation
+
+/// Main provider for SQL autocomplete suggestions
+final class SQLCompletionProvider {
+    
+    // MARK: - Properties
+    
+    private let contextAnalyzer = SQLContextAnalyzer()
+    private let schemaProvider: SQLSchemaProvider
+    
+    /// Minimum prefix length to trigger suggestions
+    private let minPrefixLength = 1
+    
+    /// Maximum number of suggestions to return
+    private let maxSuggestions = 20
+    
+    // MARK: - Init
+    
+    init(schemaProvider: SQLSchemaProvider) {
+        self.schemaProvider = schemaProvider
+    }
+    
+    // MARK: - Public API
+    
+    /// Get completion suggestions for the current cursor position
+    func getCompletions(
+        text: String,
+        cursorPosition: Int
+    ) async -> (items: [SQLCompletionItem], context: SQLContext) {
+        // Analyze context
+        let context = contextAnalyzer.analyze(query: text, cursorPosition: cursorPosition)
+        
+        // Don't complete inside strings or comments
+        if context.isInsideString || context.isInsideComment {
+            return ([], context)
+        }
+        
+        // Get candidates based on context
+        var candidates = await getCandidates(for: context)
+        
+        // Filter by prefix
+        if !context.prefix.isEmpty {
+            candidates = filterByPrefix(candidates, prefix: context.prefix)
+        }
+        
+        // Rank results
+        candidates = rankResults(candidates, prefix: context.prefix, context: context)
+        
+        // Limit results
+        let limited = Array(candidates.prefix(maxSuggestions))
+        
+        return (limited, context)
+    }
+    
+    // MARK: - Candidate Generation
+    
+    /// Get candidate completions based on context
+    private func getCandidates(for context: SQLContext) async -> [SQLCompletionItem] {
+        var items: [SQLCompletionItem] = []
+        
+        // If we have a dot prefix, we're looking for columns of a specific table
+        if let dotPrefix = context.dotPrefix {
+            // Resolve the table name from alias or direct reference
+            if let tableName = await schemaProvider.resolveAlias(dotPrefix, in: context.tableReferences) {
+                items = await schemaProvider.columnCompletionItems(for: tableName)
+            }
+            return items
+        }
+        
+        // Add items based on clause type
+        switch context.clauseType {
+        case .from, .join, .into:
+            // Tables + JOIN keywords (for typing after table name)
+            items = await schemaProvider.tableCompletionItems()
+            items += filterKeywords([
+                "INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN",
+                "LEFT OUTER JOIN", "RIGHT OUTER JOIN", "FULL OUTER JOIN",
+                "CROSS JOIN", "JOIN", "ON", "WHERE", "ORDER BY", "GROUP BY", "LIMIT"
+            ])
+            
+        case .select:
+            // Columns, functions, keywords (SELECT, DISTINCT, etc.)
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += SQLKeywords.functionItems()
+            items += filterKeywords(["DISTINCT", "ALL", "AS", "FROM", "CASE", "WHEN"])
+            
+        case .where_, .and, .on, .having:
+            // Columns, operators, logical keywords
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += SQLKeywords.operatorItems()
+            items += filterKeywords(["AND", "OR", "NOT", "IN", "LIKE", "BETWEEN", "IS", "NULL", "TRUE", "FALSE", "EXISTS"])
+            items += SQLKeywords.functionItems()
+            
+        case .groupBy, .orderBy:
+            // Columns only
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            if context.clauseType == .orderBy {
+                items += filterKeywords(["ASC", "DESC", "NULLS", "FIRST", "LAST"])
+            }
+            
+        case .set:
+            // Columns for UPDATE SET clause
+            if let firstTable = context.tableReferences.first {
+                items = await schemaProvider.columnCompletionItems(for: firstTable.tableName)
+            }
+            
+        case .insertColumns:
+            // Columns for INSERT column list
+            if let firstTable = context.tableReferences.first {
+                items = await schemaProvider.columnCompletionItems(for: firstTable.tableName)
+            }
+            
+        case .values:
+            // Functions and keywords for VALUES
+            items = SQLKeywords.functionItems()
+            items += filterKeywords(["NULL", "DEFAULT", "TRUE", "FALSE"])
+            
+        case .unknown:
+            // Start of query - suggest snippets and statement keywords
+            items = SQLKeywords.snippetItems()
+            items += filterKeywords(["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "SHOW", "DESCRIBE", "EXPLAIN", "WITH"])
+            items += await schemaProvider.tableCompletionItems()
+        }
+        
+        return items
+    }
+    
+    /// Filter to specific keywords
+    private func filterKeywords(_ keywords: [String]) -> [SQLCompletionItem] {
+        keywords.map { SQLCompletionItem.keyword($0) }
+    }
+    
+    // MARK: - Filtering
+    
+    /// Filter candidates by prefix (case-insensitive)
+    private func filterByPrefix(_ items: [SQLCompletionItem], prefix: String) -> [SQLCompletionItem] {
+        guard !prefix.isEmpty else { return items }
+        
+        let lowerPrefix = prefix.lowercased()
+        
+        return items.filter { item in
+            item.filterText.hasPrefix(lowerPrefix) ||
+            item.filterText.contains(lowerPrefix)
+        }
+    }
+    
+    // MARK: - Ranking
+    
+    /// Rank results by relevance
+    private func rankResults(_ items: [SQLCompletionItem], prefix: String, context: SQLContext) -> [SQLCompletionItem] {
+        let lowerPrefix = prefix.lowercased()
+        
+        return items.sorted { a, b in
+            let aScore = calculateScore(for: a, prefix: lowerPrefix, context: context)
+            let bScore = calculateScore(for: b, prefix: lowerPrefix, context: context)
+            return aScore < bScore // Lower score = higher priority
+        }
+    }
+    
+    /// Calculate ranking score for an item (lower = better)
+    private func calculateScore(for item: SQLCompletionItem, prefix: String, context: SQLContext) -> Int {
+        var score = item.sortPriority
+        
+        // Exact prefix match bonus
+        if item.filterText.hasPrefix(prefix) {
+            score -= 500
+        }
+        
+        // Exact match bonus
+        if item.filterText == prefix {
+            score -= 1000
+        }
+        
+        // Context-appropriate bonuses
+        switch context.clauseType {
+        case .from, .join, .into:
+            if item.kind == .table || item.kind == .view {
+                score -= 200
+            }
+        case .select, .where_, .and, .on, .having, .groupBy, .orderBy:
+            if item.kind == .column {
+                score -= 200
+            }
+        case .set, .insertColumns:
+            if item.kind == .column {
+                score -= 300
+            }
+        default:
+            break
+        }
+        
+        // Shorter names slightly preferred
+        score += item.label.count
+        
+        return score
+    }
+}

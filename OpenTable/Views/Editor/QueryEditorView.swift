@@ -2,7 +2,7 @@
 //  QueryEditorView.swift
 //  OpenTable
 //
-//  Created by Ngo Quoc Dat on 16/12/25.
+//  SQL query editor wrapper with toolbar
 //
 
 import SwiftUI
@@ -10,39 +10,55 @@ import SwiftUI
 /// SQL query editor view with execute button
 struct QueryEditorView: View {
     @Binding var queryText: String
+    @Binding var cursorPosition: Int  // Track cursor for query-at-cursor execution
     var onExecute: () -> Void
+    var schemaProvider: SQLSchemaProvider?  // Optional for autocomplete
     
-    @State private var lineCount: Int = 1
+    private var lineCount: Int {
+        max(queryText.components(separatedBy: "\n").count, 1)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Editor header with toolbar
+            // Editor header with toolbar (above editor, higher z-index)
             editorToolbar
+                .zIndex(1)
             
             Divider()
             
-            // SQL Editor with line numbers
+            // Editor with line numbers
             HStack(alignment: .top, spacing: 0) {
-                // Line numbers
+                // Line numbers (SwiftUI)
                 lineNumbersView
                 
                 Divider()
                 
-                // Editor
-                TextEditor(text: $queryText)
-                    .font(.system(size: 13, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .background(Color(nsColor: .textBackgroundColor))
+                // SQL Editor (AppKit-based with syntax highlighting)
+                SQLEditorView(text: $queryText, cursorPosition: $cursorPosition, onExecute: onExecute, schemaProvider: schemaProvider)
                     .frame(minHeight: 100)
-                    .onChange(of: queryText) { _, newValue in
-                        updateLineCount(newValue)
-                    }
-                    .onAppear {
-                        updateLineCount(queryText)
-                    }
             }
+            .clipped()
         }
         .background(Color(nsColor: .textBackgroundColor))
+    }
+    
+    // MARK: - Line Numbers
+    
+    private var lineNumbersView: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .trailing, spacing: 0) {
+                ForEach(1...lineCount, id: \.self) { line in
+                    Text("\(line)")
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .frame(height: 17) // Match NSTextView line height
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 2)
+        }
+        .frame(width: 40)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
     }
     
     // MARK: - Toolbar
@@ -63,7 +79,7 @@ struct QueryEditorView: View {
             .help("Clear Query (⌘+Delete)")
             .keyboardShortcut(.delete, modifiers: .command)
             
-            // Format button (future: format SQL)
+            // Format button
             Button(action: formatQuery) {
                 Image(systemName: "text.alignleft")
             }
@@ -89,30 +105,7 @@ struct QueryEditorView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
     
-    // MARK: - Line Numbers
-    
-    private var lineNumbersView: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .trailing, spacing: 0) {
-                ForEach(1...max(lineCount, 1), id: \.self) { line in
-                    Text("\(line)")
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .frame(height: 20)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-        }
-        .frame(width: 40)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-    }
-    
     // MARK: - Helpers
-    
-    private func updateLineCount(_ text: String) {
-        lineCount = text.components(separatedBy: "\n").count
-    }
     
     private func formatQuery() {
         // Basic formatting: uppercase keywords
@@ -139,8 +132,8 @@ struct QueryEditorView: View {
 #Preview {
     QueryEditorView(
         queryText: .constant("SELECT * FROM users\nWHERE active = true\nORDER BY created_at DESC;"),
+        cursorPosition: .constant(0),
         onExecute: {}
     )
     .frame(width: 600, height: 200)
 }
-

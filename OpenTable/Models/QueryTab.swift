@@ -25,6 +25,7 @@ struct QueryTab: Identifiable, Equatable {
     
     // Results
     var resultColumns: [String]
+    var columnDefaults: [String: String?]  // Column name -> default value from schema
     var resultRows: [QueryResultRow]
     var executionTime: TimeInterval?
     var errorMessage: String?
@@ -33,6 +34,7 @@ struct QueryTab: Identifiable, Equatable {
     // Editing support
     var tableName: String?
     var isEditable: Bool
+    var showStructure: Bool  // Toggle to show structure view instead of data
     
     init(
         id: UUID = UUID(),
@@ -49,12 +51,14 @@ struct QueryTab: Identifiable, Equatable {
         self.tabType = tabType
         self.lastExecutedAt = nil
         self.resultColumns = []
+        self.columnDefaults = [:]
         self.resultRows = []
         self.executionTime = nil
         self.errorMessage = nil
         self.isExecuting = false
         self.tableName = tableName
         self.isEditable = tabType == .table  // Table tabs are editable by default
+        self.showStructure = false
     }
     
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
