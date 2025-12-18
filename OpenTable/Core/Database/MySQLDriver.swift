@@ -20,6 +20,13 @@ final class MySQLDriver: DatabaseDriver {
         self.connection = connection
     }
 
+    // MARK: - Server Version
+
+    /// Server version string from the connected database
+    var serverVersion: String? {
+        mariadbConnection?.serverVersion()
+    }
+
     // MARK: - Connection
 
     func connect() async throws {

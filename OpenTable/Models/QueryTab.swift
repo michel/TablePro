@@ -97,7 +97,7 @@ struct QueryTab: Identifiable, Equatable {
 
     // Per-tab sort state (column sorting)
     var sortState: SortState
-    
+
     // Track if user has interacted with this tab (sort, edit, select, etc)
     // Prevents tab from being replaced when opening new tables
     var hasUserInteraction: Bool
@@ -152,10 +152,9 @@ final class QueryTabManager: ObservableObject {
     }
 
     init() {
-        // Start with one tab
-        let initialTab = QueryTab(title: "Query 1")
-        tabs = [initialTab]
-        selectedTabId = initialTab.id
+        // Start with no tabs - shows empty state
+        tabs = []
+        selectedTabId = nil
     }
 
     // MARK: - Tab Management
