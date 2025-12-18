@@ -1,6 +1,6 @@
 # OpenTable Roadmap
 
-A native macOS MySQL database client built with SwiftUI.
+A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL, and SQLite.
 
 ## ✅ Milestone 1: Core Foundation (Completed)
 
@@ -109,8 +109,6 @@ A native macOS MySQL database client built with SwiftUI.
 
 ## 🔮 Future Ideas
 
-- PostgreSQL support
-- SQLite support
 - Dark/Light theme toggle
 - ER diagram visualization
 - Data import from CSV/JSON

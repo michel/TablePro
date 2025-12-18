@@ -5,7 +5,7 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
 ## Features
 
 ### Multi-Database Support
-- **MySQL** and **MariaDB** via CLI integration
+- **MySQL** and **MariaDB** via native MariaDB Connector/C
 - **PostgreSQL** via CLI integration
 - **SQLite** with native libsqlite3 support
 
@@ -80,7 +80,8 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
 ## Requirements
 
 - macOS 14.0 or later
-- For MySQL/MariaDB: `mysql` CLI client (typically at `/opt/homebrew/bin/mysql`)
+- Xcode 15.0 or later
+- For MySQL/MariaDB: Bundled static library (no external dependencies)
 - For PostgreSQL: `psql` CLI client (typically at `/opt/homebrew/bin/psql`)
 - For SQLite: No additional requirements (uses native libsqlite3)
 
@@ -88,12 +89,17 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/OpenTable.git
+   git clone https://github.com/datlechin/OpenTable.git
    ```
 
-2. Open `OpenTable.xcodeproj` in Xcode
+2. Install MariaDB Connector/C headers (required for compilation):
+   ```bash
+   brew install mariadb-connector-c
+   ```
 
-3. Build and run (`Cmd+R`)
+3. Open `OpenTable.xcodeproj` in Xcode
+
+4. Build and run (`Cmd+R`)
 
 ## Architecture
 
