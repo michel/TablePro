@@ -239,6 +239,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -277,13 +278,20 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				LIBRARY_SEARCH_PATHS = "/opt/homebrew/opt/mariadb-connector-c/lib/mariadb";
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-lmariadb";
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmariadb.a",
+					"-L/opt/homebrew/opt/openssl/lib",
+					"-lcrypto",
+					"-lssl",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.ngoquocdat.OpenTable;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -311,6 +319,7 @@
 		5A1091D42EF17EDD0055EA7C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
@@ -342,13 +351,20 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				LIBRARY_SEARCH_PATHS = "/opt/homebrew/opt/mariadb-connector-c/lib/mariadb";
-				MACOSX_DEPLOYMENT_TARGET = 26.1;
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-lmariadb";
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmariadb.a",
+					"-L/opt/homebrew/opt/openssl/lib",
+					"-lcrypto",
+					"-lssl",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.ngoquocdat.OpenTable;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
