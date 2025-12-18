@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		5AB82A2E2EF2F912003CE4B3 /* MySQLNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 5AB82A2D2EF2F912003CE4B3 /* MySQLNIO */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
 		5A1091C72EF17EDC0055EA7C /* OpenTable.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenTable.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -27,7 +23,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5AB82A2E2EF2F912003CE4B3 /* MySQLNIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +65,6 @@
 			);
 			name = OpenTable;
 			packageProductDependencies = (
-				5AB82A2D2EF2F912003CE4B3 /* MySQLNIO */,
 			);
 			productName = OpenTable;
 			productReference = 5A1091C72EF17EDC0055EA7C /* OpenTable.app */;
@@ -101,7 +95,6 @@
 			mainGroup = 5A1091BE2EF17EDC0055EA7C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				5AB82A2C2EF2F912003CE4B3 /* XCRemoteSwiftPackageReference "mysql-nio" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A1091C82EF17EDC0055EA7C /* Products */;
@@ -402,25 +395,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		5AB82A2C2EF2F912003CE4B3 /* XCRemoteSwiftPackageReference "mysql-nio" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/vapor/mysql-nio.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.8.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		5AB82A2D2EF2F912003CE4B3 /* MySQLNIO */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5AB82A2C2EF2F912003CE4B3 /* XCRemoteSwiftPackageReference "mysql-nio" */;
-			productName = MySQLNIO;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5A1091BF2EF17EDC0055EA7C /* Project object */;
 }
