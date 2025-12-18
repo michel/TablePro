@@ -58,12 +58,6 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
 - Export to JSON (pretty-printed)
 - Copy to clipboard as tab-separated values
 
-### Query History
-- Auto-save executed queries (up to 100 entries)
-- Query history panel (`Cmd+Shift+H`)
-- Re-run previous queries with one click
-- Tracks connection, row count, execution time, and status
-
 ### Table Structure View
 - View columns with types, nullable status, and defaults
 - View indexes with primary/unique indicators
@@ -81,7 +75,6 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
 | `Cmd+N` | New connection |
 | `Cmd+E` | Export to CSV |
 | `Cmd+Shift+E` | Export to JSON |
-| `Cmd+Shift+H` | Query history |
 | `Ctrl+Space` | Trigger autocomplete |
 
 ## Requirements
@@ -125,7 +118,7 @@ OpenTable/
 
 - **Protocol-Oriented Database Layer**: `DatabaseDriver` protocol with MySQL, PostgreSQL, and SQLite implementations
 - **Factory Pattern**: `DatabaseDriverFactory` creates the appropriate driver based on connection type
-- **Singleton Services**: `DatabaseManager`, `ConnectionStorage`, `QueryHistoryManager`
+- **Singleton Services**: `DatabaseManager`, `ConnectionStorage`
 - **NSViewRepresentable**: SwiftUI wrappers for AppKit components (NSTextView, NSTableView)
 
 ## Version History

@@ -16,8 +16,6 @@ struct MainContentView: View {
     @StateObject private var changeManager = DataChangeManager()
 
     @State private var showTableBrowser: Bool = true
-    @State private var showHistory: Bool = false
-    @State private var queryHistory: [QueryHistoryEntry] = []
     @State private var selectedRowIndices: Set<Int> = []
     @State private var showDiscardAlert: Bool = false
     @State private var showCloseTabAlert: Bool = false
@@ -97,11 +95,6 @@ struct MainContentView: View {
             }
 
             ToolbarItemGroup(placement: .primaryAction) {
-                Button(action: { showHistory.toggle() }) {
-                    Image(systemName: "clock.arrow.circlepath")
-                }
-                .help("Query History")
-
                 if currentTab?.isExecuting == true {
                     ProgressView()
                         .controlSize(.small)
@@ -111,13 +104,9 @@ struct MainContentView: View {
         .task {
             await establishConnection()
             await loadSchema()
-            queryHistory = QueryHistoryManager.shared.loadHistory()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleTableBrowser)) { _ in
             showTableBrowser.toggle()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleHistory)) { _ in
-            showHistory.toggle()
         }
         .onReceive(NotificationCenter.default.publisher(for: .exportCSV)) { _ in
             if let tab = currentTab, !tab.resultColumns.isEmpty {
@@ -261,15 +250,8 @@ struct MainContentView: View {
             }
             .frame(minHeight: 100, idealHeight: 200)
 
-            // Results Table + History (bottom)
-            VStack(spacing: 0) {
-                resultsSection(tab: tab)
-
-                // History panel at bottom
-                if showHistory {
-                    historyPanel
-                }
-            }
+            // Results Table (bottom)
+            resultsSection(tab: tab)
         }
     }
 
@@ -344,11 +326,6 @@ struct MainContentView: View {
                     sortState: sortStateBinding
                 )
                 .frame(maxHeight: .infinity, alignment: .top)
-            }
-
-            // History panel at bottom
-            if showHistory {
-                historyPanel
             }
 
             statusBar
@@ -460,61 +437,7 @@ struct MainContentView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    // MARK: - History Panel
 
-    private var historyPanel: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Divider()
-
-            HStack {
-                Text("History")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button("Clear") {
-                    QueryHistoryManager.shared.clearHistory()
-                    queryHistory = []
-                }
-                .buttonStyle(.borderless)
-                .controlSize(.small)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(queryHistory.prefix(20)) { entry in
-                        Button(action: {
-                            if let index = tabManager.selectedTabIndex {
-                                tabManager.tabs[index].query = entry.query
-                            }
-                            showHistory = false
-                        }) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.query)
-                                    .font(.system(.caption, design: .monospaced))
-                                    .lineLimit(1)
-                                    .foregroundStyle(.primary)
-
-                                Text(entry.executedAt, style: .relative)
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-            .frame(maxHeight: 150)
-        }
-        .background(Color(nsColor: .controlBackgroundColor))
-    }
 
     // MARK: - Status Bar
 
@@ -713,17 +636,6 @@ struct MainContentView: View {
                         // The onChange(selectedTabId) handler updates changeManager synchronously
                         // when this tab becomes selected, which is safe and reliable.
                     }
-
-                    // Save to history
-                    let entry = QueryHistoryEntry(
-                        query: sql,
-                        connectionName: conn.name,
-                        rowCount: safeRowCount,
-                        executionTime: safeExecutionTime,
-                        wasSuccessful: true
-                    )
-                    QueryHistoryManager.shared.addEntry(entry)
-                    queryHistory = QueryHistoryManager.shared.loadHistory()
                 }
 
             } catch {
@@ -734,15 +646,6 @@ struct MainContentView: View {
                     tabManager.tabs[idx].errorMessage = error.localizedDescription
                     tabManager.tabs[idx].isExecuting = false
                 }
-
-                // Save failed query to history
-                let entry = QueryHistoryEntry(
-                    query: sql,
-                    connectionName: conn.name,
-                    wasSuccessful: false
-                )
-                QueryHistoryManager.shared.addEntry(entry)
-                queryHistory = QueryHistoryManager.shared.loadHistory()
             }
         }
     }
@@ -1024,19 +927,6 @@ struct MainContentView: View {
 
                 for statement in statements {
                     _ = try await driver.execute(query: statement)
-
-                    // Add to history
-                    await MainActor.run {
-                        let entry = QueryHistoryEntry(
-                            query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
-                            connectionName: connection.name,
-                            rowCount: 1,
-                            executionTime: 0,
-                            wasSuccessful: true
-                        )
-                        QueryHistoryManager.shared.addEntry(entry)
-                        queryHistory = QueryHistoryManager.shared.loadHistory()
-                    }
                 }
 
                 // Clear pending changes since they're now saved

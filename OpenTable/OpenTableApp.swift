@@ -73,11 +73,6 @@ struct OpenTableApp: App {
                     NotificationCenter.default.post(name: .toggleTableBrowser, object: nil)
                 }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
-                
-                Button("Toggle Query History") {
-                    NotificationCenter.default.post(name: .toggleHistory, object: nil)
-                }
-                .keyboardShortcut("h", modifiers: [.command, .shift])
             }
             
             // Export menu
@@ -111,7 +106,6 @@ extension Notification.Name {
     static let formatQuery = Notification.Name("formatQuery")
     static let clearQuery = Notification.Name("clearQuery")
     static let toggleTableBrowser = Notification.Name("toggleTableBrowser")
-    static let toggleHistory = Notification.Name("toggleHistory")
     static let exportCSV = Notification.Name("exportCSV")
     static let exportJSON = Notification.Name("exportJSON")
     static let copyResults = Notification.Name("copyResults")

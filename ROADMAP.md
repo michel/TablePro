@@ -79,12 +79,6 @@ A native macOS MySQL database client built with SwiftUI.
 - [x] Copy to clipboard (tab-separated)
 - [ ] Export to SQL (INSERT statements)
 
-### Query History
-- [x] Auto-save executed queries
-- [x] Query history panel
-- [x] Re-run previous queries
-- [ ] Favorite/bookmark queries
-
 ### Table Structure
 - [x] View table columns and types
 - [x] View indexes

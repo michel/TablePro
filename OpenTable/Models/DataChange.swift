@@ -56,7 +56,7 @@ struct RowChange: Identifiable, Equatable {
 }
 
 /// Manager for tracking and applying data changes
-/// @MainActor ensures thread-safe access to all properties - critical for avoiding EXC_BAD_ACCESS
+/// @MainActor ensures thread-safe access to most properties - critical for avoiding EXC_BAD_ACCESS
 /// when multiple queries complete simultaneously (e.g., rapid sorting over SSH tunnel)
 @MainActor
 final class DataChangeManager: ObservableObject {
@@ -66,7 +66,18 @@ final class DataChangeManager: ObservableObject {
 
     var tableName: String = ""
     var primaryKeyColumn: String?
-    var columns: [String] = []
+    
+    // Simple storage with explicit deep copy to avoid memory corruption
+    private var _columnsStorage: [String] = []
+    var columns: [String] {
+        get {
+            return _columnsStorage
+        }
+        set {
+            // Create explicit deep copy to ensure independence
+            _columnsStorage = newValue.map { String($0) }
+        }
+    }
 
     // MARK: - Cached Lookups for O(1) Performance
 
@@ -88,6 +99,25 @@ final class DataChangeManager: ObservableObject {
         modifiedCells.removeAll()
         hasChanges = false
         reloadVersion += 1  // Trigger table reload
+    }
+    
+    /// Atomically configure the manager for a new table
+    /// This batches all updates and only triggers @Published changes at the end
+    /// to prevent race conditions where SwiftUI reads properties mid-update
+    func configureForTable(tableName: String, columns: [String], primaryKeyColumn: String?) {
+        // First, update non-published properties (no SwiftUI notifications)
+        self.tableName = tableName
+        self.columns = columns  // Uses deep copy setter to avoid memory corruption
+        self.primaryKeyColumn = primaryKeyColumn
+        
+        // Clear caches
+        deletedRowIndices.removeAll()
+        modifiedCells.removeAll()
+        
+        // Now update @Published properties - triggers ONE view update
+        changes.removeAll()
+        hasChanges = false
+        reloadVersion += 1
     }
 
     /// Rebuilds the caches from the changes array (used after complex modifications)
