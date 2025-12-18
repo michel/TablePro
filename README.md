@@ -79,7 +79,7 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
 
 ## Requirements
 
-- macOS 13.0 or later
+- macOS 14.0 or later
 - For MySQL/MariaDB: `mysql` CLI client (typically at `/opt/homebrew/bin/mysql`)
 - For PostgreSQL: `psql` CLI client (typically at `/opt/homebrew/bin/psql`)
 - For SQLite: No additional requirements (uses native libsqlite3)
