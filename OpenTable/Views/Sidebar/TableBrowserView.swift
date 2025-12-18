@@ -15,7 +15,7 @@ struct TableBrowserView: View {
     var activeTableName: String?  // Currently active table (synced with tab)
 
     @State private var tables: [TableInfo] = []
-    @State private var isLoading = false
+    @State private var isLoading = true  // Start with loading to prevent "No tables" flash
     @State private var errorMessage: String?
     @State private var searchText: String = ""
     @State private var selectedIndex: Int? = nil  // Keyboard navigation index
@@ -113,9 +113,6 @@ struct TableBrowserView: View {
                 tableList
             }
         }
-        .task {
-            await loadTablesAsync()
-        }
         .onKeyPress(.downArrow) {
             navigateDown()
             return .handled
@@ -131,6 +128,18 @@ struct TableBrowserView: View {
         .onChange(of: searchText) { _, _ in
             // Reset selection when search changes
             selectedIndex = filteredTables.isEmpty ? nil : 0
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
+            isLoading = true  // Set immediately to prevent "No tables" flash
+            Task {
+                await loadTablesAsync()
+            }
+        }
+        .onAppear {
+            // If already connected when view appears, show loading instead of "No tables"
+            if DatabaseManager.shared.activeDriver != nil && tables.isEmpty {
+                isLoading = true
+            }
         }
     }
 
@@ -247,8 +256,7 @@ struct TableBrowserView: View {
         isLoading = true
         errorMessage = nil
 
-        // Use activeDriver from DatabaseManager (observer pattern ensures this is called when driver is ready)
-        guard let driver = await DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.activeDriver else {
             await MainActor.run {
                 errorMessage = "Not connected"
                 isLoading = false
@@ -258,7 +266,6 @@ struct TableBrowserView: View {
 
         do {
             let fetchedTables = try await driver.fetchTables()
-
             await MainActor.run {
                 tables = fetchedTables
                 isLoading = false

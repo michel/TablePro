@@ -57,23 +57,30 @@ struct DataGridView: NSViewRepresentable {
         rowNumberColumn.minWidth = 40
         rowNumberColumn.maxWidth = 60
         rowNumberColumn.isEditable = false
+        rowNumberColumn.resizingMask = []  // Disable resizing
         tableView.addTableColumn(rowNumberColumn)
 
-        // Add data columns with custom header cells
+        // Add data columns
         for (index, columnName) in rowProvider.columns.enumerated() {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
             column.title = columnName
-            column.width = 150
-            column.minWidth = 80
+            
+            // Auto-size column width to fit header text
+            let calculatedWidth = calculateColumnWidth(for: columnName)
+            column.width = calculatedWidth
+            column.minWidth = 30
+            // Don't set maxWidth - let column stay at calculated width
+            column.resizingMask = .userResizingMask
             column.isEditable = isEditable
-
-            // Custom header cell with right-click menu
-            let headerCell = ColumnHeaderCell(columnName: columnName)
-            column.headerCell = headerCell
+            
+            // Use NSTableColumn's built-in sort descriptor for native sort indicators
+            // This is safer than custom header cells which crash on deallocation
+            let sortDescriptor = NSSortDescriptor(key: columnName, ascending: true)
+            column.sortDescriptorPrototype = sortDescriptor
 
             tableView.addTableColumn(column)
         }
-
+        
         // Configure header with custom view
         let customHeader = ClickableTableHeaderView()
         let coordinator = context.coordinator
@@ -85,7 +92,22 @@ struct DataGridView: NSViewRepresentable {
         scrollView.documentView = tableView
         context.coordinator.tableView = tableView
 
+
         return scrollView
+    }
+    
+    /// Calculate column width based on header text length
+    private func calculateColumnWidth(for columnName: String) -> CGFloat {
+        // Use header font (system default for table headers)
+        let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        let attributes: [NSAttributedString.Key: Any] = [.font: font]
+        let size = (columnName as NSString).size(withAttributes: attributes)
+        
+        // Add generous padding: 12px left + text + 24px for sort indicator + 12px right
+        let width = size.width + 48
+        
+        // Min 30px, no max (always fit full header text)
+        return max(width, 30)
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
@@ -150,53 +172,68 @@ struct DataGridView: NSViewRepresentable {
             }
         }
 
-        // Check if columns changed
-        let currentColumnCount = tableView.tableColumns.count - 1  // Exclude row number column
-        if currentColumnCount != rowProvider.columns.count {
-            // Rebuild columns
-            while tableView.tableColumns.count > 1 {
-                tableView.removeTableColumn(tableView.tableColumns.last!)
+        // Check if columns changed - compare actual column names, not just count
+        let currentDataColumns = tableView.tableColumns.dropFirst() // Skip row number column
+        let currentColumnNames = currentDataColumns.map { $0.title }
+        
+        // Only rebuild if columns actually changed AND we have columns to show
+        let columnsChanged = !rowProvider.columns.isEmpty && (currentColumnNames != rowProvider.columns)
+        
+        if columnsChanged {
+            // Rebuild columns - remove ALL data columns (keep only row number column)
+            let columnsToRemove = tableView.tableColumns.filter { 
+                $0.identifier.rawValue != "__rowNumber__" 
+            }
+            for column in columnsToRemove {
+                tableView.removeTableColumn(column)
             }
 
             for (index, columnName) in rowProvider.columns.enumerated() {
                 let column = NSTableColumn(
                     identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
+                
                 column.title = columnName
-                column.width = 150
-                column.minWidth = 80
+                let calculatedWidth = calculateColumnWidth(for: columnName)
+                column.width = calculatedWidth
+                column.minWidth = 30
+                // Don't set maxWidth - let column stay at calculated width
+                column.resizingMask = .userResizingMask
                 column.isEditable = isEditable
 
-                // Custom header cell with right-click menu and sort indicator support
-                let headerCell = ColumnHeaderCell(columnName: columnName)
-                column.headerCell = headerCell
+                // Use built-in sort descriptor for native sort indicators
+                let sortDescriptor = NSSortDescriptor(key: columnName, ascending: true)
+                column.sortDescriptorPrototype = sortDescriptor
 
                 tableView.addTableColumn(column)
             }
+            
+            // Recreate header to ensure proper rendering with new columns changes
+            // NSTableHeaderView may hold references to old column cells that are now deallocated
+            // Creating a fresh header view prevents crashes when rendering large tables (25+ columns)
+            let newHeader = ClickableTableHeaderView()
+            newHeader.onSort = { [weak coordinator] columnIndex in
+                coordinator?.handleColumnSort(columnIndex: columnIndex)
+            }
+            tableView.headerView = newHeader
+            
+            // Force header to recalculate layout after column changes
+            // Without this, the header view may render phantom columns from previous state
+            tableView.headerView?.needsLayout = true
+            tableView.headerView?.layout()
+            tableView.sizeToFit()
+            tableView.headerView?.setNeedsDisplay(tableView.headerView?.bounds ?? .zero)
         }
 
-        // Update column headers with sort indicators
-        for (index, column) in tableView.tableColumns.enumerated() {
-            // Skip row number column
-            if column.identifier.rawValue == "__rowNumber__" { continue }
-
-            let dataColumnIndex = index - 1  // Account for row number column
-            guard dataColumnIndex >= 0 && dataColumnIndex < rowProvider.columns.count else {
-                continue
+        // Update sort indicators in custom header view
+        if let headerView = tableView.headerView as? ClickableTableHeaderView {
+            if let sortedColumnIndex = sortState.columnIndex {
+                // Account for row number column (add 1 to get actual column index)
+                headerView.sortedColumnIndex = sortedColumnIndex + 1
+                headerView.sortAscending = (sortState.direction == .ascending)
+            } else {
+                headerView.sortedColumnIndex = nil
             }
-
-            // Update header cell's sortDirection property
-            if let headerCell = column.headerCell as? ColumnHeaderCell {
-                if let sortedColumnIndex = sortState.columnIndex,
-                    sortedColumnIndex == dataColumnIndex
-                {
-                    headerCell.sortDirection = sortState.direction
-                } else {
-                    headerCell.sortDirection = nil
-                }
-            }
-
-            // Force header to redraw
-            tableView.headerView?.setNeedsDisplay(tableView.headerView?.bounds ?? .zero)
+            headerView.setNeedsDisplay(headerView.bounds)
         }
 
         // Only reload if data actually changed
@@ -214,7 +251,7 @@ struct DataGridView: NSViewRepresentable {
     }
 
     func makeCoordinator() -> TableViewCoordinator {
-        TableViewCoordinator(
+        let coordinator = TableViewCoordinator(
             rowProvider: rowProvider,
             changeManager: changeManager,
             isEditable: isEditable,
@@ -223,6 +260,11 @@ struct DataGridView: NSViewRepresentable {
             onRefresh: onRefresh,
             onCellEdit: onCellEdit
         )
+        
+        // onColumnResize callback will be set by coordinator property directly
+        // Coordinator will update columnWidths via binding when column is resized
+        
+        return coordinator
     }
 }
 
@@ -285,6 +327,11 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     /// Handle column sort from header click
     func handleColumnSort(columnIndex: Int) {
+        // Validate column index before sorting (critical for large tables)
+        guard columnIndex >= 0 && columnIndex < rowProvider.columns.count else {
+            print("ERROR: Sort requested for invalid column index \(columnIndex), table has \(rowProvider.columns.count) columns")
+            return
+        }
         onSort?(columnIndex)
     }
 
@@ -435,8 +482,21 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         }
 
         let value = rowData.value(at: columnIndex)
-        let isDeleted = changeManager.isRowDeleted(row)
-        let isModified = changeManager.isCellModified(rowIndex: row, columnIndex: columnIndex)
+        
+        // CRITICAL: Defensive checks for changeManager access during scrolling
+        // After sorting large tables (25+ columns), changeManager might have stale data
+        // or be in an inconsistent state. Validate before accessing to prevent crashes.
+        let isDeleted: Bool
+        let isModified: Bool
+        
+        if row >= 0 && row < changeManager.changes.count && columnIndex >= 0 && columnIndex < changeManager.columns.count {
+            isDeleted = changeManager.isRowDeleted(row)
+            isModified = changeManager.isCellModified(rowIndex: row, columnIndex: columnIndex)
+        } else {
+            // Out of bounds or changeManager not synced yet - assume no changes
+            isDeleted = false
+            isModified = false
+        }
 
         // Configure cell appearance
         // Reset placeholder first
@@ -783,64 +843,8 @@ final class TableRowViewWithMenu: NSTableRowView {
         guard let columnIndex = sender.representedObject as? Int else { return }
         coordinator?.setCellValueAtColumn("__DEFAULT__", at: rowIndex, columnIndex: columnIndex)
     }
-}
-
-// MARK: - Custom Header Cell
-
-final class ColumnHeaderCell: NSTableHeaderCell {
-    let columnName: String
-    var sortDirection: SortDirection? = nil  // nil = not sorted, .ascending/.descending = sorted
-
-    init(columnName: String) {
-        self.columnName = columnName
-        super.init(textCell: columnName)
-        self.alignment = .left
-    }
-
-    required init(coder: NSCoder) {
-        self.columnName = ""
-        super.init(coder: coder)
-    }
-
-    override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
-        // Draw the column name on the left
-        let textRect = NSRect(
-            x: cellFrame.origin.x + 4,
-            y: cellFrame.origin.y,
-            width: cellFrame.width - 24,  // Leave room for sort indicator
-            height: cellFrame.height
-        )
-
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.lineBreakMode = .byTruncatingTail
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 12, weight: .medium),
-            .foregroundColor: NSColor.headerTextColor,
-            .paragraphStyle: paragraphStyle,
-        ]
-
-        columnName.draw(in: textRect, withAttributes: attributes)
-
-        // Draw sort indicator on the right if sorted
-        if let direction = sortDirection {
-            let symbolName = direction == .ascending ? "chevron.up" : "chevron.down"
-            if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
-                let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .medium)
-                let symbolImage = image.withSymbolConfiguration(config) ?? image
-
-                let imageSize = CGSize(width: 10, height: 10)
-                let imageRect = NSRect(
-                    x: cellFrame.maxX - imageSize.width - 6,
-                    y: cellFrame.midY - imageSize.height / 2,
-                    width: imageSize.width,
-                    height: imageSize.height
-                )
-
-                symbolImage.draw(in: imageRect, from: .zero, operation: .sourceOver, fraction: 0.6)
-            }
-        }
-    }
+    
+    // Column resize tracking removed - too complex for current implementation
 }
 
 // MARK: - Clickable Table Header View
@@ -849,15 +853,68 @@ final class ClickableTableHeaderView: NSTableHeaderView {
 
     /// Callback when a column header is clicked for sorting
     var onSort: ((Int) -> Void)?
+    
+    /// Store sort state for drawing indicators
+    var sortedColumnIndex: Int? = nil
+    var sortAscending: Bool = true
+    
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        
+        // Draw sort indicators for sorted column
+        guard let sortedIdx = sortedColumnIndex,
+              let tableView = tableView,
+              sortedIdx >= 0 && sortedIdx < tableView.tableColumns.count else {
+            return
+        }
+        
+        _ = tableView.tableColumns[sortedIdx]
+        let headerRect = headerRect(ofColumn: sortedIdx)
+        
+        // Draw SF Symbol chevron indicator
+        let symbolName = sortAscending ? "chevron.up" : "chevron.down"
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+            let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .medium)
+            let symbolImage = image.withSymbolConfiguration(config) ?? image
+            
+            let imageSize = CGSize(width: 10, height: 10)
+            let imageRect = NSRect(
+                x: headerRect.maxX - imageSize.width - 8,
+                y: headerRect.midY - imageSize.height / 2,
+                width: imageSize.width,
+                height: imageSize.height
+            )
+            
+            symbolImage.draw(in: imageRect, from: .zero, operation: .sourceOver, fraction: 0.7)
+        }
+    }
 
     override func mouseDown(with event: NSEvent) {
+        // CRITICAL: During rapid table navigation, this view can be deallocated
+        // while events are still queued. Be extremely defensive.
+        guard let tableView = tableView,
+              tableView.window != nil,
+              !tableView.tableColumns.isEmpty else {
+            // Table is being torn down, ignore the event
+            return
+        }
+        
         let point = convert(event.locationInWindow, from: nil)
         let columnIndex = column(at: point)
 
         guard columnIndex >= 0,
-            let tableView = tableView,
-            columnIndex < tableView.tableColumns.count
-        else {
+              columnIndex < tableView.tableColumns.count else {
+            super.mouseDown(with: event)
+            return
+        }
+        
+        // Check if click is near a resize divider (within 3 pixels)
+        let headerRect = headerRect(ofColumn: columnIndex)
+        let distanceFromRightEdge = headerRect.maxX - point.x
+        let distanceFromLeftEdge = point.x - headerRect.minX
+        
+        if distanceFromRightEdge <= 3 || distanceFromLeftEdge <= 3 {
+            // User is clicking on column divider for resizing
             super.mouseDown(with: event)
             return
         }
@@ -874,9 +931,12 @@ final class ClickableTableHeaderView: NSTableHeaderView {
         let dataColumnIndex = columnIndex - 1
         if dataColumnIndex >= 0 {
             onSort?(dataColumnIndex)
+            // Don't call super.mouseDown - we've handled the click for sorting
+            // Calling super during rapid navigation can crash when table is torn down
+            return
         }
 
-        // Call super to allow normal visual feedback
+        // Only call super if we didn't handle the sort (shouldn't reach here normally)
         super.mouseDown(with: event)
     }
 

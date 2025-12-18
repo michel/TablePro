@@ -97,6 +97,10 @@ struct QueryTab: Identifiable, Equatable {
 
     // Per-tab sort state (column sorting)
     var sortState: SortState
+    
+    // Track if user has interacted with this tab (sort, edit, select, etc)
+    // Prevents tab from being replaced when opening new tables
+    var hasUserInteraction: Bool
 
     init(
         id: UUID = UUID(),
@@ -124,6 +128,7 @@ struct QueryTab: Identifiable, Equatable {
         self.pendingChanges = TabPendingChanges()
         self.selectedRowIndices = []
         self.sortState = SortState()
+        self.hasUserInteraction = false
     }
 
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
@@ -148,7 +153,7 @@ final class QueryTabManager: ObservableObject {
 
     init() {
         // Start with one tab
-        let initialTab = QueryTab(title: "Query 1", query: "SELECT 1;")
+        let initialTab = QueryTab(title: "Query 1")
         tabs = [initialTab]
         selectedTabId = initialTab.id
     }
@@ -194,12 +199,13 @@ final class QueryTabManager: ObservableObject {
             return false  // No need to run query, data already loaded
         }
 
-        // 2. Try to reuse the current tab if it's a clean table tab
+        // 2. Try to reuse the current tab if it's a clean table tab (no changes, no user interaction)
         if let selectedId = selectedTabId,
             let selectedIndex = tabs.firstIndex(where: { $0.id == selectedId }),
             tabs[selectedIndex].tabType == .table,
             !tabs[selectedIndex].isPinned,
-            !hasUnsavedChanges
+            !hasUnsavedChanges,
+            !tabs[selectedIndex].hasUserInteraction  // Don't replace if user has interacted
         {
             // Replace the current table tab instead of creating a new one
             tabs[selectedIndex].title = tableName
@@ -211,6 +217,10 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].errorMessage = nil
             tabs[selectedIndex].lastExecutedAt = nil
             tabs[selectedIndex].showStructure = false
+            tabs[selectedIndex].sortState = SortState()  // Reset sort state
+            tabs[selectedIndex].selectedRowIndices = []  // Reset selection
+            tabs[selectedIndex].pendingChanges = TabPendingChanges()  // Reset changes
+            tabs[selectedIndex].hasUserInteraction = false  // Reset interaction flag
             return true  // Need to run query for new table
         }
 

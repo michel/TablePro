@@ -43,7 +43,7 @@ final class MySQLDriver: DatabaseDriver {
             status = .connected
         } catch let error as MariaDBError {
             status = .error(error.message)
-            throw DatabaseError.connectionFailed(error.localizedDescription ?? "Connection failed")
+            throw DatabaseError.connectionFailed(error.localizedDescription)
         } catch {
             status = .error(error.localizedDescription)
             throw DatabaseError.connectionFailed(error.localizedDescription)
@@ -97,7 +97,7 @@ final class MySQLDriver: DatabaseDriver {
                 error: nil
             )
         } catch let error as MariaDBError {
-            throw DatabaseError.queryFailed(error.localizedDescription ?? "Query failed")
+            throw DatabaseError.queryFailed(error.localizedDescription)
         }
     }
 

@@ -24,12 +24,21 @@ struct MainContentView: View {
     @State private var schemaProvider: SQLSchemaProvider = SQLSchemaProvider()
     @State private var cursorPosition: Int = 0  // For query-at-cursor execution
     @State private var currentQueryTask: Task<Void, Never>?  // Track running query to cancel on new query
+    @State private var queryGeneration: Int = 0  // Incremented on each new query, used to ignore stale results
+    @State private var changeManagerUpdateTask: Task<Void, Never>?  // Debounce changeManager updates
 
     private var currentTab: QueryTab? {
         tabManager.selectedTab
     }
 
     var body: some View {
+        Group {
+            bodyContent
+        }
+    }
+    
+    @ViewBuilder
+    private var bodyContent: some View {
         HSplitView {
             // Table Browser (left) - toggle with Cmd+1
             if showTableBrowser {
@@ -186,6 +195,7 @@ struct MainContentView: View {
                 tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
                 // Save row selection
                 tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
+                // sortState is already in tab, no need to save from local state
             }
 
             // Restore state from the new tab
@@ -199,16 +209,33 @@ struct MainContentView: View {
                     changeManager.restoreState(
                         from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
                 } else {
-                    // Clear changeManager for tabs without pending changes
-                    changeManager.discardChanges()
-                    changeManager.tableName = newTab.tableName ?? ""
-                    changeManager.columns = newTab.resultColumns
-                    changeManager.primaryKeyColumn = newTab.resultColumns.first
+                    // Clear changeManager for tabs without pending changes (atomically)
+                    changeManager.configureForTable(
+                        tableName: newTab.tableName ?? "",
+                        columns: newTab.resultColumns,
+                        primaryKeyColumn: newTab.resultColumns.first
+                    )
                 }
 
                 // Restore row selection
                 selectedRowIndices = newTab.selectedRowIndices
+                // sortState is accessed via binding, no need to restore to local state
             }
+        }
+        .onChange(of: currentTab?.resultColumns) { _, newColumns in
+            // Sync changeManager when data loads on the current tab
+            guard let newColumns = newColumns, !newColumns.isEmpty else { return }
+            guard let tab = tabManager.selectedTab else { return }
+            guard !tab.pendingChanges.hasChanges else { return }
+            
+            // Only update if columns have actually changed
+            guard changeManager.columns != newColumns else { return }
+            
+            changeManager.configureForTable(
+                tableName: tab.tableName ?? "",
+                columns: newColumns,
+                primaryKeyColumn: newColumns.first
+            )
         }
     }
 
@@ -555,7 +582,7 @@ struct MainContentView: View {
 
     private func loadSchema() async {
         // Use activeDriver from DatabaseManager (already connected with SSH tunnel if enabled)
-        guard let driver = await DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.activeDriver else {
             print("[MainContentView] Failed to load schema: No active driver")
             return
         }
@@ -569,6 +596,10 @@ struct MainContentView: View {
         // This is critical for SSH connections where rapid sorting can cause
         // multiple queries to return out of order, leading to EXC_BAD_ACCESS
         currentQueryTask?.cancel()
+        
+        // Increment generation - any query with a different generation will be ignored
+        queryGeneration += 1
+        let capturedGeneration = queryGeneration
 
         guard !tabManager.tabs[index].isExecuting else { return }
 
@@ -601,7 +632,7 @@ struct MainContentView: View {
                 var columnDefaults: [String: String?] = [:]
                 if isEditable, let tableName = tableName {
                     // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
-                    if let driver = await DatabaseManager.shared.activeDriver {
+                    if let driver = DatabaseManager.shared.activeDriver {
                         let columnInfo = try await driver.fetchColumns(table: tableName)
                         for col in columnInfo {
                             columnDefaults[col.name] = col.defaultValue
@@ -631,7 +662,6 @@ struct MainContentView: View {
 
                 let safeExecutionTime = result.executionTime
                 let safeRowCount = result.rowCount
-                let safeFirstColumn: String? = safeColumns.first
 
                 // Copy columnDefaults too
                 var safeColumnDefaults: [String: String?] = [:]
@@ -654,21 +684,34 @@ struct MainContentView: View {
 
                 // Find tab by ID (index may have changed) - must update on main thread
                 await MainActor.run {
+                    // Critical: Only update if this is still the most recent query
+                    // This prevents race conditions when navigating quickly between tables
+                    // where cancelled/stale queries could still update changeManager
+                    guard capturedGeneration == queryGeneration else { return }
+                    guard !Task.isCancelled else { return }
+                    
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        tabManager.tabs[idx].resultColumns = safeColumns
-                        tabManager.tabs[idx].columnDefaults = safeColumnDefaults
-                        tabManager.tabs[idx].resultRows = safeRows
-                        tabManager.tabs[idx].executionTime = safeExecutionTime
-                        tabManager.tabs[idx].isExecuting = false
-                        tabManager.tabs[idx].lastExecutedAt = Date()
-                        tabManager.tabs[idx].tableName = safeTableName
-                        tabManager.tabs[idx].isEditable = isEditable
-
-                        // Configure change manager for this table
-                        changeManager.clearChanges()
-                        changeManager.tableName = safeTableName ?? ""
-                        changeManager.columns = safeColumns
-                        changeManager.primaryKeyColumn = safeFirstColumn
+                        // CRITICAL: Update tab atomically to prevent objc_retain crashes
+                        // with large result sets (25+ columns). Working with a copy first
+                        // prevents partial updates that can crash during deallocation.
+                        var updatedTab = tabManager.tabs[idx]
+                        updatedTab.resultColumns = safeColumns
+                        updatedTab.columnDefaults = safeColumnDefaults
+                        updatedTab.resultRows = safeRows
+                        updatedTab.executionTime = safeExecutionTime
+                        updatedTab.isExecuting = false
+                        updatedTab.lastExecutedAt = Date()
+                        updatedTab.tableName = safeTableName
+                        updatedTab.isEditable = isEditable
+                        
+                        // Atomically replace the tab
+                        tabManager.tabs[idx] = updatedTab
+                        
+                        // IMPORTANT: We do NOT update changeManager here.
+                        // After extensive debugging, updating changeManager from async
+                        // Task completion causes EXC_BAD_ACCESS crashes during rapid navigation.
+                        // The onChange(selectedTabId) handler updates changeManager synchronously
+                        // when this tab becomes selected, which is safe and reliable.
                     }
 
                     // Save to history
@@ -684,6 +727,9 @@ struct MainContentView: View {
                 }
 
             } catch {
+                // Only update if this is still the current query
+                guard capturedGeneration == queryGeneration else { return }
+                
                 if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                     tabManager.tabs[idx].errorMessage = error.localizedDescription
                     tabManager.tabs[idx].isExecuting = false
@@ -798,6 +844,9 @@ struct MainContentView: View {
 
         // Update the underlying data so it persists across UI refreshes
         tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = value
+        
+        // Mark tab as having user interaction (prevents auto-replacement)
+        tabManager.tabs[index].hasUserInteraction = true
     }
 
     /// Delete selected rows (Delete key)
@@ -816,6 +865,9 @@ struct MainContentView: View {
 
         // Clear selection after marking for deletion
         selectedRowIndices.removeAll()
+        
+        // Mark tab as having user interaction (prevents auto-replacement)
+        tabManager.tabs[index].hasUserInteraction = true
     }
 
     // MARK: - Column Sorting
@@ -836,6 +888,9 @@ struct MainContentView: View {
             }
         )
     }
+    
+    /// Binding for column widths - persists widths across tab switches
+
 
     /// Get rows for a tab (sorting is done via SQL ORDER BY, so just return as-is)
     private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
@@ -845,11 +900,19 @@ struct MainContentView: View {
     /// Handle column header click for sorting (uses SQL ORDER BY)
     private func handleSort(columnIndex: Int) {
         guard let tabIndex = tabManager.selectedTabIndex else { return }
-
+        
+        // Capture all values early to prevent deallocation issues
+        guard tabIndex < tabManager.tabs.count else { return }
         let tab = tabManager.tabs[tabIndex]
-        guard columnIndex < tab.resultColumns.count else { return }
+        
+        // CRITICAL: Validate column index for large tables
+        guard columnIndex >= 0 && columnIndex < tab.resultColumns.count else {
+            print("ERROR: Invalid column index \(columnIndex), table has \(tab.resultColumns.count) columns")
+            return
+        }
 
-        let columnName = tab.resultColumns[columnIndex]
+        // Capture column name to avoid string retention issues
+        let columnName = String(tab.resultColumns[columnIndex])
         var currentSort = tab.sortState
 
         // Toggle direction if same column, otherwise start ascending
@@ -860,14 +923,20 @@ struct MainContentView: View {
             currentSort.direction = .ascending
         }
 
+        // Verify tab still exists before updating
+        guard tabIndex < tabManager.tabs.count else { return }
+        
         // Update sort state
         tabManager.tabs[tabIndex].sortState = currentSort
+        
+        // Mark tab as having user interaction (prevents auto-replacement)
+        tabManager.tabs[tabIndex].hasUserInteraction = true
 
-        // Build ORDER BY clause
+        // Build ORDER BY clause with explicit string copies to avoid retention issues
         let orderDirection = currentSort.direction == .ascending ? "ASC" : "DESC"
 
-        // Get base query (remove any existing ORDER BY)
-        var baseQuery = tab.query
+        // Get base query (remove any existing ORDER BY) - work with copy
+        var baseQuery = String(tab.query)
         if let orderByRange = baseQuery.range(
             of: "ORDER BY", options: [.caseInsensitive, .backwards])
         {
@@ -889,20 +958,26 @@ struct MainContentView: View {
 
         // Insert ORDER BY before LIMIT (if exists) or at end
         let orderByClause = "ORDER BY `\(columnName)` \(orderDirection)"
+        
+        let newQuery: String
         if let limitRange = baseQuery.range(of: "LIMIT", options: .caseInsensitive) {
             let beforeLimit = baseQuery[..<limitRange.lowerBound].trimmingCharacters(
                 in: .whitespaces)
             let limitClause = baseQuery[limitRange.lowerBound...]
-            tabManager.tabs[tabIndex].query = "\(beforeLimit) \(orderByClause) \(limitClause)"
+            newQuery = "\(beforeLimit) \(orderByClause) \(limitClause)"
         } else {
             // Remove trailing semicolon and add ORDER BY
             let trimmed = baseQuery.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.hasSuffix(";") {
-                tabManager.tabs[tabIndex].query = String(trimmed.dropLast()) + " \(orderByClause);"
+                newQuery = String(trimmed.dropLast()) + " \(orderByClause);"
             } else {
-                tabManager.tabs[tabIndex].query = "\(trimmed) \(orderByClause)"
+                newQuery = "\(trimmed) \(orderByClause)"
             }
         }
+        
+        // Final validation before updating tab
+        guard tabIndex < tabManager.tabs.count else { return }
+        tabManager.tabs[tabIndex].query = newQuery
 
         // Re-execute query to fetch sorted data
         runQuery()
@@ -938,7 +1013,7 @@ struct MainContentView: View {
         Task {
             do {
                 // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
-                guard let driver = await DatabaseManager.shared.activeDriver else {
+                guard let driver = DatabaseManager.shared.activeDriver else {
                     throw DatabaseError.notConnected
                 }
 
@@ -981,6 +1056,30 @@ struct MainContentView: View {
                     tabManager.tabs[index].errorMessage = error.localizedDescription
                 }
             }
+        }
+    }
+    
+    /// Debounced update of changeManager to prevent crashes during rapid navigation
+    /// Only updates if tab remains selected for 100ms
+    private func debouncedUpdateChangeManager(for tabId: UUID) {
+        // Cancel any pending update
+        changeManagerUpdateTask?.cancel()
+        
+        // Schedule new update after delay
+        changeManagerUpdateTask = Task { @MainActor in
+            // Wait 100ms to allow rapid navigation to settle
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            
+            guard !Task.isCancelled else { return }
+            guard tabManager.selectedTabId == tabId else { return }
+            guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else { return }
+            
+            let tab = tabManager.tabs[idx]
+            changeManager.configureForTable(
+                tableName: tab.tableName ?? "",
+                columns: tab.resultColumns,
+                primaryKeyColumn: tab.resultColumns.first
+            )
         }
     }
 

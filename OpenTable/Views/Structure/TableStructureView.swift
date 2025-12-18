@@ -228,7 +228,7 @@ struct TableStructureView: View {
         errorMessage = nil
 
         // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
-        guard let driver = await DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.activeDriver else {
             errorMessage = "Not connected"
             isLoading = false
             return

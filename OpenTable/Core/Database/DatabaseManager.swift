@@ -8,6 +8,10 @@
 import Combine
 import Foundation
 
+extension Notification.Name {
+    static let databaseDidConnect = Notification.Name("databaseDidConnect")
+}
+
 /// Manages database connections and active drivers
 @MainActor
 final class DatabaseManager: ObservableObject {
@@ -34,20 +38,12 @@ final class DatabaseManager: ObservableObject {
         // Disconnect existing connection
         disconnect()
 
-        activeConnection = connection
         status = .connecting
         lastError = nil
-
-        // DEBUG: Print SSH config
-        print("[DatabaseManager] Connecting to: \(connection.name)")
-        print("[DatabaseManager] SSH Enabled: \(connection.sshConfig.enabled)")
-        print("[DatabaseManager] SSH Host: \(connection.sshConfig.host)")
-        print("[DatabaseManager] Original port: \(connection.port)")
 
         // Create SSH tunnel if needed
         var effectiveConnection = connection
         if connection.sshConfig.enabled {
-            print("[DatabaseManager] Creating SSH tunnel...")
             let sshPassword = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
             let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
                 connectionId: connection.id,
@@ -61,8 +57,6 @@ final class DatabaseManager: ObservableObject {
                 remotePort: connection.port
             )
 
-            print("[DatabaseManager] Tunnel created on port: \(tunnelPort)")
-
             // Create a modified connection that uses the tunnel
             effectiveConnection = DatabaseConnection(
                 id: connection.id,
@@ -74,17 +68,21 @@ final class DatabaseManager: ObservableObject {
                 type: connection.type,
                 sshConfig: SSHConfiguration()  // Disable SSH for actual driver
             )
-        } else {
-            print("[DatabaseManager] SSH NOT enabled, connecting directly")
         }
 
         // Create appropriate driver with effective connection
         let driver = DatabaseDriverFactory.createDriver(for: effectiveConnection)
-        activeDriver = driver
 
         do {
             try await driver.connect()
+            // Only set activeDriver and activeConnection AFTER successful connection
+            // This ensures onChange listeners trigger when connection is truly ready
+            activeDriver = driver
+            activeConnection = connection
             status = driver.status
+            
+            // Post notification for reliable delivery (SwiftUI onChange can miss rapid changes)
+            NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
         } catch {
             // Close tunnel if connection failed
             if connection.sshConfig.enabled {
