@@ -64,7 +64,6 @@ struct QueryTabBar: View {
         Button("Close Tab") {
             tabManager.closeTab(tab)
         }
-        .disabled(tabManager.tabs.count <= 1)
 
         Button("Close Other Tabs") {
             let pinnedTabs = tabManager.tabs.filter { $0.isPinned || $0.id == tab.id }
@@ -131,9 +130,12 @@ struct TabItem: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(isSelected ? Color(nsColor: .separatorColor) : Color.clear, lineWidth: 0.5)
         )
-        .onTapGesture {
-            onSelect()
-        }
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded { _ in
+                onSelect()
+            }
+        )
         .onHover { hovering in
             isHovering = hovering
         }

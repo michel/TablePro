@@ -14,11 +14,22 @@ struct MainContentView: View {
 
     @StateObject private var tabManager = QueryTabManager()
     @StateObject private var changeManager = DataChangeManager()
+    
+    // Pending table operations (shared with TableBrowserView)
+    @State private var pendingTruncates: Set<String> = []
+    @State private var pendingDeletes: Set<String> = []
 
     @State private var showTableBrowser: Bool = true
     @State private var selectedRowIndices: Set<Int> = []
-    @State private var showDiscardAlert: Bool = false
-    @State private var showCloseTabAlert: Bool = false
+    
+    // Unified alert for all discard scenarios
+    enum DiscardAction {
+        case refresh
+        case closeTab
+        case refreshAll
+    }
+    @State private var pendingDiscardAction: DiscardAction?
+    
     @State private var schemaProvider: SQLSchemaProvider = SQLSchemaProvider()
     @State private var cursorPosition: Int = 0  // For query-at-cursor execution
     @State private var currentQueryTask: Task<Void, Never>?  // Track running query to cancel on new query
@@ -28,39 +39,49 @@ struct MainContentView: View {
     private var currentTab: QueryTab? {
         tabManager.selectedTab
     }
-
+    
+    private var tableBrowserView: some View {
+        TableBrowserView(
+            connection: connection,
+            onSelectQuery: { query in
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].query = query
+                }
+            },
+            onOpenTable: { tableName in
+                openTableData(tableName)
+            },
+            activeTableName: currentTab?.tableName,
+            pendingTruncates: $pendingTruncates,
+            pendingDeletes: $pendingDeletes
+        )
+    }
+    
+    @ViewBuilder
     var body: some View {
         Group {
             bodyContent
         }
     }
     
+    // MARK: - Main Split View
+    
     @ViewBuilder
-    private var bodyContent: some View {
+    private var mainSplitView: some View {
         HSplitView {
             // Table Browser (left) - toggle with Cmd+1
             if showTableBrowser {
-                TableBrowserView(
-                    connection: connection,
-                    onSelectQuery: { query in
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].query = query
-                        }
-                    },
-                    onOpenTable: { tableName in
-                        openTableData(tableName)
-                    },
-                    activeTableName: currentTab?.tableName
-                )
-                .frame(minWidth: 150, idealWidth: 220, maxWidth: 400)
+                tableBrowserView
+                    .frame(minWidth: 150, idealWidth: 220, maxWidth: 400)
             }
 
             // Main content (right)
             VStack(spacing: 0) {
-                // Tab bar
-                QueryTabBar(tabManager: tabManager)
-
-                Divider()
+                // Tab bar - only show when there are tabs
+                if !tabManager.tabs.isEmpty {
+                    QueryTabBar(tabManager: tabManager)
+                    Divider()
+                }
 
                 // Content for selected tab
                 if let tab = currentTab {
@@ -71,161 +92,137 @@ struct MainContentView: View {
                         // Table Tab: Results only
                         tableTabContent(tab: tab)
                     }
-                }
-            }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .navigation) {
-                Button(action: { showTableBrowser.toggle() }) {
-                    Image(systemName: "sidebar.left")
-                }
-                .help("Toggle Table Browser")
-
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 8, height: 8)
-
-                    Image(systemName: connection.type.iconName)
-                        .foregroundStyle(connection.type.themeColor)
-
-                    Text(connection.name)
-                        .fontWeight(.medium)
-                }
-            }
-
-            ToolbarItemGroup(placement: .primaryAction) {
-                if currentTab?.isExecuting == true {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-            }
-        }
-        .task {
-            await establishConnection()
-            await loadSchema()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .toggleTableBrowser)) { _ in
-            showTableBrowser.toggle()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .exportCSV)) { _ in
-            if let tab = currentTab, !tab.resultColumns.isEmpty {
-                ResultExporter.exportToCSVFile(columns: tab.resultColumns, rows: tab.resultRows)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .exportJSON)) { _ in
-            if let tab = currentTab, !tab.resultColumns.isEmpty {
-                ResultExporter.exportToJSONFile(columns: tab.resultColumns, rows: tab.resultRows)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .copyResults)) { _ in
-            if let tab = currentTab, !tab.resultColumns.isEmpty {
-                ResultExporter.copyToClipboard(columns: tab.resultColumns, rows: tab.resultRows)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .closeCurrentTab)) { _ in
-            if currentTab != nil {
-                // Check for unsaved changes before closing
-                if changeManager.hasChanges {
-                    showCloseTabAlert = true
                 } else {
-                    closeCurrentTab()
+                    // Empty state when no tabs are open
+                    VStack(spacing: 16) {
+                        Image(systemName: "tray")
+                            .font(.system(size: 64))
+                            .foregroundStyle(.tertiary)
+                        
+                        Text("No tabs open")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                        
+                        Text("Select a table from the sidebar or create a new query")
+                            .font(.callout)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .saveChanges)) { _ in
-            // Cmd+S to save changes
-            saveChanges()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .refreshData)) { _ in
-            // Cmd+R to refresh data - warn if pending changes
-            if changeManager.hasChanges {
-                showDiscardAlert = true
-            } else {
-                runQuery()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
-            // Delete key to mark selected rows for deletion
-            deleteSelectedRows()
-        }
-        .alert("Discard Changes?", isPresented: $showDiscardAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Discard", role: .destructive) {
-                // Clear both changeManager and tab's stored pending changes
-                changeManager.clearChanges()
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].pendingChanges = TabPendingChanges()
-                }
-                runQuery()
-            }
-        } message: {
-            Text("You have unsaved changes. Do you want to discard them and refresh?")
-        }
-        .alert("Close Tab?", isPresented: $showCloseTabAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Discard & Close", role: .destructive) {
-                // Clear both changeManager and tab's stored pending changes
-                changeManager.clearChanges()
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].pendingChanges = TabPendingChanges()
-                }
-                closeCurrentTab()
-            }
-        } message: {
-            Text("You have unsaved changes. Close this tab and discard changes?")
-        }
-        .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
-            // Save state to the old tab before switching
-            if let oldId = oldTabId,
-                let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId })
-            {
-                // Save pending changes
-                tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
-                // Save row selection
-                tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
-                // sortState is already in tab, no need to save from local state
-            }
+    }
+    
+    // MARK: - View with Toolbar
+    
+    @ViewBuilder
+    private var viewWithToolbar: some View {
+        mainSplitView
+            .toolbar {
+                ToolbarItemGroup(placement: .navigation) {
+                    Button(action: { showTableBrowser.toggle() }) {
+                        Image(systemName: "sidebar.left")
+                    }
+                    .help("Toggle Table Browser")
 
-            // Restore state from the new tab
-            if let newId = newTabId,
-                let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId })
-            {
-                let newTab = tabManager.tabs[newIndex]
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 8, height: 8)
 
-                // Restore pending changes
-                if newTab.pendingChanges.hasChanges {
-                    changeManager.restoreState(
-                        from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
+                        Image(systemName: connection.type.iconName)
+                            .foregroundStyle(connection.type.themeColor)
+
+                        Text(connection.name)
+                            .fontWeight(.medium)
+                    }
+                }
+
+                ToolbarItemGroup(placement: .primaryAction) {
+                    if currentTab?.isExecuting == true {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+            }
+    }
+    
+    // MARK: - Body Content
+    
+    @ViewBuilder
+    private var bodyContent: some View {
+        viewWithToolbar
+            .task {
+                await establishConnection()
+                await loadSchema()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleTableBrowser)) { _ in
+                showTableBrowser.toggle()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
+                handleRefreshAll()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .closeCurrentTab)) { _ in
+                if currentTab != nil {
+                    // Check for unsaved changes before closing
+                    let hasEditedCells = changeManager.hasChanges
+                    let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
+                    
+                    if hasEditedCells || hasPendingTableOps {
+                        pendingDiscardAction = .closeTab
+                    } else {
+                        closeCurrentTab()
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .saveChanges)) { _ in
+                // Cmd+S to save changes
+                print("DEBUG: .saveChanges notification received in MainContentView")
+                saveChanges()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .refreshData)) { _ in
+                // Cmd+R to refresh data - warn if pending changes
+                let hasEditedCells = changeManager.hasChanges
+                let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
+                
+                if hasEditedCells || hasPendingTableOps {
+                    pendingDiscardAction = .refresh
                 } else {
-                    // Clear changeManager for tabs without pending changes (atomically)
-                    changeManager.configureForTable(
-                        tableName: newTab.tableName ?? "",
-                        columns: newTab.resultColumns,
-                        primaryKeyColumn: newTab.resultColumns.first
-                    )
+                    // No changes - refresh table browser and run query
+                    DispatchQueue.main.async {
+                        NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+                    }
+                    runQuery()
                 }
-
-                // Restore row selection
-                selectedRowIndices = newTab.selectedRowIndices
-                // sortState is accessed via binding, no need to restore to local state
             }
-        }
-        .onChange(of: currentTab?.resultColumns) { _, newColumns in
-            // Sync changeManager when data loads on the current tab
-            guard let newColumns = newColumns, !newColumns.isEmpty else { return }
-            guard let tab = tabManager.selectedTab else { return }
-            guard !tab.pendingChanges.hasChanges else { return }
-            
-            // Only update if columns have actually changed
-            guard changeManager.columns != newColumns else { return }
-            
-            changeManager.configureForTable(
-                tableName: tab.tableName ?? "",
-                columns: newColumns,
-                primaryKeyColumn: newColumns.first
-            )
-        }
+            .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
+                // Delete key to mark selected rows for deletion
+                deleteSelectedRows()
+            }
+            .alert("Discard Unsaved Changes?", isPresented: Binding(
+                get: { pendingDiscardAction != nil },
+                set: { if !$0 { pendingDiscardAction = nil } }
+            )) {
+                Button("Cancel", role: .cancel) {}
+                Button("Discard", role: .destructive) {
+                    handleDiscard()
+                }
+            } message: {
+                if let action = pendingDiscardAction {
+                    switch action {
+                    case .refresh, .refreshAll:
+                        Text("Refreshing will discard all unsaved changes.")
+                    case .closeTab:
+                        Text("Closing this tab will discard all unsaved changes.")
+                    }
+                }
+            }
+            .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
+                handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
+            }
+            .onChange(of: currentTab?.resultColumns) { _, newColumns in
+                handleColumnsChange(newColumns: newColumns)
+            }
     }
 
     // MARK: - Query Tab Content
@@ -258,86 +255,13 @@ struct MainContentView: View {
     // MARK: - Table Tab Content
 
     private func tableTabContent(tab: QueryTab) -> some View {
-        VStack(spacing: 0) {
-            // Toolbar with Data/Structure toggle
-            HStack {
-                Image(systemName: "tablecells")
-                    .foregroundStyle(.blue)
-                Text(tab.tableName ?? tab.title)
-                    .font(.headline)
-
-                Spacer()
-
-                // Data/Structure toggle
-                Picker(
-                    "",
-                    selection: Binding(
-                        get: { tab.showStructure ? "structure" : "data" },
-                        set: { newValue in
-                            DispatchQueue.main.async {
-                                if let index = tabManager.selectedTabIndex {
-                                    tabManager.tabs[index].showStructure = (newValue == "structure")
-                                }
-                            }
-                        }
-                    )
-                ) {
-                    Label("Data", systemImage: "tablecells").tag("data")
-                    Label("Structure", systemImage: "list.bullet.rectangle").tag("structure")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 180)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(nsColor: .windowBackgroundColor))
-
-            Divider()
-
-            // Show structure view or data view based on toggle
-            if tab.showStructure, let tableName = tab.tableName {
-                TableStructureView(tableName: tableName, connection: connection)
-                    .frame(maxHeight: .infinity)
-            } else {
-                // Data view
-                if let error = tab.errorMessage {
-                    errorBanner(error)
-                }
-
-                DataGridView(
-                    rowProvider: InMemoryRowProvider(
-                        rows: sortedRows(for: tab),
-                        columns: tab.resultColumns,
-                        columnDefaults: tab.columnDefaults
-                    ),
-                    changeManager: changeManager,
-                    isEditable: tab.isEditable,
-                    onCommit: { sql in
-                        executeCommitSQL(sql)
-                    },
-                    onRefresh: { runQuery() },
-                    onCellEdit: { rowIndex, colIndex, newValue in
-                        updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
-                    },
-                    onSort: { columnIndex in
-                        handleSort(columnIndex: columnIndex)
-                    },
-                    selectedRowIndices: $selectedRowIndices,
-                    sortState: sortStateBinding
-                )
-                .frame(maxHeight: .infinity, alignment: .top)
-            }
-
-            statusBar
-        }
+        resultsSection(tab: tab)
     }
 
     // MARK: - Results Section (shared)
 
     private func resultsSection(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
-            resultsToolbar
-
             if let error = tab.errorMessage {
                 errorBanner(error)
             }
@@ -375,11 +299,13 @@ struct MainContentView: View {
         }
         .frame(minHeight: 150)
     }
-    // MARK: - Results Toolbar
 
-    private var resultsToolbar: some View {
+
+    // MARK: - Status Bar
+
+    private var statusBar: some View {
         HStack {
-            // Data/Structure toggle for table tabs
+            // Data/Structure toggle for table tabs (TablePlus style - bottom left)
             if let tab = currentTab, tab.tabType == .table, tab.tableName != nil {
                 Picker(
                     "",
@@ -399,54 +325,12 @@ struct MainContentView: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 180)
-            } else {
-                Text("Results")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
+                .controlSize(.small)
+                .offset(x: -16)
             }
-
-            Spacer()
-
-            if let tab = currentTab, !tab.resultColumns.isEmpty, !tab.showStructure {
-                Button(action: {
-                    ResultExporter.copyToClipboard(columns: tab.resultColumns, rows: tab.resultRows)
-                }) {
-                    Image(systemName: "doc.on.clipboard")
-                }
-                .buttonStyle(.borderless)
-                .help("Copy to Clipboard")
-
-                Menu {
-                    Button("Export as CSV...") {
-                        ResultExporter.exportToCSVFile(
-                            columns: tab.resultColumns, rows: tab.resultRows)
-                    }
-                    Button("Export as JSON...") {
-                        ResultExporter.exportToJSONFile(
-                            columns: tab.resultColumns, rows: tab.resultRows)
-                    }
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                }
-                .menuStyle(.borderlessButton)
-                .help("Export Results")
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color(nsColor: .windowBackgroundColor))
-    }
-
-
-
-    // MARK: - Status Bar
-
-    private var statusBar: some View {
-        HStack {
+            
             if let time = currentTab?.executionTime {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-                Text("Query executed in \(String(format: "%.3f", time))s")
+                Text("\(String(format: "%.3f", time))s")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -460,9 +344,11 @@ struct MainContentView: View {
             }
 
         }
-        .padding(.horizontal, 12)
+        .padding(.leading, 0)
+        .padding(.trailing, 12)
         .padding(.vertical, 4)
         .background(Color(nsColor: .controlBackgroundColor))
+        .edgesIgnoringSafeArea(.leading)
     }
 
     // MARK: - Error Banner
@@ -539,6 +425,12 @@ struct MainContentView: View {
 
         // Extract query at cursor position (like TablePlus)
         let sql = extractQueryAtCursor(from: fullQuery, at: cursorPosition)
+        
+        // Don't execute empty queries (avoids MySQL Error 1065: Query was empty)
+        guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            tabManager.tabs[index].isExecuting = false
+            return
+        }
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
@@ -584,7 +476,6 @@ struct MainContentView: View {
                 }
 
                 let safeExecutionTime = result.executionTime
-                let safeRowCount = result.rowCount
 
                 // Copy columnDefaults too
                 var safeColumnDefaults: [String: String?] = [:]
@@ -795,12 +686,32 @@ struct MainContentView: View {
     /// Binding for column widths - persists widths across tab switches
 
 
-    /// Get rows for a tab (sorting is done via SQL ORDER BY, so just return as-is)
+    /// Get rows for a tab with sorting applied
+    /// - Query tabs: Sort in-memory (client-side) without modifying SQL
+    /// - Table tabs: Sorting handled via SQL ORDER BY in handleSort
     private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
-        return tab.resultRows
+        // No sort state? Return as-is
+        guard let columnIndex = tab.sortState.columnIndex,
+              columnIndex < tab.resultColumns.count else {
+            return tab.resultRows
+        }
+        
+        // Sort in memory (used for query tabs where we don't modify the SQL)
+        return tab.resultRows.sorted { row1, row2 in
+            let val1 = row1.values[columnIndex] ?? ""
+            let val2 = row2.values[columnIndex] ?? ""
+            
+            if tab.sortState.direction == .ascending {
+                return val1.localizedStandardCompare(val2) == .orderedAscending
+            } else {
+                return val1.localizedStandardCompare(val2) == .orderedDescending
+            }
+        }
     }
 
-    /// Handle column header click for sorting (uses SQL ORDER BY)
+    /// Handle column header click for sorting
+    /// - Query tabs: Update sortState only (in-memory sorting via sortedRows)
+    /// - Table tabs: Update sortState + modify SQL with ORDER BY
     private func handleSort(columnIndex: Int) {
         guard let tabIndex = tabManager.selectedTabIndex else { return }
         
@@ -829,11 +740,27 @@ struct MainContentView: View {
         // Verify tab still exists before updating
         guard tabIndex < tabManager.tabs.count else { return }
         
-        // Update sort state
+        // Update sort state (used by both query and table tabs)
         tabManager.tabs[tabIndex].sortState = currentSort
         
         // Mark tab as having user interaction (prevents auto-replacement)
         tabManager.tabs[tabIndex].hasUserInteraction = true
+        
+        // For QUERY tabs: Show loading state during client-side sort
+        if tab.tabType == .query {
+            Task { @MainActor in
+                tabManager.tabs[tabIndex].isExecuting = true
+                
+                // Small delay to ensure spinner shows and allow UI to update
+                try? await Task.sleep(nanoseconds: 10_000_000) // 10ms
+                
+                // Sorting happens automatically via sortedRows() on next render
+                tabManager.tabs[tabIndex].isExecuting = false
+            }
+            return
+        }
+        
+        // For TABLE tabs: Modify SQL with ORDER BY and re-execute
 
         // Build ORDER BY clause with explicit string copies to avoid retention issues
         let orderDirection = currentSort.direction == .ascending ? "ASC" : "DESC"
@@ -886,37 +813,204 @@ struct MainContentView: View {
         runQuery()
     }
 
+    // MARK: - Event Handlers
+    
+    /// Handle tab selection changes
+    private func handleTabChange(oldTabId: UUID?, newTabId: UUID?) {
+        // Save state to the old tab before switching
+        if let oldId = oldTabId,
+            let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId })
+        {
+            // Save pending changes
+            tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
+            // Save row selection
+            tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
+            // sortState is already in tab, no need to save from local state
+        }
+
+        // Restore state from the new tab
+        if let newId = newTabId,
+            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId })
+        {
+            let newTab = tabManager.tabs[newIndex]
+
+            // Restore pending changes
+            if newTab.pendingChanges.hasChanges {
+                changeManager.restoreState(
+                    from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
+            } else {
+                // Clear changeManager for tabs without pending changes (atomically)
+                changeManager.configureForTable(
+                    tableName: newTab.tableName ?? "",
+                    columns: newTab.resultColumns,
+                    primaryKeyColumn: newTab.resultColumns.first
+                )
+            }
+
+            // Restore row selection
+            selectedRowIndices = newTab.selectedRowIndices
+            // sortState is accessed via binding, no need to restore to local state
+        }
+    }
+    
+    /// Handle result columns changes
+    private func handleColumnsChange(newColumns: [String]?) {
+        // Sync changeManager when data loads on the current tab
+        guard let newColumns = newColumns, !newColumns.isEmpty else { return }
+        guard let tab = tabManager.selectedTab else { return }
+        guard !tab.pendingChanges.hasChanges else { return }
+        
+        // Only update if columns have actually changed
+        guard changeManager.columns != newColumns else { return }
+        
+        changeManager.configureForTable(
+            tableName: tab.tableName ?? "",
+            columns: newColumns,
+            primaryKeyColumn: newColumns.first
+        )
+    }
+    
+    /// Handle refresh all action
+    private func handleRefreshAll() {
+        // Check for unsaved changes
+        let hasEditedCells = changeManager.hasChanges
+        let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
+        
+        if hasEditedCells || hasPendingTableOps {
+            // Show unified alert
+            pendingDiscardAction = .refreshAll
+        } else {
+            // No changes, just refresh
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+            }
+            runQuery()
+        }
+    }
+    
+    /// Unified handler for all discard actions
+    private func handleDiscard() {
+        guard let action = pendingDiscardAction else { return }
+        
+        // CRITICAL: Restore original values BEFORE clearing changes
+        let originalValues = changeManager.getOriginalValues()
+        if let index = tabManager.selectedTabIndex {
+            for (rowIndex, columnIndex, originalValue) in originalValues {
+                if rowIndex < tabManager.tabs[index].resultRows.count {
+                    tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = originalValue
+                }
+            }
+        }
+        
+        // Clear pending table operations (for all actions)
+        pendingTruncates.removeAll()
+        pendingDeletes.removeAll()
+        
+        // Clear changes
+        changeManager.clearChanges()
+        if let index = tabManager.selectedTabIndex {
+            tabManager.tabs[index].pendingChanges = TabPendingChanges()
+        }
+        
+        // Force reload to show restored values
+        changeManager.reloadVersion += 1
+        
+        // Refresh table browser to clear delete/truncate visual indicators
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+        }
+        
+        // Execute the specific action
+        switch action {
+        case .refresh, .refreshAll:
+            runQuery()
+        case .closeTab:
+            closeCurrentTab()
+        }
+        
+        // Clear the pending action
+        pendingDiscardAction = nil
+    }
+    
     /// Close the current tab or go back to home if it's the last tab
     private func closeCurrentTab() {
         guard let tab = currentTab else { return }
-
-        if tabManager.tabs.count > 1 {
-            tabManager.closeTab(tab)
-        } else {
-            // Last tab - go back to home (deselect connection)
-            NotificationCenter.default.post(name: .deselectConnection, object: nil)
-        }
+        
+        // Use the tabManager's closeTab method for consistent behavior
+        tabManager.closeTab(tab)
     }
 
     /// Save pending changes (Cmd+S)
     private func saveChanges() {
-        guard changeManager.hasChanges else { return }
+        print("DEBUG: saveChanges() called")
+        
+        let hasEditedCells = changeManager.hasChanges
+        let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
+        
+        print("DEBUG: hasEditedCells = \(hasEditedCells)")
+        print("DEBUG: hasPendingTableOps = \(hasPendingTableOps)")
+        
+        guard hasEditedCells || hasPendingTableOps else {
+            print("DEBUG: No changes to save")
+            return
+        }
 
-        let statements = changeManager.generateSQL()
-        guard !statements.isEmpty else { return }
+        var allStatements: [String] = []
+        
+        // 1. Generate SQL for cell edits
+        if hasEditedCells {
+            let cellStatements = changeManager.generateSQL()
+            print("DEBUG: Generated \(cellStatements.count) cell edit SQL statements")
+            for (index, stmt) in cellStatements.enumerated() {
+                print("DEBUG: Cell statement \(index + 1): \(stmt)")
+            }
+            allStatements.append(contentsOf: cellStatements)
+        }
+        
+        // 2. Generate SQL for table operations
+        if hasPendingTableOps {
+            // Truncate tables first
+            for tableName in pendingTruncates {
+                let stmt = "TRUNCATE TABLE `\(tableName)`"
+                print("DEBUG: Table operation: \(stmt)")
+                allStatements.append(stmt)
+            }
+            
+            // Then delete tables
+            for tableName in pendingDeletes {
+                let stmt = "DROP TABLE `\(tableName)`"
+                print("DEBUG: Table operation: \(stmt)")
+                allStatements.append(stmt)
+            }
+        }
+        
+        guard !allStatements.isEmpty else {
+            print("DEBUG: No SQL statements generated")
+            if let index = tabManager.selectedTabIndex {
+                tabManager.tabs[index].errorMessage = "Could not generate SQL for changes."
+            }
+            return
+        }
 
-        let sql = statements.joined(separator: ";\n")
-        executeCommitSQL(sql)
+        let sql = allStatements.joined(separator: ";\n")
+        executeCommitSQL(sql, clearTableOps: hasPendingTableOps)
     }
 
     /// Execute commit SQL and refresh data
-    private func executeCommitSQL(_ sql: String) {
+    private func executeCommitSQL(_ sql: String, clearTableOps: Bool = false) {
         guard !sql.isEmpty else { return }
+        
+        print("DEBUG: Executing SQL:\n\(sql)")
 
         Task {
             do {
                 // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
                 guard let driver = DatabaseManager.shared.activeDriver else {
+                    await MainActor.run {
+                        if let index = tabManager.selectedTabIndex {
+                            tabManager.tabs[index].errorMessage = "Not connected to database"
+                        }
+                    }
                     throw DatabaseError.notConnected
                 }
 
@@ -926,8 +1020,11 @@ struct MainContentView: View {
                 }
 
                 for statement in statements {
+                    print("DEBUG: Executing: \(statement)")
                     _ = try await driver.execute(query: statement)
                 }
+                
+                print("DEBUG: All statements executed successfully")
 
                 // Clear pending changes since they're now saved
                 await MainActor.run {
@@ -935,15 +1032,56 @@ struct MainContentView: View {
                     // Also clear the tab's stored pending changes
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].pendingChanges = TabPendingChanges()
+                        tabManager.tabs[index].errorMessage = nil  // Clear any previous errors
                     }
+                    
+                    // Clear table operations if any were executed
+                    if clearTableOps {
+                        // Before clearing, capture which tables were deleted
+                        let deletedTables = Set(pendingDeletes)
+                        
+                        pendingTruncates.removeAll()
+                        pendingDeletes.removeAll()
+                        
+                        // Close tabs for deleted tables to prevent errors
+                        if !deletedTables.isEmpty {
+                            // Capture which tab is currently selected (before deletion)
+                            let selectedTabId = tabManager.selectedTabId
+                            
+                            // Collect tabs to close
+                            var tabsToClose: [QueryTab] = []
+                            for tab in tabManager.tabs {
+                                if let tableName = tab.tableName, deletedTables.contains(tableName) {
+                                    tabsToClose.append(tab)
+                                }
+                            }
+                            
+                            // Close tabs using the manager's method
+                            for tab in tabsToClose {
+                                tabManager.closeTab(tab)
+                            }
+                        }
+                        
+                        // Refresh table browser to show updated table list
+                        DispatchQueue.main.async {
+                            NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+                        }
+                    }
+                    
+                    print("DEBUG: Changes cleared, refreshing query")
                 }
 
-                // Refresh the current query to show updated data
-                runQuery()
+                // Refresh the current query to show updated data (if tab still exists)
+                if tabManager.selectedTabIndex != nil && !tabManager.tabs.isEmpty {
+                    runQuery()
+                }
 
             } catch {
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage = error.localizedDescription
+                print("DEBUG: Error during save: \(error)")
+                await MainActor.run {
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
+                    }
                 }
             }
         }

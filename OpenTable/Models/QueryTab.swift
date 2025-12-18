@@ -237,14 +237,18 @@ final class QueryTabManager: ObservableObject {
     }
 
     func closeTab(_ tab: QueryTab) {
-        guard tabs.count > 1 else { return }  // Keep at least one tab
-
         if let index = tabs.firstIndex(of: tab) {
             tabs.remove(at: index)
 
             // Select another tab if we closed the selected one
             if selectedTabId == tab.id {
-                selectedTabId = tabs[max(0, index - 1)].id
+                if tabs.isEmpty {
+                    // No tabs left - clear selection (shows empty state)
+                    selectedTabId = nil
+                } else {
+                    // Select nearest remaining tab
+                    selectedTabId = tabs[max(0, index - 1)].id
+                }
             }
         }
     }

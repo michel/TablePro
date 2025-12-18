@@ -146,16 +146,14 @@ struct DataGridView: NSViewRepresentable {
             return false
         }()
 
+
         let needsReload =
             oldRowCount != newRowCount
             || oldColumnCount != newColumnCount
             || versionChanged
             || rowDataChanged
 
-        // Update version tracker
-        coordinator.lastReloadVersion = changeManager.reloadVersion
-
-        // Update coordinator references
+        // Update coordinator references (but not version tracker yet - see below)
         coordinator.rowProvider = rowProvider
         coordinator.updateCache()  // Update cached counts after provider change
         coordinator.changeManager = changeManager
@@ -240,6 +238,11 @@ struct DataGridView: NSViewRepresentable {
         if needsReload {
             tableView.reloadData()
         }
+        
+        // CRITICAL: Update version tracker AFTER reload check
+        // This ensures versionChanged is true when changeManager.reloadVersion increments
+        // (e.g., when clearChanges() is called after discarding or saving changes)
+        coordinator.lastReloadVersion = changeManager.reloadVersion
 
         // Sync selection
         let currentSelection = tableView.selectedRowIndexes
@@ -489,11 +492,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let isDeleted: Bool
         let isModified: Bool
         
-        if row >= 0 && row < changeManager.changes.count && columnIndex >= 0 && columnIndex < changeManager.columns.count {
+        // Check against actual data bounds, not changes array size
+        if row >= 0 && row < cachedRowCount && columnIndex >= 0 && columnIndex < cachedColumnCount {
             isDeleted = changeManager.isRowDeleted(row)
             isModified = changeManager.isCellModified(rowIndex: row, columnIndex: columnIndex)
         } else {
-            // Out of bounds or changeManager not synced yet - assume no changes
+            // Out of bounds - assume no changes
             isDeleted = false
             isModified = false
         }
@@ -528,22 +532,14 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         // Modified cell background - apply to cellView for full coverage
         cell.drawsBackground = false
         cellView.wantsLayer = true
-        if isModified {
+        
+        // Deleted row takes precedence over modified cell
+        if isDeleted {
+            cellView.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.15).cgColor
+        } else if isModified {
             cellView.layer?.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.3).cgColor
         } else {
             cellView.layer?.backgroundColor = nil
-        }
-
-        // Deleted row styling
-        if isDeleted {
-            cell.textColor = .systemRed.withAlphaComponent(0.5)
-            // Add strikethrough effect
-            let attributedString = NSMutableAttributedString(string: cell.stringValue)
-            attributedString.addAttribute(
-                .strikethroughStyle,
-                value: NSUnderlineStyle.single.rawValue,
-                range: NSRange(location: 0, length: attributedString.length))
-            cell.attributedStringValue = attributedString
         }
 
         return cellView
@@ -640,6 +636,27 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     func deleteRow(at index: Int) {
         guard let rowData = rowProvider.row(at: index) else { return }
         changeManager.recordRowDeletion(rowIndex: index, originalRow: rowData.values)
+        
+        // Move selection to next row (or previous if last row)
+        // This makes the red background visible instead of being hidden by blue selection
+        if selectedRowIndices.contains(index) {
+            var newSelection = Set<Int>()
+            
+            // Try to select next row
+            if index + 1 < cachedRowCount {
+                newSelection.insert(index + 1)
+            } 
+            // If deleted row was last, select previous row
+            else if index > 0 {
+                newSelection.insert(index - 1)
+            }
+            
+            // Update selection
+            DispatchQueue.main.async {
+                self.selectedRowIndices = newSelection
+            }
+        }
+        
         tableView?.reloadData(
             forRowIndexes: IndexSet(integer: index),
             columnIndexes: IndexSet(integersIn: 0..<(tableView?.numberOfColumns ?? 0)))

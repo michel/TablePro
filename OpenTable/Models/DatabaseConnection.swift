@@ -116,30 +116,5 @@ struct DatabaseConnection: Identifiable, Hashable {
 // MARK: - Sample Data for Development
 
 extension DatabaseConnection {
-    static let sampleConnections: [DatabaseConnection] = [
-        DatabaseConnection(
-            name: "Local MySQL",
-            host: "localhost",
-            port: 3306,
-            database: "app_development",
-            username: "root",
-            type: .mysql
-        ),
-        DatabaseConnection(
-            name: "Production PostgreSQL",
-            host: "db.example.com",
-            port: 5432,
-            database: "production",
-            username: "admin",
-            type: .postgresql
-        ),
-        DatabaseConnection(
-            name: "SQLite Database",
-            host: "",
-            port: 0,
-            database: "~/Documents/data.sqlite",
-            username: "",
-            type: .sqlite
-        ),
-    ]
+    static let sampleConnections: [DatabaseConnection] = []
 }

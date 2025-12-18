@@ -27,9 +27,10 @@ struct OpenTableApp: App {
             // File menu - Save & Close
             CommandGroup(after: .newItem) {
                 Button("Save Changes") {
+                    print("DEBUG: Save Changes menu item clicked, posting .saveChanges notification")
                     NotificationCenter.default.post(name: .saveChanges, object: nil)
                 }
-                .keyboardShortcut("s", modifiers: .command)
+                .keyboardShortcut(KeyboardShortcut("s", modifiers: .command))
                 
                 Button("Close Tab") {
                     NotificationCenter.default.post(name: .closeCurrentTab, object: nil)
@@ -43,11 +44,6 @@ struct OpenTableApp: App {
                     NotificationCenter.default.post(name: .executeQuery, object: nil)
                 }
                 .keyboardShortcut(.return, modifiers: .command)
-                
-                Button("Refresh Data") {
-                    NotificationCenter.default.post(name: .refreshData, object: nil)
-                }
-                .keyboardShortcut("r", modifiers: .command)
                 
                 Button("Format Query") {
                     NotificationCenter.default.post(name: .formatQuery, object: nil)
@@ -73,26 +69,11 @@ struct OpenTableApp: App {
                     NotificationCenter.default.post(name: .toggleTableBrowser, object: nil)
                 }
                 .keyboardShortcut("b", modifiers: [.command, .shift])
-            }
-            
-            // Export menu
-            CommandMenu("Export") {
-                Button("Export Results as CSV...") {
-                    NotificationCenter.default.post(name: .exportCSV, object: nil)
-                }
-                .keyboardShortcut("e", modifiers: .command)
                 
-                Button("Export Results as JSON...") {
-                    NotificationCenter.default.post(name: .exportJSON, object: nil)
+                Button("Refresh") {
+                    NotificationCenter.default.post(name: .refreshData, object: nil)
                 }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
-                
-                Divider()
-                
-                Button("Copy Results to Clipboard") {
-                    NotificationCenter.default.post(name: .copyResults, object: nil)
-                }
-                .keyboardShortcut("c", modifiers: [.command, .shift])
+                .keyboardShortcut("r", modifiers: .command)
             }
         }
     }
@@ -106,12 +87,10 @@ extension Notification.Name {
     static let formatQuery = Notification.Name("formatQuery")
     static let clearQuery = Notification.Name("clearQuery")
     static let toggleTableBrowser = Notification.Name("toggleTableBrowser")
-    static let exportCSV = Notification.Name("exportCSV")
-    static let exportJSON = Notification.Name("exportJSON")
-    static let copyResults = Notification.Name("copyResults")
     static let closeCurrentTab = Notification.Name("closeCurrentTab")
     static let deselectConnection = Notification.Name("deselectConnection")
     static let saveChanges = Notification.Name("saveChanges")
     static let refreshData = Notification.Name("refreshData")
     static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
+    static let refreshAll = Notification.Name("refreshAll")
 }

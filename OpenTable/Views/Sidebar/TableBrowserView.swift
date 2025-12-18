@@ -13,6 +13,10 @@ struct TableBrowserView: View {
     let onSelectQuery: (String) -> Void
     var onOpenTable: ((String) -> Void)?  // Click to open table
     var activeTableName: String?  // Currently active table (synced with tab)
+    
+    // Pending table operations (bound from parent)
+    @Binding var pendingTruncates: Set<String>
+    @Binding var pendingDeletes: Set<String>
 
     @State private var tables: [TableInfo] = []
     @State private var isLoading = true  // Start with loading to prevent "No tables" flash
@@ -135,6 +139,12 @@ struct TableBrowserView: View {
                 await loadTablesAsync()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
+            isLoading = true
+            Task {
+                await loadTablesAsync()
+            }
+        }
         .onAppear {
             // If already connected when view appears, show loading instead of "No tables"
             if DatabaseManager.shared.activeDriver != nil && tables.isEmpty {
@@ -179,6 +189,16 @@ struct TableBrowserView: View {
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString(table.name, forType: .string)
                             }
+                            
+                            Divider()
+                            
+                            Button("Truncate Table") {
+                                truncateTable(table.name)
+                            }
+                            
+                            Button("Delete Table", role: .destructive) {
+                                deleteTable(table.name)
+                            }
                         }
                     }
                 }
@@ -201,9 +221,20 @@ struct TableBrowserView: View {
 
     /// Determine background color for a table item
     private func backgroundColorForItem(table: TableInfo, index: Int) -> Color {
+        // Pending delete takes priority (red)
+        if pendingDeletes.contains(table.name) {
+            return Color.red.opacity(0.15)
+        }
+        // Pending truncate (yellow)
+        if pendingTruncates.contains(table.name) {
+            return Color.yellow.opacity(0.3)
+        }
+        // Active table
         if activeTableName == table.name {
             return Color.accentColor.opacity(0.2)
-        } else if selectedIndex == index {
+        }
+        // Selected for keyboard navigation
+        if selectedIndex == index {
             return Color.secondary.opacity(0.15)
         }
         return Color.clear
@@ -277,13 +308,65 @@ struct TableBrowserView: View {
             }
         }
     }
+    
+    // MARK: - Table Actions
+    
+    private func truncateTable(_ tableName: String) {
+        // Remove from delete if present (truncate overrides delete)
+        pendingDeletes.remove(tableName)
+        
+        // Toggle truncate state
+        if pendingTruncates.contains(tableName) {
+            pendingTruncates.remove(tableName)
+        } else {
+            pendingTruncates.insert(tableName)
+        }
+    }
+    
+    private func deleteTable(_ tableName: String) {
+        // Remove from truncate if present (delete overrides truncate)
+        pendingTruncates.remove(tableName)
+        
+        // Toggle delete state
+        if pendingDeletes.contains(tableName) {
+            pendingDeletes.remove(tableName)
+        } else {
+            pendingDeletes.insert(tableName)
+        }
+    }
+    
+    private func commitPendingOperations() {
+        var queries: [String] = []
+        
+        // Truncate tables first
+        for tableName in pendingTruncates {
+            queries.append("TRUNCATE TABLE `\(tableName)`;")
+        }
+        
+        // Then delete tables
+        for tableName in pendingDeletes {
+            queries.append("DROP TABLE `\(tableName)`;")
+        }
+        
+        // Clear pending operations
+        pendingTruncates.removeAll()
+        pendingDeletes.removeAll()
+        
+        // Execute all queries
+        if !queries.isEmpty {
+            let combinedQuery = queries.joined(separator: "\n")
+            onSelectQuery(combinedQuery)
+        }
+    }
 
 }
 
 #Preview {
     TableBrowserView(
         connection: DatabaseConnection.sampleConnections[2],
-        onSelectQuery: { _ in }
+        onSelectQuery: { _ in },
+        pendingTruncates: .constant([]),
+        pendingDeletes: .constant([])
     )
     .frame(width: 250, height: 400)
 }
