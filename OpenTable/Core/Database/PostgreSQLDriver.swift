@@ -14,6 +14,11 @@ final class PostgreSQLDriver: DatabaseDriver {
 
     /// Native libpq connection wrapper
     private var libpqConnection: LibPQConnection?
+    
+    /// Server version string (e.g., "16.1.0")
+    var serverVersion: String? {
+        libpqConnection?.serverVersion()
+    }
 
     init(connection: DatabaseConnection) {
         self.connection = connection

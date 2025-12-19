@@ -15,6 +15,11 @@ final class SQLiteDriver: DatabaseDriver {
     
     private var db: OpaquePointer?
     
+    /// Server version string (SQLite library version, e.g., "3.43.2")
+    var serverVersion: String? {
+        String(cString: sqlite3_libversion())
+    }
+    
     init(connection: DatabaseConnection) {
         self.connection = connection
     }

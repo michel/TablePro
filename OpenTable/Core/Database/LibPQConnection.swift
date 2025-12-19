@@ -303,6 +303,8 @@ final class LibPQConnection: @unchecked Sendable {
         queue.sync {
             guard let conn = conn else { return nil }
             let version = PQserverVersion(conn)
+            // Return nil if not connected (version == 0)
+            guard version > 0 else { return nil }
             // Format: XXYYYZZ where XX is major, YYY is minor, ZZ is revision
             let major = version / 10000
             let minor = (version / 100) % 100

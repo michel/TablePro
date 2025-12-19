@@ -135,31 +135,39 @@ struct MainContentView: View {
             }
     }
 
+    // MARK: - Discard Alert Binding
+    
+    /// Extracted binding to reduce type-checker complexity
+    private var showDiscardAlert: Binding<Bool> {
+        Binding(
+            get: { pendingDiscardAction != nil },
+            set: { if !$0 { pendingDiscardAction = nil } }
+        )
+    }
+    
+    /// Message for discard alert based on pending action
+    private var discardAlertMessage: String {
+        guard let action = pendingDiscardAction else { return "" }
+        switch action {
+        case .refresh, .refreshAll:
+            return "Refreshing will discard all unsaved changes."
+        case .closeTab:
+            return "Closing this tab will discard all unsaved changes."
+        }
+    }
+
     // MARK: - Body Content
 
     @ViewBuilder
     private var bodyContent: some View {
         bodyContentWithNotifications
-            .alert(
-                "Discard Unsaved Changes?",
-                isPresented: Binding(
-                    get: { pendingDiscardAction != nil },
-                    set: { if !$0 { pendingDiscardAction = nil } }
-                )
-            ) {
+            .alert("Discard Unsaved Changes?", isPresented: showDiscardAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Discard", role: .destructive) {
                     handleDiscard()
                 }
             } message: {
-                if let action = pendingDiscardAction {
-                    switch action {
-                    case .refresh, .refreshAll:
-                        Text("Refreshing will discard all unsaved changes.")
-                    case .closeTab:
-                        Text("Closing this tab will discard all unsaved changes.")
-                    }
-                }
+                Text(discardAlertMessage)
             }
             .alert("Query Error", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) {
@@ -251,9 +259,13 @@ struct MainContentView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
-                // Load schema when connection is established (fixes race condition)
+                // Load schema and update toolbar when connection is established (fixes race condition)
                 Task { @MainActor in
                     await loadSchema()
+                    // Update version after connection is fully established
+                    if let driver = DatabaseManager.shared.activeDriver {
+                        toolbarState.databaseVersion = driver.serverVersion
+                    }
                 }
             }
     }
@@ -1113,8 +1125,8 @@ struct MainContentView: View {
 
                         // Close tabs for deleted tables to prevent errors
                         if !deletedTables.isEmpty {
-                            // Capture which tab is currently selected (before deletion)
-                            let selectedTabId = tabManager.selectedTabId
+                            // Note: We don't need to preserve selection - tabManager handles it
+                            _ = tabManager.selectedTabId
 
                             // Collect tabs to close
                             var tabsToClose: [QueryTab] = []
