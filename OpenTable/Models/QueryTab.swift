@@ -166,7 +166,7 @@ final class QueryTabManager: ObservableObject {
         selectedTabId = newTab.id
     }
 
-    func addTableTab(tableName: String) {
+    func addTableTab(tableName: String, databaseType: DatabaseType = .mysql) {
         // Check if table tab already exists
         if let existingTab = tabs.first(where: { $0.tabType == .table && $0.tableName == tableName }
         ) {
@@ -174,9 +174,10 @@ final class QueryTabManager: ObservableObject {
             return
         }
 
+        let quotedName = databaseType.quoteIdentifier(tableName)
         let newTab = QueryTab(
             title: tableName,
-            query: "SELECT * FROM `\(tableName)` LIMIT 1000;",
+            query: "SELECT * FROM \(quotedName) LIMIT 1000;",
             tabType: .table,
             tableName: tableName
         )
@@ -190,13 +191,17 @@ final class QueryTabManager: ObservableObject {
     /// - If current tab has pending changes or is a query tab: create new tab
     /// - Returns: true if query needs to be executed (new/replaced tab), false if just switching
     @discardableResult
-    func openTableTabSmart(tableName: String, hasUnsavedChanges: Bool) -> Bool {
+    func openTableTabSmart(
+        tableName: String, hasUnsavedChanges: Bool, databaseType: DatabaseType = .mysql
+    ) -> Bool {
         // 1. If a tab for this table already exists, just switch to it
         if let existingTab = tabs.first(where: { $0.tabType == .table && $0.tableName == tableName }
         ) {
             selectedTabId = existingTab.id
             return false  // No need to run query, data already loaded
         }
+
+        let quotedName = databaseType.quoteIdentifier(tableName)
 
         // 2. Try to reuse the current tab if it's a clean table tab (no changes, no user interaction)
         if let selectedId = selectedTabId,
@@ -209,7 +214,7 @@ final class QueryTabManager: ObservableObject {
             // Replace the current table tab instead of creating a new one
             tabs[selectedIndex].title = tableName
             tabs[selectedIndex].tableName = tableName
-            tabs[selectedIndex].query = "SELECT * FROM `\(tableName)` LIMIT 1000;"
+            tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT 1000;"
             tabs[selectedIndex].resultColumns = []
             tabs[selectedIndex].resultRows = []
             tabs[selectedIndex].executionTime = nil
@@ -226,7 +231,7 @@ final class QueryTabManager: ObservableObject {
         // 3. Otherwise, create a new tab
         let newTab = QueryTab(
             title: tableName,
-            query: "SELECT * FROM `\(tableName)` LIMIT 1000;",
+            query: "SELECT * FROM \(quotedName) LIMIT 1000;",
             tabType: .table,
             tableName: tableName
         )

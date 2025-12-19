@@ -66,7 +66,8 @@ final class DataChangeManager: ObservableObject {
 
     var tableName: String = ""
     var primaryKeyColumn: String?
-    
+    var databaseType: DatabaseType = .mysql  // For database-specific SQL generation
+
     // Simple storage with explicit deep copy to avoid memory corruption
     private var _columnsStorage: [String] = []
     var columns: [String] {
@@ -100,20 +101,24 @@ final class DataChangeManager: ObservableObject {
         hasChanges = false
         reloadVersion += 1  // Trigger table reload
     }
-    
+
     /// Atomically configure the manager for a new table
     /// This batches all updates and only triggers @Published changes at the end
     /// to prevent race conditions where SwiftUI reads properties mid-update
-    func configureForTable(tableName: String, columns: [String], primaryKeyColumn: String?) {
+    func configureForTable(
+        tableName: String, columns: [String], primaryKeyColumn: String?,
+        databaseType: DatabaseType = .mysql
+    ) {
         // First, update non-published properties (no SwiftUI notifications)
         self.tableName = tableName
         self.columns = columns  // Uses deep copy setter to avoid memory corruption
         self.primaryKeyColumn = primaryKeyColumn
-        
+        self.databaseType = databaseType
+
         // Clear caches
         deletedRowIndices.removeAll()
         modifiedCells.removeAll()
-        
+
         // Now update @Published properties - triggers ONE view update
         changes.removeAll()
         hasChanges = false
@@ -299,7 +304,7 @@ final class DataChangeManager: ObservableObject {
             } else {
                 value = "NULL"
             }
-            return "`\(cellChange.columnName)` = \(value)"
+            return "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(value)"
         }.joined(separator: ", ")
 
         // Use primary key for WHERE clause
@@ -312,27 +317,30 @@ final class DataChangeManager: ObservableObject {
             if let originalRow = change.originalRow, pkColumnIndex < originalRow.count {
                 let pkValue =
                     originalRow[pkColumnIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
-                whereClause = "`\(pkColumn)` = \(pkValue)"
+                whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)"
             }
             // Otherwise try from cellChanges (if PK column was edited)
             else if let pkChange = change.cellChanges.first(where: { $0.columnName == pkColumn }) {
                 let pkValue = pkChange.oldValue.map { "'\(escapeSQLString($0))'" } ?? "NULL"
-                whereClause = "`\(pkColumn)` = \(pkValue)"
+                whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)"
             }
         }
 
-        return "UPDATE `\(tableName)` SET \(setClauses) WHERE \(whereClause)"
+        return
+            "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
     }
 
     private func generateInsertSQL(for change: RowChange) -> String? {
         guard !change.cellChanges.isEmpty else { return nil }
 
-        let columnNames = change.cellChanges.map { "`\($0.columnName)`" }.joined(separator: ", ")
+        let columnNames = change.cellChanges.map { databaseType.quoteIdentifier($0.columnName) }
+            .joined(separator: ", ")
         let values = change.cellChanges.map { cellChange -> String in
             cellChange.newValue.map { "'\(escapeSQLString($0))'" } ?? "NULL"
         }.joined(separator: ", ")
 
-        return "INSERT INTO `\(tableName)` (\(columnNames)) VALUES (\(values))"
+        return
+            "INSERT INTO \(databaseType.quoteIdentifier(tableName)) (\(columnNames)) VALUES (\(values))"
     }
 
     private func generateDeleteSQL(for change: RowChange) -> String? {
@@ -345,7 +353,8 @@ final class DataChangeManager: ObservableObject {
         }
 
         let pkValue = originalRow[pkIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
-        return "DELETE FROM `\(tableName)` WHERE `\(pkColumn)` = \(pkValue)"
+        return
+            "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)"
     }
 
     private func escapeSQLString(_ str: String) -> String {

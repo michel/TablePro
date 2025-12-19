@@ -79,6 +79,23 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .sqlite: return 0
         }
     }
+
+    /// Quote character for identifiers (table/column names)
+    /// MySQL/MariaDB/SQLite use backticks, PostgreSQL uses double quotes
+    var identifierQuote: String {
+        switch self {
+        case .mysql, .mariadb, .sqlite:
+            return "`"
+        case .postgresql:
+            return "\""
+        }
+    }
+
+    /// Quote an identifier (table or column name) for this database type
+    func quoteIdentifier(_ name: String) -> String {
+        let q = identifierQuote
+        return "\(q)\(name)\(q)"
+    }
 }
 
 /// Model representing a database connection

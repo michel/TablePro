@@ -37,6 +37,10 @@ struct MainContentView: View {
     @State private var queryGeneration: Int = 0
     @State private var changeManagerUpdateTask: Task<Void, Never>?
 
+    // Error alert state
+    @State private var showErrorAlert = false
+    @State private var errorAlertMessage = ""
+
     // MARK: - Toolbar State
 
     /// Observable state for the production-quality toolbar
@@ -135,6 +139,60 @@ struct MainContentView: View {
 
     @ViewBuilder
     private var bodyContent: some View {
+        bodyContentWithNotifications
+            .alert(
+                "Discard Unsaved Changes?",
+                isPresented: Binding(
+                    get: { pendingDiscardAction != nil },
+                    set: { if !$0 { pendingDiscardAction = nil } }
+                )
+            ) {
+                Button("Cancel", role: .cancel) {}
+                Button("Discard", role: .destructive) {
+                    handleDiscard()
+                }
+            } message: {
+                if let action = pendingDiscardAction {
+                    switch action {
+                    case .refresh, .refreshAll:
+                        Text("Refreshing will discard all unsaved changes.")
+                    case .closeTab:
+                        Text("Closing this tab will discard all unsaved changes.")
+                    }
+                }
+            }
+            .alert("Query Error", isPresented: $showErrorAlert) {
+                Button("OK", role: .cancel) {
+                    // Clear the error message from the tab
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = nil
+                    }
+                }
+            } message: {
+                Text(errorAlertMessage)
+            }
+            .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
+                Task { @MainActor in
+                    handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
+                }
+            }
+            .onChange(of: currentTab?.resultColumns) { _, newColumns in
+                Task { @MainActor in
+                    handleColumnsChange(newColumns: newColumns)
+                }
+            }
+            .onChange(of: currentTab?.errorMessage) { _, newError in
+                // Show error alert when errorMessage is set
+                if let error = newError, !error.isEmpty {
+                    errorAlertMessage = error
+                    showErrorAlert = true
+                }
+            }
+    }
+    
+    /// Separated to reduce type-checker complexity
+    @ViewBuilder
+    private var bodyContentWithNotifications: some View {
         viewWithToolbar
             .task {
                 await initializeView()
@@ -192,37 +250,6 @@ struct MainContentView: View {
                     deleteSelectedRows()
                 }
             }
-            .alert(
-                "Discard Unsaved Changes?",
-                isPresented: Binding(
-                    get: { pendingDiscardAction != nil },
-                    set: { if !$0 { pendingDiscardAction = nil } }
-                )
-            ) {
-                Button("Cancel", role: .cancel) {}
-                Button("Discard", role: .destructive) {
-                    handleDiscard()
-                }
-            } message: {
-                if let action = pendingDiscardAction {
-                    switch action {
-                    case .refresh, .refreshAll:
-                        Text("Refreshing will discard all unsaved changes.")
-                    case .closeTab:
-                        Text("Closing this tab will discard all unsaved changes.")
-                    }
-                }
-            }
-            .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
-                Task { @MainActor in
-                    handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
-                }
-            }
-            .onChange(of: currentTab?.resultColumns) { _, newColumns in
-                Task { @MainActor in
-                    handleColumnsChange(newColumns: newColumns)
-                }
-            }
     }
 
     // MARK: - Query Tab Content
@@ -262,10 +289,6 @@ struct MainContentView: View {
 
     private func resultsSection(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
-            if let error = tab.errorMessage {
-                errorBanner(error)
-            }
-
             // Show structure view or data view based on toggle
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
@@ -342,39 +365,14 @@ struct MainContentView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    // MARK: - Error Banner
-
-    private func errorBanner(_ message: String) -> some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-
-            Text(message)
-                .font(.caption)
-
-            Spacer()
-
-            Button("Dismiss") {
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage = nil
-                }
-            }
-            .buttonStyle(.borderless)
-            .controlSize(.small)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.orange.opacity(0.15))
-    }
-
     // MARK: - Actions
-    
+
     /// Initialize view with connection info
     private func initializeView() async {
         // Initialize toolbar with connection info
         await MainActor.run {
             toolbarState.update(from: connection)
-            
+
             // Get actual connection state from session
             if let session = DatabaseManager.shared.currentSession {
                 toolbarState.connectionState = mapSessionStatus(session.status)
@@ -387,11 +385,11 @@ struct MainContentView: View {
                 toolbarState.databaseVersion = driver.serverVersion
             }
         }
-        
+
         // Load schema for autocomplete
         await loadSchema()
     }
-    
+
     /// Map ConnectionStatus to ToolbarConnectionState
     private func mapSessionStatus(_ status: ConnectionStatus) -> ToolbarConnectionState {
         switch status {
@@ -560,13 +558,12 @@ struct MainContentView: View {
                 // Only update if this is still the current query
                 guard capturedGeneration == queryGeneration else { return }
 
-                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                    tabManager.tabs[idx].errorMessage = error.localizedDescription
-                    tabManager.tabs[idx].isExecuting = false
-                }
-
-                // Also reset toolbar state on error
+                // MUST run on MainActor for SwiftUI onChange to fire
                 await MainActor.run {
+                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                        tabManager.tabs[idx].errorMessage = error.localizedDescription
+                        tabManager.tabs[idx].isExecuting = false
+                    }
                     toolbarState.isExecuting = false
                 }
             }
@@ -719,9 +716,16 @@ struct MainContentView: View {
 
     /// Get rows for a tab with sorting applied
     /// - Query tabs: Sort in-memory (client-side) without modifying SQL
-    /// - Table tabs: Sorting handled via SQL ORDER BY in handleSort
+    /// - Table tabs: Return as-is (sorting handled via SQL ORDER BY in handleSort)
     private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
-        // No sort state? Return as-is
+        // Table tabs: Don't apply client-side sorting
+        // Sorting is handled via SQL ORDER BY - if that fails, data stays unsorted
+        // This ensures SQL errors (like JSON columns) are properly visible
+        if tab.tabType == .table {
+            return tab.resultRows
+        }
+
+        // Query tabs: Apply client-side sorting
         guard let columnIndex = tab.sortState.columnIndex,
             columnIndex < tab.resultColumns.count
         else {
@@ -821,7 +825,9 @@ struct MainContentView: View {
         }
 
         // Insert ORDER BY before LIMIT (if exists) or at end
-        let orderByClause = "ORDER BY `\(columnName)` \(orderDirection)"
+        // Use database-specific identifier quoting
+        let quote = connection.type.identifierQuote
+        let orderByClause = "ORDER BY \(quote)\(columnName)\(quote) \(orderDirection)"
 
         let newQuery: String
         if let limitRange = baseQuery.range(of: "LIMIT", options: .caseInsensitive) {
@@ -877,7 +883,8 @@ struct MainContentView: View {
                 changeManager.configureForTable(
                     tableName: newTab.tableName ?? "",
                     columns: newTab.resultColumns,
-                    primaryKeyColumn: newTab.resultColumns.first
+                    primaryKeyColumn: newTab.resultColumns.first,
+                    databaseType: connection.type
                 )
             }
 
@@ -900,7 +907,8 @@ struct MainContentView: View {
         changeManager.configureForTable(
             tableName: tab.tableName ?? "",
             columns: newColumns,
-            primaryKeyColumn: newColumns.first
+            primaryKeyColumn: newColumns.first,
+            databaseType: connection.type
         )
     }
 
@@ -1023,14 +1031,16 @@ struct MainContentView: View {
         if hasPendingTableOps {
             // Truncate tables first
             for tableName in pendingTruncates {
-                let stmt = "TRUNCATE TABLE `\(tableName)`"
+                let quotedName = connection.type.quoteIdentifier(tableName)
+                let stmt = "TRUNCATE TABLE \(quotedName)"
                 print("DEBUG: Table operation: \(stmt)")
                 allStatements.append(stmt)
             }
 
             // Then delete tables
             for tableName in pendingDeletes {
-                let stmt = "DROP TABLE `\(tableName)`"
+                let quotedName = connection.type.quoteIdentifier(tableName)
+                let stmt = "DROP TABLE \(quotedName)"
                 print("DEBUG: Table operation: \(stmt)")
                 allStatements.append(stmt)
             }
@@ -1160,7 +1170,8 @@ struct MainContentView: View {
             changeManager.configureForTable(
                 tableName: tab.tableName ?? "",
                 columns: tab.resultColumns,
-                primaryKeyColumn: tab.resultColumns.first
+                primaryKeyColumn: tab.resultColumns.first,
+                databaseType: connection.type
             )
         }
     }
@@ -1176,7 +1187,8 @@ struct MainContentView: View {
         // Use smart tab opening - reuse clean table tabs
         // Returns true if we need to run query (new/replaced tab), false if just switching to existing
         let needsQuery = tabManager.openTableTabSmart(
-            tableName: tableName, hasUnsavedChanges: changeManager.hasChanges)
+            tableName: tableName, hasUnsavedChanges: changeManager.hasChanges,
+            databaseType: connection.type)
 
         // Clear selection for new/replaced tabs (prevents old selection from leaking)
         // For existing tabs, onChange will restore their saved selection

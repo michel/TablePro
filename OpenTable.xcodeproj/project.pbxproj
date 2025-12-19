@@ -265,7 +265,10 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "/opt/homebrew/opt/mariadb-connector-c/include/mariadb";
+				HEADER_SEARCH_PATHS = (
+					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
+					"/opt/homebrew/opt/libpq/include",
+				);
 				INFOPLIST_KEY_CFBundleDisplayName = OpenTable;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -287,7 +290,9 @@
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
+					"-L/opt/homebrew/opt/libpq/lib",
 					"-L/opt/homebrew/opt/openssl/lib",
+					"-lpq",
 					"-lcrypto",
 					"-lssl",
 					"-lz",
@@ -308,7 +313,10 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/OpenTable/Core/Database/CMariaDB";
+				SWIFT_INCLUDE_PATHS = (
+					"$(PROJECT_DIR)/OpenTable/Core/Database/CMariaDB",
+					"$(PROJECT_DIR)/OpenTable/Core/Database/CLibPQ",
+				);
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -338,7 +346,10 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "/opt/homebrew/opt/mariadb-connector-c/include/mariadb";
+				HEADER_SEARCH_PATHS = (
+					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
+					"/opt/homebrew/opt/libpq/include",
+				);
 				INFOPLIST_KEY_CFBundleDisplayName = OpenTable;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -360,7 +371,9 @@
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
+					"-L/opt/homebrew/opt/libpq/lib",
 					"-L/opt/homebrew/opt/openssl/lib",
+					"-lpq",
 					"-lcrypto",
 					"-lssl",
 					"-lz",
@@ -381,7 +394,10 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/OpenTable/Core/Database/CMariaDB";
+				SWIFT_INCLUDE_PATHS = (
+					"$(PROJECT_DIR)/OpenTable/Core/Database/CMariaDB",
+					"$(PROJECT_DIR)/OpenTable/Core/Database/CLibPQ",
+				);
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
