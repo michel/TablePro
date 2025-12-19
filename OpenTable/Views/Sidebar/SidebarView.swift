@@ -40,28 +40,41 @@ struct SidebarView: View {
             searchField
             content
         }
-        .frame(minWidth: 220)
+        .frame(minWidth: 280)
         .onChange(of: selectedTable) { _, newTable in
             guard !isRestoringSelection, let table = newTable else { return }
-            onOpenTable?(table.name)
+            // Defer callback to avoid publishing during view update
+            Task { @MainActor in
+                onOpenTable?(table.name)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
-            loadTables()
+            Task { @MainActor in
+                loadTables()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
-            loadTables()
+            Task { @MainActor in
+                loadTables()
+            }
         }
         .onChange(of: tables) { _, newTables in
             // When tables become empty (disconnected), reset to loading state
             if newTables.isEmpty {
-                isLoading = true
+                // Defer state change to avoid publishing during view update
+                Task { @MainActor in
+                    isLoading = true
+                }
             }
         }
         .onAppear {
             guard tables.isEmpty else { return }
-            isLoading = true
-            if DatabaseManager.shared.activeDriver != nil {
-                loadTables()
+            // Defer state changes to avoid publishing during view update
+            Task { @MainActor in
+                isLoading = true
+                if DatabaseManager.shared.activeDriver != nil {
+                    loadTables()
+                }
             }
         }
     }
@@ -71,28 +84,29 @@ struct SidebarView: View {
     private var searchField: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.tertiary)
-                .font(.caption)
+                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
 
-            TextField("Filter tables...", text: $searchText)
+            TextField("Filter", text: $searchText)
                 .textFieldStyle(.plain)
-                .font(.system(.body, design: .default))
+                .font(.system(size: 13))
 
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 12))
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(6)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Content States

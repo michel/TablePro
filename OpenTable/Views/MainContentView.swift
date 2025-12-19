@@ -109,12 +109,24 @@ struct MainContentView: View {
             .openTableToolbar(state: toolbarState)
             .onChange(of: currentTab?.isExecuting) { _, isExecuting in
                 // Sync execution state to toolbar
-                toolbarState.isExecuting = isExecuting ?? false
+                Task { @MainActor in
+                    toolbarState.isExecuting = isExecuting ?? false
+                }
             }
             .onChange(of: currentTab?.executionTime) { _, executionTime in
                 // Update last query duration in toolbar (only when there's a value - preserve last time)
                 if let time = executionTime {
-                    toolbarState.lastQueryDuration = time
+                    Task { @MainActor in
+                        toolbarState.lastQueryDuration = time
+                    }
+                }
+            }
+            .onChange(of: DatabaseManager.shared.currentSession?.status) { _, newStatus in
+                // Update toolbar connection state when session status changes
+                if let status = newStatus {
+                    Task { @MainActor in
+                        toolbarState.connectionState = mapSessionStatus(status)
+                    }
                 }
             }
     }
@@ -125,46 +137,60 @@ struct MainContentView: View {
     private var bodyContent: some View {
         viewWithToolbar
             .task {
-                await establishConnection()
-                await loadSchema()
+                await initializeView()
             }
             .onChange(of: selectedTable) { _, newTable in
                 if let table = newTable {
-                    openTableData(table.name)
+                    // Defer state changes to avoid "Publishing changes from within view updates" error
+                    Task { @MainActor in
+                        openTableData(table.name)
+                    }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
-                handleRefreshAll()
+                Task { @MainActor in
+                    handleRefreshAll()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .newTab)) { _ in
                 // Cmd+T to create new query tab
-                tabManager.addTab()
+                Task { @MainActor in
+                    tabManager.addTab()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .closeCurrentTab)) { _ in
-                handleCloseAction()
+                Task { @MainActor in
+                    handleCloseAction()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .saveChanges)) { _ in
                 // Cmd+S to save changes
-                saveChanges()
+                Task { @MainActor in
+                    saveChanges()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .refreshData)) { _ in
-                // Cmd+R to refresh data - warn if pending changes
-                let hasEditedCells = changeManager.hasChanges
-                let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
+                Task { @MainActor in
+                    // Cmd+R to refresh data - warn if pending changes
+                    let hasEditedCells = changeManager.hasChanges
+                    let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
-                if hasEditedCells || hasPendingTableOps {
-                    pendingDiscardAction = .refresh
-                } else {
-                    // No changes - refresh table browser and run current query
-                    DispatchQueue.main.async {
-                        NotificationCenter.default.post(name: .refreshAll, object: nil)
+                    if hasEditedCells || hasPendingTableOps {
+                        pendingDiscardAction = .refresh
+                    } else {
+                        // No changes - refresh table browser and run current query
+                        DispatchQueue.main.async {
+                            NotificationCenter.default.post(name: .refreshAll, object: nil)
+                        }
+                        runQuery()
                     }
-                    runQuery()
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
                 // Delete key to mark selected rows for deletion
-                deleteSelectedRows()
+                Task { @MainActor in
+                    deleteSelectedRows()
+                }
             }
             .alert(
                 "Discard Unsaved Changes?",
@@ -188,10 +214,14 @@ struct MainContentView: View {
                 }
             }
             .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
-                handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
+                Task { @MainActor in
+                    handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
+                }
             }
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
-                handleColumnsChange(newColumns: newColumns)
+                Task { @MainActor in
+                    handleColumnsChange(newColumns: newColumns)
+                }
             }
     }
 
@@ -338,51 +368,48 @@ struct MainContentView: View {
     }
 
     // MARK: - Actions
-
-    /// Establish connection using DatabaseManager (with SSH tunnel support)
-    /// Also initializes the toolbar state with connection information
-    private func establishConnection() async {
-        // Initialize toolbar with connection info (must run on main thread)
+    
+    /// Initialize view with connection info
+    private func initializeView() async {
+        // Initialize toolbar with connection info
         await MainActor.run {
             toolbarState.update(from: connection)
-            toolbarState.connectionState = .connecting
-            toolbarState.isExecuting = true
-        }
-
-        // Track connection time
-        let startTime = CFAbsoluteTimeGetCurrent()
-
-        do {
-            try await DatabaseManager.shared.connect(to: connection)
-
-            let duration = CFAbsoluteTimeGetCurrent() - startTime
-
-            // Update toolbar state on successful connection (must run on main thread)
-            await MainActor.run {
-                toolbarState.connectionState = .connected
-                toolbarState.isExecuting = false
-                toolbarState.lastQueryDuration = duration
-
-                // Fetch and display server version
-                if let driver = DatabaseManager.shared.activeDriver {
+            
+            // Get actual connection state from session
+            if let session = DatabaseManager.shared.currentSession {
+                toolbarState.connectionState = mapSessionStatus(session.status)
+                if let driver = session.driver {
                     toolbarState.databaseVersion = driver.serverVersion
                 }
+            } else if let driver = DatabaseManager.shared.activeDriver {
+                // Fallback for backward compatibility
+                toolbarState.connectionState = .connected
+                toolbarState.databaseVersion = driver.serverVersion
             }
-        } catch {
-            await MainActor.run {
-                toolbarState.connectionState = .error(error.localizedDescription)
-                toolbarState.isExecuting = false
-            }
-            if let index = tabManager.selectedTabIndex {
-                tabManager.tabs[index].errorMessage = error.localizedDescription
-            }
+        }
+        
+        // Load schema for autocomplete
+        await loadSchema()
+    }
+    
+    /// Map ConnectionStatus to ToolbarConnectionState
+    private func mapSessionStatus(_ status: ConnectionStatus) -> ToolbarConnectionState {
+        switch status {
+        case .connected:
+            return .connected
+        case .connecting:
+            return .executing  // Show as executing during connection
+        case .disconnected:
+            return .disconnected
+        case .error:
+            return .error("")
         }
     }
 
     private func loadSchema() async {
         // Use activeDriver from DatabaseManager (already connected with SSH tunnel if enabled)
         guard let driver = DatabaseManager.shared.activeDriver else {
-            print("[MainContentView] Failed to load schema: No active driver")
+            // Driver not ready yet (e.g., SSH tunnel still connecting) - this is normal
             return
         }
         await schemaProvider.loadSchema(using: driver, connection: connection)

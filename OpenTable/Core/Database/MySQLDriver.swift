@@ -128,6 +128,8 @@ final class MySQLDriver: DatabaseDriver {
         let result = try await execute(query: query)
 
         return result.rows.compactMap { row in
+            // SHOW FULL COLUMNS returns:
+            // 0: Field, 1: Type, 2: Collation, 3: Null, 4: Key, 5: Default, 6: Extra, 7: Privileges, 8: Comment
             guard row.count >= 7,
                 let name = row[0],
                 let dataType = row[1]
@@ -135,10 +137,18 @@ final class MySQLDriver: DatabaseDriver {
                 return nil
             }
 
+            let collation = row.count > 2 ? row[2] : nil
             let isNullable = row[3] == "YES"
             let isPrimaryKey = row[4] == "PRI"
             let defaultValue = row[5]
             let extra = row[6]
+            let comment = row.count > 8 ? row[8] : nil
+            
+            // Extract charset from collation (e.g., "utf8mb4_general_ci" -> "utf8mb4")
+            let charset: String? = {
+                guard let coll = collation, coll != "NULL" else { return nil }
+                return coll.components(separatedBy: "_").first
+            }()
 
             return ColumnInfo(
                 name: name,
@@ -146,7 +156,10 @@ final class MySQLDriver: DatabaseDriver {
                 isNullable: isNullable,
                 isPrimaryKey: isPrimaryKey,
                 defaultValue: defaultValue,
-                extra: extra
+                extra: extra,
+                charset: charset,
+                collation: collation == "NULL" ? nil : collation,
+                comment: comment?.isEmpty == false ? comment : nil
             )
         }
     }

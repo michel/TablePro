@@ -103,6 +103,9 @@ struct ColumnInfo: Identifiable, Hashable {
     let isPrimaryKey: Bool
     let defaultValue: String?
     let extra: String?
+    let charset: String?
+    let collation: String?
+    let comment: String?
 }
 
 /// Information about a table index

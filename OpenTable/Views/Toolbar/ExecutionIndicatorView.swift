@@ -24,7 +24,12 @@ struct ExecutionIndicatorView: View {
                 Text(formattedDuration(duration))
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.tertiary)
-                    .help("Last query duration")
+                    .help("Last query execution time")
+            } else {
+                Text("--")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.quaternary)
+                    .help("Run a query to see execution time")
             }
         }
         .frame(minWidth: 50)

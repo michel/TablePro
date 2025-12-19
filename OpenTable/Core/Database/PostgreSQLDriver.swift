@@ -108,13 +108,21 @@ final class PostgreSQLDriver: DatabaseDriver {
     func fetchColumns(table: String) async throws -> [ColumnInfo] {
         let query = """
             SELECT 
-                column_name,
-                data_type,
-                is_nullable,
-                column_default
-            FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = '\(table)'
-            ORDER BY ordinal_position
+                c.column_name,
+                c.data_type,
+                c.is_nullable,
+                c.column_default,
+                c.collation_name,
+                pgd.description
+            FROM information_schema.columns c
+            LEFT JOIN pg_catalog.pg_statio_all_tables st 
+                ON st.schemaname = c.table_schema 
+                AND st.relname = c.table_name
+            LEFT JOIN pg_catalog.pg_description pgd 
+                ON pgd.objoid = st.relid 
+                AND pgd.objsubid = c.ordinal_position
+            WHERE c.table_schema = 'public' AND c.table_name = '\(table)'
+            ORDER BY c.ordinal_position
         """
         
         let result = try await execute(query: query)
@@ -128,6 +136,19 @@ final class PostgreSQLDriver: DatabaseDriver {
             
             let isNullable = row[2] == "YES"
             let defaultValue = row[3]
+            let collation = row.count > 4 ? row[4] : nil
+            let comment = row.count > 5 ? row[5] : nil
+            
+            // PostgreSQL doesn't have separate charset - it uses database encoding
+            // Collation format: "en_US.UTF-8" or "C" or "POSIX"
+            let charset: String? = {
+                guard let coll = collation else { return nil }
+                if coll.contains(".") {
+                    // Extract encoding from "locale.ENCODING" format
+                    return coll.components(separatedBy: ".").last
+                }
+                return nil
+            }()
             
             return ColumnInfo(
                 name: name,
@@ -135,7 +156,10 @@ final class PostgreSQLDriver: DatabaseDriver {
                 isNullable: isNullable,
                 isPrimaryKey: false,
                 defaultValue: defaultValue,
-                extra: nil
+                extra: nil,
+                charset: charset,
+                collation: collation,
+                comment: comment?.isEmpty == false ? comment : nil
             )
         }
     }

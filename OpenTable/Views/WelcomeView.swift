@@ -25,9 +25,6 @@ struct WelcomeView: View {
 
     var body: some View {
         ZStack {
-            // Subtle gradient background
-            backgroundGradient
-
             VStack(spacing: 0) {
                 Spacer()
 
@@ -63,20 +60,6 @@ struct WelcomeView: View {
             // On welcome screen, Cmd+W closes the window (default macOS behavior)
             NSApplication.shared.keyWindow?.performClose(nil)
         }
-    }
-
-    // MARK: - Background
-
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color(nsColor: .windowBackgroundColor),
-                Color(nsColor: .controlBackgroundColor).opacity(0.3),
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
     }
 
     // MARK: - App Header

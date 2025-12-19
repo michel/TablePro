@@ -178,7 +178,10 @@ final class SQLiteDriver: DatabaseDriver {
                 isNullable: isNullable,
                 isPrimaryKey: isPrimaryKey,
                 defaultValue: defaultValue,
-                extra: nil
+                extra: nil,
+                charset: nil,        // SQLite doesn't have charset
+                collation: nil,      // SQLite uses database collation
+                comment: nil         // SQLite doesn't support column comments
             )
         }
     }

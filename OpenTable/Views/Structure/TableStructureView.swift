@@ -91,6 +91,20 @@ struct TableStructureView: View {
                     .font(.system(.body, design: .monospaced))
             }
             .width(min: 100, ideal: 120)
+            
+            TableColumn("Charset") { column in
+                Text(column.charset ?? "-")
+                    .foregroundColor(.secondary)
+                    .font(.system(.body, design: .monospaced))
+            }
+            .width(min: 70, ideal: 90)
+            
+            TableColumn("Collation") { column in
+                Text(column.collation ?? "-")
+                    .foregroundColor(.secondary)
+                    .font(.system(.body, design: .monospaced))
+            }
+            .width(min: 120, ideal: 160)
 
             TableColumn("Nullable") { column in
                 Image(systemName: column.isNullable ? "checkmark.circle" : "xmark.circle")
@@ -110,6 +124,14 @@ struct TableStructureView: View {
                     .foregroundColor(.secondary)
             }
             .width(min: 80, ideal: 100)
+            
+            TableColumn("Comment") { column in
+                Text(column.comment ?? "-")
+                    .foregroundColor(.secondary)
+                    .font(.body)
+                    .lineLimit(2)
+            }
+            .width(min: 100, ideal: 200)
         }
     }
 
