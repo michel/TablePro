@@ -25,6 +25,9 @@ struct TableStructureView: View {
     @State private var foreignKeys: [ForeignKeyInfo] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    
+    // Lazy loading state - track which tabs have been loaded
+    @State private var loadedTabs: Set<StructureTab> = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,7 +67,13 @@ struct TableStructureView: View {
             }
         }
         .task {
-            await loadStructure()
+            await loadColumns()  // Always load columns first (default tab)
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            // Lazy load data for newly selected tab
+            Task {
+                await loadTabDataIfNeeded(newTab)
+            }
         }
     }
 
@@ -243,33 +252,52 @@ struct TableStructureView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Load Data
-
-    private func loadStructure() async {
+    // MARK: - Load Data (Lazy Loading)
+    
+    /// Load only columns on initial view (default tab)
+    private func loadColumns() async {
         isLoading = true
         errorMessage = nil
-
-        // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
+        
         guard let driver = DatabaseManager.shared.activeDriver else {
             errorMessage = "Not connected"
             isLoading = false
             return
         }
-
+        
         do {
-            // Load all in parallel
-            async let columnsTask = driver.fetchColumns(table: tableName)
-            async let indexesTask = driver.fetchIndexes(table: tableName)
-            async let fkTask = driver.fetchForeignKeys(table: tableName)
-
-            columns = try await columnsTask
-            indexes = try await indexesTask
-            foreignKeys = try await fkTask
+            columns = try await driver.fetchColumns(table: tableName)
+            loadedTabs.insert(.columns)
         } catch {
             errorMessage = error.localizedDescription
         }
-
+        
         isLoading = false
+    }
+    
+    /// Load data for tab only when selected (lazy loading)
+    private func loadTabDataIfNeeded(_ tab: StructureTab) async {
+        // Skip if already loaded
+        guard !loadedTabs.contains(tab) else { return }
+        
+        guard let driver = DatabaseManager.shared.activeDriver else { return }
+        
+        do {
+            switch tab {
+            case .columns:
+                if columns.isEmpty {
+                    columns = try await driver.fetchColumns(table: tableName)
+                }
+            case .indexes:
+                indexes = try await driver.fetchIndexes(table: tableName)
+            case .foreignKeys:
+                foreignKeys = try await driver.fetchForeignKeys(table: tableName)
+            }
+            loadedTabs.insert(tab)
+        } catch {
+            // Silently fail for secondary tabs to avoid blocking main UI
+            print("[TableStructureView] Failed to load \(tab): \(error)")
+        }
     }
 }
 

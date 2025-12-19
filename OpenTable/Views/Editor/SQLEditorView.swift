@@ -74,12 +74,6 @@ struct SQLEditorView: NSViewRepresentable {
         // MUST set documentView BEFORE setting up ruler
         scrollView.documentView = textView
 
-        // Line numbers DISABLED - they break text rendering
-        // scrollView.hasVerticalRuler = true
-        // scrollView.rulersVisible = true
-        // let rulerView = LineNumberRulerView(textView: textView)
-        // scrollView.verticalRulerView = rulerView
-
         context.coordinator.textView = textView
         
         // Apply initial syntax highlighting
@@ -110,6 +104,29 @@ struct SQLEditorView: NSViewRepresentable {
         "THEN", "ELSE", "END", "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE"
     ]
     
+    // MARK: - Cached Regex Patterns (compiled once for performance)
+    
+    private static let keywordRegex: NSRegularExpression? = {
+        let pattern = "\\b(" + keywords.joined(separator: "|") + ")\\b"
+        return try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+    }()
+    
+    private static let stringRegexes: [NSRegularExpression] = {
+        ["'[^']*'", "\"[^\"]*\"", "`[^`]*`"].compactMap { try? NSRegularExpression(pattern: $0) }
+    }()
+    
+    private static let numberRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "\\b\\d+(\\.\\d+)?\\b")
+    }()
+    
+    private static let commentRegexes: [NSRegularExpression] = {
+        ["--[^\n]*", "/\\*[\\s\\S]*?\\*/"].compactMap { try? NSRegularExpression(pattern: $0) }
+    }()
+    
+    private static let nullBoolRegex: NSRegularExpression? = {
+        try? NSRegularExpression(pattern: "\\b(NULL|TRUE|FALSE)\\b", options: .caseInsensitive)
+    }()
+    
     private func applySyntaxHighlighting(to textView: NSTextView) {
         guard let textStorage = textView.textStorage else { return }
         let text = textView.string
@@ -127,53 +144,42 @@ struct SQLEditorView: NSViewRepresentable {
             .foregroundColor: NSColor.textColor
         ], range: fullRange)
         
-        // Keywords
-        let pattern = "\\b(" + Self.keywords.joined(separator: "|") + ")\\b"
-        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+        // Keywords (using cached regex)
+        Self.keywordRegex?.enumerateMatches(in: text, range: fullRange) { match, _, _ in
+            if let m = match?.range {
+                textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.keyword, range: m)
+            }
+        }
+        
+        // Strings (using cached regexes)
+        for regex in Self.stringRegexes {
             regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
                 if let m = match?.range {
-                    textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.keyword, range: m)
+                    textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.string, range: m)
                 }
             }
         }
         
-        // Strings
-        for p in ["'[^']*'", "\"[^\"]*\"", "`[^`]*`"] {
-            if let regex = try? NSRegularExpression(pattern: p) {
-                regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
-                    if let m = match?.range {
-                        textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.string, range: m)
-                    }
-                }
+        // Numbers (using cached regex)
+        Self.numberRegex?.enumerateMatches(in: text, range: fullRange) { match, _, _ in
+            if let m = match?.range {
+                textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.number, range: m)
             }
         }
         
-        // Numbers
-        if let regex = try? NSRegularExpression(pattern: "\\b\\d+(\\.\\d+)?\\b") {
+        // Comments (using cached regexes)
+        for regex in Self.commentRegexes {
             regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
                 if let m = match?.range {
-                    textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.number, range: m)
+                    textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.comment, range: m)
                 }
             }
         }
         
-        // Comments
-        for p in ["--[^\n]*", "/\\*[\\s\\S]*?\\*/"] {
-            if let regex = try? NSRegularExpression(pattern: p) {
-                regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
-                    if let m = match?.range {
-                        textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.comment, range: m)
-                    }
-                }
-            }
-        }
-        
-        // NULL, TRUE, FALSE
-        if let regex = try? NSRegularExpression(pattern: "\\b(NULL|TRUE|FALSE)\\b", options: .caseInsensitive) {
-            regex.enumerateMatches(in: text, range: fullRange) { match, _, _ in
-                if let m = match?.range {
-                    textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.null, range: m)
-                }
+        // NULL, TRUE, FALSE (using cached regex)
+        Self.nullBoolRegex?.enumerateMatches(in: text, range: fullRange) { match, _, _ in
+            if let m = match?.range {
+                textStorage.addAttribute(.foregroundColor, value: SQLEditorTheme.null, range: m)
             }
         }
         
@@ -369,172 +375,6 @@ struct SQLEditorView: NSViewRepresentable {
         /// Dismiss completion window
         func dismissCompletion() {
             completionWindow.dismiss()
-        }
-    }
-}
-
-// MARK: - SQLTextStorage
-
-final class SQLTextStorage: NSTextStorage {
-    private let store = NSMutableAttributedString()
-    
-    private static let keywords: Set<String> = [
-        "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN",
-        "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "ON", "INSERT", "INTO",
-        "VALUES", "UPDATE", "SET", "DELETE", "CREATE", "DROP", "ALTER", "TABLE",
-        "ORDER", "BY", "GROUP", "HAVING", "LIMIT", "OFFSET", "AS", "DISTINCT",
-        "COUNT", "SUM", "AVG", "MIN", "MAX", "ASC", "DESC", "CASE", "WHEN",
-        "THEN", "ELSE", "END", "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE"
-    ]
-    
-    override var string: String { store.string }
-    
-    override func attributes(at location: Int, effectiveRange range: NSRangePointer?) -> [NSAttributedString.Key: Any] {
-        store.attributes(at: location, effectiveRange: range)
-    }
-    
-    override func replaceCharacters(in range: NSRange, with str: String) {
-        beginEditing()
-        store.replaceCharacters(in: range, with: str)
-        edited(.editedCharacters, range: range, changeInLength: str.count - range.length)
-        endEditing()
-    }
-    
-    override func setAttributes(_ attrs: [NSAttributedString.Key: Any]?, range: NSRange) {
-        beginEditing()
-        store.setAttributes(attrs, range: range)
-        edited(.editedAttributes, range: range, changeInLength: 0)
-        endEditing()
-    }
-    
-    override func processEditing() {
-        let range = (string as NSString).paragraphRange(for: editedRange)
-        applyHighlighting(in: range)
-        super.processEditing()
-    }
-    
-    func applyHighlighting(in range: NSRange? = nil) {
-        let r = range ?? NSRange(location: 0, length: length)
-        guard r.length > 0 else { return }
-        
-        // Reset to default
-        store.addAttributes([.font: SQLEditorTheme.font, .foregroundColor: NSColor.black], range: r)
-        
-        // Keywords
-        let pattern = "\\b(" + Self.keywords.joined(separator: "|") + ")\\b"
-        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-            regex.enumerateMatches(in: string, range: r) { match, _, _ in
-                if let m = match?.range {
-                    store.addAttribute(.foregroundColor, value: SQLEditorTheme.keyword, range: m)
-                }
-            }
-        }
-        
-        // Strings
-        for p in ["'[^']*'", "\"[^\"]*\"", "`[^`]*`"] {
-            if let regex = try? NSRegularExpression(pattern: p) {
-                regex.enumerateMatches(in: string, range: r) { match, _, _ in
-                    if let m = match?.range {
-                        store.addAttribute(.foregroundColor, value: SQLEditorTheme.string, range: m)
-                    }
-                }
-            }
-        }
-        
-        // Numbers
-        if let regex = try? NSRegularExpression(pattern: "\\b\\d+(\\.\\d+)?\\b") {
-            regex.enumerateMatches(in: string, range: r) { match, _, _ in
-                if let m = match?.range {
-                    store.addAttribute(.foregroundColor, value: SQLEditorTheme.number, range: m)
-                }
-            }
-        }
-        
-        // Comments
-        for p in ["--[^\n]*", "/\\*[\\s\\S]*?\\*/"] {
-            if let regex = try? NSRegularExpression(pattern: p) {
-                regex.enumerateMatches(in: string, range: r) { match, _, _ in
-                    if let m = match?.range {
-                        store.addAttribute(.foregroundColor, value: SQLEditorTheme.comment, range: m)
-                    }
-                }
-            }
-        }
-        
-        // NULL, TRUE, FALSE
-        if let regex = try? NSRegularExpression(pattern: "\\b(NULL|TRUE|FALSE)\\b", options: .caseInsensitive) {
-            regex.enumerateMatches(in: string, range: r) { match, _, _ in
-                if let m = match?.range {
-                    store.addAttribute(.foregroundColor, value: SQLEditorTheme.null, range: m)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - LineNumberRulerView
-
-final class LineNumberRulerView: NSRulerView {
-    private weak var textView: NSTextView?
-    
-    init(textView: NSTextView) {
-        self.textView = textView
-        super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
-        ruleThickness = 40
-        clientView = textView
-        
-        NotificationCenter.default.addObserver(self, selector: #selector(needsRedraw),
-                                               name: NSText.didChangeNotification, object: textView)
-        textView.enclosingScrollView?.contentView.postsBoundsChangedNotifications = true
-        NotificationCenter.default.addObserver(self, selector: #selector(needsRedraw),
-                                               name: NSView.boundsDidChangeNotification,
-                                               object: textView.enclosingScrollView?.contentView)
-    }
-    
-    required init(coder: NSCoder) { fatalError() }
-    deinit { NotificationCenter.default.removeObserver(self) }
-    
-    @objc private func needsRedraw() { needsDisplay = true }
-    
-    override func drawHashMarksAndLabels(in rect: NSRect) {
-        SQLEditorTheme.background.setFill()
-        rect.fill()
-        
-        NSColor.separatorColor.setStroke()
-        NSBezierPath.strokeLine(from: NSPoint(x: bounds.maxX - 0.5, y: rect.minY),
-                                to: NSPoint(x: bounds.maxX - 0.5, y: rect.maxY))
-        
-        guard let textView = textView,
-              let layoutManager = textView.layoutManager,
-              let container = textView.textContainer else { return }
-        
-        let visibleRect = textView.visibleRect
-        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: container)
-        let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-        
-        let text = textView.string as NSString
-        var lineNum = 1
-        text.enumerateSubstrings(in: NSRange(location: 0, length: charRange.location),
-                                  options: [.byLines, .substringNotRequired]) { _, _, _, _ in lineNum += 1 }
-        
-        var idx = charRange.location
-        let font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-        let color = NSColor.secondaryLabelColor
-        
-        while idx < min(charRange.upperBound, text.length) {
-            let lineRange = text.lineRange(for: NSRange(location: idx, length: 0))
-            let glyph = layoutManager.glyphIndexForCharacter(at: lineRange.location)
-            var lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
-            lineRect.origin.y -= visibleRect.origin.y
-            
-            let s = "\(lineNum)" as NSString
-            let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-            let size = s.size(withAttributes: attrs)
-            s.draw(at: NSPoint(x: ruleThickness - size.width - 8,
-                              y: lineRect.midY - size.height / 2), withAttributes: attrs)
-            
-            lineNum += 1
-            idx = NSMaxRange(lineRange)
         }
     }
 }
