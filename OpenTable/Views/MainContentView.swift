@@ -250,6 +250,12 @@ struct MainContentView: View {
                     deleteSelectedRows()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
+                // Load schema when connection is established (fixes race condition)
+                Task { @MainActor in
+                    await loadSchema()
+                }
+            }
     }
 
     // MARK: - Query Tab Content

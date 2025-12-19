@@ -17,7 +17,10 @@ actor SQLSchemaProvider {
     private var isLoading = false
     private var lastLoadError: Error?
 
-    // Store connection info to recreate driver for column loading
+    // Store the driver reference used during schema loading for column fetching
+    private var cachedDriver: DatabaseDriver?
+
+    // Store connection info for reference
     private var connectionInfo: DatabaseConnection?
 
     // MARK: - Public API
@@ -26,6 +29,8 @@ actor SQLSchemaProvider {
     func loadSchema(using driver: DatabaseDriver, connection: DatabaseConnection? = nil) async {
         guard !isLoading else { return }
 
+        // Store driver reference for later column fetching
+        self.cachedDriver = driver
         self.connectionInfo = connection
         isLoading = true
         lastLoadError = nil
@@ -63,9 +68,9 @@ actor SQLSchemaProvider {
             return cached
         }
 
-        // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
-        guard let driver = await DatabaseManager.shared.activeDriver else {
-            print("[SQLSchemaProvider] No active driver for column loading")
+        // Use the cached driver from loadSchema() to ensure we're querying the correct connection
+        guard let driver = cachedDriver else {
+            print("[SQLSchemaProvider] No cached driver for column loading")
             return []
         }
 
@@ -93,6 +98,7 @@ actor SQLSchemaProvider {
     func invalidateCache() {
         tables.removeAll()
         columnCache.removeAll()
+        cachedDriver = nil
     }
 
     /// Find table name from alias
