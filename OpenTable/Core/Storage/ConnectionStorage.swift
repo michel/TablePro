@@ -89,6 +89,7 @@ final class ConnectionStorage {
         saveConnections(connections)
         deletePassword(for: connection.id)
         deleteSSHPassword(for: connection.id)
+        deleteKeyPassphrase(for: connection.id)
     }
 
     // MARK: - Keychain (Password Storage)
@@ -206,6 +207,68 @@ final class ConnectionStorage {
     /// Delete SSH password from Keychain
     func deleteSSHPassword(for connectionId: UUID) {
         let key = "com.opentable.sshpassword.\(connectionId.uuidString)"
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+        ]
+
+        SecItemDelete(query as CFDictionary)
+    }
+
+    // MARK: - Key Passphrase Storage
+
+    /// Save private key passphrase to Keychain
+    func saveKeyPassphrase(_ passphrase: String, for connectionId: UUID) {
+        let key = "com.opentable.keypassphrase.\(connectionId.uuidString)"
+
+        // Delete existing
+        let deleteQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+        ]
+        SecItemDelete(deleteQuery as CFDictionary)
+
+        // Add new
+        guard let data = passphrase.data(using: .utf8) else { return }
+
+        let addQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+        ]
+
+        SecItemAdd(addQuery as CFDictionary, nil)
+    }
+
+    /// Load private key passphrase from Keychain
+    func loadKeyPassphrase(for connectionId: UUID) -> String? {
+        let key = "com.opentable.keypassphrase.\(connectionId.uuidString)"
+
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        guard status == errSecSuccess,
+            let data = result as? Data,
+            let passphrase = String(data: data, encoding: .utf8)
+        else {
+            return nil
+        }
+
+        return passphrase
+    }
+
+    /// Delete private key passphrase from Keychain
+    func deleteKeyPassphrase(for connectionId: UUID) {
+        let key = "com.opentable.keypassphrase.\(connectionId.uuidString)"
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

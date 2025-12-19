@@ -13,6 +13,8 @@ import SwiftUI
 struct WelcomeView: View {
     let connections: [DatabaseConnection]
     var onSelectConnection: ((DatabaseConnection) -> Void)?
+    var onEditConnection: ((DatabaseConnection) -> Void)?
+    var onDeleteConnection: ((DatabaseConnection) -> Void)?
     var onAddConnection: () -> Void
 
     @State private var hoveredConnectionId: UUID?
@@ -120,7 +122,9 @@ struct WelcomeView: View {
                 ForEach(recentConnections) { connection in
                     ConnectionCard(
                         connection: connection,
-                        onTap: { onSelectConnection?(connection) }
+                        onTap: { onSelectConnection?(connection) },
+                        onEdit: { onEditConnection?(connection) },
+                        onDelete: { onDeleteConnection?(connection) }
                     )
                 }
             }
@@ -203,6 +207,8 @@ struct WelcomeView: View {
 private struct ConnectionCard: View {
     let connection: DatabaseConnection
     let onTap: () -> Void
+    var onEdit: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     var body: some View {
         Button(action: onTap) {
@@ -237,6 +243,25 @@ private struct ConnectionCard: View {
             .overlay(cardBorder)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button(action: { onTap() }) {
+                Label("Connect", systemImage: "play.fill")
+            }
+            
+            Divider()
+            
+            if let onEdit = onEdit {
+                Button(action: onEdit) {
+                    Label("Edit Connection", systemImage: "pencil")
+                }
+            }
+            
+            if let onDelete = onDelete {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete Connection", systemImage: "trash")
+                }
+            }
+        }
     }
 
     private var subtitle: String {

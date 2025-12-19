@@ -33,6 +33,7 @@ struct ConnectionFormView: View {
     @State private var sshPassword: String = ""
     @State private var sshAuthMethod: SSHAuthMethod = .password
     @State private var sshPrivateKeyPath: String = ""
+    @State private var keyPassphrase: String = ""  // Passphrase for encrypted private key
     @State private var sshConfigEntries: [SSHConfigEntry] = []
     @State private var selectedSSHConfigHost: String = ""
 
@@ -309,6 +310,11 @@ struct ConnectionFormView: View {
                                 .controlSize(.small)
                             }
                         }
+                        
+                        FormField(label: "Passphrase", icon: "key") {
+                            SecureField("(optional)", text: $keyPassphrase)
+                                .textFieldStyle(.plain)
+                        }
                     }
                 }
                 .padding(12)
@@ -438,6 +444,11 @@ struct ConnectionFormView: View {
         if let savedSSHPassword = ConnectionStorage.shared.loadSSHPassword(for: connection.id) {
             sshPassword = savedSSHPassword
         }
+        
+        // Load key passphrase from Keychain
+        if let savedPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: connection.id) {
+            keyPassphrase = savedPassphrase
+        }
 
         // Load DB password from Keychain
         if let savedPassword = ConnectionStorage.shared.loadPassword(for: connection.id) {
@@ -473,6 +484,9 @@ struct ConnectionFormView: View {
         }
         if sshEnabled && sshAuthMethod == .password && !sshPassword.isEmpty {
             ConnectionStorage.shared.saveSSHPassword(sshPassword, for: updated.id)
+        }
+        if sshEnabled && sshAuthMethod == .privateKey && !keyPassphrase.isEmpty {
+            ConnectionStorage.shared.saveKeyPassphrase(keyPassphrase, for: updated.id)
         }
 
         onSave(updated)
@@ -513,6 +527,9 @@ struct ConnectionFormView: View {
                 }
                 if sshEnabled && sshAuthMethod == .password && !sshPassword.isEmpty {
                     ConnectionStorage.shared.saveSSHPassword(sshPassword, for: testConn.id)
+                }
+                if sshEnabled && sshAuthMethod == .privateKey && !keyPassphrase.isEmpty {
+                    ConnectionStorage.shared.saveKeyPassphrase(keyPassphrase, for: testConn.id)
                 }
 
                 let success = try await DatabaseManager.shared.testConnection(

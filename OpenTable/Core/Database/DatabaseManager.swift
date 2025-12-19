@@ -45,6 +45,7 @@ final class DatabaseManager: ObservableObject {
         var effectiveConnection = connection
         if connection.sshConfig.enabled {
             let sshPassword = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
+            let keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: connection.id)
             let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
                 connectionId: connection.id,
                 sshHost: connection.sshConfig.host,
@@ -52,6 +53,7 @@ final class DatabaseManager: ObservableObject {
                 sshUsername: connection.sshConfig.username,
                 authMethod: connection.sshConfig.authMethod,
                 privateKeyPath: connection.sshConfig.privateKeyPath,
+                keyPassphrase: keyPassphrase,
                 sshPassword: sshPassword,
                 remoteHost: connection.host,
                 remotePort: connection.port
@@ -147,6 +149,7 @@ final class DatabaseManager: ObservableObject {
         var tunnelPort: Int?
         if connection.sshConfig.enabled {
             let sshPwd = sshPassword ?? ConnectionStorage.shared.loadSSHPassword(for: connection.id)
+            let keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: connection.id)
             tunnelPort = try await SSHTunnelManager.shared.createTunnel(
                 connectionId: connection.id,
                 sshHost: connection.sshConfig.host,
@@ -154,6 +157,7 @@ final class DatabaseManager: ObservableObject {
                 sshUsername: connection.sshConfig.username,
                 authMethod: connection.sshConfig.authMethod,
                 privateKeyPath: connection.sshConfig.privateKeyPath,
+                keyPassphrase: keyPassphrase,
                 sshPassword: sshPwd,
                 remoteHost: connection.host,
                 remotePort: connection.port

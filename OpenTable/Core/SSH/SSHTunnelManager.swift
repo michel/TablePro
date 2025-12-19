@@ -62,6 +62,7 @@ actor SSHTunnelManager {
     ///   - sshUsername: SSH username
     ///   - authMethod: Authentication method
     ///   - privateKeyPath: Path to private key file (for key auth)
+    ///   - keyPassphrase: Passphrase for encrypted private key (optional)
     ///   - sshPassword: SSH password (for password auth) - Note: password auth requires sshpass
     ///   - remoteHost: Database host (as seen from SSH server)
     ///   - remotePort: Database port
@@ -73,6 +74,7 @@ actor SSHTunnelManager {
         sshUsername: String,
         authMethod: SSHAuthMethod,
         privateKeyPath: String? = nil,
+        keyPassphrase: String? = nil,
         sshPassword: String? = nil,
         remoteHost: String,
         remotePort: Int
@@ -103,27 +105,53 @@ actor SSHTunnelManager {
         // Add authentication
         switch authMethod {
         case .privateKey:
-            if let keyPath = privateKeyPath, !keyPath.isEmpty {
-                arguments.append(contentsOf: ["-i", expandPath(keyPath)])
+            guard let keyPath = privateKeyPath, !keyPath.isEmpty else {
+                throw SSHTunnelError.tunnelCreationFailed("Private key path is required for key authentication")
             }
+            
+            let expandedPath = expandPath(keyPath)
+            
+            // Validate private key exists and is readable
+            let fileManager = FileManager.default
+            guard fileManager.fileExists(atPath: expandedPath) else {
+                throw SSHTunnelError.tunnelCreationFailed("Private key file not found at: \(expandedPath)")
+            }
+            guard fileManager.isReadableFile(atPath: expandedPath) else {
+                throw SSHTunnelError.tunnelCreationFailed("Private key file is not readable. Check permissions (should be 600): \(expandedPath)")
+            }
+            
+            // Force public key authentication
+            arguments.append(contentsOf: ["-i", expandedPath])
+            arguments.append(contentsOf: ["-o", "PubkeyAuthentication=yes"])
+            arguments.append(contentsOf: ["-o", "PasswordAuthentication=no"])
+            arguments.append(contentsOf: ["-o", "PreferredAuthentications=publickey"])
+            
         case .password:
             // For password auth, we'll use SSH_ASKPASS with a helper script
             // Note: This requires ssh to be run without a TTY (which -N provides)
             arguments.append(contentsOf: ["-o", "PasswordAuthentication=yes"])
             arguments.append(contentsOf: ["-o", "PreferredAuthentications=password"])
+            arguments.append(contentsOf: ["-o", "PubkeyAuthentication=no"])
         }
 
         arguments.append("\(sshUsername)@\(sshHost)")
 
         process.arguments = arguments
 
-        // Set up password authentication if needed
-        if authMethod == .password, let password = sshPassword {
-            // Create a temporary script for SSH_ASKPASS
-            let askpassScript = try await createAskpassScript(password: password)
-
+        // Set up SSH_ASKPASS for passphrase or password
+        var askpassScript: String? = nil
+        
+        if authMethod == .privateKey, let passphrase = keyPassphrase {
+            // Private key with passphrase - use SSH_ASKPASS to provide it
+            askpassScript = try await createAskpassScript(password: passphrase)
+        } else if authMethod == .password, let password = sshPassword {
+            // Password authentication
+            askpassScript = try await createAskpassScript(password: password)
+        }
+        
+        if let script = askpassScript {
             var environment = ProcessInfo.processInfo.environment
-            environment["SSH_ASKPASS"] = askpassScript
+            environment["SSH_ASKPASS"] = script
             environment["SSH_ASKPASS_REQUIRE"] = "force"
             environment["DISPLAY"] = ":0"  // Required for SSH_ASKPASS to work
             process.environment = environment
@@ -149,10 +177,34 @@ actor SSHTunnelManager {
             let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
             let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
 
-            if errorMessage.contains("Permission denied") || errorMessage.contains("authentication")
-            {
+            // Provide more specific error messages
+            if errorMessage.contains("Permission denied") {
+                if authMethod == .privateKey {
+                    throw SSHTunnelError.tunnelCreationFailed(
+                        "Private key authentication failed. Possible causes:\n" +
+                        "• Private key doesn't match the public key on server\n" +
+                        "• Wrong passphrase for encrypted private key\n" +
+                        "• Wrong user or server\n" +
+                        "Debug: \(errorMessage)"
+                    )
+                } else {
+                    throw SSHTunnelError.authenticationFailed
+                }
+            }
+            
+            if errorMessage.contains("authentication") {
                 throw SSHTunnelError.authenticationFailed
             }
+            
+            if errorMessage.contains("Connection timed out") || errorMessage.contains("Connection refused") {
+                throw SSHTunnelError.tunnelCreationFailed(
+                    "Cannot connect to SSH server. Check:\n" +
+                    "• Server address and port are correct\n" +
+                    "• Server is reachable (firewall, network)\n" +
+                    "Debug: \(errorMessage)"
+                )
+            }
+            
             throw SSHTunnelError.tunnelCreationFailed(errorMessage)
         }
 
@@ -167,8 +219,8 @@ actor SSHTunnelManager {
         )
         tunnels[connectionId] = tunnel
 
-        // Clean up askpass script if created
-        if authMethod == .password {
+        // Clean up askpass script if created (for password or passphrase)
+        if authMethod == .password || keyPassphrase != nil {
             cleanupAskpassScript()
         }
 
