@@ -31,11 +31,13 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 - [x] Row numbers column
 - [x] Column resizing and reordering
 - [x] Alternating row colors
-- [x] Column sorting via SQL ORDER BY (click header to sort)
-- [x] Sort indicators (▲/▼) in column headers
+- [x] Native column sorting (click header, native arrow indicators)
+- [x] 100% native NSTableView sorting via sortDescriptorsDidChange
+- [x] TablePlus-style cell focus (click cell → Enter to edit)
 
 ### Inline Cell Editing
 - [x] Double-click to edit cells
+- [x] Single-click to focus cell, Enter to edit (TablePlus behavior)
 - [x] NULL value display with placeholder (italic, gray)
 - [x] Empty string display with "Empty" placeholder
 - [x] DEFAULT value support
@@ -51,6 +53,7 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 - [x] Set Value → NULL / Empty / Default
 - [x] Copy cell value
 - [x] Copy row / selected rows
+- [x] Copy column name (header right-click)
 - [x] Delete row (with undo)
 
 ### Change Management
@@ -87,7 +90,28 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 
 ---
 
-## 📋 Milestone 4: Advanced Features (Planned)
+## 🚧 Milestone 4: Data Management (In Progress)
+
+### Insert/Delete Operations
+- [ ] Add new row (with DEFAULT values)
+- [ ] Bulk delete selected rows
+- [ ] Duplicate row
+
+### Keyboard Navigation
+- [ ] Tab → next cell
+- [ ] Shift+Tab → previous cell
+- [ ] Arrow keys → navigate cells
+- [ ] Escape → cancel editing
+- [ ] Cmd+Z → undo cell change
+
+### Pagination
+- [ ] Lazy loading for large tables (100k+ rows)
+- [ ] "Load More" button
+- [ ] Total row count display
+
+---
+
+## 📋 Milestone 5: Advanced Features (Planned)
 
 ### Query Builder
 - [ ] Visual query builder
@@ -109,11 +133,14 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 
 ## 🔮 Future Ideas
 
-- Dark/Light theme toggle
+- Query history with search
+- Column widths memory (per table)
 - ER diagram visualization
 - Data import from CSV/JSON
 - Stored procedure execution
 - Query explain/analyze
+- Redis / MongoDB support
+- Connection groups/folders
 
 ---
 
@@ -124,3 +151,5 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 | 0.1.0 | Dec 2025 | Initial release with core features |
 | 0.2.0 | Dec 2025 | Data grid editing, SQL function support |
 | 0.3.0 | Dec 2025 | Column sorting, per-tab state, export/history/structure views |
+| 0.4.0 | Dec 2025 | 100% native NSTableView sorting, TablePlus-style cell focus |
+
