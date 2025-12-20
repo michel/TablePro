@@ -58,6 +58,16 @@ struct RowChange: Identifiable, Equatable {
 /// Manager for tracking and applying data changes
 /// @MainActor ensures thread-safe access to most properties - critical for avoiding EXC_BAD_ACCESS
 /// when multiple queries complete simultaneously (e.g., rapid sorting over SSH tunnel)
+
+/// Represents an action that can be undone
+enum UndoAction {
+    case cellEdit(rowIndex: Int, columnIndex: Int, columnName: String, previousValue: String?, newValue: String?)
+    case rowInsertion(rowIndex: Int)
+    case rowDeletion(rowIndex: Int, originalRow: [String?])
+    /// Batch deletion of multiple rows (for undo as a single action)
+    case batchRowDeletion(rows: [(rowIndex: Int, originalRow: [String?])])
+}
+
 @MainActor
 final class DataChangeManager: ObservableObject {
     @Published var changes: [RowChange] = []
@@ -90,6 +100,12 @@ final class DataChangeManager: ObservableObject {
 
     /// Set of "rowIndex-colIndex" strings for modified cells - O(1) lookup
     private var modifiedCells: Set<String> = []
+    
+    /// Undo stack for reversing changes (LIFO)
+    private var undoStack: [UndoAction] = []
+    
+    /// Redo stack for re-applying undone changes (LIFO)
+    private var redoStack: [UndoAction] = []
 
     /// Helper to create a cache key for modified cells
     private func cellKey(rowIndex: Int, columnIndex: Int) -> String {
@@ -102,6 +118,7 @@ final class DataChangeManager: ObservableObject {
         deletedRowIndices.removeAll()
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
+        undoStack.removeAll()  // Clear undo stack too
         hasChanges = false
         reloadVersion += 1  // Trigger table reload
     }
@@ -195,6 +212,8 @@ final class DataChangeManager: ObservableObject {
                     newValue: newValue
                 ))
             }
+            // Push undo action for inserted row cell edit
+            pushUndo(.cellEdit(rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName, previousValue: oldValue, newValue: newValue))
             hasChanges = !changes.isEmpty
             return
         }
@@ -238,6 +257,8 @@ final class DataChangeManager: ObservableObject {
             modifiedCells.insert(key)  // Add to cache
         }
 
+        // Push undo action for cell edit
+        pushUndo(.cellEdit(rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName, previousValue: oldValue, newValue: newValue))
         hasChanges = !changes.isEmpty
     }
 
@@ -251,8 +272,43 @@ final class DataChangeManager: ObservableObject {
         let rowChange = RowChange(rowIndex: rowIndex, type: .delete, originalRow: originalRow)
         changes.append(rowChange)
         deletedRowIndices.insert(rowIndex)  // Add to cache
+        pushUndo(.rowDeletion(rowIndex: rowIndex, originalRow: originalRow))  // Push undo action
         hasChanges = true
         reloadVersion += 1  // Trigger table reload to show red background
+    }
+    
+    /// Record multiple row deletions as a single undo action
+    /// - Parameter rows: Array of (rowIndex, originalRow) tuples, sorted by row index descending
+    func recordBatchRowDeletion(rows: [(rowIndex: Int, originalRow: [String?])]) {
+        guard rows.count > 1 else {
+            // Single row, use normal method
+            if let row = rows.first {
+                recordRowDeletion(rowIndex: row.rowIndex, originalRow: row.originalRow)
+            }
+            return
+        }
+        
+        // Collect data for batch undo before modifying state
+        var batchData: [(rowIndex: Int, originalRow: [String?])] = []
+        
+        for (rowIndex, originalRow) in rows {
+            // Remove any pending updates for this row
+            changes.removeAll { $0.rowIndex == rowIndex && $0.type == .update }
+            
+            // Clear modified cells cache for this row
+            modifiedCells = modifiedCells.filter { !$0.hasPrefix("\(rowIndex)-") }
+            
+            let rowChange = RowChange(rowIndex: rowIndex, type: .delete, originalRow: originalRow)
+            changes.append(rowChange)
+            deletedRowIndices.insert(rowIndex)
+            
+            batchData.append((rowIndex: rowIndex, originalRow: originalRow))
+        }
+        
+        // Push a single batch undo action
+        pushUndo(.batchRowDeletion(rows: batchData))
+        hasChanges = true
+        reloadVersion += 1
     }
 
     func recordRowInsertion(rowIndex: Int, values: [String?]) {
@@ -264,6 +320,7 @@ final class DataChangeManager: ObservableObject {
         let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: cellChanges)
         changes.append(rowChange)
         insertedRowIndices.insert(rowIndex)  // Add to cache
+        pushUndo(.rowInsertion(rowIndex: rowIndex))  // Push undo action
         hasChanges = true
     }
 
@@ -272,6 +329,7 @@ final class DataChangeManager: ObservableObject {
         changes.removeAll { $0.rowIndex == rowIndex && $0.type == .delete }
         deletedRowIndices.remove(rowIndex)
         hasChanges = !changes.isEmpty
+        reloadVersion += 1  // Trigger table reload to remove red background
     }
     
     /// Undo a pending row insertion
@@ -299,6 +357,155 @@ final class DataChangeManager: ObservableObject {
         }
         
         hasChanges = !changes.isEmpty
+    }
+
+    // MARK: - Undo Stack Management
+    
+    /// Push an undo action onto the stack
+    func pushUndo(_ action: UndoAction) {
+        undoStack.append(action)
+    }
+    
+    /// Pop the last undo action from the stack
+    func popUndo() -> UndoAction? {
+        undoStack.popLast()
+    }
+    
+    /// Clear the undo stack (called after save or discard)
+    func clearUndoStack() {
+        undoStack.removeAll()
+    }
+    
+    /// Clear the redo stack (called when new changes are made)
+    func clearRedoStack() {
+        redoStack.removeAll()
+    }
+    
+    /// Check if there are any undo actions available
+    var canUndo: Bool {
+        !undoStack.isEmpty
+    }
+    
+    /// Check if there are any redo actions available
+    var canRedo: Bool {
+        !redoStack.isEmpty
+    }
+    
+    /// Undo the last change and return details needed to update the UI
+    /// Returns: (action, needsRowRemoval, needsRowRestore, restoreRow)
+    func undoLastChange() -> (action: UndoAction, needsRowRemoval: Bool, needsRowRestore: Bool, restoreRow: [String?]?)? {
+        guard let action = popUndo() else { return nil }
+        
+        // Push to redo stack so we can redo this action
+        redoStack.append(action)
+        
+        switch action {
+        case .cellEdit(let rowIndex, let columnIndex, let columnName, let previousValue, _):
+            // Find and revert the cell change
+            if let changeIndex = changes.firstIndex(where: {
+                $0.rowIndex == rowIndex && ($0.type == .update || $0.type == .insert)
+            }) {
+                if let cellIndex = changes[changeIndex].cellChanges.firstIndex(where: {
+                    $0.columnIndex == columnIndex
+                }) {
+                    // For updates, restore the original value
+                    if changes[changeIndex].type == .update {
+                        let originalValue = changes[changeIndex].cellChanges[cellIndex].oldValue
+                        if previousValue == originalValue {
+                            // Value is back to original, remove the cell change
+                            changes[changeIndex].cellChanges.remove(at: cellIndex)
+                            modifiedCells.remove(cellKey(rowIndex: rowIndex, columnIndex: columnIndex))
+                            if changes[changeIndex].cellChanges.isEmpty {
+                                changes.remove(at: changeIndex)
+                            }
+                        } else {
+                            // Update cell change with previous value
+                            let originalOldValue = changes[changeIndex].cellChanges[cellIndex].oldValue
+                            changes[changeIndex].cellChanges[cellIndex] = CellChange(
+                                rowIndex: rowIndex,
+                                columnIndex: columnIndex,
+                                columnName: columnName,
+                                oldValue: originalOldValue,
+                                newValue: previousValue
+                            )
+                        }
+                    } else if changes[changeIndex].type == .insert {
+                        // For inserts, just update the cell value
+                        changes[changeIndex].cellChanges[cellIndex] = CellChange(
+                            rowIndex: rowIndex,
+                            columnIndex: columnIndex,
+                            columnName: columnName,
+                            oldValue: nil,
+                            newValue: previousValue
+                        )
+                    }
+                }
+            }
+            hasChanges = !changes.isEmpty
+            reloadVersion += 1
+            return (action, false, false, nil)
+            
+        case .rowInsertion(let rowIndex):
+            // Undo the insertion by removing the row
+            undoRowInsertion(rowIndex: rowIndex)
+            return (action, true, false, nil)
+            
+        case .rowDeletion(let rowIndex, let originalRow):
+            // Undo the deletion by restoring the row
+            undoRowDeletion(rowIndex: rowIndex)
+            return (action, false, true, originalRow)
+            
+        case .batchRowDeletion(let rows):
+            // Undo all deletions in the batch (restore all rows)
+            // Process in reverse order to maintain correct indices
+            for (rowIndex, _) in rows.reversed() {
+                undoRowDeletion(rowIndex: rowIndex)
+            }
+            return (action, false, true, nil)
+        }
+    }
+    
+    /// Redo the last undone change and return details needed to update the UI
+    /// Returns: (action, needsRowInsert, needsRowDelete)
+    func redoLastChange() -> (action: UndoAction, needsRowInsert: Bool, needsRowDelete: Bool)? {
+        guard !redoStack.isEmpty else { return nil }
+        let action = redoStack.removeLast()
+        
+        // Push back to undo stack so we can undo again
+        undoStack.append(action)
+        
+        switch action {
+        case .cellEdit(let rowIndex, let columnIndex, let columnName, let previousValue, let newValue):
+            // Re-apply the cell edit (previousValue becomes oldValue for the new edit)
+            recordCellChange(rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName, oldValue: previousValue, newValue: newValue)
+            // Remove the extra undo action that recordCellChange pushed
+            _ = undoStack.popLast()
+            reloadVersion += 1
+            return (action, false, false)
+            
+        case .rowInsertion(let rowIndex):
+            // Re-apply the row insertion - mark as inserted
+            insertedRowIndices.insert(rowIndex)
+            hasChanges = true
+            reloadVersion += 1
+            return (action, true, false)
+            
+        case .rowDeletion(let rowIndex, let originalRow):
+            // Re-apply the deletion
+            recordRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
+            // Remove the extra undo action that recordRowDeletion pushed
+            _ = undoStack.popLast()
+            return (action, false, true)
+            
+        case .batchRowDeletion(let rows):
+            // Re-apply all deletions in the batch
+            for (rowIndex, originalRow) in rows {
+                recordRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
+                // Remove the extra undo action
+                _ = undoStack.popLast()
+            }
+            return (action, false, true)
+        }
     }
 
     // MARK: - SQL Generation

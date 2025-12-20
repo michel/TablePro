@@ -99,6 +99,19 @@ struct OpenTableApp: App {
                 .disabled(!appState.isConnected)
             }
             
+            // Edit menu - Undo/Redo (replace the standard undo/redo)
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") {
+                    NotificationCenter.default.post(name: .undoChange, object: nil)
+                }
+                .keyboardShortcut("z", modifiers: .command)
+                
+                Button("Redo") {
+                    NotificationCenter.default.post(name: .redoChange, object: nil)
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+            }
+            
             // Edit menu - replace pasteboard to add our Delete with shortcut
             CommandGroup(replacing: .pasteboard) {
                 Button("Cut") {
@@ -150,7 +163,13 @@ struct OpenTableApp: App {
                 }
                 .keyboardShortcut("i", modifiers: .command)
                 .disabled(!appState.isCurrentTabEditable)
-                
+
+                Button("Duplicate Row") {
+                    NotificationCenter.default.post(name: .duplicateRow, object: nil)
+                }
+                .keyboardShortcut("d", modifiers: .command)
+                .disabled(!appState.isCurrentTabEditable)
+
                 Divider()
                 
                 // Table operations (work when tables selected in sidebar)
@@ -196,10 +215,13 @@ extension Notification.Name {
     static let clearQuery = Notification.Name("clearQuery")
     static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
     static let addNewRow = Notification.Name("addNewRow")
+    static let duplicateRow = Notification.Name("duplicateRow")
     static let copyTableNames = Notification.Name("copyTableNames")
     static let truncateTables = Notification.Name("truncateTables")
     static let copySelectedRows = Notification.Name("copySelectedRows")
     static let clearSelection = Notification.Name("clearSelection")
+    static let undoChange = Notification.Name("undoChange")
+    static let redoChange = Notification.Name("redoChange")
     static let openWelcomeWindow = Notification.Name("openWelcomeWindow")
 }
 

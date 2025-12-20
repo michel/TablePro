@@ -640,6 +640,27 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             cellView.layer?.backgroundColor = nil
         }
 
+        // Focus ring for keyboard navigation
+        // focusedColumn is the NSTableView column index (includes row number at 0)
+        // columnIndex is the data column index (0-based, no row number)
+        // So focusedColumn == columnIndex + 1
+        let tableColumnIndex = columnIndex + 1
+        let isFocused: Bool = {
+            guard let keyTableView = tableView as? KeyHandlingTableView,
+                  keyTableView.selectedRow == row,
+                  keyTableView.focusedColumn == tableColumnIndex
+            else { return false }
+            return true
+        }()
+
+        if isFocused {
+            cellView.layer?.borderWidth = 2
+            cellView.layer?.borderColor = NSColor.selectedControlColor.cgColor
+        } else {
+            cellView.layer?.borderWidth = 0
+            cellView.layer?.borderColor = nil
+        }
+
         return cellView
     }
 
@@ -1021,6 +1042,12 @@ final class TableRowViewWithMenu: NSTableRowView {
             if coordinator.isEditable {
                 menu.addItem(NSMenuItem.separator())
 
+                let duplicateItem = NSMenuItem(
+                    title: "Duplicate", action: #selector(duplicateRow), keyEquivalent: "d")
+                duplicateItem.keyEquivalentModifierMask = .command
+                duplicateItem.target = self
+                menu.addItem(duplicateItem)
+
                 let deleteItem = NSMenuItem(
                     title: "Delete", action: #selector(deleteRow), keyEquivalent: String(Character(UnicodeScalar(NSBackspaceCharacter)!)))
                 deleteItem.keyEquivalentModifierMask = []
@@ -1034,6 +1061,11 @@ final class TableRowViewWithMenu: NSTableRowView {
 
     @objc private func deleteRow() {
         coordinator?.deleteRow(at: rowIndex)
+    }
+
+    @objc private func duplicateRow() {
+        // Post notification to duplicate the selected row
+        NotificationCenter.default.post(name: .duplicateRow, object: nil)
     }
 
     @objc private func undoDeleteRow() {
@@ -1212,6 +1244,34 @@ extension NSFont {
 final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
     weak var coordinator: TableViewCoordinator?
 
+    /// Currently focused column index (-1 = no focus, 0 = row number column)
+    var focusedColumn: Int = -1 {
+        didSet {
+            if oldValue != focusedColumn {
+                // Reload affected columns to update focus ring
+                // NOTE: Must validate column index is within bounds to avoid crash
+                // Use DispatchQueue.main.async to avoid "Publishing changes from within view updates" warning
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    if oldValue >= 0 && oldValue < self.numberOfColumns && self.selectedRow >= 0 {
+                        self.reloadData(forRowIndexes: IndexSet(integer: self.selectedRow),
+                                   columnIndexes: IndexSet(integer: oldValue))
+                    }
+                    if self.focusedColumn >= 0 && self.focusedColumn < self.numberOfColumns && self.selectedRow >= 0 {
+                        self.reloadData(forRowIndexes: IndexSet(integer: self.selectedRow),
+                                   columnIndexes: IndexSet(integer: self.focusedColumn))
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Anchor row for Shift+Arrow range selection (-1 = no anchor)
+    var selectionAnchor: Int = -1
+    
+    /// Current pivot row for Shift+Arrow navigation (where the user is navigating to)
+    var selectionPivot: Int = -1
+
     // MARK: - TablePlus-Style Cell Focus
     
     override func mouseDown(with event: NSEvent) {
@@ -1224,6 +1284,12 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
         if event.clickCount == 2 && clickedRow == -1 && coordinator?.isEditable == true {
             NotificationCenter.default.post(name: .addNewRow, object: nil)
             return
+        }
+        
+        // Reset anchor/pivot when clicking without Shift (starting new selection)
+        if clickedRow >= 0 && !event.modifierFlags.contains(.shift) {
+            selectionAnchor = clickedRow
+            selectionPivot = clickedRow
         }
         
         // Let super handle row selection
@@ -1241,9 +1307,13 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
         // Skip row number column (not editable)
         let column = tableColumns[clickedColumn]
         if column.identifier.rawValue == "__rowNumber__" {
+            focusedColumn = -1
             return
         }
-        
+
+        // Track focused column for keyboard navigation
+        focusedColumn = clickedColumn
+
         // Focus the cell without opening editor (select: false)
         // This is the native AppKit way to set cell focus
         // When user presses Enter, this cell will be edited
@@ -1298,26 +1368,179 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
     override func keyDown(with event: NSEvent) {
         // Note: Cmd+N is captured by app menu (New Connection)
         // Use File > Add Row (Cmd+I) for adding rows
-        
-        // Escape key - clear selection
-        if event.keyCode == 53 {
+
+        let row = selectedRow
+        let isShiftHeld = event.modifierFlags.contains(.shift)
+
+        switch event.keyCode {
+        case 126: // Up arrow - move to previous row (Shift extends selection)
+            handleUpArrow(currentRow: row, isShiftHeld: isShiftHeld)
+            return
+
+        case 125: // Down arrow - move to next row (Shift extends selection)
+            handleDownArrow(currentRow: row, isShiftHeld: isShiftHeld)
+            return
+
+        case 123: // Left arrow - move to previous column
+            if focusedColumn > 1 { // Skip row number column (index 0)
+                focusedColumn -= 1
+                if row >= 0 {
+                    scrollColumnToVisible(focusedColumn)
+                }
+            } else if focusedColumn == -1 && numberOfColumns > 1 {
+                // No focus yet, start at last column
+                focusedColumn = numberOfColumns - 1
+                if row >= 0 {
+                    scrollColumnToVisible(focusedColumn)
+                }
+            }
+            return
+
+        case 124: // Right arrow - move to next column
+            if focusedColumn >= 1 && focusedColumn < numberOfColumns - 1 {
+                focusedColumn += 1
+                if row >= 0 {
+                    scrollColumnToVisible(focusedColumn)
+                }
+            } else if focusedColumn == -1 && numberOfColumns > 1 {
+                // No focus yet, start at first data column
+                focusedColumn = 1
+                if row >= 0 {
+                    scrollColumnToVisible(focusedColumn)
+                }
+            }
+            return
+
+        case 36: // Enter/Return - edit focused cell
+            if row >= 0 && focusedColumn >= 1 && coordinator?.isEditable == true {
+                editColumn(focusedColumn, row: row, with: nil, select: true)
+            }
+            return
+
+        case 53: // Escape - clear focus and selection
+            focusedColumn = -1
             NotificationCenter.default.post(name: .clearSelection, object: nil)
+            return
+
+        case 51, 117: // Delete or Backspace key
+            // Post notification to trigger batched deletion in MainContentView
+            // This enables undoing all deletions at once
+            if !selectedRowIndexes.isEmpty {
+                NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+                return
+            }
+
+        case 48: // Tab - move to next cell
+            if row >= 0 && focusedColumn >= 1 {
+                var nextColumn = focusedColumn + 1
+                var nextRow = row
+
+                if nextColumn >= numberOfColumns {
+                    nextColumn = 1 // Skip row number column
+                    nextRow += 1
+                }
+                if nextRow >= numberOfRows {
+                    nextRow = numberOfRows - 1
+                    nextColumn = numberOfColumns - 1
+                }
+
+                selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
+                focusedColumn = nextColumn
+                scrollRowToVisible(nextRow)
+                scrollColumnToVisible(nextColumn)
+            }
+            return
+
+        default:
+            break
+        }
+
+        super.keyDown(with: event)
+    }
+    
+    // MARK: - Arrow Key Selection Helpers
+    
+    /// Handle Up arrow key with optional Shift for range selection
+    private func handleUpArrow(currentRow: Int, isShiftHeld: Bool) {
+        guard numberOfRows > 0 else { return }
+        
+        if currentRow == -1 {
+            // No selection, select last row
+            let targetRow = numberOfRows - 1
+            selectionAnchor = targetRow
+            selectionPivot = targetRow
+            selectRowIndexes(IndexSet(integer: targetRow), byExtendingSelection: false)
+            scrollRowToVisible(targetRow)
             return
         }
         
-        // Delete or Backspace key (fallback if performKeyEquivalent didn't catch it)
-        if event.keyCode == 51 || event.keyCode == 117 {
-            // Get selected row indices
-            let selectedIndices = Set(selectedRowIndexes.map { $0 })
-            if !selectedIndices.isEmpty {
-                // Mark rows for deletion
-                for rowIndex in selectedIndices.sorted(by: >) {
-                    coordinator?.deleteRow(at: rowIndex)
+        if isShiftHeld {
+            // Shift+Up: extend/shrink selection
+            if selectionAnchor == -1 {
+                selectionAnchor = currentRow
+                selectionPivot = currentRow
             }
-                return
-            }
+            
+            // Use pivot for navigation, not selectedRow
+            let currentPivot = selectionPivot >= 0 ? selectionPivot : currentRow
+            let targetRow = max(0, currentPivot - 1)
+            selectionPivot = targetRow
+            
+            // Select range from anchor to pivot
+            let startRow = min(selectionAnchor, selectionPivot)
+            let endRow = max(selectionAnchor, selectionPivot)
+            let range = IndexSet(integersIn: startRow...endRow)
+            selectRowIndexes(range, byExtendingSelection: false)
+            scrollRowToVisible(targetRow)
+        } else {
+            // Normal Up: move to previous row, single selection
+            let targetRow = max(0, currentRow - 1)
+            selectionAnchor = targetRow
+            selectionPivot = targetRow
+            selectRowIndexes(IndexSet(integer: targetRow), byExtendingSelection: false)
+            scrollRowToVisible(targetRow)
         }
-        super.keyDown(with: event)
+    }
+    
+    /// Handle Down arrow key with optional Shift for range selection
+    private func handleDownArrow(currentRow: Int, isShiftHeld: Bool) {
+        guard numberOfRows > 0 else { return }
+        
+        if currentRow == -1 {
+            // No selection, select first row
+            selectionAnchor = 0
+            selectionPivot = 0
+            selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
+            scrollRowToVisible(0)
+            return
+        }
+        
+        if isShiftHeld {
+            // Shift+Down: extend/shrink selection
+            if selectionAnchor == -1 {
+                selectionAnchor = currentRow
+                selectionPivot = currentRow
+            }
+            
+            // Use pivot for navigation, not selectedRow
+            let currentPivot = selectionPivot >= 0 ? selectionPivot : currentRow
+            let targetRow = min(numberOfRows - 1, currentPivot + 1)
+            selectionPivot = targetRow
+            
+            // Select range from anchor to pivot
+            let startRow = min(selectionAnchor, selectionPivot)
+            let endRow = max(selectionAnchor, selectionPivot)
+            let range = IndexSet(integersIn: startRow...endRow)
+            selectRowIndexes(range, byExtendingSelection: false)
+            scrollRowToVisible(targetRow)
+        } else {
+            // Normal Down: move to next row, single selection
+            let targetRow = min(numberOfRows - 1, currentRow + 1)
+            selectionAnchor = targetRow
+            selectionPivot = targetRow
+            selectRowIndexes(IndexSet(integer: targetRow), byExtendingSelection: false)
+            scrollRowToVisible(targetRow)
+        }
     }
 
     override func menu(for event: NSEvent) -> NSMenu? {

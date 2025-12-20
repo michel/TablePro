@@ -201,6 +201,39 @@ struct MainContentView: View {
     /// Separated to reduce type-checker complexity
     @ViewBuilder
     private var bodyContentWithNotifications: some View {
+        bodyContentPart1
+            .onReceive(NotificationCenter.default.publisher(for: .duplicateRow)) { _ in
+                // Duplicate row menu item (Cmd+D)
+                Task { @MainActor in
+                    duplicateSelectedRow()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .copySelectedRows)) { _ in
+                // Copy rows (Cmd+C when rows selected)
+                copySelectedRowsToClipboard()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .clearSelection)) { _ in
+                // Clear all selections (Escape key)
+                selectedRowIndices.removeAll()
+                selectedTables.removeAll()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .undoChange)) { _ in
+                // Undo last change (Cmd+Z)
+                Task { @MainActor in
+                    undoLastChange()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .redoChange)) { _ in
+                // Redo last undone change (Cmd+Shift+Z)
+                Task { @MainActor in
+                    redoLastChange()
+                }
+            }
+    }
+    
+    /// First part of notifications - reduces type-checker complexity
+    @ViewBuilder
+    private var bodyContentPart1: some View {
         viewWithToolbar
             .task {
                 await initializeView()
@@ -213,14 +246,12 @@ struct MainContentView: View {
                         openTableData(table.name)
                     }
                 }
+                // Update app state for Delete menu enable state (sidebar tables)
+                AppState.shared.hasTableSelection = !newTables.isEmpty
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
                 // Update app state for Delete Row menu enable state
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
-            }
-            .onChange(of: selectedTables) { _, newTables in
-                // Update app state for Delete menu enable state (sidebar tables)
-                AppState.shared.hasTableSelection = !newTables.isEmpty
             }
             .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
                 Task { @MainActor in
@@ -303,15 +334,6 @@ struct MainContentView: View {
                 Task { @MainActor in
                     addNewRow()
                 }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .copySelectedRows)) { _ in
-                // Copy rows (Cmd+C when rows selected)
-                copySelectedRowsToClipboard()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .clearSelection)) { _ in
-                // Clear all selections (Escape key)
-                selectedRowIndices.removeAll()
-                selectedTables.removeAll()
             }
     }
 
@@ -746,18 +768,26 @@ struct MainContentView: View {
             !selectedRowIndices.isEmpty
         else { return }
 
+        // Collect rows to delete for batch undo (sorted descending to handle removals correctly)
+        var rowsToDelete: [(rowIndex: Int, originalRow: [String?])] = []
+
         // Delete each selected row (sorted descending to handle removals correctly)
         for rowIndex in selectedRowIndices.sorted(by: >) {
             if changeManager.isRowInserted(rowIndex) {
                 // For inserted rows, remove them completely
                 undoInsertRow(at: rowIndex)
             } else if !changeManager.isRowDeleted(rowIndex) {
-                // For existing rows, mark for deletion
+                // For existing rows, collect for batch deletion
                 if rowIndex < tabManager.tabs[index].resultRows.count {
                     let originalRow = tabManager.tabs[index].resultRows[rowIndex].values
-                    changeManager.recordRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
+                    rowsToDelete.append((rowIndex: rowIndex, originalRow: originalRow))
                 }
             }
+        }
+        
+        // Record batch deletion (single undo action for all rows)
+        if !rowsToDelete.isEmpty {
+            changeManager.recordBatchRowDeletion(rows: rowsToDelete)
         }
 
         // Clear selection after marking for deletion
@@ -999,7 +1029,54 @@ struct MainContentView: View {
         // Mark tab as having user interaction
         tabManager.tabs[tabIndex].hasUserInteraction = true
     }
-    
+
+    /// Duplicate the currently selected row
+    /// Copies all values from the selected row and creates a new row
+    /// Primary key column is set to DEFAULT to let the database auto-generate
+    private func duplicateSelectedRow() {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+
+        let tab = tabManager.tabs[tabIndex]
+
+        // Only duplicate in editable table tabs
+        guard tab.isEditable, tab.tableName != nil else { return }
+
+        // Need exactly one row selected
+        guard let selectedIndex = selectedRowIndices.first,
+              selectedRowIndices.count == 1,
+              selectedIndex < tab.resultRows.count else { return }
+
+        // Copy values from selected row
+        let sourceRow = tab.resultRows[selectedIndex]
+        var newValues = sourceRow.values
+
+        // Set primary key column to DEFAULT so DB auto-generates
+        if let pkColumn = changeManager.primaryKeyColumn,
+           let pkIndex = tab.resultColumns.firstIndex(of: pkColumn) {
+            newValues[pkIndex] = "__DEFAULT__"
+        }
+
+        // Add the duplicated row
+        let newRow = QueryResultRow(values: newValues)
+        tabManager.tabs[tabIndex].resultRows.append(newRow)
+
+        // Get the new row index
+        let newRowIndex = tabManager.tabs[tabIndex].resultRows.count - 1
+
+        // Record in change manager as pending INSERT
+        changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newValues)
+
+        // Select the new row (scrolls to it)
+        selectedRowIndices = [newRowIndex]
+
+        // Auto-focus first cell (TablePlus behavior)
+        editingCell = CellPosition(row: newRowIndex, column: 0)
+
+        // Mark tab as having user interaction
+        tabManager.tabs[tabIndex].hasUserInteraction = true
+    }
+
     /// Undo a row insertion - removes the row from tab's resultRows
     private func undoInsertRow(at rowIndex: Int) {
         guard let tabIndex = tabManager.selectedTabIndex else { return }
@@ -1024,6 +1101,98 @@ struct MainContentView: View {
             }
         }
         selectedRowIndices = adjustedSelection
+    }
+    
+    /// Undo the last change (Cmd+Z)
+    /// Handles cell edits, row insertions, and row deletions
+    private func undoLastChange() {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+        
+        // Get the undo result from changeManager
+        guard let result = changeManager.undoLastChange() else { return }
+        
+        switch result.action {
+        case .cellEdit(let rowIndex, let columnIndex, _, let previousValue, _):
+            // Restore the cell value in resultRows
+            if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
+                tabManager.tabs[tabIndex].resultRows[rowIndex].values[columnIndex] = previousValue
+            }
+            
+        case .rowInsertion(let rowIndex):
+            // Remove the inserted row from resultRows
+            if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
+                tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
+                
+                // Clear selection if it was on the removed row
+                if selectedRowIndices.contains(rowIndex) {
+                    selectedRowIndices.remove(rowIndex)
+                }
+                
+                // Adjust selection indices for rows that shifted down
+                var adjustedSelection = Set<Int>()
+                for idx in selectedRowIndices {
+                    if idx > rowIndex {
+                        adjustedSelection.insert(idx - 1)
+                    } else {
+                        adjustedSelection.insert(idx)
+                    }
+                }
+                selectedRowIndices = adjustedSelection
+            }
+            
+        case .rowDeletion(_, _):
+            // Row is restored in changeManager - visual indicator will be removed
+            // No need to modify resultRows since deletion was just a visual indicator
+            break
+            
+        case .batchRowDeletion(_):
+            // All rows are restored in changeManager - visual indicators will be removed
+            // No need to modify resultRows since deletions were just visual indicators
+            break
+        }
+        
+        // Mark tab as having user interaction
+        tabManager.tabs[tabIndex].hasUserInteraction = true
+    }
+    
+    /// Redo the last undone change (Cmd+Shift+Z)
+    /// Re-applies the last change that was undone
+    private func redoLastChange() {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+        
+        // Get the redo result from changeManager
+        guard let result = changeManager.redoLastChange() else { return }
+        
+        switch result.action {
+        case .cellEdit(let rowIndex, let columnIndex, _, _, let newValue):
+            // Re-apply the cell value in resultRows
+            if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
+                tabManager.tabs[tabIndex].resultRows[rowIndex].values[columnIndex] = newValue
+            }
+            
+        case .rowInsertion(let rowIndex):
+            // Re-insert the row into resultRows
+            var newValues = [String?](repeating: nil, count: changeManager.columns.count)
+            let newRow = QueryResultRow(values: newValues)
+            if rowIndex <= tabManager.tabs[tabIndex].resultRows.count {
+                tabManager.tabs[tabIndex].resultRows.insert(newRow, at: rowIndex)
+            }
+            
+        case .rowDeletion(_, _):
+            // Row is re-marked as deleted in changeManager
+            // No need to modify resultRows since deletion is just a visual indicator
+            break
+            
+        case .batchRowDeletion(_):
+            // Rows are re-marked as deleted in changeManager
+            // No need to modify resultRows since deletions are just visual indicators
+            break
+        }
+        
+        // Mark tab as having user interaction
+        tabManager.tabs[tabIndex].hasUserInteraction = true
     }
 
     // MARK: - Event Handlers

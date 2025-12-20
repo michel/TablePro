@@ -69,6 +69,22 @@ struct SortState: Equatable {
     }
 }
 
+/// Tracks pagination state for lazy loading with Load More button
+struct PaginationState: Equatable {
+    var totalRowCount: Int?      // Total rows in table (fetched once, nil if unknown)
+    var pageSize: Int = 1000     // Rows per page
+    var isLoadingMore: Bool = false  // True while fetching more rows
+    
+    /// Whether there are more rows to load
+    func hasMore(loadedCount: Int) -> Bool {
+        guard let total = totalRowCount else {
+            // If we don't know total, assume there might be more
+            return loadedCount > 0 && loadedCount % pageSize == 0
+        }
+        return loadedCount < total
+    }
+}
+
 /// Represents a single tab (query or table)
 struct QueryTab: Identifiable, Equatable {
     let id: UUID
@@ -103,6 +119,9 @@ struct QueryTab: Identifiable, Equatable {
     // Track if user has interacted with this tab (sort, edit, select, etc)
     // Prevents tab from being replaced when opening new tables
     var hasUserInteraction: Bool
+    
+    // Pagination state for lazy loading (table tabs only)
+    var pagination: PaginationState
 
     init(
         id: UUID = UUID(),
@@ -131,6 +150,7 @@ struct QueryTab: Identifiable, Equatable {
         self.selectedRowIndices = []
         self.sortState = SortState()
         self.hasUserInteraction = false
+        self.pagination = PaginationState()
     }
 
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
