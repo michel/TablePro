@@ -42,6 +42,10 @@ struct ConnectionFormView: View {
     @State private var sshConfigEntries: [SSHConfigEntry] = []
     @State private var selectedSSHConfigHost: String = ""
 
+    // Color and Tag
+    @State private var connectionColor: ConnectionColor = .none
+    @State private var selectedTagId: UUID? = nil
+
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
     
@@ -69,6 +73,7 @@ struct ConnectionFormView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     generalSection
+                    appearanceSection
                     connectionSection
                     authSection
                     if type != .sqlite {
@@ -120,6 +125,30 @@ struct ConnectionFormView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
+                }
+            }
+            .padding(12)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    // MARK: - Appearance Section
+
+    private var appearanceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Appearance")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 12) {
+                FormField(label: "Color", icon: "paintpalette") {
+                    ConnectionColorPicker(selectedColor: $connectionColor)
+                }
+
+                FormField(label: "Tag", icon: "tag") {
+                    ConnectionTagEditor(selectedTagId: $selectedTagId)
                 }
             }
             .padding(12)
@@ -431,6 +460,10 @@ struct ConnectionFormView: View {
             sshAuthMethod = existing.sshConfig.authMethod
             sshPrivateKeyPath = existing.sshConfig.privateKeyPath
 
+            // Load color and tag
+            connectionColor = existing.color
+            selectedTagId = existing.tagId
+
             // Load passwords from Keychain
             if let savedSSHPassword = storage.loadSSHPassword(for: existing.id) {
                 sshPassword = savedSSHPassword
@@ -463,7 +496,9 @@ struct ConnectionFormView: View {
             database: database,
             username: username,
             type: type,
-            sshConfig: sshConfig
+            sshConfig: sshConfig,
+            color: connectionColor,
+            tagId: selectedTagId
         )
 
         // Save passwords to Keychain
@@ -540,7 +575,9 @@ struct ConnectionFormView: View {
             database: database,
             username: username,
             type: type,
-            sshConfig: sshConfig
+            sshConfig: sshConfig,
+            color: connectionColor,
+            tagId: selectedTagId
         )
 
         Task {

@@ -35,7 +35,7 @@ struct ConnectionSidebarHeader: View {
                             }) {
                                 HStack {
                                     Image(systemName: session.connection.type.iconName)
-                                        .foregroundStyle(session.connection.type.themeColor)
+                                        .foregroundStyle(session.connection.displayColor)
                                     
                                     Text(session.connection.name)
                                     
@@ -67,8 +67,8 @@ struct ConnectionSidebarHeader: View {
                             }) {
                                 HStack {
                                     Image(systemName: connection.type.iconName)
-                                        .foregroundStyle(connection.type.themeColor)
-                                    
+                                        .foregroundStyle(connection.displayColor)
+
                                     Text(connection.name)
                                 }
                             }
@@ -90,7 +90,7 @@ struct ConnectionSidebarHeader: View {
                     if let session = currentSession {
                         Image(systemName: session.connection.type.iconName)
                             .font(.system(size: 16))
-                            .foregroundStyle(session.connection.type.themeColor)
+                            .foregroundStyle(session.connection.displayColor)
                     } else {
                         Image(systemName: "cylinder")
                             .font(.system(size: 16))

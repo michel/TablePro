@@ -20,19 +20,23 @@ struct ToolbarPrincipalContent: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Environment badge (LOCAL, SSH, etc.)
-            ConnectionBadgeView(environment: state.environment)
+            // Tag badge (if tag is assigned)
+            if let tagId = state.tagId,
+               let tag = TagStorage.shared.tag(for: tagId) {
+                TagBadgeView(tag: tag)
 
-            // Vertical separator
-            Divider()
-                .frame(height: 16)
+                // Vertical separator
+                Divider()
+                    .frame(height: 16)
+            }
 
             // Main connection status display
             ConnectionStatusView(
                 databaseType: state.databaseType,
                 databaseVersion: state.databaseVersion,
                 connectionName: state.connectionName,
-                connectionState: state.connectionState
+                connectionState: state.connectionState,
+                displayColor: state.displayColor
             )
 
             // Vertical separator before execution indicator
@@ -106,13 +110,14 @@ extension View {
 
 // MARK: - Preview
 
-#Preview("Connected via SSH") {
+#Preview("With Production Tag") {
     let state = ConnectionToolbarState()
-    state.environment = .ssh
+    state.tagId = ConnectionTag.presets.first { $0.name == "production" }?.id
     state.databaseType = .mariadb
     state.databaseVersion = "11.1.2"
     state.connectionName = "Production Database"
     state.connectionState = .connected
+    state.displayColor = .red
 
     return NavigationStack {
         Text("Content")
@@ -125,12 +130,13 @@ extension View {
 
 #Preview("Executing Query") {
     let state = ConnectionToolbarState()
-    state.environment = .local
+    state.tagId = ConnectionTag.presets.first { $0.name == "local" }?.id
     state.databaseType = .mysql
     state.databaseVersion = "8.0.35"
     state.connectionName = "Development"
     state.connectionState = .executing
     state.isExecuting = true
+    state.displayColor = .orange
 
     return NavigationStack {
         Text("Content")
@@ -141,14 +147,14 @@ extension View {
     .frame(width: 900, height: 400)
 }
 
-#Preview("Dark Mode") {
+#Preview("No Tag") {
     let state = ConnectionToolbarState()
-    state.environment = .ssh
+    state.tagId = nil
     state.databaseType = .postgresql
     state.databaseVersion = "16.1"
     state.connectionName = "Analytics"
     state.connectionState = .connected
-    state.lastQueryDuration = 0.156
+    state.displayColor = .blue
 
     return NavigationStack {
         Text("Content")

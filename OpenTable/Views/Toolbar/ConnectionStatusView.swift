@@ -14,6 +14,7 @@ struct ConnectionStatusView: View {
     let databaseVersion: String?
     let connectionName: String
     let connectionState: ToolbarConnectionState
+    let displayColor: Color
 
     var body: some View {
         HStack(spacing: 10) {
@@ -37,7 +38,7 @@ struct ConnectionStatusView: View {
             // Database type icon
             Image(systemName: databaseType.iconName)
                 .font(.system(size: 14))
-                .foregroundStyle(databaseType.themeColor)
+                .foregroundStyle(displayColor)
 
             // Database type + version
             Text(formattedDatabaseInfo)
@@ -121,7 +122,8 @@ private struct PulseAnimation: ViewModifier {
         databaseType: .mariadb,
         databaseVersion: "11.1.2",
         connectionName: "Production Database",
-        connectionState: .connected
+        connectionState: .connected,
+        displayColor: .cyan
     )
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))
@@ -132,7 +134,8 @@ private struct PulseAnimation: ViewModifier {
         databaseType: .mysql,
         databaseVersion: "8.0.35",
         connectionName: "Development",
-        connectionState: .executing
+        connectionState: .executing,
+        displayColor: .orange
     )
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))
@@ -143,7 +146,8 @@ private struct PulseAnimation: ViewModifier {
         databaseType: .postgresql,
         databaseVersion: "16.1",
         connectionName: "Analytics DB",
-        connectionState: .connected
+        connectionState: .connected,
+        displayColor: .blue
     )
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))

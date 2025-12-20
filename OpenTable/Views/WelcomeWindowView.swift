@@ -323,30 +323,42 @@ private struct ConnectionRow: View {
     var onEdit: (() -> Void)?
     var onDelete: (() -> Void)?
 
+    private var displayTag: ConnectionTag? {
+        guard let tagId = connection.tagId else { return nil }
+        return TagStorage.shared.tag(for: tagId)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            // Database type indicator
+            // Database type indicator - uses custom color if set
             Circle()
-                .fill(connection.type.themeColor)
+                .fill(connection.displayColor)
                 .frame(width: 10, height: 10)
-            
+
             // Connection info
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(connection.name)
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.primary)
-                    
-                    // Environment badge
-                    EnvironmentBadge(connection: connection)
+
+                    // Tag (single)
+                    if let tag = displayTag {
+                        Text(tag.name)
+                            .font(.system(size: 9))
+                            .foregroundStyle(tag.color.color)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(tag.color.color.opacity(0.15)))
+                    }
                 }
-                
+
                 Text(connectionSubtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-            
+
             Spacer()
         }
         .padding(.vertical, 4)

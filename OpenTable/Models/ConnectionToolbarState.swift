@@ -99,8 +99,8 @@ final class ConnectionToolbarState: ObservableObject {
 
     // MARK: - Connection Info
 
-    /// The environment type (local, SSH, production, etc.)
-    @Published var environment: ConnectionEnvironment = .local
+    /// The tag assigned to this connection (optional)
+    @Published var tagId: UUID? = nil
 
     /// Database type (MySQL, MariaDB, PostgreSQL, SQLite)
     @Published var databaseType: DatabaseType = .mysql
@@ -110,6 +110,9 @@ final class ConnectionToolbarState: ObservableObject {
 
     /// Connection name for display
     @Published var connectionName: String = ""
+
+    /// Custom display color for the connection (uses database type color if not set)
+    @Published var displayColor: Color = .orange
 
     /// Current connection state
     @Published var connectionState: ToolbarConnectionState = .disconnected
@@ -186,17 +189,8 @@ final class ConnectionToolbarState: ObservableObject {
     func update(from connection: DatabaseConnection) {
         connectionName = connection.name
         databaseType = connection.type
-
-        // Determine environment based on SSH configuration
-        if connection.sshConfig.enabled {
-            environment = .ssh
-        } else if connection.host == "localhost" || connection.host == "127.0.0.1" {
-            environment = .local
-        } else {
-            // Could be production or staging based on host naming conventions
-            // Default to local for now; can be extended with user preferences
-            environment = .local
-        }
+        displayColor = connection.displayColor
+        tagId = connection.tagId
     }
 
     /// Update connection state from ConnectionStatus
@@ -215,10 +209,11 @@ final class ConnectionToolbarState: ObservableObject {
 
     /// Reset to default disconnected state
     func reset() {
-        environment = .local
+        tagId = nil
         databaseType = .mysql
         databaseVersion = nil
         connectionName = ""
+        displayColor = databaseType.themeColor
         connectionState = .disconnected
         isExecuting = false
         lastQueryDuration = nil

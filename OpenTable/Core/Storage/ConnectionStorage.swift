@@ -299,6 +299,10 @@ private struct StoredConnection: Codable {
     let sshPrivateKeyPath: String
     let sshUseSSHConfig: Bool
 
+    // Color and Tag
+    let color: String
+    let tagId: String?
+
     init(from connection: DatabaseConnection) {
         self.id = connection.id
         self.name = connection.name
@@ -316,6 +320,35 @@ private struct StoredConnection: Codable {
         self.sshAuthMethod = connection.sshConfig.authMethod.rawValue
         self.sshPrivateKeyPath = connection.sshConfig.privateKeyPath
         self.sshUseSSHConfig = connection.sshConfig.useSSHConfig
+
+        // Color and Tag
+        self.color = connection.color.rawValue
+        self.tagId = connection.tagId?.uuidString
+    }
+
+    // Custom decoder to handle migration from old format
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        host = try container.decode(String.self, forKey: .host)
+        port = try container.decode(Int.self, forKey: .port)
+        database = try container.decode(String.self, forKey: .database)
+        username = try container.decode(String.self, forKey: .username)
+        type = try container.decode(String.self, forKey: .type)
+
+        sshEnabled = try container.decode(Bool.self, forKey: .sshEnabled)
+        sshHost = try container.decode(String.self, forKey: .sshHost)
+        sshPort = try container.decode(Int.self, forKey: .sshPort)
+        sshUsername = try container.decode(String.self, forKey: .sshUsername)
+        sshAuthMethod = try container.decode(String.self, forKey: .sshAuthMethod)
+        sshPrivateKeyPath = try container.decode(String.self, forKey: .sshPrivateKeyPath)
+        sshUseSSHConfig = try container.decode(Bool.self, forKey: .sshUseSSHConfig)
+
+        // Migration: use defaults if fields are missing
+        color = try container.decodeIfPresent(String.self, forKey: .color) ?? ConnectionColor.none.rawValue
+        tagId = try container.decodeIfPresent(String.self, forKey: .tagId)
     }
 
     func toConnection() -> DatabaseConnection {
@@ -329,6 +362,9 @@ private struct StoredConnection: Codable {
             useSSHConfig: sshUseSSHConfig
         )
 
+        let parsedColor = ConnectionColor(rawValue: color) ?? .none
+        let parsedTagId = tagId.flatMap { UUID(uuidString: $0) }
+
         return DatabaseConnection(
             id: id,
             name: name,
@@ -337,7 +373,9 @@ private struct StoredConnection: Codable {
             database: database,
             username: username,
             type: DatabaseType(rawValue: type) ?? .mysql,
-            sshConfig: sshConfig
+            sshConfig: sshConfig,
+            color: parsedColor,
+            tagId: parsedTagId
         )
     }
 }

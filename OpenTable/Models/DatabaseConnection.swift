@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - SSH Configuration
 
@@ -98,6 +99,43 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+// MARK: - Connection Color
+
+/// Preset colors for connection status indicators
+enum ConnectionColor: String, CaseIterable, Identifiable, Codable {
+    case none = "None"
+    case red = "Red"
+    case orange = "Orange"
+    case yellow = "Yellow"
+    case green = "Green"
+    case blue = "Blue"
+    case purple = "Purple"
+    case pink = "Pink"
+    case gray = "Gray"
+
+    var id: String { rawValue }
+
+    /// SwiftUI Color for display
+    var color: Color {
+        switch self {
+        case .none: return .clear
+        case .red: return .red
+        case .orange: return .orange
+        case .yellow: return .yellow
+        case .green: return .green
+        case .blue: return .blue
+        case .purple: return .purple
+        case .pink: return .pink
+        case .gray: return .gray
+        }
+    }
+
+    /// Whether this represents "no custom color"
+    var isDefault: Bool { self == .none }
+}
+
+// MARK: - Database Connection
+
 /// Model representing a database connection
 struct DatabaseConnection: Identifiable, Hashable {
     let id: UUID
@@ -108,6 +146,8 @@ struct DatabaseConnection: Identifiable, Hashable {
     var username: String
     var type: DatabaseType
     var sshConfig: SSHConfiguration
+    var color: ConnectionColor
+    var tagId: UUID?
 
     init(
         id: UUID = UUID(),
@@ -117,7 +157,9 @@ struct DatabaseConnection: Identifiable, Hashable {
         database: String = "",
         username: String = "root",
         type: DatabaseType = .mysql,
-        sshConfig: SSHConfiguration = SSHConfiguration()
+        sshConfig: SSHConfiguration = SSHConfiguration(),
+        color: ConnectionColor = .none,
+        tagId: UUID? = nil
     ) {
         self.id = id
         self.name = name
@@ -127,6 +169,13 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.username = username
         self.type = type
         self.sshConfig = sshConfig
+        self.color = color
+        self.tagId = tagId
+    }
+
+    /// Returns the display color (custom color or database type color)
+    var displayColor: Color {
+        color.isDefault ? type.themeColor : color.color
     }
 }
 
