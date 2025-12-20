@@ -107,6 +107,38 @@ final class InMemoryRowProvider: RowProvider {
             TableRowData(index: index, values: row.values)
         }
     }
+    
+    /// Append a new row with given values
+    /// Returns the index of the new row
+    func appendRow(values: [String?]) -> Int {
+        let newIndex = rows.count
+        let newRow = TableRowData(index: newIndex, values: values)
+        rows.append(newRow)
+        return newIndex
+    }
+    
+    /// Remove row at index (used when discarding new rows)
+    func removeRow(at index: Int) {
+        guard index >= 0 && index < rows.count else { return }
+        rows.remove(at: index)
+        // Re-index remaining rows
+        for i in index..<rows.count {
+            rows[i] = TableRowData(index: i, values: rows[i].values)
+        }
+    }
+    
+    /// Remove multiple rows at indices (used when discarding new rows)
+    /// Indices should be sorted in descending order to maintain correct removal
+    func removeRows(at indices: Set<Int>) {
+        for index in indices.sorted(by: >) {
+            guard index >= 0 && index < rows.count else { continue }
+            rows.remove(at: index)
+        }
+        // Re-index all remaining rows
+        for i in 0..<rows.count {
+            rows[i] = TableRowData(index: i, values: rows[i].values)
+        }
+    }
 }
 
 // MARK: - Database Row Provider (for virtualized access via driver)

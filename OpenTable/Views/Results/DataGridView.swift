@@ -8,6 +8,12 @@
 import AppKit
 import SwiftUI
 
+/// Position of a cell in the grid (row, column)
+struct CellPosition: Equatable {
+    let row: Int
+    let column: Int
+}
+
 /// High-performance table view using AppKit NSTableView
 /// Wrapped for SwiftUI via NSViewRepresentable
 struct DataGridView: NSViewRepresentable {
@@ -19,9 +25,12 @@ struct DataGridView: NSViewRepresentable {
     var onCellEdit: ((Int, Int, String?) -> Void)?  // (rowIndex, columnIndex, newValue)
     var onDeleteRows: ((Set<Int>) -> Void)?  // Called when Delete key pressed
     var onSort: ((Int, Bool) -> Void)?  // Called when column header clicked (columnIndex, ascending)
+    var onAddRow: (() -> Void)?  // Called when user triggers add row (Cmd+N)
+    var onUndoInsert: ((Int) -> Void)?  // Called when user undoes row insertion (rowIndex)
 
     @Binding var selectedRowIndices: Set<Int>
     @Binding var sortState: SortState
+    @Binding var editingCell: CellPosition?  // Triggers editing of specific cell
 
     // MARK: - NSViewRepresentable
 
@@ -160,6 +169,8 @@ struct DataGridView: NSViewRepresentable {
         coordinator.onRefresh = onRefresh
         coordinator.onCellEdit = onCellEdit
         coordinator.onSort = onSort
+        coordinator.onAddRow = onAddRow
+        coordinator.onUndoInsert = onUndoInsert
 
         // Check if columns changed - compare actual column names, not just count
         let currentDataColumns = tableView.tableColumns.dropFirst() // Skip row number column
@@ -239,6 +250,27 @@ struct DataGridView: NSViewRepresentable {
 
         if currentSelection != targetSelection {
             tableView.selectRowIndexes(targetSelection, byExtendingSelection: false)
+        }
+        
+        // Handle editingCell - start editing the specified cell
+        if let cell = editingCell {
+            let tableColumn = cell.column + 1  // +1 to skip row number column
+            if cell.row < tableView.numberOfRows && tableColumn < tableView.numberOfColumns {
+                // Scroll to the row first
+                tableView.scrollRowToVisible(cell.row)
+                
+                // Select the row and start editing after a brief delay (allows scroll to complete)
+                DispatchQueue.main.async { [weak tableView] in
+                    guard let tableView = tableView else { return }
+                    tableView.selectRowIndexes(IndexSet(integer: cell.row), byExtendingSelection: false)
+                    tableView.editColumn(tableColumn, row: cell.row, with: nil, select: true)
+                }
+            }
+            
+            // Clear the binding after handling
+            DispatchQueue.main.async {
+                self.editingCell = nil
+            }
         }
     }
 
@@ -320,6 +352,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     /// Callback when column header clicked for sorting: (columnIndex, ascending)
     var onSort: ((Int, Bool) -> Void)?
+    
+    /// Callback when user triggers add row (Cmd+N)
+    var onAddRow: (() -> Void)?
+    
+    /// Callback when user undoes row insertion
+    var onUndoInsert: ((Int) -> Void)?
 
     // MARK: - NSTableViewDataSource
 
@@ -492,8 +530,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             cellView = NSTableCellView()
             cellView.identifier = cellViewId
 
-            // Create text field
-            cell = NSTextField()
+            // Create text field (custom class to handle context menu)
+            cell = CellTextField()
             cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
             cell.drawsBackground = true
             cell.isBordered = false
@@ -544,14 +582,17 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         // or be in an inconsistent state. Validate before accessing to prevent crashes.
         let isDeleted: Bool
         let isModified: Bool
+        let isInserted: Bool
         
         // Check against actual data bounds, not changes array size
         if row >= 0 && row < cachedRowCount && columnIndex >= 0 && columnIndex < cachedColumnCount {
             isDeleted = changeManager.isRowDeleted(row)
+            isInserted = changeManager.isRowInserted(row)
             isModified = changeManager.isCellModified(rowIndex: row, columnIndex: columnIndex)
         } else {
             // Out of bounds - assume no changes
             isDeleted = false
+            isInserted = false
             isModified = false
         }
 
@@ -563,7 +604,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             // Use placeholder for NULL so editing starts with empty field
             cell.stringValue = ""
             cell.placeholderString = "NULL"
-            cell.textColor = .tertiaryLabelColor
+            // Use secondaryLabelColor instead of tertiaryLabelColor for better contrast when selected
+            cell.textColor = .secondaryLabelColor
             cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
         } else if value == "__DEFAULT__" {
             cell.stringValue = ""
@@ -574,7 +616,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             // Use placeholder for empty string so it's visible
             cell.stringValue = ""
             cell.placeholderString = "Empty"
-            cell.textColor = .tertiaryLabelColor
+            // Use secondaryLabelColor for better contrast when selected
+            cell.textColor = .secondaryLabelColor
             cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
         } else {
             cell.stringValue = value ?? ""
@@ -586,9 +629,11 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         cell.drawsBackground = false
         cellView.wantsLayer = true
         
-        // Deleted row takes precedence over modified cell
+        // Row state takes precedence: deleted (red) > inserted (green) > modified cell (yellow)
         if isDeleted {
             cellView.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.15).cgColor
+        } else if isInserted {
+            cellView.layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.15).cgColor
         } else if isModified {
             cellView.layer?.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.3).cgColor
         } else {
@@ -683,10 +728,100 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         return true
     }
+    
+    /// Handle Tab/Shift+Tab navigation between cells during editing
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard let tableView = tableView else { return false }
+        
+        let currentRow = tableView.row(for: control)
+        let currentColumn = tableView.column(for: control)
+        
+        guard currentRow >= 0, currentColumn >= 0 else { return false }
+        
+        // Tab key - move to next cell
+        if commandSelector == #selector(NSResponder.insertTab(_:)) {
+            // End current editing first (value will be saved by textShouldEndEditing)
+            tableView.window?.makeFirstResponder(tableView)
+            
+            // Calculate next cell position
+            var nextColumn = currentColumn + 1
+            var nextRow = currentRow
+            
+            // Skip to next row if at end of columns
+            if nextColumn >= tableView.numberOfColumns {
+                nextColumn = 1  // Skip row number column (column 0)
+                nextRow += 1
+            }
+            
+            // If at end of table, stay on last cell
+            if nextRow >= tableView.numberOfRows {
+                nextRow = tableView.numberOfRows - 1
+                nextColumn = tableView.numberOfColumns - 1
+            }
+            
+            // Start editing next cell after a brief delay
+            DispatchQueue.main.async {
+                tableView.selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
+                tableView.editColumn(nextColumn, row: nextRow, with: nil, select: true)
+            }
+            
+            return true
+        }
+        
+        // Shift+Tab - move to previous cell
+        if commandSelector == #selector(NSResponder.insertBacktab(_:)) {
+            // End current editing first
+            tableView.window?.makeFirstResponder(tableView)
+            
+            // Calculate previous cell position
+            var prevColumn = currentColumn - 1
+            var prevRow = currentRow
+            
+            // Skip to previous row if at start of columns
+            if prevColumn < 1 {  // Column 0 is row number
+                prevColumn = tableView.numberOfColumns - 1
+                prevRow -= 1
+            }
+            
+            // If at start of table, stay on first cell
+            if prevRow < 0 {
+                prevRow = 0
+                prevColumn = 1
+            }
+            
+            // Start editing previous cell after a brief delay
+            DispatchQueue.main.async {
+                tableView.selectRowIndexes(IndexSet(integer: prevRow), byExtendingSelection: false)
+                tableView.editColumn(prevColumn, row: prevRow, with: nil, select: true)
+            }
+            
+            return true
+        }
+        
+        // Return key - end editing, stay on row (don't move to next row)
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            tableView.window?.makeFirstResponder(tableView)
+            return true
+        }
+        
+        // Escape key - cancel editing
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            tableView.window?.makeFirstResponder(tableView)
+            return true
+        }
+        
+        return false
+    }
 
     // MARK: - Row Actions
 
     func deleteRow(at index: Int) {
+        // If this is a newly inserted row, remove it completely instead of marking for deletion
+        if changeManager.isRowInserted(index) {
+            undoInsertRow(at: index)
+            return
+        }
+        
         guard let rowData = rowProvider.row(at: index) else { return }
         changeManager.recordRowDeletion(rowIndex: index, originalRow: rowData.values)
         
@@ -720,6 +855,29 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         tableView?.reloadData(
             forRowIndexes: IndexSet(integer: index),
             columnIndexes: IndexSet(integersIn: 0..<(tableView?.numberOfColumns ?? 0)))
+    }
+    
+    /// Trigger adding a new row (calls parent's onAddRow callback)
+    func addNewRow() {
+        onAddRow?()
+    }
+    
+    /// Undo a row insertion (remove from data and change tracking)
+    func undoInsertRow(at index: Int) {
+        // Notify parent to remove from resultRows FIRST (before indices change)
+        onUndoInsert?(index)
+        
+        // Remove from change manager
+        changeManager.undoRowInsertion(rowIndex: index)
+        
+        // Remove from row provider
+        rowProvider.removeRow(at: index)
+        
+        // Update cached counts
+        updateCache()
+        
+        // Reload entire table since row indices shifted
+        tableView?.reloadData()
     }
 
     func copyRows(at indices: Set<Int>) {
@@ -811,7 +969,10 @@ final class TableRowViewWithMenu: NSTableRowView {
             menu.addItem(
                 withTitle: "Undo Delete", action: #selector(undoDeleteRow), keyEquivalent: ""
             ).target = self
-        } else {
+        }
+        
+        // Normal row menu (or additional items for inserted rows)
+        if !coordinator.changeManager.isRowDeleted(rowIndex) {
             // Edit actions (if editable)
             if coordinator.isEditable && dataColumnIndex >= 0 {
                 let setValueMenu = NSMenu()
@@ -851,24 +1012,18 @@ final class TableRowViewWithMenu: NSTableRowView {
                 menu.addItem(copyCellItem)
             }
 
-            let copyRowItem = NSMenuItem(
-                title: "Copy Row", action: #selector(copyRow), keyEquivalent: "")
-            copyRowItem.target = self
-            menu.addItem(copyRowItem)
-
-            if coordinator.selectedRowIndices.count > 1 {
-                let copySelectedItem = NSMenuItem(
-                    title: "Copy Selected Rows (\(coordinator.selectedRowIndices.count))",
-                    action: #selector(copySelectedRows), keyEquivalent: "")
-                copySelectedItem.target = self
-                menu.addItem(copySelectedItem)
-            }
+            let copyItem = NSMenuItem(
+                title: "Copy", action: #selector(copySelectedOrCurrentRow), keyEquivalent: "c")
+            copyItem.keyEquivalentModifierMask = .command
+            copyItem.target = self
+            menu.addItem(copyItem)
 
             if coordinator.isEditable {
                 menu.addItem(NSMenuItem.separator())
 
                 let deleteItem = NSMenuItem(
-                    title: "Delete Row", action: #selector(deleteRow), keyEquivalent: "")
+                    title: "Delete", action: #selector(deleteRow), keyEquivalent: String(Character(UnicodeScalar(NSBackspaceCharacter)!)))
+                deleteItem.keyEquivalentModifierMask = []
                 deleteItem.target = self
                 menu.addItem(deleteItem)
             }
@@ -884,6 +1039,10 @@ final class TableRowViewWithMenu: NSTableRowView {
     @objc private func undoDeleteRow() {
         coordinator?.undoDeleteRow(at: rowIndex)
     }
+    
+    @objc private func undoInsertRow() {
+        coordinator?.undoInsertRow(at: rowIndex)
+    }
 
     @objc private func copyRow() {
         coordinator?.copyRows(at: [rowIndex])
@@ -892,6 +1051,16 @@ final class TableRowViewWithMenu: NSTableRowView {
     @objc private func copySelectedRows() {
         guard let selectedIndices = coordinator?.selectedRowIndices else { return }
         coordinator?.copyRows(at: selectedIndices)
+    }
+    
+    @objc private func copySelectedOrCurrentRow() {
+        guard let coordinator = coordinator else { return }
+        // If rows are selected, copy all selected; otherwise copy current row
+        if !coordinator.selectedRowIndices.isEmpty {
+            coordinator.copyRows(at: coordinator.selectedRowIndices)
+        } else {
+            coordinator.copyRows(at: [rowIndex])
+        }
     }
 
     @objc private func copyCellValue(_ sender: NSMenuItem) {
@@ -915,6 +1084,95 @@ final class TableRowViewWithMenu: NSTableRowView {
     }
     
     // Column resize tracking removed - too complex for current implementation
+}
+
+// MARK: - Custom TextField that delegates context menu to row view
+
+/// NSTextField subclass that shows row context menu instead of text editing menu
+/// This ensures our custom menu (Undo Insert, Set Value, etc.) works even when editing
+final class CellTextField: NSTextField {
+    
+    /// Override to provide our custom cell that handles context menu
+    override class var cellClass: AnyClass? {
+        get { CellTextFieldCell.self }
+        set { }
+    }
+    
+    /// Override right mouse down to end editing and show row context menu
+    /// The field editor (NSTextView) normally handles right-click during editing,
+    /// so we intercept here before it gets to the field editor
+    override func rightMouseDown(with event: NSEvent) {
+        // End editing first
+        window?.makeFirstResponder(nil)
+        
+        // Find the row view and show its menu
+        var view: NSView? = self
+        while let parent = view?.superview {
+            if let rowView = parent as? TableRowViewWithMenu {
+                if let menu = rowView.menu(for: event) {
+                    NSMenu.popUpContextMenu(menu, with: event, for: self)
+                }
+                return
+            }
+            view = parent
+        }
+    }
+    
+    override func menu(for event: NSEvent) -> NSMenu? {
+        // End editing first so the menu shows correctly
+        window?.makeFirstResponder(nil)
+        
+        // Find the row view and delegate to it
+        var view: NSView? = self
+        while let parent = view?.superview {
+            if let rowView = parent as? TableRowViewWithMenu {
+                return rowView.menu(for: event)
+            }
+            view = parent
+        }
+        
+        // Fallback to no menu (don't show system text editing menu)
+        return nil
+    }
+}
+
+/// Custom text field cell that provides a field editor with custom context menu behavior
+final class CellTextFieldCell: NSTextFieldCell {
+    
+    /// Custom field editor that forwards right-click to parent text field
+    private class CellFieldEditor: NSTextView {
+        
+        override func rightMouseDown(with event: NSEvent) {
+            // End editing and find parent CellTextField
+            window?.makeFirstResponder(nil)
+            
+            // Find the CellTextField and let it handle the menu
+            var view: NSView? = self
+            while let parent = view?.superview {
+                if let cellTextField = parent as? CellTextField {
+                    cellTextField.rightMouseDown(with: event)
+                    return
+                }
+                view = parent
+            }
+        }
+        
+        override func menu(for event: NSEvent) -> NSMenu? {
+            // Don't show system text editing menu
+            return nil
+        }
+    }
+    
+    /// Lazy field editor instance
+    private var customFieldEditor: CellFieldEditor?
+    
+    override func fieldEditor(for controlView: NSView) -> NSTextView? {
+        if customFieldEditor == nil {
+            customFieldEditor = CellFieldEditor()
+            customFieldEditor?.isFieldEditor = true
+        }
+        return customFieldEditor
+    }
 }
 
 // MARK: - NSFont Extension
@@ -941,7 +1199,8 @@ extension NSFont {
         changeManager: DataChangeManager(),
         isEditable: true,
         selectedRowIndices: .constant([]),
-        sortState: .constant(SortState())
+        sortState: .constant(SortState()),
+        editingCell: .constant(nil as CellPosition?)
     )
     .frame(width: 600, height: 400)
 }
@@ -950,7 +1209,7 @@ extension NSFont {
 
 /// NSTableView subclass that handles Delete key to mark rows for deletion
 /// Also implements TablePlus-style cell focus on click
-final class KeyHandlingTableView: NSTableView {
+final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
     weak var coordinator: TableViewCoordinator?
 
     // MARK: - TablePlus-Style Cell Focus
@@ -960,6 +1219,12 @@ final class KeyHandlingTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil)
         let clickedRow = row(at: point)
         let clickedColumn = column(at: point)
+        
+        // Double-click in empty area (no row) adds a new row (TablePlus behavior)
+        if event.clickCount == 2 && clickedRow == -1 && coordinator?.isEditable == true {
+            NotificationCenter.default.post(name: .addNewRow, object: nil)
+            return
+        }
         
         // Let super handle row selection
         super.mouseDown(with: event)
@@ -985,10 +1250,62 @@ final class KeyHandlingTableView: NSTableView {
         editColumn(clickedColumn, row: clickedRow, with: nil, select: false)
     }
     
-    // MARK: - Delete Key Handling
+    // MARK: - Standard Edit Menu Actions
+    
+    /// Respond to Edit > Delete menu item
+    @objc func delete(_ sender: Any?) {
+        guard coordinator?.isEditable == true else { return }
+        let selectedIndices = Set(selectedRowIndexes.map { $0 })
+        guard !selectedIndices.isEmpty else { return }
+        
+        // Mark rows for deletion
+        for rowIndex in selectedIndices.sorted(by: >) {
+            coordinator?.deleteRow(at: rowIndex)
+        }
+    }
+    
+    /// Enable/disable Edit menu items based on state
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(delete(_:)) {
+            // Enable Delete when rows are selected and table is editable
+            return coordinator?.isEditable == true && !selectedRowIndexes.isEmpty
+        }
+        // For other items, check if we can respond to them
+        if let action = menuItem.action {
+            return responds(to: action)
+        }
+        return false
+    }
+    
+    // MARK: - Keyboard Handling
+    
+    /// Override to catch Delete/Backspace before menu items can intercept
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // Delete (keyCode 51) or Forward Delete (keyCode 117)
+        if event.keyCode == 51 || event.keyCode == 117 {
+            let selectedIndices = Set(selectedRowIndexes.map { $0 })
+            if !selectedIndices.isEmpty && coordinator?.isEditable == true {
+                // Mark rows for deletion
+                for rowIndex in selectedIndices.sorted(by: >) {
+                    coordinator?.deleteRow(at: rowIndex)
+                }
+                return true  // We handled it
+            }
+        }
+        return super.performKeyEquivalent(with: event)
+    }
 
     override func keyDown(with event: NSEvent) {
-        // Delete or Backspace key
+        // Note: Cmd+N is captured by app menu (New Connection)
+        // Use File > Add Row (Cmd+I) for adding rows
+        
+        // Escape key - clear selection
+        if event.keyCode == 53 {
+            NotificationCenter.default.post(name: .clearSelection, object: nil)
+            return
+        }
+        
+        // Delete or Backspace key (fallback if performKeyEquivalent didn't catch it)
         if event.keyCode == 51 || event.keyCode == 117 {
             // Get selected row indices
             let selectedIndices = Set(selectedRowIndexes.map { $0 })
@@ -996,7 +1313,7 @@ final class KeyHandlingTableView: NSTableView {
                 // Mark rows for deletion
                 for rowIndex in selectedIndices.sorted(by: >) {
                     coordinator?.deleteRow(at: rowIndex)
-                }
+            }
                 return
             }
         }

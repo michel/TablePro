@@ -12,7 +12,7 @@ import SwiftUI
 /// Sidebar view displaying list of database tables
 struct SidebarView: View {
     @Binding var tables: [TableInfo]
-    @Binding var selectedTable: TableInfo?
+    @Binding var selectedTables: Set<TableInfo>
     var activeTableName: String?
     var onOpenTable: ((String) -> Void)?
 
@@ -41,11 +41,13 @@ struct SidebarView: View {
             content
         }
         .frame(minWidth: 280)
-        .onChange(of: selectedTable) { _, newTable in
-            guard !isRestoringSelection, let table = newTable else { return }
-            // Defer callback to avoid publishing during view update
-            Task { @MainActor in
-                onOpenTable?(table.name)
+        .onChange(of: selectedTables) { oldTables, newTables in
+            guard !isRestoringSelection else { return }
+            let added = newTables.subtracting(oldTables)
+            if let table = added.first {
+                Task { @MainActor in
+                    onOpenTable?(table.name)
+                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
@@ -57,6 +59,19 @@ struct SidebarView: View {
             Task { @MainActor in
                 loadTables()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .copyTableNames)) { _ in
+            guard !selectedTables.isEmpty else { return }
+            let names = selectedTables.map { $0.name }.sorted()
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(names.joined(separator: ","), forType: .string)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .truncateTables)) { _ in
+            guard !selectedTables.isEmpty else { return }
+            batchToggleTruncate()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .clearSelection)) { _ in
+            selectedTables.removeAll()
         }
         .onChange(of: tables) { _, newTables in
             // When tables become empty (disconnected), reset to loading state
@@ -180,7 +195,7 @@ struct SidebarView: View {
     // MARK: - Table List
 
     private var tableList: some View {
-        List(selection: $selectedTable) {
+        List(selection: $selectedTables) {
             Section("Tables") {
                 ForEach(filteredTables) { table in
                     TableRow(
@@ -198,32 +213,68 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .onDeleteCommand {
-            // Delete key - mark selected table for deletion
-            if let table = selectedTable {
-                toggleDelete(table.name)
-            }
+            batchToggleDelete()
+        }
+        .onExitCommand {
+            selectedTables.removeAll()
         }
     }
 
     @ViewBuilder
     private func tableContextMenu(for table: TableInfo) -> some View {
-        Button("Copy Table Name") {
+        Button("Copy name") {
+            let names = selectedTables.isEmpty ? [table.name] : selectedTables.map { $0.name }.sorted()
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(table.name, forType: .string)
+            NSPasteboard.general.setString(names.joined(separator: ","), forType: .string)
         }
-        .keyboardShortcut("c", modifiers: .command)
 
         Divider()
 
-        Button("Truncate Table") {
-            toggleTruncate(table.name)
+        Button("Truncate") {
+            batchToggleTruncate()
         }
-        .keyboardShortcut("t", modifiers: [.command, .shift])
 
-        Button("Delete Table", role: .destructive) {
-            toggleDelete(table.name)
+        Button("Delete", role: .destructive) {
+            batchToggleDelete()
         }
-        .keyboardShortcut(.delete, modifiers: [])
+    }
+    
+    /// Batch toggle truncate for all selected tables
+    private func batchToggleTruncate() {
+        var updatedDeletes = pendingDeletes
+        var updatedTruncates = pendingTruncates
+        
+        let tablesToToggle = selectedTables.isEmpty ? [] : selectedTables
+        for table in tablesToToggle {
+            updatedDeletes.remove(table.name)
+            if updatedTruncates.contains(table.name) {
+                updatedTruncates.remove(table.name)
+            } else {
+                updatedTruncates.insert(table.name)
+            }
+        }
+        
+        pendingDeletes = updatedDeletes
+        pendingTruncates = updatedTruncates
+    }
+    
+    /// Batch toggle delete for all selected tables
+    private func batchToggleDelete() {
+        var updatedDeletes = pendingDeletes
+        var updatedTruncates = pendingTruncates
+        
+        let tablesToToggle = selectedTables.isEmpty ? [] : selectedTables
+        for table in tablesToToggle {
+            updatedTruncates.remove(table.name)
+            if updatedDeletes.contains(table.name) {
+                updatedDeletes.remove(table.name)
+            } else {
+                updatedDeletes.insert(table.name)
+            }
+        }
+        
+        pendingTruncates = updatedTruncates
+        pendingDeletes = updatedDeletes
     }
 
     // MARK: - Actions
@@ -237,7 +288,7 @@ struct SidebarView: View {
     }
 
     private func loadTablesAsync() async {
-        let previousSelectedName = selectedTable?.name
+        let previousSelectedName = selectedTables.first?.name
 
         guard let driver = DatabaseManager.shared.activeDriver else {
             await MainActor.run { isLoading = false }
@@ -249,13 +300,14 @@ struct SidebarView: View {
             await MainActor.run {
                 tables = fetchedTables
                 // Only restore selection if it was cleared (prevent reopening tabs)
-                // If selectedTable still exists with same name, don't reassign
                 if let name = previousSelectedName {
-                    let currentName = selectedTable?.name
-                    if currentName != name {
+                    let currentNames = Set(selectedTables.map { $0.name })
+                    if !currentNames.contains(name) {
                         // Selection was cleared, restore it without triggering callback
                         isRestoringSelection = true
-                        selectedTable = fetchedTables.first { $0.name == name }
+                        if let restored = fetchedTables.first(where: { $0.name == name }) {
+                            selectedTables = [restored]
+                        }
                         isRestoringSelection = false
                     }
                 }
@@ -282,8 +334,10 @@ struct SidebarView: View {
         pendingTruncates.remove(tableName)
         if pendingDeletes.contains(tableName) {
             pendingDeletes.remove(tableName)
+            print("DEBUG: Removed \(tableName) from pendingDeletes")
         } else {
             pendingDeletes.insert(tableName)
+            print("DEBUG: Inserted \(tableName) into pendingDeletes, count: \(pendingDeletes.count)")
         }
     }
 }
@@ -345,7 +399,7 @@ struct TableRow: View {
 #Preview {
     SidebarView(
         tables: .constant([]),
-        selectedTable: .constant(nil),
+        selectedTables: .constant([]),
         pendingTruncates: .constant([]),
         pendingDeletes: .constant([])
     )

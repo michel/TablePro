@@ -13,6 +13,9 @@ import SwiftUI
 final class AppState: ObservableObject {
     static let shared = AppState()
     @Published var isConnected: Bool = false
+    @Published var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
+    @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
+    @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
 }
 
 // MARK: - App
@@ -65,6 +68,68 @@ struct OpenTableApp: App {
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(!appState.isConnected)
             }
+            
+            // Edit menu - replace pasteboard to add our Delete with shortcut
+            CommandGroup(replacing: .pasteboard) {
+                Button("Cut") {
+                    NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
+                }
+                .keyboardShortcut("x", modifiers: .command)
+                
+                Button("Copy") {
+                    if appState.hasRowSelection {
+                        NotificationCenter.default.post(name: .copySelectedRows, object: nil)
+                    } else if appState.hasTableSelection {
+                        NotificationCenter.default.post(name: .copyTableNames, object: nil)
+                    } else {
+                        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                    }
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                
+                Button("Paste") {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                
+                Button("Delete") {
+                    NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+                }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .disabled(!appState.isCurrentTabEditable && !appState.hasTableSelection)
+                
+                Divider()
+                
+                Button("Select All") {
+                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                }
+                .keyboardShortcut("a", modifiers: .command)
+                
+                Button("Clear Selection") {
+                    NotificationCenter.default.post(name: .clearSelection, object: nil)
+                }
+                .keyboardShortcut(.escape, modifiers: [])
+            }
+            
+            // Edit menu - row operations (after pasteboard)
+            CommandGroup(after: .pasteboard) {
+                Divider()
+                
+                Button("Add Row") {
+                    NotificationCenter.default.post(name: .addNewRow, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: .command)
+                .disabled(!appState.isCurrentTabEditable)
+                
+                Divider()
+                
+                // Table operations (work when tables selected in sidebar)
+                Button("Truncate Table") {
+                    NotificationCenter.default.post(name: .truncateTables, object: nil)
+                }
+                .keyboardShortcut(.delete, modifiers: .option)
+                .disabled(!appState.hasTableSelection)
+            }
 
             // View menu
             CommandGroup(after: .sidebar) {
@@ -100,4 +165,9 @@ extension Notification.Name {
     static let formatQuery = Notification.Name("formatQuery")
     static let clearQuery = Notification.Name("clearQuery")
     static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
+    static let addNewRow = Notification.Name("addNewRow")
+    static let copyTableNames = Notification.Name("copyTableNames")
+    static let truncateTables = Notification.Name("truncateTables")
+    static let copySelectedRows = Notification.Name("copySelectedRows")
+    static let clearSelection = Notification.Name("clearSelection")
 }

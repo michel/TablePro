@@ -18,6 +18,7 @@ enum TabType: Equatable {
 struct TabPendingChanges: Equatable {
     var changes: [RowChange]
     var deletedRowIndices: Set<Int>
+    var insertedRowIndices: Set<Int>
     var modifiedCells: Set<String>
     var primaryKeyColumn: String?
     var columns: [String]
@@ -25,13 +26,14 @@ struct TabPendingChanges: Equatable {
     init() {
         self.changes = []
         self.deletedRowIndices = []
+        self.insertedRowIndices = []
         self.modifiedCells = []
         self.primaryKeyColumn = nil
         self.columns = []
     }
 
     var hasChanges: Bool {
-        !changes.isEmpty
+        !changes.isEmpty || !insertedRowIndices.isEmpty || !deletedRowIndices.isEmpty
     }
 }
 

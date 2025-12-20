@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var showUnsavedChangesAlert = false
     @State private var pendingCloseSessionId: UUID?
     @State private var hasLoaded = false
+    @State private var escapeKeyMonitor: Any?
 
     private let storage = ConnectionStorage.shared
     
@@ -73,6 +74,10 @@ struct ContentView: View {
             }
             .onAppear {
                 loadConnections()
+                setupEscapeKeyMonitor()
+            }
+            .onDisappear {
+                removeEscapeKeyMonitor()
             }
             .onReceive(NotificationCenter.default.publisher(for: .newConnection)) { _ in
                 Task { @MainActor in
@@ -137,8 +142,8 @@ struct ContentView: View {
                     
                     SidebarView(
                         tables: sessionTablesBinding,
-                        selectedTable: sessionSelectedTableBinding,
-                        activeTableName: currentSession?.selectedTable?.name,
+                        selectedTables: sessionSelectedTablesBinding,
+                        activeTableName: currentSession?.selectedTables.first?.name,
                         onOpenTable: { _ in },
                         pendingTruncates: sessionPendingTruncatesBinding,
                         pendingDeletes: sessionPendingDeletesBinding
@@ -148,7 +153,7 @@ struct ContentView: View {
                 MainContentView(
                     connection: currentSession!.connection,
                     tables: sessionTablesBinding,
-                    selectedTable: sessionSelectedTableBinding,
+                    selectedTables: sessionSelectedTablesBinding,
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding
                 )
@@ -244,11 +249,11 @@ struct ContentView: View {
         )
     }
     
-    private var sessionSelectedTableBinding: Binding<TableInfo?> {
+    private var sessionSelectedTablesBinding: Binding<Set<TableInfo>> {
         createSessionBinding(
-            get: { $0.selectedTable },
-            set: { $0.selectedTable = $1 },
-            defaultValue: nil
+            get: { $0.selectedTables },
+            set: { $0.selectedTables = $1 },
+            defaultValue: []
         )
     }
     
@@ -315,6 +320,27 @@ struct ContentView: View {
         connections.removeAll { $0.id == connection.id }
         storage.deleteConnection(connection)
         storage.saveConnections(connections)
+    }
+    
+    // MARK: - Escape Key Monitor
+    
+    private func setupEscapeKeyMonitor() {
+        escapeKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Escape key code is 53
+            if event.keyCode == 53 {
+                NotificationCenter.default.post(name: .clearSelection, object: nil)
+                // Return nil to consume the event, or return event to let it propagate
+                return nil
+            }
+            return event
+        }
+    }
+    
+    private func removeEscapeKeyMonitor() {
+        if let monitor = escapeKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            escapeKeyMonitor = nil
+        }
     }
 }
 

@@ -38,7 +38,7 @@ struct CellChange: Identifiable, Equatable {
 /// Represents a row-level change
 struct RowChange: Identifiable, Equatable {
     let id: UUID
-    let rowIndex: Int
+    var rowIndex: Int
     let type: ChangeType
     var cellChanges: [CellChange]
     let originalRow: [String?]?
@@ -84,6 +84,9 @@ final class DataChangeManager: ObservableObject {
 
     /// Set of row indices that are marked for deletion - O(1) lookup
     private var deletedRowIndices: Set<Int> = []
+    
+    /// Set of row indices that are newly inserted - O(1) lookup
+    private(set) var insertedRowIndices: Set<Int> = []
 
     /// Set of "rowIndex-colIndex" strings for modified cells - O(1) lookup
     private var modifiedCells: Set<String> = []
@@ -97,6 +100,7 @@ final class DataChangeManager: ObservableObject {
     func clearChanges() {
         changes.removeAll()
         deletedRowIndices.removeAll()
+        insertedRowIndices.removeAll()
         modifiedCells.removeAll()
         hasChanges = false
         reloadVersion += 1  // Trigger table reload
@@ -117,6 +121,7 @@ final class DataChangeManager: ObservableObject {
 
         // Clear caches
         deletedRowIndices.removeAll()
+        insertedRowIndices.removeAll()
         modifiedCells.removeAll()
 
         // Now update @Published properties - triggers ONE view update
@@ -128,11 +133,14 @@ final class DataChangeManager: ObservableObject {
     /// Rebuilds the caches from the changes array (used after complex modifications)
     private func rebuildCaches() {
         deletedRowIndices.removeAll()
+        insertedRowIndices.removeAll()
         modifiedCells.removeAll()
 
         for change in changes {
             if change.type == .delete {
                 deletedRowIndices.insert(change.rowIndex)
+            } else if change.type == .insert {
+                insertedRowIndices.insert(change.rowIndex)
             } else if change.type == .update {
                 for cellChange in change.cellChanges {
                     modifiedCells.insert(
@@ -160,7 +168,38 @@ final class DataChangeManager: ObservableObject {
 
         let key = cellKey(rowIndex: rowIndex, columnIndex: columnIndex)
 
-        // Find existing row change or create new one
+        // Check if this is an edit to an INSERTED row
+        // If so, update the INSERT record's cell values instead of creating UPDATE
+        if let insertIndex = changes.firstIndex(where: {
+            $0.rowIndex == rowIndex && $0.type == .insert
+        }) {
+            // Update or add cell change in the INSERT record
+            if let cellIndex = changes[insertIndex].cellChanges.firstIndex(where: {
+                $0.columnIndex == columnIndex
+            }) {
+                // Update existing cell in INSERT
+                changes[insertIndex].cellChanges[cellIndex] = CellChange(
+                    rowIndex: rowIndex,
+                    columnIndex: columnIndex,
+                    columnName: columnName,
+                    oldValue: nil,  // INSERT doesn't have oldValue
+                    newValue: newValue
+                )
+            } else {
+                // Add new cell to INSERT
+                changes[insertIndex].cellChanges.append(CellChange(
+                    rowIndex: rowIndex,
+                    columnIndex: columnIndex,
+                    columnName: columnName,
+                    oldValue: nil,
+                    newValue: newValue
+                ))
+            }
+            hasChanges = !changes.isEmpty
+            return
+        }
+
+        // Find existing UPDATE row change or create new one
         if let existingIndex = changes.firstIndex(where: {
             $0.rowIndex == rowIndex && $0.type == .update
         }) {
@@ -213,6 +252,7 @@ final class DataChangeManager: ObservableObject {
         changes.append(rowChange)
         deletedRowIndices.insert(rowIndex)  // Add to cache
         hasChanges = true
+        reloadVersion += 1  // Trigger table reload to show red background
     }
 
     func recordRowInsertion(rowIndex: Int, values: [String?]) {
@@ -223,6 +263,7 @@ final class DataChangeManager: ObservableObject {
         }
         let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: cellChanges)
         changes.append(rowChange)
+        insertedRowIndices.insert(rowIndex)  // Add to cache
         hasChanges = true
     }
 
@@ -230,6 +271,33 @@ final class DataChangeManager: ObservableObject {
     func undoRowDeletion(rowIndex: Int) {
         changes.removeAll { $0.rowIndex == rowIndex && $0.type == .delete }
         deletedRowIndices.remove(rowIndex)
+        hasChanges = !changes.isEmpty
+    }
+    
+    /// Undo a pending row insertion
+    func undoRowInsertion(rowIndex: Int) {
+        changes.removeAll { $0.rowIndex == rowIndex && $0.type == .insert }
+        insertedRowIndices.remove(rowIndex)
+        
+        // Shift down indices for rows after the removed row
+        // This is necessary because when a row is removed, all subsequent rows shift down
+        var shiftedInsertedIndices = Set<Int>()
+        for idx in insertedRowIndices {
+            if idx > rowIndex {
+                shiftedInsertedIndices.insert(idx - 1)
+            } else {
+                shiftedInsertedIndices.insert(idx)
+            }
+        }
+        insertedRowIndices = shiftedInsertedIndices
+        
+        // Also update row indices in changes array
+        for i in 0..<changes.count {
+            if changes[i].rowIndex > rowIndex {
+                changes[i].rowIndex -= 1
+            }
+        }
+        
         hasChanges = !changes.isEmpty
     }
 
@@ -333,10 +401,28 @@ final class DataChangeManager: ObservableObject {
     private func generateInsertSQL(for change: RowChange) -> String? {
         guard !change.cellChanges.isEmpty else { return nil }
 
-        let columnNames = change.cellChanges.map { databaseType.quoteIdentifier($0.columnName) }
-            .joined(separator: ", ")
-        let values = change.cellChanges.map { cellChange -> String in
-            cellChange.newValue.map { "'\(escapeSQLString($0))'" } ?? "NULL"
+        // Filter out DEFAULT columns - let DB handle them
+        let nonDefaultChanges = change.cellChanges.filter { 
+            $0.newValue != "__DEFAULT__" 
+        }
+        
+        // If all columns are DEFAULT, don't generate INSERT
+        // (user hasn't modified anything - just added empty row)
+        guard !nonDefaultChanges.isEmpty else { return nil }
+        
+        let columnNames = nonDefaultChanges.map { 
+            databaseType.quoteIdentifier($0.columnName) 
+        }.joined(separator: ", ")
+        
+        let values = nonDefaultChanges.map { cellChange -> String in
+            if let newValue = cellChange.newValue {
+                // Check if it's a SQL function expression
+                if isSQLFunctionExpression(newValue) {
+                    return newValue.trimmingCharacters(in: .whitespaces).uppercased()
+                }
+                return "'\(escapeSQLString(newValue))'"
+            }
+            return "NULL"
         }.joined(separator: ", ")
 
         return
@@ -395,6 +481,7 @@ final class DataChangeManager: ObservableObject {
     func discardChanges() {
         changes.removeAll()
         deletedRowIndices.removeAll()  // Clear cache
+        insertedRowIndices.removeAll()  // Clear cache
         modifiedCells.removeAll()  // Clear cache
         hasChanges = false
         reloadVersion += 1  // Trigger table reload
@@ -407,6 +494,7 @@ final class DataChangeManager: ObservableObject {
         var state = TabPendingChanges()
         state.changes = changes
         state.deletedRowIndices = deletedRowIndices
+        state.insertedRowIndices = insertedRowIndices
         state.modifiedCells = modifiedCells
         state.primaryKeyColumn = primaryKeyColumn
         state.columns = columns
@@ -418,6 +506,7 @@ final class DataChangeManager: ObservableObject {
         self.tableName = tableName
         self.changes = state.changes
         self.deletedRowIndices = state.deletedRowIndices
+        self.insertedRowIndices = state.insertedRowIndices
         self.modifiedCells = state.modifiedCells
         self.primaryKeyColumn = state.primaryKeyColumn
         self.columns = state.columns
@@ -427,6 +516,11 @@ final class DataChangeManager: ObservableObject {
     /// O(1) lookup for deleted rows using cached Set
     func isRowDeleted(_ rowIndex: Int) -> Bool {
         deletedRowIndices.contains(rowIndex)
+    }
+    
+    /// O(1) lookup for inserted rows using cached Set
+    func isRowInserted(_ rowIndex: Int) -> Bool {
+        insertedRowIndices.contains(rowIndex)
     }
 
     /// O(1) lookup for modified cells using cached Set

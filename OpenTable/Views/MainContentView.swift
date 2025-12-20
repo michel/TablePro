@@ -14,7 +14,7 @@ struct MainContentView: View {
 
     // Shared table state from parent
     @Binding var tables: [TableInfo]
-    @Binding var selectedTable: TableInfo?
+    @Binding var selectedTables: Set<TableInfo>
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
 
@@ -22,6 +22,7 @@ struct MainContentView: View {
     @StateObject private var changeManager = DataChangeManager()
 
     @State private var selectedRowIndices: Set<Int> = []
+    @State private var editingCell: CellPosition? = nil
 
     // Unified alert for all discard scenarios
     enum DiscardAction {
@@ -180,9 +181,8 @@ struct MainContentView: View {
                 Text(errorAlertMessage)
             }
             .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
-                Task { @MainActor in
-                    handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
-                }
+                // Must be synchronous - save state BEFORE SwiftUI updates the view
+                handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
             }
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 Task { @MainActor in
@@ -205,13 +205,22 @@ struct MainContentView: View {
             .task {
                 await initializeView()
             }
-            .onChange(of: selectedTable) { _, newTable in
-                if let table = newTable {
-                    // Defer state changes to avoid "Publishing changes from within view updates" error
+            .onChange(of: selectedTables) { oldTables, newTables in
+                // Find newly added table to open
+                let added = newTables.subtracting(oldTables)
+                if let table = added.first {
                     Task { @MainActor in
                         openTableData(table.name)
                     }
                 }
+            }
+            .onChange(of: selectedRowIndices) { _, newIndices in
+                // Update app state for Delete Row menu enable state
+                AppState.shared.hasRowSelection = !newIndices.isEmpty
+            }
+            .onChange(of: selectedTables) { _, newTables in
+                // Update app state for Delete menu enable state (sidebar tables)
+                AppState.shared.hasTableSelection = !newTables.isEmpty
             }
             .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
                 Task { @MainActor in
@@ -253,9 +262,30 @@ struct MainContentView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
-                // Delete key to mark selected rows for deletion
+                // Delete rows or mark table for deletion
                 Task { @MainActor in
-                    deleteSelectedRows()
+                    // First check if we have row selection in data grid
+                    if !selectedRowIndices.isEmpty {
+                        deleteSelectedRows()
+                    }
+                    // Otherwise check if tables are selected in sidebar
+                    else if !selectedTables.isEmpty {
+                        // Batch update to avoid stale copy issues with @Binding
+                        var updatedDeletes = pendingDeletes
+                        var updatedTruncates = pendingTruncates
+                        
+                        for table in selectedTables {
+                            updatedTruncates.remove(table.name)
+                            if updatedDeletes.contains(table.name) {
+                                updatedDeletes.remove(table.name)
+                            } else {
+                                updatedDeletes.insert(table.name)
+                            }
+                        }
+                        
+                        pendingTruncates = updatedTruncates
+                        pendingDeletes = updatedDeletes
+                    }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
@@ -267,6 +297,21 @@ struct MainContentView: View {
                         toolbarState.databaseVersion = driver.serverVersion
                     }
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .addNewRow)) { _ in
+                // Add row menu item (Cmd+I)
+                Task { @MainActor in
+                    addNewRow()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .copySelectedRows)) { _ in
+                // Copy rows (Cmd+C when rows selected)
+                copySelectedRowsToClipboard()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .clearSelection)) { _ in
+                // Clear all selections (Escape key)
+                selectedRowIndices.removeAll()
+                selectedTables.removeAll()
             }
     }
 
@@ -330,8 +375,13 @@ struct MainContentView: View {
                     onSort: { columnIndex, ascending in
                         handleSort(columnIndex: columnIndex, ascending: ascending)
                     },
+                    onAddRow: { addNewRow() },
+                    onUndoInsert: { rowIndex in
+                        undoInsertRow(at: rowIndex)
+                    },
                     selectedRowIndices: $selectedRowIndices,
-                    sortState: sortStateBinding
+                    sortState: sortStateBinding,
+                    editingCell: $editingCell
                 )
                 .frame(maxHeight: .infinity, alignment: .top)
             }
@@ -690,17 +740,23 @@ struct MainContentView: View {
         tabManager.tabs[index].hasUserInteraction = true
     }
 
-    /// Delete selected rows (Delete key)
+    /// Delete selected rows (Delete key or menu)
     private func deleteSelectedRows() {
         guard let index = tabManager.selectedTabIndex,
             !selectedRowIndices.isEmpty
         else { return }
 
-        // Mark each selected row for deletion
+        // Delete each selected row (sorted descending to handle removals correctly)
         for rowIndex in selectedRowIndices.sorted(by: >) {
-            if rowIndex < tabManager.tabs[index].resultRows.count {
-                let originalRow = tabManager.tabs[index].resultRows[rowIndex].values
-                changeManager.recordRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
+            if changeManager.isRowInserted(rowIndex) {
+                // For inserted rows, remove them completely
+                undoInsertRow(at: rowIndex)
+            } else if !changeManager.isRowDeleted(rowIndex) {
+                // For existing rows, mark for deletion
+                if rowIndex < tabManager.tabs[index].resultRows.count {
+                    let originalRow = tabManager.tabs[index].resultRows[rowIndex].values
+                    changeManager.recordRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
+                }
             }
         }
 
@@ -709,6 +765,37 @@ struct MainContentView: View {
 
         // Mark tab as having user interaction (prevents auto-replacement)
         tabManager.tabs[index].hasUserInteraction = true
+    }
+    
+    /// Toggle table deletion state (for sidebar table selection)
+    private func toggleTableDelete(_ tableName: String) {
+        pendingTruncates.remove(tableName)
+        if pendingDeletes.contains(tableName) {
+            pendingDeletes.remove(tableName)
+        } else {
+            pendingDeletes.insert(tableName)
+        }
+    }
+    
+    /// Copy selected rows to clipboard (Cmd+C when rows are selected)
+    private func copySelectedRowsToClipboard() {
+        guard let index = tabManager.selectedTabIndex,
+              !selectedRowIndices.isEmpty else { return }
+        
+        let tab = tabManager.tabs[index]
+        let sortedIndices = selectedRowIndices.sorted()
+        var lines: [String] = []
+        
+        for rowIndex in sortedIndices {
+            guard rowIndex < tab.resultRows.count else { continue }
+            let row = tab.resultRows[rowIndex]
+            let line = row.values.map { $0 ?? "NULL" }.joined(separator: "\t")
+            lines.append(line)
+        }
+        
+        let text = lines.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     // MARK: - Column Sorting
@@ -864,6 +951,80 @@ struct MainContentView: View {
         // Re-execute query to fetch sorted data
         runQuery()
     }
+    
+    /// Add a new row to the current table tab
+    /// Only works for editable table tabs
+    private func addNewRow() {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+        
+        let tab = tabManager.tabs[tabIndex]
+        
+        // Only add rows to editable table tabs
+        guard tab.isEditable, tab.tableName != nil else { return }
+        
+        let columns = tab.resultColumns
+        let columnDefaults = tab.columnDefaults
+        
+        // Create new row values with DEFAULT markers
+        // These will be filtered out during INSERT generation,
+        // letting the database use actual defaults
+        var newRowValues: [String?] = []
+        for column in columns {
+            if let defaultValue = columnDefaults[column], defaultValue != nil {
+                // Use __DEFAULT__ marker so generateInsertSQL skips this column
+                newRowValues.append("__DEFAULT__")
+            } else {
+                // NULL for columns without defaults
+                newRowValues.append(nil)
+            }
+        }
+        
+        // Add to tab's resultRows
+        let newRow = QueryResultRow(values: newRowValues)
+        tabManager.tabs[tabIndex].resultRows.append(newRow)
+        
+        // Get the new row index
+        let newRowIndex = tabManager.tabs[tabIndex].resultRows.count - 1
+        
+        // Record in change manager as pending INSERT
+        changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newRowValues)
+        
+        // Select the new row (scrolls to it)
+        selectedRowIndices = [newRowIndex]
+        
+        // Auto-focus first cell instantly (TablePlus behavior)
+        editingCell = CellPosition(row: newRowIndex, column: 0)
+        
+        // Mark tab as having user interaction
+        tabManager.tabs[tabIndex].hasUserInteraction = true
+    }
+    
+    /// Undo a row insertion - removes the row from tab's resultRows
+    private func undoInsertRow(at rowIndex: Int) {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+        guard rowIndex >= 0 && rowIndex < tabManager.tabs[tabIndex].resultRows.count else { return }
+        
+        // Remove the row from resultRows
+        tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
+        
+        // Clear selection since the row no longer exists
+        if selectedRowIndices.contains(rowIndex) {
+            selectedRowIndices.remove(rowIndex)
+        }
+        
+        // Adjust selection indices for rows that shifted down
+        var adjustedSelection = Set<Int>()
+        for idx in selectedRowIndices {
+            if idx > rowIndex {
+                adjustedSelection.insert(idx - 1)
+            } else {
+                adjustedSelection.insert(idx)
+            }
+        }
+        selectedRowIndices = adjustedSelection
+    }
 
     // MARK: - Event Handlers
 
@@ -903,6 +1064,12 @@ struct MainContentView: View {
             // Restore row selection
             selectedRowIndices = newTab.selectedRowIndices
             // sortState is accessed via binding, no need to restore to local state
+            
+            // Update app state for menu item enabled state
+            AppState.shared.isCurrentTabEditable = newTab.isEditable && newTab.tableName != nil
+        } else {
+            // No tab selected
+            AppState.shared.isCurrentTabEditable = false
         }
     }
 
@@ -952,6 +1119,15 @@ struct MainContentView: View {
             for (rowIndex, columnIndex, originalValue) in originalValues {
                 if rowIndex < tabManager.tabs[index].resultRows.count {
                     tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = originalValue
+                }
+            }
+            
+            // Remove newly inserted rows (they shouldn't exist after discard)
+            // Get inserted row indices and remove in reverse order to maintain correct indices
+            let insertedIndices = changeManager.insertedRowIndices.sorted(by: >)
+            for rowIndex in insertedIndices {
+                if rowIndex < tabManager.tabs[index].resultRows.count {
+                    tabManager.tabs[index].resultRows.remove(at: rowIndex)
                 }
             }
         }
@@ -1215,7 +1391,7 @@ struct MainContentView: View {
     MainContentView(
         connection: DatabaseConnection.sampleConnections[0],
         tables: .constant([]),
-        selectedTable: .constant(nil),
+        selectedTables: .constant([]),
         pendingTruncates: .constant([]),
         pendingDeletes: .constant([])
     )

@@ -17,7 +17,7 @@ struct ConnectionSession: Identifiable {
     
     // Per-connection state
     var tables: [TableInfo] = []
-    var selectedTable: TableInfo?
+    var selectedTables: Set<TableInfo> = []
     var tabs: [QueryTab] = []
     var selectedTabId: UUID?
     var pendingTruncates: Set<String> = []
