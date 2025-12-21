@@ -280,6 +280,21 @@ final class MySQLDriver: DatabaseDriver {
         }
     }
 
+    func fetchTableDDL(table: String) async throws -> String {
+        let query = "SHOW CREATE TABLE `\(table)`"
+        let result = try await execute(query: query)
+        
+        // SHOW CREATE TABLE returns 2 columns: Table name and Create Table statement
+        guard let firstRow = result.rows.first,
+              firstRow.count >= 2,
+              let ddl = firstRow[1]
+        else {
+            throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
+        }
+        
+        return ddl
+    }
+
     // MARK: - Paginated Query Support
 
     func fetchRowCount(query: String) async throws -> Int {

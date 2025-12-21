@@ -6,12 +6,14 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Tab selection for structure view
 enum StructureTab: String, CaseIterable {
     case columns = "Columns"
     case indexes = "Indexes"
     case foreignKeys = "Foreign Keys"
+    case ddl = "DDL"
 }
 
 /// View displaying table structure like TablePlus
@@ -23,6 +25,7 @@ struct TableStructureView: View {
     @State private var columns: [ColumnInfo] = []
     @State private var indexes: [IndexInfo] = []
     @State private var foreignKeys: [ForeignKeyInfo] = []
+    @State private var ddlStatement: String = ""
     @State private var isLoading = true
     @State private var errorMessage: String?
     
@@ -63,6 +66,8 @@ struct TableStructureView: View {
                     indexesTable
                 case .foreignKeys:
                     foreignKeysTable
+                case .ddl:
+                    ddlView
                 }
             }
         }
@@ -239,6 +244,65 @@ struct TableStructureView: View {
         }
     }
 
+    // MARK: - DDL Tab
+    
+    private var ddlView: some View {
+        VStack(spacing: 0) {
+            // Toolbar with copy and export buttons
+            HStack {
+                Spacer()
+                
+                Button(action: copyDDL) {
+                    Label("Copy", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(.bordered)
+                .help("Copy DDL to clipboard")
+                
+                Button(action: exportDDL) {
+                    Label("Export", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
+                .help("Export DDL to file")
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            
+            Divider()
+            
+            // DDL text view
+            if ddlStatement.isEmpty {
+                emptyState("No DDL available")
+            } else {
+                DDLTextView(ddl: ddlStatement)
+            }
+        }
+    }
+    
+    // MARK: - DDL Actions
+    
+    private func copyDDL() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(ddlStatement, forType: .string)
+    }
+    
+    private func exportDDL() {
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.init(filenameExtension: "sql")!]
+        savePanel.nameFieldStringValue = "\(tableName).sql"
+        savePanel.message = "Export DDL Statement"
+        
+        savePanel.begin { response in
+            guard response == .OK, let url = savePanel.url else { return }
+            
+            do {
+                try ddlStatement.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                print("Failed to export DDL: \(error.localizedDescription)")
+            }
+        }
+    }
+
     // MARK: - Empty State
 
     private func emptyState(_ message: String) -> some View {
@@ -292,6 +356,8 @@ struct TableStructureView: View {
                 indexes = try await driver.fetchIndexes(table: tableName)
             case .foreignKeys:
                 foreignKeys = try await driver.fetchForeignKeys(table: tableName)
+            case .ddl:
+                ddlStatement = try await driver.fetchTableDDL(table: tableName)
             }
             loadedTabs.insert(tab)
         } catch {

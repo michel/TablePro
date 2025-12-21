@@ -258,6 +258,28 @@ final class SQLiteDriver: DatabaseDriver {
         }
     }
     
+    func fetchTableDDL(table: String) async throws -> String {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+        
+        // SQLite stores the original CREATE TABLE statement in sqlite_master
+        let query = """
+            SELECT sql FROM sqlite_master 
+            WHERE type = 'table' AND name = '\(table)'
+            """
+        
+        let result = try await execute(query: query)
+        
+        guard let firstRow = result.rows.first,
+              let ddl = firstRow[0]
+        else {
+            throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
+        }
+        
+        return ddl
+    }
+    
     // MARK: - Paginated Query Support
     
     func fetchRowCount(query: String) async throws -> Int {

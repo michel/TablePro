@@ -254,6 +254,45 @@ final class PostgreSQLDriver: DatabaseDriver {
         }
     }
 
+    func fetchTableDDL(table: String) async throws -> String {
+        // PostgreSQL doesn't have a direct equivalent to SHOW CREATE TABLE
+        // We need to reconstruct it from system catalogs
+        let query = """
+            SELECT
+                'CREATE TABLE ' || quote_ident(schemaname) || '.' || quote_ident(tablename) || ' (' ||
+                E'\\n  ' ||
+                string_agg(
+                    quote_ident(attname) || ' ' || format_type(atttypid, atttypmod) ||
+                    CASE WHEN attnotnull THEN ' NOT NULL' ELSE '' END ||
+                    CASE WHEN atthasdef THEN ' DEFAULT ' || pg_get_expr(adbin, adrelid) ELSE '' END,
+                    E',\\n  '
+                    ORDER BY attnum
+                ) ||
+                E'\\n);' AS ddl
+            FROM pg_attribute
+            JOIN pg_class ON pg_class.oid = pg_attribute.attrelid
+            JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+            LEFT JOIN pg_attrdef ON pg_attrdef.adrelid = pg_class.oid AND pg_attrdef.adnum = pg_attribute.attnum
+            JOIN pg_stats ON pg_stats.schemaname = pg_namespace.nspname
+                AND pg_stats.tablename = pg_class.relname
+            WHERE pg_class.relname = '\(table)'
+              AND pg_namespace.nspname = 'public'
+              AND pg_attribute.attnum > 0
+              AND NOT pg_attribute.attisdropped
+            GROUP BY schemaname, tablename
+            """
+        
+        let result = try await execute(query: query)
+        
+        guard let firstRow = result.rows.first,
+              let ddl = firstRow[0]
+        else {
+            throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
+        }
+        
+        return ddl
+    }
+
     // MARK: - Paginated Query Support
 
     func fetchRowCount(query: String) async throws -> Int {

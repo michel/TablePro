@@ -36,6 +36,9 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch foreign keys for a specific table
     func fetchForeignKeys(table: String) async throws -> [ForeignKeyInfo]
 
+    /// Fetch the DDL (CREATE TABLE statement) for a specific table
+    func fetchTableDDL(table: String) async throws -> String
+
     /// Test the connection (connect and immediately disconnect)
     func testConnection() async throws -> Bool
 

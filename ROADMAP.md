@@ -96,7 +96,7 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 - [x] View table columns and types
 - [x] View indexes
 - [x] View foreign keys
-- [ ] CREATE TABLE statement preview
+- [x] CREATE TABLE statement preview
 
 ---
 
