@@ -2,15 +2,16 @@
 //  DDLTextView.swift
 //  OpenTable
 //
-//  AppKit-based text view for displaying DDL with syntax highlighting
+//  AppKit-based text view for displaying DDL with syntax highlighting and line numbers
 //
 
 import SwiftUI
 import AppKit
 
-/// AppKit-based text view with SQL syntax highlighting for DDL display
+/// AppKit-based text view with SQL syntax highlighting and line numbers for DDL display
 struct DDLTextView: NSViewRepresentable {
     let ddl: String
+    @Binding var fontSize: CGFloat
     
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
@@ -22,8 +23,8 @@ struct DDLTextView: NSViewRepresentable {
         // Configure text view
         textView.isEditable = false
         textView.isSelectable = true
-        textView.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        textView.textContainerInset = NSSize(width: 10, height: 10)
+        textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        textView.textContainerInset = NSSize(width: 16, height: 16) // Increased padding
         textView.backgroundColor = NSColor.textBackgroundColor
         textView.textColor = NSColor.labelColor
         
@@ -31,8 +32,11 @@ struct DDLTextView: NSViewRepresentable {
         textView.textContainer?.widthTracksTextView = true
         textView.isHorizontallyResizable = false
         
-        // Apply syntax highlighting
-        applySyntaxHighlighting(to: textView, ddl: ddl)
+        // Apply syntax highlighting FIRST
+        applySyntaxHighlighting(to: textView, ddl: ddl, fontSize: fontSize)
+        
+        // THEN add line numbers ruler (after text is set)
+        addLineNumbersRuler(to: scrollView, textView: textView)
         
         return scrollView
     }
@@ -40,22 +44,46 @@ struct DDLTextView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView else { return }
         
+        // Update font size if changed
+        if let currentFont = textView.font, currentFont.pointSize != fontSize {
+            textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        }
+        
         // Only update if DDL changed
         if textView.string != ddl {
-            applySyntaxHighlighting(to: textView, ddl: ddl)
+            applySyntaxHighlighting(to: textView, ddl: ddl, fontSize: fontSize)
+        }
+        
+        // Refresh line numbers ruler after text is set
+        if scrollView.verticalRulerView == nil {
+            addLineNumbersRuler(to: scrollView, textView: textView)
+        } else {
+            scrollView.verticalRulerView?.needsDisplay = true
         }
     }
     
+    /// Add line numbers ruler view to the scroll view
+    private func addLineNumbersRuler(to scrollView: NSScrollView, textView: NSTextView) {
+        // Only add if we have content
+        guard !textView.string.isEmpty else { return }
+        
+        let rulerView = LineNumberRulerView(textView: textView)
+        scrollView.verticalRulerView = rulerView
+        scrollView.hasVerticalRuler = true
+        scrollView.rulersVisible = true
+    }
+    
     /// Apply SQL syntax highlighting to the text view
-    private func applySyntaxHighlighting(to textView: NSTextView, ddl: String) {
+    private func applySyntaxHighlighting(to textView: NSTextView, ddl: String, fontSize: CGFloat) {
         let attributedString = NSMutableAttributedString(string: ddl)
         let fullRange = NSRange(location: 0, length: attributedString.length)
         
         // Base font and color
-        attributedString.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 13, weight: .regular), range: fullRange)
+        let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        attributedString.addAttribute(.font, value: font, range: fullRange)
         attributedString.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
         
-        // SQL Keywords (blue)
+        // Enhanced SQL Keywords with better dark mode colors
         let keywords = [
             "CREATE", "TABLE", "PRIMARY", "KEY", "FOREIGN", "REFERENCES",
             "NOT", "NULL", "DEFAULT", "UNIQUE", "INDEX", "AUTO_INCREMENT",
@@ -68,20 +96,29 @@ struct DDLTextView: NSViewRepresentable {
             "COLLATE", "AS", "GENERATED", "ALWAYS", "STORED", "VIRTUAL"
         ]
         
+        // Use brighter colors for dark mode
+        let keywordColor = NSColor(calibratedRed: 0.4, green: 0.6, blue: 1.0, alpha: 1.0) // Bright blue
+        let stringColor = NSColor(calibratedRed: 1.0, green: 0.4, blue: 0.4, alpha: 1.0) // Bright red
+        let numberColor = NSColor(calibratedRed: 0.8, green: 0.5, blue: 1.0, alpha: 1.0) // Bright purple
+        let commentColor = NSColor(calibratedRed: 0.4, green: 0.8, blue: 0.4, alpha: 1.0) // Bright green
+        
         for keyword in keywords {
-            highlightPattern("\\b\(keyword)\\b", color: .systemBlue, in: attributedString)
+            highlightPattern("\\b\\(keyword)\\b", color: keywordColor, in: attributedString)
         }
         
-        // String literals (red)
-        highlightPattern("'[^']*'", color: .systemRed, in: attributedString)
-        highlightPattern("\"[^\"]*\"", color: .systemRed, in: attributedString)
+        // String literals
+        highlightPattern("'[^']*'", color: stringColor, in: attributedString)
+        highlightPattern("\"[^\"]*\"", color: stringColor, in: attributedString)
         
-        // Numbers (purple)
-        highlightPattern("\\b\\d+\\b", color: .systemPurple, in: attributedString)
+        // Backtick-quoted identifiers (MySQL style)
+        highlightPattern("`[^`]*`", color: NSColor.systemOrange, in: attributedString)
         
-        // Comments (green)
-        highlightPattern("--[^\n]*", color: .systemGreen, in: attributedString)
-        highlightPattern("/\\*[^*]*\\*/", color: .systemGreen, in: attributedString)
+        // Numbers
+        highlightPattern("\\b\\d+\\b", color: numberColor, in: attributedString)
+        
+        // Comments
+        highlightPattern("--[^\n]*", color: commentColor, in: attributedString)
+        highlightPattern("/\\*[^*]*\\*/", color: commentColor, in: attributedString)
         
         // Apply to text view
         textView.textStorage?.setAttributedString(attributedString)
@@ -102,17 +139,109 @@ struct DDLTextView: NSViewRepresentable {
     }
 }
 
+/// Custom NSRulerView for displaying line numbers
+class LineNumberRulerView: NSRulerView {
+    private weak var textView: NSTextView?
+    
+    init(textView: NSTextView) {
+        self.textView = textView
+        super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
+        
+        self.clientView = textView
+        self.ruleThickness = 50
+    }
+    
+    required init(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func drawHashMarksAndLabels(in rect: NSRect) {
+        guard let textView = textView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else {
+            return
+        }
+        
+        // Background
+        NSColor.controlBackgroundColor.setFill()
+        rect.fill()
+        
+        // Right border
+        NSColor.separatorColor.setStroke()
+        let borderPath = NSBezierPath()
+        borderPath.move(to: NSPoint(x: rect.maxX - 0.5, y: rect.minY))
+        borderPath.line(to: NSPoint(x: rect.maxX - 0.5, y: rect.maxY))
+        borderPath.lineWidth = 1
+        borderPath.stroke()
+        
+        let visibleRect = textView.visibleRect
+        let glyphRange = layoutManager.glyphRange(forBoundingRect: visibleRect, in: textContainer)
+        let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+        
+        let text = textView.string as NSString
+        var lineNumber = 1
+        var index = 0
+        
+        // Count line number for first visible character
+        if charRange.location > 0 {
+            let textBeforeVisible = text.substring(to: charRange.location)
+            lineNumber = textBeforeVisible.components(separatedBy: "\n").count
+        }
+        
+        // Draw line numbers
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .right
+        
+        let attrs:        [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: paragraphStyle
+        ]
+        
+        while index < charRange.length {
+            let lineRange = text.lineRange(for: NSRange(location: charRange.location + index, length: 0))
+            let glyphRange = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
+            let lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+            
+            let yPosition = lineRect.minY + textView.textContainerInset.height - visibleRect.minY
+            
+            let numberRect = NSRect(
+                x: 5,
+                y: yPosition,
+                width: ruleThickness - 10,
+                height: lineRect.height
+            )
+            
+            "\(lineNumber)".draw(in: numberRect, withAttributes: attrs)
+            
+            lineNumber += 1
+            index += lineRange.length
+        }
+    }
+}
+
 #Preview {
-    DDLTextView(ddl: """
-        CREATE TABLE `users` (
-          `id` int(11) NOT NULL AUTO_INCREMENT,
-          `email` varchar(255) NOT NULL,
-          `name` varchar(100) DEFAULT NULL,
-          `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          PRIMARY KEY (`id`),
-          UNIQUE KEY `email_unique` (`email`),
-          KEY `idx_created_at` (`created_at`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        """)
-        .frame(width: 600, height: 400)
+    struct PreviewWrapper: View {
+        @State private var fontSize: CGFloat = 13
+        
+        var body: some View {
+            DDLTextView(
+                ddl: """
+                CREATE TABLE `users` (
+                  `id` int(11) NOT NULL AUTO_INCREMENT,
+                  `email` varchar(255) NOT NULL,
+                  `name` varchar(100) DEFAULT NULL,
+                  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  PRIMARY KEY (`id`),
+                  UNIQUE KEY `email_unique` (`email`),
+                  KEY `idx_created_at` (`created_at`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                """,
+                fontSize: $fontSize
+            )
+            .frame(width: 600, height: 400)
+        }
+    }
+    
+    return PreviewWrapper()
 }

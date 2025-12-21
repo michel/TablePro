@@ -26,6 +26,8 @@ struct TableStructureView: View {
     @State private var indexes: [IndexInfo] = []
     @State private var foreignKeys: [ForeignKeyInfo] = []
     @State private var ddlStatement: String = ""
+    @State private var ddlFontSize: CGFloat = 13
+    @State private var showCopyConfirmation = false
     @State private var isLoading = true
     @State private var errorMessage: String?
     
@@ -248,24 +250,69 @@ struct TableStructureView: View {
     
     private var ddlView: some View {
         VStack(spacing: 0) {
-            // Toolbar with copy and export buttons
-            HStack {
+            // Enhanced toolbar with font controls
+            HStack(spacing: 12) {
+                // Font size controls
+                HStack(spacing: 4) {
+                    Button(action: { ddlFontSize = max(10, ddlFontSize - 1) }) {
+                        Image(systemName: "textformat.size.smaller")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Decrease font size")
+                    
+                    Text("\(Int(ddlFontSize))")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 24)
+                    
+                    Button(action: { ddlFontSize = min(24, ddlFontSize + 1) }) {
+                        Image(systemName: "textformat.size.larger")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Increase font size")
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.secondary.opacity(0.1))
+                .cornerRadius(6)
+                
                 Spacer()
                 
-                Button(action: copyDDL) {
-                    Label("Copy", systemImage: "doc.on.doc")
+                // Copy confirmation overlay
+                if showCopyConfirmation {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Copied!")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .buttonStyle(.bordered)
-                .help("Copy DDL to clipboard")
                 
-                Button(action: exportDDL) {
-                    Label("Export", systemImage: "square.and.arrow.down")
+                // Action buttons
+                HStack(spacing: 8) {
+                    Button(action: selectAllDDL) {
+                        Label("Select All", systemImage: "selection.pin.in.out")
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Select all text (⌘A)")
+                    
+                    Button(action: copyDDL) {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Copy DDL to clipboard (⌘C)")
+                    
+                    Button(action: exportDDL) {
+                        Label("Export", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.bordered)
+                    .help("Export DDL to file")
                 }
-                .buttonStyle(.bordered)
-                .help("Export DDL to file")
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color(nsColor: .controlBackgroundColor))
             
             Divider()
             
@@ -273,17 +320,46 @@ struct TableStructureView: View {
             if ddlStatement.isEmpty {
                 emptyState("No DDL available")
             } else {
-                DDLTextView(ddl: ddlStatement)
+                DDLTextView(ddl: ddlStatement, fontSize: $ddlFontSize)
             }
         }
     }
     
     // MARK: - DDL Actions
     
+    private func selectAllDDL() {
+        // This will allow the user to easily select all text via the button
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(ddlStatement, forType: .string)
+        
+        // Show feedback
+        withAnimation(.spring(duration: 0.3)) {
+            showCopyConfirmation = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.spring(duration: 0.3)) {
+                showCopyConfirmation = false
+            }
+        }
+    }
+    
     private func copyDDL() {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(ddlStatement, forType: .string)
+        
+        // Show confirmation feedback
+        withAnimation(.spring(duration: 0.3)) {
+            showCopyConfirmation = true
+        }
+        
+        // Hide after 2 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(.spring(duration: 0.3)) {
+                showCopyConfirmation = false
+            }
+        }
     }
     
     private func exportDDL() {
