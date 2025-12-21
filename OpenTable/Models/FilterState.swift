@@ -282,6 +282,15 @@ final class FilterStateManager: ObservableObject {
     func generatePreviewSQL(databaseType: DatabaseType) -> String {
         let generator = FilterSQLGenerator(databaseType: databaseType)
         let filtersToPreview = getFiltersForPreview()
+        
+        // If no valid filters but filters exist, show helpful message
+        if filtersToPreview.isEmpty && !filters.isEmpty {
+            let invalidCount = filters.filter { !$0.isValid }.count
+            if invalidCount > 0 {
+                return "-- No valid filters to preview\n-- Complete \(invalidCount) filter(s) by:\n--   • Selecting a column\n--   • Entering a value (if required)\n--   • Filling in second value for BETWEEN"
+            }
+        }
+        
         return generator.generateWhereClause(from: filtersToPreview)
     }
     
