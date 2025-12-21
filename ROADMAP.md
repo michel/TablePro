@@ -125,18 +125,32 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 
 ---
 
-## 📋 Milestone 5: Advanced Features (Planned)
+## ✅ Milestone 5: Advanced Features (Completed)
+
+### Data Filtering
+- [x] Column filters with 15+ operators (equals, contains, greater than, IS NULL, BETWEEN, REGEX, etc.)
+- [x] Raw SQL filter mode for custom WHERE clauses
+- [x] Multi-select apply (select specific filters to apply together)
+- [x] Filter presets via settings (default column, operator, panel state)
+- [x] Per-table filter persistence (restore last filters)
+- [x] SQL preview sheet (view generated WHERE clause)
+- [x] Keyboard navigation (Cmd+F to toggle, Cmd+Return to apply)
+- [x] Single and bulk filter application
+
+### Advanced Query Operations
+- [x] Quick filter toggle (Cmd+F)
+- [x] Filter state preservation per tab
+- [x] Visual filter indicators in toolbar
+
+---
+
+## 📋 Milestone 6: Query Builder (Planned)
 
 ### Query Builder
 - [ ] Visual query builder
 - [ ] JOIN builder
 - [ ] WHERE clause builder
 - [ ] ORDER BY / LIMIT UI
-
-### Data Filtering
-- [ ] Column filters
-- [ ] Quick search across results
-- [ ] Filter presets
 
 ### Schema Management
 - [ ] Create/alter tables (GUI)
@@ -158,8 +172,6 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 - Data import from CSV/JSON
 - Bulk edit with formulas
 - Column widths memory (per table)
-- Filter presets and saved filters
-- Quick search across results
 
 ### Schema & Structure
 - ER diagram visualization
