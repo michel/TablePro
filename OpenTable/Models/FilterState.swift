@@ -16,6 +16,7 @@ final class FilterStateManager: ObservableObject {
     @Published var isVisible: Bool = false
     @Published var appliedFilters: [TableFilter] = []
     @Published var focusedFilterId: UUID?
+    @Published var quickSearchText: String = ""
 
     /// Settings storage reference
     private let settingsStorage = FilterSettingsStorage.shared
@@ -183,6 +184,11 @@ final class FilterStateManager: ObservableObject {
     var hasAppliedFilters: Bool {
         !appliedFilters.isEmpty
     }
+    
+    /// Check if quick search is active
+    var hasActiveQuickSearch: Bool {
+        !quickSearchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     /// Count of valid filters
     var validFilterCount: Int {
@@ -260,6 +266,31 @@ final class FilterStateManager: ObservableObject {
     var focusedFilter: TableFilter? {
         guard let id = focusedFilterId else { return nil }
         return filters.first { $0.id == id }
+    }
+    
+    // MARK: - Quick Search
+    
+    /// Clear quick search text
+    func clearQuickSearch() {
+        quickSearchText = ""
+    }
+    
+    // MARK: - SQL Generation
+    
+    /// Generate preview SQL for the "SQL" button
+    /// Uses selected filters if any are selected, otherwise uses all valid filters
+    func generatePreviewSQL(databaseType: DatabaseType) -> String {
+        let generator = FilterSQLGenerator(databaseType: databaseType)
+        let filtersToPreview = getFiltersForPreview()
+        return generator.generateWhereClause(from: filtersToPreview)
+    }
+    
+    /// Get filters to use for preview/application
+    /// If any filters are selected, use only selected valid filters
+    /// Otherwise use all valid filters
+    private func getFiltersForPreview() -> [TableFilter] {
+        let selectedFilters = filters.filter { $0.isSelected && $0.isValid }
+        return selectedFilters.isEmpty ? filters.filter { $0.isValid } : selectedFilters
     }
 }
 

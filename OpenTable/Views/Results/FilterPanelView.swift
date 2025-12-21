@@ -27,10 +27,19 @@ struct FilterPanelView: View {
 
             Divider()
                 .foregroundStyle(Color(nsColor: .separatorColor))
+            
+            // Quick Search field (when no filters or alongside filters)
+            if filterState.hasActiveQuickSearch || filterState.filters.isEmpty {
+                quickSearchField
+                Divider()
+                    .foregroundStyle(Color(nsColor: .separatorColor))
+            }
 
             // Filter rows
             if filterState.filters.isEmpty {
-                emptyState
+                if !filterState.hasActiveQuickSearch {
+                    emptyState
+                }
             } else {
                 filterList
             }
@@ -89,23 +98,68 @@ struct FilterPanelView: View {
         .contentShape(Rectangle())
         .onTapGesture { filterState.focusedFilterId = nil }
     }
+    
+    // MARK: - Quick Search
+    
+    private var quickSearchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            
+            TextField("Quick search across all columns...", text: $filterState.quickSearchText)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .onSubmit {
+                    // Apply quick search on Enter
+                    if !filterState.quickSearchText.isEmpty {
+                        // Quick search triggers a special filter application
+                        // The parent view should handle this via onApply with empty filter array
+                        // or we notify via a callback
+                    }
+                }
+            
+            if filterState.hasActiveQuickSearch {
+                Button(action: { filterState.clearQuickSearch() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("Clear Search")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(nsColor: .textBackgroundColor))
+    }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
-        HStack {
-            Text("No filters")
-                .font(.system(size: 12))
+        VStack(spacing: 12) {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .font(.system(size: 32))
                 .foregroundStyle(.tertiary)
-
-            Button("Add Filter") {
-                filterState.addFilter(columns: columns, primaryKeyColumn: primaryKeyColumn)
+            
+            Text("No filters active")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+            
+            HStack(spacing: 8) {
+                Button("Add Filter") {
+                    filterState.addFilter(columns: columns, primaryKeyColumn: primaryKeyColumn)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                
+                Text("or use Quick Search above")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
             }
-            .buttonStyle(.borderless)
-            .font(.system(size: 12))
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 44)
+        .padding(.vertical, 24)
     }
 
     // MARK: - Filter List
@@ -154,15 +208,9 @@ struct FilterPanelView: View {
             .controlSize(.small)
             .disabled(!filterState.hasAppliedFilters)
 
-            // SQL button
+            // SQL button - now uses extracted method
             Button("SQL") {
-                let generator = FilterSQLGenerator(databaseType: databaseType)
-                let selectedFilters = filterState.filters.filter { $0.isSelected && $0.isValid }
-                if selectedFilters.isEmpty {
-                    generatedSQL = generator.generateWhereClause(from: filterState.filters.filter { $0.isValid })
-                } else {
-                    generatedSQL = generator.generateWhereClause(from: selectedFilters)
-                }
+                generatedSQL = filterState.generatePreviewSQL(databaseType: databaseType)
                 showSQLSheet = true
             }
             .buttonStyle(.bordered)

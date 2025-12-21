@@ -123,6 +123,31 @@ struct TableFilter: Identifiable, Equatable, Codable {
     var isRawSQL: Bool {
         columnName == Self.rawSQLColumn
     }
+    
+    /// Validation error message (nil if valid)
+    var validationError: String? {
+        if columnName == Self.rawSQLColumn {
+            if rawSQL?.isEmpty ?? true {
+                return "Raw SQL cannot be empty"
+            }
+            return nil
+        }
+        
+        if columnName.isEmpty {
+            return "Please select a column"
+        }
+        
+        if filterOperator.requiresValue {
+            if value.isEmpty {
+                return "Value is required"
+            }
+            if filterOperator.requiresSecondValue && (secondValue?.isEmpty ?? true) {
+                return "Second value is required for BETWEEN"
+            }
+        }
+        
+        return nil
+    }
 }
 
 /// Stores per-tab filter state (preserves filters when switching tabs)
