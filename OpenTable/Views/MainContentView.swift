@@ -451,6 +451,9 @@ struct MainContentView: View {
                     },
                     onUnset: {
                         clearFiltersAndReload()
+                    },
+                    onQuickSearch: { searchText in
+                        applyQuickSearch(searchText)
                     }
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -1006,6 +1009,51 @@ struct MainContentView: View {
 
         newQuery += " LIMIT 200"
 
+        // Update query and execute
+        tabManager.tabs[tabIndex].query = newQuery
+        runQuery()
+    }
+    
+    /// Apply Quick Search across all columns
+    private func applyQuickSearch(_ searchText: String) {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+        
+        let tab = tabManager.tabs[tabIndex]
+        guard let tableName = tab.tableName else { return }
+        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        
+        // Build query with OR conditions for all columns
+        let quotedTable = connection.type.quoteIdentifier(tableName)
+        var newQuery = "SELECT * FROM \(quotedTable)"
+        
+        // Generate OR conditions for all columns (LIKE %search%)
+        var conditions: [String] = []
+        for columnName in tab.resultColumns {
+            let quotedColumn = connection.type.quoteIdentifier(columnName)
+            // Escape special characters for LIKE
+            let escapedSearch = searchText
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "%", with: "\\%")
+                .replacingOccurrences(of: "_", with: "\\_")
+                .replacingOccurrences(of: "'", with: "''")
+            conditions.append("\(quotedColumn) LIKE '%\(escapedSearch)%'")
+        }
+        
+        if !conditions.isEmpty {
+            newQuery += " WHERE (" + conditions.joined(separator: " OR ") + ")"
+        }
+        
+        // Preserve existing ORDER BY if present
+        if let columnIndex = tab.sortState.columnIndex,
+           columnIndex < tab.resultColumns.count {
+            let columnName = tab.resultColumns[columnIndex]
+            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
+            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
+        }
+        
+        newQuery += " LIMIT 200"
+        
         // Update query and execute
         tabManager.tabs[tabIndex].query = newQuery
         runQuery()

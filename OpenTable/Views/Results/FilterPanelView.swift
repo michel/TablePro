@@ -15,6 +15,7 @@ struct FilterPanelView: View {
     let databaseType: DatabaseType
     let onApply: ([TableFilter]) -> Void
     let onUnset: () -> Void
+    let onQuickSearch: ((String) -> Void)?  // New callback for Quick Search
 
     @State private var showSQLSheet = false
     @State private var showSettingsPopover = false
@@ -113,9 +114,7 @@ struct FilterPanelView: View {
                 .onSubmit {
                     // Apply quick search on Enter
                     if !filterState.quickSearchText.isEmpty {
-                        // Quick search triggers a special filter application
-                        // The parent view should handle this via onApply with empty filter array
-                        // or we notify via a callback
+                        onQuickSearch?(filterState.quickSearchText)
                     }
                 }
             
@@ -635,7 +634,8 @@ struct FilterSettingsPopover: View {
         primaryKeyColumn: "id",
         databaseType: .mysql,
         onApply: { _ in },
-        onUnset: { }
+        onUnset: { },
+        onQuickSearch: { _ in }
     )
     .frame(width: 600)
 }
