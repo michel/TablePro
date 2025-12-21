@@ -90,24 +90,28 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 
 ---
 
-## 🚧 Milestone 4: Data Management (In Progress)
+## ✅ Milestone 4: Data Management (Completed)
 
 ### Insert/Delete Operations
-- [ ] Add new row (with DEFAULT values)
-- [ ] Bulk delete selected rows
-- [ ] Duplicate row
+- [x] Add new row with DEFAULT values (⌘+I)
+- [x] Bulk delete selected rows (⌘+Delete or Backspace)
+- [x] Duplicate row (⌘+D)
+- [x] Truncate table (⌥+Delete)
 
 ### Keyboard Navigation
-- [ ] Tab → next cell
-- [ ] Shift+Tab → previous cell
-- [ ] Arrow keys → navigate cells
-- [ ] Escape → cancel editing
-- [ ] Cmd+Z → undo cell change
+- [x] Tab → next cell
+- [x] Shift+Tab → previous cell
+- [x] Arrow keys → navigate cells (with Shift for range selection)
+- [x] Escape → cancel editing / clear selection
+- [x] Cmd+Z → undo cell change / row insertion / row deletion
+- [x] Cmd+Shift+Z → redo undone changes
+- [x] Enter → edit focused cell
 
-### Pagination
-- [ ] Lazy loading for large tables (100k+ rows)
-- [ ] "Load More" button
-- [ ] Total row count display
+### Multi-Row Selection
+- [x] Click to select single row
+- [x] Shift+Click for range selection
+- [x] Cmd+Click to toggle individual rows
+- [x] Shift+Arrow keys for range selection
 
 ---
 
@@ -141,15 +145,8 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 - Query explain/analyze
 - Redis / MongoDB support
 - Connection groups/folders
+- Dark mode theme customization
+- Favorite/pinned tables
+- Query snippets/templates
 
 ---
-
-## Version History
-
-| Version | Date | Highlights |
-|---------|------|------------|
-| 0.1.0 | Dec 2025 | Initial release with core features |
-| 0.2.0 | Dec 2025 | Data grid editing, SQL function support |
-| 0.3.0 | Dec 2025 | Column sorting, per-tab state, export/history/structure views |
-| 0.4.0 | Dec 2025 | 100% native NSTableView sorting, TablePlus-style cell focus |
-

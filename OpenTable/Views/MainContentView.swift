@@ -20,6 +20,7 @@ struct MainContentView: View {
 
     @StateObject private var tabManager = QueryTabManager()
     @StateObject private var changeManager = DataChangeManager()
+    @StateObject private var filterStateManager = FilterStateManager()
 
     @State private var selectedRowIndices: Set<Int> = []
     @State private var editingCell: CellPosition? = nil
@@ -216,6 +217,35 @@ struct MainContentView: View {
                 // Clear all selections (Escape key)
                 selectedRowIndices.removeAll()
                 selectedTables.removeAll()
+                // Also close filter panel if visible
+                if filterStateManager.isVisible {
+                    filterStateManager.close()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleFilterPanel)) { _ in
+                // Toggle filter panel (Cmd+F)
+                if currentTab?.tabType == .table {
+                    filterStateManager.toggle()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .applyAllFilters)) { _ in
+                // Apply all selected filters (Cmd+Return)
+                if filterStateManager.hasSelectedFilters {
+                    filterStateManager.applySelectedFilters()
+                    applyFilters(filterStateManager.appliedFilters)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .duplicateFilter)) { _ in
+                // Duplicate focused filter (Cmd+I when filter panel is visible)
+                if filterStateManager.isVisible, let focusedFilter = filterStateManager.focusedFilter {
+                    filterStateManager.duplicateFilter(focusedFilter)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .removeFilter)) { _ in
+                // Remove focused filter (Cmd+Shift+I when filter panel is visible)
+                if filterStateManager.isVisible, let focusedFilter = filterStateManager.focusedFilter {
+                    filterStateManager.removeFilter(focusedFilter)
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .undoChange)) { _ in
                 // Undo last change (Cmd+Z)
@@ -408,16 +438,35 @@ struct MainContentView: View {
                 .frame(maxHeight: .infinity, alignment: .top)
             }
 
+            // Filter panel (collapsible, at bottom)
+            if filterStateManager.isVisible && tab.tabType == .table {
+                Divider()
+                FilterPanelView(
+                    filterState: filterStateManager,
+                    columns: tab.resultColumns,
+                    primaryKeyColumn: changeManager.primaryKeyColumn,
+                    databaseType: connection.type,
+                    onApply: { filters in
+                        applyFilters(filters)
+                    },
+                    onUnset: {
+                        clearFiltersAndReload()
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
             statusBar
         }
         .frame(minHeight: 150)
+        .animation(.easeInOut(duration: 0.2), value: filterStateManager.isVisible)
     }
 
     // MARK: - Status Bar
 
     private var statusBar: some View {
         HStack {
-            // Data/Structure toggle for table tabs (TablePlus style - bottom left)
+            // Left: Data/Structure toggle for table tabs
             if let tab = currentTab, tab.tabType == .table, tab.tableName != nil {
                 Picker(
                     "",
@@ -438,21 +487,68 @@ struct MainContentView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 180)
                 .controlSize(.small)
-                .offset(x: -20)
+                .offset(x: -26)
             }
 
             Spacer()
 
+            // Center: Row info (pagination/selection)
             if let tab = currentTab, !tab.resultRows.isEmpty {
-                Text("\(tab.resultRows.count) rows")
+                Text(rowInfoText(for: tab))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
+            Spacer()
+
+            // Right: Filters toggle button
+            if let tab = currentTab, tab.tabType == .table, tab.tableName != nil {
+                Toggle(isOn: Binding(
+                    get: { filterStateManager.isVisible },
+                    set: { _ in filterStateManager.toggle() }
+                )) {
+                    HStack(spacing: 4) {
+                        Image(systemName: filterStateManager.hasAppliedFilters
+                            ? "line.3.horizontal.decrease.circle.fill"
+                            : "line.3.horizontal.decrease.circle")
+                        Text("Filters")
+                        if filterStateManager.hasAppliedFilters {
+                            Text("(\(filterStateManager.appliedFilters.count))")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .toggleStyle(.button)
+                .controlSize(.small)
+                .help("Toggle Filters (Cmd+F)")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    /// Generate row info text based on selection and pagination state
+    private func rowInfoText(for tab: QueryTab) -> String {
+        let loadedCount = tab.resultRows.count
+        // Use local selectedRowIndices state (not tab.selectedRowIndices which is only synced on tab switch)
+        let selectedCount = selectedRowIndices.count
+        let total = tab.pagination.totalRowCount
+
+        if selectedCount > 0 {
+            // Selection mode
+            if selectedCount == loadedCount {
+                return "All \(loadedCount) rows selected"
+            } else {
+                return "\(selectedCount) of \(loadedCount) rows selected"
+            }
+        } else if let total = total, total > loadedCount {
+            // Pagination mode: "1-100 of 5000 rows"
+            return "1-\(loadedCount) of \(total) rows"
+        } else {
+            // Simple mode: "100 rows"
+            return "\(loadedCount) rows"
+        }
     }
 
     // MARK: - Actions
@@ -552,14 +648,24 @@ struct MainContentView: View {
             do {
                 let result = try await executeQueryAsync(sql: sql, connection: conn)
 
-                // Fetch column defaults if editable table
+                // Fetch column defaults and total row count if editable table
                 var columnDefaults: [String: String?] = [:]
+                var totalRowCount: Int? = nil
                 if isEditable, let tableName = tableName {
                     // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
                     if let driver = DatabaseManager.shared.activeDriver {
                         let columnInfo = try await driver.fetchColumns(table: tableName)
                         for col in columnInfo {
                             columnDefaults[col.name] = col.defaultValue
+                        }
+
+                        // Fetch total row count for pagination display
+                        let quotedTable = conn.type.quoteIdentifier(tableName)
+                        let countResult = try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
+                        if let firstRow = countResult.rows.first,
+                           let countStr = firstRow.first as? String,
+                           let count = Int(countStr) {
+                            totalRowCount = count
                         }
                     }
                 }
@@ -593,6 +699,7 @@ struct MainContentView: View {
                 }
 
                 let safeTableName = tableName.map { String($0) }
+                let safeTotalRowCount = totalRowCount
 
                 // Check if task was cancelled (e.g., user triggered another sort)
                 // This prevents race conditions where cancelled queries still try to update UI
@@ -632,6 +739,7 @@ struct MainContentView: View {
                         updatedTab.lastExecutedAt = Date()
                         updatedTab.tableName = safeTableName
                         updatedTab.isEditable = isEditable
+                        updatedTab.pagination.totalRowCount = safeTotalRowCount
 
                         // Atomically replace the tab
                         tabManager.tabs[idx] = updatedTab
@@ -826,6 +934,76 @@ struct MainContentView: View {
         let text = lines.joined(separator: "\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    // MARK: - Filters
+
+    /// Apply filters to the current table query
+    private func applyFilters(_ filters: [TableFilter]) {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+
+        let tab = tabManager.tabs[tabIndex]
+        guard let tableName = tab.tableName else { return }
+
+        // Generate WHERE clause
+        let generator = FilterSQLGenerator(databaseType: connection.type)
+        let whereClause = generator.generateWhereClause(from: filters)
+
+        // Build new query
+        let quotedTable = connection.type.quoteIdentifier(tableName)
+        var newQuery = "SELECT * FROM \(quotedTable)"
+
+        if !whereClause.isEmpty {
+            newQuery += " \(whereClause)"
+        }
+
+        // Preserve existing ORDER BY if present
+        if let columnIndex = tab.sortState.columnIndex,
+           columnIndex < tab.resultColumns.count {
+            let columnName = tab.resultColumns[columnIndex]
+            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
+            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
+        }
+
+        newQuery += " LIMIT 200"
+
+        // Update query and execute
+        tabManager.tabs[tabIndex].query = newQuery
+
+        // Save filters for this table (for "Restore Last Filter" setting)
+        if !filters.isEmpty {
+            filterStateManager.saveLastFilters(for: tableName)
+        }
+
+        runQuery()
+    }
+
+    /// Clear filters and reload table with original query
+    private func clearFiltersAndReload() {
+        guard let tabIndex = tabManager.selectedTabIndex else { return }
+        guard tabIndex < tabManager.tabs.count else { return }
+
+        let tab = tabManager.tabs[tabIndex]
+        guard let tableName = tab.tableName else { return }
+
+        // Build clean query without filters
+        let quotedTable = connection.type.quoteIdentifier(tableName)
+        var newQuery = "SELECT * FROM \(quotedTable)"
+
+        // Preserve existing ORDER BY if present
+        if let columnIndex = tab.sortState.columnIndex,
+           columnIndex < tab.resultColumns.count {
+            let columnName = tab.resultColumns[columnIndex]
+            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
+            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
+        }
+
+        newQuery += " LIMIT 200"
+
+        // Update query and execute
+        tabManager.tabs[tabIndex].query = newQuery
+        runQuery()
     }
 
     // MARK: - Column Sorting

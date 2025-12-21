@@ -193,6 +193,14 @@ struct OpenTableApp: App {
                 }
                 .keyboardShortcut("b", modifiers: [.command, .option])
                 .disabled(!appState.isConnected)
+
+                Divider()
+
+                Button("Toggle Filters") {
+                    NotificationCenter.default.post(name: .toggleFilterPanel, object: nil)
+                }
+                .keyboardShortcut("f", modifiers: .command)
+                .disabled(!appState.isConnected)
             }
         }
     }
@@ -223,6 +231,12 @@ extension Notification.Name {
     static let undoChange = Notification.Name("undoChange")
     static let redoChange = Notification.Name("redoChange")
     static let openWelcomeWindow = Notification.Name("openWelcomeWindow")
+
+    // Filter notifications
+    static let toggleFilterPanel = Notification.Name("toggleFilterPanel")
+    static let applyAllFilters = Notification.Name("applyAllFilters")
+    static let duplicateFilter = Notification.Name("duplicateFilter")
+    static let removeFilter = Notification.Name("removeFilter")
 }
 
 // MARK: - Open Window Handler

@@ -72,7 +72,7 @@ struct SortState: Equatable {
 /// Tracks pagination state for lazy loading with Load More button
 struct PaginationState: Equatable {
     var totalRowCount: Int?      // Total rows in table (fetched once, nil if unknown)
-    var pageSize: Int = 1000     // Rows per page
+    var pageSize: Int = 200     // Rows per page
     var isLoadingMore: Bool = false  // True while fetching more rows
     
     /// Whether there are more rows to load
@@ -123,6 +123,9 @@ struct QueryTab: Identifiable, Equatable {
     // Pagination state for lazy loading (table tabs only)
     var pagination: PaginationState
 
+    // Per-tab filter state (preserves filters when switching tabs)
+    var filterState: TabFilterState
+
     init(
         id: UUID = UUID(),
         title: String = "Query",
@@ -151,6 +154,7 @@ struct QueryTab: Identifiable, Equatable {
         self.sortState = SortState()
         self.hasUserInteraction = false
         self.pagination = PaginationState()
+        self.filterState = TabFilterState()
     }
 
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
@@ -199,7 +203,7 @@ final class QueryTabManager: ObservableObject {
         let quotedName = databaseType.quoteIdentifier(tableName)
         let newTab = QueryTab(
             title: tableName,
-            query: "SELECT * FROM \(quotedName) LIMIT 1000;",
+            query: "SELECT * FROM \(quotedName) LIMIT 200;",
             tabType: .table,
             tableName: tableName
         )
@@ -236,7 +240,7 @@ final class QueryTabManager: ObservableObject {
             // Replace the current table tab instead of creating a new one
             tabs[selectedIndex].title = tableName
             tabs[selectedIndex].tableName = tableName
-            tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT 1000;"
+            tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT 200;"
             tabs[selectedIndex].resultColumns = []
             tabs[selectedIndex].resultRows = []
             tabs[selectedIndex].executionTime = nil
@@ -247,13 +251,14 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].selectedRowIndices = []  // Reset selection
             tabs[selectedIndex].pendingChanges = TabPendingChanges()  // Reset changes
             tabs[selectedIndex].hasUserInteraction = false  // Reset interaction flag
+            tabs[selectedIndex].filterState = TabFilterState()  // Reset filter state
             return true  // Need to run query for new table
         }
 
         // 3. Otherwise, create a new tab
         let newTab = QueryTab(
             title: tableName,
-            query: "SELECT * FROM \(quotedName) LIMIT 1000;",
+            query: "SELECT * FROM \(quotedName) LIMIT 200;",
             tabType: .table,
             tableName: tableName
         )
