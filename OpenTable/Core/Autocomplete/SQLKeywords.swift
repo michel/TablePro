@@ -192,10 +192,43 @@ enum SQLKeywords {
         ("BINARY", "BINARY(str)", "Convert to binary string"),
     ]
     
+    /// Window functions
+    static let windowFunctions: [(name: String, signature: String, doc: String)] = [
+        ("ROW_NUMBER", "ROW_NUMBER() OVER(...)", "Sequential row number"),
+        ("RANK", "RANK() OVER(...)", "Rank with gaps"),
+        ("DENSE_RANK", "DENSE_RANK() OVER(...)", "Rank without gaps"),
+        ("NTILE", "NTILE(n) OVER(...)", "Divide into n groups"),
+        ("LAG", "LAG(expr, offset, default) OVER(...)", "Previous row value"),
+        ("LEAD", "LEAD(expr, offset, default) OVER(...)", "Next row value"),
+        ("FIRST_VALUE", "FIRST_VALUE(expr) OVER(...)", "First value in partition"),
+        ("LAST_VALUE", "LAST_VALUE(expr) OVER(...)", "Last value in partition"),
+        ("NTH_VALUE", "NTH_VALUE(expr, n) OVER(...)", "Nth value in partition"),
+        ("PERCENT_RANK", "PERCENT_RANK() OVER(...)", "Relative rank (0-1)"),
+        ("CUME_DIST", "CUME_DIST() OVER(...)", "Cumulative distribution"),
+    ]
+    
+    /// JSON functions (MySQL/PostgreSQL)
+    static let jsonFunctions: [(name: String, signature: String, doc: String)] = [
+        ("JSON_EXTRACT", "JSON_EXTRACT(json, path)", "Extract value from JSON"),
+        ("JSON_OBJECT", "JSON_OBJECT(key, value, ...)", "Create JSON object"),
+        ("JSON_ARRAY", "JSON_ARRAY(val1, val2, ...)", "Create JSON array"),
+        ("JSON_KEYS", "JSON_KEYS(json)", "Get JSON object keys"),
+        ("JSON_LENGTH", "JSON_LENGTH(json)", "Get JSON length"),
+        ("JSON_TYPE", "JSON_TYPE(json)", "Get JSON value type"),
+        ("JSON_VALID", "JSON_VALID(json)", "Check if valid JSON"),
+        ("JSON_CONTAINS", "JSON_CONTAINS(json, val)", "Check if JSON contains value"),
+        ("JSON_SET", "JSON_SET(json, path, val)", "Set value in JSON"),
+        ("JSON_INSERT", "JSON_INSERT(json, path, val)", "Insert into JSON"),
+        ("JSON_REPLACE", "JSON_REPLACE(json, path, val)", "Replace in JSON"),
+        ("JSON_REMOVE", "JSON_REMOVE(json, path)", "Remove from JSON"),
+        ("JSON_UNQUOTE", "JSON_UNQUOTE(json)", "Unquote JSON string"),
+    ]
+    
     /// All functions combined
     static var allFunctions: [(name: String, signature: String, doc: String)] {
         aggregateFunctions + dateTimeFunctions + stringFunctions +
-        numericFunctions + nullFunctions + conversionFunctions
+        numericFunctions + nullFunctions + conversionFunctions +
+        windowFunctions + jsonFunctions
     }
     
     // MARK: - Operators
@@ -226,9 +259,14 @@ enum SQLKeywords {
         ("SELECT GROUP BY", "SELECT , COUNT(*) FROM  GROUP BY ", "Select with grouping"),
         ("SELECT ORDER BY", "SELECT * FROM  ORDER BY  ASC", "Select with ordering"),
         
+        // Pagination
+        ("SELECT LIMIT", "SELECT * FROM  LIMIT 10", "Select with limit"),
+        ("SELECT LIMIT OFFSET", "SELECT * FROM  LIMIT 10 OFFSET 0", "Select with pagination"),
+        
         // INSERT templates
         ("INSERT INTO", "INSERT INTO  (, ) VALUES (, )", "Insert new row"),
         ("INSERT SELECT", "INSERT INTO  SELECT * FROM ", "Insert from select"),
+        ("INSERT MULTIPLE", "INSERT INTO  (, ) VALUES\n    (, ),\n    (, )", "Insert multiple rows"),
         
         // UPDATE templates
         ("UPDATE SET", "UPDATE  SET  =  WHERE ", "Update rows"),
@@ -255,6 +293,30 @@ enum SQLKeywords {
         
         // CASE template
         ("CASE WHEN", "CASE\n    WHEN  THEN \n    ELSE \nEND", "Conditional expression"),
+        
+        // Subquery templates
+        ("EXISTS SELECT", "EXISTS (SELECT 1 FROM  WHERE )", "Existence check"),
+        ("NOT EXISTS", "NOT EXISTS (SELECT 1 FROM  WHERE )", "Non-existence check"),
+        ("IN SELECT", "IN (SELECT  FROM  WHERE )", "Subquery in IN clause"),
+        
+        // Null handling
+        ("COALESCE", "COALESCE(, )", "First non-null value"),
+        ("IFNULL", "IFNULL(, )", "Replace null with default"),
+        ("IS NULL", "IS NULL", "Check for NULL"),
+        ("IS NOT NULL", "IS NOT NULL", "Check for non-NULL"),
+        
+        // Window function templates
+        ("ROW_NUMBER OVER", "ROW_NUMBER() OVER (ORDER BY )", "Row numbering"),
+        ("RANK OVER", "RANK() OVER (PARTITION BY  ORDER BY )", "Ranking with gaps"),
+        ("LAG OVER", "LAG(, 1) OVER (ORDER BY )", "Previous row value"),
+        ("SUM OVER", "SUM() OVER (PARTITION BY )", "Running total"),
+        
+        // Join templates
+        ("LEFT JOIN ON", "LEFT JOIN  ON . = .", "Left outer join"),
+        ("INNER JOIN ON", "INNER JOIN  ON . = .", "Inner join"),
+        
+        // MySQL specific
+        ("ON DUPLICATE KEY", "INSERT INTO  () VALUES ()\nON DUPLICATE KEY UPDATE  = VALUES()", "Upsert (MySQL)"),
     ]
     
     // MARK: - Completion Items

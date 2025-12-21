@@ -122,6 +122,29 @@ final class SQLCompletionProvider {
             items = SQLKeywords.functionItems()
             items += filterKeywords(["NULL", "DEFAULT", "TRUE", "FALSE"])
             
+        case .functionArg:
+            // Inside function arguments - suggest columns and other functions
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += SQLKeywords.functionItems()
+            items += filterKeywords(["NULL", "TRUE", "FALSE", "DISTINCT"])
+            
+        case .caseExpression:
+            // Inside CASE expression
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += filterKeywords(["WHEN", "THEN", "ELSE", "END", "AND", "OR", "IS", "NULL", "TRUE", "FALSE"])
+            items += SQLKeywords.operatorItems()
+            items += SQLKeywords.functionItems()
+            
+        case .inList:
+            // Inside IN (...) list - suggest values, subqueries, columns
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += filterKeywords(["SELECT", "NULL", "TRUE", "FALSE"])
+            items += SQLKeywords.functionItems()
+            
+        case .limit:
+            // After LIMIT/OFFSET - typically just numbers, but could include variables
+            items += filterKeywords(["OFFSET", "FETCH", "NEXT", "ROWS", "ONLY"])
+            
         case .unknown:
             // Start of query - suggest snippets and statement keywords
             items = SQLKeywords.snippetItems()
@@ -139,16 +162,41 @@ final class SQLCompletionProvider {
     
     // MARK: - Filtering
     
-    /// Filter candidates by prefix (case-insensitive)
+    /// Filter candidates by prefix (case-insensitive) with fuzzy matching support
     private func filterByPrefix(_ items: [SQLCompletionItem], prefix: String) -> [SQLCompletionItem] {
         guard !prefix.isEmpty else { return items }
         
         let lowerPrefix = prefix.lowercased()
         
         return items.filter { item in
-            item.filterText.hasPrefix(lowerPrefix) ||
-            item.filterText.contains(lowerPrefix)
+            // Exact prefix match
+            if item.filterText.hasPrefix(lowerPrefix) {
+                return true
+            }
+            
+            // Contains match
+            if item.filterText.contains(lowerPrefix) {
+                return true
+            }
+            
+            // Fuzzy match: check if all characters appear in order
+            return fuzzyMatch(pattern: lowerPrefix, target: item.filterText)
         }
+    }
+    
+    /// Fuzzy matching: checks if all pattern characters appear in target in order
+    private func fuzzyMatch(pattern: String, target: String) -> Bool {
+        var patternIndex = pattern.startIndex
+        var targetIndex = target.startIndex
+        
+        while patternIndex < pattern.endIndex && targetIndex < target.endIndex {
+            if pattern[patternIndex] == target[targetIndex] {
+                patternIndex = pattern.index(after: patternIndex)
+            }
+            targetIndex = target.index(after: targetIndex)
+        }
+        
+        return patternIndex == pattern.endIndex
     }
     
     // MARK: - Ranking

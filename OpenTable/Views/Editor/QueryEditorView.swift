@@ -14,10 +14,6 @@ struct QueryEditorView: View {
     var onExecute: () -> Void
     var schemaProvider: SQLSchemaProvider?  // Optional for autocomplete
     
-    private var lineCount: Int {
-        max(queryText.components(separatedBy: "\n").count, 1)
-    }
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Editor header with toolbar (above editor, higher z-index)
@@ -26,39 +22,12 @@ struct QueryEditorView: View {
             
             Divider()
             
-            // Editor with line numbers
-            HStack(alignment: .top, spacing: 0) {
-                // Line numbers (SwiftUI)
-                lineNumbersView
-                
-                Divider()
-                
-                // SQL Editor (AppKit-based with syntax highlighting)
-                SQLEditorView(text: $queryText, cursorPosition: $cursorPosition, onExecute: onExecute, schemaProvider: schemaProvider)
-                    .frame(minHeight: 100)
-            }
-            .clipped()
+            // SQL Editor (AppKit-based with syntax highlighting and built-in line numbers)
+            SQLEditorView(text: $queryText, cursorPosition: $cursorPosition, onExecute: onExecute, schemaProvider: schemaProvider)
+                .frame(minHeight: 100)
+                .clipped()
         }
         .background(Color(nsColor: .textBackgroundColor))
-    }
-    
-    // MARK: - Line Numbers
-    
-    private var lineNumbersView: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .trailing, spacing: 0) {
-                ForEach(1...lineCount, id: \.self) { line in
-                    Text("\(line)")
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .frame(height: 17) // Match NSTextView line height
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.top, 2)
-        }
-        .frame(width: 40)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
     }
     
     // MARK: - Toolbar

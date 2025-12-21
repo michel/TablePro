@@ -22,6 +22,10 @@ enum SQLClauseType {
     case into           // After INTO (INSERT)
     case values         // After VALUES
     case insertColumns  // Column list in INSERT
+    case functionArg    // Inside function parentheses
+    case caseExpression // Inside CASE WHEN expression
+    case inList         // Inside IN (...) list
+    case limit          // After LIMIT/OFFSET
     case unknown        // Unknown or start of query
 }
 
@@ -45,6 +49,38 @@ struct SQLContext {
     let tableReferences: [TableReference]  // All tables in scope
     let isInsideString: Bool        // Inside a string literal
     let isInsideComment: Bool       // Inside a comment
+    
+    // Enhanced context for smarter completions
+    let cteNames: [String]          // Common Table Expression names in scope
+    let nestingLevel: Int           // Subquery nesting level (0 = main query)
+    let currentFunction: String?    // If inside function args, the function name
+    let isAfterComma: Bool          // True if immediately after a comma
+    
+    init(
+        clauseType: SQLClauseType,
+        prefix: String,
+        prefixRange: Range<Int>,
+        dotPrefix: String?,
+        tableReferences: [TableReference],
+        isInsideString: Bool,
+        isInsideComment: Bool,
+        cteNames: [String] = [],
+        nestingLevel: Int = 0,
+        currentFunction: String? = nil,
+        isAfterComma: Bool = false
+    ) {
+        self.clauseType = clauseType
+        self.prefix = prefix
+        self.prefixRange = prefixRange
+        self.dotPrefix = dotPrefix
+        self.tableReferences = tableReferences
+        self.isInsideString = isInsideString
+        self.isInsideComment = isInsideComment
+        self.cteNames = cteNames
+        self.nestingLevel = nestingLevel
+        self.currentFunction = currentFunction
+        self.isAfterComma = isAfterComma
+    }
 }
 
 /// Analyzes SQL query to determine completion context
@@ -55,7 +91,12 @@ final class SQLContextAnalyzer {
     /// Analyze the query at the given cursor position
     func analyze(query: String, cursorPosition: Int) -> SQLContext {
         let safePosition = min(cursorPosition, query.count)
-        let textBeforeCursor = String(query.prefix(safePosition))
+        
+        // Extract the current statement for multi-statement queries
+        let (currentStatement, statementOffset) = extractCurrentStatement(from: query, cursorPosition: safePosition)
+        let adjustedPosition = safePosition - statementOffset
+        
+        let textBeforeCursor = String(currentStatement.prefix(max(0, adjustedPosition)))
         
         // Check if inside string or comment
         if isInsideString(textBeforeCursor) {
@@ -85,21 +126,228 @@ final class SQLContextAnalyzer {
         // Extract prefix and dot prefix
         let (prefix, prefixStart, dotPrefix) = extractPrefix(from: textBeforeCursor)
         
-        // Find all table references in the query
-        let tableReferences = extractTableReferences(from: query)
+        // Find all table references in the current statement
+        var tableReferences = extractTableReferences(from: currentStatement)
+        
+        // Extract CTEs from the current statement
+        let cteNames = extractCTENames(from: currentStatement)
+        
+        // Add CTE names as table references
+        for cteName in cteNames {
+            let cteRef = TableReference(tableName: cteName, alias: nil)
+            if !tableReferences.contains(cteRef) {
+                tableReferences.append(cteRef)
+            }
+        }
+        
+        // Calculate nesting level (subquery depth)
+        let nestingLevel = calculateNestingLevel(in: textBeforeCursor)
+        
+        // Detect function context
+        let currentFunction = detectFunctionContext(in: textBeforeCursor)
+        
+        // Check if immediately after comma
+        let isAfterComma = checkIfAfterComma(textBeforeCursor)
         
         // Determine clause type
-        let clauseType = determineClauseType(textBeforeCursor: textBeforeCursor, dotPrefix: dotPrefix)
+        let clauseType = determineClauseType(textBeforeCursor: textBeforeCursor, dotPrefix: dotPrefix, currentFunction: currentFunction)
         
         return SQLContext(
             clauseType: clauseType,
             prefix: prefix,
-            prefixRange: prefixStart..<safePosition,
+            prefixRange: (statementOffset + prefixStart)..<safePosition,
             dotPrefix: dotPrefix,
             tableReferences: tableReferences,
             isInsideString: false,
-            isInsideComment: false
+            isInsideComment: false,
+            cteNames: cteNames,
+            nestingLevel: nestingLevel,
+            currentFunction: currentFunction,
+            isAfterComma: isAfterComma
         )
+    }
+    
+    // MARK: - Multi-Statement Support
+    
+    /// Extract the current SQL statement containing the cursor
+    private func extractCurrentStatement(from query: String, cursorPosition: Int) -> (statement: String, offset: Int) {
+        // Find statement boundaries (semicolons not inside strings/comments)
+        var statements: [(range: Range<Int>, text: String)] = []
+        var currentStart = 0
+        var inString = false
+        var inComment = false
+        var prevChar: Character = "\0"
+        
+        for (index, char) in query.enumerated() {
+            // Track string state
+            if char == "'" && prevChar != "\\" && !inComment {
+                inString.toggle()
+            }
+            
+            // Track comment state (simple line comment detection)
+            if char == "-" && prevChar == "-" && !inString {
+                inComment = true
+            }
+            if char == "\n" && inComment {
+                inComment = false
+            }
+            
+            // Found statement boundary
+            if char == ";" && !inString && !inComment {
+                let startIndex = query.index(query.startIndex, offsetBy: currentStart)
+                let endIndex = query.index(query.startIndex, offsetBy: index + 1)
+                let statementText = String(query[startIndex..<endIndex])
+                statements.append((range: currentStart..<(index + 1), text: statementText))
+                currentStart = index + 1
+            }
+            
+            prevChar = char
+        }
+        
+        // Add the last statement (may not end with ;)
+        if currentStart < query.count {
+            let startIndex = query.index(query.startIndex, offsetBy: currentStart)
+            let statementText = String(query[startIndex...])
+            statements.append((range: currentStart..<query.count, text: statementText))
+        }
+        
+        // Find which statement contains the cursor
+        for stmt in statements {
+            if stmt.range.contains(cursorPosition) || 
+               (cursorPosition == stmt.range.upperBound && stmt.range.upperBound == query.count) {
+                return (stmt.text, stmt.range.lowerBound)
+            }
+        }
+        
+        // Fallback: return entire query
+        return (query, 0)
+    }
+    
+    // MARK: - CTE Support
+    
+    /// Extract CTE (Common Table Expression) names from the query
+    private func extractCTENames(from query: String) -> [String] {
+        var cteNames: [String] = []
+        
+        // Pattern: WITH name AS (...), name2 AS (...)
+        // Handle both simple and recursive CTEs
+        let pattern = "(?i)\\bWITH\\s+(?:RECURSIVE\\s+)?([\\w]+)\\s+AS\\s*\\("
+        let commaPattern = "(?i),\\s*([\\w]+)\\s+AS\\s*\\("
+        
+        // Find first CTE
+        if let regex = try? NSRegularExpression(pattern: pattern) {
+            let range = NSRange(query.startIndex..., in: query)
+            if let match = regex.firstMatch(in: query, range: range),
+               let nameRange = Range(match.range(at: 1), in: query) {
+                cteNames.append(String(query[nameRange]))
+            }
+        }
+        
+        // Find additional CTEs (comma-separated)
+        if let regex = try? NSRegularExpression(pattern: commaPattern) {
+            let range = NSRange(query.startIndex..., in: query)
+            regex.enumerateMatches(in: query, range: range) { match, _, _ in
+                if let match = match,
+                   let nameRange = Range(match.range(at: 1), in: query) {
+                    cteNames.append(String(query[nameRange]))
+                }
+            }
+        }
+        
+        return cteNames
+    }
+    
+    // MARK: - Subquery Support
+    
+    /// Calculate the nesting level (subquery depth) at cursor position
+    private func calculateNestingLevel(in textBeforeCursor: String) -> Int {
+        var level = 0
+        var inString = false
+        var prevChar: Character = "\0"
+        
+        for char in textBeforeCursor {
+            if char == "'" && prevChar != "\\" {
+                inString.toggle()
+            }
+            
+            if !inString {
+                if char == "(" {
+                    level += 1
+                } else if char == ")" {
+                    level = max(0, level - 1)
+                }
+            }
+            
+            prevChar = char
+        }
+        
+        return level
+    }
+    
+    // MARK: - Function Context
+    
+    /// Detect if cursor is inside a function call and return the function name
+    private func detectFunctionContext(in textBeforeCursor: String) -> String? {
+        var parenStack: [(position: Int, precedingWord: String?)] = []
+        var inString = false
+        var prevChar: Character = "\0"
+        var currentWord = ""
+        var lastWord: String? = nil
+        
+        for (index, char) in textBeforeCursor.enumerated() {
+            if char == "'" && prevChar != "\\" {
+                inString.toggle()
+            }
+            
+            if !inString {
+                if char.isLetter || char.isNumber || char == "_" {
+                    currentWord.append(char)
+                } else {
+                    if !currentWord.isEmpty {
+                        lastWord = currentWord
+                        currentWord = ""
+                    }
+                    
+                    if char == "(" {
+                        parenStack.append((position: index, precedingWord: lastWord))
+                        lastWord = nil
+                    } else if char == ")" {
+                        if !parenStack.isEmpty {
+                            parenStack.removeLast()
+                        }
+                    }
+                }
+            }
+            
+            prevChar = char
+        }
+        
+        // If we're inside parentheses, check if it's a function call
+        if let lastParen = parenStack.last,
+           let funcName = lastParen.precedingWord {
+            // Check if it looks like a function (not a subquery)
+            let upperFunc = funcName.uppercased()
+            let sqlFunctions = ["COUNT", "SUM", "AVG", "MIN", "MAX", "COALESCE", "IFNULL", 
+                               "CONCAT", "SUBSTRING", "UPPER", "LOWER", "NOW", "DATE",
+                               "CAST", "CONVERT", "ROUND", "ABS", "LENGTH", "TRIM",
+                               "GROUP_CONCAT", "DATE_FORMAT", "YEAR", "MONTH", "DAY"]
+            
+            // Either known function or doesn't look like SELECT/subquery keywords
+            if sqlFunctions.contains(upperFunc) || 
+               (!["SELECT", "FROM", "WHERE", "IN", "EXISTS", "NOT"].contains(upperFunc)) {
+                return funcName
+            }
+        }
+        
+        return nil
+    }
+    
+    // MARK: - Comma Detection
+    
+    /// Check if the cursor is immediately after a comma (for multi-column contexts)
+    private func checkIfAfterComma(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.hasSuffix(",")
     }
     
     // MARK: - Helper Methods
@@ -261,10 +509,15 @@ final class SQLContextAnalyzer {
     }
     
     /// Determine the clause type based on text before cursor
-    private func determineClauseType(textBeforeCursor: String, dotPrefix: String?) -> SQLClauseType {
+    private func determineClauseType(textBeforeCursor: String, dotPrefix: String?, currentFunction: String? = nil) -> SQLClauseType {
         // If we have a dot prefix, we're looking for columns
         if dotPrefix != nil {
             return .select // Column context
+        }
+        
+        // If inside a function, return function arg context
+        if currentFunction != nil {
+            return .functionArg
         }
         
         let upper = textBeforeCursor.uppercased()
@@ -275,6 +528,12 @@ final class SQLContextAnalyzer {
         // Find the last keyword to determine context
         // ORDER MATTERS: More specific patterns must come before general ones
         let clausePatterns: [(pattern: String, clause: SQLClauseType)] = [
+            // New patterns for enhanced context
+            ("\\bIN\\s*\\([^)]*$", .inList),
+            ("\\bCASE\\s+(?:WHEN\\s+[^;]*)?$", .caseExpression),
+            ("\\b(LIMIT|OFFSET)\\s+\\d*$", .limit),
+            
+            // Existing patterns
             ("\\bVALUES\\s*\\([^)]*$", .values),
             ("\\bINSERT\\s+INTO\\s+\\w+\\s*\\([^)]*$", .insertColumns),
             ("\\bINTO\\s+\\w*$", .into),

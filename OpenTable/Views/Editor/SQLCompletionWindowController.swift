@@ -35,8 +35,8 @@ final class SQLCompletionWindowController: NSObject {
     
     // MARK: - Window Configuration
     
-    private let windowWidth: CGFloat = 350
-    private let rowHeight: CGFloat = 24
+    private let windowWidth: CGFloat = 400
+    private let rowHeight: CGFloat = 26
     private let maxVisibleRows: Int = 10
     
     // MARK: - Public API
@@ -60,20 +60,14 @@ final class SQLCompletionWindowController: NSObject {
             createWindow()
         }
         
-        // Update table data
-        tableView?.reloadData()
-        tableView?.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
-        
-        // Calculate window height
-        let visibleRows = min(items.count, maxVisibleRows)
-        let height = CGFloat(visibleRows) * rowHeight + 4
+        let height = calculateWindowHeight(for: items.count)
         
         // Position window
         var windowOrigin = position
         windowOrigin.y -= height  // Position below cursor
         
         // Ensure window stays on screen
-        if let screen = NSScreen.main {
+        if let screen = parentWindow?.screen ?? NSScreen.main {
             let screenFrame = screen.visibleFrame
             
             if windowOrigin.x + windowWidth > screenFrame.maxX {
@@ -84,13 +78,29 @@ final class SQLCompletionWindowController: NSObject {
             }
         }
         
-        window?.setFrame(NSRect(x: windowOrigin.x, y: windowOrigin.y, width: windowWidth, height: height), display: true)
+        let frameRect = NSRect(x: windowOrigin.x, y: windowOrigin.y, width: windowWidth, height: height)
+        let selectedIdx = self.selectedIndex
+        let panel = self.window
         
-        // Show window
-        if let parent = parentWindow {
-            parent.addChildWindow(window!, ordered: .above)
+        // Ensure all UI updates run on the main thread
+        let uiUpdates = { [weak self] in
+            guard let self = self else { return }
+            self.tableView?.reloadData()
+            self.tableView?.selectRowIndexes(IndexSet(integer: selectedIdx), byExtendingSelection: false)
+            panel?.setFrame(frameRect, display: true)
+            
+            // Show window
+            if let parent = parentWindow, let panel = panel {
+                parent.addChildWindow(panel, ordered: .above)
+            }
+            panel?.orderFront(nil)
         }
-        window?.orderFront(nil)
+        
+        if Thread.isMainThread {
+            uiUpdates()
+        } else {
+            DispatchQueue.main.async(execute: uiUpdates)
+        }
     }
     
     /// Update completions without repositioning
@@ -103,26 +113,52 @@ final class SQLCompletionWindowController: NSObject {
         self.items = items
         self.selectedIndex = min(selectedIndex, items.count - 1)
         
-        tableView?.reloadData()
-        tableView?.selectRowIndexes(IndexSet(integer: selectedIndex), byExtendingSelection: false)
+        let height = calculateWindowHeight(for: items.count)
+        let selectedIdx = self.selectedIndex
         
-        // Update height
-        let visibleRows = min(items.count, maxVisibleRows)
-        let height = CGFloat(visibleRows) * rowHeight + 4
-        
+        var newFrame: NSRect?
         if var frame = window?.frame {
             let oldY = frame.origin.y + frame.height
             frame.size.height = height
             frame.origin.y = oldY - height
-            window?.setFrame(frame, display: true)
+            newFrame = frame
+        }
+        
+        // Ensure all UI updates run on the main thread
+        let uiUpdates = { [weak self] in
+            guard let self = self else { return }
+            self.tableView?.reloadData()
+            self.tableView?.selectRowIndexes(IndexSet(integer: selectedIdx), byExtendingSelection: false)
+            if let frame = newFrame {
+                self.window?.setFrame(frame, display: true)
+            }
+        }
+        
+        if Thread.isMainThread {
+            uiUpdates()
+        } else {
+            DispatchQueue.main.async(execute: uiUpdates)
         }
     }
     
     /// Dismiss the completion window
     func dismiss() {
-        window?.parent?.removeChildWindow(window!)
-        window?.orderOut(nil)
-        onDismiss?()
+        guard let panel = window else {
+            onDismiss?()
+            return
+        }
+        
+        let dismissAction = { [weak self] in
+            panel.parent?.removeChildWindow(panel)
+            panel.orderOut(nil)
+            self?.onDismiss?()
+        }
+        
+        if Thread.isMainThread {
+            dismissAction()
+        } else {
+            DispatchQueue.main.async(execute: dismissAction)
+        }
     }
     
     // MARK: - Keyboard Navigation
@@ -161,16 +197,22 @@ final class SQLCompletionWindowController: NSObject {
     func selectNext() {
         guard !items.isEmpty else { return }
         selectedIndex = (selectedIndex + 1) % items.count
-        tableView?.selectRowIndexes(IndexSet(integer: selectedIndex), byExtendingSelection: false)
-        tableView?.scrollRowToVisible(selectedIndex)
+        let idx = selectedIndex
+        performOnMainThread { [weak self] in
+            self?.tableView?.selectRowIndexes(IndexSet(integer: idx), byExtendingSelection: false)
+            self?.tableView?.scrollRowToVisible(idx)
+        }
     }
     
     /// Move selection up
     func selectPrevious() {
         guard !items.isEmpty else { return }
         selectedIndex = (selectedIndex - 1 + items.count) % items.count
-        tableView?.selectRowIndexes(IndexSet(integer: selectedIndex), byExtendingSelection: false)
-        tableView?.scrollRowToVisible(selectedIndex)
+        let idx = selectedIndex
+        performOnMainThread { [weak self] in
+            self?.tableView?.selectRowIndexes(IndexSet(integer: idx), byExtendingSelection: false)
+            self?.tableView?.scrollRowToVisible(idx)
+        }
     }
     
     /// Confirm current selection
@@ -179,6 +221,23 @@ final class SQLCompletionWindowController: NSObject {
         let item = items[selectedIndex]
         dismiss()
         onSelect?(item)
+    }
+    
+    // MARK: - Private Helpers
+    
+    /// Calculate window height based on item count
+    private func calculateWindowHeight(for itemCount: Int) -> CGFloat {
+        let visibleRows = min(itemCount, maxVisibleRows)
+        return CGFloat(visibleRows) * rowHeight + 4
+    }
+    
+    /// Execute a closure on the main thread
+    private func performOnMainThread(_ action: @escaping () -> Void) {
+        if Thread.isMainThread {
+            action()
+        } else {
+            DispatchQueue.main.async(execute: action)
+        }
     }
     
     // MARK: - Window Creation
@@ -198,7 +257,8 @@ final class SQLCompletionWindowController: NSObject {
         panel.isOpaque = false
         
         // Create scroll view
-        let scroll = NSScrollView(frame: panel.contentView!.bounds)
+        let scrollBounds = panel.contentView?.bounds ?? NSRect(x: 0, y: 0, width: windowWidth, height: 200)
+        let scroll = NSScrollView(frame: scrollBounds)
         scroll.hasVerticalScroller = true
         scroll.autohidesScrollers = true
         scroll.autoresizingMask = [.width, .height]
@@ -227,21 +287,12 @@ final class SQLCompletionWindowController: NSObject {
         scroll.documentView = table
         panel.contentView = scroll
         
-        // Add visual polish: rounded corners, border, shadow
+        // Add visual polish: rounded corners, border
         panel.contentView?.wantsLayer = true
         panel.contentView?.layer?.cornerRadius = 8
         panel.contentView?.layer?.masksToBounds = true
         panel.contentView?.layer?.borderWidth = 1
         panel.contentView?.layer?.borderColor = NSColor.separatorColor.cgColor
-        
-        // Enhanced shadow
-        panel.hasShadow = true
-        if let shadowLayer = panel.contentView?.superview?.layer {
-            shadowLayer.shadowColor = NSColor.black.cgColor
-            shadowLayer.shadowOpacity = 0.15
-            shadowLayer.shadowOffset = CGSize(width: 0, height: -2)
-            shadowLayer.shadowRadius = 8
-        }
         
         self.window = panel
         self.tableView = table
@@ -279,9 +330,10 @@ extension SQLCompletionWindowController: NSTableViewDelegate, NSTableViewDataSou
     }
     
     func tableViewSelectionDidChange(_ notification: Notification) {
-        if let table = notification.object as? NSTableView {
-            selectedIndex = table.selectedRow >= 0 ? table.selectedRow : 0
+        if let table = notification.object as? NSTableView, table.selectedRow >= 0 {
+            selectedIndex = table.selectedRow
         }
+        // Do not reset selectedIndex when selectedRow == -1 to prevent accidental selection jumps
     }
 }
 
@@ -292,6 +344,7 @@ private final class CompletionCellView: NSTableCellView {
     private let iconView = NSImageView()
     private let labelField = NSTextField(labelWithString: "")
     private let detailField = NSTextField(labelWithString: "")
+    private let kindBadge = NSTextField(labelWithString: "")
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -304,22 +357,36 @@ private final class CompletionCellView: NSTableCellView {
     }
     
     private func setupViews() {
-        // Icon
+        // Icon with background
         iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.imageScaling = .scaleProportionallyDown
+        iconView.wantsLayer = true
+        iconView.layer?.cornerRadius = 3
         addSubview(iconView)
         
-        // Label
+        // Label (main text)
         labelField.translatesAutoresizingMaskIntoConstraints = false
-        labelField.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        labelField.font = .monospacedSystemFont(ofSize: 12, weight: .medium)
         labelField.lineBreakMode = .byTruncatingTail
         labelField.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        labelField.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         addSubview(labelField)
+        
+        // Kind badge (small label like "func", "col", "tbl")
+        kindBadge.translatesAutoresizingMaskIntoConstraints = false
+        kindBadge.font = .systemFont(ofSize: 9, weight: .medium)
+        kindBadge.textColor = .white
+        kindBadge.alignment = .center
+        kindBadge.wantsLayer = true
+        kindBadge.layer?.cornerRadius = 3
+        kindBadge.layer?.masksToBounds = true
+        kindBadge.setContentHuggingPriority(.required, for: .horizontal)
+        addSubview(kindBadge)
         
         // Detail (type info)
         detailField.translatesAutoresizingMaskIntoConstraints = false
-        detailField.font = .systemFont(ofSize: 11)
-        detailField.textColor = .secondaryLabelColor
+        detailField.font = .systemFont(ofSize: 10)
+        detailField.textColor = .tertiaryLabelColor
         detailField.alignment = .right
         detailField.lineBreakMode = .byTruncatingTail
         detailField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
@@ -334,10 +401,15 @@ private final class CompletionCellView: NSTableCellView {
             labelField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
             labelField.centerYAnchor.constraint(equalTo: centerYAnchor),
             
-            detailField.leadingAnchor.constraint(greaterThanOrEqualTo: labelField.trailingAnchor, constant: 8),
+            kindBadge.leadingAnchor.constraint(equalTo: labelField.trailingAnchor, constant: 6),
+            kindBadge.centerYAnchor.constraint(equalTo: centerYAnchor),
+            kindBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 28),
+            kindBadge.heightAnchor.constraint(equalToConstant: 14),
+            
+            detailField.leadingAnchor.constraint(greaterThanOrEqualTo: kindBadge.trailingAnchor, constant: 6),
             detailField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             detailField.centerYAnchor.constraint(equalTo: centerYAnchor),
-            detailField.widthAnchor.constraint(lessThanOrEqualToConstant: 120),
+            detailField.widthAnchor.constraint(lessThanOrEqualToConstant: 100),
         ])
     }
     
@@ -352,7 +424,35 @@ private final class CompletionCellView: NSTableCellView {
         // Label
         labelField.stringValue = item.label
         
-        // Detail
+        // Kind badge
+        kindBadge.stringValue = kindAbbreviation(for: item.kind)
+        kindBadge.layer?.backgroundColor = item.kind.iconColor.withAlphaComponent(0.8).cgColor
+        
+        // Detail (show type for columns, signature for functions)
         detailField.stringValue = item.detail ?? ""
+        
+        // Tooltip with full documentation
+        if let doc = item.documentation, !doc.isEmpty {
+            self.toolTip = doc
+        } else if let detail = item.detail {
+            self.toolTip = "\(item.label): \(detail)"
+        } else {
+            self.toolTip = item.label
+        }
+    }
+    
+    /// Get short abbreviation for kind badge
+    private func kindAbbreviation(for kind: SQLCompletionKind) -> String {
+        switch kind {
+        case .keyword: return "key"
+        case .table: return "tbl"
+        case .view: return "view"
+        case .column: return "col"
+        case .function: return "fn"
+        case .schema: return "db"
+        case .alias: return "as"
+        case .operator: return "op"
+        case .snippet: return "snip"
+        }
     }
 }
