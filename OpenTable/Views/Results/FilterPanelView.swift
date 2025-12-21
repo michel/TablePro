@@ -262,7 +262,10 @@ struct FilterRowView: View {
     let onRemove: () -> Void
     let onApply: () -> Void
     let onFocus: () -> Void
+    
+    @State private var isHovered: Bool = false
 
+    
     /// Display name for the column (handles raw SQL and empty)
     private var displayColumnName: String {
         if filter.columnName == TableFilter.rawSQLColumn {
@@ -271,6 +274,28 @@ struct FilterRowView: View {
             return "Column"
         } else {
             return filter.columnName
+        }
+    }
+    
+    /// Dynamic background color based on state
+    private var backgroundFillColor: Color {
+        if isFocused {
+            return Color.accentColor.opacity(0.06)
+        } else if isHovered {
+            return Color(nsColor: .controlBackgroundColor)
+        } else {
+            return Color.clear
+        }
+    }
+    
+    /// Dynamic border color based on state  
+    private var borderColor: Color {
+        if isFocused {
+            return Color.accentColor.opacity(0.3)
+        } else if isHovered {
+            return Color(nsColor: .separatorColor).opacity(0.5)
+        } else {
+            return Color.clear
         }
     }
 
@@ -303,10 +328,20 @@ struct FilterRowView: View {
         .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 4)
-                .fill(isFocused ? Color.accentColor.opacity(0.04) : Color.clear)
+                .fill(backgroundFillColor)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(borderColor, lineWidth: 1)
         )
         .contentShape(Rectangle())
         .onTapGesture { onFocus() }
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isFocused)
     }
 
     // MARK: - Column Menu

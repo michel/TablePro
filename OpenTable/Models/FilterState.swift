@@ -295,11 +295,20 @@ final class FilterStateManager: ObservableObject {
     }
     
     /// Get filters to use for preview/application
-    /// If any filters are selected, use only selected valid filters
+    /// If some (but not all) filters are selected, use only those
     /// Otherwise use all valid filters
     private func getFiltersForPreview() -> [TableFilter] {
-        let selectedFilters = filters.filter { $0.isSelected && $0.isValid }
-        return selectedFilters.isEmpty ? filters.filter { $0.isValid } : selectedFilters
+        let validFilters = filters.filter { $0.isValid }
+        let selectedValidFilters = filters.filter { $0.isSelected && $0.isValid }
+        
+        // If all valid filters are selected, or no filters are selected,
+        // treat it as "show all valid filters"
+        // Only use selective mode when SOME (but not all) are selected
+        if selectedValidFilters.count == validFilters.count || selectedValidFilters.isEmpty {
+            return validFilters
+        } else {
+            return selectedValidFilters
+        }
     }
 }
 
