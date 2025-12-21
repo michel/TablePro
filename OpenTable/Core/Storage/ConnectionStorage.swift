@@ -92,6 +92,44 @@ final class ConnectionStorage {
         deleteKeyPassphrase(for: connection.id)
     }
 
+    /// Duplicate a connection with a new UUID and "(Copy)" suffix
+    /// Copies all passwords from source connection to the duplicate
+    func duplicateConnection(_ connection: DatabaseConnection) -> DatabaseConnection {
+        let newId = UUID()
+
+        // Create duplicate with new ID and "(Copy)" suffix
+        let duplicate = DatabaseConnection(
+            id: newId,
+            name: "\(connection.name) (Copy)",
+            host: connection.host,
+            port: connection.port,
+            database: connection.database,
+            username: connection.username,
+            type: connection.type,
+            sshConfig: connection.sshConfig,
+            color: connection.color,
+            tagId: connection.tagId
+        )
+
+        // Save the duplicate connection
+        var connections = loadConnections()
+        connections.append(duplicate)
+        saveConnections(connections)
+
+        // Copy all passwords from source to duplicate
+        if let password = loadPassword(for: connection.id) {
+            savePassword(password, for: newId)
+        }
+        if let sshPassword = loadSSHPassword(for: connection.id) {
+            saveSSHPassword(sshPassword, for: newId)
+        }
+        if let keyPassphrase = loadKeyPassphrase(for: connection.id) {
+            saveKeyPassphrase(keyPassphrase, for: newId)
+        }
+
+        return duplicate
+    }
+
     // MARK: - Keychain (Password Storage)
 
     /// Save password to Keychain

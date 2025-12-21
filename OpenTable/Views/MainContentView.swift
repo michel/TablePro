@@ -744,6 +744,11 @@ struct MainContentView: View {
                         // Atomically replace the tab
                         tabManager.tabs[idx] = updatedTab
 
+                        // Force DataGridView to reload by incrementing version
+                        // This is needed because row count might stay same (LIMIT)
+                        // but actual data has changed after save/refresh
+                        changeManager.reloadVersion += 1
+
                         // IMPORTANT: We do NOT update changeManager here.
                         // After extensive debugging, updating changeManager from async
                         // Task completion causes EXC_BAD_ACCESS crashes during rapid navigation.
@@ -1099,7 +1104,11 @@ struct MainContentView: View {
                 // Small delay to ensure spinner shows and allow UI to update
                 try? await Task.sleep(nanoseconds: 10_000_000)  // 10ms
 
-                // Sorting happens automatically via sortedRows() on next render
+                // Force DataGridView to reload with sorted data
+                // This is needed because sortedRows() returns different order
+                // but row count stays the same
+                changeManager.reloadVersion += 1
+                
                 tabManager.tabs[tabIndex].isExecuting = false
             }
             return

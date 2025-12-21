@@ -204,6 +204,9 @@ struct WelcomeWindowView: View {
                         openWindow(id: "connection-form", value: connection.id as UUID?)
                         focusConnectionFormWindow()
                     },
+                    onDuplicate: {
+                        duplicateConnection(connection)
+                    },
                     onDelete: {
                         connectionToDelete = connection
                         showDeleteConfirmation = true
@@ -302,6 +305,18 @@ struct WelcomeWindowView: View {
         storage.saveConnections(connections)
     }
 
+    private func duplicateConnection(_ connection: DatabaseConnection) {
+        // Create duplicate with new UUID and copy passwords
+        let duplicate = storage.duplicateConnection(connection)
+
+        // Refresh connections list
+        loadConnections()
+
+        // Open edit form for the duplicate so user can rename
+        openWindow(id: "connection-form", value: duplicate.id as UUID?)
+        focusConnectionFormWindow()
+    }
+
     /// Focus the connection form window as soon as it's available
     private func focusConnectionFormWindow() {
         // Poll rapidly until window is found (much faster than fixed delay)
@@ -334,6 +349,7 @@ private struct ConnectionRow: View {
     let connection: DatabaseConnection
     var onConnect: (() -> Void)?
     var onEdit: (() -> Void)?
+    var onDuplicate: (() -> Void)?
     var onDelete: (() -> Void)?
 
     private var displayTag: ConnectionTag? {
@@ -386,16 +402,23 @@ private struct ConnectionRow: View {
                 }
                 Divider()
             }
-            
+
             if let onEdit = onEdit {
                 Button(action: onEdit) {
-                    Label("Edit Connection", systemImage: "pencil")
+                    Label("Edit", systemImage: "pencil")
                 }
             }
-            
+
+            if let onDuplicate = onDuplicate {
+                Button(action: onDuplicate) {
+                    Label("Duplicate", systemImage: "doc.on.doc")
+                }
+            }
+
             if let onDelete = onDelete {
+                Divider()
                 Button(role: .destructive, action: onDelete) {
-                    Label("Delete Connection", systemImage: "trash")
+                    Label("Delete", systemImage: "trash")
                 }
             }
         }

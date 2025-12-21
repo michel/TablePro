@@ -14,6 +14,19 @@ struct CellPosition: Equatable {
     let column: Int
 }
 
+// MARK: - Row Visual State Cache
+
+/// Cached visual state for a row - avoids repeated changeManager lookups during cell rendering
+/// Computed once per row, read by all cells in that row
+struct RowVisualState {
+    let isDeleted: Bool
+    let isInserted: Bool
+    let modifiedColumns: Set<Int>
+
+    /// Empty state for rows with no changes
+    static let empty = RowVisualState(isDeleted: false, isInserted: false, modifiedColumns: [])
+}
+
 /// High-performance table view using AppKit NSTableView
 /// Wrapped for SwiftUI via NSViewRepresentable
 struct DataGridView: NSViewRepresentable {
@@ -127,38 +140,22 @@ struct DataGridView: NSViewRepresentable {
             return
         }
 
-        // Check if data source changed or changes were cleared (after save)
+        // PERF: Version check for change tracking (increments on clear/save)
         let versionChanged = coordinator.lastReloadVersion != changeManager.reloadVersion
 
-        // Use cached values for comparison to avoid potential issues with deallocated provider
+        // PERF: Use cached values - avoids potential issues with deallocated provider
         let oldRowCount = coordinator.cachedRowCount
         let oldColumnCount = coordinator.cachedColumnCount
         let newRowCount = rowProvider.totalRowCount
         let newColumnCount = rowProvider.columns.count
 
-        // Check if row data changed (for sorting - same count but different order)
-        let rowDataChanged: Bool = {
-            if oldRowCount != newRowCount {
-                return true
-            }
-            // Only compare first row if counts match and both have data
-            if oldRowCount > 0 && newRowCount > 0 {
-                if let oldFirstRow = coordinator.rowProvider.row(at: 0),
-                    let newFirstRow = rowProvider.row(at: 0),
-                    oldFirstRow.values != newFirstRow.values
-                {
-                    return true
-                }
-            }
-            return false
-        }()
-
-
+        // PERF: Only reload on structural changes, NOT on sort
+        // Sorting changes row order but not count - NSTableView handles this internally
+        // Removed: rowDataChanged comparison that caused O(n) overhead per update
         let needsReload =
             oldRowCount != newRowCount
             || oldColumnCount != newColumnCount
             || versionChanged
-            || rowDataChanged
 
         // Update coordinator references (but not version tracker yet - see below)
         coordinator.rowProvider = rowProvider
@@ -171,6 +168,10 @@ struct DataGridView: NSViewRepresentable {
         coordinator.onSort = onSort
         coordinator.onAddRow = onAddRow
         coordinator.onUndoInsert = onUndoInsert
+
+        // PERF: Rebuild visual state cache once per update cycle
+        // Cells read from this cache instead of calling changeManager directly
+        coordinator.rebuildVisualStateCache()
 
         // Check if columns changed - compare actual column names, not just count
         let currentDataColumns = tableView.tableColumns.dropFirst() // Skip row number column
@@ -324,6 +325,19 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     private let rowNumberCellIdentifier = NSUserInterfaceItemIdentifier("RowNumberCell")
 
+    // MARK: - Row Visual State Cache
+    // Caches per-row visual state (deleted/inserted/modified) to avoid repeated changeManager lookups
+    // Rebuilt on each updateNSView cycle, read during cell rendering
+    private var rowVisualStateCache: [Int: RowVisualState] = [:]
+
+    /// Large dataset threshold - above this, disable expensive visual features
+    private let largeDatasetThreshold = 5000
+
+    /// Whether current dataset is "large" and should use simplified rendering
+    var isLargeDataset: Bool {
+        cachedRowCount > largeDatasetThreshold
+    }
+
     init(
         rowProvider: InMemoryRowProvider,
         changeManager: DataChangeManager,
@@ -348,6 +362,45 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     func updateCache() {
         cachedRowCount = rowProvider.totalRowCount
         cachedColumnCount = rowProvider.columns.count
+    }
+
+    // MARK: - Row Visual State Cache
+
+    /// Rebuild visual state cache from changeManager
+    /// Called once per updateNSView cycle - O(changes) not O(rows)
+    func rebuildVisualStateCache() {
+        rowVisualStateCache.removeAll(keepingCapacity: true)
+
+        // Skip cache building for large datasets with no changes
+        guard changeManager.hasChanges else { return }
+
+        // Build cache from changeManager's efficient O(1) lookups
+        // Only cache rows that have changes (sparse cache)
+        for change in changeManager.changes {
+            let rowIndex = change.rowIndex
+            let isDeleted = change.type == .delete
+            let isInserted = change.type == .insert
+            let modifiedColumns: Set<Int> = change.type == .update
+                ? Set(change.cellChanges.map { $0.columnIndex })
+                : []
+
+            rowVisualStateCache[rowIndex] = RowVisualState(
+                isDeleted: isDeleted,
+                isInserted: isInserted,
+                modifiedColumns: modifiedColumns
+            )
+        }
+    }
+
+    /// Get cached visual state for a row - O(1) dictionary lookup
+    /// Returns .empty for rows without changes (no cache entry)
+    func visualState(for row: Int) -> RowVisualState {
+        rowVisualStateCache[row] ?? .empty
+    }
+
+    /// Clear visual state cache (called when data changes significantly)
+    func clearVisualStateCache() {
+        rowVisualStateCache.removeAll()
     }
 
     /// Callback when column header clicked for sorting: (columnIndex, ascending)
@@ -461,7 +514,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     }
 
     private func makeRowNumberCell(tableView: NSTableView, row: Int) -> NSView {
-        // Use NSTableCellView for proper vertical centering (same as data cells)
+        // PERF: Reuse cell views, configure once
         let cellViewId = NSUserInterfaceItemIdentifier("RowNumberCellView")
         let cellView: NSTableCellView
         let cell: NSTextField
@@ -473,11 +526,10 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             cellView = reused
             cell = textField
         } else {
-            // Create container view for vertical centering
+            // PERF: Configure once - font, alignment, constraints
             cellView = NSTableCellView()
             cellView.identifier = cellViewId
 
-            // Create text field
             cell = NSTextField(labelWithString: "")
             cell.alignment = .right
             cell.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
@@ -487,7 +539,6 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             cellView.textField = cell
             cellView.addSubview(cell)
 
-            // Center text field vertically, stretch horizontally with padding
             NSLayoutConstraint.activate([
                 cell.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 4),
                 cell.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -4),
@@ -501,23 +552,22 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             return cellView
         }
 
+        // PERF: Update only text and color on reuse
         cell.stringValue = "\(row + 1)"
 
-        // Style deleted rows
-        if changeManager.isRowDeleted(row) {
-            cell.textColor = .systemRed.withAlphaComponent(0.5)
-        } else {
-            cell.textColor = .secondaryLabelColor
-        }
+        // PERF: Read from cached visual state instead of changeManager
+        let state = visualState(for: row)
+        cell.textColor = state.isDeleted ? .systemRed.withAlphaComponent(0.5) : .secondaryLabelColor
 
         return cellView
     }
 
     private func makeDataCell(tableView: NSTableView, row: Int, columnIndex: Int) -> NSView {
-        // Use NSTableCellView for proper vertical centering
+        // PERF: Reuse cells - only configure once, update text+background on reuse
         let cellViewId = NSUserInterfaceItemIdentifier("DataCellView")
         let cellView: NSTableCellView
         let cell: NSTextField
+        let isNewCell: Bool
 
         if let reused = tableView.makeView(withIdentifier: cellViewId, owner: nil)
             as? NSTableCellView,
@@ -525,15 +575,16 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         {
             cellView = reused
             cell = textField
+            isNewCell = false
         } else {
-            // Create container view for vertical centering
+            // PERF: Configure once - fonts, layers, constraints are set only on creation
             cellView = NSTableCellView()
             cellView.identifier = cellViewId
+            cellView.wantsLayer = true  // Set once, never toggle
 
-            // Create text field (custom class to handle context menu)
             cell = CellTextField()
             cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
-            cell.drawsBackground = true
+            cell.drawsBackground = false  // Set once - background via layer
             cell.isBordered = false
             cell.focusRingType = .none
             cell.lineBreakMode = .byTruncatingTail
@@ -542,123 +593,119 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
             cellView.textField = cell
             cellView.addSubview(cell)
-            cellView.wantsLayer = true
 
-            // Center text vertically and fill horizontally
+            // PERF: Constraints set once, never modified
             NSLayoutConstraint.activate([
                 cell.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 4),
                 cell.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -4),
                 cell.centerYAnchor.constraint(equalTo: cellView.centerYAnchor),
             ])
+            isNewCell = true
         }
 
-        // Always set editable state and delegate
+        // Set editable/delegate on reuse (cheap operations)
         cell.isEditable = isEditable
         cell.delegate = self
-        cell.identifier = cellIdentifier  // For editing callbacks
+        cell.identifier = cellIdentifier
 
-        // Boundary check - return empty cell if row is out of bounds
-        guard row >= 0 && row < cachedRowCount else {
+        // Boundary check - return empty cell if out of bounds
+        guard row >= 0 && row < cachedRowCount,
+              columnIndex >= 0 && columnIndex < cachedColumnCount,
+              let rowData = rowProvider.row(at: row)
+        else {
             cell.stringValue = ""
-            return cellView
-        }
-
-        // Get row data
-        guard let rowData = rowProvider.row(at: row) else {
-            cell.stringValue = ""
-            return cellView
-        }
-
-        // Boundary check for column
-        guard columnIndex >= 0 && columnIndex < cachedColumnCount else {
-            cell.stringValue = ""
+            cell.placeholderString = nil
+            cell.textColor = .labelColor
+            cellView.layer?.backgroundColor = nil
+            cellView.layer?.borderWidth = 0
             return cellView
         }
 
         let value = rowData.value(at: columnIndex)
-        
-        // CRITICAL: Defensive checks for changeManager access during scrolling
-        // After sorting large tables (25+ columns), changeManager might have stale data
-        // or be in an inconsistent state. Validate before accessing to prevent crashes.
-        let isDeleted: Bool
-        let isModified: Bool
-        let isInserted: Bool
-        
-        // Check against actual data bounds, not changes array size
-        if row >= 0 && row < cachedRowCount && columnIndex >= 0 && columnIndex < cachedColumnCount {
-            isDeleted = changeManager.isRowDeleted(row)
-            isInserted = changeManager.isRowInserted(row)
-            isModified = changeManager.isCellModified(rowIndex: row, columnIndex: columnIndex)
-        } else {
-            // Out of bounds - assume no changes
-            isDeleted = false
-            isInserted = false
-            isModified = false
-        }
 
-        // Configure cell appearance
-        // Reset placeholder first
+        // PERF: Read from cached visual state instead of changeManager
+        // visualState is computed once per updateNSView cycle, shared by all cells in row
+        let state = visualState(for: row)
+        let isDeleted = state.isDeleted
+        let isInserted = state.isInserted
+        let isModified = state.modifiedColumns.contains(columnIndex)
+
+        // PERF: Update text content (always needed on reuse)
         cell.placeholderString = nil
 
         if value == nil {
-            // Use placeholder for NULL so editing starts with empty field
             cell.stringValue = ""
-            cell.placeholderString = "NULL"
-            // Use secondaryLabelColor instead of tertiaryLabelColor for better contrast when selected
-            cell.textColor = .secondaryLabelColor
-            cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
+            // PERF: For large datasets, skip placeholder styling
+            if !isLargeDataset {
+                cell.placeholderString = "NULL"
+                cell.textColor = .secondaryLabelColor
+                if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
+                    cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
+                }
+            } else {
+                cell.textColor = .secondaryLabelColor
+            }
         } else if value == "__DEFAULT__" {
             cell.stringValue = ""
-            cell.placeholderString = "DEFAULT"
-            cell.textColor = .systemBlue
-            cell.font = .monospacedSystemFont(ofSize: 13, weight: .medium)
+            if !isLargeDataset {
+                cell.placeholderString = "DEFAULT"
+                cell.textColor = .systemBlue
+                cell.font = .monospacedSystemFont(ofSize: 13, weight: .medium)
+            } else {
+                cell.textColor = .systemBlue
+            }
         } else if value == "" {
-            // Use placeholder for empty string so it's visible
             cell.stringValue = ""
-            cell.placeholderString = "Empty"
-            // Use secondaryLabelColor for better contrast when selected
-            cell.textColor = .secondaryLabelColor
-            cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
+            if !isLargeDataset {
+                cell.placeholderString = "Empty"
+                cell.textColor = .secondaryLabelColor
+                if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
+                    cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
+                }
+            } else {
+                cell.textColor = .secondaryLabelColor
+            }
         } else {
             cell.stringValue = value ?? ""
             cell.textColor = .labelColor
-            cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+            // Only reset font if it was changed (avoid font allocation)
+            if cell.font?.fontDescriptor.symbolicTraits.contains(.italic) == true ||
+               cell.font?.fontDescriptor.symbolicTraits.contains(.bold) == true {
+                cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+            }
         }
 
-        // Modified cell background - apply to cellView for full coverage
-        cell.drawsBackground = false
-        cellView.wantsLayer = true
-        
-        // Row state takes precedence: deleted (red) > inserted (green) > modified cell (yellow)
+        // PERF: Update background color (priority: deleted > inserted > modified)
+        // For large datasets, skip modified cell highlighting
         if isDeleted {
             cellView.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.15).cgColor
         } else if isInserted {
             cellView.layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.15).cgColor
-        } else if isModified {
+        } else if isModified && !isLargeDataset {
             cellView.layer?.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.3).cgColor
         } else {
             cellView.layer?.backgroundColor = nil
         }
 
-        // Focus ring for keyboard navigation
-        // focusedColumn is the NSTableView column index (includes row number at 0)
-        // columnIndex is the data column index (0-based, no row number)
-        // So focusedColumn == columnIndex + 1
-        let tableColumnIndex = columnIndex + 1
-        let isFocused: Bool = {
-            guard let keyTableView = tableView as? KeyHandlingTableView,
-                  keyTableView.selectedRow == row,
-                  keyTableView.focusedColumn == tableColumnIndex
-            else { return false }
-            return true
-        }()
-
-        if isFocused {
-            cellView.layer?.borderWidth = 2
-            cellView.layer?.borderColor = NSColor.selectedControlColor.cgColor
-        } else {
+        // PERF: Focus ring - skip for large datasets
+        if isLargeDataset {
             cellView.layer?.borderWidth = 0
-            cellView.layer?.borderColor = nil
+        } else {
+            let tableColumnIndex = columnIndex + 1
+            let isFocused: Bool = {
+                guard let keyTableView = tableView as? KeyHandlingTableView,
+                      keyTableView.focusedRow == row,  // Use focusedRow, not selectedRow
+                      keyTableView.focusedColumn == tableColumnIndex
+                else { return false }
+                return true
+            }()
+
+            if isFocused {
+                cellView.layer?.borderWidth = 2
+                cellView.layer?.borderColor = NSColor.selectedControlColor.cgColor
+            } else {
+                cellView.layer?.borderWidth = 0
+            }
         }
 
         return cellView
@@ -682,6 +729,14 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         if newSelection != selectedRowIndices {
             DispatchQueue.main.async {
                 self.selectedRowIndices = newSelection
+            }
+        }
+        
+        // Clear focus if selection is empty
+        if let keyTableView = tableView as? KeyHandlingTableView {
+            if newSelection.isEmpty {
+                keyTableView.focusedRow = -1
+                keyTableView.focusedColumn = -1
             }
         }
     }
@@ -1244,28 +1299,43 @@ extension NSFont {
 final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
     weak var coordinator: TableViewCoordinator?
 
+    /// Currently focused row index (-1 = no focus)
+    /// Tracked separately from selectedRow to avoid async timing bugs
+    var focusedRow: Int = -1 {
+        didSet {
+            if oldValue != focusedRow && oldValue >= 0 {
+                // Clear focus border from old row
+                if focusedColumn >= 0 && focusedColumn < numberOfColumns && oldValue < numberOfRows {
+                    reloadData(forRowIndexes: IndexSet(integer: oldValue),
+                              columnIndexes: IndexSet(integer: focusedColumn))
+                }
+            }
+        }
+    }
+
     /// Currently focused column index (-1 = no focus, 0 = row number column)
     var focusedColumn: Int = -1 {
         didSet {
             if oldValue != focusedColumn {
-                // Reload affected columns to update focus ring
-                // NOTE: Must validate column index is within bounds to avoid crash
-                // Use DispatchQueue.main.async to avoid "Publishing changes from within view updates" warning
+                // Capture current focusedRow to avoid async timing bug
+                let rowToUpdate = focusedRow
                 DispatchQueue.main.async { [weak self] in
                     guard let self = self else { return }
-                    if oldValue >= 0 && oldValue < self.numberOfColumns && self.selectedRow >= 0 {
-                        self.reloadData(forRowIndexes: IndexSet(integer: self.selectedRow),
+                    // Clear old column's border using captured row
+                    if oldValue >= 0 && oldValue < self.numberOfColumns && rowToUpdate >= 0 && rowToUpdate < self.numberOfRows {
+                        self.reloadData(forRowIndexes: IndexSet(integer: rowToUpdate),
                                    columnIndexes: IndexSet(integer: oldValue))
                     }
-                    if self.focusedColumn >= 0 && self.focusedColumn < self.numberOfColumns && self.selectedRow >= 0 {
-                        self.reloadData(forRowIndexes: IndexSet(integer: self.selectedRow),
+                    // Draw new column's border using current focusedRow
+                    if self.focusedColumn >= 0 && self.focusedColumn < self.numberOfColumns && self.focusedRow >= 0 && self.focusedRow < self.numberOfRows {
+                        self.reloadData(forRowIndexes: IndexSet(integer: self.focusedRow),
                                    columnIndexes: IndexSet(integer: self.focusedColumn))
                     }
                 }
             }
         }
     }
-    
+
     /// Anchor row for Shift+Arrow range selection (-1 = no anchor)
     var selectionAnchor: Int = -1
     
@@ -1307,11 +1377,13 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
         // Skip row number column (not editable)
         let column = tableColumns[clickedColumn]
         if column.identifier.rawValue == "__rowNumber__" {
+            focusedRow = -1
             focusedColumn = -1
             return
         }
 
-        // Track focused column for keyboard navigation
+        // Track focused row and column for keyboard navigation
+        focusedRow = clickedRow
         focusedColumn = clickedColumn
 
         // Focus the cell without opening editor (select: false)
@@ -1418,6 +1490,7 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
             return
 
         case 53: // Escape - clear focus and selection
+            focusedRow = -1
             focusedColumn = -1
             NotificationCenter.default.post(name: .clearSelection, object: nil)
             return
@@ -1445,6 +1518,7 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
                 }
 
                 selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
+                focusedRow = nextRow  // Update focusedRow when moving to next cell
                 focusedColumn = nextColumn
                 scrollRowToVisible(nextRow)
                 scrollColumnToVisible(nextColumn)
@@ -1469,6 +1543,7 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
             let targetRow = numberOfRows - 1
             selectionAnchor = targetRow
             selectionPivot = targetRow
+            focusedRow = targetRow  // Track focused row
             selectRowIndexes(IndexSet(integer: targetRow), byExtendingSelection: false)
             scrollRowToVisible(targetRow)
             return
@@ -1497,6 +1572,7 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
             let targetRow = max(0, currentRow - 1)
             selectionAnchor = targetRow
             selectionPivot = targetRow
+            focusedRow = targetRow  // Track focused row
             selectRowIndexes(IndexSet(integer: targetRow), byExtendingSelection: false)
             scrollRowToVisible(targetRow)
         }
@@ -1510,6 +1586,7 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
             // No selection, select first row
             selectionAnchor = 0
             selectionPivot = 0
+            focusedRow = 0  // Track focused row
             selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
             scrollRowToVisible(0)
             return
@@ -1538,6 +1615,7 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
             let targetRow = min(numberOfRows - 1, currentRow + 1)
             selectionAnchor = targetRow
             selectionPivot = targetRow
+            focusedRow = targetRow  // Track focused row
             selectRowIndexes(IndexSet(integer: targetRow), byExtendingSelection: false)
             scrollRowToVisible(targetRow)
         }
