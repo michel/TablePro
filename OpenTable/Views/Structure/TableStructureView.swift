@@ -410,15 +410,12 @@ struct TableStructureView: View {
             case .foreignKeys:
                 foreignKeys = try await driver.fetchForeignKeys(table: tableName)
             case .ddl:
-                print("[DEBUG] Fetching DDL for table: \(tableName)")
                 ddlStatement = try await driver.fetchTableDDL(table: tableName)
-                print("[DEBUG] DDL fetched, length: \(ddlStatement.count)")
             }
             loadedTabs.insert(tab)
         } catch {
-            // Log error to console for debugging
-            print("[TableStructureView] Failed to load \(tab): \(error)")
-            print("[TableStructureView] Error details: \(error.localizedDescription)")
+            // Log errors for debugging
+            print("[TableStructureView] Failed to load \(tab): \(error.localizedDescription)")
         }
     }
 }
