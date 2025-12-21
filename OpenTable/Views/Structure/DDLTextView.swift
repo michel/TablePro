@@ -2,13 +2,13 @@
 //  DDLTextView.swift
 //  OpenTable
 //
-//  AppKit-based text view for displaying DDL with syntax highlighting and line numbers
+//  AppKit-based text view for displaying DDL with syntax highlighting
 //
 
 import SwiftUI
 import AppKit
 
-/// AppKit-based text view with SQL syntax highlighting and line numbers for DDL display
+/// AppKit-based text view with SQL syntax highlighting for DDL display
 struct DDLTextView: NSViewRepresentable {
     let ddl: String
     @Binding var fontSize: CGFloat
@@ -24,18 +24,23 @@ struct DDLTextView: NSViewRepresentable {
         textView.isEditable = false
         textView.isSelectable = true
         textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        textView.textContainerInset = NSSize(width: 16, height: 16) // Increased padding
+        textView.textContainerInset = NSSize(width: 50 + 16, height: 16) // Left padding for line numbers
         textView.backgroundColor = NSColor.textBackgroundColor
         textView.textColor = NSColor.labelColor
         
-        // Enable line wrapping
-        textView.textContainer?.widthTracksTextView = true
-        textView.isHorizontallyResizable = false
+        // Disable line wrapping for better code view
+        textView.textContainer?.widthTracksTextView = false
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.isHorizontallyResizable = true
+        textView.isVerticallyResizable = true
         
-        // Apply syntax highlighting FIRST
-        applySyntaxHighlighting(to: textView, ddl: ddl, fontSize: fontSize)
+        // Set text FIRST (most important!)
+        textView.string = ddl
         
-        // THEN add line numbers ruler (after text is set)
+        // THEN apply syntax highlighting
+        applySyntaxHighlighting(to: textView, fontSize: fontSize)
+        
+        // Finally add line numbers
         addLineNumbersRuler(to: scrollView, textView: textView)
         
         return scrollView
@@ -47,19 +52,22 @@ struct DDLTextView: NSViewRepresentable {
         // Update font size if changed
         if let currentFont = textView.font, currentFont.pointSize != fontSize {
             textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+            applySyntaxHighlighting(to: textView, fontSize: fontSize)
         }
         
-        // Only update if DDL changed
+        // Update text if changed
         if textView.string != ddl {
-            applySyntaxHighlighting(to: textView, ddl: ddl, fontSize: fontSize)
+            textView.string = ddl
+            applySyntaxHighlighting(to: textView, fontSize: fontSize)
+            
+            // Add line numbers if not present
+            if scrollView.verticalRulerView == nil {
+                addLineNumbersRuler(to: scrollView, textView: textView)
+            }
         }
         
-        // Refresh line numbers ruler after text is set
-        if scrollView.verticalRulerView == nil {
-            addLineNumbersRuler(to: scrollView, textView: textView)
-        } else {
-            scrollView.verticalRulerView?.needsDisplay = true
-        }
+        // Refresh line numbers
+        scrollView.verticalRulerView?.needsDisplay = true
     }
     
     /// Add line numbers ruler view to the scroll view
@@ -73,15 +81,16 @@ struct DDLTextView: NSViewRepresentable {
         scrollView.rulersVisible = true
     }
     
-    /// Apply SQL syntax highlighting to the text view
-    private func applySyntaxHighlighting(to textView: NSTextView, ddl: String, fontSize: CGFloat) {
-        let attributedString = NSMutableAttributedString(string: ddl)
-        let fullRange = NSRange(location: 0, length: attributedString.length)
+    /// Apply SQL syntax highlighting to the text view (on existing text)
+    private func applySyntaxHighlighting(to textView: NSTextView, fontSize: CGFloat) {
+        guard let textStorage = textView.textStorage else { return }
+        
+        let fullRange = NSRange(location: 0, length: textStorage.length)
         
         // Base font and color
         let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        attributedString.addAttribute(.font, value: font, range: fullRange)
-        attributedString.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
+        textStorage.addAttribute(.font, value: font, range: fullRange)
+        textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
         
         // Enhanced SQL Keywords with better dark mode colors
         let keywords = [
@@ -103,38 +112,35 @@ struct DDLTextView: NSViewRepresentable {
         let commentColor = NSColor(calibratedRed: 0.4, green: 0.8, blue: 0.4, alpha: 1.0) // Bright green
         
         for keyword in keywords {
-            highlightPattern("\\b\\(keyword)\\b", color: keywordColor, in: attributedString)
+            highlightPattern("\\b\\(keyword)\\b", color: keywordColor, in: textStorage)
         }
         
         // String literals
-        highlightPattern("'[^']*'", color: stringColor, in: attributedString)
-        highlightPattern("\"[^\"]*\"", color: stringColor, in: attributedString)
+        highlightPattern("'[^']*'", color: stringColor, in: textStorage)
+        highlightPattern("\"[^\"]*\"", color: stringColor, in: textStorage)
         
         // Backtick-quoted identifiers (MySQL style)
-        highlightPattern("`[^`]*`", color: NSColor.systemOrange, in: attributedString)
+        highlightPattern("`[^`]*`", color: NSColor.systemOrange, in: textStorage)
         
         // Numbers
-        highlightPattern("\\b\\d+\\b", color: numberColor, in: attributedString)
+        highlightPattern("\\b\\d+\\b", color: numberColor, in: textStorage)
         
         // Comments
-        highlightPattern("--[^\n]*", color: commentColor, in: attributedString)
-        highlightPattern("/\\*[^*]*\\*/", color: commentColor, in: attributedString)
-        
-        // Apply to text view
-        textView.textStorage?.setAttributedString(attributedString)
+        highlightPattern("--[^\n]*", color: commentColor, in: textStorage)
+        highlightPattern("/\\*[^*]*\\*/", color: commentColor, in: textStorage)
     }
     
     /// Highlight all matches of a regex pattern with the specified color
-    private func highlightPattern(_ pattern: String, color: NSColor, in attributedString: NSMutableAttributedString) {
+    private func highlightPattern(_ pattern: String, color: NSColor, in textStorage: NSTextStorage) {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
             return
         }
         
-        let range = NSRange(location: 0, length: attributedString.length)
-        let matches = regex.matches(in: attributedString.string, options: [], range: range)
+        let range = NSRange(location: 0, length: textStorage.length)
+        let matches = regex.matches(in: textStorage.string, options: [], range: range)
         
         for match in matches {
-            attributedString.addAttribute(.foregroundColor, value: color, range: match.range)
+            textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
         }
     }
 }
@@ -192,7 +198,7 @@ class LineNumberRulerView: NSRulerView {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .right
         
-        let attrs:        [NSAttributedString.Key: Any] = [
+        let attrs: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .regular),
             .foregroundColor: NSColor.secondaryLabelColor,
             .paragraphStyle: paragraphStyle
