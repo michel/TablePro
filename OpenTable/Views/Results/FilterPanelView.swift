@@ -20,6 +20,9 @@ struct FilterPanelView: View {
     @State private var showSQLSheet = false
     @State private var showSettingsPopover = false
     @State private var generatedSQL = ""
+    @State private var showSavePresetAlert = false
+    @State private var newPresetName = ""
+    @State private var savedPresets: [FilterPreset] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -71,6 +74,56 @@ struct FilterPanelView: View {
             }
 
             Spacer()
+            
+            // AND/OR Logic Toggle
+            Picker("", selection: $filterState.filterLogicMode) {
+                Text("AND").tag(FilterLogicMode.and)
+                Text("OR").tag(FilterLogicMode.or)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 80)
+            .help("Match ALL filters (AND) or ANY filter (OR)")
+            
+            // Presets Menu
+            Menu {
+                // Load preset section
+                if !savedPresets.isEmpty {
+                    ForEach(savedPresets) { preset in
+                        Button(preset.name) {
+                            filterState.loadPreset(preset)
+                        }
+                    }
+                    Divider()
+                }
+                
+                // Save current filters
+                Button("Save as Preset...") {
+                    newPresetName = ""
+                    showSavePresetAlert = true
+                }
+                .disabled(filterState.filters.isEmpty)
+                
+                // Delete presets
+                if !savedPresets.isEmpty {
+                    Menu("Delete Preset") {
+                        ForEach(savedPresets) { preset in
+                            Button(preset.name, role: .destructive) {
+                                filterState.deletePreset(preset)
+                                loadPresets()
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "folder")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Save and load filter presets")
+            .onAppear {
+                loadPresets()
+            }
 
             // Settings button (gear icon)
             Button(action: { showSettingsPopover.toggle() }) {
@@ -92,12 +145,26 @@ struct FilterPanelView: View {
                     .font(.system(size: 12))
             }
             .buttonStyle(.borderless)
-            .help("Add Filter")
+            .foregroundColor(.accentColor)
+            .help("Add Filter (Cmd+Shift+F)")
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
         .padding(.vertical, 6)
+        .background(Color(nsColor: .controlBackgroundColor))
         .contentShape(Rectangle())
         .onTapGesture { filterState.focusedFilterId = nil }
+        .alert("Save Filter Preset", isPresented: $showSavePresetAlert) {
+            TextField("Preset Name", text: $newPresetName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") {
+                if !newPresetName.isEmpty {
+                    filterState.saveAsPreset(name: newPresetName)
+                    loadPresets()
+                }
+            }
+        } message: {
+            Text("Enter a name for this filter preset")
+        }
     }
     
     // MARK: - Quick Search
@@ -248,6 +315,10 @@ struct FilterPanelView: View {
     private func applySelectedFilters() {
         filterState.applySelectedFilters()
         onApply(filterState.appliedFilters)
+    }
+    
+    private func loadPresets() {
+        savedPresets = filterState.loadAllPresets()
     }
 }
 
