@@ -75,6 +75,16 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 - [x] Function completion (50+ SQL functions)
 - [x] Keyboard navigation (↑↓↵Esc)
 - [x] Manual trigger (Ctrl+Space)
+- [x] Refactored with dedicated `CompletionEngine`
+- [x] Improved completion window controller
+
+### SQL Editor Improvements
+- [x] Line numbers with custom `LineNumberView`
+- [x] Enhanced syntax highlighting with `SyntaxHighlighter`
+- [x] Centralized editor coordination with `EditorCoordinator`
+- [x] Custom `EditorTextView` with integrated features
+- [x] Dedicated `SQLEditorTheme` for theming
+- [x] Improved autocomplete integration
 
 ### Data Export
 - [x] Export to CSV
@@ -137,16 +147,37 @@ A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL
 
 ## 🔮 Future Ideas
 
+### Query & Editor Enhancements
 - Query history with search
-- Column widths memory (per table)
-- ER diagram visualization
-- Data import from CSV/JSON
-- Stored procedure execution
 - Query explain/analyze
-- Redis / MongoDB support
+- Query snippets/templates
+- Multi-statement execution with batch results
+- Query bookmarks/favorites
+
+### Data Management
+- Data import from CSV/JSON
+- Bulk edit with formulas
+- Column widths memory (per table)
+- Filter presets and saved filters
+- Quick search across results
+
+### Schema & Structure
+- ER diagram visualization
+- CREATE TABLE statement preview
+- Table relationships graph
+
+### User Experience
 - Connection groups/folders
 - Dark mode theme customization
 - Favorite/pinned tables
-- Query snippets/templates
+- Custom keyboard shortcuts
+- Multi-window support
+
+### Advanced Features
+- Stored procedure execution
+- Database migration tools
+- SQL formatting/beautification
+- Column statistics and data profiling
+- Redis / MongoDB support
 
 ---
