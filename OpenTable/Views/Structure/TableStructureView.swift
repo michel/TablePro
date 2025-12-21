@@ -291,17 +291,11 @@ struct TableStructureView: View {
                 
                 // Action buttons
                 HStack(spacing: 8) {
-                    Button(action: selectAllDDL) {
-                        Label("Select All", systemImage: "selection.pin.in.out")
-                    }
-                    .buttonStyle(.bordered)
-                    .help("Select all text (⌘A)")
-                    
                     Button(action: copyDDL) {
                         Label("Copy", systemImage: "doc.on.doc")
                     }
                     .buttonStyle(.bordered)
-                    .help("Copy DDL to clipboard (⌘C)")
+                    .help("Copy DDL to clipboard")
                     
                     Button(action: exportDDL) {
                         Label("Export", systemImage: "square.and.arrow.down")
@@ -326,23 +320,6 @@ struct TableStructureView: View {
     }
     
     // MARK: - DDL Actions
-    
-    private func selectAllDDL() {
-        // This will allow the user to easily select all text via the button
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(ddlStatement, forType: .string)
-        
-        // Show feedback
-        withAnimation(.spring(duration: 0.3)) {
-            showCopyConfirmation = true
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(.spring(duration: 0.3)) {
-                showCopyConfirmation = false
-            }
-        }
-    }
     
     private func copyDDL() {
         let pasteboard = NSPasteboard.general
@@ -433,12 +410,15 @@ struct TableStructureView: View {
             case .foreignKeys:
                 foreignKeys = try await driver.fetchForeignKeys(table: tableName)
             case .ddl:
+                print("[DEBUG] Fetching DDL for table: \(tableName)")
                 ddlStatement = try await driver.fetchTableDDL(table: tableName)
+                print("[DEBUG] DDL fetched, length: \(ddlStatement.count)")
             }
             loadedTabs.insert(tab)
         } catch {
-            // Silently fail for secondary tabs to avoid blocking main UI
+            // Log error to console for debugging
             print("[TableStructureView] Failed to load \(tab): \(error)")
+            print("[TableStructureView] Error details: \(error.localizedDescription)")
         }
     }
 }
