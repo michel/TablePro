@@ -2,12 +2,22 @@
 //  FilterState.swift
 //  OpenTable
 //
-//  Observable state manager for filter panel
+//  Manages the state of the filter panel
 //
 
 import Combine
 import Foundation
 import SwiftUI
+
+/// Filter logic mode for combining multiple filters
+enum FilterLogicMode: String, Codable {
+    case and = "AND"
+    case or = "OR"
+    
+    var displayName: String {
+        rawValue
+    }
+}
 
 /// Observable state manager for filter panel
 @MainActor
@@ -17,9 +27,11 @@ final class FilterStateManager: ObservableObject {
     @Published var appliedFilters: [TableFilter] = []
     @Published var focusedFilterId: UUID?
     @Published var quickSearchText: String = ""
-
+    @Published var filterLogicMode: FilterLogicMode = .and  // AND or OR logic
+    
     /// Settings storage reference
     private let settingsStorage = FilterSettingsStorage.shared
+    private let presetStorage = FilterPresetStorage.shared
 
     // MARK: - Filter Management
 
@@ -268,6 +280,31 @@ final class FilterStateManager: ObservableObject {
         return filters.first { $0.id == id }
     }
     
+    // MARK: - Filter Presets
+    
+    /// Save current filters as a named preset
+    func saveAsPreset(name: String) {
+        let preset = FilterPreset(name: name, filters: filters)
+        presetStorage.savePreset(preset)
+    }
+    
+    /// Load filters from a preset
+    func loadPreset(_ preset: FilterPreset) {
+        filters = preset.filters
+        // Auto-focus first filter if available
+        focusedFilterId = filters.first?.id
+    }
+    
+    /// Get all saved presets
+    func loadAllPresets() -> [FilterPreset] {
+        presetStorage.loadAllPresets()
+    }
+    
+    /// Delete a preset
+    func deletePreset(_ preset: FilterPreset) {
+        presetStorage.deletePreset(preset)
+    }
+    
     // MARK: - Quick Search
     
     /// Clear quick search text
@@ -291,7 +328,7 @@ final class FilterStateManager: ObservableObject {
             }
         }
         
-        return generator.generateWhereClause(from: filtersToPreview)
+        return generator.generateWhereClause(from: filtersToPreview, logicMode: filterLogicMode)
     }
     
     /// Get filters to use for preview/application

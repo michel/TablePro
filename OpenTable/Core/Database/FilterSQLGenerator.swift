@@ -18,16 +18,18 @@ struct FilterSQLGenerator {
     // MARK: - Public API
 
     /// Generate a complete WHERE clause from filters
-    func generateWhereClause(from filters: [TableFilter]) -> String {
+    func generateWhereClause(from filters: [TableFilter], logicMode: FilterLogicMode = .and) -> String {
         let conditions = filters.compactMap { generateCondition(from: $0) }
         guard !conditions.isEmpty else { return "" }
-        return "WHERE " + conditions.joined(separator: " AND ")
+        let separator = logicMode == .and ? " AND " : " OR "
+        return "WHERE " + conditions.joined(separator: separator)
     }
 
     /// Generate just the conditions (without WHERE keyword)
-    func generateConditions(from filters: [TableFilter]) -> String {
+    func generateConditions(from filters: [TableFilter], logicMode: FilterLogicMode = .and) -> String {
         let conditions = filters.compactMap { generateCondition(from: $0) }
-        return conditions.joined(separator: " AND ")
+        let separator = logicMode == .and ? " AND " : " OR "
+        return conditions.joined(separator: separator)
     }
 
     /// Generate a single filter condition
