@@ -16,6 +16,7 @@ final class AppState: ObservableObject {
     @Published var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
     @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
     @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
+    @Published var isHistoryPanelVisible: Bool = false  // Global history panel visibility
 }
 
 // MARK: - App
@@ -136,6 +137,20 @@ struct OpenTableApp: App {
                 .keyboardShortcut("v", modifiers: .command)
                 
                 Button("Delete") {
+                    // Check if first responder is the history panel's table view
+                    // History panel uses responder chain for delete actions
+                    // Data grid uses notifications for batched undo support
+                    if let firstResponder = NSApp.keyWindow?.firstResponder {
+                        // Check class name to identify HistoryTableView
+                        let className = String(describing: type(of: firstResponder))
+                        if className.contains("HistoryTableView") {
+                            // Let history panel handle via responder chain
+                            NSApp.sendAction(#selector(NSText.delete(_:)), to: nil, from: nil)
+                            return
+                        }
+                    }
+                    
+                    // For data grid and other views, use notification for batched undo
                     NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
                 }
                 .keyboardShortcut(.delete, modifiers: .command)

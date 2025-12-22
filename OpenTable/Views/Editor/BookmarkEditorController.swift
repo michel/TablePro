@@ -43,8 +43,8 @@ final class BookmarkEditorController: NSViewController {
     // MARK: - Lifecycle
 
     override func loadView() {
-        // Create main container
-        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 450, height: 380))
+        // Create main container with better spacing
+        let contentView = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 360))
         contentView.translatesAutoresizingMaskIntoConstraints = false
 
         // Build form using NSGridView (native macOS form layout)
@@ -57,12 +57,12 @@ final class BookmarkEditorController: NSViewController {
         contentView.addSubview(buttonStack)
 
         NSLayoutConstraint.activate([
-            gridView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
-            gridView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            gridView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            gridView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 24),
+            gridView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 24),
+            gridView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
 
-            buttonStack.topAnchor.constraint(equalTo: gridView.bottomAnchor, constant: 20),
-            buttonStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            buttonStack.topAnchor.constraint(equalTo: gridView.bottomAnchor, constant: 24),
+            buttonStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
             buttonStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
         ])
 
@@ -73,7 +73,7 @@ final class BookmarkEditorController: NSViewController {
         super.viewDidLoad()
         title = isEditing ? "Edit Bookmark" : "New Bookmark"
         populateFields()
-        preferredContentSize = NSSize(width: 450, height: 400)
+        preferredContentSize = NSSize(width: 520, height: 380)
         
         // Add accessibility identifiers
         nameField.setAccessibilityIdentifier("bookmarkNameField")
@@ -91,23 +91,29 @@ final class BookmarkEditorController: NSViewController {
         // Name row
         let nameLabel = NSTextField(labelWithString: "Name:")
         nameLabel.alignment = .right
+        nameLabel.font = .systemFont(ofSize: 13)
         nameField = NSTextField()
         nameField.placeholderString = "Bookmark name"
+        nameField.font = .systemFont(ofSize: 13)
 
         // Query row
         let queryLabel = NSTextField(labelWithString: "Query:")
         queryLabel.alignment = .right
+        queryLabel.font = .systemFont(ofSize: 13)
         let queryScrollView = buildQueryScrollView()
 
         // Tags row
         let tagsLabel = NSTextField(labelWithString: "Tags:")
         tagsLabel.alignment = .right
+        tagsLabel.font = .systemFont(ofSize: 13)
         tagsField = NSTextField()
-        tagsField.placeholderString = "Optional, comma-separated"
+        tagsField.placeholderString = "e.g., reports, analytics, daily"
+        tagsField.font = .systemFont(ofSize: 13)
 
         // Notes row
         let notesLabel = NSTextField(labelWithString: "Notes:")
         notesLabel.alignment = .right
+        notesLabel.font = .systemFont(ofSize: 13)
         let notesScrollView = buildNotesScrollView()
 
         // Create grid
@@ -119,24 +125,24 @@ final class BookmarkEditorController: NSViewController {
         ])
 
         gridView.translatesAutoresizingMaskIntoConstraints = false
-        gridView.columnSpacing = 10
-        gridView.rowSpacing = 14
+        gridView.columnSpacing = 12
+        gridView.rowSpacing = 16
 
-        // Configure column widths (slightly wider for label column)
-        gridView.column(at: 0).width = 65
+        // Configure column widths - slightly wider label column
+        gridView.column(at: 0).width = 70
         gridView.column(at: 0).xPlacement = .trailing
 
-        // Configure row alignments
+        // Configure row alignments with better padding
         gridView.row(at: 0).topPadding = 0
-        gridView.row(at: 1).topPadding = 6
-        gridView.row(at: 2).topPadding = 6
-        gridView.row(at: 3).topPadding = 6
+        gridView.row(at: 1).topPadding = 8
+        gridView.row(at: 2).topPadding = 8
+        gridView.row(at: 3).topPadding = 8
 
         // Align labels to top for multi-line fields
         gridView.cell(atColumnIndex: 0, rowIndex: 1).yPlacement = .top
         gridView.cell(atColumnIndex: 0, rowIndex: 3).yPlacement = .top
 
-        // Set heights for scroll views with better proportions
+        // Set heights for scroll views
         queryScrollView.heightAnchor.constraint(equalToConstant: 90).isActive = true
         notesScrollView.heightAnchor.constraint(equalToConstant: 70).isActive = true
 
@@ -156,7 +162,7 @@ final class BookmarkEditorController: NSViewController {
         queryTextView.isSelectable = true
         queryTextView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         queryTextView.string = query
-        queryTextView.textContainerInset = NSSize(width: 6, height: 6)
+        queryTextView.textContainerInset = NSSize(width: 8, height: 8)
         queryTextView.isVerticallyResizable = true
         queryTextView.isHorizontallyResizable = false
         queryTextView.autoresizingMask = [.width]
@@ -180,7 +186,7 @@ final class BookmarkEditorController: NSViewController {
         notesTextView = NSTextView()
         notesTextView.isRichText = false
         notesTextView.font = .systemFont(ofSize: 13)
-        notesTextView.textContainerInset = NSSize(width: 6, height: 6)
+        notesTextView.textContainerInset = NSSize(width: 8, height: 8)
         notesTextView.isVerticallyResizable = true
         notesTextView.isHorizontallyResizable = false
         notesTextView.autoresizingMask = [.width]
@@ -194,11 +200,11 @@ final class BookmarkEditorController: NSViewController {
     private func buildButtonStack() -> NSStackView {
         let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancelAction))
         cancelButton.bezelStyle = .rounded
-        cancelButton.keyEquivalent = "\u{1b}"
+        cancelButton.keyEquivalent = "\u{1b}" // Escape
 
         let saveButton = NSButton(title: isEditing ? "Save" : "Save Bookmark", target: self, action: #selector(saveAction))
         saveButton.bezelStyle = .rounded
-        saveButton.keyEquivalent = "\r"
+        saveButton.keyEquivalent = "\r" // Return
 
         let stackView = NSStackView(views: [cancelButton, saveButton])
         stackView.orientation = .horizontal

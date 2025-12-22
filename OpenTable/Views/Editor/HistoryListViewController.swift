@@ -88,6 +88,10 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
     private var searchTask: DispatchWorkItem?
     private let searchDebounceInterval: TimeInterval = 0.15
+    
+    // Track pending deletion for smart selection
+    private var pendingDeletionRow: Int?
+    private var pendingDeletionCount: Int?
 
     // MARK: - UI Components
 
@@ -358,9 +362,14 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
         tableView.reloadData()
         updateEmptyState()
-
-        // Clear preview if no selection
-        if tableView.selectedRow < 0 {
+        
+        // Handle pending deletion selection
+        if let deletedRow = pendingDeletionRow, let countBefore = pendingDeletionCount {
+            selectRowAfterDeletion(deletedRow: deletedRow, countBefore: countBefore)
+            pendingDeletionRow = nil
+            pendingDeletionCount = nil
+        } else if tableView.selectedRow < 0 {
+            // Clear preview if no selection
             delegate?.historyListViewControllerDidClearSelection(self)
         }
     }
@@ -375,9 +384,14 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
         tableView.reloadData()
         updateEmptyState()
-
-        // Clear preview if no selection
-        if tableView.selectedRow < 0 {
+        
+        // Handle pending deletion selection
+        if let deletedRow = pendingDeletionRow, let countBefore = pendingDeletionCount {
+            selectRowAfterDeletion(deletedRow: deletedRow, countBefore: countBefore)
+            pendingDeletionRow = nil
+            pendingDeletionCount = nil
+        } else if tableView.selectedRow < 0 {
+            // Clear preview if no selection
             delegate?.historyListViewControllerDidClearSelection(self)
         }
     }
@@ -485,11 +499,12 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
     private func buildContextMenu(for row: Int) -> NSMenu {
         let menu = NSMenu()
 
-        let copyItem = NSMenuItem(title: "Copy Query", action: #selector(copyQuery(_:)), keyEquivalent: "")
+        let copyItem = NSMenuItem(title: "Copy Query", action: #selector(copyQuery(_:)), keyEquivalent: "c")
+        copyItem.keyEquivalentModifierMask = .command
         copyItem.tag = row
         menu.addItem(copyItem)
 
-        let runItem = NSMenuItem(title: "Run in New Tab", action: #selector(runInNewTab(_:)), keyEquivalent: "")
+        let runItem = NSMenuItem(title: "Run in New Tab", action: #selector(runInNewTab(_:)), keyEquivalent: "\r")
         runItem.tag = row
         menu.addItem(runItem)
 
@@ -501,14 +516,17 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             bookmarkItem.tag = row
             menu.addItem(bookmarkItem)
         case .bookmarks:
-            let editItem = NSMenuItem(title: "Edit Bookmark...", action: #selector(editBookmark(_:)), keyEquivalent: "")
+            let editItem = NSMenuItem(title: "Edit Bookmark...", action: #selector(editBookmark(_:)), keyEquivalent: "e")
+            editItem.keyEquivalentModifierMask = .command
             editItem.tag = row
             menu.addItem(editItem)
         }
 
         menu.addItem(NSMenuItem.separator())
 
-        let deleteItem = NSMenuItem(title: "Delete", action: #selector(deleteEntry(_:)), keyEquivalent: "")
+        let deleteItem = NSMenuItem(title: "Delete", action: #selector(deleteEntry(_:)), keyEquivalent: "\u{8}")
+        deleteItem.keyEquivalentModifierMask = []
+        deleteItem.tag = row
         menu.addItem(deleteItem)
 
         return menu
@@ -598,13 +616,11 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         guard row < bookmarks.count else { return }
         let bookmark = bookmarks[row]
 
-        let editor = BookmarkEditorController(
+        let editorView = BookmarkEditorView(
             bookmark: bookmark,
             query: bookmark.query,
             connectionId: bookmark.connectionId
-        )
-
-        editor.onSave = { [weak self] updatedBookmark in
+        ) { [weak self] updatedBookmark in
             let success = QueryHistoryManager.shared.updateBookmark(updatedBookmark)
             
             if success {
@@ -622,7 +638,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             }
         }
 
-        view.window?.contentViewController?.presentAsSheet(editor)
+        presentAsSheet(editorView)
     }
 
     @objc private func deleteEntry(_ sender: NSMenuItem) {
@@ -780,6 +796,11 @@ extension HistoryListViewController {
         deleteSelectedRow()
     }
     
+    /// Standard copy action for menu integration (Cmd+C)
+    @objc func copy(_ sender: Any?) {
+        copyQueryForSelectedRow()
+    }
+    
     /// Validate menu items
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(delete(_:)) {
@@ -787,7 +808,58 @@ extension HistoryListViewController {
             let hasItems = displayMode == .history ? historyEntries.count > 0 : bookmarks.count > 0
             return hasSelection && hasItems
         }
+        if menuItem.action == #selector(copy(_:)) {
+            return tableView.selectedRow >= 0
+        }
         return true
+    }
+    
+    // MARK: - Keyboard Actions
+    
+    /// Handle Return/Enter key - open selected item in new tab
+    func handleReturnKey() {
+        print("[HistoryPanel] handleReturnKey called")
+        runInNewTabForSelectedRow()
+    }
+    
+    /// Handle Space key - toggle preview (currently just copies to show it's working)
+    func handleSpaceKey() {
+        // TODO: Implement preview panel toggle
+        // For now, just show the query text in a temporary way
+        let row = tableView.selectedRow
+        guard row >= 0 else { return }
+        
+        let query: String
+        switch displayMode {
+        case .history:
+            guard row < historyEntries.count else { return }
+            query = historyEntries[row].query
+        case .bookmarks:
+            guard row < bookmarks.count else { return }
+            query = bookmarks[row].query
+        }
+        
+        print("[HistoryPanel] Preview query: \(query)")
+        // Preview panel will be implemented in a future update
+    }
+    
+    /// Handle Cmd+E - edit bookmark
+    func handleEditBookmark() {
+        guard displayMode == .bookmarks else { return }
+        editBookmarkForSelectedRow()
+    }
+    
+    /// Handle Escape key - clear search or selection
+    func handleEscapeKey() {
+        // If search field has text, clear it
+        if !searchText.isEmpty {
+            searchField.stringValue = ""
+            searchText = ""
+            searchField.window?.makeFirstResponder(tableView)
+        } else if tableView.selectedRow >= 0 {
+            // Otherwise clear selection
+            tableView.deselectAll(nil)
+        }
     }
     
     // MARK: - Keyboard Shortcut Helpers
@@ -795,6 +867,8 @@ extension HistoryListViewController {
     private func copyQueryForSelectedRow() {
         let row = tableView.selectedRow
         guard row >= 0 else { return }
+        
+        print("[HistoryPanel] copyQueryForSelectedRow called for row \(row)")
         
         let query: String
         switch displayMode {
@@ -808,25 +882,41 @@ extension HistoryListViewController {
         
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(query, forType: .string)
+        print("[HistoryPanel] Copied query to clipboard: \(query.prefix(50))...")
     }
     
     private func runInNewTabForSelectedRow() {
         let row = tableView.selectedRow
-        guard row >= 0 else { return }
+        guard row >= 0 else { 
+            print("[HistoryPanel] runInNewTabForSelectedRow: no row selected")
+            return 
+        }
+        
+        print("[HistoryPanel] runInNewTabForSelectedRow: row=\(row), mode=\(displayMode)")
         
         let query: String
         switch displayMode {
         case .history:
-            guard row < historyEntries.count else { return }
+            guard row < historyEntries.count else { 
+                print("[HistoryPanel] runInNewTabForSelectedRow: row out of bounds")
+                return 
+            }
             query = historyEntries[row].query
+            print("[HistoryPanel] Opening history query: \(query.prefix(50))...")
         case .bookmarks:
-            guard row < bookmarks.count else { return }
+            guard row < bookmarks.count else { 
+                print("[HistoryPanel] runInNewTabForSelectedRow: row out of bounds")
+                return 
+            }
             query = bookmarks[row].query
+            print("[HistoryPanel] Opening bookmark query: \(query.prefix(50))...")
             QueryHistoryManager.shared.markBookmarkUsed(id: bookmarks[row].id)
         }
         
+        print("[HistoryPanel] Posting .newTab notification")
         NotificationCenter.default.post(name: .newTab, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            print("[HistoryPanel] Posting loadQueryIntoEditor notification with query")
             NotificationCenter.default.post(
                 name: NSNotification.Name("loadQueryIntoEditor"),
                 object: nil,
@@ -840,13 +930,10 @@ extension HistoryListViewController {
         guard displayMode == .history, row >= 0, row < historyEntries.count else { return }
         
         let entry = historyEntries[row]
-        let editor = BookmarkEditorController(
-            bookmark: nil,
+        let editorView = BookmarkEditorView(
             query: entry.query,
             connectionId: entry.connectionId
-        )
-
-        editor.onSave = { [weak self] bookmark in
+        ) { [weak self] bookmark in
             let success = QueryHistoryManager.shared.saveBookmark(
                 name: bookmark.name,
                 query: bookmark.query,
@@ -870,7 +957,7 @@ extension HistoryListViewController {
             }
         }
 
-        view.window?.contentViewController?.presentAsSheet(editor)
+        presentAsSheet(editorView)
     }
     
     private func editBookmarkForSelectedRow() {
@@ -878,13 +965,11 @@ extension HistoryListViewController {
         guard displayMode == .bookmarks, row >= 0, row < bookmarks.count else { return }
         
         let bookmark = bookmarks[row]
-        let editor = BookmarkEditorController(
+        let editorView = BookmarkEditorView(
             bookmark: bookmark,
             query: bookmark.query,
             connectionId: bookmark.connectionId
-        )
-
-        editor.onSave = { [weak self] updatedBookmark in
+        ) { [weak self] updatedBookmark in
             let success = QueryHistoryManager.shared.updateBookmark(updatedBookmark)
             
             if success {
@@ -902,7 +987,7 @@ extension HistoryListViewController {
             }
         }
 
-        view.window?.contentViewController?.presentAsSheet(editor)
+        presentAsSheet(editorView)
     }
     
     func deleteSelectedRow() {
@@ -911,25 +996,79 @@ extension HistoryListViewController {
         
         print("[HistoryPanel] Deleting row \(row) in \(displayMode == .history ? "history" : "bookmarks") mode")
         
+        // Store the count before deletion and row for smart selection
+        let countBeforeDeletion: Int
+        switch displayMode {
+        case .history:
+            countBeforeDeletion = historyEntries.count
+        case .bookmarks:
+            countBeforeDeletion = bookmarks.count
+        }
+        
+        // Store for selection after reload
+        pendingDeletionRow = row
+        pendingDeletionCount = countBeforeDeletion
+        
+        // Perform deletion
         switch displayMode {
         case .history:
             guard row < historyEntries.count else { return }
             let entryId = historyEntries[row].id
             print("[HistoryPanel] Deleting history entry: \(entryId)")
             QueryHistoryManager.shared.deleteHistory(id: entryId)
+            // Selection will happen in loadHistory() after notification
+            
         case .bookmarks:
             guard row < bookmarks.count else { return }
             let bookmarkId = bookmarks[row].id
             let bookmarkName = bookmarks[row].name
             print("[HistoryPanel] Deleting bookmark: \(bookmarkName) (ID: \(bookmarkId))")
-            let success = QueryHistoryManager.shared.deleteBookmark(id: bookmarkId)
-            print("[HistoryPanel] Delete bookmark result: \(success)")
-            
-            // Force UI refresh if notification doesn't trigger
-            if success {
-                DispatchQueue.main.async { [weak self] in
-                    self?.loadBookmarks()
-                }
+            QueryHistoryManager.shared.deleteBookmark(id: bookmarkId)
+            // Selection will happen in loadBookmarks() if notification triggers,
+            // otherwise do it manually
+        }
+    }
+    
+    /// Select an appropriate row after deletion
+    /// Selects the next row, or the previous row if the last item was deleted
+    private func selectRowAfterDeletion(deletedRow: Int, countBefore: Int) {
+        let currentCount: Int
+        switch displayMode {
+        case .history:
+            currentCount = historyEntries.count
+        case .bookmarks:
+            currentCount = bookmarks.count
+        }
+        
+        // If list is now empty, clear selection and delegate
+        guard currentCount > 0 else {
+            tableView.deselectAll(nil)
+            delegate?.historyListViewControllerDidClearSelection(self)
+            return
+        }
+        
+        // Select next item if available, otherwise select previous
+        let newSelection: Int
+        if deletedRow < currentCount {
+            // Next item moved into this position
+            newSelection = deletedRow
+        } else {
+            // Deleted last item, select new last item
+            newSelection = currentCount - 1
+        }
+        
+        tableView.selectRowIndexes(IndexSet(integer: newSelection), byExtendingSelection: false)
+        tableView.scrollRowToVisible(newSelection)
+        
+        // Notify delegate of new selection
+        switch displayMode {
+        case .history:
+            if newSelection < historyEntries.count {
+                delegate?.historyListViewController(self, didSelectHistoryEntry: historyEntries[newSelection])
+            }
+        case .bookmarks:
+            if newSelection < bookmarks.count {
+                delegate?.historyListViewController(self, didSelectBookmark: bookmarks[newSelection])
             }
         }
     }
@@ -1096,8 +1235,9 @@ private class HistoryTableView: NSTableView, NSMenuItemValidation {
     }
     
     override func mouseDown(with event: NSEvent) {
-        window?.makeFirstResponder(self)
         super.mouseDown(with: event)
+        // Ensure we become first responder for keyboard shortcuts
+        window?.makeFirstResponder(self)
     }
     
     // MARK: - Standard Responder Actions
@@ -1106,23 +1246,62 @@ private class HistoryTableView: NSTableView, NSMenuItemValidation {
         keyboardDelegate?.deleteSelectedRow()
     }
     
+    @objc func copy(_ sender: Any?) {
+        print("[HistoryTableView] copy action called")
+        keyboardDelegate?.copy(sender)
+    }
+    
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(delete(_:)) {
             return keyboardDelegate?.validateMenuItem(menuItem) ?? false
         }
+        if menuItem.action == #selector(copy(_:)) {
+            return selectedRow >= 0
+        }
         return false
     }
     
-    // MARK: - Key Down for Delete key only
+    // MARK: - Keyboard Event Handling
     
     override func keyDown(with event: NSEvent) {
-        // Handle bare Delete key (not Cmd+Delete which goes through menu)
-        if event.keyCode == 51 && event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        
+        // Return/Enter key - open in new tab
+        if (event.keyCode == 36 || event.keyCode == 76) && modifiers.isEmpty {
+            if selectedRow >= 0 {
+                keyboardDelegate?.handleReturnKey()
+                return
+            }
+        }
+        
+        // Space key - toggle preview
+        if event.keyCode == 49 && modifiers.isEmpty {
+            if selectedRow >= 0 {
+                keyboardDelegate?.handleSpaceKey()
+                return
+            }
+        }
+        
+        // Cmd+E - edit bookmark
+        if event.keyCode == 14 && modifiers == .command {
+            keyboardDelegate?.handleEditBookmark()
+            return
+        }
+        
+        // Escape key - clear search or selection
+        if event.keyCode == 53 && modifiers.isEmpty {
+            keyboardDelegate?.handleEscapeKey()
+            return
+        }
+        
+        // Delete key (bare, not Cmd+Delete which goes through menu)
+        if event.keyCode == 51 && modifiers.isEmpty {
             if selectedRow >= 0 {
                 keyboardDelegate?.handleDeleteKey()
                 return
             }
         }
+        
         super.keyDown(with: event)
     }
 }
