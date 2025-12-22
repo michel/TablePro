@@ -12,6 +12,7 @@ import Foundation
 extension Notification.Name {
     static let queryHistoryDidUpdate = Notification.Name("queryHistoryDidUpdate")
     static let queryBookmarksDidUpdate = Notification.Name("queryBookmarksDidUpdate")
+    static let loadQueryIntoEditor = Notification.Name("loadQueryIntoEditor")
 }
 
 /// Thread-safe manager for query history and bookmarks

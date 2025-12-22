@@ -422,7 +422,7 @@ final class QueryPreviewViewController: NSViewController {
         guard !query.isEmpty else { return }
 
         NotificationCenter.default.post(
-            name: NSNotification.Name("loadQueryIntoEditor"),
+            name: .loadQueryIntoEditor,
             object: nil,
             userInfo: ["query": query]
         )

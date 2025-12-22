@@ -140,7 +140,7 @@ extension HistoryPanelController: HistoryListViewControllerDelegate {
 
     private func loadQueryIntoEditor(_ query: String) {
         NotificationCenter.default.post(
-            name: NSNotification.Name("loadQueryIntoEditor"),
+            name: .loadQueryIntoEditor,
             object: nil,
             userInfo: ["query": query]
         )

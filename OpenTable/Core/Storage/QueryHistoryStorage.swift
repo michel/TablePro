@@ -200,7 +200,6 @@ final class QueryHistoryStorage {
 
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(self.db, sql, -1, &statement, nil) == SQLITE_OK else {
-                print("[QueryHistory] Failed to prepare INSERT statement")
                 DispatchQueue.main.async { completion?(false) }
                 return
             }
@@ -228,12 +227,7 @@ final class QueryHistoryStorage {
             let result = sqlite3_step(statement)
             let success = result == SQLITE_DONE
 
-            if !success {
-                let errorMsg = String(cString: sqlite3_errmsg(self.db))
-                print("[QueryHistory] INSERT failed: \(errorMsg)")
-            } else {
-                print("[QueryHistory] Successfully recorded query")
-            }
+            // Silently handle errors - logging can be added via proper logging framework if needed
 
             DispatchQueue.main.async { completion?(success) }
         }
@@ -250,37 +244,52 @@ final class QueryHistoryStorage {
         return queue.sync {
             var entries: [QueryHistoryEntry] = []
             
-            // Build query
-            var sql = "SELECT id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message FROM history"
-            var whereClauses: [String] = []
-            
-            if let connectionId = connectionId {
-                whereClauses.append("connection_id = '\(connectionId.uuidString)'")
-            }
-            
-            if let startDate = dateFilter.startDate {
-                whereClauses.append("executed_at >= \(startDate.timeIntervalSince1970)")
-            }
+            // Build query with placeholders
+            var sql: String
+            var bindIndex: Int32 = 1
+            var hasConnectionFilter = false
+            var hasDateFilter = false
             
             // Use FTS5 for full-text search if search text provided
             if let searchText = searchText, !searchText.isEmpty {
-                let ftsQuery = searchText.replacingOccurrences(of: "'", with: "''")
                 sql = """
                 SELECT h.id, h.query, h.connection_id, h.database_name, h.executed_at, h.execution_time, h.row_count, h.was_successful, h.error_message
                 FROM history h
                 INNER JOIN history_fts ON h.rowid = history_fts.rowid
-                WHERE history_fts MATCH '\(ftsQuery)'
+                WHERE history_fts MATCH ?
                 """
                 
-                // Add other where clauses if needed
-                if !whereClauses.isEmpty {
-                    sql += " AND " + whereClauses.joined(separator: " AND ")
+                // Add additional filters
+                if connectionId != nil {
+                    sql += " AND h.connection_id = ?"
+                    hasConnectionFilter = true
                 }
-            } else if !whereClauses.isEmpty {
-                sql += " WHERE " + whereClauses.joined(separator: " AND ")
+                
+                if dateFilter.startDate != nil {
+                    sql += " AND h.executed_at >= ?"
+                    hasDateFilter = true
+                }
+            } else {
+                sql = "SELECT id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message FROM history"
+                
+                var whereClauses: [String] = []
+                
+                if connectionId != nil {
+                    whereClauses.append("connection_id = ?")
+                    hasConnectionFilter = true
+                }
+                
+                if dateFilter.startDate != nil {
+                    whereClauses.append("executed_at >= ?")
+                    hasDateFilter = true
+                }
+                
+                if !whereClauses.isEmpty {
+                    sql += " WHERE " + whereClauses.joined(separator: " AND ")
+                }
             }
             
-            sql += " ORDER BY executed_at DESC LIMIT \(limit) OFFSET \(offset);"
+            sql += " ORDER BY executed_at DESC LIMIT ? OFFSET ?;"
             
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
@@ -288,6 +297,28 @@ final class QueryHistoryStorage {
             }
             
             defer { sqlite3_finalize(statement) }
+            
+            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+            
+            // Bind parameters in order
+            if let searchText = searchText, !searchText.isEmpty {
+                sqlite3_bind_text(statement, bindIndex, searchText, -1, SQLITE_TRANSIENT)
+                bindIndex += 1
+            }
+            
+            if let connectionId = connectionId, hasConnectionFilter {
+                sqlite3_bind_text(statement, bindIndex, connectionId.uuidString, -1, SQLITE_TRANSIENT)
+                bindIndex += 1
+            }
+            
+            if let startDate = dateFilter.startDate, hasDateFilter {
+                sqlite3_bind_double(statement, bindIndex, startDate.timeIntervalSince1970)
+                bindIndex += 1
+            }
+            
+            sqlite3_bind_int(statement, bindIndex, Int32(limit))
+            bindIndex += 1
+            sqlite3_bind_int(statement, bindIndex, Int32(offset))
             
             while sqlite3_step(statement) == SQLITE_ROW {
                 if let entry = parseHistoryEntry(from: statement) {
@@ -358,8 +389,6 @@ final class QueryHistoryStorage {
             
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[QueryHistoryStorage] Failed to prepare bookmark INSERT: \(errorMsg)")
                 return false
             }
             
@@ -401,12 +430,7 @@ final class QueryHistoryStorage {
             let result = sqlite3_step(statement)
             let success = result == SQLITE_DONE
             
-            if !success {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[QueryHistoryStorage] Bookmark INSERT failed: \(errorMsg)")
-            } else {
-                print("[QueryHistoryStorage] Successfully saved bookmark: \(nameString)")
-            }
+            // Silently handle errors
             
             return success
         }
@@ -432,8 +456,6 @@ final class QueryHistoryStorage {
             
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[QueryHistoryStorage] Failed to prepare bookmark UPDATE: \(errorMsg)")
                 return false
             }
             
@@ -474,12 +496,7 @@ final class QueryHistoryStorage {
             let result = sqlite3_step(statement)
             let success = result == SQLITE_DONE
             
-            if !success {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[QueryHistoryStorage] Bookmark UPDATE failed: \(errorMsg)")
-            } else {
-                print("[QueryHistoryStorage] Successfully updated bookmark: \(nameString)")
-            }
+            // Silently handle errors
             
             return success
         }
@@ -492,15 +509,18 @@ final class QueryHistoryStorage {
             
             var sql = "SELECT id, name, query, connection_id, tags, created_at, last_used_at, notes FROM bookmarks"
             var whereClauses: [String] = []
+            var bindIndex: Int32 = 1
+            var hasSearchFilter = false
+            var hasTagFilter = false
             
             if let searchText = searchText, !searchText.isEmpty {
-                let escaped = searchText.replacingOccurrences(of: "'", with: "''")
-                whereClauses.append("(name LIKE '%\(escaped)%' OR query LIKE '%\(escaped)%')")
+                whereClauses.append("(name LIKE ? OR query LIKE ?)")
+                hasSearchFilter = true
             }
             
             if let tag = tag, !tag.isEmpty {
-                let escaped = tag.replacingOccurrences(of: "'", with: "''")
-                whereClauses.append("tags LIKE '%\(escaped)%'")
+                whereClauses.append("tags LIKE ?")
+                hasTagFilter = true
             }
             
             if !whereClauses.isEmpty {
@@ -515,6 +535,22 @@ final class QueryHistoryStorage {
             }
             
             defer { sqlite3_finalize(statement) }
+            
+            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+            
+            // Bind parameters in order
+            if let searchText = searchText, !searchText.isEmpty, hasSearchFilter {
+                let searchPattern = "%\(searchText)%"
+                sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
+                bindIndex += 1
+                sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
+                bindIndex += 1
+            }
+            
+            if let tag = tag, !tag.isEmpty, hasTagFilter {
+                let tagPattern = "%\(tag)%"
+                sqlite3_bind_text(statement, bindIndex, tagPattern, -1, SQLITE_TRANSIENT)
+            }
             
             while sqlite3_step(statement) == SQLITE_ROW {
                 if let bookmark = parseBookmark(from: statement) {
@@ -534,8 +570,6 @@ final class QueryHistoryStorage {
             let sql = "DELETE FROM bookmarks WHERE id = ?;"
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[QueryHistoryStorage] Failed to prepare DELETE bookmark: \(errorMsg)")
                 return false
             }
             
@@ -547,16 +581,7 @@ final class QueryHistoryStorage {
             let result = sqlite3_step(statement)
             let success = result == SQLITE_DONE
             
-            if success {
-                let changes = sqlite3_changes(db)
-                print("[QueryHistoryStorage] Deleted bookmark \(idString), rows affected: \(changes)")
-                if changes == 0 {
-                    print("[QueryHistoryStorage] WARNING: Delete succeeded but no rows were affected!")
-                }
-            } else {
-                let errorMsg = String(cString: sqlite3_errmsg(db))
-                print("[QueryHistoryStorage] Failed to DELETE bookmark: \(errorMsg), result: \(result)")
-            }
+            // Silently handle success/failure
             
             return success
         }

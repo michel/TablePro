@@ -358,7 +358,6 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             dateFilter: dateFilter.toDateFilter
         )
 
-        print("[HistoryPanel] Loaded \(historyEntries.count) history entries")
 
         tableView.reloadData()
         updateEmptyState()
@@ -380,7 +379,6 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             tag: nil
         )
 
-        print("[HistoryPanel] Loaded \(bookmarks.count) bookmarks")
 
         tableView.reloadData()
         updateEmptyState()
@@ -440,14 +438,12 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
     }
 
     @objc private func historyDidUpdate() {
-        print("[HistoryPanel] Received historyDidUpdate notification")
         if displayMode == .history {
             loadData()
         }
     }
 
     @objc private func bookmarksDidUpdate() {
-        print("[HistoryPanel] Received bookmarksDidUpdate notification")
         if displayMode == .bookmarks {
             loadData()
         }
@@ -566,7 +562,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         NotificationCenter.default.post(name: .newTab, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(
-                name: NSNotification.Name("loadQueryIntoEditor"),
+                name: .loadQueryIntoEditor,
                 object: nil,
                 userInfo: ["query": query]
             )
@@ -594,9 +590,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             )
             
             if success {
-                print("[HistoryPanel] Successfully saved bookmark: \(bookmark.name)")
             } else {
-                print("[HistoryPanel] Failed to save bookmark: \(bookmark.name)")
                 DispatchQueue.main.async {
                     let alert = NSAlert()
                     alert.messageText = "Failed to Save Bookmark"
@@ -624,9 +618,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             let success = QueryHistoryManager.shared.updateBookmark(updatedBookmark)
             
             if success {
-                print("[HistoryPanel] Successfully updated bookmark: \(updatedBookmark.name)")
             } else {
-                print("[HistoryPanel] Failed to update bookmark: \(updatedBookmark.name)")
                 DispatchQueue.main.async {
                     let alert = NSAlert()
                     alert.messageText = "Failed to Update Bookmark"
@@ -792,7 +784,6 @@ extension HistoryListViewController {
     
     /// Standard delete action for menu integration
     @objc func delete(_ sender: Any?) {
-        print("[HistoryPanel] delete: action called")
         deleteSelectedRow()
     }
     
@@ -818,7 +809,6 @@ extension HistoryListViewController {
     
     /// Handle Return/Enter key - open selected item in new tab
     func handleReturnKey() {
-        print("[HistoryPanel] handleReturnKey called")
         runInNewTabForSelectedRow()
     }
     
@@ -839,7 +829,6 @@ extension HistoryListViewController {
             query = bookmarks[row].query
         }
         
-        print("[HistoryPanel] Preview query: \(query)")
         // Preview panel will be implemented in a future update
     }
     
@@ -868,7 +857,6 @@ extension HistoryListViewController {
         let row = tableView.selectedRow
         guard row >= 0 else { return }
         
-        print("[HistoryPanel] copyQueryForSelectedRow called for row \(row)")
         
         let query: String
         switch displayMode {
@@ -882,43 +870,34 @@ extension HistoryListViewController {
         
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(query, forType: .string)
-        print("[HistoryPanel] Copied query to clipboard: \(query.prefix(50))...")
     }
     
     private func runInNewTabForSelectedRow() {
         let row = tableView.selectedRow
         guard row >= 0 else { 
-            print("[HistoryPanel] runInNewTabForSelectedRow: no row selected")
             return 
         }
         
-        print("[HistoryPanel] runInNewTabForSelectedRow: row=\(row), mode=\(displayMode)")
         
         let query: String
         switch displayMode {
         case .history:
             guard row < historyEntries.count else { 
-                print("[HistoryPanel] runInNewTabForSelectedRow: row out of bounds")
                 return 
             }
             query = historyEntries[row].query
-            print("[HistoryPanel] Opening history query: \(query.prefix(50))...")
         case .bookmarks:
             guard row < bookmarks.count else { 
-                print("[HistoryPanel] runInNewTabForSelectedRow: row out of bounds")
                 return 
             }
             query = bookmarks[row].query
-            print("[HistoryPanel] Opening bookmark query: \(query.prefix(50))...")
             QueryHistoryManager.shared.markBookmarkUsed(id: bookmarks[row].id)
         }
         
-        print("[HistoryPanel] Posting .newTab notification")
         NotificationCenter.default.post(name: .newTab, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            print("[HistoryPanel] Posting loadQueryIntoEditor notification with query")
             NotificationCenter.default.post(
-                name: NSNotification.Name("loadQueryIntoEditor"),
+                name: .loadQueryIntoEditor,
                 object: nil,
                 userInfo: ["query": query]
             )
@@ -943,9 +922,7 @@ extension HistoryListViewController {
             )
             
             if success {
-                print("[HistoryPanel] Successfully saved bookmark: \(bookmark.name)")
             } else {
-                print("[HistoryPanel] Failed to save bookmark: \(bookmark.name)")
                 DispatchQueue.main.async {
                     let alert = NSAlert()
                     alert.messageText = "Failed to Save Bookmark"
@@ -973,9 +950,7 @@ extension HistoryListViewController {
             let success = QueryHistoryManager.shared.updateBookmark(updatedBookmark)
             
             if success {
-                print("[HistoryPanel] Successfully updated bookmark: \(updatedBookmark.name)")
             } else {
-                print("[HistoryPanel] Failed to update bookmark: \(updatedBookmark.name)")
                 DispatchQueue.main.async {
                     let alert = NSAlert()
                     alert.messageText = "Failed to Update Bookmark"
@@ -994,7 +969,6 @@ extension HistoryListViewController {
         let row = tableView.selectedRow
         guard row >= 0 else { return }
         
-        print("[HistoryPanel] Deleting row \(row) in \(displayMode == .history ? "history" : "bookmarks") mode")
         
         // Store the count before deletion and row for smart selection
         let countBeforeDeletion: Int
@@ -1014,7 +988,6 @@ extension HistoryListViewController {
         case .history:
             guard row < historyEntries.count else { return }
             let entryId = historyEntries[row].id
-            print("[HistoryPanel] Deleting history entry: \(entryId)")
             QueryHistoryManager.shared.deleteHistory(id: entryId)
             // Selection will happen in loadHistory() after notification
             
@@ -1022,7 +995,6 @@ extension HistoryListViewController {
             guard row < bookmarks.count else { return }
             let bookmarkId = bookmarks[row].id
             let bookmarkName = bookmarks[row].name
-            print("[HistoryPanel] Deleting bookmark: \(bookmarkName) (ID: \(bookmarkId))")
             QueryHistoryManager.shared.deleteBookmark(id: bookmarkId)
             // Selection will happen in loadBookmarks() if notification triggers,
             // otherwise do it manually
@@ -1247,7 +1219,6 @@ private class HistoryTableView: NSTableView, NSMenuItemValidation {
     }
     
     @objc func copy(_ sender: Any?) {
-        print("[HistoryTableView] copy action called")
         keyboardDelegate?.copy(sender)
     }
     
