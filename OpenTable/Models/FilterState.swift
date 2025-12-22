@@ -66,6 +66,29 @@ final class FilterStateManager: ObservableObject {
         focusedFilterId = newFilter.id
     }
 
+    /// Add a new filter with a specific column pre-selected (for context menu "Filter with column")
+    func addFilterForColumn(_ columnName: String) {
+        let settings = settingsStorage.loadSettings()
+        var newFilter = TableFilter()
+        
+        // Set the specified column
+        newFilter.columnName = columnName
+        
+        // Apply default operator setting
+        newFilter.filterOperator = settings.defaultOperator.toFilterOperator()
+        
+        // New filters should be selected by default for "Apply All"
+        newFilter.isSelected = true
+        
+        filters.append(newFilter)
+        focusedFilterId = newFilter.id
+        
+        // Show panel if hidden
+        if !isVisible {
+            show()
+        }
+    }
+
     /// Duplicate a filter
     func duplicateFilter(_ filter: TableFilter) {
         var copy = filter

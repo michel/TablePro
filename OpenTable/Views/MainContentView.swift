@@ -437,6 +437,9 @@ struct MainContentView: View {
                     onUndoInsert: { rowIndex in
                         undoInsertRow(at: rowIndex)
                     },
+                    onFilterColumn: { columnName in
+                        filterStateManager.addFilterForColumn(columnName)
+                    },
                     selectedRowIndices: $selectedRowIndices,
                     sortState: sortStateBinding,
                     editingCell: $editingCell
@@ -469,6 +472,47 @@ struct MainContentView: View {
         }
         .frame(minHeight: 150)
         .animation(.easeInOut(duration: 0.2), value: filterStateManager.isVisible)
+    }
+    
+    // MARK: - Data Grid Section
+    
+    @ViewBuilder
+    private func dataGridSection(tab: QueryTab) -> some View {
+        if tab.showStructure, let tableName = tab.tableName {
+            TableStructureView(tableName: tableName, connection: connection)
+                .frame(maxHeight: .infinity)
+        } else {
+            DataGridView(
+                rowProvider: InMemoryRowProvider(
+                    rows: sortedRows(for: tab),
+                    columns: tab.resultColumns,
+                    columnDefaults: tab.columnDefaults
+                ),
+                changeManager: changeManager,
+                isEditable: tab.isEditable,
+                onCommit: { sql in
+                    executeCommitSQL(sql)
+                },
+                onRefresh: { runQuery() },
+                onCellEdit: { rowIndex, colIndex, newValue in
+                    updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
+                },
+                onSort: { columnIndex, ascending in
+                    handleSort(columnIndex: columnIndex, ascending: ascending)
+                },
+                onAddRow: { addNewRow() },
+                onUndoInsert: { rowIndex in
+                    undoInsertRow(at: rowIndex)
+                },
+                onFilterColumn: { columnName in
+                    filterStateManager.addFilterForColumn(columnName)
+                },
+                selectedRowIndices: $selectedRowIndices,
+                sortState: sortStateBinding,
+                editingCell: $editingCell
+            )
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
     }
 
     // MARK: - Status Bar

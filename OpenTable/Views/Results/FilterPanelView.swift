@@ -231,25 +231,36 @@ struct FilterPanelView: View {
     // MARK: - Filter List
 
     private var filterList: some View {
-        ScrollView {
-            LazyVStack(spacing: 2) {
-                ForEach(filterState.filters) { filter in
-                    FilterRowView(
-                        filter: filterState.binding(for: filter),
-                        columns: columns,
-                        isFocused: filterState.focusedFilterId == filter.id,
-                        onDuplicate: { filterState.duplicateFilter(filter) },
-                        onRemove: { filterState.removeFilter(filter) },
-                        onApply: { applySingleFilter(filter) },
-                        onFocus: { filterState.focusedFilterId = filter.id }
-                    )
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(filterState.filters) { filter in
+                        FilterRowView(
+                            filter: filterState.binding(for: filter),
+                            columns: columns,
+                            isFocused: filterState.focusedFilterId == filter.id,
+                            onDuplicate: { filterState.duplicateFilter(filter) },
+                            onRemove: { filterState.removeFilter(filter) },
+                            onApply: { applySingleFilter(filter) },
+                            onFocus: { filterState.focusedFilterId = filter.id }
+                        )
+                        .id(filter.id)  // Make each row identifiable for scrollTo
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            }
+            // Dynamic height: ~40pt per row, max 4 rows visible before scrolling
+            .frame(maxHeight: min(CGFloat(filterState.filters.count) * 40 + 8, 160))
+            .onChange(of: filterState.focusedFilterId) { _, newFocusedId in
+                // Auto-scroll to the focused filter (newly added or explicitly focused)
+                if let focusedId = newFocusedId {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        proxy.scrollTo(focusedId, anchor: .bottom)
+                    }
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
         }
-        // Dynamic height: ~40pt per row, max 4 rows visible before scrolling
-        .frame(maxHeight: min(CGFloat(filterState.filters.count) * 40 + 8, 160))
     }
 
     // MARK: - Footer

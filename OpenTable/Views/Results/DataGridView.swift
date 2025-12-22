@@ -40,6 +40,7 @@ struct DataGridView: NSViewRepresentable {
     var onSort: ((Int, Bool) -> Void)?  // Called when column header clicked (columnIndex, ascending)
     var onAddRow: (() -> Void)?  // Called when user triggers add row (Cmd+N)
     var onUndoInsert: ((Int) -> Void)?  // Called when user undoes row insertion (rowIndex)
+    var onFilterColumn: ((String) -> Void)?  // Called when user selects "Filter with column" from header context menu
 
     @Binding var selectedRowIndices: Set<Int>
     @Binding var sortState: SortState
@@ -168,6 +169,7 @@ struct DataGridView: NSViewRepresentable {
         coordinator.onSort = onSort
         coordinator.onAddRow = onAddRow
         coordinator.onUndoInsert = onUndoInsert
+        coordinator.onFilterColumn = onFilterColumn
 
         // PERF: Rebuild visual state cache once per update cycle
         // Cells read from this cache instead of calling changeManager directly
@@ -411,6 +413,9 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     
     /// Callback when user undoes row insertion
     var onUndoInsert: ((Int) -> Void)?
+    
+    /// Callback when user selects "Filter with column" from header context menu
+    var onFilterColumn: ((String) -> Void)?
 
     // MARK: - NSTableViewDataSource
 
@@ -481,12 +486,26 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         copyItem.representedObject = column.title
         copyItem.target = self
         menu.addItem(copyItem)
+        
+        // Add "Filter with column" menu item
+        let filterItem = NSMenuItem(
+            title: "Filter with column",
+            action: #selector(filterWithColumn(_:)),
+            keyEquivalent: "")
+        filterItem.representedObject = column.title
+        filterItem.target = self
+        menu.addItem(filterItem)
     }
     
     @objc private func copyColumnName(_ sender: NSMenuItem) {
         guard let columnName = sender.representedObject as? String else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(columnName, forType: .string)
+    }
+    
+    @objc private func filterWithColumn(_ sender: NSMenuItem) {
+        guard let columnName = sender.representedObject as? String else { return }
+        onFilterColumn?(columnName)
     }
 
     // MARK: - NSTableViewDelegate
