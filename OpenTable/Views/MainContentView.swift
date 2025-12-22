@@ -42,6 +42,9 @@ struct MainContentView: View {
     // Error alert state
     @State private var showErrorAlert = false
     @State private var errorAlertMessage = ""
+    
+    // History panel state
+    @State private var isHistoryPanelVisible = false
 
     // MARK: - Toolbar State
 
@@ -82,7 +85,7 @@ struct MainContentView: View {
             if let tab = currentTab {
                 if tab.tabType == .query {
                     // Query Tab: Editor + Results
-                    queryTabContent(tab: tab)
+                    queryTabContent(tab: tab, showHistory: isHistoryPanelVisible)
                 } else {
                     // Table Tab: Results only
                     tableTabContent(tab: tab)
@@ -227,6 +230,11 @@ struct MainContentView: View {
                 if currentTab?.tabType == .table {
                     filterStateManager.toggle()
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleHistoryPanel)) { _ in
+                // Toggle history panel (Cmd+Shift+H)
+                isHistoryPanelVisible.toggle()
+                print("[DEBUG] History panel toggled - now visible: \(isHistoryPanelVisible)")
             }
             .onReceive(NotificationCenter.default.publisher(for: .applyAllFilters)) { _ in
                 // Apply all selected filters (Cmd+Return)
@@ -375,8 +383,10 @@ struct MainContentView: View {
 
     // MARK: - Query Tab Content
 
-    private func queryTabContent(tab: QueryTab) -> some View {
-        VSplitView {
+    private func queryTabContent(tab: QueryTab, showHistory: Bool) -> some View {
+        print("[DEBUG] queryTabContent called, showHistory: \(showHistory)")
+        
+        return VSplitView {
             // Query Editor (top)
             VStack(spacing: 0) {
                 QueryEditorView(
@@ -395,8 +405,33 @@ struct MainContentView: View {
             }
             .frame(minHeight: 100, idealHeight: 200)
 
-            // Results Table (bottom)
-            resultsSection(tab: tab)
+            // Bottom section: Results + History Panel (if visible)
+            VStack(spacing: 0) {
+                // Results Table
+                resultsSection(tab: tab)
+                
+                // History Panel - shown when toggled
+                if showHistory {
+                    Divider()
+                    HistoryPanelView()
+                        .frame(height: 300)
+                        .background(Color.blue.opacity(0.2)) // DEBUG: visible background
+                        .onAppear {
+                            print("[DEBUG] HistoryPanelView appeared!")
+                        }
+                        .onDisappear {
+                            print("[DEBUG] HistoryPanelView disappeared!")
+                        }
+                } else {
+                    Text("History panel is hidden")
+                        .foregroundColor(.red)
+                        .padding()
+                        .onAppear {
+                            print("[DEBUG] 'History panel is hidden' text appeared")
+                        }
+                }
+            }
+            .frame(minHeight: 150)
         }
     }
 

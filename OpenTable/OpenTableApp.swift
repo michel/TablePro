@@ -201,6 +201,12 @@ struct OpenTableApp: App {
                 }
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(!appState.isConnected)
+                
+                Button("Toggle History") {
+                    NotificationCenter.default.post(name: .toggleHistoryPanel, object: nil)
+                }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .disabled(!appState.isConnected)
             }
         }
     }
@@ -238,6 +244,9 @@ extension Notification.Name {
     static let applyAllFilters = Notification.Name("applyAllFilters")
     static let duplicateFilter = Notification.Name("duplicateFilter")
     static let removeFilter = Notification.Name("removeFilter")
+    
+    // History panel notifications
+    static let toggleHistoryPanel = Notification.Name("toggleHistoryPanel")
 }
 
 // MARK: - Open Window Handler
