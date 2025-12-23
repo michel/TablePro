@@ -13,7 +13,6 @@ struct TabState: Codable {
     let selectedTabId: UUID?
 }
 
-
 /// Service for persisting tab state per connection
 final class TabStateStorage {
     static let shared = TabStateStorage()
@@ -36,7 +35,9 @@ final class TabStateStorage {
             let key = tabStateKey(for: connectionId)
             defaults.set(data, forKey: key)
         } catch {
-            // Silent failure - tab state is not critical
+            #if DEBUG
+            print("[TabStateStorage] Failed to encode tab state: \(error.localizedDescription)")
+            #endif
         }
     }
     
@@ -52,6 +53,9 @@ final class TabStateStorage {
             let decoder = JSONDecoder()
             return try decoder.decode(TabState.self, from: data)
         } catch {
+            #if DEBUG
+            print("[TabStateStorage] Failed to decode tab state: \(error.localizedDescription)")
+            #endif
             return nil
         }
     }

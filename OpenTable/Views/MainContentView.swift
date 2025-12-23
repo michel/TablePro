@@ -313,10 +313,11 @@ struct MainContentView: View {
                    let session = DatabaseManager.shared.activeSessions[sessionId],
                    !session.tabs.isEmpty {
                     // Set flag to prevent onChange(tabManager.tabs) from syncing back
+                    // Use defer to ensure flag is always reset even if an error occurs
                     isRestoringTabs = true
+                    defer { isRestoringTabs = false }
                     tabManager.tabs = session.tabs
                     tabManager.selectedTabId = session.selectedTabId
-                    isRestoringTabs = false
                 }
             }
             .onChange(of: selectedTables) { oldTables, newTables in

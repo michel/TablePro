@@ -24,7 +24,6 @@ struct PersistedTab: Codable {
     let tableName: String?
 }
 
-
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
 struct TabPendingChanges: Equatable {
     var changes: [RowChange]
@@ -213,7 +212,6 @@ struct QueryTab: Identifiable, Equatable {
         lhs.id == rhs.id
     }
 }
-
 
 /// Manager for query tabs
 final class QueryTabManager: ObservableObject {
