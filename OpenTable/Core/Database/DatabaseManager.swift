@@ -109,6 +109,13 @@ final class DatabaseManager: ObservableObject {
             session.status = driver.status
             activeSessions[connection.id] = session
             
+            // Restore tab state if it exists
+            if let tabState = TabStateStorage.shared.loadTabState(connectionId: connection.id) {
+                let restoredTabs = tabState.tabs.map { QueryTab(from: $0) }
+                activeSessions[connection.id]?.tabs = restoredTabs
+                activeSessions[connection.id]?.selectedTabId = tabState.selectedTabId
+            }
+            
             // Post notification for reliable delivery
             NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
         } catch {

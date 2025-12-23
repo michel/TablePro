@@ -61,7 +61,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Check if main window is being closed
         if isMainWindow(window) {
-            // Disconnect all sessions
+            // CRITICAL: Save tab state SYNCHRONOUSLY before any async operations
+            // Otherwise sessions might be cleared before we save
+            let sessions = DatabaseManager.shared.activeSessions
+            
+            for (connectionId, session) in sessions {
+                // Only save if there are tabs; otherwise clear saved state
+                if session.tabs.isEmpty {
+                    TabStateStorage.shared.clearTabState(connectionId: connectionId)
+                } else {
+                    TabStateStorage.shared.saveTabState(
+                        connectionId: connectionId,
+                        tabs: session.tabs,
+                        selectedTabId: session.selectedTabId
+                    )
+                }
+            }
+            
+            // NOW disconnect sessions asynchronously (after save is complete)
             Task { @MainActor in
                 await DatabaseManager.shared.disconnectAll()
             }
@@ -69,6 +86,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Reopen welcome window after a brief delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 self.openWelcomeWindow()
+            }
+        }
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        // Save tab state synchronously before app terminates (backup mechanism)
+        let sessions = DatabaseManager.shared.activeSessions
+        for (connectionId, session) in sessions {
+            if session.tabs.isEmpty {
+                TabStateStorage.shared.clearTabState(connectionId: connectionId)
+            } else {
+                TabStateStorage.shared.saveTabState(
+                    connectionId: connectionId,
+                    tabs: session.tabs,
+                    selectedTabId: session.selectedTabId
+                )
             }
         }
     }
