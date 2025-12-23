@@ -9,9 +9,19 @@ import Combine
 import Foundation
 
 /// Type of tab
-enum TabType: Equatable {
+enum TabType: Equatable, Codable {
     case query  // SQL editor tab
     case table  // Direct table view tab
+}
+
+/// Minimal representation of a tab for persistence
+struct PersistedTab: Codable {
+    let id: UUID
+    let title: String
+    let query: String
+    let isPinned: Bool
+    let tabType: TabType
+    let tableName: String?
 }
 
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
@@ -158,6 +168,45 @@ struct QueryTab: Identifiable, Equatable {
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
     }
+    
+    /// Initialize from persisted tab state (used when restoring tabs)
+    init(from persisted: PersistedTab) {
+        self.id = persisted.id
+        self.title = persisted.title
+        self.query = persisted.query
+        self.isPinned = persisted.isPinned
+        self.tabType = persisted.tabType
+        self.tableName = persisted.tableName
+        
+        // Initialize runtime state with defaults
+        self.lastExecutedAt = nil
+        self.resultColumns = []
+        self.columnDefaults = [:]
+        self.resultRows = []
+        self.executionTime = nil
+        self.errorMessage = nil
+        self.isExecuting = false
+        self.isEditable = persisted.tabType == .table
+        self.showStructure = false
+        self.pendingChanges = TabPendingChanges()
+        self.selectedRowIndices = []
+        self.sortState = SortState()
+        self.hasUserInteraction = false
+        self.pagination = PaginationState()
+        self.filterState = TabFilterState()
+    }
+    
+    /// Convert tab to persisted format for storage
+    func toPersistedTab() -> PersistedTab {
+        return PersistedTab(
+            id: id,
+            title: title,
+            query: query,
+            isPinned: isPinned,
+            tabType: tabType,
+            tableName: tableName
+        )
+    }
 
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
         lhs.id == rhs.id
@@ -187,9 +236,16 @@ final class QueryTabManager: ObservableObject {
 
     // MARK: - Tab Management
 
-    func addTab() {
+    func addTab(initialQuery: String? = nil) {
         let queryCount = tabs.filter { $0.tabType == .query }.count
-        let newTab = QueryTab(title: "Query \(queryCount + 1)", tabType: .query)
+        var newTab = QueryTab(title: "Query \(queryCount + 1)", tabType: .query)
+        
+        // If initialQuery provided, use it; otherwise tab starts empty
+        if let query = initialQuery {
+            newTab.query = query
+            newTab.hasUserInteraction = true  // Mark as having content
+        }
+        
         tabs.append(newTab)
         selectedTabId = newTab.id
     }

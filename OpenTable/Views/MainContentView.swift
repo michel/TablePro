@@ -38,6 +38,7 @@ struct MainContentView: View {
     @State private var currentQueryTask: Task<Void, Never>?
     @State private var queryGeneration: Int = 0
     @State private var changeManagerUpdateTask: Task<Void, Never>?
+    @State private var isRestoringTabs = false  // Prevent circular sync during restoration
 
     // Error alert state
     @State private var showErrorAlert = false
@@ -196,6 +197,29 @@ struct MainContentView: View {
             .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
                 // Must be synchronous - save state BEFORE SwiftUI updates the view
                 handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
+                
+                // Sync selected tab ID to session for persistence
+                if let sessionId = DatabaseManager.shared.currentSessionId {
+                    DatabaseManager.shared.updateSession(sessionId) { session in
+                        session.selectedTabId = newTabId
+                    }
+                }
+            }
+            .onChange(of: tabManager.tabs) { _, newTabs in
+                // Skip sync if we're currently restoring tabs from session (prevents circular updates)
+                guard !isRestoringTabs else { return }
+                
+                // Sync tabs array to session for persistence
+                if let sessionId = DatabaseManager.shared.currentSessionId {
+                    DatabaseManager.shared.updateSession(sessionId) { session in
+                        session.tabs = newTabs
+                    }
+                    
+                    // Clear saved state immediately when all tabs are closed
+                    if newTabs.isEmpty {
+                        TabStateStorage.shared.clearTabState(connectionId: connection.id)
+                    }
+                }
             }
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 Task { @MainActor in
@@ -283,6 +307,18 @@ struct MainContentView: View {
         viewWithToolbar
             .task {
                 await initializeView()
+                
+                // Restore tabs from session if available (after DatabaseManager has loaded them)
+                if let sessionId = DatabaseManager.shared.currentSessionId,
+                   let session = DatabaseManager.shared.activeSessions[sessionId],
+                   !session.tabs.isEmpty {
+                    // Set flag to prevent onChange(tabManager.tabs) from syncing back
+                    // Use defer to ensure flag is always reset even if an error occurs
+                    isRestoringTabs = true
+                    defer { isRestoringTabs = false }
+                    tabManager.tabs = session.tabs
+                    tabManager.selectedTabId = session.selectedTabId
+                }
             }
             .onChange(of: selectedTables) { oldTables, newTables in
                 // Find newly added table to open
@@ -305,9 +341,10 @@ struct MainContentView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .newTab)) { _ in
-                // Cmd+T to create new query  tab
+                // Cmd+T - create new query tab - load last query if available
                 Task { @MainActor in
-                    tabManager.addTab()
+                    let lastQuery = TabStateStorage.shared.loadLastQuery(for: connection.id)
+                    tabManager.addTab(initialQuery: lastQuery)
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("loadQueryIntoEditor"))) { notification in
@@ -421,6 +458,9 @@ struct MainContentView: View {
                         set: { newValue in
                             if let index = tabManager.selectedTabIndex {
                                 tabManager.tabs[index].query = newValue
+                                
+                                // Save as last query for this connection (TablePlus-style)
+                                TabStateStorage.shared.saveLastQuery(newValue, for: connection.id)
                             }
                         }
                     ),
