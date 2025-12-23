@@ -350,10 +350,8 @@ struct SidebarView: View {
         pendingTruncates.remove(tableName)
         if pendingDeletes.contains(tableName) {
             pendingDeletes.remove(tableName)
-            print("DEBUG: Removed \(tableName) from pendingDeletes")
         } else {
             pendingDeletes.insert(tableName)
-            print("DEBUG: Inserted \(tableName) into pendingDeletes, count: \(pendingDeletes.count)")
         }
     }
 }

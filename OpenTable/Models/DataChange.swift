@@ -66,6 +66,8 @@ enum UndoAction {
     case rowDeletion(rowIndex: Int, originalRow: [String?])
     /// Batch deletion of multiple rows (for undo as a single action)
     case batchRowDeletion(rows: [(rowIndex: Int, originalRow: [String?])])
+    /// Batch insertion undo - when user deletes multiple inserted rows at once
+    case batchRowInsertion(rowIndices: [Int], rowValues: [[String?]])
 }
 
 @MainActor
@@ -100,6 +102,11 @@ final class DataChangeManager: ObservableObject {
 
     /// Set of "rowIndex-colIndex" strings for modified cells - O(1) lookup
     private var modifiedCells: Set<String> = []
+    
+    /// Lazy storage for inserted row values - avoids creating CellChange objects until needed
+    /// Maps rowIndex -> column values array for newly inserted rows
+    /// This dramatically improves add row performance for tables with many columns
+    private var insertedRowData: [Int: [String?]] = [:]
     
     /// Undo stack for reversing changes (LIFO)
     private var undoStack: [UndoAction] = []
@@ -326,6 +333,12 @@ final class DataChangeManager: ObservableObject {
 
     /// Undo a pending row deletion
     func undoRowDeletion(rowIndex: Int) {
+        // SAFETY: Only process if this row is actually marked as deleted
+        guard deletedRowIndices.contains(rowIndex) else {
+            print("⚠️ undoRowDeletion called for row \(rowIndex) but it's not in deletedRowIndices")
+            return
+        }
+        
         changes.removeAll { $0.rowIndex == rowIndex && $0.type == .delete }
         deletedRowIndices.remove(rowIndex)
         hasChanges = !changes.isEmpty
@@ -334,11 +347,17 @@ final class DataChangeManager: ObservableObject {
     
     /// Undo a pending row insertion
     func undoRowInsertion(rowIndex: Int) {
+        // SAFETY: Only process if this row is actually marked as inserted
+        guard insertedRowIndices.contains(rowIndex) else {
+            print("⚠️ undoRowInsertion: row \(rowIndex) not in insertedRowIndices")
+            return
+        }
+        
+        // Remove the INSERT change from the changes array
         changes.removeAll { $0.rowIndex == rowIndex && $0.type == .insert }
         insertedRowIndices.remove(rowIndex)
         
         // Shift down indices for rows after the removed row
-        // This is necessary because when a row is removed, all subsequent rows shift down
         var shiftedInsertedIndices = Set<Int>()
         for idx in insertedRowIndices {
             if idx > rowIndex {
@@ -349,10 +368,69 @@ final class DataChangeManager: ObservableObject {
         }
         insertedRowIndices = shiftedInsertedIndices
         
-        // Also update row indices in changes array
+        // Also update row indices in changes array for all changes after this row
         for i in 0..<changes.count {
             if changes[i].rowIndex > rowIndex {
                 changes[i].rowIndex -= 1
+            }
+        }
+        
+        hasChanges = !changes.isEmpty
+    }
+    
+    /// Undo multiple row insertions at once (for batch deletion)
+    /// This is more efficient than calling undoRowInsertion multiple times
+    /// - Parameter rowIndices: Array of row indices to undo, MUST be sorted in descending order
+    func undoBatchRowInsertion(rowIndices: [Int]) {
+        guard !rowIndices.isEmpty else { return }
+        
+        // Verify all rows are inserted
+        let validRows = rowIndices.filter { insertedRowIndices.contains($0) }
+        
+        if validRows.count != rowIndices.count {
+            let invalidRows = Set(rowIndices).subtracting(validRows)
+            print("⚠️ undoBatchRowInsertion: rows \(invalidRows) not in insertedRowIndices")
+        }
+        
+        guard !validRows.isEmpty else { return }
+        
+        // Collect row values BEFORE removing changes (for undo/redo)
+        var rowValues: [[String?]] = []
+        for rowIndex in validRows {
+            if let insertChange = changes.first(where: { $0.rowIndex == rowIndex && $0.type == .insert }) {
+                let values = insertChange.cellChanges.sorted { $0.columnIndex < $1.columnIndex }
+                    .map { $0.newValue }
+                rowValues.append(values)
+            } else {
+                rowValues.append(Array(repeating: nil, count: columns.count))
+            }
+        }
+        
+        // Remove all INSERT changes for these rows
+        for rowIndex in validRows {
+            changes.removeAll { $0.rowIndex == rowIndex && $0.type == .insert }
+            insertedRowIndices.remove(rowIndex)
+        }
+        
+        // Push undo action so user can undo this deletion
+        pushUndo(.batchRowInsertion(rowIndices: validRows, rowValues: rowValues))
+        
+        // Shift indices for all remaining rows
+        for deletedIndex in validRows.reversed() {
+            var shiftedIndices = Set<Int>()
+            for idx in insertedRowIndices {
+                if idx > deletedIndex {
+                    shiftedIndices.insert(idx - 1)
+                } else {
+                    shiftedIndices.insert(idx)
+                }
+            }
+            insertedRowIndices = shiftedIndices
+            
+            for i in 0..<changes.count {
+                if changes[i].rowIndex > deletedIndex {
+                    changes[i].rowIndex -= 1
+                }
             }
         }
         
@@ -462,6 +540,33 @@ final class DataChangeManager: ObservableObject {
                 undoRowDeletion(rowIndex: rowIndex)
             }
             return (action, false, true, nil)
+            
+        case .batchRowInsertion(let rowIndices, let rowValues):
+            // Undo the deletion of inserted rows - restore them as INSERT changes
+            // Process in reverse order (ascending) to maintain correct indices when re-inserting
+            for (index, rowIndex) in rowIndices.enumerated().reversed() {
+                guard index < rowValues.count else { continue }
+                let values = rowValues[index]
+                
+                // Re-create INSERT change
+                let cellChanges = values.enumerated().map { colIndex, value in
+                    CellChange(
+                        rowIndex: rowIndex,
+                        columnIndex: colIndex,
+                        columnName: columns[safe: colIndex] ?? "",
+                        oldValue: nil,
+                        newValue: value
+                    )
+                }
+                let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: cellChanges)
+                changes.append(rowChange)
+                insertedRowIndices.insert(rowIndex)
+            }
+            
+            hasChanges = !changes.isEmpty
+            reloadVersion += 1
+            // Return true for needsRowInsert so MainContentView knows to restore to resultRows
+            return (action, true, false, nil)
         }
     }
     
@@ -484,8 +589,26 @@ final class DataChangeManager: ObservableObject {
             return (action, false, false)
             
         case .rowInsertion(let rowIndex):
-            // Re-apply the row insertion - mark as inserted
+            // Re-apply the row insertion - we need to restore the full INSERT change
+            // Note: We don't have the original cell values in the UndoAction,
+            // so we need the caller (MainContentView) to provide them when re-inserting the row
+            // For now, just mark as inserted and let the caller handle cell values
             insertedRowIndices.insert(rowIndex)
+            
+            // Create empty INSERT change - caller should update with actual values
+            // The row should already exist in resultRows from the redo handler in MainContentView
+            let cellChanges = columns.enumerated().map { index, columnName in
+                CellChange(
+                    rowIndex: rowIndex,
+                    columnIndex: index,
+                    columnName: columnName,
+                    oldValue: nil,
+                    newValue: nil  // Will be updated by caller
+                )
+            }
+            let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: cellChanges)
+            changes.append(rowChange)
+            
             hasChanges = true
             reloadVersion += 1
             return (action, true, false)
@@ -505,6 +628,20 @@ final class DataChangeManager: ObservableObject {
                 _ = undoStack.popLast()
             }
             return (action, false, true)
+            
+        case .batchRowInsertion(let rowIndices, _):
+            // Redo the deletion of inserted rows - remove them again
+            // This is called when user: delete inserted rows -> undo -> redo
+            // We need to remove the rows from changes and insertedRowIndices again
+            for rowIndex in rowIndices {
+                changes.removeAll { $0.rowIndex == rowIndex && $0.type == .insert }
+                insertedRowIndices.remove(rowIndex)
+            }
+            hasChanges = !changes.isEmpty
+            reloadVersion += 1
+            // Return true for needsRowInsert to signal MainContentView to remove from resultRows
+            // (We repurpose this flag since the logic is similar - rows need to be removed)
+            return (action, true, false)
         }
     }
 
@@ -520,10 +657,20 @@ final class DataChangeManager: ObservableObject {
                     statements.append(sql)
                 }
             case .insert:
+                // SAFETY: Verify the row is still marked as inserted
+                guard insertedRowIndices.contains(change.rowIndex) else {
+                    print("⚠️ Skipping INSERT for row \(change.rowIndex) - not in insertedRowIndices")
+                    continue
+                }
                 if let sql = generateInsertSQL(for: change) {
                     statements.append(sql)
                 }
             case .delete:
+                // SAFETY: Verify the row is still marked as deleted
+                guard deletedRowIndices.contains(change.rowIndex) else {
+                    print("⚠️ Skipping DELETE for row \(change.rowIndex) - not in deletedRowIndices")
+                    continue
+                }
                 if let sql = generateDeleteSQL(for: change) {
                     statements.append(sql)
                 }

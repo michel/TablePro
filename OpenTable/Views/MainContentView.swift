@@ -344,10 +344,16 @@ struct MainContentView: View {
                     if hasEditedCells || hasPendingTableOps {
                         pendingDiscardAction = .refresh
                     } else {
-                        // No changes - refresh table browser and run current query
-                        DispatchQueue.main.async {
-                            NotificationCenter.default.post(name: .refreshAll, object: nil)
+                        // Cancel any running query to prevent race conditions
+                        currentQueryTask?.cancel()
+                        
+                        // Rebuild query for table tabs to ensure fresh data
+                        if let tabIndex = tabManager.selectedTabIndex,
+                           tabManager.tabs[tabIndex].tabType == .table {
+                            rebuildTableQuery(at: tabIndex)
                         }
+                        
+                        // Fetch fresh data from database
                         runQuery()
                     }
                 }
@@ -811,6 +817,7 @@ struct MainContentView: View {
                     guard !Task.isCancelled else { return }
 
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                        
                         // CRITICAL: Update tab atomically to prevent objc_retain crashes
                         // with large result sets (25+ columns). Working with a copy first
                         // prevents partial updates that can crash during deallocation.
@@ -983,59 +990,84 @@ struct MainContentView: View {
 
     /// Delete selected rows (Delete key or menu)
     private func deleteSelectedRows() {
-        guard let index = tabManager.selectedTabIndex,
+        guard let tabIndex = tabManager.selectedTabIndex,
             !selectedRowIndices.isEmpty
         else { return }
 
-        // Collect rows to delete for batch undo (sorted descending to handle removals correctly)
-        var rowsToDelete: [(rowIndex: Int, originalRow: [String?])] = []
+        // Separate inserted rows from existing rows
+        var insertedRowsToDelete: [Int] = []
+        var existingRowsToDelete: [(rowIndex: Int, originalRow: [String?])] = []
         
         // Find the lowest selected row index for selection movement
         let minSelectedRow = selectedRowIndices.min() ?? 0
         let maxSelectedRow = selectedRowIndices.max() ?? 0
 
-        // Delete each selected row (sorted descending to handle removals correctly)
+        // Categorize rows (process in descending order to maintain correct indices)
         for rowIndex in selectedRowIndices.sorted(by: >) {
             if changeManager.isRowInserted(rowIndex) {
-                // For inserted rows, remove them completely
-                undoInsertRow(at: rowIndex)
+                // Collect inserted rows to delete
+                insertedRowsToDelete.append(rowIndex)
             } else if !changeManager.isRowDeleted(rowIndex) {
-                // For existing rows, collect for batch deletion
-                if rowIndex < tabManager.tabs[index].resultRows.count {
-                    let originalRow = tabManager.tabs[index].resultRows[rowIndex].values
-                    rowsToDelete.append((rowIndex: rowIndex, originalRow: originalRow))
+                // Collect existing rows for batch deletion
+                if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
+                    let originalRow = tabManager.tabs[tabIndex].resultRows[rowIndex].values
+                    existingRowsToDelete.append((rowIndex: rowIndex, originalRow: originalRow))
                 }
             }
         }
         
-        // Record batch deletion (single undo action for all rows)
-        if !rowsToDelete.isEmpty {
-            changeManager.recordBatchRowDeletion(rows: rowsToDelete)
+        // Process inserted rows deletion
+        if !insertedRowsToDelete.isEmpty {
+            // Sort descending so removing higher indices first doesn't affect lower indices
+            let sortedInsertedRows = insertedRowsToDelete.sorted(by: >)
+            
+            // Remove from resultRows first (descending order)
+            for rowIndex in sortedInsertedRows {
+                guard rowIndex < tabManager.tabs[tabIndex].resultRows.count else { continue }
+                tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
+            }
+            
+            // Update changeManager for ALL deleted inserted rows at once
+            // This prevents index shifting issues from calling undoRowInsertion multiple times
+            changeManager.undoBatchRowInsertion(rowIndices: sortedInsertedRows)
+        }
+        
+        // Record batch deletion for existing rows (single undo action for all rows)
+        if !existingRowsToDelete.isEmpty {
+            changeManager.recordBatchRowDeletion(rows: existingRowsToDelete)
         }
 
         // Move selection to next available row after deletion
-        let totalRows = tabManager.tabs[index].resultRows.count
-        let nextRow: Int
+        let totalRows = tabManager.tabs[tabIndex].resultRows.count
         
-        if maxSelectedRow + 1 < totalRows {
+        // Calculate next row selection, accounting for deleted inserted rows
+        let rowsDeleted = insertedRowsToDelete.count
+        let adjustedMaxRow = maxSelectedRow - rowsDeleted
+        let adjustedMinRow = minSelectedRow - insertedRowsToDelete.filter { $0 < minSelectedRow }.count
+        
+        let nextRow: Int
+        if adjustedMaxRow + 1 < totalRows {
             // Select row after the deleted range
-            nextRow = maxSelectedRow + 1
-        } else if minSelectedRow > 0 {
+            nextRow = min(adjustedMaxRow + 1, totalRows - 1)
+        } else if adjustedMinRow > 0 {
             // Deleted rows at end, select previous row
-            nextRow = minSelectedRow - 1
+            nextRow = adjustedMinRow - 1
+        } else if totalRows > 0 {
+            // Select first row if available
+            nextRow = 0
         } else {
-            // All rows deleted or only first row deleted
+            // All rows deleted
             nextRow = -1
         }
         
-        if nextRow >= 0 {
+        if nextRow >= 0 && nextRow < totalRows {
             selectedRowIndices = [nextRow]
         } else {
             selectedRowIndices.removeAll()
         }
 
         // Mark tab as having user interaction (prevents auto-replacement)
-        tabManager.tabs[index].hasUserInteraction = true
+        tabManager.tabs[tabIndex].hasUserInteraction = true
     }
     
     /// Toggle table deletion state (for sidebar table selection)
@@ -1182,6 +1214,38 @@ struct MainContentView: View {
         // Update query and execute
         tabManager.tabs[tabIndex].query = newQuery
         runQuery()
+    }
+    
+    /// Rebuild query for a table tab based on current filters and sort state
+    /// Used when refreshing to ensure query reflects current state
+    private func rebuildTableQuery(at tabIndex: Int) {
+        guard tabIndex < tabManager.tabs.count else { return }
+        let tab = tabManager.tabs[tabIndex]
+        guard let tableName = tab.tableName else { return }
+        
+        let quotedTable = connection.type.quoteIdentifier(tableName)
+        var newQuery = "SELECT * FROM \(quotedTable)"
+        
+        // Apply filters if any
+        if filterStateManager.hasAppliedFilters {
+            let generator = FilterSQLGenerator(databaseType: connection.type)
+            let whereClause = generator.generateWhereClause(from: filterStateManager.appliedFilters)
+            if !whereClause.isEmpty {
+                newQuery += " \(whereClause)"
+            }
+        }
+        
+        // Preserve ORDER BY
+        if let columnIndex = tab.sortState.columnIndex,
+           columnIndex < tab.resultColumns.count {
+            let columnName = tab.resultColumns[columnIndex]
+            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
+            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
+        }
+        
+        newQuery += " LIMIT 200"
+        
+        tabManager.tabs[tabIndex].query = newQuery
     }
 
     // MARK: - Column Sorting
@@ -1510,6 +1574,18 @@ struct MainContentView: View {
             // All rows are restored in changeManager - visual indicators will be removed
             // No need to modify resultRows since deletions were just visual indicators
             break
+            
+        case .batchRowInsertion(let rowIndices, let rowValues):
+            // Restore deleted inserted rows - add them back to resultRows
+            // Process in reverse order (ascending) to maintain correct indices
+            for (index, rowIndex) in rowIndices.enumerated().reversed() {
+                guard index < rowValues.count else { continue }
+                guard rowIndex <= tabManager.tabs[tabIndex].resultRows.count else { continue }
+                
+                let values = rowValues[index]
+                let newRow = QueryResultRow(values: values)
+                tabManager.tabs[tabIndex].resultRows.insert(newRow, at: rowIndex)
+            }
         }
         
         // Mark tab as having user interaction
@@ -1549,6 +1625,14 @@ struct MainContentView: View {
             // Rows are re-marked as deleted in changeManager
             // No need to modify resultRows since deletions are just visual indicators
             break
+            
+        case .batchRowInsertion(let rowIndices, _):
+            // Redo the deletion - remove the rows from resultRows again
+            // Remove in descending order to avoid index shifting issues
+            for rowIndex in rowIndices.sorted(by: >) {
+                guard rowIndex < tabManager.tabs[tabIndex].resultRows.count else { continue }
+                tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
+            }
         }
         
         // Mark tab as having user interaction
@@ -1682,6 +1766,11 @@ struct MainContentView: View {
         // Execute the specific action
         switch action {
         case .refresh, .refreshAll:
+            // Rebuild query for table tabs before refreshing
+            if let tabIndex = tabManager.selectedTabIndex,
+               tabManager.tabs[tabIndex].tabType == .table {
+                rebuildTableQuery(at: tabIndex)
+            }
             runQuery()
         case .closeTab:
             closeCurrentTab()
@@ -1719,16 +1808,10 @@ struct MainContentView: View {
 
     /// Save pending changes (Cmd+S)
     private func saveChanges() {
-        print("DEBUG: saveChanges() called")
-
         let hasEditedCells = changeManager.hasChanges
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
-        print("DEBUG: hasEditedCells = \(hasEditedCells)")
-        print("DEBUG: hasPendingTableOps = \(hasPendingTableOps)")
-
         guard hasEditedCells || hasPendingTableOps else {
-            print("DEBUG: No changes to save")
             return
         }
 
@@ -1737,9 +1820,7 @@ struct MainContentView: View {
         // 1. Generate SQL for cell edits
         if hasEditedCells {
             let cellStatements = changeManager.generateSQL()
-            print("DEBUG: Generated \(cellStatements.count) cell edit SQL statements")
             for (index, stmt) in cellStatements.enumerated() {
-                print("DEBUG: Cell statement \(index + 1): \(stmt)")
             }
             allStatements.append(contentsOf: cellStatements)
         }
@@ -1750,7 +1831,6 @@ struct MainContentView: View {
             for tableName in pendingTruncates {
                 let quotedName = connection.type.quoteIdentifier(tableName)
                 let stmt = "TRUNCATE TABLE \(quotedName)"
-                print("DEBUG: Table operation: \(stmt)")
                 allStatements.append(stmt)
             }
 
@@ -1758,13 +1838,11 @@ struct MainContentView: View {
             for tableName in pendingDeletes {
                 let quotedName = connection.type.quoteIdentifier(tableName)
                 let stmt = "DROP TABLE \(quotedName)"
-                print("DEBUG: Table operation: \(stmt)")
                 allStatements.append(stmt)
             }
         }
 
         guard !allStatements.isEmpty else {
-            print("DEBUG: No SQL statements generated")
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = "Could not generate SQL for changes."
             }
@@ -1779,7 +1857,6 @@ struct MainContentView: View {
     private func executeCommitSQL(_ sql: String, clearTableOps: Bool = false) {
         guard !sql.isEmpty else { return }
 
-        print("DEBUG: Executing SQL:\n\(sql)")
 
         Task {
             do {
@@ -1799,11 +1876,9 @@ struct MainContentView: View {
                 }
 
                 for statement in statements {
-                    print("DEBUG: Executing: \(statement)")
                     _ = try await driver.execute(query: statement)
                 }
 
-                print("DEBUG: All statements executed successfully")
 
                 // Clear pending changes since they're now saved
                 await MainActor.run {
@@ -1848,7 +1923,6 @@ struct MainContentView: View {
                         }
                     }
 
-                    print("DEBUG: Changes cleared, refreshing query")
                 }
 
                 // Refresh the current query to show updated data (if tab still exists)
@@ -1857,7 +1931,6 @@ struct MainContentView: View {
                 }
 
             } catch {
-                print("DEBUG: Error during save: \(error)")
                 await MainActor.run {
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].errorMessage =
