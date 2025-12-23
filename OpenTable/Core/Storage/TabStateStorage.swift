@@ -35,7 +35,6 @@ final class TabStateStorage {
             let data = try encoder.encode(tabState)
             let key = tabStateKey(for: connectionId)
             defaults.set(data, forKey: key)
-            defaults.synchronize()
         } catch {
             // Silent failure - tab state is not critical
         }
@@ -69,13 +68,12 @@ final class TabStateStorage {
     func saveLastQuery(_ query: String, for connectionId: UUID) {
         let key = "com.opentable.lastquery.\(connectionId.uuidString)"
         
-        // Only save non-empty queries
+        // Only save non-empty queries (trimmed to avoid saving whitespace-only queries)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
             defaults.removeObject(forKey: key)
         } else {
-            defaults.set(query, forKey: key)
-            defaults.synchronize()
+            defaults.set(trimmed, forKey: key)
         }
     }
     

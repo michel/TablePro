@@ -38,6 +38,7 @@ struct MainContentView: View {
     @State private var currentQueryTask: Task<Void, Never>?
     @State private var queryGeneration: Int = 0
     @State private var changeManagerUpdateTask: Task<Void, Never>?
+    @State private var isRestoringTabs = false  // Prevent circular sync during restoration
 
     // Error alert state
     @State private var showErrorAlert = false
@@ -205,6 +206,9 @@ struct MainContentView: View {
                 }
             }
             .onChange(of: tabManager.tabs) { _, newTabs in
+                // Skip sync if we're currently restoring tabs from session (prevents circular updates)
+                guard !isRestoringTabs else { return }
+                
                 // Sync tabs array to session for persistence
                 if let sessionId = DatabaseManager.shared.currentSessionId {
                     DatabaseManager.shared.updateSession(sessionId) { session in
@@ -304,12 +308,15 @@ struct MainContentView: View {
             .task {
                 await initializeView()
                 
-                // Restore tabs from session if available
+                // Restore tabs from session if available (after DatabaseManager has loaded them)
                 if let sessionId = DatabaseManager.shared.currentSessionId,
                    let session = DatabaseManager.shared.activeSessions[sessionId],
                    !session.tabs.isEmpty {
+                    // Set flag to prevent onChange(tabManager.tabs) from syncing back
+                    isRestoringTabs = true
                     tabManager.tabs = session.tabs
                     tabManager.selectedTabId = session.selectedTabId
+                    isRestoringTabs = false
                 }
             }
             .onChange(of: selectedTables) { oldTables, newTables in
@@ -333,7 +340,7 @@ struct MainContentView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .newTab)) { _ in
-                // Cmd+T to create new query tab - load last query if available
+                // Cmd+T - create new query tab - load last query if available
                 Task { @MainActor in
                     let lastQuery = TabStateStorage.shared.loadLastQuery(for: connection.id)
                     tabManager.addTab(initialQuery: lastQuery)
