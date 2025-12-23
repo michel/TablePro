@@ -20,6 +20,7 @@ struct TabPendingChanges: Equatable {
     var deletedRowIndices: Set<Int>
     var insertedRowIndices: Set<Int>
     var modifiedCells: Set<String>
+    var insertedRowData: [Int: [String?]]  // Lazy storage for inserted row values
     var primaryKeyColumn: String?
     var columns: [String]
 
@@ -28,6 +29,7 @@ struct TabPendingChanges: Equatable {
         self.deletedRowIndices = []
         self.insertedRowIndices = []
         self.modifiedCells = []
+        self.insertedRowData = [:]
         self.primaryKeyColumn = nil
         self.columns = []
     }

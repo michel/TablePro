@@ -1007,23 +1007,28 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         let columnName = rowProvider.columns[columnIndex]
         let oldValue = rowProvider.row(at: rowIndex)?.value(at: columnIndex)
+        
+        // Get the full original row for WHERE clause generation
+        let originalRow = rowProvider.row(at: rowIndex)?.values
 
-        // Record the change
+        // Record the change WITH original row for proper WHERE clause
         changeManager.recordCellChange(
             rowIndex: rowIndex,
             columnIndex: columnIndex,
             columnName: columnName,
             oldValue: oldValue,
-            newValue: value
+            newValue: value,
+            originalRow: originalRow  // CRITICAL: Pass original row to avoid WHERE 1=1
         )
 
         // Update local data
         rowProvider.updateValue(value, at: rowIndex, columnIndex: columnIndex)
 
-        // Reload the row
+        // Reload only the specific cell that was changed (columnIndex + 1 for row number column)
+        let tableColumnIndex = columnIndex + 1
         tableView.reloadData(
             forRowIndexes: IndexSet(integer: rowIndex),
-            columnIndexes: IndexSet(integersIn: 0..<tableView.numberOfColumns))
+            columnIndexes: IndexSet(integer: tableColumnIndex))
     }
 
     /// Copy cell value to clipboard

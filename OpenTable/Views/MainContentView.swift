@@ -1857,8 +1857,9 @@ struct MainContentView: View {
     private func executeCommitSQL(_ sql: String, clearTableOps: Bool = false) {
         guard !sql.isEmpty else { return }
 
-
         Task {
+            let overallStartTime = Date()
+            
             do {
                 // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
                 guard let driver = DatabaseManager.shared.activeDriver else {
@@ -1870,15 +1871,29 @@ struct MainContentView: View {
                     throw DatabaseError.notConnected
                 }
 
-                // Execute each statement
+                // Execute each statement and record to history
                 let statements = sql.components(separatedBy: ";").filter {
                     !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 }
 
                 for statement in statements {
+                    let statementStartTime = Date()
                     _ = try await driver.execute(query: statement)
+                    let executionTime = Date().timeIntervalSince(statementStartTime)
+                    
+                    // Record successful statement to query history
+                    await MainActor.run {
+                        QueryHistoryManager.shared.recordQuery(
+                            query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
+                            connectionId: connection.id,
+                            databaseName: connection.database ?? "",
+                            executionTime: executionTime,
+                            rowCount: 0,  // DML statements don't return row count
+                            wasSuccessful: true,
+                            errorMessage: nil
+                        )
+                    }
                 }
-
 
                 // Clear pending changes since they're now saved
                 await MainActor.run {
@@ -1931,7 +1946,20 @@ struct MainContentView: View {
                 }
 
             } catch {
+                let executionTime = Date().timeIntervalSince(overallStartTime)
+                
+                // Record failed statement to query history
                 await MainActor.run {
+                    QueryHistoryManager.shared.recordQuery(
+                        query: sql,
+                        connectionId: connection.id,
+                        databaseName: connection.database ?? "",
+                        executionTime: executionTime,
+                        rowCount: 0,
+                        wasSuccessful: false,
+                        errorMessage: error.localizedDescription
+                    )
+                    
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].errorMessage =
                             "Save failed: \(error.localizedDescription)"

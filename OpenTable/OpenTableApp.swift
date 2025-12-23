@@ -121,11 +121,19 @@ struct OpenTableApp: App {
                 .keyboardShortcut("x", modifiers: .command)
                 
                 Button("Copy") {
-                    if appState.hasRowSelection {
+                    // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
+                    if let firstResponder = NSApp.keyWindow?.firstResponder,
+                       firstResponder is NSTextView {
+                        // User is editing text - let standard copy handle selected text
+                        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                    } else if appState.hasRowSelection {
+                        // Copy entire rows when rows are selected
                         NotificationCenter.default.post(name: .copySelectedRows, object: nil)
                     } else if appState.hasTableSelection {
+                        // Copy table names when tables are selected
                         NotificationCenter.default.post(name: .copyTableNames, object: nil)
                     } else {
+                        // Fallback to standard copy
                         NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
                     }
                 }

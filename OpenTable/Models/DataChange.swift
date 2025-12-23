@@ -125,6 +125,7 @@ final class DataChangeManager: ObservableObject {
         deletedRowIndices.removeAll()
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
+        insertedRowData.removeAll()  // Clear lazy storage
         undoStack.removeAll()  // Clear undo stack too
         hasChanges = false
         reloadVersion += 1  // Trigger table reload
@@ -147,6 +148,7 @@ final class DataChangeManager: ObservableObject {
         deletedRowIndices.removeAll()
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
+        insertedRowData.removeAll()  // Clear lazy storage
 
         // Now update @Published properties - triggers ONE view update
         changes.removeAll()
@@ -197,7 +199,16 @@ final class DataChangeManager: ObservableObject {
         if let insertIndex = changes.firstIndex(where: {
             $0.rowIndex == rowIndex && $0.type == .insert
         }) {
-            // Update or add cell change in the INSERT record
+            // OPTIMIZATION: Update the stored values directly first
+            if var storedValues = insertedRowData[rowIndex] {
+                if columnIndex < storedValues.count {
+                    storedValues[columnIndex] = newValue
+                    insertedRowData[rowIndex] = storedValues
+                }
+            }
+            
+            // Also update/create CellChange for this specific column
+            // (Lazy build - only for edited columns, not all columns)
             if let cellIndex = changes[insertIndex].cellChanges.firstIndex(where: {
                 $0.columnIndex == columnIndex
             }) {
@@ -210,7 +221,7 @@ final class DataChangeManager: ObservableObject {
                     newValue: newValue
                 )
             } else {
-                // Add new cell to INSERT
+                // Add new cell to INSERT (lazy - only for this edited column)
                 changes[insertIndex].cellChanges.append(CellChange(
                     rowIndex: rowIndex,
                     columnIndex: columnIndex,
@@ -319,15 +330,16 @@ final class DataChangeManager: ObservableObject {
     }
 
     func recordRowInsertion(rowIndex: Int, values: [String?]) {
-        let cellChanges = values.enumerated().map { index, value in
-            CellChange(
-                rowIndex: rowIndex, columnIndex: index, columnName: columns[safe: index] ?? "",
-                oldValue: nil, newValue: value)
-        }
-        let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: cellChanges)
+        // OPTIMIZATION: Store row data directly without creating CellChange objects
+        // This eliminates expensive enumerated().map() for every column
+        // CellChanges will be built lazily only when needed (SQL generation or cell edits)
+        insertedRowData[rowIndex] = values
+        
+        // Lightweight RowChange marker with empty cellChanges array
+        let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: [])
         changes.append(rowChange)
-        insertedRowIndices.insert(rowIndex)  // Add to cache
-        pushUndo(.rowInsertion(rowIndex: rowIndex))  // Push undo action
+        insertedRowIndices.insert(rowIndex)
+        pushUndo(.rowInsertion(rowIndex: rowIndex))
         hasChanges = true
     }
 
@@ -356,6 +368,7 @@ final class DataChangeManager: ObservableObject {
         // Remove the INSERT change from the changes array
         changes.removeAll { $0.rowIndex == rowIndex && $0.type == .insert }
         insertedRowIndices.remove(rowIndex)
+        insertedRowData.removeValue(forKey: rowIndex)  // Clear lazy storage
         
         // Shift down indices for rows after the removed row
         var shiftedInsertedIndices = Set<Int>()
@@ -410,6 +423,7 @@ final class DataChangeManager: ObservableObject {
         for rowIndex in validRows {
             changes.removeAll { $0.rowIndex == rowIndex && $0.type == .insert }
             insertedRowIndices.remove(rowIndex)
+            insertedRowData.removeValue(forKey: rowIndex)  // Clear lazy storage
         }
         
         // Push undo action so user can undo this deletion
@@ -753,6 +767,52 @@ final class DataChangeManager: ObservableObject {
     }
 
     private func generateInsertSQL(for change: RowChange) -> String? {
+        // OPTIMIZATION: Get values from lazy storage instead of cellChanges
+        if let values = insertedRowData[change.rowIndex] {
+            return generateInsertSQLFromStoredData(rowIndex: change.rowIndex, values: values)
+        }
+        
+        // Fallback: use cellChanges if stored data not available (backward compatibility)
+        return generateInsertSQLFromCellChanges(for: change)
+    }
+    
+    /// Generate INSERT SQL from lazy-stored row data (new optimized path)
+    private func generateInsertSQLFromStoredData(rowIndex: Int, values: [String?]) -> String? {
+        var nonDefaultColumns: [String] = []
+        var nonDefaultValues: [String] = []
+        
+        for (index, value) in values.enumerated() {
+            // Skip DEFAULT columns - let DB handle them
+            if value == "__DEFAULT__" { continue }
+            
+            guard index < columns.count else { continue }
+            let columnName = columns[index]
+            
+            nonDefaultColumns.append(databaseType.quoteIdentifier(columnName))
+            
+            if let val = value {
+                // Check if it's a SQL function expression
+                if isSQLFunctionExpression(val) {
+                    nonDefaultValues.append(val.trimmingCharacters(in: .whitespaces).uppercased())
+                } else {
+                    nonDefaultValues.append("'\(escapeSQLString(val))'")
+                }
+            } else {
+                nonDefaultValues.append("NULL")
+            }
+        }
+        
+        // If all columns are DEFAULT, don't generate INSERT
+        guard !nonDefaultColumns.isEmpty else { return nil }
+        
+        let columnList = nonDefaultColumns.joined(separator: ", ")
+        let valueList = nonDefaultValues.joined(separator: ", ")
+        
+        return "INSERT INTO \(databaseType.quoteIdentifier(tableName)) (\(columnList)) VALUES (\(valueList))"
+    }
+    
+    /// Generate INSERT SQL from cellChanges (fallback for backward compatibility)
+    private func generateInsertSQLFromCellChanges(for change: RowChange) -> String? {
         guard !change.cellChanges.isEmpty else { return nil }
 
         // Filter out DEFAULT columns - let DB handle them
@@ -837,6 +897,7 @@ final class DataChangeManager: ObservableObject {
         deletedRowIndices.removeAll()  // Clear cache
         insertedRowIndices.removeAll()  // Clear cache
         modifiedCells.removeAll()  // Clear cache
+        insertedRowData.removeAll()  // Clear lazy storage
         hasChanges = false
         reloadVersion += 1  // Trigger table reload
     }
@@ -850,6 +911,7 @@ final class DataChangeManager: ObservableObject {
         state.deletedRowIndices = deletedRowIndices
         state.insertedRowIndices = insertedRowIndices
         state.modifiedCells = modifiedCells
+        state.insertedRowData = insertedRowData  // Save lazy storage
         state.primaryKeyColumn = primaryKeyColumn
         state.columns = columns
         return state
@@ -862,6 +924,7 @@ final class DataChangeManager: ObservableObject {
         self.deletedRowIndices = state.deletedRowIndices
         self.insertedRowIndices = state.insertedRowIndices
         self.modifiedCells = state.modifiedCells
+        self.insertedRowData = state.insertedRowData  // Restore lazy storage
         self.primaryKeyColumn = state.primaryKeyColumn
         self.columns = state.columns
         self.hasChanges = !state.changes.isEmpty
