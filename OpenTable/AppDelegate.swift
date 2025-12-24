@@ -64,10 +64,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // CRITICAL: Post notification FIRST to allow MainContentView to flush pending saves
             // This ensures query text is saved before SwiftUI tears down the view
             NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
-            
-            // Small delay to allow notification handlers to complete
-            // This is critical - without it, saves may not complete before view is destroyed
-            Thread.sleep(forTimeInterval: 0.05)  // 50ms
+
+            // Allow run loop to process notification handlers synchronously
+            // This is more elegant than Thread.sleep as it processes pending events
+            // rather than blocking the main thread entirely
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
             
             // NOTE: We do NOT call saveAllTabStates() here because:
             // 1. MainContentView already flushed the correct state via the notification above

@@ -45,7 +45,7 @@ struct MainContentView: View {
     @State private var justRestoredTab = false  // Prevent lazy load duplicate execution after restore
     
     // MARK: - Constants
-    
+
     private static let tabSaveDebounceDelay: UInt64 = 500_000_000  // 500ms in nanoseconds
     private static let connectionCheckDelay: UInt64 = 100_000_000  // 100ms in nanoseconds
     private static let maxConnectionRetries = 50  // Max retries for connection check (5 seconds total)
@@ -369,10 +369,65 @@ struct MainContentView: View {
     /// First part of notifications - reduces type-checker complexity
     @ViewBuilder
     private var bodyContentPart1: some View {
+        bodyContentPart2
+            .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
+                // Delete rows or mark table for deletion
+                Task { @MainActor in
+                    // First check if we have row selection in data grid
+                    if !selectedRowIndices.isEmpty {
+                        deleteSelectedRows()
+                    }
+                    // Otherwise check if tables are selected in sidebar
+                    else if !selectedTables.isEmpty {
+                        // Batch update to avoid stale copy issues with @Binding
+                        var updatedDeletes = pendingDeletes
+                        var updatedTruncates = pendingTruncates
+
+                        for table in selectedTables {
+                            updatedTruncates.remove(table.name)
+                            if updatedDeletes.contains(table.name) {
+                                updatedDeletes.remove(table.name)
+                            } else {
+                                updatedDeletes.insert(table.name)
+                            }
+                        }
+
+                        pendingTruncates = updatedTruncates
+                        pendingDeletes = updatedDeletes
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
+                // Load schema and update toolbar when connection is established (fixes race condition)
+                Task { @MainActor in
+                    await loadSchema()
+                    // Update version after connection is fully established
+                    if let driver = DatabaseManager.shared.activeDriver {
+                        toolbarState.databaseVersion = driver.serverVersion
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showAllTables)) { _ in
+                // Show all tables metadata when user clicks "Tables" heading in sidebar
+                Task { @MainActor in
+                    showAllTablesMetadata()
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .addNewRow)) { _ in
+                // Add row menu item (Cmd+I)
+                Task { @MainActor in
+                    addNewRow()
+                }
+            }
+    }
+
+    /// Second part of notifications - further reduces type-checker complexity
+    @ViewBuilder
+    private var bodyContentPart2: some View {
         viewWithToolbar
             .task {
                 await initializeView()
-                
+
                 // Restore tabs from disk first (persists across app restarts)
                 // Fallback to session tabs (persists during app session only)
                 var didRestoreTabs = false
@@ -381,7 +436,7 @@ struct MainContentView: View {
                     // Restore from disk
                     isRestoringTabs = true
                     defer { isRestoringTabs = false }
-                    
+
                     let restoredTabs = savedState.tabs.map { QueryTab(from: $0) }
                     tabManager.tabs = restoredTabs
                     tabManager.selectedTabId = savedState.selectedTabId
@@ -392,7 +447,7 @@ struct MainContentView: View {
                     // Fallback: Restore from session (for backward compatibility)
                     isRestoringTabs = true
                     defer { isRestoringTabs = false }
-                    
+
                     tabManager.tabs = session.tabs
                     tabManager.selectedTabId = session.selectedTabId
                     didRestoreTabs = true
@@ -402,13 +457,13 @@ struct MainContentView: View {
                     if let selectedTab = tabManager.selectedTab,
                        selectedTab.tabType == .table,
                        !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        
+
                         // Wait for connection to be established
                         var retryCount = 0
                         while retryCount < Self.maxConnectionRetries {
                             // Stop waiting if view is being dismissed
                             guard !isDismissing else { break }
-                            
+
                             if let session = DatabaseManager.shared.currentSession,
                                session.isConnected {
                                 // Small delay to ensure everything is initialized
@@ -419,13 +474,13 @@ struct MainContentView: View {
                                 }
                                 break
                             }
-                            
+
                             // Wait 100ms and retry
                             try? await Task.sleep(nanoseconds: 100_000_000)
                             retryCount += 1
                         }
-                        
-                        if retryCount >= 50 {
+
+                        if retryCount >= Self.maxConnectionRetries {
                             print("[MainContentView] ⚠️ Connection timeout, query not executed")
                         }
                     }
@@ -462,7 +517,7 @@ struct MainContentView: View {
                 // Load query from history/bookmark panel into current tab
                 Task { @MainActor in
                     guard let query = notification.object as? String else { return }
-                    
+
                     // Load into the current tab (which was just created by .newTab)
                     if let tabIndex = tabManager.selectedTabIndex,
                        tabIndex < tabManager.tabs.count {
@@ -493,65 +548,16 @@ struct MainContentView: View {
                     } else {
                         // Cancel any running query to prevent race conditions
                         currentQueryTask?.cancel()
-                        
+
                         // Rebuild query for table tabs to ensure fresh data
                         if let tabIndex = tabManager.selectedTabIndex,
                            tabManager.tabs[tabIndex].tabType == .table {
                             rebuildTableQuery(at: tabIndex)
                         }
-                        
+
                         // Fetch fresh data from database
                         runQuery()
                     }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
-                // Delete rows or mark table for deletion
-                Task { @MainActor in
-                    // First check if we have row selection in data grid
-                    if !selectedRowIndices.isEmpty {
-                        deleteSelectedRows()
-                    }
-                    // Otherwise check if tables are selected in sidebar
-                    else if !selectedTables.isEmpty {
-                        // Batch update to avoid stale copy issues with @Binding
-                        var updatedDeletes = pendingDeletes
-                        var updatedTruncates = pendingTruncates
-                        
-                        for table in selectedTables {
-                            updatedTruncates.remove(table.name)
-                            if updatedDeletes.contains(table.name) {
-                                updatedDeletes.remove(table.name)
-                            } else {
-                                updatedDeletes.insert(table.name)
-                            }
-                        }
-                        
-                        pendingTruncates = updatedTruncates
-                        pendingDeletes = updatedDeletes
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
-                // Load schema and update toolbar when connection is established (fixes race condition)
-                Task { @MainActor in
-                    await loadSchema()
-                    // Update version after connection is fully established
-                    if let driver = DatabaseManager.shared.activeDriver {
-                        toolbarState.databaseVersion = driver.serverVersion
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .showAllTables)) { _ in
-                // Show all tables metadata when user clicks "Tables" heading in sidebar
-                Task { @MainActor in
-                    showAllTablesMetadata()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .addNewRow)) { _ in
-                // Add row menu item (Cmd+I)
-                Task { @MainActor in
-                    addNewRow()
                 }
             }
     }
@@ -590,7 +596,7 @@ struct MainContentView: View {
                                 
                                 // Create new debounce task
                                 saveDebounceTask = Task { @MainActor in
-                                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                                    try? await Task.sleep(nanoseconds: Self.tabSaveDebounceDelay)
                                     
                                     // Only save if not cancelled and view not being dismissed
                                     guard !Task.isCancelled && !isDismissing else { return }
