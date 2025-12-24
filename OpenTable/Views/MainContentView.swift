@@ -385,12 +385,6 @@ struct MainContentView: View {
                     tabManager.tabs = restoredTabs
                     tabManager.selectedTabId = savedState.selectedTabId
                     didRestoreTabs = true
-                    
-                    print("[MainContentView] Restored \(restoredTabs.count) tabs from disk")
-                    // Debug: Print query text to verify restoration
-                    for (index, tab) in restoredTabs.enumerated() {
-                        print("[MainContentView]   Tab \(index): \"\(tab.title)\" - Query: \(tab.query.prefix(50))...")
-                    }
                 } else if let sessionId = DatabaseManager.shared.currentSessionId,
                           let session = DatabaseManager.shared.activeSessions[sessionId],
                           !session.tabs.isEmpty {
@@ -401,51 +395,35 @@ struct MainContentView: View {
                     tabManager.tabs = session.tabs
                     tabManager.selectedTabId = session.selectedTabId
                     didRestoreTabs = true
-                    
-                    print("[MainContentView] Restored \(session.tabs.count) tabs from session")
                 }
-                // CRITICAL: Execute query for table tabs to load data
-                // Query tabs only restore text without auto-execution
+                // Execute query for table tabs to load data
                 if didRestoreTabs {
-                    if let selectedTab = tabManager.selectedTab {
-                        print("[MainContentView] Restored tab: \(selectedTab.title), type: \(selectedTab.tabType), hasQuery: \(!selectedTab.query.isEmpty)")
+                    if let selectedTab = tabManager.selectedTab,
+                       selectedTab.tabType == .table,
+                       !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         
-                        if selectedTab.tabType == .table,
-                           !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            print("[MainContentView] Waiting for connection to be ready...")
-                            
-                            // CRITICAL: Wait for connection to be established
-                            // Without this, query fails with "Not connected to database"
-                            var retryCount = 0
-                            while retryCount < 50 { // Max 5 seconds
-                                if let session = DatabaseManager.shared.currentSession,
-                                   session.isConnected {
-                                    print("[MainContentView] Connection ready! Executing query for restored table tab: \(selectedTab.title)")
-                                    
-                                    // Small delay to ensure everything is initialized
-                                    try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-                                    await MainActor.run {
-                                        justRestoredTab = true  // Prevent lazy load from executing again
-                                        runQuery()
-                                    }
-                                    break
+                        // Wait for connection to be established
+                        var retryCount = 0
+                        while retryCount < 50 { // Max 5 seconds
+                            if let session = DatabaseManager.shared.currentSession,
+                               session.isConnected {
+                                // Small delay to ensure everything is initialized
+                                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                                await MainActor.run {
+                                    justRestoredTab = true  // Prevent lazy load from executing again
+                                    runQuery()
                                 }
-                                
-                                // Wait 100ms and retry
-                                try? await Task.sleep(nanoseconds: 100_000_000)
-                                retryCount += 1
+                                break
                             }
                             
-                            if retryCount >= 50 {
-                                print("[MainContentView] Warning: Connection timeout, query not executed")
-                            }
-                        } else if selectedTab.tabType == .query {
-                            print("[MainContentView] Restored query tab - skipping auto-execution")
-                        } else {
-                            print("[MainContentView] Restored table tab but no query - skipping auto-execution")
+                            // Wait 100ms and retry
+                            try? await Task.sleep(nanoseconds: 100_000_000)
+                            retryCount += 1
                         }
-                    } else {
-                        print("[MainContentView] No selected tab after restore")
+                        
+                        if retryCount >= 50 {
+                            print("[MainContentView] ⚠️ Connection timeout, query not executed")
+                        }
                     }
                 }
             }
@@ -896,16 +874,18 @@ struct MainContentView: View {
             return
         }
 
+        guard !tabManager.tabs[index].isExecuting else {
+            return
+        }
+
         // Cancel any previous running query to prevent race conditions
-        // This is critical for SSH connections where rapid sorting can cause
-        // multiple queries to return out of order, leading to EXC_BAD_ACCESS
+        // IMPORTANT: Only cancel AFTER checking isExecuting, otherwise we cancel
+        // a valid running query without starting a new one
         currentQueryTask?.cancel()
 
         // Increment generation - any query with a different generation will be ignored
         queryGeneration += 1
         let capturedGeneration = queryGeneration
-
-        guard !tabManager.tabs[index].isExecuting else { return }
 
         tabManager.tabs[index].isExecuting = true
         tabManager.tabs[index].executionTime = nil
@@ -1019,13 +999,16 @@ struct MainContentView: View {
 
                 // Find tab by ID (index may have changed) - must update on main thread
                 await MainActor.run {
+                    
                     // ALWAYS update toolbar state first - user should see query completion
                     toolbarState.isExecuting = false
                     toolbarState.lastQueryDuration = safeExecutionTime
 
                     // Only update tab if this is still the most recent query
                     // This prevents race conditions when navigating quickly between tables
-                    guard capturedGeneration == queryGeneration else { return }
+                    guard capturedGeneration == queryGeneration else {
+                        return
+                    }
                     guard !Task.isCancelled else { return }
 
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
@@ -1885,7 +1868,6 @@ struct MainContentView: View {
             let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId })
         {
             let newTab = tabManager.tabs[newIndex]
-            print("[MainContentView] Tab change: \(oldTabId == nil ? "nil" : "tab") -> \(newTab.title) (type: \(newTab.tabType))")
 
             // CRITICAL: Update these immediately for UI consistency
             selectedRowIndices = newTab.selectedRowIndices
@@ -1912,21 +1894,9 @@ struct MainContentView: View {
                 // Otherwise, if lazy load is skipped due to flag=true, flag never resets!
                 let shouldSkipLazyLoad = justRestoredTab
                 if justRestoredTab {
-                    print("[MainContentView] Resetting justRestoredTab flag")
                     justRestoredTab = false
                 }
                 
-                // LAZY LOAD: Auto-execute query ONLY for table tabs
-                // Query tabs require manual execution by user (Cmd+Return)
-                // Skip if we just restored and executed this tab
-                
-                // DEBUG: Log all conditions
-                print("[MainContentView] Lazy load check for \(newTab.title):")
-                print("  - shouldSkipLazyLoad: \(shouldSkipLazyLoad)")
-                print("  - tabType: \(newTab.tabType)")
-                print("  - resultRows.isEmpty: \(newTab.resultRows.isEmpty)")
-                print("  - lastExecutedAt == nil: \(newTab.lastExecutedAt == nil)")
-                print("  - has query: \(!newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
                 
                 if !shouldSkipLazyLoad &&
                    newTab.tabType == .table &&  // Only auto-execute for table tabs
@@ -1934,16 +1904,12 @@ struct MainContentView: View {
                    newTab.lastExecutedAt == nil && 
                    !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     
-                    // CRITICAL: Check connection before executing
+                    // Check connection before executing
                     if let session = DatabaseManager.shared.currentSession, session.isConnected {
-                        print("[MainContentView] Lazy loading data for table tab: \(newTab.title)")
                         runQuery()
                     } else {
-                        print("[MainContentView] Table tab needs data but not connected - setting flag")
                         needsLazyLoad = true
                     }
-                } else {
-                    print("[MainContentView] Skipping lazy load (one or more conditions not met)")
                 }
             }
         } else {
@@ -2280,7 +2246,15 @@ struct MainContentView: View {
         // For existing tabs, onChange will restore their saved selection
         if needsQuery {
             selectedRowIndices = []
-            runQuery()
+            
+            // Execute query for new/replaced tabs
+            // IMPORTANT: Wrapped in Task to ensure SwiftUI processes tab property updates first
+            // - For NEW tabs: selectedTabId changes → onChange fires → lazy load also triggers
+            //   (both will try to run query, but the second will be blocked by isExecuting guard)
+            // - For REPLACED tabs: selectedTabId stays same → onChange doesn't fire → we MUST call runQuery
+            Task { @MainActor in
+                runQuery()
+            }
         }
     }
     
