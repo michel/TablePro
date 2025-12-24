@@ -208,9 +208,8 @@ struct MainContentView: View {
                 // Skip save during restoration
                 guard !isRestoringTabs else { return }
                 
-                // CRITICAL: Skip save if view is being dismissed
+                // Skip save if view is being dismissed
                 guard !isDismissing else {
-                    print("[MainContentView] Skipping selectedTabId save - view is being dismissed")
                     return
                 }
                 
@@ -235,7 +234,6 @@ struct MainContentView: View {
                 // CRITICAL: Skip save if view is being dismissed to prevent saving empty query
                 // When SwiftUI tears down the view, bindings may be reset causing empty saves
                 guard !isDismissing else {
-                    print("[MainContentView] Skipping save - view is being dismissed")
                     return
                 }
                 
@@ -271,7 +269,6 @@ struct MainContentView: View {
             .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { _, isConnected in
                 // Auto-execute query when connection becomes ready and tab needs data
                 if isConnected == true && needsLazyLoad {
-                    print("[MainContentView] Connection ready - executing lazy load")
                     needsLazyLoad = false
                     runQuery()
                 }
@@ -345,7 +342,6 @@ struct MainContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .mainWindowWillClose)) { _ in
                 // CRITICAL: Window is about to close - flush pending saves immediately
                 // This prevents query text from being lost when SwiftUI tears down the view
-                print("[MainContentView] Window will close - flushing pending saves")
                 
                 // Set flag to prevent further saves (view is being destroyed)
                 isDismissing = true
@@ -360,7 +356,6 @@ struct MainContentView: View {
                         tabs: tabManager.tabs,
                         selectedTabId: tabManager.selectedTabId
                     )
-                    print("[MainContentView] Flushed tab state for connection \(connection.id)")
                 }
             }
     }
@@ -454,11 +449,10 @@ struct MainContentView: View {
                     tabManager.addTab(initialQuery: lastQuery)
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("loadQueryIntoEditor"))) { notification in
+            .onReceive(NotificationCenter.default.publisher(for: .loadQueryIntoEditor)) { notification in
                 // Load query from history/bookmark panel into current tab
                 Task { @MainActor in
-                    guard let query = notification.userInfo?["query"] as? String else { return }
-                    print("[MainContentView] Received loadQueryIntoEditor with query: \(query.prefix(50))...")
+                    guard let query = notification.object as? String else { return }
                     
                     // Load into the current tab (which was just created by .newTab)
                     if let tabIndex = tabManager.selectedTabIndex,
@@ -566,7 +560,6 @@ struct MainContentView: View {
                             // CRITICAL: Bounds check to prevent crash on paste
                             guard let index = tabManager.selectedTabIndex,
                                   index < tabManager.tabs.count else {
-                                print("[MainContentView] Warning: Invalid tab index during query update")
                                 return
                             }
                             
