@@ -137,10 +137,9 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
     private lazy var clearAllButton: NSButton = {
         let button = NSButton()
         button.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear All")
-        button.bezelStyle = .texturedRounded
-        button.isBordered = true
+        button.bezelStyle = .shadowlessSquare
+        button.isBordered = false
         button.imagePosition = .imageOnly
-        button.controlSize = .small
         button.translatesAutoresizingMaskIntoConstraints = false
         button.target = self
         button.action = #selector(clearAllClicked(_:))
