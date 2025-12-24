@@ -782,19 +782,27 @@ struct MainContentView: View {
                 let result = try await executeQueryAsync(sql: sql, connection: conn)
 
                 // Fetch column defaults and total row count if editable table
+                // OPTIMIZATION: Run both queries in parallel to reduce latency
                 var columnDefaults: [String: String?] = [:]
                 var totalRowCount: Int? = nil
                 if isEditable, let tableName = tableName {
-                    // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
                     if let driver = DatabaseManager.shared.activeDriver {
-                        let columnInfo = try await driver.fetchColumns(table: tableName)
+                        // Execute both queries in parallel for better performance
+                        async let columnInfoTask = driver.fetchColumns(table: tableName)
+                        async let countTask: QueryResult = {
+                            let quotedTable = conn.type.quoteIdentifier(tableName)
+                            return try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
+                        }()
+                        
+                        // Wait for both to complete
+                        let (columnInfo, countResult) = try await (columnInfoTask, countTask)
+                        
+                        // Process column defaults
                         for col in columnInfo {
                             columnDefaults[col.name] = col.defaultValue
                         }
-
-                        // Fetch total row count for pagination display
-                        let quotedTable = conn.type.quoteIdentifier(tableName)
-                        let countResult = try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
+                        
+                        // Process count result
                         if let firstRow = countResult.rows.first,
                            let countStr = firstRow.first as? String,
                            let count = Int(countStr) {
@@ -1863,8 +1871,6 @@ struct MainContentView: View {
         // 1. Generate SQL for cell edits
         if hasEditedCells {
             let cellStatements = changeManager.generateSQL()
-            for (index, stmt) in cellStatements.enumerated() {
-            }
             allStatements.append(contentsOf: cellStatements)
         }
 

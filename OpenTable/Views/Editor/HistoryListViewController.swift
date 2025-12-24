@@ -133,6 +133,21 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         button.action = #selector(filterChanged(_:))
         return button
     }()
+    
+    private lazy var clearAllButton: NSButton = {
+        let button = NSButton()
+        button.image = NSImage(systemSymbolName: "trash", accessibilityDescription: "Clear All")
+        button.bezelStyle = .texturedRounded
+        button.isBordered = true
+        button.imagePosition = .imageOnly
+        button.controlSize = .small
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.target = self
+        button.action = #selector(clearAllClicked(_:))
+        button.toolTip = "Clear all \(displayMode == .history ? "history" : "bookmarks")"
+        return button
+    }()
+
 
     private let scrollView: NSScrollView = {
         let scroll = NSScrollView()
@@ -247,7 +262,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         headerStack.translatesAutoresizingMaskIntoConstraints = false
         headerStack.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
 
-        let topRow = NSStackView(views: [modeSegment, filterButton])
+        let topRow = NSStackView(views: [modeSegment, NSView(), clearAllButton, filterButton])
         topRow.distribution = .fill
         topRow.spacing = 8
 
@@ -645,6 +660,39 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             guard row < bookmarks.count else { return }
             let bookmark = bookmarks[row]
             QueryHistoryManager.shared.deleteBookmark(id: bookmark.id)
+        }
+    }
+    
+    @objc private func clearAllClicked(_ sender: Any?) {
+        let count: Int
+        let itemName: String
+        
+        switch displayMode {
+        case .history:
+            count = historyEntries.count
+            itemName = count == 1 ? "history entry" : "history entries"
+        case .bookmarks:
+            count = bookmarks.count
+            itemName = count == 1 ? "bookmark" : "bookmarks"
+        }
+        
+        guard count > 0 else { return }
+        
+        let alert = NSAlert()
+        alert.messageText = "Clear All \(displayMode == .history ? "History" : "Bookmarks")?"
+        alert.informativeText = "This will permanently delete \(count) \(itemName). This action cannot be undone."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Clear All")
+        alert.addButton(withTitle: "Cancel")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            switch displayMode {
+            case .history:
+                _ = QueryHistoryManager.shared.clearAllHistory()
+            case .bookmarks:
+                _ = QueryHistoryManager.shared.clearAllBookmarks()
+            }
         }
     }
 }

@@ -910,39 +910,84 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     // MARK: - Row Actions
 
+    /// Delete a single row (used from context menu)
+    /// For multiple rows, use deleteRows(at:) directly for better performance
     func deleteRow(at index: Int) {
-        // If this is a newly inserted row, remove it completely instead of marking for deletion
-        if changeManager.isRowInserted(index) {
-            undoInsertRow(at: index)
-            return
+        // Reuse batch logic for consistency
+        deleteRows(at: [index])
+    }
+    
+    /// Delete multiple rows at once (batch operation for performance)
+    /// This is much faster than calling deleteRow(at:) in a loop because it:
+    /// - Processes all deletions before UI updates
+    /// - Triggers a single reloadData() call instead of N calls
+    func deleteRows(at indices: Set<Int>) {
+        guard !indices.isEmpty else { return }
+        
+        // Separate inserted rows from existing rows
+        var insertedRowsToDelete: [Int] = []
+        var existingRowsToDelete: [(rowIndex: Int, originalRow: [String?])] = []
+        
+        for rowIndex in indices {
+            if changeManager.isRowInserted(rowIndex) {
+                insertedRowsToDelete.append(rowIndex)
+            } else if !changeManager.isRowDeleted(rowIndex) {
+                guard let rowData = rowProvider.row(at: rowIndex) else { continue }
+                existingRowsToDelete.append((rowIndex: rowIndex, originalRow: rowData.values))
+            }
         }
         
-        guard let rowData = rowProvider.row(at: index) else { return }
-        changeManager.recordRowDeletion(rowIndex: index, originalRow: rowData.values)
-        
-        // Move selection to next row (or previous if last row)
-        // This makes the red background visible instead of being hidden by blue selection
-        if selectedRowIndices.contains(index) {
-            var newSelection = Set<Int>()
+        // Process inserted rows deletion (removes from data)
+        if !insertedRowsToDelete.isEmpty {
+            // Sort descending so removing higher indices first doesn't affect lower indices
+            let sortedInsertedRows = insertedRowsToDelete.sorted(by: >)
             
-            // Try to select next row
-            if index + 1 < cachedRowCount {
-                newSelection.insert(index + 1)
-            } 
-            // If deleted row was last, select previous row
-            else if index > 0 {
-                newSelection.insert(index - 1)
+            // Remove from rowProvider and changeManager
+            for rowIndex in sortedInsertedRows {
+                rowProvider.removeRow(at: rowIndex)
             }
             
-            // Update selection synchronously to prevent flash
-            self.selectedRowIndices = newSelection
+            // Batch update changeManager
+            changeManager.undoBatchRowInsertion(rowIndices: sortedInsertedRows)
+            
+            // Update cached counts
+            updateCache()
         }
         
-        // Reload row data after selection has been updated
-        tableView?.reloadData(
-            forRowIndexes: IndexSet(integer: index),
-            columnIndexes: IndexSet(integersIn: 0..<(tableView?.numberOfColumns ?? 0)))
+        // Record batch deletion for existing rows (single undo action)
+        if !existingRowsToDelete.isEmpty {
+            changeManager.recordBatchRowDeletion(rows: existingRowsToDelete)
+        }
+        
+        // Calculate new selection based on deleted rows
+        let minSelectedRow = indices.min() ?? 0
+        let maxSelectedRow = indices.max() ?? 0
+        let totalRows = cachedRowCount
+        let insertedRowsDeletedCount = insertedRowsToDelete.count
+        
+        // Adjust for inserted rows that were removed (they shift indices)
+        let adjustedMaxRow = maxSelectedRow - insertedRowsDeletedCount
+        let adjustedMinRow = minSelectedRow - insertedRowsToDelete.filter { $0 < minSelectedRow }.count
+        
+        var newSelection = Set<Int>()
+        if adjustedMaxRow + 1 < totalRows {
+            // Select row after the deleted range
+            newSelection.insert(min(adjustedMaxRow + 1, totalRows - 1))
+        } else if adjustedMinRow > 0 {
+            // Deleted rows at end, select previous row
+            newSelection.insert(adjustedMinRow - 1)
+        } else if totalRows > 0 {
+            // Select first row if available
+            newSelection.insert(0)
+        }
+        
+        // Update selection
+        self.selectedRowIndices = newSelection
+        
+        // Single reload for all changes - massive performance improvement!
+        tableView?.reloadData()
     }
+
 
     func undoDeleteRow(at index: Int) {
         changeManager.undoRowDeletion(rowIndex: index)
@@ -1423,10 +1468,8 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
         let selectedIndices = Set(selectedRowIndexes.map { $0 })
         guard !selectedIndices.isEmpty else { return }
         
-        // Mark rows for deletion
-        for rowIndex in selectedIndices.sorted(by: >) {
-            coordinator?.deleteRow(at: rowIndex)
-        }
+        // Batch delete all selected rows (single UI reload)
+        coordinator?.deleteRows(at: selectedIndices)
     }
     
     /// Enable/disable Edit menu items based on state
@@ -1450,10 +1493,8 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
         if event.keyCode == 51 || event.keyCode == 117 {
             let selectedIndices = Set(selectedRowIndexes.map { $0 })
             if !selectedIndices.isEmpty && coordinator?.isEditable == true {
-                // Mark rows for deletion
-                for rowIndex in selectedIndices.sorted(by: >) {
-                    coordinator?.deleteRow(at: rowIndex)
-                }
+                // Batch delete all selected rows (single UI reload)
+                coordinator?.deleteRows(at: selectedIndices)
                 return true  // We handled it
             }
         }

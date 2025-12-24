@@ -663,13 +663,15 @@ final class DataChangeManager: ObservableObject {
 
     func generateSQL() -> [String] {
         var statements: [String] = []
+        
+        // Collect UPDATE and DELETE changes to batch them
+        var updateChanges: [RowChange] = []
+        var deleteChanges: [RowChange] = []
 
         for change in changes {
             switch change.type {
             case .update:
-                if let sql = generateUpdateSQL(for: change) {
-                    statements.append(sql)
-                }
+                updateChanges.append(change)
             case .insert:
                 // SAFETY: Verify the row is still marked as inserted
                 guard insertedRowIndices.contains(change.rowIndex) else {
@@ -685,9 +687,20 @@ final class DataChangeManager: ObservableObject {
                     print("⚠️ Skipping DELETE for row \(change.rowIndex) - not in deletedRowIndices")
                     continue
                 }
-                if let sql = generateDeleteSQL(for: change) {
-                    statements.append(sql)
-                }
+                deleteChanges.append(change)
+            }
+        }
+        
+        // Generate batched UPDATE statements (group by same columns being updated)
+        if !updateChanges.isEmpty {
+            let batchedUpdates = generateBatchUpdateSQL(for: updateChanges)
+            statements.append(contentsOf: batchedUpdates)
+        }
+        
+        // Generate batched DELETE statement (TablePlus style: single DELETE with OR conditions)
+        if !deleteChanges.isEmpty {
+            if let sql = generateBatchDeleteSQL(for: deleteChanges) {
+                statements.append(sql)
             }
         }
 
@@ -722,7 +735,90 @@ final class DataChangeManager: ObservableObject {
 
         return sqlFunctions.contains(trimmed)
     }
+    
+    /// Generate batched UPDATE statements grouped by columns being updated
+    /// Example: UPDATE table SET col1 = CASE WHEN id=1 THEN 'val1' WHEN id=2 THEN 'val2' END WHERE id IN (1,2)
+    /// This is much more efficient than individual UPDATE statements
+    private func generateBatchUpdateSQL(for changes: [RowChange]) -> [String] {
+        guard !changes.isEmpty else { return [] }
+        guard let pkColumn = primaryKeyColumn else {
+            // Fallback to individual UPDATEs if no PK
+            return changes.compactMap { generateUpdateSQL(for: $0) }
+        }
+        guard let pkIndex = columns.firstIndex(of: pkColumn) else {
+            return changes.compactMap { generateUpdateSQL(for: $0) }
+        }
+        
+        // Group changes by set of columns being updated
+        var grouped: [[String]: [RowChange]] = [:]
+        for change in changes {
+            let columnNames = change.cellChanges.map { $0.columnName }.sorted()
+            grouped[columnNames, default: []].append(change)
+        }
+        
+        var statements: [String] = []
+        
+        for (columnNames, groupedChanges) in grouped {
+            // Build CASE statements for each column
+            var caseClauses: [String] = []
+            
+            for columnName in columnNames {
+                var whenClauses: [String] = []
+                
+                for change in groupedChanges {
+                    guard let originalRow = change.originalRow,
+                          pkIndex < originalRow.count,
+                          let cellChange = change.cellChanges.first(where: { $0.columnName == columnName }) else {
+                        continue
+                    }
+                    
+                    let pkValue = originalRow[pkIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
+                    
+                    // Generate value
+                    let value: String
+                    if cellChange.newValue == "__DEFAULT__" {
+                        value = "DEFAULT"
+                    } else if let newValue = cellChange.newValue {
+                        if isSQLFunctionExpression(newValue) {
+                            value = newValue.trimmingCharacters(in: .whitespaces).uppercased()
+                        } else {
+                            value = "'\(escapeSQLString(newValue))'"
+                        }
+                    } else {
+                        value = "NULL"
+                    }
+                    
+                    whenClauses.append("WHEN \(databaseType.quoteIdentifier(pkColumn)) = \(pkValue) THEN \(value)")
+                }
+                
+                if !whenClauses.isEmpty {
+                    let caseExpr = "CASE \(whenClauses.joined(separator: " ")) END"
+                    caseClauses.append("\(databaseType.quoteIdentifier(columnName)) = \(caseExpr)")
+                }
+            }
+            
+            // Build WHERE IN clause with all PKs
+            var pkValues: [String] = []
+            for change in groupedChanges {
+                guard let originalRow = change.originalRow,
+                      pkIndex < originalRow.count else {
+                    continue
+                }
+                let pkValue = originalRow[pkIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
+                pkValues.append(pkValue)
+            }
+            
+            if !caseClauses.isEmpty && !pkValues.isEmpty {
+                let whereClause = "\(databaseType.quoteIdentifier(pkColumn)) IN (\(pkValues.joined(separator: ", ")))"
+                let sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(caseClauses.joined(separator: ", ")) WHERE \(whereClause)"
+                statements.append(sql)
+            }
+        }
+        
+        return statements
+    }
 
+    /// Generate individual UPDATE statement for a single row (fallback)
     private func generateUpdateSQL(for change: RowChange) -> String? {
         guard !change.cellChanges.isEmpty else { return nil }
 
@@ -843,6 +939,35 @@ final class DataChangeManager: ObservableObject {
             "INSERT INTO \(databaseType.quoteIdentifier(tableName)) (\(columnNames)) VALUES (\(values))"
     }
 
+    /// Generate a batched DELETE statement combining multiple rows with OR conditions
+    /// Example: DELETE FROM table WHERE id = 1 OR id = 2 OR id = 3
+    /// This is much more efficient than individual DELETE statements
+    private func generateBatchDeleteSQL(for changes: [RowChange]) -> String? {
+        guard !changes.isEmpty else { return nil }
+        guard let pkColumn = primaryKeyColumn else { return nil }
+        guard let pkIndex = columns.firstIndex(of: pkColumn) else { return nil }
+        
+        // Build OR conditions for all rows
+        var conditions: [String] = []
+        
+        for change in changes {
+            guard let originalRow = change.originalRow,
+                  pkIndex < originalRow.count else {
+                continue
+            }
+            
+            let pkValue = originalRow[pkIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
+            conditions.append("\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)")
+        }
+        
+        guard !conditions.isEmpty else { return nil }
+        
+        // Combine all conditions with OR
+        let whereClause = conditions.joined(separator: " OR ")
+        return "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
+    }
+    
+    /// Generate individual DELETE statement for a single row (kept for compatibility)
     private func generateDeleteSQL(for change: RowChange) -> String? {
         guard let pkColumn = primaryKeyColumn,
             let originalRow = change.originalRow,

@@ -169,6 +169,24 @@ final class QueryHistoryManager {
         return success
     }
     
+    /// Clear all history entries
+    func clearAllHistory() -> Bool {
+        let success = storage.clearAllHistory()
+        if success {
+            NotificationCenter.default.post(name: .queryHistoryDidUpdate, object: nil)
+        }
+        return success
+    }
+    
+    /// Clear all bookmarks
+    func clearAllBookmarks() -> Bool {
+        let success = storage.clearAllBookmarks()
+        if success {
+            NotificationCenter.default.post(name: .queryBookmarksDidUpdate, object: nil)
+        }
+        return success
+    }
+    
     // MARK: - Cleanup
     
     /// Manually trigger cleanup (normally runs automatically)

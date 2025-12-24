@@ -366,6 +366,20 @@ final class QueryHistoryStorage {
         }
     }
     
+    /// Clear all history entries
+    func clearAllHistory() -> Bool {
+        return queue.sync {
+            let sql = "DELETE FROM history;"
+            var statement: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                return false
+            }
+            
+            defer { sqlite3_finalize(statement) }
+            return sqlite3_step(statement) == SQLITE_DONE
+        }
+    }
+    
     // MARK: - Bookmark Operations
     
     /// Add a bookmark
@@ -584,6 +598,20 @@ final class QueryHistoryStorage {
             // Silently handle success/failure
             
             return success
+        }
+    }
+    
+    /// Clear all bookmarks
+    func clearAllBookmarks() -> Bool {
+        return queue.sync {
+            let sql = "DELETE FROM bookmarks;"
+            var statement: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                return false
+            }
+            
+            defer { sqlite3_finalize(statement) }
+            return sqlite3_step(statement) == SQLITE_DONE
         }
     }
     
