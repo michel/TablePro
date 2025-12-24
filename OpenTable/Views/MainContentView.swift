@@ -43,6 +43,12 @@ struct MainContentView: View {
     @State private var saveDebounceTask: Task<Void, Never>?  // Debounce task for saving tabs
     @State private var isDismissing = false  // Prevent saving when view is being destroyed
     @State private var justRestoredTab = false  // Prevent lazy load duplicate execution after restore
+    
+    // MARK: - Constants
+    
+    private static let tabSaveDebounceDelay: UInt64 = 500_000_000  // 500ms in nanoseconds
+    private static let connectionCheckDelay: UInt64 = 100_000_000  // 100ms in nanoseconds
+    private static let maxConnectionRetries = 50  // Max retries for connection check (5 seconds total)
 
     // Error alert state
     @State private var showErrorAlert = false
@@ -399,11 +405,14 @@ struct MainContentView: View {
                         
                         // Wait for connection to be established
                         var retryCount = 0
-                        while retryCount < 50 { // Max 5 seconds
+                        while retryCount < Self.maxConnectionRetries {
+                            // Stop waiting if view is being dismissed
+                            guard !isDismissing else { break }
+                            
                             if let session = DatabaseManager.shared.currentSession,
                                session.isConnected {
                                 // Small delay to ensure everything is initialized
-                                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                                try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
                                 await MainActor.run {
                                     justRestoredTab = true  // Prevent lazy load from executing again
                                     runQuery()
@@ -992,6 +1001,8 @@ struct MainContentView: View {
 
                 // Find tab by ID (index may have changed) - must update on main thread
                 await MainActor.run {
+                    // Clear task reference to avoid stale references
+                    currentQueryTask = nil
                     
                     // ALWAYS update toolbar state first - user should see query completion
                     toolbarState.isExecuting = false
@@ -1053,6 +1064,9 @@ struct MainContentView: View {
 
                 // MUST run on MainActor for SwiftUI onChange to fire
                 await MainActor.run {
+                    // Clear task reference
+                    currentQueryTask = nil
+                    
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         tabManager.tabs[idx].errorMessage = error.localizedDescription
                         tabManager.tabs[idx].isExecuting = false
@@ -1886,17 +1900,13 @@ struct MainContentView: View {
                 // Reset flag BEFORE checking lazy load to ensure it's always reset
                 // Otherwise, if lazy load is skipped due to flag=true, flag never resets!
                 let shouldSkipLazyLoad = justRestoredTab
-                if justRestoredTab {
-                    justRestoredTab = false
-                }
-                
+                justRestoredTab = false
                 
                 if !shouldSkipLazyLoad &&
                    newTab.tabType == .table &&  // Only auto-execute for table tabs
                    newTab.resultRows.isEmpty && 
                    newTab.lastExecutedAt == nil && 
                    !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    
                     // Check connection before executing
                     if let session = DatabaseManager.shared.currentSession, session.isConnected {
                         runQuery()
