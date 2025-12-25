@@ -311,6 +311,9 @@ final class PostgreSQLDriver: DatabaseDriver {
     }
     
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
+        // Escape table name to prevent SQL injection (double quotes for PostgreSQL identifiers)
+        let safeTableName = tableName.replacingOccurrences(of: "\"", with: "\"\"")
+        
         let query = """
             SELECT
                 pg_total_relation_size(c.oid) AS total_size,
@@ -321,7 +324,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 obj_description(c.oid, 'pg_class') AS comment
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relname = '\(tableName)'
+            WHERE c.relname = '\(safeTableName.replacingOccurrences(of: "'", with: "''"))'
               AND n.nspname = 'public'
             """
         

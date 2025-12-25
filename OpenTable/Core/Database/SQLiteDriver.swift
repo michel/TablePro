@@ -302,8 +302,11 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.notConnected
         }
         
+        // Escape table name to prevent SQL injection
+        let safeTableName = tableName.replacingOccurrences(of: "'", with: "''")
+        
         // Get row count
-        let countQuery = "SELECT COUNT(*) FROM '\(tableName)'"
+        let countQuery = "SELECT COUNT(*) FROM '\(safeTableName)'"
         let countResult = try await execute(query: countQuery)
         let rowCount: Int64? = {
             guard let row = countResult.rows.first, let countStr = row.first else { return nil }
@@ -317,13 +320,13 @@ final class SQLiteDriver: DatabaseDriver {
                   let size = attrs[.size] as? Int64 else { return nil }
             return size
         }()
-        
+
         // Estimate average row length
         let avgRowLength: Int64? = {
             guard let total = fileSize, let count = rowCount, count > 0 else { return nil }
             return total / count
         }()
-        
+ 
         return TableMetadata(
             tableName: tableName,
             dataSize: fileSize,
