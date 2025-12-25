@@ -103,7 +103,10 @@ struct MainContentView: View {
                 .frame(width: 280)
                 .task(id: currentTab?.tableName) {
                     if let tableName = currentTab?.tableName {
-                        await loadTableMetadata(tableName: tableName)
+                        // Only fetch if metadata not already loaded for this table
+                        if tableMetadata?.tableName != tableName {
+                            await loadTableMetadata(tableName: tableName)
+                        }
                     } else {
                         tableMetadata = nil
                     }
@@ -372,8 +375,10 @@ struct MainContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .toggleRightSidebar)) { _ in
                 // Toggle inspector (Cmd+Opt+B) - no animation for native feel
                 isInspectorPresented.toggle()
-                // Load table metadata when opening inspector with a table tab active
-                if isInspectorPresented, let tableName = currentTab?.tableName {
+                // Load table metadata only if opening and not already loaded for this table
+                if isInspectorPresented,
+                   let tableName = currentTab?.tableName,
+                   tableMetadata?.tableName != tableName {
                     Task { await loadTableMetadata(tableName: tableName) }
                 }
             }

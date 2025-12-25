@@ -92,7 +92,7 @@ struct ContentView: View {
                 guard currentSession != nil else { return }
                 Task { @MainActor in
                     withAnimation {
-                        // Toggle left sidebar: .all (sidebar + detail) ↔ .detailOnly (detail only, no sidebar)
+                        // Toggle left sidebar (2-column layout: sidebar + detail)
                         if columnVisibility == .all {
                             columnVisibility = .detailOnly
                         } else {
