@@ -10,7 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var dbManager = DatabaseManager.shared
     @State private var connections: [DatabaseConnection] = []
-    @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showNewConnectionSheet = false
     @State private var showEditConnectionSheet = false
     @State private var connectionToEdit: DatabaseConnection?
