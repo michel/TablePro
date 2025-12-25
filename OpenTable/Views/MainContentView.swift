@@ -21,6 +21,12 @@ struct MainContentView: View {
     @StateObject private var tabManager = QueryTabManager()
     @StateObject private var changeManager = DataChangeManager()
     @StateObject private var filterStateManager = FilterStateManager()
+    @StateObject private var queryService = QueryExecutionService()
+
+    // Lazy-initialized row operations manager
+    private var rowOperationsManager: RowOperationsManager {
+        RowOperationsManager(changeManager: changeManager)
+    }
 
     @State private var selectedRowIndices: Set<Int> = []
     @State private var editingCell: CellPosition? = nil
@@ -742,90 +748,24 @@ struct MainContentView: View {
     // MARK: - Status Bar
 
     private var statusBar: some View {
-        HStack {
-            // Left: Data/Structure toggle for table tabs
-            if let tab = currentTab, tab.tabType == .table, tab.tableName != nil {
-                Picker(
-                    "",
-                    selection: Binding(
-                        get: { tab.showStructure ? "structure" : "data" },
-                        set: { newValue in
-                            DispatchQueue.main.async {
-                                if let index = tabManager.selectedTabIndex {
-                                    tabManager.tabs[index].showStructure = (newValue == "structure")
-                                }
-                            }
-                        }
-                    )
-                ) {
-                    Label("Data", systemImage: "tablecells").tag("data")
-                    Label("Structure", systemImage: "list.bullet.rectangle").tag("structure")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 180)
-                .controlSize(.small)
-                .offset(x: -26)
-            }
-
-            Spacer()
-
-            // Center: Row info (pagination/selection)
-            if let tab = currentTab, !tab.resultRows.isEmpty {
-                Text(rowInfoText(for: tab))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            // Right: Filters toggle button
-            if let tab = currentTab, tab.tabType == .table, tab.tableName != nil {
-                Toggle(isOn: Binding(
-                    get: { filterStateManager.isVisible },
-                    set: { _ in filterStateManager.toggle() }
-                )) {
-                    HStack(spacing: 4) {
-                        Image(systemName: filterStateManager.hasAppliedFilters
-                            ? "line.3.horizontal.decrease.circle.fill"
-                            : "line.3.horizontal.decrease.circle")
-                        Text("Filters")
-                        if filterStateManager.hasAppliedFilters {
-                            Text("(\(filterStateManager.appliedFilters.count))")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .toggleStyle(.button)
-                .controlSize(.small)
-                .help("Toggle Filters (Cmd+F)")
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
-        .background(Color(nsColor: .controlBackgroundColor))
+        MainStatusBarView(
+            tab: currentTab,
+            filterStateManager: filterStateManager,
+            selectedRowIndices: selectedRowIndices,
+            showStructure: showStructureBinding
+        )
     }
 
-    /// Generate row info text based on selection and pagination state
-    private func rowInfoText(for tab: QueryTab) -> String {
-        let loadedCount = tab.resultRows.count
-        // Use local selectedRowIndices state (not tab.selectedRowIndices which is only synced on tab switch)
-        let selectedCount = selectedRowIndices.count
-        let total = tab.pagination.totalRowCount
-
-        if selectedCount > 0 {
-            // Selection mode
-            if selectedCount == loadedCount {
-                return "All \(loadedCount) rows selected"
-            } else {
-                return "\(selectedCount) of \(loadedCount) rows selected"
+    /// Binding for showStructure state
+    private var showStructureBinding: Binding<Bool> {
+        Binding(
+            get: { currentTab?.showStructure ?? false },
+            set: { newValue in
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].showStructure = newValue
+                }
             }
-        } else if let total = total, total > loadedCount {
-            // Pagination mode: "1-100 of 5000 rows"
-            return "1-\(loadedCount) of \(total) rows"
-        } else {
-            // Simple mode: "100 rows"
-            return "\(loadedCount) rows"
-        }
+        )
     }
 
     // MARK: - Actions
@@ -1202,73 +1142,14 @@ struct MainContentView: View {
             !selectedRowIndices.isEmpty
         else { return }
 
-        // Separate inserted rows from existing rows
-        var insertedRowsToDelete: [Int] = []
-        var existingRowsToDelete: [(rowIndex: Int, originalRow: [String?])] = []
-        
-        // Find the lowest selected row index for selection movement
-        let minSelectedRow = selectedRowIndices.min() ?? 0
-        let maxSelectedRow = selectedRowIndices.max() ?? 0
+        // Use RowOperationsManager to delete rows
+        let nextRow = rowOperationsManager.deleteSelectedRows(
+            selectedIndices: selectedRowIndices,
+            resultRows: &tabManager.tabs[tabIndex].resultRows
+        )
 
-        // Categorize rows (process in descending order to maintain correct indices)
-        for rowIndex in selectedRowIndices.sorted(by: >) {
-            if changeManager.isRowInserted(rowIndex) {
-                // Collect inserted rows to delete
-                insertedRowsToDelete.append(rowIndex)
-            } else if !changeManager.isRowDeleted(rowIndex) {
-                // Collect existing rows for batch deletion
-                if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
-                    let originalRow = tabManager.tabs[tabIndex].resultRows[rowIndex].values
-                    existingRowsToDelete.append((rowIndex: rowIndex, originalRow: originalRow))
-                }
-            }
-        }
-        
-        // Process inserted rows deletion
-        if !insertedRowsToDelete.isEmpty {
-            // Sort descending so removing higher indices first doesn't affect lower indices
-            let sortedInsertedRows = insertedRowsToDelete.sorted(by: >)
-            
-            // Remove from resultRows first (descending order)
-            for rowIndex in sortedInsertedRows {
-                guard rowIndex < tabManager.tabs[tabIndex].resultRows.count else { continue }
-                tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
-            }
-            
-            // Update changeManager for ALL deleted inserted rows at once
-            // This prevents index shifting issues from calling undoRowInsertion multiple times
-            changeManager.undoBatchRowInsertion(rowIndices: sortedInsertedRows)
-        }
-        
-        // Record batch deletion for existing rows (single undo action for all rows)
-        if !existingRowsToDelete.isEmpty {
-            changeManager.recordBatchRowDeletion(rows: existingRowsToDelete)
-        }
-
-        // Move selection to next available row after deletion
-        let totalRows = tabManager.tabs[tabIndex].resultRows.count
-        
-        // Calculate next row selection, accounting for deleted inserted rows
-        let rowsDeleted = insertedRowsToDelete.count
-        let adjustedMaxRow = maxSelectedRow - rowsDeleted
-        let adjustedMinRow = minSelectedRow - insertedRowsToDelete.filter { $0 < minSelectedRow }.count
-        
-        let nextRow: Int
-        if adjustedMaxRow + 1 < totalRows {
-            // Select row after the deleted range
-            nextRow = min(adjustedMaxRow + 1, totalRows - 1)
-        } else if adjustedMinRow > 0 {
-            // Deleted rows at end, select previous row
-            nextRow = adjustedMinRow - 1
-        } else if totalRows > 0 {
-            // Select first row if available
-            nextRow = 0
-        } else {
-            // All rows deleted
-            nextRow = -1
-        }
-        
-        if nextRow >= 0 && nextRow < totalRows {
+        // Update selection
+        if nextRow >= 0 && nextRow < tabManager.tabs[tabIndex].resultRows.count {
             selectedRowIndices = [nextRow]
         } else {
             selectedRowIndices.removeAll()
@@ -1292,21 +1173,12 @@ struct MainContentView: View {
     private func copySelectedRowsToClipboard() {
         guard let index = tabManager.selectedTabIndex,
               !selectedRowIndices.isEmpty else { return }
-        
+
         let tab = tabManager.tabs[index]
-        let sortedIndices = selectedRowIndices.sorted()
-        var lines: [String] = []
-        
-        for rowIndex in sortedIndices {
-            guard rowIndex < tab.resultRows.count else { continue }
-            let row = tab.resultRows[rowIndex]
-            let line = row.values.map { $0 ?? "NULL" }.joined(separator: "\t")
-            lines.append(line)
-        }
-        
-        let text = lines.joined(separator: "\n")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        rowOperationsManager.copySelectedRowsToClipboard(
+            selectedIndices: selectedRowIndices,
+            resultRows: tab.resultRows
+        )
     }
 
     // MARK: - Filters
@@ -1619,45 +1491,25 @@ struct MainContentView: View {
     private func addNewRow() {
         guard let tabIndex = tabManager.selectedTabIndex else { return }
         guard tabIndex < tabManager.tabs.count else { return }
-        
+
         let tab = tabManager.tabs[tabIndex]
-        
+
         // Only add rows to editable table tabs
         guard tab.isEditable, tab.tableName != nil else { return }
-        
-        let columns = tab.resultColumns
-        let columnDefaults = tab.columnDefaults
-        
-        // Create new row values with DEFAULT markers
-        // These will be filtered out during INSERT generation,
-        // letting the database use actual defaults
-        var newRowValues: [String?] = []
-        for column in columns {
-            if let defaultValue = columnDefaults[column], defaultValue != nil {
-                // Use __DEFAULT__ marker so generateInsertSQL skips this column
-                newRowValues.append("__DEFAULT__")
-            } else {
-                // NULL for columns without defaults
-                newRowValues.append(nil)
-            }
-        }
-        
-        // Add to tab's resultRows
-        let newRow = QueryResultRow(values: newRowValues)
-        tabManager.tabs[tabIndex].resultRows.append(newRow)
-        
-        // Get the new row index
-        let newRowIndex = tabManager.tabs[tabIndex].resultRows.count - 1
-        
-        // Record in change manager as pending INSERT
-        changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newRowValues)
-        
+
+        // Use RowOperationsManager to add the row
+        guard let result = rowOperationsManager.addNewRow(
+            columns: tab.resultColumns,
+            columnDefaults: tab.columnDefaults,
+            resultRows: &tabManager.tabs[tabIndex].resultRows
+        ) else { return }
+
         // Select the new row (scrolls to it)
-        selectedRowIndices = [newRowIndex]
-        
+        selectedRowIndices = [result.rowIndex]
+
         // Auto-focus first cell instantly (TablePlus behavior)
-        editingCell = CellPosition(row: newRowIndex, column: 0)
-        
+        editingCell = CellPosition(row: result.rowIndex, column: 0)
+
         // Mark tab as having user interaction
         tabManager.tabs[tabIndex].hasUserInteraction = true
     }
@@ -1679,31 +1531,18 @@ struct MainContentView: View {
               selectedRowIndices.count == 1,
               selectedIndex < tab.resultRows.count else { return }
 
-        // Copy values from selected row
-        let sourceRow = tab.resultRows[selectedIndex]
-        var newValues = sourceRow.values
-
-        // Set primary key column to DEFAULT so DB auto-generates
-        if let pkColumn = changeManager.primaryKeyColumn,
-           let pkIndex = tab.resultColumns.firstIndex(of: pkColumn) {
-            newValues[pkIndex] = "__DEFAULT__"
-        }
-
-        // Add the duplicated row
-        let newRow = QueryResultRow(values: newValues)
-        tabManager.tabs[tabIndex].resultRows.append(newRow)
-
-        // Get the new row index
-        let newRowIndex = tabManager.tabs[tabIndex].resultRows.count - 1
-
-        // Record in change manager as pending INSERT
-        changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newValues)
+        // Use RowOperationsManager to duplicate the row
+        guard let result = rowOperationsManager.duplicateRow(
+            sourceRowIndex: selectedIndex,
+            columns: tab.resultColumns,
+            resultRows: &tabManager.tabs[tabIndex].resultRows
+        ) else { return }
 
         // Select the new row (scrolls to it)
-        selectedRowIndices = [newRowIndex]
+        selectedRowIndices = [result.rowIndex]
 
         // Auto-focus first cell (TablePlus behavior)
-        editingCell = CellPosition(row: newRowIndex, column: 0)
+        editingCell = CellPosition(row: result.rowIndex, column: 0)
 
         // Mark tab as having user interaction
         tabManager.tabs[tabIndex].hasUserInteraction = true
@@ -1713,26 +1552,13 @@ struct MainContentView: View {
     private func undoInsertRow(at rowIndex: Int) {
         guard let tabIndex = tabManager.selectedTabIndex else { return }
         guard tabIndex < tabManager.tabs.count else { return }
-        guard rowIndex >= 0 && rowIndex < tabManager.tabs[tabIndex].resultRows.count else { return }
-        
-        // Remove the row from resultRows
-        tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
-        
-        // Clear selection since the row no longer exists
-        if selectedRowIndices.contains(rowIndex) {
-            selectedRowIndices.remove(rowIndex)
-        }
-        
-        // Adjust selection indices for rows that shifted down
-        var adjustedSelection = Set<Int>()
-        for idx in selectedRowIndices {
-            if idx > rowIndex {
-                adjustedSelection.insert(idx - 1)
-            } else {
-                adjustedSelection.insert(idx)
-            }
-        }
-        selectedRowIndices = adjustedSelection
+
+        // Use RowOperationsManager to undo the insertion
+        selectedRowIndices = rowOperationsManager.undoInsertRow(
+            at: rowIndex,
+            resultRows: &tabManager.tabs[tabIndex].resultRows,
+            selectedIndices: selectedRowIndices
+        )
     }
     
     /// Undo the last change (Cmd+Z)
@@ -1740,62 +1566,14 @@ struct MainContentView: View {
     private func undoLastChange() {
         guard let tabIndex = tabManager.selectedTabIndex else { return }
         guard tabIndex < tabManager.tabs.count else { return }
-        
-        // Get the undo result from changeManager
-        guard let result = changeManager.undoLastChange() else { return }
-        
-        switch result.action {
-        case .cellEdit(let rowIndex, let columnIndex, _, let previousValue, _):
-            // Restore the cell value in resultRows
-            if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
-                tabManager.tabs[tabIndex].resultRows[rowIndex].values[columnIndex] = previousValue
-            }
-            
-        case .rowInsertion(let rowIndex):
-            // Remove the inserted row from resultRows
-            if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
-                tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
-                
-                // Clear selection if it was on the removed row
-                if selectedRowIndices.contains(rowIndex) {
-                    selectedRowIndices.remove(rowIndex)
-                }
-                
-                // Adjust selection indices for rows that shifted down
-                var adjustedSelection = Set<Int>()
-                for idx in selectedRowIndices {
-                    if idx > rowIndex {
-                        adjustedSelection.insert(idx - 1)
-                    } else {
-                        adjustedSelection.insert(idx)
-                    }
-                }
-                selectedRowIndices = adjustedSelection
-            }
-            
-        case .rowDeletion(_, _):
-            // Row is restored in changeManager - visual indicator will be removed
-            // No need to modify resultRows since deletion was just a visual indicator
-            break
-            
-        case .batchRowDeletion(_):
-            // All rows are restored in changeManager - visual indicators will be removed
-            // No need to modify resultRows since deletions were just visual indicators
-            break
-            
-        case .batchRowInsertion(let rowIndices, let rowValues):
-            // Restore deleted inserted rows - add them back to resultRows
-            // Process in reverse order (ascending) to maintain correct indices
-            for (index, rowIndex) in rowIndices.enumerated().reversed() {
-                guard index < rowValues.count else { continue }
-                guard rowIndex <= tabManager.tabs[tabIndex].resultRows.count else { continue }
-                
-                let values = rowValues[index]
-                let newRow = QueryResultRow(values: values)
-                tabManager.tabs[tabIndex].resultRows.insert(newRow, at: rowIndex)
-            }
+
+        // Use RowOperationsManager to undo
+        if let adjustedSelection = rowOperationsManager.undoLastChange(
+            resultRows: &tabManager.tabs[tabIndex].resultRows
+        ) {
+            selectedRowIndices = adjustedSelection
         }
-        
+
         // Mark tab as having user interaction
         tabManager.tabs[tabIndex].hasUserInteraction = true
     }
@@ -1805,44 +1583,15 @@ struct MainContentView: View {
     private func redoLastChange() {
         guard let tabIndex = tabManager.selectedTabIndex else { return }
         guard tabIndex < tabManager.tabs.count else { return }
-        
-        // Get the redo result from changeManager
-        guard let result = changeManager.redoLastChange() else { return }
-        
-        switch result.action {
-        case .cellEdit(let rowIndex, let columnIndex, _, _, let newValue):
-            // Re-apply the cell value in resultRows
-            if rowIndex < tabManager.tabs[tabIndex].resultRows.count {
-                tabManager.tabs[tabIndex].resultRows[rowIndex].values[columnIndex] = newValue
-            }
-            
-        case .rowInsertion(let rowIndex):
-            // Re-insert the row into resultRows
-            var newValues = [String?](repeating: nil, count: changeManager.columns.count)
-            let newRow = QueryResultRow(values: newValues)
-            if rowIndex <= tabManager.tabs[tabIndex].resultRows.count {
-                tabManager.tabs[tabIndex].resultRows.insert(newRow, at: rowIndex)
-            }
-            
-        case .rowDeletion(_, _):
-            // Row is re-marked as deleted in changeManager
-            // No need to modify resultRows since deletion is just a visual indicator
-            break
-            
-        case .batchRowDeletion(_):
-            // Rows are re-marked as deleted in changeManager
-            // No need to modify resultRows since deletions are just visual indicators
-            break
-            
-        case .batchRowInsertion(let rowIndices, _):
-            // Redo the deletion - remove the rows from resultRows again
-            // Remove in descending order to avoid index shifting issues
-            for rowIndex in rowIndices.sorted(by: >) {
-                guard rowIndex < tabManager.tabs[tabIndex].resultRows.count else { continue }
-                tabManager.tabs[tabIndex].resultRows.remove(at: rowIndex)
-            }
-        }
-        
+
+        let tab = tabManager.tabs[tabIndex]
+
+        // Use RowOperationsManager to redo
+        _ = rowOperationsManager.redoLastChange(
+            resultRows: &tabManager.tabs[tabIndex].resultRows,
+            columns: tab.resultColumns
+        )
+
         // Mark tab as having user interaction
         tabManager.tabs[tabIndex].hasUserInteraction = true
     }
