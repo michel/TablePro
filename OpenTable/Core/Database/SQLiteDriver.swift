@@ -313,18 +313,11 @@ final class SQLiteDriver: DatabaseDriver {
             return Int64(countStr ?? "0")
         }()
         
-        // Get database file size as total size (SQLite doesn't have per-table sizes)
-        let path = expandPath(connection.database)
-        let fileSize: Int64? = {
-            guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
-                  let size = attrs[.size] as? Int64 else { return nil }
-            return size
-        }()
-
- 
+        // SQLite does not expose accurate per-table size information.
+        // To avoid reporting misleading values, we leave size-related fields as nil.
         return TableMetadata(
             tableName: tableName,
-            dataSize: fileSize,
+            dataSize: nil,
             indexSize: nil,
             totalSize: nil,
             avgRowLength: nil,
