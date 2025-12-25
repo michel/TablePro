@@ -304,6 +304,11 @@ final class MySQLDriver: DatabaseDriver {
     
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
         let escapedTableName = tableName.replacingOccurrences(of: "'", with: "''")
+        // NOTE: `SHOW TABLE STATUS LIKE` expects a pattern string literal, not an
+        // identifier. For that reason we must use single-quoted string syntax here
+        // instead of the backtick identifier quoting used in other schema queries
+        // (e.g. `SHOW CREATE TABLE \`table\``). The table name is safely embedded
+        // by escaping single quotes above.
         let query = "SHOW TABLE STATUS LIKE '\(escapedTableName)'"
         let result = try await execute(query: query)
         
