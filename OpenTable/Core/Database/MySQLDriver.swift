@@ -296,7 +296,8 @@ final class MySQLDriver: DatabaseDriver {
     }
     
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
-        let query = "SHOW TABLE STATUS LIKE '\(tableName)'"
+        let escapedTableName = tableName.replacingOccurrences(of: "'", with: "''")
+        let query = "SHOW TABLE STATUS LIKE '\(escapedTableName)'"
         let result = try await execute(query: query)
         
         guard let row = result.rows.first else {
