@@ -35,9 +35,7 @@ final class TabStateStorage {
             let key = tabStateKey(for: connectionId)
             defaults.set(data, forKey: key)
         } catch {
-            #if DEBUG
-            print("[TabStateStorage] Failed to encode tab state: \(error.localizedDescription)")
-            #endif
+            // Silent failure - encoding errors are rare and non-critical
         }
     }
     
@@ -53,9 +51,7 @@ final class TabStateStorage {
             let decoder = JSONDecoder()
             return try decoder.decode(TabState.self, from: data)
         } catch {
-            #if DEBUG
-            print("[TabStateStorage] Failed to decode tab state: \(error.localizedDescription)")
-            #endif
+            // Silent failure - decoding errors return nil
             return nil
         }
     }

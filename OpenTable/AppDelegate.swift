@@ -61,11 +61,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Check if main window is being closed
         if isMainWindow(window) {
-            // CRITICAL: Save tab state SYNCHRONOUSLY before any async operations
-            // Otherwise sessions might be cleared before we save
-            saveAllTabStates()
+            // CRITICAL: Post notification FIRST to allow MainContentView to flush pending saves
+            // This ensures query text is saved before SwiftUI tears down the view
+            NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
 
-            // NOW disconnect sessions asynchronously (after save is complete)
+            // Allow run loop to process notification handlers synchronously
+            // This is more elegant than Thread.sleep as it processes pending events
+            // rather than blocking the main thread entirely
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+            
+            // NOTE: We do NOT call saveAllTabStates() here because:
+            // 1. MainContentView already flushed the correct state via the notification above
+            // 2. By this point, SwiftUI may have torn down views and session.tabs could be stale/empty
+            // 3. Saving again would risk overwriting the good state with bad/empty state
+
+            // Disconnect sessions asynchronously (after save is complete)
             Task { @MainActor in
                 await DatabaseManager.shared.disconnectAll()
             }
