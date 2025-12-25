@@ -310,6 +310,12 @@ struct MainContentView: View {
                     filterStateManager.close()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .tableTabClosed)) { notification in
+                // Clear closed table from sidebar selection so it can be re-opened
+                if let tableName = notification.object as? String {
+                    selectedTables = selectedTables.filter { $0.name != tableName }
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .toggleFilterPanel)) { _ in
                 // Toggle filter panel (Cmd+F)
                 if currentTab?.tabType == .table {

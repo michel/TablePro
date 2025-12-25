@@ -8,6 +8,13 @@
 import Combine
 import Foundation
 
+// MARK: - Notifications
+
+extension Notification.Name {
+    /// Posted when a table tab is closed, with tableName as object
+    static let tableTabClosed = Notification.Name("tableTabClosed")
+}
+
 /// Type of tab
 enum TabType: Equatable, Codable {
     case query  // SQL editor tab
@@ -326,6 +333,10 @@ final class QueryTabManager: ObservableObject {
     }
 
     func closeTab(_ tab: QueryTab) {
+        // Capture table info BEFORE removing
+        let isTableTab = tab.tabType == .table
+        let tableName = tab.tableName
+        
         if let index = tabs.firstIndex(of: tab) {
             tabs.remove(at: index)
 
@@ -339,6 +350,11 @@ final class QueryTabManager: ObservableObject {
                     selectedTabId = tabs[max(0, index - 1)].id
                 }
             }
+        }
+        
+        // Notify when table tab is closed so sidebar selection can be cleared
+        if isTableTab, let name = tableName {
+            NotificationCenter.default.post(name: .tableTabClosed, object: name)
         }
     }
 
