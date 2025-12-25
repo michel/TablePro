@@ -326,7 +326,7 @@ final class SQLiteDriver: DatabaseDriver {
             tableName: tableName,
             dataSize: fileSize,
             indexSize: nil,
-            totalSize: fileSize,
+            totalSize: nil,
             avgRowLength: nil,
             rowCount: rowCount,
             comment: nil,
