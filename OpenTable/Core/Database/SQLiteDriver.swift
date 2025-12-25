@@ -321,18 +321,13 @@ final class SQLiteDriver: DatabaseDriver {
             return size
         }()
 
-        // Estimate average row length
-        let avgRowLength: Int64? = {
-            guard let total = fileSize, let count = rowCount, count > 0 else { return nil }
-            return total / count
-        }()
  
         return TableMetadata(
             tableName: tableName,
             dataSize: fileSize,
             indexSize: nil,
             totalSize: fileSize,
-            avgRowLength: avgRowLength,
+            avgRowLength: nil,
             rowCount: rowCount,
             comment: nil,
             engine: "SQLite",
