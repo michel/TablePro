@@ -459,7 +459,6 @@ private final class CompletionCellView: NSTableCellView {
         case .schema: return "db"
         case .alias: return "as"
         case .operator: return "op"
-        case .snippet: return "snip"
         }
     }
 }

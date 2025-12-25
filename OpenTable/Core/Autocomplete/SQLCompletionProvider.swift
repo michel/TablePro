@@ -145,14 +145,56 @@ final class SQLCompletionProvider {
             // After LIMIT/OFFSET - typically just numbers, but could include variables
             items += filterKeywords(["OFFSET", "FETCH", "NEXT", "ROWS", "ONLY"])
             
+        case .alterTable:
+            // After ALTER TABLE tablename - suggest DDL operations
+            items = filterKeywords([
+                "ADD", "DROP", "MODIFY", "CHANGE", "RENAME",
+                "COLUMN", "INDEX", "PRIMARY", "FOREIGN", "KEY",
+                "CONSTRAINT", "ENGINE", "CHARSET", "COLLATE"
+            ])
+            
+        case .createTable:
+            // Inside CREATE TABLE (...) - suggest constraints and data types
+            items = filterKeywords([
+                "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE",
+                "NOT", "NULL", "DEFAULT", "AUTO_INCREMENT", "SERIAL",
+                "CHECK", "CONSTRAINT", "INDEX"
+            ])
+            items += dataTypeKeywords()
+            
+        case .columnDef:
+            // Typing column data type (after ADD COLUMN name)
+            items = dataTypeKeywords()
+            items += filterKeywords([
+                "NOT", "NULL", "DEFAULT", "AUTO_INCREMENT", "SERIAL",
+                "PRIMARY", "KEY", "UNIQUE", "REFERENCES", "CHECK",
+                "UNSIGNED", "SIGNED", "FIRST", "AFTER"
+            ])
+            
         case .unknown:
-            // Start of query - suggest snippets and statement keywords
-            items = SQLKeywords.snippetItems()
-            items += filterKeywords(["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "SHOW", "DESCRIBE", "EXPLAIN", "WITH"])
+            // Start of query - suggest statement keywords and tables
+            items = filterKeywords(["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "SHOW", "DESCRIBE", "EXPLAIN", "WITH", "TRUNCATE"])
             items += await schemaProvider.tableCompletionItems()
         }
         
         return items
+    }
+    
+    /// SQL data type keywords
+    private func dataTypeKeywords() -> [SQLCompletionItem] {
+        filterKeywords([
+            // Numeric
+            "INT", "INTEGER", "BIGINT", "SMALLINT", "TINYINT", "MEDIUMINT",
+            "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "REAL",
+            // String
+            "VARCHAR", "CHAR", "TEXT", "TINYTEXT", "MEDIUMTEXT", "LONGTEXT",
+            "BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB",
+            // Date/Time
+            "DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR",
+            // Other
+            "BOOLEAN", "BOOL", "BIT", "JSON", "JSONB", "XML",
+            "UUID", "BINARY", "VARBINARY", "ENUM", "SET"
+        ])
     }
     
     /// Filter to specific keywords

@@ -19,7 +19,6 @@ enum SQLCompletionKind: String, CaseIterable, Sendable {
     case schema     // Database/schema names
     case alias      // Table aliases
     case `operator` // Operators (=, <>, LIKE, etc.)
-    case snippet    // Query templates
     
     /// SF Symbol for display
     var iconName: String {
@@ -32,7 +31,6 @@ enum SQLCompletionKind: String, CaseIterable, Sendable {
         case .schema: return "cylinder.split.1x2"
         case .alias: return "a.circle.fill"
         case .operator: return "equal.circle.fill"
-        case .snippet: return "doc.text.fill"
         }
     }
     
@@ -47,7 +45,6 @@ enum SQLCompletionKind: String, CaseIterable, Sendable {
         case .schema: return .systemGreen
         case .alias: return .systemGray
         case .operator: return .systemIndigo
-        case .snippet: return .systemYellow
         }
     }
     
@@ -62,7 +59,6 @@ enum SQLCompletionKind: String, CaseIterable, Sendable {
         case .alias: return 150
         case .schema: return 500
         case .operator: return 350
-        case .snippet: return 50  // Show snippets first
         }
     }
 }
@@ -162,17 +158,6 @@ extension SQLCompletionItem {
             label: op,
             kind: .operator,
             insertText: op,
-            documentation: documentation
-        )
-    }
-    
-    /// Create a snippet/template completion item
-    static func snippet(_ name: String, template: String, documentation: String? = nil) -> SQLCompletionItem {
-        SQLCompletionItem(
-            label: name,
-            kind: .snippet,
-            insertText: template,
-            detail: "Template",
             documentation: documentation
         )
     }

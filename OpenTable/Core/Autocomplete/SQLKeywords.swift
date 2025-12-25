@@ -245,80 +245,6 @@ enum SQLKeywords {
         ("<=>", "Null-safe equal (MySQL)"),
     ]
     
-    // MARK: - Snippets (Templates)
-    
-    /// Common SQL query snippets/templates
-    static let snippets: [(name: String, template: String, doc: String)] = [
-        // SELECT templates
-        ("SELECT * FROM", "SELECT * FROM ", "Select all columns from table"),
-        ("SELECT COUNT", "SELECT COUNT(*) FROM ", "Count rows in table"),
-        ("SELECT DISTINCT", "SELECT DISTINCT  FROM ", "Select unique values"),
-        ("SELECT TOP", "SELECT TOP 10 * FROM ", "Select top N rows"),
-        ("SELECT WHERE", "SELECT * FROM  WHERE ", "Select with condition"),
-        ("SELECT JOIN", "SELECT * FROM  INNER JOIN  ON ", "Select with join"),
-        ("SELECT GROUP BY", "SELECT , COUNT(*) FROM  GROUP BY ", "Select with grouping"),
-        ("SELECT ORDER BY", "SELECT * FROM  ORDER BY  ASC", "Select with ordering"),
-        
-        // Pagination
-        ("SELECT LIMIT", "SELECT * FROM  LIMIT 10", "Select with limit"),
-        ("SELECT LIMIT OFFSET", "SELECT * FROM  LIMIT 10 OFFSET 0", "Select with pagination"),
-        
-        // INSERT templates
-        ("INSERT INTO", "INSERT INTO  (, ) VALUES (, )", "Insert new row"),
-        ("INSERT SELECT", "INSERT INTO  SELECT * FROM ", "Insert from select"),
-        ("INSERT MULTIPLE", "INSERT INTO  (, ) VALUES\n    (, ),\n    (, )", "Insert multiple rows"),
-        
-        // UPDATE templates
-        ("UPDATE SET", "UPDATE  SET  =  WHERE ", "Update rows"),
-        
-        // DELETE templates
-        ("DELETE FROM", "DELETE FROM  WHERE ", "Delete rows"),
-        ("TRUNCATE TABLE", "TRUNCATE TABLE ", "Delete all rows (fast)"),
-        
-        // DDL templates
-        ("CREATE TABLE", "CREATE TABLE  (\n    id INT PRIMARY KEY,\n    \n)", "Create new table"),
-        ("ALTER TABLE ADD", "ALTER TABLE  ADD COLUMN  ", "Add column to table"),
-        ("ALTER TABLE DROP", "ALTER TABLE  DROP COLUMN ", "Drop column from table"),
-        ("DROP TABLE", "DROP TABLE IF EXISTS ", "Drop table"),
-        
-        // INDEX templates
-        ("CREATE INDEX", "CREATE INDEX  ON  ()", "Create index"),
-        ("DROP INDEX", "DROP INDEX ", "Drop index"),
-        
-        // Transaction templates
-        ("BEGIN TRANSACTION", "BEGIN TRANSACTION;\n\nCOMMIT;", "Transaction block"),
-        
-        // CTE template
-        ("WITH CTE", "WITH cte AS (\n    SELECT * FROM \n)\nSELECT * FROM cte", "Common Table Expression"),
-        
-        // CASE template
-        ("CASE WHEN", "CASE\n    WHEN  THEN \n    ELSE \nEND", "Conditional expression"),
-        
-        // Subquery templates
-        ("EXISTS SELECT", "EXISTS (SELECT 1 FROM  WHERE )", "Existence check"),
-        ("NOT EXISTS", "NOT EXISTS (SELECT 1 FROM  WHERE )", "Non-existence check"),
-        ("IN SELECT", "IN (SELECT  FROM  WHERE )", "Subquery in IN clause"),
-        
-        // Null handling
-        ("COALESCE", "COALESCE(, )", "First non-null value"),
-        ("IFNULL", "IFNULL(, )", "Replace null with default"),
-        ("IS NULL", "IS NULL", "Check for NULL"),
-        ("IS NOT NULL", "IS NOT NULL", "Check for non-NULL"),
-        
-        // Window function templates
-        ("ROW_NUMBER OVER", "ROW_NUMBER() OVER (ORDER BY )", "Row numbering"),
-        ("RANK OVER", "RANK() OVER (PARTITION BY  ORDER BY )", "Ranking with gaps"),
-        ("LAG OVER", "LAG(, 1) OVER (ORDER BY )", "Previous row value"),
-        ("SUM OVER", "SUM() OVER (PARTITION BY )", "Running total"),
-        
-        // Join templates
-        ("LEFT JOIN ON", "LEFT JOIN  ON . = .", "Left outer join"),
-        ("INNER JOIN ON", "INNER JOIN  ON . = .", "Inner join"),
-        
-        // MySQL specific
-        ("ON DUPLICATE KEY", "INSERT INTO  () VALUES ()\nON DUPLICATE KEY UPDATE  = VALUES()", "Upsert (MySQL)"),
-    ]
-    
     // MARK: - Completion Items
     
     /// Get all keyword completion items
@@ -337,13 +263,6 @@ enum SQLKeywords {
     static func operatorItems() -> [SQLCompletionItem] {
         operators.map { op in
             SQLCompletionItem.operator(op.symbol, documentation: op.doc)
-        }
-    }
-    
-    /// Get all snippet completion items
-    static func snippetItems() -> [SQLCompletionItem] {
-        snippets.map { snippet in
-            SQLCompletionItem.snippet(snippet.name, template: snippet.template, documentation: snippet.doc)
         }
     }
 }

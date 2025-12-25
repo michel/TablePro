@@ -26,6 +26,9 @@ enum SQLClauseType {
     case caseExpression // Inside CASE WHEN expression
     case inList         // Inside IN (...) list
     case limit          // After LIMIT/OFFSET
+    case alterTable     // After ALTER TABLE tablename
+    case createTable    // Inside CREATE TABLE definition
+    case columnDef      // Typing column data type (after column name)
     case unknown        // Unknown or start of query
 }
 
@@ -528,6 +531,14 @@ final class SQLContextAnalyzer {
         // Find the last keyword to determine context
         // ORDER MATTERS: More specific patterns must come before general ones
         let clausePatterns: [(pattern: String, clause: SQLClauseType)] = [
+            // DDL patterns (most specific first)
+            // After ADD/MODIFY COLUMN name - suggest data types
+            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?\\w+\\s+\\w*$", .columnDef),
+            // After ALTER TABLE tablename - suggest ADD, DROP, MODIFY, etc.
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
+            // Inside CREATE TABLE (...) - suggest column definitions
+            ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
+            
             // New patterns for enhanced context
             ("\\bIN\\s*\\([^)]*$", .inList),
             ("\\bCASE\\s+(?:WHEN\\s+[^;]*)?$", .caseExpression),

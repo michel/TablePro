@@ -14,17 +14,65 @@ final class SyntaxHighlighter: NSObject, NSTextStorageDelegate {
     
     private weak var textStorage: NSTextStorage?
     
-    /// SQL keywords for highlighting
+    /// SQL keywords for highlighting (synced with SQLKeywords for consistency)
     private static let keywords: Set<String> = [
+        // DQL
         "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN",
-        "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "ON", "INSERT", "INTO",
-        "VALUES", "UPDATE", "SET", "DELETE", "CREATE", "DROP", "ALTER", "TABLE",
-        "ORDER", "BY", "GROUP", "HAVING", "LIMIT", "OFFSET", "AS", "DISTINCT",
-        "COUNT", "SUM", "AVG", "MIN", "MAX", "ASC", "DESC", "CASE", "WHEN",
-        "THEN", "ELSE", "END", "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE",
-        "INDEX", "VIEW", "DATABASE", "SCHEMA", "CONSTRAINT", "DEFAULT", "AUTO_INCREMENT",
-        "CASCADE", "RESTRICT", "NULL", "IS", "EXISTS", "UNION", "INTERSECT", "EXCEPT",
-        "WITH", "RECURSIVE", "WINDOW", "OVER", "PARTITION", "ROWS", "RANGE"
+        "AS", "DISTINCT", "ALL", "TOP",
+        
+        // Joins
+        "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "OUTER", "CROSS", "ON", "USING",
+        
+        // Ordering & Grouping
+        "ORDER", "BY", "ASC", "DESC", "NULLS", "FIRST", "LAST",
+        "GROUP", "HAVING",
+        
+        // Limiting  
+        "LIMIT", "OFFSET", "FETCH", "NEXT", "ROWS", "ONLY",
+        
+        // Set operations
+        "UNION", "INTERSECT", "EXCEPT", "MINUS",
+        
+        // Subqueries
+        "EXISTS", "ANY", "SOME",
+        
+        // DML
+        "INSERT", "INTO", "VALUES", "DEFAULT",
+        "UPDATE", "SET",
+        "DELETE", "TRUNCATE",
+        
+        // DDL - Tables
+        "CREATE", "ALTER", "DROP", "RENAME", "MODIFY", "CHANGE",
+        "TABLE", "VIEW", "INDEX", "DATABASE", "SCHEMA",
+        "ADD", "COLUMN", "AFTER", "BEFORE",
+        
+        // Constraints
+        "CONSTRAINT", "PRIMARY", "FOREIGN", "KEY", "REFERENCES",
+        "UNIQUE", "CHECK", "CASCADE", "RESTRICT", "NO", "ACTION",
+        "AUTO_INCREMENT", "AUTOINCREMENT", "SERIAL",
+        
+        // Data types
+        "INT", "INTEGER", "BIGINT", "SMALLINT", "TINYINT",
+        "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "REAL",
+        "VARCHAR", "CHAR", "TEXT", "BLOB", "CLOB",
+        "DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR",
+        "BOOLEAN", "BOOL", "BIT", "JSON", "JSONB", "XML",
+        "UUID", "BINARY", "VARBINARY", "UNSIGNED", "SIGNED",
+        
+        // Conditionals
+        "CASE", "WHEN", "THEN", "ELSE", "END", "IF",
+        
+        // NULL/Boolean
+        "NULL", "IS", "TRUE", "FALSE", "UNKNOWN",
+        
+        // Transactions
+        "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "TRANSACTION",
+        
+        // Other
+        "WITH", "RECURSIVE", "TEMPORARY", "TEMP",
+        "EXPLAIN", "ANALYZE", "DESCRIBE", "SHOW",
+        "WINDOW", "OVER", "PARTITION", "RANGE",
+        "ILIKE", "SIMILAR", "REGEXP", "RLIKE"
     ]
     
     // MARK: - Compiled Regex Patterns (Thread-Safe, Compiled Once)
