@@ -118,6 +118,7 @@ struct QueryTab: Identifiable, Equatable {
     var columnDefaults: [String: String?]  // Column name -> default value from schema
     var resultRows: [QueryResultRow]
     var executionTime: TimeInterval?
+    var rowsAffected: Int  // Number of rows affected by non-SELECT queries
     var errorMessage: String?
     var isExecuting: Bool
 
@@ -163,6 +164,7 @@ struct QueryTab: Identifiable, Equatable {
         self.columnDefaults = [:]
         self.resultRows = []
         self.executionTime = nil
+        self.rowsAffected = 0
         self.errorMessage = nil
         self.isExecuting = false
         self.tableName = tableName
@@ -191,6 +193,7 @@ struct QueryTab: Identifiable, Equatable {
         self.columnDefaults = [:]
         self.resultRows = []
         self.executionTime = nil
+        self.rowsAffected = 0
         self.errorMessage = nil
         self.isExecuting = false
         self.isEditable = persisted.tabType == .table

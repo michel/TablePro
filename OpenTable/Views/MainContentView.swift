@@ -650,6 +650,12 @@ struct MainContentView: View {
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
                     .frame(maxHeight: .infinity)
+            } else if tab.resultColumns.isEmpty && tab.errorMessage == nil && tab.lastExecutedAt != nil && !tab.isExecuting {
+                // Non-SELECT query succeeded (no columns returned)
+                QuerySuccessView(
+                    rowsAffected: tab.rowsAffected,
+                    executionTime: tab.executionTime
+                )
             } else {
                 DataGridView(
                     rowProvider: InMemoryRowProvider(
@@ -977,6 +983,7 @@ struct MainContentView: View {
                         updatedTab.columnDefaults = safeColumnDefaults
                         updatedTab.resultRows = safeRows
                         updatedTab.executionTime = safeExecutionTime
+                        updatedTab.rowsAffected = result.rowsAffected
                         updatedTab.isExecuting = false
                         updatedTab.lastExecutedAt = Date()
                         updatedTab.tableName = safeTableName
