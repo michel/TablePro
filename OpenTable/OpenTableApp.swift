@@ -100,15 +100,31 @@ struct OpenTableApp: App {
                 .disabled(!appState.isConnected)
             }
             
-            // Edit menu - Undo/Redo (replace the standard undo/redo)
+            // Edit menu - Undo/Redo (smart handling for both text editor and data grid)
             CommandGroup(replacing: .undoRedo) {
                 Button("Undo") {
-                    NotificationCenter.default.post(name: .undoChange, object: nil)
+                    // Check if first responder is a text view (SQL editor)
+                    if let firstResponder = NSApp.keyWindow?.firstResponder,
+                       firstResponder is NSTextView {
+                        // Let native NSTextView undo handle it
+                        NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+                    } else {
+                        // Data grid undo
+                        NotificationCenter.default.post(name: .undoChange, object: nil)
+                    }
                 }
                 .keyboardShortcut("z", modifiers: .command)
                 
                 Button("Redo") {
-                    NotificationCenter.default.post(name: .redoChange, object: nil)
+                    // Check if first responder is a text view (SQL editor)
+                    if let firstResponder = NSApp.keyWindow?.firstResponder,
+                       firstResponder is NSTextView {
+                        // Let native NSTextView redo handle it
+                        NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
+                    } else {
+                        // Data grid redo
+                        NotificationCenter.default.post(name: .redoChange, object: nil)
+                    }
                 }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             }
