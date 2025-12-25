@@ -55,6 +55,9 @@ protocol DatabaseDriver: AnyObject {
 
     /// Fetch rows with LIMIT/OFFSET pagination
     func fetchRows(query: String, offset: Int, limit: Int) async throws -> QueryResult
+    
+    /// Fetch table metadata (size, comment, engine, etc.)
+    func fetchTableMetadata(tableName: String) async throws -> TableMetadata
 }
 
 /// Default implementation for common operations

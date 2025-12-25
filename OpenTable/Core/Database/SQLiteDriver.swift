@@ -297,6 +297,39 @@ final class SQLiteDriver: DatabaseDriver {
         return try await execute(query: paginatedQuery)
     }
     
+    func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+        
+        // Escape table name to prevent SQL injection (escape double quotes for identifier quoting)
+        let safeTableName = tableName.replacingOccurrences(of: "\"", with: "\"\"")
+        
+        // Get row count
+        let countQuery = "SELECT COUNT(*) FROM \"\(safeTableName)\""
+        let countResult = try await execute(query: countQuery)
+        let rowCount: Int64? = {
+            guard let row = countResult.rows.first, let countStr = row.first else { return nil }
+            return Int64(countStr ?? "0")
+        }()
+        
+        // SQLite does not expose accurate per-table size information.
+        // To avoid reporting misleading values, we leave size-related fields as nil.
+        return TableMetadata(
+            tableName: tableName,
+            dataSize: nil,
+            indexSize: nil,
+            totalSize: nil,
+            avgRowLength: nil,
+            rowCount: rowCount,
+            comment: nil,
+            engine: "SQLite",
+            collation: nil,
+            createTime: nil,
+            updateTime: nil
+        )
+    }
+    
     private func stripLimitOffset(from query: String) -> String {
         var result = query
         

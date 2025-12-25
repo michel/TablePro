@@ -15,6 +15,13 @@ final class MySQLDriver: DatabaseDriver {
 
     /// The underlying MariaDB connection
     private var mariadbConnection: MariaDBConnection?
+    
+    /// Static date formatter for parsing MySQL dates (performance optimization)
+    private static let mysqlDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
 
     init(connection: DatabaseConnection) {
         self.connection = connection
@@ -293,6 +300,77 @@ final class MySQLDriver: DatabaseDriver {
         }
         
         return ddl
+    }
+    
+    func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
+        let escapedTableName = tableName.replacingOccurrences(of: "'", with: "''")
+        // NOTE: `SHOW TABLE STATUS LIKE` expects a pattern string literal, not an
+        // identifier. For that reason we must use single-quoted string syntax here
+        // instead of the backtick identifier quoting used in other schema queries
+        // (e.g. `SHOW CREATE TABLE \`table\``). The table name is safely embedded
+        // by escaping single quotes above.
+        let query = "SHOW TABLE STATUS WHERE Name = '\(escapedTableName)'"
+        let result = try await execute(query: query)
+        
+        guard let row = result.rows.first else {
+            return TableMetadata(
+                tableName: tableName,
+                dataSize: nil,
+                indexSize: nil,
+                totalSize: nil,
+                avgRowLength: nil,
+                rowCount: nil,
+                comment: nil,
+                engine: nil,
+                collation: nil,
+                createTime: nil,
+                updateTime: nil
+            )
+        }
+        
+        // SHOW TABLE STATUS columns:
+        // 0: Name, 1: Engine, 2: Version, 3: Row_format, 4: Rows, 5: Avg_row_length,
+        // 6: Data_length, 7: Max_data_length, 8: Index_length, 9: Data_free,
+        // 10: Auto_increment, 11: Create_time, 12: Update_time, 13: Check_time,
+        // 14: Collation, 15: Checksum, 16: Create_options, 17: Comment
+        
+        let engine = row.count > 1 ? row[1] : nil
+        let rowCount = row.count > 4 ? Int64(row[4] ?? "0") : nil
+        let avgRowLength = row.count > 5 ? Int64(row[5] ?? "0") : nil
+        let dataSize = row.count > 6 ? Int64(row[6] ?? "0") : nil
+        let indexSize = row.count > 8 ? Int64(row[8] ?? "0") : nil
+        let collation = row.count > 14 ? row[14] : nil
+        let comment = row.count > 17 ? row[17] : nil
+        
+        // Parse dates using static formatter for performance
+        let createTime: Date? = {
+            guard row.count > 11, let dateStr = row[11] else { return nil }
+            return Self.mysqlDateFormatter.date(from: dateStr)
+        }()
+        
+        let updateTime: Date? = {
+            guard row.count > 12, let dateStr = row[12] else { return nil }
+            return Self.mysqlDateFormatter.date(from: dateStr)
+        }()
+        
+        let totalSize: Int64? = {
+            guard let data = dataSize, let index = indexSize else { return nil }
+            return data + index
+        }()
+        
+        return TableMetadata(
+            tableName: tableName,
+            dataSize: dataSize,
+            indexSize: indexSize,
+            totalSize: totalSize,
+            avgRowLength: avgRowLength,
+            rowCount: rowCount,
+            comment: comment?.isEmpty == true ? nil : comment,
+            engine: engine,
+            collation: collation,
+            createTime: createTime,
+            updateTime: updateTime
+        )
     }
 
     // MARK: - Paginated Query Support

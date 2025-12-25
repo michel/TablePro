@@ -17,6 +17,7 @@ struct MainContentView: View {
     @Binding var selectedTables: Set<TableInfo>
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
+    @Binding var isInspectorPresented: Bool
 
     @StateObject private var tabManager = QueryTabManager()
     @StateObject private var changeManager = DataChangeManager()
@@ -49,6 +50,9 @@ struct MainContentView: View {
     @State private var saveDebounceTask: Task<Void, Never>?  // Debounce task for saving tabs
     @State private var isDismissing = false  // Prevent saving when view is being destroyed
     @State private var justRestoredTab = false  // Prevent lazy load duplicate execution after restore
+    
+    // Right sidebar state
+    @State private var tableMetadata: TableMetadata? = nil
     
     // MARK: - Constants
 
@@ -83,8 +87,50 @@ struct MainContentView: View {
 
     @ViewBuilder
     private var mainContentView: some View {
-        // Main content area (no right sidebar - not implemented)
-        mainEditorContent
+        HStack(spacing: 0) {
+            // Main editor content
+            mainEditorContent
+            
+            // Right sidebar - conditionally rendered for proper collapse
+            if isInspectorPresented {
+                Divider()
+                
+                RightSidebarView(
+                    tableName: currentTab?.tableName,
+                    tableMetadata: tableMetadata,
+                    selectedRowData: selectedRowDataForSidebar
+                )
+                .frame(width: 280)
+                .task(id: currentTab?.tableName) {
+                    if let tableName = currentTab?.tableName {
+                        // Only fetch if metadata not already loaded for this table
+                        if tableMetadata?.tableName != tableName {
+                            await loadTableMetadata(tableName: tableName)
+                        }
+                    } else {
+                        tableMetadata = nil
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Compute selected row data for right sidebar
+    private var selectedRowDataForSidebar: [(column: String, value: String?, type: String)]? {
+        guard let tab = currentTab,
+              !selectedRowIndices.isEmpty,
+              let firstIndex = selectedRowIndices.min(),
+              firstIndex < tab.resultRows.count else { return nil }
+        
+        let row = tab.resultRows[firstIndex]
+        var data: [(column: String, value: String?, type: String)] = []
+        for (i, col) in tab.resultColumns.enumerated() {
+            let value = i < row.values.count ? row.values[i] : nil
+            // Simple type indicator - can be enhanced later with actual column type info
+            let type = "string"
+            data.append((column: col, value: value, type: type))
+        }
+        return data
     }
 
     // MARK: - Main Editor Content
@@ -325,6 +371,16 @@ struct MainContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .toggleHistoryPanel)) { _ in
                 // Toggle history panel globally (Cmd+Shift+H)
                 appState.isHistoryPanelVisible.toggle()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .toggleRightSidebar)) { _ in
+                // Toggle inspector (Cmd+Opt+B) - no animation for native feel
+                isInspectorPresented.toggle()
+                // Load table metadata only if opening and not already loaded for this table
+                if isInspectorPresented,
+                   let tableName = currentTab?.tableName,
+                   tableMetadata?.tableName != tableName {
+                    Task { await loadTableMetadata(tableName: tableName) }
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .applyAllFilters)) { _ in
                 // Apply all selected filters (Cmd+Return)
@@ -826,6 +882,21 @@ struct MainContentView: View {
             return
         }
         await schemaProvider.loadSchema(using: driver, connection: connection)
+    }
+    
+    private func loadTableMetadata(tableName: String) async {
+        guard let driver = DatabaseManager.shared.activeDriver else {
+            return
+        }
+        
+        do {
+            let metadata = try await driver.fetchTableMetadata(tableName: tableName)
+            await MainActor.run {
+                self.tableMetadata = metadata
+            }
+        } catch {
+            print("[MainContentView] Failed to load table metadata: \(error)")
+        }
     }
 
     private func runQuery() {
@@ -2120,7 +2191,8 @@ struct MainContentView: View {
         tables: .constant([]),
         selectedTables: .constant([]),
         pendingTruncates: .constant([]),
-        pendingDeletes: .constant([])
+        pendingDeletes: .constant([]),
+        isInspectorPresented: .constant(false)
     )
     .frame(width: 1000, height: 600)
 }
