@@ -9,6 +9,7 @@
           "fill" : {
             "solid" : "display-p3:0.99736,1.00000,0.97886,1.00000"
           },
+          "hidden" : false,
           "image-name" : "cylinder.split.1x2.fill 1.svg",
           "name" : "cylinder.split.1x2.fill 1"
         }

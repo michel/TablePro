@@ -311,8 +311,8 @@ final class PostgreSQLDriver: DatabaseDriver {
     }
     
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
-        // Escape table name to prevent SQL injection (double quotes for PostgreSQL identifiers)
-        let safeTableName = tableName.replacingOccurrences(of: "\"", with: "\"\"")
+        // Escape single quotes to prevent SQL injection (string literal context)
+        let safeTableName = tableName.replacingOccurrences(of: "'", with: "''")
         
         let query = """
             SELECT
@@ -324,7 +324,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 obj_description(c.oid, 'pg_class') AS comment
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relname = '\(safeTableName.replacingOccurrences(of: "'", with: "''"))'
+            WHERE c.relname = '\(safeTableName)'
               AND n.nspname = 'public'
             """
         

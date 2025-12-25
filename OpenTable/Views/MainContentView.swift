@@ -116,7 +116,7 @@ struct MainContentView: View {
     private var selectedRowDataForSidebar: [(column: String, value: String?, type: String)]? {
         guard let tab = currentTab,
               !selectedRowIndices.isEmpty,
-              let firstIndex = selectedRowIndices.sorted().first,
+              let firstIndex = selectedRowIndices.min(),
               firstIndex < tab.resultRows.count else { return nil }
         
         let row = tab.resultRows[firstIndex]

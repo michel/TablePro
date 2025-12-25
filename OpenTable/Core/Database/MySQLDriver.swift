@@ -15,6 +15,13 @@ final class MySQLDriver: DatabaseDriver {
 
     /// The underlying MariaDB connection
     private var mariadbConnection: MariaDBConnection?
+    
+    /// Static date formatter for parsing MySQL dates (performance optimization)
+    private static let mysqlDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        return formatter
+    }()
 
     init(connection: DatabaseConnection) {
         self.connection = connection
@@ -330,18 +337,15 @@ final class MySQLDriver: DatabaseDriver {
         let collation = row.count > 14 ? row[14] : nil
         let comment = row.count > 17 ? row[17] : nil
         
-        // Parse dates
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        
+        // Parse dates using static formatter for performance
         let createTime: Date? = {
             guard row.count > 11, let dateStr = row[11] else { return nil }
-            return dateFormatter.date(from: dateStr)
+            return Self.mysqlDateFormatter.date(from: dateStr)
         }()
         
         let updateTime: Date? = {
             guard row.count > 12, let dateStr = row[12] else { return nil }
-            return dateFormatter.date(from: dateStr)
+            return Self.mysqlDateFormatter.date(from: dateStr)
         }()
         
         let totalSize: Int64? = {

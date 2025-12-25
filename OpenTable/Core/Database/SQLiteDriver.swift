@@ -302,11 +302,11 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.notConnected
         }
         
-        // Escape table name to prevent SQL injection
-        let safeTableName = tableName.replacingOccurrences(of: "'", with: "''")
+        // Escape table name to prevent SQL injection (escape double quotes for identifier quoting)
+        let safeTableName = tableName.replacingOccurrences(of: "\"", with: "\"\"")
         
         // Get row count
-        let countQuery = "SELECT COUNT(*) FROM '\(safeTableName)'"
+        let countQuery = "SELECT COUNT(*) FROM \"\(safeTableName)\""
         let countResult = try await execute(query: countQuery)
         let rowCount: Int64? = {
             guard let row = countResult.rows.first, let countStr = row.first else { return nil }

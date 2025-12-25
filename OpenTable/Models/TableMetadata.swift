@@ -36,47 +36,4 @@ struct TableMetadata {
             return String(format: "%.1f %@", size, units[exponent])
         }
     }
-    
-    /// Returns metadata as an array of key-value pairs for display
-    var displayProperties: [(key: String, value: String, type: String)] {
-        var properties: [(key: String, value: String, type: String)] = []
-        
-        properties.append(("data_size", Self.formatSize(dataSize), "size"))
-        properties.append(("index_size", Self.formatSize(indexSize), "size"))
-        properties.append(("total_size", Self.formatSize(totalSize), "size"))
-        
-        if let avgRowLength = avgRowLength {
-            properties.append(("avg_row_length", "\(avgRowLength)", "number"))
-        }
-        
-        if let rowCount = rowCount {
-            properties.append(("row_count", "\(rowCount)", "number"))
-        }
-        
-        if let engine = engine {
-            properties.append(("engine", engine, "string"))
-        }
-        
-        if let collation = collation {
-            properties.append(("collation", collation, "string"))
-        }
-        
-        properties.append(("comment", comment ?? "EMPTY", "string"))
-        
-        if let createTime = createTime {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            properties.append(("create_time", formatter.string(from: createTime), "date"))
-        }
-        
-        if let updateTime = updateTime {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            formatter.timeStyle = .short
-            properties.append(("update_time", formatter.string(from: updateTime), "date"))
-        }
-        
-        return properties
-    }
 }

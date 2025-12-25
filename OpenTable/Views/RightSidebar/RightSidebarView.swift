@@ -26,10 +26,12 @@ struct RightSidebarView: View {
             
             Divider()
             
-            // Search
-            searchField
-            
-            Divider()
+            // Search (only for row details)
+            if selectedRowData != nil {
+                searchField
+                
+                Divider()
+            }
             
             // Content
             ScrollView {
@@ -167,7 +169,7 @@ struct RightSidebarView: View {
         
         sectionHeader("FIELDS (\(filtered.count))")
         
-        ForEach(Array(filtered.enumerated()), id: \.offset) { _, field in
+        ForEach(filtered, id: \.column) { field in
             fieldRow(field)
         }
     }
