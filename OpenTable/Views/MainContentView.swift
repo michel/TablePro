@@ -104,6 +104,8 @@ struct MainContentView: View {
                 .task(id: currentTab?.tableName) {
                     if let tableName = currentTab?.tableName {
                         await loadTableMetadata(tableName: tableName)
+                    } else {
+                        tableMetadata = nil
                     }
                 }
             }
