@@ -145,11 +145,15 @@ struct RightSidebarView: View {
         }
     }
     
-    private func formatDate(_ date: Date) -> String {
+    private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
         formatter.timeStyle = .short
-        return formatter.string(from: date)
+        return formatter
+    }()
+    
+    private func formatDate(_ date: Date) -> String {
+        return RightSidebarView.dateFormatter.string(from: date)
     }
     
     // MARK: - Row Detail Content
