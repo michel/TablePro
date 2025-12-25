@@ -10,7 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var dbManager = DatabaseManager.shared
     @State private var connections: [DatabaseConnection] = []
-    @State private var columnVisibility: NavigationSplitViewVisibility = .detailOnly
+    @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     @State private var showNewConnectionSheet = false
     @State private var showEditConnectionSheet = false
     @State private var connectionToEdit: DatabaseConnection?
@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var pendingCloseSessionId: UUID?
     @State private var hasLoaded = false
     @State private var escapeKeyMonitor: Any?
+    @State private var isInspectorPresented = false  // Right sidebar (inspector) visibility
     
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -91,10 +92,16 @@ struct ContentView: View {
                 guard currentSession != nil else { return }
                 Task { @MainActor in
                     withAnimation {
-                        columnVisibility = columnVisibility == .all ? .detailOnly : .all
+                        // Toggle left sidebar: .all (all 3) ↔ .detailOnly (content+detail only, no sidebar)
+                        if columnVisibility == .all {
+                            columnVisibility = .detailOnly
+                        } else {
+                            columnVisibility = .all
+                        }
                     }
                 }
             }
+            // Right sidebar toggle is handled by MainContentView (has the binding)
             .onChange(of: dbManager.currentSessionId) { _, newSessionId in
                 Task { @MainActor in
                     withAnimation {
@@ -117,6 +124,7 @@ struct ContentView: View {
     private var mainContent: some View {
         if currentSession != nil {
             NavigationSplitView(columnVisibility: $columnVisibility) {
+                // MARK: - Sidebar (Left) - Table Browser
                 VStack(spacing: 0) {
                     if !sessions.isEmpty {
                         ConnectionSidebarHeader(
@@ -152,13 +160,16 @@ struct ContentView: View {
                         pendingDeletes: sessionPendingDeletesBinding
                     )
                 }
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 350)
             } detail: {
+                // MARK: - Detail (Main workspace with optional right sidebar)
                 MainContentView(
                     connection: currentSession!.connection,
                     tables: sessionTablesBinding,
                     selectedTables: sessionSelectedTablesBinding,
                     pendingTruncates: sessionPendingTruncatesBinding,
-                    pendingDeletes: sessionPendingDeletesBinding
+                    pendingDeletes: sessionPendingDeletesBinding,
+                    isInspectorPresented: $isInspectorPresented
                 )
                 .id(currentSession!.id)
             }

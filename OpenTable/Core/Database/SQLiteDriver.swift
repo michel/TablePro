@@ -297,6 +297,48 @@ final class SQLiteDriver: DatabaseDriver {
         return try await execute(query: paginatedQuery)
     }
     
+    func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+        
+        // Get row count
+        let countQuery = "SELECT COUNT(*) FROM '\(tableName)'"
+        let countResult = try await execute(query: countQuery)
+        let rowCount: Int64? = {
+            guard let row = countResult.rows.first, let countStr = row.first else { return nil }
+            return Int64(countStr ?? "0")
+        }()
+        
+        // Get database file size as total size (SQLite doesn't have per-table sizes)
+        let path = expandPath(connection.database)
+        let fileSize: Int64? = {
+            guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+                  let size = attrs[.size] as? Int64 else { return nil }
+            return size
+        }()
+        
+        // Estimate average row length
+        let avgRowLength: Int64? = {
+            guard let total = fileSize, let count = rowCount, count > 0 else { return nil }
+            return total / count
+        }()
+        
+        return TableMetadata(
+            tableName: tableName,
+            dataSize: fileSize,
+            indexSize: nil,
+            totalSize: fileSize,
+            avgRowLength: avgRowLength,
+            rowCount: rowCount,
+            comment: nil,
+            engine: "SQLite",
+            collation: nil,
+            createTime: nil,
+            updateTime: nil
+        )
+    }
+    
     private func stripLimitOffset(from query: String) -> String {
         var result = query
         

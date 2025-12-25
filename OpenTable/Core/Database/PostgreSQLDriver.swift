@@ -309,6 +309,61 @@ final class PostgreSQLDriver: DatabaseDriver {
         let paginatedQuery = "\(baseQuery) LIMIT \(limit) OFFSET \(offset)"
         return try await execute(query: paginatedQuery)
     }
+    
+    func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
+        let query = """
+            SELECT
+                pg_total_relation_size(c.oid) AS total_size,
+                pg_table_size(c.oid) AS data_size,
+                pg_indexes_size(c.oid) AS index_size,
+                c.reltuples::bigint AS row_count,
+                CASE WHEN c.reltuples > 0 THEN pg_table_size(c.oid) / GREATEST(c.reltuples, 1) ELSE 0 END AS avg_row_length,
+                obj_description(c.oid, 'pg_class') AS comment
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname = '\(tableName)'
+              AND n.nspname = 'public'
+            """
+        
+        let result = try await execute(query: query)
+        
+        guard let row = result.rows.first else {
+            return TableMetadata(
+                tableName: tableName,
+                dataSize: nil,
+                indexSize: nil,
+                totalSize: nil,
+                avgRowLength: nil,
+                rowCount: nil,
+                comment: nil,
+                engine: nil,
+                collation: nil,
+                createTime: nil,
+                updateTime: nil
+            )
+        }
+        
+        let totalSize = row.count > 0 ? Int64(row[0] ?? "0") : nil
+        let dataSize = row.count > 1 ? Int64(row[1] ?? "0") : nil
+        let indexSize = row.count > 2 ? Int64(row[2] ?? "0") : nil
+        let rowCount = row.count > 3 ? Int64(row[3] ?? "0") : nil
+        let avgRowLength = row.count > 4 ? Int64(row[4] ?? "0") : nil
+        let comment = row.count > 5 ? row[5] : nil
+        
+        return TableMetadata(
+            tableName: tableName,
+            dataSize: dataSize,
+            indexSize: indexSize,
+            totalSize: totalSize,
+            avgRowLength: avgRowLength,
+            rowCount: rowCount,
+            comment: comment?.isEmpty == true ? nil : comment,
+            engine: "PostgreSQL",
+            collation: nil,
+            createTime: nil,
+            updateTime: nil
+        )
+    }
 
     private func stripLimitOffset(from query: String) -> String {
         var result = query

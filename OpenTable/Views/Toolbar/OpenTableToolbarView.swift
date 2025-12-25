@@ -62,7 +62,6 @@ struct ToolbarPrincipalContent: View {
 /// Apply this to a view to add the production toolbar
 struct OpenTableToolbar: ViewModifier {
     @ObservedObject var state: ConnectionToolbarState
-    @State private var showNotImplementedAlert = false
 
     func body(content: Content) -> some View {
         content
@@ -79,20 +78,15 @@ struct OpenTableToolbar: ViewModifier {
                 }
 
                 // MARK: - Primary Action (Right)
-                // Right sidebar (inspector) toggle button - not implemented yet
+                // Right sidebar (inspector) toggle button
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        showNotImplementedAlert = true
+                        NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
                     } label: {
                         Image(systemName: "sidebar.trailing")
                     }
-                    .help("Toggle Inspector")
+                    .help("Toggle Inspector (⌘⌥B)")
                 }
-            }
-            .alert("Not Implemented", isPresented: $showNotImplementedAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("The Inspector sidebar is not implemented yet.")
             }
     }
 }
