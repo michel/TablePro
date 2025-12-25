@@ -309,7 +309,7 @@ final class MySQLDriver: DatabaseDriver {
         // instead of the backtick identifier quoting used in other schema queries
         // (e.g. `SHOW CREATE TABLE \`table\``). The table name is safely embedded
         // by escaping single quotes above.
-        let query = "SHOW TABLE STATUS LIKE '\(escapedTableName)'"
+        let query = "SHOW TABLE STATUS WHERE Name = '\(escapedTableName)'"
         let result = try await execute(query: query)
         
         guard let row = result.rows.first else {
