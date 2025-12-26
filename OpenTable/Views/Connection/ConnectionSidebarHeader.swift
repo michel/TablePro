@@ -98,7 +98,7 @@ struct ConnectionSidebarHeader: View {
                     }
                     
                     // Connection name
-                    Text(currentSession?.connection.database ?? "No Connection")
+                    Text(currentSession?.connection.name ?? "No Connection")
                         .font(.system(size: 13, weight: .medium))
                         .lineLimit(1)
                     
