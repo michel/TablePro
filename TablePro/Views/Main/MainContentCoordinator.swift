@@ -604,47 +604,70 @@ final class MainContentCoordinator: ObservableObject {
         var statements: [String] = []
         let dbType = connection.type
 
+        // Sort tables for consistent execution order
+        let sortedTruncates = truncates.sorted()
+        let sortedDeletes = deletes.sorted()
+
         // Check if any operation needs FK disabled
         let needsDisableFK = truncates.union(deletes).contains { tableName in
             options[tableName]?.ignoreForeignKeys == true
         }
 
-        if needsDisableFK {
-            statements.append(fkDisableStatement(for: dbType))
+        // Wrap in transaction for atomicity (except SQLite which handles differently)
+        let needsTransaction = (sortedTruncates.count + sortedDeletes.count) > 1 && dbType != .sqlite
+        if needsTransaction {
+            statements.append("BEGIN")
         }
 
-        for tableName in truncates {
+        if needsDisableFK {
+            statements.append(contentsOf: fkDisableStatements(for: dbType))
+        }
+
+        for tableName in sortedTruncates {
             let quotedName = dbType.quoteIdentifier(tableName)
             let opts = options[tableName] ?? TableOperationOptions()
             statements.append(truncateStatement(tableName: quotedName, options: opts, dbType: dbType))
         }
 
-        for tableName in deletes {
+        for tableName in sortedDeletes {
             let quotedName = dbType.quoteIdentifier(tableName)
             let opts = options[tableName] ?? TableOperationOptions()
             statements.append(dropTableStatement(tableName: quotedName, options: opts, dbType: dbType))
         }
 
         if needsDisableFK {
-            statements.append(fkEnableStatement(for: dbType))
+            statements.append(contentsOf: fkEnableStatements(for: dbType))
+        }
+
+        if needsTransaction {
+            statements.append("COMMIT")
         }
 
         return statements
     }
 
-    private func fkDisableStatement(for dbType: DatabaseType) -> String {
-        return switch dbType {
-        case .mysql, .mariadb: "SET FOREIGN_KEY_CHECKS=0"
-        case .postgresql: "SET session_replication_role = 'replica'"
-        case .sqlite: "PRAGMA foreign_keys = OFF"
+    private func fkDisableStatements(for dbType: DatabaseType) -> [String] {
+        switch dbType {
+        case .mysql, .mariadb:
+            return ["SET FOREIGN_KEY_CHECKS=0"]
+        case .postgresql:
+            // SET CONSTRAINTS works within transaction for deferrable constraints
+            // For non-deferrable, CASCADE is the proper approach
+            return ["SET CONSTRAINTS ALL DEFERRED"]
+        case .sqlite:
+            return ["PRAGMA foreign_keys = OFF"]
         }
     }
 
-    private func fkEnableStatement(for dbType: DatabaseType) -> String {
-        return switch dbType {
-        case .mysql, .mariadb: "SET FOREIGN_KEY_CHECKS=1"
-        case .postgresql: "SET session_replication_role = 'origin'"
-        case .sqlite: "PRAGMA foreign_keys = ON"
+    private func fkEnableStatements(for dbType: DatabaseType) -> [String] {
+        switch dbType {
+        case .mysql, .mariadb:
+            return ["SET FOREIGN_KEY_CHECKS=1"]
+        case .postgresql:
+            // Constraints auto-check at COMMIT
+            return []
+        case .sqlite:
+            return ["PRAGMA foreign_keys = ON"]
         }
     }
 
