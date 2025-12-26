@@ -92,10 +92,13 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    /// Quote an identifier (table or column name) for this database type
+    /// Quote an identifier (table or column name) for this database type.
+    /// Escapes embedded quote characters to prevent SQL injection.
     func quoteIdentifier(_ name: String) -> String {
         let q = identifierQuote
-        return "\(q)\(name)\(q)"
+        // Escape embedded quotes by doubling them (SQL standard)
+        let escaped = name.replacingOccurrences(of: q, with: q + q)
+        return "\(q)\(escaped)\(q)"
     }
 }
 

@@ -632,14 +632,15 @@ final class MainContentCoordinator: ObservableObject {
             options[tableName]?.ignoreForeignKeys == true
         }
 
+        // FK disable must be OUTSIDE transaction to ensure it takes effect even on rollback
+        if needsDisableFK {
+            statements.append(contentsOf: fkDisableStatements(for: dbType))
+        }
+
         // Wrap in transaction for atomicity
         let needsTransaction = wrapInTransaction && (sortedTruncates.count + sortedDeletes.count) > 1
         if needsTransaction {
             statements.append("BEGIN")
-        }
-
-        if needsDisableFK {
-            statements.append(contentsOf: fkDisableStatements(for: dbType))
         }
 
         for tableName in sortedTruncates {
@@ -651,15 +652,16 @@ final class MainContentCoordinator: ObservableObject {
         for tableName in sortedDeletes {
             let quotedName = dbType.quoteIdentifier(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
-            statements.append(dropTableStatement(tableName: quotedName, options: tableOptions, dbType: dbType))
-        }
-
-        if needsDisableFK {
-            statements.append(contentsOf: fkEnableStatements(for: dbType))
+            statements.append(dropTableStatement(quotedName: quotedName, options: tableOptions, dbType: dbType))
         }
 
         if needsTransaction {
             statements.append("COMMIT")
+        }
+
+        // FK re-enable must be OUTSIDE transaction to ensure it runs even on rollback
+        if needsDisableFK {
+            statements.append(contentsOf: fkEnableStatements(for: dbType))
         }
 
         return statements
@@ -712,11 +714,11 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     /// Generates DROP TABLE statement with optional CASCADE.
-    private func dropTableStatement(tableName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
+    private func dropTableStatement(quotedName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
         let cascade = options.cascade ? " CASCADE" : ""
         return switch dbType {
-        case .mysql, .mariadb, .postgresql: "DROP TABLE \(tableName)\(cascade)"
-        case .sqlite: "DROP TABLE \(tableName)"
+        case .mysql, .mariadb, .postgresql: "DROP TABLE \(quotedName)\(cascade)"
+        case .sqlite: "DROP TABLE \(quotedName)"
         }
     }
 

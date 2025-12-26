@@ -64,6 +64,18 @@ struct TableOperationDialog: View {
         return !cascadeSupported
     }
 
+    /// PostgreSQL doesn't support globally disabling FK checks; use CASCADE instead
+    private var ignoreFKDisabled: Bool {
+        databaseType == .postgresql
+    }
+
+    private var ignoreFKDescription: String? {
+        if databaseType == .postgresql {
+            return "Not supported for PostgreSQL. Use CASCADE instead."
+        }
+        return nil
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -86,11 +98,22 @@ struct TableOperationDialog: View {
                 }
 
                 // Ignore foreign key checks
-                Toggle(isOn: $ignoreForeignKeys) {
-                    Text("Ignore foreign key checks")
-                        .font(.system(size: 13))
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(isOn: $ignoreForeignKeys) {
+                        Text("Ignore foreign key checks")
+                            .font(.system(size: 13))
+                    }
+                    .toggleStyle(.checkbox)
+                    .disabled(ignoreFKDisabled)
+
+                    if let description = ignoreFKDescription {
+                        Text(description)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 20)
+                    }
                 }
-                .toggleStyle(.checkbox)
+                .opacity(ignoreFKDisabled ? 0.5 : 1.0)
 
                 // Cascade option
                 VStack(alignment: .leading, spacing: 4) {
@@ -132,9 +155,21 @@ struct TableOperationDialog: View {
         .frame(width: 320)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
-            // Reset state when dialog opens
+            // Reset state when dialog opens, respecting disabled states
             ignoreForeignKeys = false
             cascade = false
+        }
+        .onChange(of: cascadeDisabled) { _, isDisabled in
+            // Reset cascade when it becomes disabled to avoid silent override
+            if isDisabled {
+                cascade = false
+            }
+        }
+        .onChange(of: ignoreFKDisabled) { _, isDisabled in
+            // Reset ignoreForeignKeys when it becomes disabled
+            if isDisabled {
+                ignoreForeignKeys = false
+            }
         }
         .onExitCommand {
             isPresented = false
@@ -142,9 +177,11 @@ struct TableOperationDialog: View {
     }
 
     private func confirmAndDismiss() {
+        // Values are already reset when their toggles become disabled,
+        // so we can pass them directly without override checks
         let options = TableOperationOptions(
             ignoreForeignKeys: ignoreForeignKeys,
-            cascade: cascadeDisabled ? false : cascade
+            cascade: cascade
         )
         onConfirm(options)
         isPresented = false
