@@ -452,8 +452,6 @@ final class MySQLDriver: DatabaseDriver {
     /// Fetch list of all databases on the server
     func fetchDatabases() async throws -> [String] {
         let result = try await execute(query: "SHOW DATABASES")
-        return result.rows.compactMap { row in
-            row.first ?? nil
-        }
+        return result.rows.compactMap { row in row.first.flatMap { $0 } }
     }
 }

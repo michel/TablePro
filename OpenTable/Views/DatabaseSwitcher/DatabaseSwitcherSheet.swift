@@ -112,6 +112,7 @@ struct DatabaseSwitcherSheet: View {
                 databaseRow(database)
                     .id(database)
                     .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 4)
                             .fill(database == selectedItem ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)

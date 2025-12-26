@@ -2223,7 +2223,10 @@ struct MainContentView: View {
             do {
                 try await DatabaseManager.shared.connectToSession(newConnection)
             } catch {
-                print("Failed to connect to database \(database): \(error)")
+                await MainActor.run {
+                    errorAlertMessage = "Failed to connect to database '\(database)': \(error.localizedDescription)"
+                    showErrorAlert = true
+                }
             }
         }
     }

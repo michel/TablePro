@@ -389,8 +389,6 @@ final class PostgreSQLDriver: DatabaseDriver {
     /// Fetch list of all databases on the server
     func fetchDatabases() async throws -> [String] {
         let result = try await execute(query: "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname")
-        return result.rows.compactMap { row in
-            row.first ?? nil
-        }
+        return result.rows.compactMap { row in row.first.flatMap { $0 } }
     }
 }
