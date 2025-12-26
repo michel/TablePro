@@ -347,11 +347,18 @@ final class SQLiteDriver: DatabaseDriver {
     }
     
     // MARK: - Helpers
-    
+
     private func expandPath(_ path: String) -> String {
         if path.hasPrefix("~") {
             return NSString(string: path).expandingTildeInPath
         }
         return path
+    }
+
+    /// SQLite databases are file-based, so this returns an empty array
+    func fetchDatabases() async throws -> [String] {
+        // SQLite doesn't have a concept of multiple databases on a server
+        // Each SQLite file is a separate database
+        return []
     }
 }

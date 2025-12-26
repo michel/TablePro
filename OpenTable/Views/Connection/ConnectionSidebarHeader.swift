@@ -37,7 +37,7 @@ struct ConnectionSidebarHeader: View {
                                     Image(systemName: session.connection.type.iconName)
                                         .foregroundStyle(session.connection.displayColor)
                                     
-                                    Text(session.connection.name)
+                                    Text(session.connection.database)
                                     
                                     Spacer()
                                     

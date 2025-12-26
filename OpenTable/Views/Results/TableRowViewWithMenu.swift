@@ -101,7 +101,7 @@ final class TableRowViewWithMenu: NSTableRowView {
     }
 
     @objc private func deleteRow() {
-        coordinator?.deleteRow(at: rowIndex)
+        NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
     }
 
     @objc private func duplicateRow() {

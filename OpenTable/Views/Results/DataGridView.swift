@@ -551,59 +551,6 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     // MARK: - Row Actions
 
-    func deleteRow(at index: Int) {
-        deleteRows(at: [index])
-    }
-
-    func deleteRows(at indices: Set<Int>) {
-        guard !indices.isEmpty else { return }
-
-        var insertedRowsToDelete: [Int] = []
-        var existingRowsToDelete: [(rowIndex: Int, originalRow: [String?])] = []
-
-        for rowIndex in indices {
-            if changeManager.isRowInserted(rowIndex) {
-                insertedRowsToDelete.append(rowIndex)
-            } else if !changeManager.isRowDeleted(rowIndex) {
-                guard let rowData = rowProvider.row(at: rowIndex) else { continue }
-                existingRowsToDelete.append((rowIndex: rowIndex, originalRow: rowData.values))
-            }
-        }
-
-        if !insertedRowsToDelete.isEmpty {
-            let sortedInsertedRows = insertedRowsToDelete.sorted(by: >)
-            for rowIndex in sortedInsertedRows {
-                rowProvider.removeRow(at: rowIndex)
-            }
-            changeManager.undoBatchRowInsertion(rowIndices: sortedInsertedRows)
-            updateCache()
-        }
-
-        if !existingRowsToDelete.isEmpty {
-            changeManager.recordBatchRowDeletion(rows: existingRowsToDelete)
-        }
-
-        let minSelectedRow = indices.min() ?? 0
-        let maxSelectedRow = indices.max() ?? 0
-        let totalRows = cachedRowCount
-        let insertedRowsDeletedCount = insertedRowsToDelete.count
-
-        let adjustedMaxRow = maxSelectedRow - insertedRowsDeletedCount
-        let adjustedMinRow = minSelectedRow - insertedRowsToDelete.filter { $0 < minSelectedRow }.count
-
-        var newSelection = Set<Int>()
-        if adjustedMaxRow + 1 < totalRows {
-            newSelection.insert(min(adjustedMaxRow + 1, totalRows - 1))
-        } else if adjustedMinRow > 0 {
-            newSelection.insert(adjustedMinRow - 1)
-        } else if totalRows > 0 {
-            newSelection.insert(0)
-        }
-
-        self.selectedRowIndices = newSelection
-        tableView?.reloadData()
-    }
-
     func undoDeleteRow(at index: Int) {
         changeManager.undoRowDeletion(rowIndex: index)
         tableView?.reloadData(

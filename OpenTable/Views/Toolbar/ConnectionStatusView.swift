@@ -12,6 +12,7 @@ import SwiftUI
 struct ConnectionStatusView: View {
     let databaseType: DatabaseType
     let databaseVersion: String?
+    let databaseName: String
     let connectionName: String
     let connectionState: ToolbarConnectionState
     let displayColor: Color
@@ -24,6 +25,15 @@ struct ConnectionStatusView: View {
             // Vertical separator
             Divider()
                 .frame(height: 16)
+
+            // Database name (clickable to switch databases)
+            if !databaseName.isEmpty {
+                databaseNameSection
+
+                // Vertical separator
+                Divider()
+                    .frame(height: 16)
+            }
 
             // Connection name + status indicator
             connectionInfoSection
@@ -46,6 +56,25 @@ struct ConnectionStatusView: View {
                 .foregroundStyle(.secondary)
         }
         .help("Database: \(formattedDatabaseInfo)")
+    }
+
+    /// Database name (clickable to open database switcher)
+    private var databaseNameSection: some View {
+        Button {
+            NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "cylinder")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+
+                Text(databaseName)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Current database: \(databaseName) (⌘K to switch)")
     }
 
     /// Connection name and status dot
@@ -121,6 +150,7 @@ private struct PulseAnimation: ViewModifier {
     ConnectionStatusView(
         databaseType: .mariadb,
         databaseVersion: "11.1.2",
+        databaseName: "production_db",
         connectionName: "Production Database",
         connectionState: .connected,
         displayColor: .cyan
@@ -133,6 +163,7 @@ private struct PulseAnimation: ViewModifier {
     ConnectionStatusView(
         databaseType: .mysql,
         databaseVersion: "8.0.35",
+        databaseName: "dev_db",
         connectionName: "Development",
         connectionState: .executing,
         displayColor: .orange
@@ -145,6 +176,7 @@ private struct PulseAnimation: ViewModifier {
     ConnectionStatusView(
         databaseType: .postgresql,
         databaseVersion: "16.1",
+        databaseName: "analytics",
         connectionName: "Analytics DB",
         connectionState: .connected,
         displayColor: .blue

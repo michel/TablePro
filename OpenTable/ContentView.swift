@@ -304,6 +304,11 @@ struct ContentView: View {
         escapeKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // Escape key code is 53
             if event.keyCode == 53 {
+                // Don't consume ESC if a sheet is presented - let it dismiss the sheet
+                if AppState.shared.isSheetPresented {
+                    return event
+                }
+
                 NotificationCenter.default.post(name: .clearSelection, object: nil)
                 // Return nil to consume the event, or return event to let it propagate
                 return nil
