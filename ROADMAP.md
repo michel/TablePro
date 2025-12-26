@@ -1,4 +1,4 @@
-# OpenTable Roadmap
+# TablePro Roadmap
 
 A native macOS database client built with SwiftUI for MySQL, MariaDB, PostgreSQL, and SQLite.
 

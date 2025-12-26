@@ -1,4 +1,4 @@
-# OpenTable
+# TablePro
 
 A native macOS database client built with SwiftUI. A fast, lightweight alternative to TablePlus for managing MySQL, PostgreSQL, MariaDB, and SQLite databases.
 
@@ -89,7 +89,7 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/datlechin/OpenTable.git
+   git clone https://github.com/datlechin/TablePro.git
    ```
 
 2. Install MariaDB Connector/C headers (required for compilation):
@@ -97,14 +97,14 @@ A native macOS database client built with SwiftUI. A fast, lightweight alternati
    brew install mariadb-connector-c
    ```
 
-3. Open `OpenTable.xcodeproj` in Xcode
+3. Open `TablePro.xcodeproj` in Xcode
 
 4. Build and run (`Cmd+R`)
 
 ## Architecture
 
 ```
-OpenTable/
+TablePro/
 ├── Core/
 │   ├── Autocomplete/     # SQL autocompletion system
 │   ├── Database/         # Database drivers and manager

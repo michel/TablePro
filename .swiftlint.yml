@@ -3,7 +3,7 @@
 
 # Paths to include during linting
 included:
-  - OpenTable
+  - TablePro
 
 # Paths to exclude during linting
 excluded:

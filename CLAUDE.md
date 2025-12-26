@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**OpenTable** is a native macOS database client built with **SwiftUI and AppKit**, designed as an alternative to TablePlus. The project prioritizes **Apple-native frameworks and system libraries** over custom re‑implementations wherever possible.
+**TablePro** is a native macOS database client built with **SwiftUI and AppKit**, designed as an alternative to TablePlus. The project prioritizes **Apple-native frameworks and system libraries** over custom re‑implementations wherever possible.
 
 Supported databases:
 
@@ -33,10 +33,10 @@ Only introduce custom implementations when:
 
 ```bash
 # Build from command line
-xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug build
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build
 
 # Run in Xcode
-# Open OpenTable.xcodeproj and press Cmd+R
+# Open TablePro.xcodeproj and press Cmd+R
 ```
 
 ### Prerequisites
@@ -46,7 +46,7 @@ xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug b
 
 ## Architecture
 
-### Core Layer (`OpenTable/Core/`)
+### Core Layer (`TablePro/Core/`)
 
 #### Database Drivers (Thin Abstraction Over Native Libraries)
 
@@ -75,7 +75,7 @@ xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug b
 
   * Uses system SSH tooling and APIs where possible
 
-### Models (`OpenTable/Models/`)
+### Models (`TablePro/Models/`)
 
 Models are **pure data structures** with minimal logic:
 
@@ -90,7 +90,7 @@ Avoid embedding UI or persistence logic inside models.
 
 ### Native UI First: SwiftUI + AppKit
 
-OpenTable uses **SwiftUI** as the primary UI framework, with **AppKit bridges** only where native SwiftUI controls are insufficient.
+TablePro uses **SwiftUI** as the primary UI framework, with **AppKit bridges** only where native SwiftUI controls are insufficient.
 
 #### AppKit Bridges (Only When Necessary)
 
