@@ -17,5 +17,5 @@ struct TableOperationOptions: Codable, Equatable {
 /// Type of table operation
 enum TableOperationType: String, Codable {
     case truncate
-    case delete
+    case drop
 }

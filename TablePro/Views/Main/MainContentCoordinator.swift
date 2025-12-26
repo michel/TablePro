@@ -613,8 +613,8 @@ final class MainContentCoordinator: ObservableObject {
             options[tableName]?.ignoreForeignKeys == true
         }
 
-        // Wrap in transaction for atomicity (except SQLite which handles differently)
-        let needsTransaction = (sortedTruncates.count + sortedDeletes.count) > 1 && dbType != .sqlite
+        // Wrap in transaction for atomicity
+        let needsTransaction = (sortedTruncates.count + sortedDeletes.count) > 1
         if needsTransaction {
             statements.append("BEGIN")
         }
@@ -625,14 +625,14 @@ final class MainContentCoordinator: ObservableObject {
 
         for tableName in sortedTruncates {
             let quotedName = dbType.quoteIdentifier(tableName)
-            let opts = options[tableName] ?? TableOperationOptions()
-            statements.append(truncateStatement(tableName: quotedName, options: opts, dbType: dbType))
+            let tableOptions = options[tableName] ?? TableOperationOptions()
+            statements.append(truncateStatement(tableName: quotedName, options: tableOptions, dbType: dbType))
         }
 
         for tableName in sortedDeletes {
             let quotedName = dbType.quoteIdentifier(tableName)
-            let opts = options[tableName] ?? TableOperationOptions()
-            statements.append(dropTableStatement(tableName: quotedName, options: opts, dbType: dbType))
+            let tableOptions = options[tableName] ?? TableOperationOptions()
+            statements.append(dropTableStatement(tableName: quotedName, options: tableOptions, dbType: dbType))
         }
 
         if needsDisableFK {
@@ -700,11 +700,16 @@ final class MainContentCoordinator: ObservableObject {
         let truncatedTables = Set(pendingTruncates)
         let conn = connection
 
-        // Clear operations immediately (before async execution)
+        // Capture options before clearing (for potential restore on failure)
+        var capturedOptions: [String: TableOperationOptions] = [:]
+        for table in deletedTables.union(truncatedTables) {
+            capturedOptions[table] = tableOperationOptions[table]
+        }
+
+        // Clear operations immediately (to prevent double-execution)
         if clearTableOps {
             pendingTruncates.removeAll()
             pendingDeletes.removeAll()
-            // Clear options for processed tables
             for table in deletedTables.union(truncatedTables) {
                 tableOperationOptions.removeValue(forKey: table)
             }
@@ -790,6 +795,17 @@ final class MainContentCoordinator: ObservableObject {
 
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
+                    }
+
+                    // Restore operations on failure so user can retry
+                    if clearTableOps {
+                        DatabaseManager.shared.updateSession(conn.id) { session in
+                            session.pendingTruncates = truncatedTables
+                            session.pendingDeletes = deletedTables
+                            for (table, opts) in capturedOptions {
+                                session.tableOperationOptions[table] = opts
+                            }
+                        }
                     }
                 }
             }

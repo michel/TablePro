@@ -28,8 +28,8 @@ struct TableOperationDialog: View {
 
     private var title: String {
         switch operationType {
-        case .delete:
-            return "Delete table '\(tableName)'"
+        case .drop:
+            return "Drop table '\(tableName)'"
         case .truncate:
             return "Truncate table '\(tableName)'"
         }
@@ -40,10 +40,14 @@ struct TableOperationDialog: View {
         databaseType != .sqlite
     }
 
+    private var isMultipleTables: Bool {
+        tableName.contains("tables")
+    }
+
     private var cascadeDescription: String {
         switch operationType {
-        case .delete:
-            return "Delete all rows linked by foreign keys"
+        case .drop:
+            return "Drop all tables that depend on this table"
         case .truncate:
             if databaseType == .mysql || databaseType == .mariadb {
                 return "Not supported for TRUNCATE in MySQL/MariaDB"
@@ -74,6 +78,13 @@ struct TableOperationDialog: View {
 
             // Options
             VStack(alignment: .leading, spacing: 16) {
+                // Note for multiple tables
+                if isMultipleTables {
+                    Text("Same options will be applied to all selected tables.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
                 // Ignore foreign key checks
                 Toggle(isOn: $ignoreForeignKeys) {
                     Text("Ignore foreign key checks")
@@ -120,6 +131,11 @@ struct TableOperationDialog: View {
         }
         .frame(width: 320)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            // Reset state when dialog opens
+            ignoreForeignKeys = false
+            cascade = false
+        }
         .onExitCommand {
             isPresented = false
         }
@@ -137,11 +153,11 @@ struct TableOperationDialog: View {
 
 // MARK: - Preview
 
-#Preview("Delete Table - MySQL") {
+#Preview("Drop Table - MySQL") {
     TableOperationDialog(
         isPresented: .constant(true),
         tableName: "users",
-        operationType: .delete,
+        operationType: .drop,
         databaseType: .mysql,
         onConfirm: { options in
             print("Options: \(options)")
@@ -161,11 +177,11 @@ struct TableOperationDialog: View {
     )
 }
 
-#Preview("Delete Table - SQLite") {
+#Preview("Drop Table - SQLite") {
     TableOperationDialog(
         isPresented: .constant(true),
         tableName: "products",
-        operationType: .delete,
+        operationType: .drop,
         databaseType: .sqlite,
         onConfirm: { options in
             print("Options: \(options)")

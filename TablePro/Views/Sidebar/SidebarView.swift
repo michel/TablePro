@@ -321,7 +321,7 @@ struct SidebarView: View {
             pendingDeletes = updated
         } else {
             // Show dialog to confirm operation
-            pendingOperationType = .delete
+            pendingOperationType = .drop
             pendingOperationTables = tablesToToggle
             showOperationDialog = true
         }
