@@ -26,6 +26,7 @@ final class MainContentNotificationHandler: ObservableObject {
     private let selectedTables: Binding<Set<TableInfo>>
     private let pendingTruncates: Binding<Set<String>>
     private let pendingDeletes: Binding<Set<String>>
+    private let tableOperationOptions: Binding<[String: TableOperationOptions]>
     private let isInspectorPresented: Binding<Bool>
     private let editingCell: Binding<CellPosition?>
 
@@ -43,6 +44,7 @@ final class MainContentNotificationHandler: ObservableObject {
         selectedTables: Binding<Set<TableInfo>>,
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
+        tableOperationOptions: Binding<[String: TableOperationOptions]>,
         isInspectorPresented: Binding<Bool>,
         editingCell: Binding<CellPosition?>
     ) {
@@ -53,6 +55,7 @@ final class MainContentNotificationHandler: ObservableObject {
         self.selectedTables = selectedTables
         self.pendingTruncates = pendingTruncates
         self.pendingDeletes = pendingDeletes
+        self.tableOperationOptions = tableOperationOptions
         self.isInspectorPresented = isInspectorPresented
         self.editingCell = editingCell
 
@@ -308,9 +311,15 @@ final class MainContentNotificationHandler: ObservableObject {
     private func handleSaveChanges() {
         var truncates = pendingTruncates.wrappedValue
         var deletes = pendingDeletes.wrappedValue
-        coordinator?.saveChanges(pendingTruncates: &truncates, pendingDeletes: &deletes)
+        var options = tableOperationOptions.wrappedValue
+        coordinator?.saveChanges(
+            pendingTruncates: &truncates,
+            pendingDeletes: &deletes,
+            tableOperationOptions: &options
+        )
         pendingTruncates.wrappedValue = truncates
         pendingDeletes.wrappedValue = deletes
+        tableOperationOptions.wrappedValue = options
     }
 
     // MARK: - UI Operations

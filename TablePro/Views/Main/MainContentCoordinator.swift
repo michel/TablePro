@@ -554,7 +554,8 @@ final class MainContentCoordinator: ObservableObject {
 
     func saveChanges(
         pendingTruncates: inout Set<String>,
-        pendingDeletes: inout Set<String>
+        pendingDeletes: inout Set<String>,
+        tableOperationOptions: inout [String: TableOperationOptions]
     ) {
         let hasEditedCells = changeManager.hasChanges
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
@@ -568,14 +569,13 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         if hasPendingTableOps {
-            for tableName in pendingTruncates {
-                let quotedName = connection.type.quoteIdentifier(tableName)
-                allStatements.append("TRUNCATE TABLE \(quotedName)")
-            }
-            for tableName in pendingDeletes {
-                let quotedName = connection.type.quoteIdentifier(tableName)
-                allStatements.append("DROP TABLE \(quotedName)")
-            }
+            // Generate table operation SQL with FK/cascade options
+            let tableOpStatements = generateTableOperationSQL(
+                truncates: pendingTruncates,
+                deletes: pendingDeletes,
+                options: tableOperationOptions
+            )
+            allStatements.append(contentsOf: tableOpStatements)
         }
 
         guard !allStatements.isEmpty else {
@@ -586,19 +586,106 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         let sql = allStatements.joined(separator: ";\n")
-        executeCommitSQL(sql, clearTableOps: hasPendingTableOps, pendingTruncates: &pendingTruncates, pendingDeletes: &pendingDeletes)
+        executeCommitSQL(
+            sql,
+            clearTableOps: hasPendingTableOps,
+            pendingTruncates: &pendingTruncates,
+            pendingDeletes: &pendingDeletes,
+            tableOperationOptions: &tableOperationOptions
+        )
+    }
+
+    /// Generate SQL for table truncate/delete operations with FK/cascade options
+    private func generateTableOperationSQL(
+        truncates: Set<String>,
+        deletes: Set<String>,
+        options: [String: TableOperationOptions]
+    ) -> [String] {
+        var statements: [String] = []
+        let dbType = connection.type
+
+        // Check if any operation needs FK disabled
+        let needsDisableFK = truncates.union(deletes).contains { tableName in
+            options[tableName]?.ignoreForeignKeys == true
+        }
+
+        if needsDisableFK {
+            statements.append(fkDisableStatement(for: dbType))
+        }
+
+        for tableName in truncates {
+            let quotedName = dbType.quoteIdentifier(tableName)
+            let opts = options[tableName] ?? TableOperationOptions()
+            statements.append(truncateStatement(tableName: quotedName, options: opts, dbType: dbType))
+        }
+
+        for tableName in deletes {
+            let quotedName = dbType.quoteIdentifier(tableName)
+            let opts = options[tableName] ?? TableOperationOptions()
+            statements.append(dropTableStatement(tableName: quotedName, options: opts, dbType: dbType))
+        }
+
+        if needsDisableFK {
+            statements.append(fkEnableStatement(for: dbType))
+        }
+
+        return statements
+    }
+
+    private func fkDisableStatement(for dbType: DatabaseType) -> String {
+        return switch dbType {
+        case .mysql, .mariadb: "SET FOREIGN_KEY_CHECKS=0"
+        case .postgresql: "SET session_replication_role = 'replica'"
+        case .sqlite: "PRAGMA foreign_keys = OFF"
+        }
+    }
+
+    private func fkEnableStatement(for dbType: DatabaseType) -> String {
+        return switch dbType {
+        case .mysql, .mariadb: "SET FOREIGN_KEY_CHECKS=1"
+        case .postgresql: "SET session_replication_role = 'origin'"
+        case .sqlite: "PRAGMA foreign_keys = ON"
+        }
+    }
+
+    private func truncateStatement(tableName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
+        return switch dbType {
+        case .mysql, .mariadb: "TRUNCATE TABLE \(tableName)"
+        case .postgresql: options.cascade ? "TRUNCATE TABLE \(tableName) CASCADE" : "TRUNCATE TABLE \(tableName)"
+        case .sqlite: "DELETE FROM \(tableName)"
+        }
+    }
+
+    private func dropTableStatement(tableName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
+        let cascade = options.cascade ? " CASCADE" : ""
+        return switch dbType {
+        case .mysql, .mariadb, .postgresql: "DROP TABLE \(tableName)\(cascade)"
+        case .sqlite: "DROP TABLE \(tableName)"
+        }
     }
 
     private func executeCommitSQL(
         _ sql: String,
         clearTableOps: Bool,
         pendingTruncates: inout Set<String>,
-        pendingDeletes: inout Set<String>
+        pendingDeletes: inout Set<String>,
+        tableOperationOptions: inout [String: TableOperationOptions]
     ) {
         guard !sql.isEmpty else { return }
 
         let deletedTables = Set(pendingDeletes)
+        let truncatedTables = Set(pendingTruncates)
         let conn = connection
+
+        // Clear operations immediately (before async execution)
+        if clearTableOps {
+            pendingTruncates.removeAll()
+            pendingDeletes.removeAll()
+            // Clear options for processed tables
+            for table in deletedTables.union(truncatedTables) {
+                tableOperationOptions.removeValue(forKey: table)
+            }
+        }
 
         Task {
             let overallStartTime = Date()

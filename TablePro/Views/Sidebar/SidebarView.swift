@@ -20,6 +20,8 @@ struct SidebarView: View {
     // Pending table operations
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
+    @Binding var tableOperationOptions: [String: TableOperationOptions]
+    let databaseType: DatabaseType
 
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -30,6 +32,11 @@ struct SidebarView: View {
 
     /// Whether the tables section is expanded
     @State private var isTablesExpanded = true
+
+    /// State for table operation confirmation dialog
+    @State private var showOperationDialog = false
+    @State private var pendingOperationType: TableOperationType?
+    @State private var pendingOperationTables: [String] = []
 
     /// Filtered tables based on search text
     private var filteredTables: [TableInfo] {
@@ -95,6 +102,25 @@ struct SidebarView: View {
                     loadTables()
                 }
             }
+        }
+        .sheet(isPresented: $showOperationDialog) {
+            if let operationType = pendingOperationType,
+               let firstTable = pendingOperationTables.first {
+                TableOperationDialog(
+                    isPresented: $showOperationDialog,
+                    tableName: pendingOperationTables.count > 1
+                        ? "\(pendingOperationTables.count) tables"
+                        : firstTable,
+                    operationType: operationType,
+                    databaseType: databaseType,
+                    onConfirm: { options in
+                        confirmOperation(options: options)
+                    }
+                )
+            }
+        }
+        .onChange(of: showOperationDialog) { _, isPresented in
+            AppState.shared.isSheetPresented = isPresented
         }
     }
 
@@ -257,40 +283,79 @@ struct SidebarView: View {
     
     /// Batch toggle truncate for all selected tables
     private func batchToggleTruncate() {
-        var updatedDeletes = pendingDeletes
-        var updatedTruncates = pendingTruncates
-        
-        let tablesToToggle = selectedTables.isEmpty ? [] : selectedTables
-        for table in tablesToToggle {
-            updatedDeletes.remove(table.name)
-            if updatedTruncates.contains(table.name) {
-                updatedTruncates.remove(table.name)
-            } else {
-                updatedTruncates.insert(table.name)
+        let tablesToToggle = selectedTables.isEmpty ? [] : Array(selectedTables.map { $0.name })
+        guard !tablesToToggle.isEmpty else { return }
+
+        // Check if all tables are already pending truncate - if so, remove them
+        let allAlreadyPending = tablesToToggle.allSatisfy { pendingTruncates.contains($0) }
+        if allAlreadyPending {
+            // Remove from pending
+            var updated = pendingTruncates
+            for name in tablesToToggle {
+                updated.remove(name)
+                tableOperationOptions.removeValue(forKey: name)
             }
+            pendingTruncates = updated
+        } else {
+            // Show dialog to confirm operation
+            pendingOperationType = .truncate
+            pendingOperationTables = tablesToToggle
+            showOperationDialog = true
         }
-        
-        pendingDeletes = updatedDeletes
-        pendingTruncates = updatedTruncates
     }
-    
+
     /// Batch toggle delete for all selected tables
     private func batchToggleDelete() {
-        var updatedDeletes = pendingDeletes
-        var updatedTruncates = pendingTruncates
-        
-        let tablesToToggle = selectedTables.isEmpty ? [] : selectedTables
-        for table in tablesToToggle {
-            updatedTruncates.remove(table.name)
-            if updatedDeletes.contains(table.name) {
-                updatedDeletes.remove(table.name)
-            } else {
-                updatedDeletes.insert(table.name)
+        let tablesToToggle = selectedTables.isEmpty ? [] : Array(selectedTables.map { $0.name })
+        guard !tablesToToggle.isEmpty else { return }
+
+        // Check if all tables are already pending delete - if so, remove them
+        let allAlreadyPending = tablesToToggle.allSatisfy { pendingDeletes.contains($0) }
+        if allAlreadyPending {
+            // Remove from pending
+            var updated = pendingDeletes
+            for name in tablesToToggle {
+                updated.remove(name)
+                tableOperationOptions.removeValue(forKey: name)
             }
+            pendingDeletes = updated
+        } else {
+            // Show dialog to confirm operation
+            pendingOperationType = .delete
+            pendingOperationTables = tablesToToggle
+            showOperationDialog = true
         }
-        
+    }
+
+    /// Confirm the pending operation with the given options
+    private func confirmOperation(options: TableOperationOptions) {
+        guard let operationType = pendingOperationType else { return }
+
+        var updatedTruncates = pendingTruncates
+        var updatedDeletes = pendingDeletes
+        var updatedOptions = tableOperationOptions
+
+        for tableName in pendingOperationTables {
+            // Remove from opposite set if present
+            if operationType == .truncate {
+                updatedDeletes.remove(tableName)
+                updatedTruncates.insert(tableName)
+            } else {
+                updatedTruncates.remove(tableName)
+                updatedDeletes.insert(tableName)
+            }
+
+            // Store options for this table
+            updatedOptions[tableName] = options
+        }
+
         pendingTruncates = updatedTruncates
         pendingDeletes = updatedDeletes
+        tableOperationOptions = updatedOptions
+
+        // Reset dialog state
+        pendingOperationType = nil
+        pendingOperationTables = []
     }
 
     // MARK: - Actions
@@ -415,7 +480,9 @@ struct TableRow: View {
         tables: .constant([]),
         selectedTables: .constant([]),
         pendingTruncates: .constant([]),
-        pendingDeletes: .constant([])
+        pendingDeletes: .constant([]),
+        tableOperationOptions: .constant([:]),
+        databaseType: .mysql
     )
     .frame(width: 250, height: 400)
 }
