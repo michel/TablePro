@@ -190,7 +190,7 @@ struct MainContentView: View {
     @ViewBuilder
     private var viewWithToolbar: some View {
         mainContentView
-            .TableProToolbar(state: toolbarState)
+            .tableProToolbar(state: toolbarState)
             .onChange(of: currentTab?.isExecuting) { _, isExecuting in
                 // Sync execution state to toolbar
                 Task { @MainActor in

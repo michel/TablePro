@@ -98,7 +98,7 @@ extension View {
     /// Apply the TablePro toolbar to this view
     /// - Parameter state: The toolbar state to display
     /// - Returns: View with toolbar applied
-    func TableProToolbar(state: ConnectionToolbarState) -> some View {
+    func tableProToolbar(state: ConnectionToolbarState) -> some View {
         modifier(TableProToolbar(state: state))
     }
 }
@@ -119,7 +119,7 @@ extension View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .textBackgroundColor))
     }
-    .TableProToolbar(state: state)
+    .tableProToolbar(state: state)
     .frame(width: 900, height: 400)
 }
 
@@ -138,7 +138,7 @@ extension View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .textBackgroundColor))
     }
-    .TableProToolbar(state: state)
+    .tableProToolbar(state: state)
     .frame(width: 900, height: 400)
 }
 
@@ -156,7 +156,7 @@ extension View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .textBackgroundColor))
     }
-    .TableProToolbar(state: state)
+    .tableProToolbar(state: state)
     .frame(width: 900, height: 400)
     .preferredColorScheme(.dark)
 }
