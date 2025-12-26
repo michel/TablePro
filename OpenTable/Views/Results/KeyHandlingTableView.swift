@@ -95,9 +95,8 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
 
     @objc func delete(_ sender: Any?) {
         guard coordinator?.isEditable == true else { return }
-        let selectedIndices = Set(selectedRowIndexes.map { $0 })
-        guard !selectedIndices.isEmpty else { return }
-        coordinator?.deleteRows(at: selectedIndices)
+        guard !selectedRowIndexes.isEmpty else { return }
+        NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
     }
 
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -114,9 +113,8 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.keyCode == 51 || event.keyCode == 117 {
-            let selectedIndices = Set(selectedRowIndexes.map { $0 })
-            if !selectedIndices.isEmpty && coordinator?.isEditable == true {
-                coordinator?.deleteRows(at: selectedIndices)
+            if !selectedRowIndexes.isEmpty && coordinator?.isEditable == true {
+                NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
                 return true
             }
         }

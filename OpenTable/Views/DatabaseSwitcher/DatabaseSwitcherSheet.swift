@@ -22,7 +22,6 @@ struct DatabaseSwitcherSheet: View {
     @State private var errorMessage: String?
     @State private var selectedItem: String?
     @State private var shouldScrollToSelection = false
-    @FocusState private var isListFocused: Bool
 
     var filteredDatabases: [String] {
         if searchText.isEmpty {
@@ -109,19 +108,23 @@ struct DatabaseSwitcherSheet: View {
 
     private var databaseListView: some View {
         ScrollViewReader { proxy in
-            List(filteredDatabases, id: \.self, selection: $selectedItem) { database in
+            List(filteredDatabases, id: \.self) { database in
                 databaseRow(database)
-                    .tag(database)
                     .id(database)
                     .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(database == selectedItem ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
+                            .padding(.horizontal, 4)
+                    )
+                    .onTapGesture {
+                        selectedItem = database
+                    }
             }
             .listStyle(.inset)
             .scrollContentBackground(.hidden)
             .alternatingRowBackgrounds(.disabled)
             .environment(\.defaultMinListRowHeight, 28)
-            .focusable()
-            .focused($isListFocused)
             .onChange(of: filteredDatabases) { _, newList in
                 // Reset selection when list changes
                 if let selected = selectedItem, !newList.contains(selected) {
@@ -139,26 +142,12 @@ struct DatabaseSwitcherSheet: View {
             .onChange(of: shouldScrollToSelection) { _, shouldScroll in
                 // Scroll to selection after databases load
                 if shouldScroll, let item = selectedItem {
-                    // Scroll once the selection flag is set; defer focus to next runloop
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        proxy.scrollTo(item, anchor: .center)
-                    }
                     shouldScrollToSelection = false
 
-                    // Focus the list and underlying NSTableView to show blue selection
-                    DispatchQueue.main.async {
-                        isListFocused = true
-
-                        // Find and focus NSTableView in sheet window
-                        // Sheets become key window, or check attached sheets
-                        if let sheetWindow = NSApp.keyWindow,
-                           sheetWindow.isSheet || sheetWindow.sheetParent != nil,
-                           let tableView = findTableView(in: sheetWindow.contentView) {
-                            sheetWindow.makeFirstResponder(tableView)
-                        } else if let mainWindow = NSApp.mainWindow,
-                                  let sheet = mainWindow.attachedSheet,
-                                  let tableView = findTableView(in: sheet.contentView) {
-                            sheet.makeFirstResponder(tableView)
+                    // Delay scroll to ensure List is fully rendered
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            proxy.scrollTo(item, anchor: .center)
                         }
                     }
                 }
@@ -167,22 +156,25 @@ struct DatabaseSwitcherSheet: View {
     }
 
     private func databaseRow(_ database: String) -> some View {
-        HStack(spacing: 10) {
+        let isSelected = database == selectedItem
+        let isCurrent = database == currentDatabase
+
+        return HStack(spacing: 10) {
             Image(systemName: "cylinder")
                 .font(.system(size: 13))
-                .foregroundStyle(database == currentDatabase ? .blue : .secondary)
+                .foregroundStyle(isSelected ? .white : (isCurrent ? .blue : .secondary))
 
             Text(database)
                 .font(.system(size: 13))
-                .foregroundStyle(.primary)
+                .foregroundStyle(isSelected ? .white : .primary)
                 .lineLimit(1)
 
             Spacer()
 
-            if database == currentDatabase {
+            if isCurrent {
                 Text("current")
                     .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
             }
         }
         .contentShape(Rectangle())
@@ -360,23 +352,6 @@ struct DatabaseSwitcherSheet: View {
 
         onSelect(database)
         dismiss()
-    }
-
-    /// Recursively find NSTableView in view hierarchy
-    private func findTableView(in view: NSView?) -> NSTableView? {
-        guard let view = view else { return nil }
-
-        if let tableView = view as? NSTableView {
-            return tableView
-        }
-
-        for subview in view.subviews {
-            if let found = findTableView(in: subview) {
-                return found
-            }
-        }
-
-        return nil
     }
 }
 
