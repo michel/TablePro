@@ -564,18 +564,30 @@ final class MainContentCoordinator: ObservableObject {
 
         var allStatements: [String] = []
 
+        // Wrap all operations in a single transaction when we have multiple operations
+        let needsTransaction = hasEditedCells && hasPendingTableOps
+        if needsTransaction {
+            allStatements.append("BEGIN")
+        }
+
         if hasEditedCells {
             allStatements.append(contentsOf: changeManager.generateSQL())
         }
 
         if hasPendingTableOps {
             // Generate table operation SQL with FK/cascade options
+            // Don't wrap in transaction if we're already in one
             let tableOpStatements = generateTableOperationSQL(
                 truncates: pendingTruncates,
                 deletes: pendingDeletes,
-                options: tableOperationOptions
+                options: tableOperationOptions,
+                wrapInTransaction: !needsTransaction
             )
             allStatements.append(contentsOf: tableOpStatements)
+        }
+
+        if needsTransaction {
+            allStatements.append("COMMIT")
         }
 
         guard !allStatements.isEmpty else {
@@ -595,11 +607,18 @@ final class MainContentCoordinator: ObservableObject {
         )
     }
 
-    /// Generate SQL for table truncate/delete operations with FK/cascade options
+    /// Generates SQL statements for table truncate/drop operations with FK handling.
+    /// - Parameters:
+    ///   - truncates: Set of table names to truncate
+    ///   - deletes: Set of table names to drop
+    ///   - options: Per-table options for FK and cascade handling
+    ///   - wrapInTransaction: Whether to wrap statements in BEGIN/COMMIT
+    /// - Returns: Array of SQL statements to execute
     private func generateTableOperationSQL(
         truncates: Set<String>,
         deletes: Set<String>,
-        options: [String: TableOperationOptions]
+        options: [String: TableOperationOptions],
+        wrapInTransaction: Bool = true
     ) -> [String] {
         var statements: [String] = []
         let dbType = connection.type
@@ -608,13 +627,13 @@ final class MainContentCoordinator: ObservableObject {
         let sortedTruncates = truncates.sorted()
         let sortedDeletes = deletes.sorted()
 
-        // Check if any operation needs FK disabled
-        let needsDisableFK = truncates.union(deletes).contains { tableName in
+        // Check if any operation needs FK disabled (not applicable to PostgreSQL)
+        let needsDisableFK = dbType != .postgresql && truncates.union(deletes).contains { tableName in
             options[tableName]?.ignoreForeignKeys == true
         }
 
         // Wrap in transaction for atomicity
-        let needsTransaction = (sortedTruncates.count + sortedDeletes.count) > 1
+        let needsTransaction = wrapInTransaction && (sortedTruncates.count + sortedDeletes.count) > 1
         if needsTransaction {
             statements.append("BEGIN")
         }
@@ -626,7 +645,7 @@ final class MainContentCoordinator: ObservableObject {
         for tableName in sortedTruncates {
             let quotedName = dbType.quoteIdentifier(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
-            statements.append(truncateStatement(tableName: quotedName, options: tableOptions, dbType: dbType))
+            statements.append(contentsOf: truncateStatements(tableName: tableName, quotedName: quotedName, options: tableOptions, dbType: dbType))
         }
 
         for tableName in sortedDeletes {
@@ -646,39 +665,53 @@ final class MainContentCoordinator: ObservableObject {
         return statements
     }
 
+    /// Returns SQL statements to disable foreign key checks for the database type.
+    /// - Note: PostgreSQL doesn't support globally disabling FK checks; use CASCADE instead.
     private func fkDisableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=0"]
         case .postgresql:
-            // SET CONSTRAINTS works within transaction for deferrable constraints
-            // For non-deferrable, CASCADE is the proper approach
-            return ["SET CONSTRAINTS ALL DEFERRED"]
+            // PostgreSQL doesn't support globally disabling non-deferrable FKs.
+            // Use CASCADE option for reliable FK handling.
+            return []
         case .sqlite:
             return ["PRAGMA foreign_keys = OFF"]
         }
     }
 
+    /// Returns SQL statements to re-enable foreign key checks for the database type.
     private func fkEnableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]
         case .postgresql:
-            // Constraints auto-check at COMMIT
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
         }
     }
 
-    private func truncateStatement(tableName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
-        return switch dbType {
-        case .mysql, .mariadb: "TRUNCATE TABLE \(tableName)"
-        case .postgresql: options.cascade ? "TRUNCATE TABLE \(tableName) CASCADE" : "TRUNCATE TABLE \(tableName)"
-        case .sqlite: "DELETE FROM \(tableName)"
+    /// Generates TRUNCATE/DELETE statements for a table.
+    /// - Note: SQLite uses DELETE and resets auto-increment via sqlite_sequence.
+    private func truncateStatements(tableName: String, quotedName: String, options: TableOperationOptions, dbType: DatabaseType) -> [String] {
+        switch dbType {
+        case .mysql, .mariadb:
+            return ["TRUNCATE TABLE \(quotedName)"]
+        case .postgresql:
+            let cascade = options.cascade ? " CASCADE" : ""
+            return ["TRUNCATE TABLE \(quotedName)\(cascade)"]
+        case .sqlite:
+            // DELETE FROM + reset auto-increment counter for true TRUNCATE semantics
+            let escapedName = tableName.replacingOccurrences(of: "'", with: "''")
+            return [
+                "DELETE FROM \(quotedName)",
+                "DELETE FROM sqlite_sequence WHERE name = '\(escapedName)'"
+            ]
         }
     }
 
+    /// Generates DROP TABLE statement with optional CASCADE.
     private func dropTableStatement(tableName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
         let cascade = options.cascade ? " CASCADE" : ""
         return switch dbType {
@@ -699,6 +732,12 @@ final class MainContentCoordinator: ObservableObject {
         let deletedTables = Set(pendingDeletes)
         let truncatedTables = Set(pendingTruncates)
         let conn = connection
+        let dbType = connection.type
+
+        // Track if FK checks were disabled (need to re-enable on failure)
+        let fkWasDisabled = dbType != .postgresql && deletedTables.union(truncatedTables).contains { tableName in
+            tableOperationOptions[tableName]?.ignoreForeignKeys == true
+        }
 
         // Capture options before clearing (for potential restore on failure)
         var capturedOptions: [String: TableOperationOptions] = [:]
@@ -781,6 +820,13 @@ final class MainContentCoordinator: ObservableObject {
 
             } catch {
                 let executionTime = Date().timeIntervalSince(overallStartTime)
+
+                // Try to re-enable FK checks if they were disabled
+                if fkWasDisabled, let driver = DatabaseManager.shared.activeDriver {
+                    for statement in self.fkEnableStatements(for: dbType) {
+                        try? await driver.execute(query: statement)
+                    }
+                }
 
                 await MainActor.run {
                     QueryHistoryManager.shared.recordQuery(
