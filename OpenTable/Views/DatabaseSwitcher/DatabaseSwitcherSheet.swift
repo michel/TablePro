@@ -293,14 +293,19 @@ struct DatabaseSwitcherSheet: View {
     private func moveSelection(up: Bool) {
         guard !filteredDatabases.isEmpty else { return }
 
-        let currentIndex = filteredDatabases.firstIndex(of: selectedItem ?? "") ?? 0
-
-        if up {
-            let newIndex = max(0, currentIndex - 1)
-            selectedItem = filteredDatabases[newIndex]
+        // Determine the current index only if the selected item exists in the filtered list
+        if let selected = selectedItem,
+           let currentIndex = filteredDatabases.firstIndex(of: selected) {
+            if up {
+                let newIndex = max(0, currentIndex - 1)
+                selectedItem = filteredDatabases[newIndex]
+            } else {
+                let newIndex = min(filteredDatabases.count - 1, currentIndex + 1)
+                selectedItem = filteredDatabases[newIndex]
+            }
         } else {
-            let newIndex = min(filteredDatabases.count - 1, currentIndex + 1)
-            selectedItem = filteredDatabases[newIndex]
+            // No valid current selection; choose a sensible starting point
+            selectedItem = up ? filteredDatabases.last : filteredDatabases.first
         }
     }
 
