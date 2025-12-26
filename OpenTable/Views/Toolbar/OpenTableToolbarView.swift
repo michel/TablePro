@@ -34,6 +34,7 @@ struct ToolbarPrincipalContent: View {
             ConnectionStatusView(
                 databaseType: state.databaseType,
                 databaseVersion: state.databaseVersion,
+                databaseName: state.databaseName,
                 connectionName: state.connectionName,
                 connectionState: state.connectionState,
                 displayColor: state.displayColor

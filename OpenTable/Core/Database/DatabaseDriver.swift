@@ -58,6 +58,9 @@ protocol DatabaseDriver: AnyObject {
     
     /// Fetch table metadata (size, comment, engine, etc.)
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata
+
+    /// Fetch list of all databases on the server
+    func fetchDatabases() async throws -> [String]
 }
 
 /// Default implementation for common operations

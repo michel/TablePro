@@ -37,7 +37,7 @@ struct ConnectionSidebarHeader: View {
                                     Image(systemName: session.connection.type.iconName)
                                         .foregroundStyle(session.connection.displayColor)
                                     
-                                    Text(session.connection.name)
+                                    Text(session.connection.database)
                                     
                                     Spacer()
                                     
@@ -98,7 +98,7 @@ struct ConnectionSidebarHeader: View {
                     }
                     
                     // Connection name
-                    Text(currentSession?.connection.name ?? "No Connection")
+                    Text(currentSession?.connection.database ?? "No Connection")
                         .font(.system(size: 13, weight: .medium))
                         .lineLimit(1)
                     

@@ -63,7 +63,10 @@ struct MainContentView: View {
     // Error alert state
     @State private var showErrorAlert = false
     @State private var errorAlertMessage = ""
-    
+
+    // Database switcher state
+    @State private var showDatabaseSwitcher = false
+
     // Global app state for history panel
     @EnvironmentObject private var appState: AppState
 
@@ -256,6 +259,20 @@ struct MainContentView: View {
             } message: {
                 Text(errorAlertMessage)
             }
+            .sheet(isPresented: $showDatabaseSwitcher) {
+                DatabaseSwitcherSheet(
+                    isPresented: $showDatabaseSwitcher,
+                    currentDatabase: connection.database.isEmpty ? nil : connection.database,
+                    databaseType: connection.type,
+                    onSelect: { database in
+                        switchToDatabase(database)
+                    }
+                )
+            }
+            .focusedValue(\.isDatabaseSwitcherOpen, showDatabaseSwitcher)
+            .onChange(of: showDatabaseSwitcher) { _, isPresented in
+                appState.isSheetPresented = isPresented
+            }
             .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
                 // Must be synchronous - save state BEFORE SwiftUI updates the view
                 handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
@@ -371,6 +388,9 @@ struct MainContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .toggleHistoryPanel)) { _ in
                 // Toggle history panel globally (Cmd+Shift+H)
                 appState.isHistoryPanelVisible.toggle()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openDatabaseSwitcher)) { _ in
+                showDatabaseSwitcher = true
             }
             .onReceive(NotificationCenter.default.publisher(for: .toggleRightSidebar)) { _ in
                 // Toggle inspector (Cmd+Opt+B) - no animation for native feel
@@ -2182,6 +2202,30 @@ struct MainContentView: View {
         
         // Execute the query
         runQuery()
+    }
+
+    /// Switch to a different database on the same server
+    private func switchToDatabase(_ database: String) {
+        let newConnection = DatabaseConnection(
+            id: UUID(),
+            name: connection.name,
+            host: connection.host,
+            port: connection.port,
+            database: database,
+            username: connection.username,
+            type: connection.type,
+            sshConfig: connection.sshConfig,
+            color: connection.color,
+            tagId: connection.tagId
+        )
+
+        Task {
+            do {
+                try await DatabaseManager.shared.connectToSession(newConnection)
+            } catch {
+                print("Failed to connect to database \(database): \(error)")
+            }
+        }
     }
 }
 

@@ -111,6 +111,9 @@ final class ConnectionToolbarState: ObservableObject {
     /// Connection name for display
     @Published var connectionName: String = ""
 
+    /// Current database name
+    @Published var databaseName: String = ""
+
     /// Custom display color for the connection (uses database type color if not set)
     @Published var displayColor: Color = .orange
 
@@ -188,6 +191,7 @@ final class ConnectionToolbarState: ObservableObject {
     /// Update state from a DatabaseConnection model
     func update(from connection: DatabaseConnection) {
         connectionName = connection.name
+        databaseName = connection.database
         databaseType = connection.type
         displayColor = connection.displayColor
         tagId = connection.tagId
@@ -213,6 +217,7 @@ final class ConnectionToolbarState: ObservableObject {
         databaseType = .mysql
         databaseVersion = nil
         connectionName = ""
+        databaseName = ""
         displayColor = databaseType.themeColor
         connectionState = .disconnected
         isExecuting = false

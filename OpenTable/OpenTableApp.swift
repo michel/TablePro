@@ -17,6 +17,81 @@ final class AppState: ObservableObject {
     @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
     @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
     @Published var isHistoryPanelVisible: Bool = false  // Global history panel visibility
+    @Published var isSheetPresented: Bool = false  // True when any modal sheet is open (blocks ESC key handling)
+}
+
+// MARK: - Pasteboard Commands with FocusedValue Support
+
+/// Custom Commands struct to properly access FocusedValue for disabling ESC when sheet is open
+struct PasteboardCommands: Commands {
+    @ObservedObject var appState: AppState
+    @FocusedValue(\.isDatabaseSwitcherOpen) var isDatabaseSwitcherOpen: Bool?
+
+    var body: some Commands {
+        CommandGroup(replacing: .pasteboard) {
+            Button("Cut") {
+                NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
+            }
+            .keyboardShortcut("x", modifiers: .command)
+
+            Button("Copy") {
+                // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
+                if let firstResponder = NSApp.keyWindow?.firstResponder,
+                   firstResponder is NSTextView {
+                    // User is editing text - let standard copy handle selected text
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                } else if appState.hasRowSelection {
+                    // Copy entire rows when rows are selected
+                    NotificationCenter.default.post(name: .copySelectedRows, object: nil)
+                } else if appState.hasTableSelection {
+                    // Copy table names when tables are selected
+                    NotificationCenter.default.post(name: .copyTableNames, object: nil)
+                } else {
+                    // Fallback to standard copy
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                }
+            }
+            .keyboardShortcut("c", modifiers: .command)
+
+            Button("Paste") {
+                NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+            }
+            .keyboardShortcut("v", modifiers: .command)
+
+            Button("Delete") {
+                // Check if first responder is the history panel's table view
+                // History panel uses responder chain for delete actions
+                // Data grid uses notifications for batched undo support
+                if let firstResponder = NSApp.keyWindow?.firstResponder {
+                    // Check class name to identify HistoryTableView
+                    let className = String(describing: type(of: firstResponder))
+                    if className.contains("HistoryTableView") {
+                        // Let history panel handle via responder chain
+                        NSApp.sendAction(#selector(NSText.delete(_:)), to: nil, from: nil)
+                        return
+                    }
+                }
+
+                // For data grid and other views, use notification for batched undo
+                NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+            }
+            .keyboardShortcut(.delete, modifiers: .command)
+            .disabled(!appState.isCurrentTabEditable && !appState.hasTableSelection)
+
+            Divider()
+
+            Button("Select All") {
+                NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+            }
+            .keyboardShortcut("a", modifiers: .command)
+
+            Button("Clear Selection") {
+                NotificationCenter.default.post(name: .clearSelection, object: nil)
+            }
+            .keyboardShortcut(.escape, modifiers: [])
+            .disabled(isDatabaseSwitcherOpen == true)
+        }
+    }
 }
 
 // MARK: - App
@@ -67,6 +142,12 @@ struct OpenTableApp: App {
                     NotificationCenter.default.post(name: .newTab, object: nil)
                 }
                 .keyboardShortcut("t", modifiers: .command)
+                .disabled(!appState.isConnected)
+
+                Button("Open Database...") {
+                    NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
+                }
+                .keyboardShortcut("k", modifiers: .command)
                 .disabled(!appState.isConnected)
 
                 Divider()
@@ -129,70 +210,9 @@ struct OpenTableApp: App {
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             }
             
-            // Edit menu - replace pasteboard to add our Delete with shortcut
-            CommandGroup(replacing: .pasteboard) {
-                Button("Cut") {
-                    NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
-                }
-                .keyboardShortcut("x", modifiers: .command)
-                
-                Button("Copy") {
-                    // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
-                    if let firstResponder = NSApp.keyWindow?.firstResponder,
-                       firstResponder is NSTextView {
-                        // User is editing text - let standard copy handle selected text
-                        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
-                    } else if appState.hasRowSelection {
-                        // Copy entire rows when rows are selected
-                        NotificationCenter.default.post(name: .copySelectedRows, object: nil)
-                    } else if appState.hasTableSelection {
-                        // Copy table names when tables are selected
-                        NotificationCenter.default.post(name: .copyTableNames, object: nil)
-                    } else {
-                        // Fallback to standard copy
-                        NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
-                    }
-                }
-                .keyboardShortcut("c", modifiers: .command)
-                
-                Button("Paste") {
-                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
-                }
-                .keyboardShortcut("v", modifiers: .command)
-                
-                Button("Delete") {
-                    // Check if first responder is the history panel's table view
-                    // History panel uses responder chain for delete actions
-                    // Data grid uses notifications for batched undo support
-                    if let firstResponder = NSApp.keyWindow?.firstResponder {
-                        // Check class name to identify HistoryTableView
-                        let className = String(describing: type(of: firstResponder))
-                        if className.contains("HistoryTableView") {
-                            // Let history panel handle via responder chain
-                            NSApp.sendAction(#selector(NSText.delete(_:)), to: nil, from: nil)
-                            return
-                        }
-                    }
-                    
-                    // For data grid and other views, use notification for batched undo
-                    NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
-                }
-                .keyboardShortcut(.delete, modifiers: .command)
-                .disabled(!appState.isCurrentTabEditable && !appState.hasTableSelection)
-                
-                Divider()
-                
-                Button("Select All") {
-                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
-                }
-                .keyboardShortcut("a", modifiers: .command)
-                
-                Button("Clear Selection") {
-                    NotificationCenter.default.post(name: .clearSelection, object: nil)
-                }
-                .keyboardShortcut(.escape, modifiers: [])
-            }
-            
+            // Edit menu - pasteboard commands with FocusedValue support
+            PasteboardCommands(appState: appState)
+
             // Edit menu - row operations (after pasteboard)
             CommandGroup(after: .pasteboard) {
                 Divider()
@@ -286,7 +306,10 @@ extension Notification.Name {
     
     // History panel notifications
     static let toggleHistoryPanel = Notification.Name("toggleHistoryPanel")
-    
+
+    // Database switcher notifications
+    static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
+
     // Window lifecycle notifications
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")
 }
