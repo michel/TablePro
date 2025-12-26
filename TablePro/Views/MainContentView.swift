@@ -2,1797 +2,285 @@
 //  MainContentView.swift
 //  TablePro
 //
-//  Created by Ngo Quoc Dat on 16/12/25.
+//  Main content view combining query editor and results table.
+//  Refactored to use coordinator pattern for business logic separation.
 //
 
 import Combine
 import SwiftUI
 
-/// Main content view combining query editor and results table
+/// Main content view - thin presentation layer
 struct MainContentView: View {
+
+    // MARK: - Properties
+
     let connection: DatabaseConnection
 
-    // Shared table state from parent
+    // Shared state from parent
     @Binding var tables: [TableInfo]
     @Binding var selectedTables: Set<TableInfo>
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
     @Binding var isInspectorPresented: Bool
 
+    // MARK: - State Objects
+
     @StateObject private var tabManager = QueryTabManager()
     @StateObject private var changeManager = DataChangeManager()
     @StateObject private var filterStateManager = FilterStateManager()
-    @StateObject private var queryService = QueryExecutionService()
+    @StateObject private var toolbarState = ConnectionToolbarState()
+    @StateObject var coordinator: MainContentCoordinator
 
-    // Lazy-initialized row operations manager
-    private var rowOperationsManager: RowOperationsManager {
-        RowOperationsManager(changeManager: changeManager)
-    }
+    // MARK: - Local State
 
-    @State private var selectedRowIndices: Set<Int> = []
+    @State var selectedRowIndices: Set<Int> = []
     @State private var editingCell: CellPosition? = nil
+    @State private var notificationHandler: MainContentNotificationHandler?
 
-    // Unified alert for all discard scenarios
-    enum DiscardAction {
-        case refresh
-        case closeTab
-        case refreshAll
-    }
-    @State private var pendingDiscardAction: DiscardAction?
+    // MARK: - Environment
 
-    @State private var schemaProvider: SQLSchemaProvider = SQLSchemaProvider()
-    @State private var cursorPosition: Int = 0
-    @State private var currentQueryTask: Task<Void, Never>?
-    @State private var queryGeneration: Int = 0
-    @State private var changeManagerUpdateTask: Task<Void, Never>?
-    @State private var isRestoringTabs = false  // Prevent circular sync during restoration
-    @State private var needsLazyLoad = false  // Flag to trigger lazy load when connection becomes ready
-    @State private var saveDebounceTask: Task<Void, Never>?  // Debounce task for saving tabs
-    @State private var isDismissing = false  // Prevent saving when view is being destroyed
-    @State private var justRestoredTab = false  // Prevent lazy load duplicate execution after restore
-    
-    // Right sidebar state
-    @State private var tableMetadata: TableMetadata? = nil
-    
-    // MARK: - Constants
-
-    private static let tabSaveDebounceDelay: UInt64 = 500_000_000  // 500ms in nanoseconds
-    private static let connectionCheckDelay: UInt64 = 100_000_000  // 100ms in nanoseconds
-    private static let maxConnectionRetries = 50  // Max retries for connection check (5 seconds total)
-
-    // Error alert state
-    @State private var showErrorAlert = false
-    @State private var errorAlertMessage = ""
-
-    // Database switcher state
-    @State private var showDatabaseSwitcher = false
-
-    // Global app state for history panel
     @EnvironmentObject private var appState: AppState
 
-    // MARK: - Toolbar State
+    // MARK: - Initialization
 
-    /// Observable state for the production-quality toolbar
-    @StateObject private var toolbarState = ConnectionToolbarState()
+    init(
+        connection: DatabaseConnection,
+        tables: Binding<[TableInfo]>,
+        selectedTables: Binding<Set<TableInfo>>,
+        pendingTruncates: Binding<Set<String>>,
+        pendingDeletes: Binding<Set<String>>,
+        isInspectorPresented: Binding<Bool>
+    ) {
+        self.connection = connection
+        self._tables = tables
+        self._selectedTables = selectedTables
+        self._pendingTruncates = pendingTruncates
+        self._pendingDeletes = pendingDeletes
+        self._isInspectorPresented = isInspectorPresented
 
-    private var currentTab: QueryTab? {
-        tabManager.selectedTab
+        // Create state objects
+        let tabMgr = QueryTabManager()
+        let changeMgr = DataChangeManager()
+        let filterMgr = FilterStateManager()
+        let toolbarSt = ConnectionToolbarState()
+
+        _tabManager = StateObject(wrappedValue: tabMgr)
+        _changeManager = StateObject(wrappedValue: changeMgr)
+        _filterStateManager = StateObject(wrappedValue: filterMgr)
+        _toolbarState = StateObject(wrappedValue: toolbarSt)
+
+        // Create coordinator with all dependencies
+        _coordinator = StateObject(wrappedValue: MainContentCoordinator(
+            connection: connection,
+            tabManager: tabMgr,
+            changeManager: changeMgr,
+            filterStateManager: filterMgr,
+            toolbarState: toolbarSt
+        ))
     }
 
-    @ViewBuilder
+    // MARK: - Body
+
     var body: some View {
-        Group {
-            bodyContent
-        }
-    }
-
-    // MARK: - Main Content View
-
-    @ViewBuilder
-    private var mainContentView: some View {
-        HStack(spacing: 0) {
-            // Main editor content
-            mainEditorContent
-            
-            // Right sidebar - conditionally rendered for proper collapse
-            if isInspectorPresented {
-                Divider()
-                
-                RightSidebarView(
-                    tableName: currentTab?.tableName,
-                    tableMetadata: tableMetadata,
-                    selectedRowData: selectedRowDataForSidebar
-                )
-                .frame(width: 280)
-                .task(id: currentTab?.tableName) {
-                    if let tableName = currentTab?.tableName {
-                        // Only fetch if metadata not already loaded for this table
-                        if tableMetadata?.tableName != tableName {
-                            await loadTableMetadata(tableName: tableName)
-                        }
-                    } else {
-                        tableMetadata = nil
-                    }
-                }
-            }
-        }
-    }
-    
-    /// Compute selected row data for right sidebar
-    private var selectedRowDataForSidebar: [(column: String, value: String?, type: String)]? {
-        guard let tab = currentTab,
-              !selectedRowIndices.isEmpty,
-              let firstIndex = selectedRowIndices.min(),
-              firstIndex < tab.resultRows.count else { return nil }
-        
-        let row = tab.resultRows[firstIndex]
-        var data: [(column: String, value: String?, type: String)] = []
-        for (i, col) in tab.resultColumns.enumerated() {
-            let value = i < row.values.count ? row.values[i] : nil
-            // Simple type indicator - can be enhanced later with actual column type info
-            let type = "string"
-            data.append((column: col, value: value, type: type))
-        }
-        return data
-    }
-
-    // MARK: - Main Editor Content
-
-    @ViewBuilder
-    private var mainEditorContent: some View {
-        VStack(spacing: 0) {
-            // Tab bar - only show when there are tabs
-            if !tabManager.tabs.isEmpty {
-                QueryTabBar(tabManager: tabManager)
-                Divider()
-            }
-
-            // Content for selected tab
-            if let tab = currentTab {
-                if tab.tabType == .query {
-                    // Query Tab: Editor + Results
-                    queryTabContent(tab: tab)
-                } else {
-                    // Table Tab: Results only
-                    tableTabContent(tab: tab)
-                }
-            } else {
-                // Empty state when no tabs are open
-                VStack(spacing: 16) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 64))
-                        .foregroundStyle(.tertiary)
-
-                    Text("No tabs open")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-
-                    Text("Select a table from the sidebar")
-                        .font(.callout)
-                        .foregroundStyle(.tertiary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            
-            // Global History Panel - appears at bottom
-            if appState.isHistoryPanelVisible {
-                Divider()
-                HistoryPanelView()
-                    .frame(height: 300)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.easeInOut(duration: 0.2), value: appState.isHistoryPanelVisible)
-    }
-
-    // MARK: - View with Toolbar
-
-    @ViewBuilder
-    private var viewWithToolbar: some View {
         mainContentView
             .tableProToolbar(state: toolbarState)
-            .onChange(of: currentTab?.isExecuting) { _, isExecuting in
-                // Sync execution state to toolbar
-                Task { @MainActor in
-                    toolbarState.isExecuting = isExecuting ?? false
-                }
-            }
-            .onChange(of: currentTab?.executionTime) { _, executionTime in
-                // Update last query duration in toolbar (only when there's a value - preserve last time)
-                if let time = executionTime {
-                    Task { @MainActor in
-                        toolbarState.lastQueryDuration = time
-                    }
-                }
-            }
-            .onChange(of: DatabaseManager.shared.currentSession?.status) { _, newStatus in
-                // Update toolbar connection state when session status changes
-                if let status = newStatus {
-                    Task { @MainActor in
-                        toolbarState.connectionState = mapSessionStatus(status)
-                    }
-                }
-            }
-    }
-
-    // MARK: - Discard Alert Binding
-    
-    /// Extracted binding to reduce type-checker complexity
-    private var showDiscardAlert: Binding<Bool> {
-        Binding(
-            get: { pendingDiscardAction != nil },
-            set: { if !$0 { pendingDiscardAction = nil } }
-        )
-    }
-    
-    /// Message for discard alert based on pending action
-    private var discardAlertMessage: String {
-        guard let action = pendingDiscardAction else { return "" }
-        switch action {
-        case .refresh, .refreshAll:
-            return "Refreshing will discard all unsaved changes."
-        case .closeTab:
-            return "Closing this tab will discard all unsaved changes."
-        }
-    }
-
-    // MARK: - Body Content
-
-    @ViewBuilder
-    private var bodyContent: some View {
-        bodyContentWithNotifications
-            .alert("Discard Unsaved Changes?", isPresented: showDiscardAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Discard", role: .destructive) {
-                    handleDiscard()
-                }
-            } message: {
-                Text(discardAlertMessage)
-            }
-            .alert("Query Error", isPresented: $showErrorAlert) {
-                Button("OK", role: .cancel) {
-                    // Clear the error message from the tab
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage = nil
-                    }
-                }
-            } message: {
-                Text(errorAlertMessage)
-            }
-            .sheet(isPresented: $showDatabaseSwitcher) {
-                DatabaseSwitcherSheet(
-                    isPresented: $showDatabaseSwitcher,
-                    currentDatabase: connection.database.isEmpty ? nil : connection.database,
-                    databaseType: connection.type,
-                    onSelect: { database in
-                        switchToDatabase(database)
-                    }
-                )
-            }
-            .focusedValue(\.isDatabaseSwitcherOpen, showDatabaseSwitcher)
-            .onChange(of: showDatabaseSwitcher) { _, isPresented in
-                appState.isSheetPresented = isPresented
-            }
+            .mainContentAlerts(
+                coordinator: coordinator,
+                connection: connection,
+                pendingTruncates: $pendingTruncates,
+                pendingDeletes: $pendingDeletes
+            )
+            .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
-                // Must be synchronous - save state BEFORE SwiftUI updates the view
-                handleTabChange(oldTabId: oldTabId, newTabId: newTabId)
-                
-                // Dismiss all autocomplete windows to prevent duplicates
-                NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
-                
-                // Skip save during restoration
-                guard !isRestoringTabs else { return }
-                
-                // Skip save if view is being dismissed
-                guard !isDismissing else {
-                    return
-                }
-                
-                // Sync selected tab ID to session for persistence
-                if let sessionId = DatabaseManager.shared.currentSessionId {
-                    DatabaseManager.shared.updateSession(sessionId) { session in
-                        session.selectedTabId = newTabId
-                    }
-                    
-                    // CRITICAL: Also persist to disk for restoration
-                    TabStateStorage.shared.saveTabState(
-                        connectionId: connection.id,
-                        tabs: tabManager.tabs,
-                        selectedTabId: newTabId
-                    )
-                }
+                handleTabSelectionChange(from: oldTabId, to: newTabId)
             }
             .onChange(of: tabManager.tabs) { _, newTabs in
-                // Skip sync if we're currently restoring tabs from session (prevents circular updates)
-                guard !isRestoringTabs else { return }
-                
-                // CRITICAL: Skip save if view is being dismissed to prevent saving empty query
-                // When SwiftUI tears down the view, bindings may be reset causing empty saves
-                guard !isDismissing else {
-                    return
-                }
-                
-                // Sync tabs array to session for persistence
-                if let sessionId = DatabaseManager.shared.currentSessionId {
-                    DatabaseManager.shared.updateSession(sessionId) { session in
-                        session.tabs = newTabs
-                    }
-                    
-                    // CRITICAL: Persist tabs to disk so they can be restored when connection reopens
-                    TabStateStorage.shared.saveTabState(
-                        connectionId: connection.id,
-                        tabs: newTabs,
-                        selectedTabId: tabManager.selectedTabId
-                    )
-                    
-                    // Clear saved state immediately when all tabs are closed
-                    if newTabs.isEmpty {
-                        TabStateStorage.shared.clearTabState(connectionId: connection.id)
-                    }
-                }
+                handleTabsChange(newTabs)
             }
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
             .onChange(of: currentTab?.errorMessage) { _, newError in
-                // Show error alert when errorMessage is set
-                if let error = newError, !error.isEmpty {
-                    errorAlertMessage = error
-                    showErrorAlert = true
-                }
+                handleErrorChange(newError)
             }
             .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { _, isConnected in
-                // Auto-execute query when connection becomes ready and tab needs data
-                if isConnected == true && needsLazyLoad {
-                    needsLazyLoad = false
-                    runQuery()
-                }
+                handleConnectionChange(isConnected)
             }
-    }
-    
-    /// Separated to reduce type-checker complexity
-    @ViewBuilder
-    private var bodyContentWithNotifications: some View {
-        bodyContentPart1
-            .onReceive(NotificationCenter.default.publisher(for: .duplicateRow)) { _ in
-                // Duplicate row menu item (Cmd+D)
-                Task { @MainActor in
-                    duplicateSelectedRow()
-                }
+            .onChange(of: DatabaseManager.shared.currentSession?.status) { _, newStatus in
+                handleSessionStatusChange(newStatus)
             }
-            .onReceive(NotificationCenter.default.publisher(for: .copySelectedRows)) { _ in
-                // Copy rows (Cmd+C when rows selected)
-                copySelectedRowsToClipboard()
+            .onChange(of: currentTab?.isExecuting) { _, isExecuting in
+                toolbarState.isExecuting = isExecuting ?? false
             }
-            .onReceive(NotificationCenter.default.publisher(for: .clearSelection)) { _ in
-                // Clear all selections (Escape key)
-                selectedRowIndices.removeAll()
-                selectedTables.removeAll()
-                // Also close filter panel if visible
-                if filterStateManager.isVisible {
-                    filterStateManager.close()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .tableTabClosed)) { notification in
-                // Clear closed table from sidebar selection so it can be re-opened
-                if let tableName = notification.object as? String {
-                    selectedTables = selectedTables.filter { $0.name != tableName }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleFilterPanel)) { _ in
-                // Toggle filter panel (Cmd+F)
-                if currentTab?.tabType == .table {
-                    filterStateManager.toggle()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleHistoryPanel)) { _ in
-                // Toggle history panel globally (Cmd+Shift+H)
-                appState.isHistoryPanelVisible.toggle()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .openDatabaseSwitcher)) { _ in
-                showDatabaseSwitcher = true
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleRightSidebar)) { _ in
-                // Toggle inspector (Cmd+Opt+B) - no animation for native feel
-                isInspectorPresented.toggle()
-                // Load table metadata only if opening and not already loaded for this table
-                if isInspectorPresented,
-                   let tableName = currentTab?.tableName,
-                   tableMetadata?.tableName != tableName {
-                    Task { await loadTableMetadata(tableName: tableName) }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .applyAllFilters)) { _ in
-                // Apply all selected filters (Cmd+Return)
-                if filterStateManager.hasSelectedFilters {
-                    filterStateManager.applySelectedFilters()
-                    applyFilters(filterStateManager.appliedFilters)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .duplicateFilter)) { _ in
-                // Duplicate focused filter (Cmd+I when filter panel is visible)
-                if filterStateManager.isVisible, let focusedFilter = filterStateManager.focusedFilter {
-                    filterStateManager.duplicateFilter(focusedFilter)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .removeFilter)) { _ in
-                // Remove focused filter (Cmd+Shift+I when filter panel is visible)
-                if filterStateManager.isVisible, let focusedFilter = filterStateManager.focusedFilter {
-                    filterStateManager.removeFilter(focusedFilter)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .undoChange)) { _ in
-                // Undo last change (Cmd+Z)
-                Task { @MainActor in
-                    undoLastChange()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .redoChange)) { _ in
-                // Redo last undone change (Cmd+Shift+Z)
-                Task { @MainActor in
-                    redoLastChange()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .mainWindowWillClose)) { _ in
-                // CRITICAL: Window is about to close - flush pending saves immediately
-                // This prevents query text from being lost when SwiftUI tears down the view
-                
-                // Set flag to prevent further saves (view is being destroyed)
-                isDismissing = true
-                
-                // Cancel debounce task and save immediately
-                saveDebounceTask?.cancel()
-                
-                // Immediately save current state before view is destroyed
-                if let sessionId = DatabaseManager.shared.currentSessionId {
-                    TabStateStorage.shared.saveTabState(
-                        connectionId: connection.id,
-                        tabs: tabManager.tabs,
-                        selectedTabId: tabManager.selectedTabId
-                    )
-                }
-            }
-    }
-    
-    /// First part of notifications - reduces type-checker complexity
-    @ViewBuilder
-    private var bodyContentPart1: some View {
-        bodyContentPart2
-            .onReceive(NotificationCenter.default.publisher(for: .deleteSelectedRows)) { _ in
-                // Delete rows or mark table for deletion
-                Task { @MainActor in
-                    // First check if we have row selection in data grid
-                    if !selectedRowIndices.isEmpty {
-                        deleteSelectedRows()
-                    }
-                    // Otherwise check if tables are selected in sidebar
-                    else if !selectedTables.isEmpty {
-                        // Batch update to avoid stale copy issues with @Binding
-                        var updatedDeletes = pendingDeletes
-                        var updatedTruncates = pendingTruncates
-
-                        for table in selectedTables {
-                            updatedTruncates.remove(table.name)
-                            if updatedDeletes.contains(table.name) {
-                                updatedDeletes.remove(table.name)
-                            } else {
-                                updatedDeletes.insert(table.name)
-                            }
-                        }
-
-                        pendingTruncates = updatedTruncates
-                        pendingDeletes = updatedDeletes
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
-                // Load schema and update toolbar when connection is established (fixes race condition)
-                Task { @MainActor in
-                    await loadSchema()
-                    // Update version after connection is fully established
-                    if let driver = DatabaseManager.shared.activeDriver {
-                        toolbarState.databaseVersion = driver.serverVersion
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .showAllTables)) { _ in
-                // Show all tables metadata when user clicks "Tables" heading in sidebar
-                Task { @MainActor in
-                    showAllTablesMetadata()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .addNewRow)) { _ in
-                // Add row menu item (Cmd+I)
-                Task { @MainActor in
-                    addNewRow()
-                }
-            }
-    }
-
-    /// Second part of notifications - further reduces type-checker complexity
-    @ViewBuilder
-    private var bodyContentPart2: some View {
-        viewWithToolbar
-            .task {
-                await initializeView()
-
-                // Restore tabs from disk first (persists across app restarts)
-                // Fallback to session tabs (persists during app session only)
-                var didRestoreTabs = false
-                if let savedState = TabStateStorage.shared.loadTabState(connectionId: connection.id),
-                   !savedState.tabs.isEmpty {
-                    // Restore from disk
-                    isRestoringTabs = true
-                    defer { isRestoringTabs = false }
-
-                    let restoredTabs = savedState.tabs.map { QueryTab(from: $0) }
-                    tabManager.tabs = restoredTabs
-                    tabManager.selectedTabId = savedState.selectedTabId
-                    didRestoreTabs = true
-                } else if let sessionId = DatabaseManager.shared.currentSessionId,
-                          let session = DatabaseManager.shared.activeSessions[sessionId],
-                          !session.tabs.isEmpty {
-                    // Fallback: Restore from session (for backward compatibility)
-                    isRestoringTabs = true
-                    defer { isRestoringTabs = false }
-
-                    tabManager.tabs = session.tabs
-                    tabManager.selectedTabId = session.selectedTabId
-                    didRestoreTabs = true
-                }
-                // Execute query for table tabs to load data
-                if didRestoreTabs {
-                    if let selectedTab = tabManager.selectedTab,
-                       selectedTab.tabType == .table,
-                       !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-
-                        // Wait for connection to be established
-                        var retryCount = 0
-                        while retryCount < Self.maxConnectionRetries {
-                            // Stop waiting if view is being dismissed
-                            guard !isDismissing else { break }
-
-                            if let session = DatabaseManager.shared.currentSession,
-                               session.isConnected {
-                                // Small delay to ensure everything is initialized
-                                try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
-                                await MainActor.run {
-                                    justRestoredTab = true  // Prevent lazy load from executing again
-                                    runQuery()
-                                }
-                                break
-                            }
-
-                            // Wait 100ms and retry
-                            try? await Task.sleep(nanoseconds: 100_000_000)
-                            retryCount += 1
-                        }
-
-                        if retryCount >= Self.maxConnectionRetries {
-                            print("[MainContentView] ⚠️ Connection timeout, query not executed")
-                        }
-                    }
+            .onChange(of: currentTab?.executionTime) { _, executionTime in
+                if let time = executionTime {
+                    toolbarState.lastQueryDuration = time
                 }
             }
             .onChange(of: selectedTables) { oldTables, newTables in
-                // Find newly added table to open
-                let added = newTables.subtracting(oldTables)
-                if let table = added.first {
-                    Task { @MainActor in
-                        TableProData(table.name)
-                    }
-                }
-                // Update app state for Delete menu enable state (sidebar tables)
-                AppState.shared.hasTableSelection = !newTables.isEmpty
+                handleTableSelectionChange(from: oldTables, to: newTables)
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
-                // Update app state for Delete Row menu enable state
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
             }
-            .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
-                Task { @MainActor in
-                    handleRefreshAll()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .newTab)) { _ in
-                // Cmd+T - create new query tab - load last query if available
-                Task { @MainActor in
-                    let lastQuery = TabStateStorage.shared.loadLastQuery(for: connection.id)
-                    tabManager.addTab(initialQuery: lastQuery)
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .loadQueryIntoEditor)) { notification in
-                // Load query from history/bookmark panel into current tab
-                Task { @MainActor in
-                    guard let query = notification.object as? String else { return }
-
-                    // Load into the current tab (which was just created by .newTab)
-                    if let tabIndex = tabManager.selectedTabIndex,
-                       tabIndex < tabManager.tabs.count {
-                        tabManager.tabs[tabIndex].query = query
-                        tabManager.tabs[tabIndex].hasUserInteraction = true
-                    }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .closeCurrentTab)) { _ in
-                Task { @MainActor in
-                    handleCloseAction()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .saveChanges)) { _ in
-                // Cmd+S to save changes
-                Task { @MainActor in
-                    saveChanges()
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .refreshData)) { _ in
-                Task { @MainActor in
-                    // Cmd+R to refresh data - warn if pending changes
-                    let hasEditedCells = changeManager.hasChanges
-                    let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
-
-                    if hasEditedCells || hasPendingTableOps {
-                        pendingDiscardAction = .refresh
-                    } else {
-                        // Cancel any running query to prevent race conditions
-                        currentQueryTask?.cancel()
-
-                        // Rebuild query for table tabs to ensure fresh data
-                        if let tabIndex = tabManager.selectedTabIndex,
-                           tabManager.tabs[tabIndex].tabType == .table {
-                            rebuildTableQuery(at: tabIndex)
-                        }
-
-                        // Fetch fresh data from database
-                        runQuery()
-                    }
-                }
-            }
+            .onAppear { setupNotificationHandler() }
     }
 
-    // MARK: - Query Tab Content
+    // MARK: - Main Content
 
-    private func queryTabContent(tab: QueryTab) -> some View {
-        return VSplitView {
-            // Query Editor (top)
-            VStack(spacing: 0) {
-                QueryEditorView(
-                    queryText: Binding(
-                        get: { tab.query },
-                        set: { newValue in
-                            // CRITICAL: Bounds check to prevent crash on paste
-                            guard let index = tabManager.selectedTabIndex,
-                                  index < tabManager.tabs.count else {
-                                return
-                            }
-                            
-                            tabManager.tabs[index].query = newValue
-                            
-                            // Save as last query for this connection (TablePlus-style)
-                            TabStateStorage.shared.saveLastQuery(newValue, for: connection.id)
-                            
-                            // CRITICAL: Debounce save to prevent race conditions
-                            // Only save 500ms after user stops typing
-                            // SKIP save during restoration or dismissal to prevent overwriting with empty values
-                            if !isRestoringTabs && !isDismissing {
-                                // Cancel previous debounce task
-                                saveDebounceTask?.cancel()
-                                
-                                // CRITICAL: Capture current tabs STATE to prevent stale data
-                                let tabsToSave = tabManager.tabs
-                                let selectedId = tabManager.selectedTabId
-                                
-                                // Create new debounce task
-                                saveDebounceTask = Task { @MainActor in
-                                    try? await Task.sleep(nanoseconds: Self.tabSaveDebounceDelay)
-                                    
-                                    // Only save if not cancelled and view not being dismissed
-                                    guard !Task.isCancelled && !isDismissing else { return }
-                                    
-                                    // Save the captured tabs state (NOT current state which may have changed)
-                                    TabStateStorage.shared.saveTabState(
-                                        connectionId: connection.id,
-                                        tabs: tabsToSave,
-                                        selectedTabId: selectedId
-                                    )
-                                }
-                            }
-                        }
-                    ),
-                    cursorPosition: $cursorPosition,
-                    onExecute: runQuery,
-                    schemaProvider: schemaProvider
-                )
-            }
-            .frame(minHeight: 100, idealHeight: 200)
-
-            // Results Table (bottom)
-            resultsSection(tab: tab)
-                .frame(minHeight: 150)
-        }
-    }
-
-    // MARK: - Table Tab Content
-
-    private func tableTabContent(tab: QueryTab) -> some View {
-        resultsSection(tab: tab)
-    }
-
-    // MARK: - Results Section (shared)
-
-    private func resultsSection(tab: QueryTab) -> some View {
-        VStack(spacing: 0) {
-            // Show structure view or data view based on toggle
-            if tab.showStructure, let tableName = tab.tableName {
-                TableStructureView(tableName: tableName, connection: connection)
-                    .frame(maxHeight: .infinity)
-            } else if tab.resultColumns.isEmpty && tab.errorMessage == nil && tab.lastExecutedAt != nil && !tab.isExecuting {
-                // Non-SELECT query succeeded (no columns returned)
-                QuerySuccessView(
-                    rowsAffected: tab.rowsAffected,
-                    executionTime: tab.executionTime
-                )
-            } else {
-                DataGridView(
-                    rowProvider: InMemoryRowProvider(
-                        rows: sortedRows(for: tab),
-                        columns: tab.resultColumns,
-                        columnDefaults: tab.columnDefaults
-                    ),
-                    changeManager: changeManager,
-                    isEditable: tab.isEditable,
-                    onCommit: { sql in
-                        executeCommitSQL(sql)
-                    },
-                    onRefresh: { runQuery() },
-                    onCellEdit: { rowIndex, colIndex, newValue in
-                        updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
-                    },
-                    onSort: { columnIndex, ascending in
-                        handleSort(columnIndex: columnIndex, ascending: ascending)
-                    },
-                    onAddRow: { addNewRow() },
-                    onUndoInsert: { rowIndex in
-                        undoInsertRow(at: rowIndex)
-                    },
-                    onFilterColumn: { columnName in
-                        filterStateManager.addFilterForColumn(columnName)
-                    },
-                    selectedRowIndices: $selectedRowIndices,
-                    sortState: sortStateBinding,
-                    editingCell: $editingCell
-                )
-                .frame(maxHeight: .infinity, alignment: .top)
-            }
-
-            // Filter panel (collapsible, at bottom)
-            if filterStateManager.isVisible && tab.tabType == .table {
-                Divider()
-                FilterPanelView(
-                    filterState: filterStateManager,
-                    columns: tab.resultColumns,
-                    primaryKeyColumn: changeManager.primaryKeyColumn,
-                    databaseType: connection.type,
-                    onApply: { filters in
-                        applyFilters(filters)
-                    },
-                    onUnset: {
-                        clearFiltersAndReload()
-                    },
-                    onQuickSearch: { searchText in
-                        applyQuickSearch(searchText)
-                    }
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
-            statusBar
-        }
-        .frame(minHeight: 150)
-        .animation(.easeInOut(duration: 0.2), value: filterStateManager.isVisible)
-    }
-    
-    // MARK: - Data Grid Section
-    
     @ViewBuilder
-    private func dataGridSection(tab: QueryTab) -> some View {
-        if tab.showStructure, let tableName = tab.tableName {
-            TableStructureView(tableName: tableName, connection: connection)
-                .frame(maxHeight: .infinity)
-        } else {
-            DataGridView(
-                rowProvider: InMemoryRowProvider(
-                    rows: sortedRows(for: tab),
-                    columns: tab.resultColumns,
-                    columnDefaults: tab.columnDefaults
-                ),
+    private var mainContentView: some View {
+        HStack(spacing: 0) {
+            MainEditorContentView(
+                tabManager: tabManager,
+                coordinator: coordinator,
                 changeManager: changeManager,
-                isEditable: tab.isEditable,
-                onCommit: { sql in
-                    executeCommitSQL(sql)
-                },
-                onRefresh: { runQuery() },
-                onCellEdit: { rowIndex, colIndex, newValue in
-                    updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: newValue)
+                filterStateManager: filterStateManager,
+                connection: connection,
+                selectedRowIndices: $selectedRowIndices,
+                editingCell: $editingCell,
+                onCellEdit: { rowIndex, colIndex, value in
+                    coordinator.updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: value)
                 },
                 onSort: { columnIndex, ascending in
-                    handleSort(columnIndex: columnIndex, ascending: ascending)
+                    coordinator.handleSort(columnIndex: columnIndex, ascending: ascending, selectedRowIndices: &selectedRowIndices)
                 },
-                onAddRow: { addNewRow() },
+                onAddRow: {
+                    coordinator.addNewRow(selectedRowIndices: &selectedRowIndices, editingCell: &editingCell)
+                },
                 onUndoInsert: { rowIndex in
-                    undoInsertRow(at: rowIndex)
+                    coordinator.undoInsertRow(at: rowIndex, selectedRowIndices: &selectedRowIndices)
                 },
                 onFilterColumn: { columnName in
                     filterStateManager.addFilterForColumn(columnName)
                 },
-                selectedRowIndices: $selectedRowIndices,
-                sortState: sortStateBinding,
-                editingCell: $editingCell
+                onApplyFilters: { filters in
+                    coordinator.applyFilters(filters)
+                },
+                onClearFilters: {
+                    coordinator.clearFiltersAndReload()
+                },
+                onQuickSearch: { searchText in
+                    coordinator.applyQuickSearch(searchText)
+                },
+                onCommit: { sql in
+                    executeCommitSQL(sql)
+                },
+                onRefresh: {
+                    coordinator.runQuery()
+                }
             )
-            .frame(maxHeight: .infinity, alignment: .top)
-        }
-    }
 
-    // MARK: - Status Bar
-
-    private var statusBar: some View {
-        MainStatusBarView(
-            tab: currentTab,
-            filterStateManager: filterStateManager,
-            selectedRowIndices: selectedRowIndices,
-            showStructure: showStructureBinding
-        )
-    }
-
-    /// Binding for showStructure state
-    private var showStructureBinding: Binding<Bool> {
-        Binding(
-            get: { currentTab?.showStructure ?? false },
-            set: { newValue in
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].showStructure = newValue
-                }
-            }
-        )
-    }
-
-    // MARK: - Actions
-
-    /// Initialize view with connection info
-    private func initializeView() async {
-        // Initialize toolbar with connection info
-        await MainActor.run {
-            toolbarState.update(from: connection)
-
-            // Get actual connection state from session
-            if let session = DatabaseManager.shared.currentSession {
-                toolbarState.connectionState = mapSessionStatus(session.status)
-                if let driver = session.driver {
-                    toolbarState.databaseVersion = driver.serverVersion
-                }
-            } else if let driver = DatabaseManager.shared.activeDriver {
-                // Fallback for backward compatibility
-                toolbarState.connectionState = .connected
-                toolbarState.databaseVersion = driver.serverVersion
-            }
-        }
-
-        // Load schema for autocomplete
-        await loadSchema()
-    }
-
-    /// Map ConnectionStatus to ToolbarConnectionState
-    private func mapSessionStatus(_ status: ConnectionStatus) -> ToolbarConnectionState {
-        switch status {
-        case .connected:
-            return .connected
-        case .connecting:
-            return .executing  // Show as executing during connection
-        case .disconnected:
-            return .disconnected
-        case .error:
-            return .error("")
-        }
-    }
-
-    private func loadSchema() async {
-        // Use activeDriver from DatabaseManager (already connected with SSH tunnel if enabled)
-        guard let driver = DatabaseManager.shared.activeDriver else {
-            // Driver not ready yet (e.g., SSH tunnel still connecting) - this is normal
-            return
-        }
-        await schemaProvider.loadSchema(using: driver, connection: connection)
-    }
-    
-    private func loadTableMetadata(tableName: String) async {
-        guard let driver = DatabaseManager.shared.activeDriver else {
-            return
-        }
-        
-        do {
-            let metadata = try await driver.fetchTableMetadata(tableName: tableName)
-            await MainActor.run {
-                self.tableMetadata = metadata
-            }
-        } catch {
-            print("[MainContentView] Failed to load table metadata: \(error)")
-        }
-    }
-
-    private func runQuery() {
-        guard let index = tabManager.selectedTabIndex else {
-            print("[MainContentView] ⚠️ runQuery() called but selectedTabIndex is nil!")
-            return
-        }
-
-        guard !tabManager.tabs[index].isExecuting else {
-            return
-        }
-
-        // Cancel any previous running query to prevent race conditions
-        // IMPORTANT: Only cancel AFTER checking isExecuting, otherwise we cancel
-        // a valid running query without starting a new one
-        currentQueryTask?.cancel()
-
-        // Increment generation - any query with a different generation will be ignored
-        queryGeneration += 1
-        let capturedGeneration = queryGeneration
-
-        tabManager.tabs[index].isExecuting = true
-        tabManager.tabs[index].executionTime = nil
-        tabManager.tabs[index].errorMessage = nil
-
-        // Update toolbar to show spinner
-        toolbarState.isExecuting = true
-
-        // Note: We don't discard changes here anymore - changes persist until:
-        // 1. User saves (Cmd+S)
-        // 2. User explicitly discards (via alert)
-        // 3. Tab is closed
-
-        let fullQuery = tabManager.tabs[index].query
-
-        // Extract query at cursor position (like TablePlus)
-        let sql = extractQueryAtCursor(from: fullQuery, at: cursorPosition)
-
-        // Don't execute empty queries (avoids MySQL Error 1065: Query was empty)
-        guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            tabManager.tabs[index].isExecuting = false
-            toolbarState.isExecuting = false
-            return
-        }
-
-        let conn = connection
-        let tabId = tabManager.tabs[index].id
-
-        // Detect table name from simple SELECT queries
-        let tableName = extractTableName(from: sql)
-        let isEditable = tableName != nil
-
-        currentQueryTask = Task {
-            do {
-                let result = try await executeQueryAsync(sql: sql, connection: conn)
-
-                // Fetch column defaults and total row count if editable table
-                // OPTIMIZATION: Run both queries in parallel to reduce latency
-                var columnDefaults: [String: String?] = [:]
-                var totalRowCount: Int? = nil
-                if isEditable, let tableName = tableName {
-                    if let driver = DatabaseManager.shared.activeDriver {
-                        // Execute both queries in parallel for better performance
-                        async let columnInfoTask = driver.fetchColumns(table: tableName)
-                        async let countTask: QueryResult = {
-                            let quotedTable = conn.type.quoteIdentifier(tableName)
-                            return try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
-                        }()
-                        
-                        // Wait for both to complete
-                        let (columnInfo, countResult) = try await (columnInfoTask, countTask)
-                        
-                        // Process column defaults
-                        for col in columnInfo {
-                            columnDefaults[col.name] = col.defaultValue
-                        }
-                        
-                        // Process count result
-                        if let firstRow = countResult.rows.first,
-                           let countStr = firstRow.first as? String,
-                           let count = Int(countStr) {
-                            totalRowCount = count
-                        }
-                    }
-                }
-
-                // ===== CRITICAL: Deep copy ALL data BEFORE leaving this async context =====
-                // Create NEW String objects to avoid any reference to underlying C buffers
-                var safeColumns: [String] = []
-                for col in result.columns {
-                    safeColumns.append(String(col))
-                }
-
-                var safeRows: [QueryResultRow] = []
-                for row in result.rows {
-                    var safeValues: [String?] = []
-                    for val in row {
-                        if let v = val {
-                            safeValues.append(String(v))
-                        } else {
-                            safeValues.append(nil)
-                        }
-                    }
-                    safeRows.append(QueryResultRow(values: safeValues))
-                }
-
-                let safeExecutionTime = result.executionTime
-
-                // Copy columnDefaults too
-                var safeColumnDefaults: [String: String?] = [:]
-                for (key, value) in columnDefaults {
-                    safeColumnDefaults[String(key)] = value.map { String($0) }
-                }
-
-                let safeTableName = tableName.map { String($0) }
-                let safeTotalRowCount = totalRowCount
-
-                // Check if task was cancelled (e.g., user triggered another sort)
-                // This prevents race conditions where cancelled queries still try to update UI
-                guard !Task.isCancelled else {
-                    await MainActor.run {
-                        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                            tabManager.tabs[idx].isExecuting = false
-                        }
-                        // Also update toolbar state with execution time (even for cancelled tasks)
-                        toolbarState.isExecuting = false
-                        toolbarState.lastQueryDuration = safeExecutionTime
-                    }
-                    return
-                }
-
-                // Find tab by ID (index may have changed) - must update on main thread
-                await MainActor.run {
-                    // Clear task reference to avoid stale references
-                    currentQueryTask = nil
-                    
-                    // ALWAYS update toolbar state first - user should see query completion
-                    toolbarState.isExecuting = false
-                    toolbarState.lastQueryDuration = safeExecutionTime
-
-                    // Only update tab if this is still the most recent query
-                    // This prevents race conditions when navigating quickly between tables
-                    guard capturedGeneration == queryGeneration else {
-                        return
-                    }
-                    guard !Task.isCancelled else { return }
-
-                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        
-                        // CRITICAL: Update tab atomically to prevent objc_retain crashes
-                        // with large result sets (25+ columns). Working with a copy first
-                        // prevents partial updates that can crash during deallocation.
-                        var updatedTab = tabManager.tabs[idx]
-                        updatedTab.resultColumns = safeColumns
-                        updatedTab.columnDefaults = safeColumnDefaults
-                        updatedTab.resultRows = safeRows
-                        updatedTab.executionTime = safeExecutionTime
-                        updatedTab.rowsAffected = result.rowsAffected
-                        updatedTab.isExecuting = false
-                        updatedTab.lastExecutedAt = Date()
-                        updatedTab.tableName = safeTableName
-                        updatedTab.isEditable = isEditable
-                        updatedTab.pagination.totalRowCount = safeTotalRowCount
-
-                        // Atomically replace the tab
-                        tabManager.tabs[idx] = updatedTab
-
-                        // Force DataGridView to reload by incrementing version
-                        // This is needed because row count might stay same (LIMIT)
-                        // but actual data has changed after save/refresh
-                        changeManager.reloadVersion += 1
-
-                        // IMPORTANT: We do NOT update changeManager here.
-                        // After extensive debugging, updating changeManager from async
-                        // Task completion causes EXC_BAD_ACCESS crashes during rapid navigation.
-                        // The onChange(selectedTabId) handler updates changeManager synchronously
-                        // when this tab becomes selected, which is safe and reliable.
-                        
-                        // Record query to history
-                        QueryHistoryManager.shared.recordQuery(
-                            query: sql,
-                            connectionId: conn.id,
-                            databaseName: conn.database ?? "",
-                            executionTime: safeExecutionTime,
-                            rowCount: safeRows.count,
-                            wasSuccessful: true,
-                            errorMessage: nil
-                        )
-                    }
-                }
-
-            } catch {
-                // Only update if this is still the current query
-                guard capturedGeneration == queryGeneration else { return }
-
-                // MUST run on MainActor for SwiftUI onChange to fire
-                await MainActor.run {
-                    // Clear task reference
-                    currentQueryTask = nil
-                    
-                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        tabManager.tabs[idx].errorMessage = error.localizedDescription
-                        tabManager.tabs[idx].isExecuting = false
-                    }
-                    toolbarState.isExecuting = false
-                    
-                    // Record failed query to history
-                    QueryHistoryManager.shared.recordQuery(
-                        query: sql,
-                        connectionId: conn.id,
-                        databaseName: conn.database ?? "",
-                        executionTime: 0,
-                        rowCount: 0,
-                        wasSuccessful: false,
-                        errorMessage: error.localizedDescription
-                    )
-                }
-            }
-        }
-    }
-
-    private func executeQueryAsync(sql: String, connection: DatabaseConnection) async throws
-        -> QueryResult
-    {
-        // Use DatabaseManager to execute query - this ensures proper thread safety
-        return try await DatabaseManager.shared.execute(query: sql)
-    }
-
-    /// Extract table name from a simple SELECT query
-    private func extractTableName(from sql: String) -> String? {
-        let pattern =
-            #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#
-
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-            let match = regex.firstMatch(
-                in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
-            let range = Range(match.range(at: 1), in: sql)
-        else {
-            return nil
-        }
-
-        return String(sql[range])
-    }
-
-    /// Extract the SQL statement at the cursor position (semicolon-delimited)
-    /// This enables TablePlus-like behavior: execute only the current query, not all queries
-    private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
-        let trimmed = fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return trimmed }
-
-        // If no semicolons, return the entire query
-        guard trimmed.contains(";") else { return trimmed }
-
-        // Split by semicolon but keep track of positions
-        var statements: [(text: String, range: Range<Int>)] = []
-        var currentStart = 0
-        var inString = false
-        var stringChar: Character = "\""
-
-        for (i, char) in fullQuery.enumerated() {
-            // Track string literals to avoid splitting on semicolons inside strings
-            if char == "'" || char == "\"" {
-                if !inString {
-                    inString = true
-                    stringChar = char
-                } else if char == stringChar {
-                    inString = false
-                }
-            }
-
-            // Found a statement delimiter
-            if char == ";" && !inString {
-                let statement = String(
-                    fullQuery[
-                        fullQuery.index(
-                            fullQuery.startIndex, offsetBy: currentStart)..<fullQuery.index(
-                                fullQuery.startIndex, offsetBy: i)]
+            // Right sidebar
+            if isInspectorPresented {
+                Divider()
+                RightSidebarView(
+                    tableName: currentTab?.tableName,
+                    tableMetadata: coordinator.tableMetadata,
+                    selectedRowData: selectedRowDataForSidebar
                 )
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                if !statement.isEmpty {
-                    statements.append((text: statement, range: currentStart..<(i + 1)))
-                }
-                currentStart = i + 1
-            }
-        }
-
-        // Don't forget the last statement (may not end with ;)
-        if currentStart < fullQuery.count {
-            let remaining = String(
-                fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)...]
-            )
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !remaining.isEmpty {
-                statements.append((text: remaining, range: currentStart..<fullQuery.count))
-            }
-        }
-
-        // Find the statement containing the cursor position
-        let safePosition = min(max(0, position), fullQuery.count)
-        for statement in statements {
-            if statement.range.contains(safePosition) || statement.range.upperBound == safePosition
-            {
-                return statement.text
-            }
-        }
-
-        // If cursor is at end or no match, return last statement
-        return statements.last?.text ?? trimmed
-    }
-
-    /// Update cell value in the current tab's resultRows
-    private func updateCellInTab(rowIndex: Int, columnIndex: Int, value: String?) {
-        guard let index = tabManager.selectedTabIndex,
-            rowIndex < tabManager.tabs[index].resultRows.count
-        else { return }
-
-        // Update the underlying data so it persists across UI refreshes
-        tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = value
-
-        // Mark tab as having user interaction (prevents auto-replacement)
-        tabManager.tabs[index].hasUserInteraction = true
-    }
-
-    /// Delete selected rows (Delete key or menu)
-    private func deleteSelectedRows() {
-        guard let tabIndex = tabManager.selectedTabIndex,
-            !selectedRowIndices.isEmpty
-        else { return }
-
-        // Use RowOperationsManager to delete rows
-        let nextRow = rowOperationsManager.deleteSelectedRows(
-            selectedIndices: selectedRowIndices,
-            resultRows: &tabManager.tabs[tabIndex].resultRows
-        )
-
-        // Update selection
-        if nextRow >= 0 && nextRow < tabManager.tabs[tabIndex].resultRows.count {
-            selectedRowIndices = [nextRow]
-        } else {
-            selectedRowIndices.removeAll()
-        }
-
-        // Mark tab as having user interaction (prevents auto-replacement)
-        tabManager.tabs[tabIndex].hasUserInteraction = true
-    }
-    
-    /// Toggle table deletion state (for sidebar table selection)
-    private func toggleTableDelete(_ tableName: String) {
-        pendingTruncates.remove(tableName)
-        if pendingDeletes.contains(tableName) {
-            pendingDeletes.remove(tableName)
-        } else {
-            pendingDeletes.insert(tableName)
-        }
-    }
-    
-    /// Copy selected rows to clipboard (Cmd+C when rows are selected)
-    private func copySelectedRowsToClipboard() {
-        guard let index = tabManager.selectedTabIndex,
-              !selectedRowIndices.isEmpty else { return }
-
-        let tab = tabManager.tabs[index]
-        rowOperationsManager.copySelectedRowsToClipboard(
-            selectedIndices: selectedRowIndices,
-            resultRows: tab.resultRows
-        )
-    }
-
-    // MARK: - Filters
-
-    /// Apply filters to the current table query
-    private func applyFilters(_ filters: [TableFilter]) {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        let tab = tabManager.tabs[tabIndex]
-        guard let tableName = tab.tableName else { return }
-
-        // Generate WHERE clause
-        let generator = FilterSQLGenerator(databaseType: connection.type)
-        let whereClause = generator.generateWhereClause(from: filters)
-
-        // Build new query
-        let quotedTable = connection.type.quoteIdentifier(tableName)
-        var newQuery = "SELECT * FROM \(quotedTable)"
-
-        if !whereClause.isEmpty {
-            newQuery += " \(whereClause)"
-        }
-
-        // Preserve existing ORDER BY if present
-        if let columnIndex = tab.sortState.columnIndex,
-           columnIndex < tab.resultColumns.count {
-            let columnName = tab.resultColumns[columnIndex]
-            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
-            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
-        }
-
-        newQuery += " LIMIT 200"
-
-        // Update query and execute
-        tabManager.tabs[tabIndex].query = newQuery
-
-        // Save filters for this table (for "Restore Last Filter" setting)
-        if !filters.isEmpty {
-            filterStateManager.saveLastFilters(for: tableName)
-        }
-
-        runQuery()
-    }
-
-    /// Clear filters and reload table with original query
-    private func clearFiltersAndReload() {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        let tab = tabManager.tabs[tabIndex]
-        guard let tableName = tab.tableName else { return }
-
-        // Build clean query without filters
-        let quotedTable = connection.type.quoteIdentifier(tableName)
-        var newQuery = "SELECT * FROM \(quotedTable)"
-
-        // Preserve existing ORDER BY if present
-        if let columnIndex = tab.sortState.columnIndex,
-           columnIndex < tab.resultColumns.count {
-            let columnName = tab.resultColumns[columnIndex]
-            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
-            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
-        }
-
-        newQuery += " LIMIT 200"
-
-        // Update query and execute
-        tabManager.tabs[tabIndex].query = newQuery
-        runQuery()
-    }
-    
-    /// Apply Quick Search across all columns
-    private func applyQuickSearch(_ searchText: String) {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-        
-        let tab = tabManager.tabs[tabIndex]
-        guard let tableName = tab.tableName else { return }
-        guard !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        
-        // Build query with OR conditions for all columns
-        let quotedTable = connection.type.quoteIdentifier(tableName)
-        var newQuery = "SELECT * FROM \(quotedTable)"
-        
-        // Generate OR conditions for all columns (LIKE %search%)
-        var conditions: [String] = []
-        for columnName in tab.resultColumns {
-            let quotedColumn = connection.type.quoteIdentifier(columnName)
-            // Escape special characters for LIKE
-            let escapedSearch = searchText
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "%", with: "\\%")
-                .replacingOccurrences(of: "_", with: "\\_")
-                .replacingOccurrences(of: "'", with: "''")
-            conditions.append("\(quotedColumn) LIKE '%\(escapedSearch)%'")
-        }
-        
-        if !conditions.isEmpty {
-            newQuery += " WHERE (" + conditions.joined(separator: " OR ") + ")"
-        }
-        
-        // Preserve existing ORDER BY if present
-        if let columnIndex = tab.sortState.columnIndex,
-           columnIndex < tab.resultColumns.count {
-            let columnName = tab.resultColumns[columnIndex]
-            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
-            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
-        }
-        
-        newQuery += " LIMIT 200"
-        
-        // Update query and execute
-        tabManager.tabs[tabIndex].query = newQuery
-        runQuery()
-    }
-    
-    /// Rebuild query for a table tab based on current filters and sort state
-    /// Used when refreshing to ensure query reflects current state
-    private func rebuildTableQuery(at tabIndex: Int) {
-        guard tabIndex < tabManager.tabs.count else { return }
-        let tab = tabManager.tabs[tabIndex]
-        guard let tableName = tab.tableName else { return }
-        
-        let quotedTable = connection.type.quoteIdentifier(tableName)
-        var newQuery = "SELECT * FROM \(quotedTable)"
-        
-        // Apply filters if any
-        if filterStateManager.hasAppliedFilters {
-            let generator = FilterSQLGenerator(databaseType: connection.type)
-            let whereClause = generator.generateWhereClause(from: filterStateManager.appliedFilters)
-            if !whereClause.isEmpty {
-                newQuery += " \(whereClause)"
-            }
-        }
-        
-        // Preserve ORDER BY
-        if let columnIndex = tab.sortState.columnIndex,
-           columnIndex < tab.resultColumns.count {
-            let columnName = tab.resultColumns[columnIndex]
-            let direction = tab.sortState.direction == .ascending ? "ASC" : "DESC"
-            newQuery += " ORDER BY \(connection.type.quoteIdentifier(columnName)) \(direction)"
-        }
-        
-        newQuery += " LIMIT 200"
-        
-        tabManager.tabs[tabIndex].query = newQuery
-    }
-
-    // MARK: - Column Sorting
-
-    /// Binding for the current tab's sort state
-    private var sortStateBinding: Binding<SortState> {
-        Binding(
-            get: {
-                guard let index = tabManager.selectedTabIndex else {
-                    return SortState()
-                }
-                return tabManager.tabs[index].sortState
-            },
-            set: { newValue in
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].sortState = newValue
+                .frame(width: 280)
+                .task(id: currentTab?.tableName) {
+                    await loadTableMetadataIfNeeded()
                 }
             }
+        }
+    }
+
+    // MARK: - Initialization
+
+    private func initializeAndRestoreTabs() async {
+        await coordinator.initializeView()
+
+        // Restore tabs from storage
+        let result = coordinator.tabPersistence.restoreTabs()
+        if !result.tabs.isEmpty {
+            coordinator.tabPersistence.beginRestoration()
+            defer { coordinator.tabPersistence.endRestoration() }
+
+            tabManager.tabs = result.tabs
+            tabManager.selectedTabId = result.selectedTabId
+
+            // Execute query for table tabs
+            if let selectedTab = tabManager.selectedTab,
+               selectedTab.tabType == .table,
+               !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                await coordinator.tabPersistence.waitForConnectionAndExecute {
+                    coordinator.runQuery()
+                }
+            }
+        }
+    }
+
+    // MARK: - Notification Handler Setup
+
+    private func setupNotificationHandler() {
+        notificationHandler = MainContentNotificationHandler(
+            coordinator: coordinator,
+            filterStateManager: filterStateManager,
+            connection: connection,
+            selectedRowIndices: $selectedRowIndices,
+            selectedTables: $selectedTables,
+            pendingTruncates: $pendingTruncates,
+            pendingDeletes: $pendingDeletes,
+            isInspectorPresented: $isInspectorPresented,
+            editingCell: $editingCell
         )
-    }
-
-    /// Binding for column widths - persists widths across tab switches
-
-    /// Get rows for a tab with sorting applied
-    /// - Query tabs: Sort in-memory (client-side) without modifying SQL
-    /// - Table tabs: Return as-is (sorting handled via SQL ORDER BY in handleSort)
-    private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
-        // Table tabs: Don't apply client-side sorting
-        // Sorting is handled via SQL ORDER BY - if that fails, data stays unsorted
-        // This ensures SQL errors (like JSON columns) are properly visible
-        if tab.tabType == .table {
-            return tab.resultRows
-        }
-
-        // Query tabs: Apply client-side sorting
-        guard let columnIndex = tab.sortState.columnIndex,
-            columnIndex < tab.resultColumns.count
-        else {
-            return tab.resultRows
-        }
-
-        // Sort in memory (used for query tabs where we don't modify the SQL)
-        return tab.resultRows.sorted { row1, row2 in
-            let val1 = row1.values[columnIndex] ?? ""
-            let val2 = row2.values[columnIndex] ?? ""
-
-            if tab.sortState.direction == .ascending {
-                return val1.localizedStandardCompare(val2) == .orderedAscending
-            } else {
-                return val1.localizedStandardCompare(val2) == .orderedDescending
-            }
-        }
-    }
-
-    /// Handle column header click for sorting
-    /// - Query tabs: Update sortState only (in-memory sorting via sortedRows)
-    /// - Table tabs: Update sortState + modify SQL with ORDER BY
-    /// - ascending: Sort direction determined by native NSTableView
-    private func handleSort(columnIndex: Int, ascending: Bool) {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-
-        // Capture all values early to prevent deallocation issues
-        guard tabIndex < tabManager.tabs.count else { return }
-        let tab = tabManager.tabs[tabIndex]
-
-        // CRITICAL: Validate column index for large tables
-        guard columnIndex >= 0 && columnIndex < tab.resultColumns.count else {
-            return
-        }
-
-        // Capture column name to avoid string retention issues
-        let columnName = String(tab.resultColumns[columnIndex])
-        
-        // Use direction directly from AppKit (no guessing/toggling)
-        var currentSort = SortState()
-        currentSort.columnIndex = columnIndex
-        currentSort.direction = ascending ? .ascending : .descending
-
-        // Verify tab still exists before updating
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        // Update sort state (used by both query and table tabs)
-        tabManager.tabs[tabIndex].sortState = currentSort
-
-        // Mark tab as having user interaction (prevents auto-replacement)
-        tabManager.tabs[tabIndex].hasUserInteraction = true
-
-        // For QUERY tabs: Show loading state during client-side sort
-        if tab.tabType == .query {
-            Task { @MainActor in
-                tabManager.tabs[tabIndex].isExecuting = true
-
-                // Small delay to ensure spinner shows and allow UI to update
-                try? await Task.sleep(nanoseconds: 10_000_000)  // 10ms
-
-                // Force DataGridView to reload with sorted data
-                // This is needed because sortedRows() returns different order
-                // but row count stays the same
-                changeManager.reloadVersion += 1
-                
-                tabManager.tabs[tabIndex].isExecuting = false
-            }
-            return
-        }
-
-        // For TABLE tabs: Modify SQL with ORDER BY and re-execute
-
-        // Build ORDER BY clause with explicit string copies to avoid retention issues
-        let orderDirection = currentSort.direction == .ascending ? "ASC" : "DESC"
-
-        // Get base query (remove any existing ORDER BY) - work with copy
-        var baseQuery = String(tab.query)
-        if let orderByRange = baseQuery.range(
-            of: "ORDER BY", options: [.caseInsensitive, .backwards])
-        {
-            // Find the end of ORDER BY clause (before LIMIT or end of query)
-            let afterOrderBy = baseQuery[orderByRange.upperBound...]
-            if let limitRange = afterOrderBy.range(of: "LIMIT", options: .caseInsensitive) {
-                // Keep LIMIT, remove ORDER BY clause
-                let beforeOrderBy = baseQuery[..<orderByRange.lowerBound]
-                let limitClause = baseQuery[limitRange.lowerBound...]
-                baseQuery = String(beforeOrderBy) + String(limitClause)
-            } else if afterOrderBy.range(of: ";") != nil {
-                // Remove ORDER BY until semicolon
-                baseQuery = String(baseQuery[..<orderByRange.lowerBound]) + ";"
-            } else {
-                // Remove ORDER BY until end
-                baseQuery = String(baseQuery[..<orderByRange.lowerBound])
-            }
-        }
-
-        // Insert ORDER BY before LIMIT (if exists) or at end
-        // Use database-specific identifier quoting
-        let quote = connection.type.identifierQuote
-        let orderByClause = "ORDER BY \(quote)\(columnName)\(quote) \(orderDirection)"
-
-        let newQuery: String
-        if let limitRange = baseQuery.range(of: "LIMIT", options: .caseInsensitive) {
-            let beforeLimit = baseQuery[..<limitRange.lowerBound].trimmingCharacters(
-                in: .whitespaces)
-            let limitClause = baseQuery[limitRange.lowerBound...]
-            newQuery = "\(beforeLimit) \(orderByClause) \(limitClause)"
-        } else {
-            // Remove trailing semicolon and add ORDER BY
-            let trimmed = baseQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.hasSuffix(";") {
-                newQuery = String(trimmed.dropLast()) + " \(orderByClause);"
-            } else {
-                newQuery = "\(trimmed) \(orderByClause)"
-            }
-        }
-
-        // Final validation before updating tab
-        guard tabIndex < tabManager.tabs.count else { return }
-        tabManager.tabs[tabIndex].query = newQuery
-
-        // Re-execute query to fetch sorted data
-        runQuery()
-    }
-    
-    /// Add a new row to the current table tab
-    /// Only works for editable table tabs
-    private func addNewRow() {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        let tab = tabManager.tabs[tabIndex]
-
-        // Only add rows to editable table tabs
-        guard tab.isEditable, tab.tableName != nil else { return }
-
-        // Use RowOperationsManager to add the row
-        guard let result = rowOperationsManager.addNewRow(
-            columns: tab.resultColumns,
-            columnDefaults: tab.columnDefaults,
-            resultRows: &tabManager.tabs[tabIndex].resultRows
-        ) else { return }
-
-        // Select the new row (scrolls to it)
-        selectedRowIndices = [result.rowIndex]
-
-        // Auto-focus first cell instantly (TablePlus behavior)
-        editingCell = CellPosition(row: result.rowIndex, column: 0)
-
-        // Mark tab as having user interaction
-        tabManager.tabs[tabIndex].hasUserInteraction = true
-    }
-
-    /// Duplicate the currently selected row
-    /// Copies all values from the selected row and creates a new row
-    /// Primary key column is set to DEFAULT to let the database auto-generate
-    private func duplicateSelectedRow() {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        let tab = tabManager.tabs[tabIndex]
-
-        // Only duplicate in editable table tabs
-        guard tab.isEditable, tab.tableName != nil else { return }
-
-        // Need exactly one row selected
-        guard let selectedIndex = selectedRowIndices.first,
-              selectedRowIndices.count == 1,
-              selectedIndex < tab.resultRows.count else { return }
-
-        // Use RowOperationsManager to duplicate the row
-        guard let result = rowOperationsManager.duplicateRow(
-            sourceRowIndex: selectedIndex,
-            columns: tab.resultColumns,
-            resultRows: &tabManager.tabs[tabIndex].resultRows
-        ) else { return }
-
-        // Select the new row (scrolls to it)
-        selectedRowIndices = [result.rowIndex]
-
-        // Auto-focus first cell (TablePlus behavior)
-        editingCell = CellPosition(row: result.rowIndex, column: 0)
-
-        // Mark tab as having user interaction
-        tabManager.tabs[tabIndex].hasUserInteraction = true
-    }
-
-    /// Undo a row insertion - removes the row from tab's resultRows
-    private func undoInsertRow(at rowIndex: Int) {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        // Use RowOperationsManager to undo the insertion
-        selectedRowIndices = rowOperationsManager.undoInsertRow(
-            at: rowIndex,
-            resultRows: &tabManager.tabs[tabIndex].resultRows,
-            selectedIndices: selectedRowIndices
-        )
-    }
-    
-    /// Undo the last change (Cmd+Z)
-    /// Handles cell edits, row insertions, and row deletions
-    private func undoLastChange() {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        // Use RowOperationsManager to undo
-        if let adjustedSelection = rowOperationsManager.undoLastChange(
-            resultRows: &tabManager.tabs[tabIndex].resultRows
-        ) {
-            selectedRowIndices = adjustedSelection
-        }
-
-        // Mark tab as having user interaction
-        tabManager.tabs[tabIndex].hasUserInteraction = true
-    }
-    
-    /// Redo the last undone change (Cmd+Shift+Z)
-    /// Re-applies the last change that was undone
-    private func redoLastChange() {
-        guard let tabIndex = tabManager.selectedTabIndex else { return }
-        guard tabIndex < tabManager.tabs.count else { return }
-
-        let tab = tabManager.tabs[tabIndex]
-
-        // Use RowOperationsManager to redo
-        _ = rowOperationsManager.redoLastChange(
-            resultRows: &tabManager.tabs[tabIndex].resultRows,
-            columns: tab.resultColumns
-        )
-
-        // Mark tab as having user interaction
-        tabManager.tabs[tabIndex].hasUserInteraction = true
     }
 
     // MARK: - Event Handlers
 
-    /// Handle tab selection changes
-    private func handleTabChange(oldTabId: UUID?, newTabId: UUID?) {
-        // CRITICAL: Flush pending debounced save to ensure last edit is saved
-        // Cancel and immediately execute if pending
-        if let task = saveDebounceTask, !task.isCancelled {
-            task.cancel()
-            // Immediately save current state before switching
-            if let sessionId = DatabaseManager.shared.currentSessionId, !isRestoringTabs, !isDismissing {
-                TabStateStorage.shared.saveTabState(
-                    connectionId: connection.id,
-                    tabs: tabManager.tabs,
-                    selectedTabId: tabManager.selectedTabId
-                )
-            }
-        }
-        
-        // Save state to the old tab before switching
-        if let oldId = oldTabId,
-            let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId })
-        {
-            // Save pending changes
-            tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
-            // Save row selection
-            tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
-            // sortState is already in tab, no need to save from local state
-        }
+    private func handleTabSelectionChange(from oldTabId: UUID?, to newTabId: UUID?) {
+        coordinator.handleTabChange(
+            from: oldTabId,
+            to: newTabId,
+            selectedRowIndices: &selectedRowIndices,
+            tabs: tabManager.tabs
+        )
 
-        // Restore LIGHTWEIGHT state immediately (synchronous for instant UI update)
-        if let newId = newTabId,
-            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId })
-        {
-            let newTab = tabManager.tabs[newIndex]
+        // Dismiss autocomplete windows
+        NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
 
-            // CRITICAL: Update these immediately for UI consistency
-            selectedRowIndices = newTab.selectedRowIndices
-            AppState.shared.isCurrentTabEditable = newTab.isEditable && newTab.tableName != nil
-            
-            // DEFER heavy changeManager operations to next run loop
-            // This prevents blocking the UI thread and gives instant tab switching
-            Task { @MainActor in
-                // This runs after SwiftUI updates the view
-                if newTab.pendingChanges.hasChanges {
-                    changeManager.restoreState(
-                        from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
-                } else {
-                    // Clear changeManager for tabs without pending changes (atomically)
-                    changeManager.configureForTable(
-                        tableName: newTab.tableName ?? "",
-                        columns: newTab.resultColumns,
-                        primaryKeyColumn: newTab.resultColumns.first,
-                        databaseType: connection.type
-                    )
-                }
-                
-                // Reset flag BEFORE checking lazy load to ensure it's always reset
-                // Otherwise, if lazy load is skipped due to flag=true, flag never resets!
-                let shouldSkipLazyLoad = justRestoredTab
-                justRestoredTab = false
-                
-                if !shouldSkipLazyLoad &&
-                   newTab.tabType == .table &&  // Only auto-execute for table tabs
-                   newTab.resultRows.isEmpty && 
-                   newTab.lastExecutedAt == nil && 
-                   !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    // Check connection before executing
-                    if let session = DatabaseManager.shared.currentSession, session.isConnected {
-                        runQuery()
-                    } else {
-                        needsLazyLoad = true
-                    }
-                }
+        // Persist tab selection
+        guard !coordinator.tabPersistence.isRestoringTabs,
+              !coordinator.tabPersistence.isDismissing else { return }
+
+        if let sessionId = DatabaseManager.shared.currentSessionId {
+            DatabaseManager.shared.updateSession(sessionId) { session in
+                session.selectedTabId = newTabId
             }
-        } else {
-            // No tab selected
-            AppState.shared.isCurrentTabEditable = false
+            coordinator.tabPersistence.saveTabsImmediately(
+                tabs: tabManager.tabs,
+                selectedTabId: newTabId
+            )
         }
     }
 
-    /// Handle result columns changes
-    private func handleColumnsChange(newColumns: [String]?) {
-        // Sync changeManager when data loads on the current tab
-        guard let newColumns = newColumns, !newColumns.isEmpty else { return }
-        guard let tab = tabManager.selectedTab else { return }
-        guard !tab.pendingChanges.hasChanges else { return }
+    private func handleTabsChange(_ newTabs: [QueryTab]) {
+        guard !coordinator.tabPersistence.isRestoringTabs,
+              !coordinator.tabPersistence.isDismissing else { return }
 
-        // Only update if columns have actually changed
-        guard changeManager.columns != newColumns else { return }
-        
-        // IMPORTANT: Skip if tableName or columns don't match current tab
-        // This prevents duplicate updates when switching tabs (handleTabChange already handles it)
-        guard changeManager.tableName == tab.tableName ?? "" else { return }
+        if let sessionId = DatabaseManager.shared.currentSessionId {
+            DatabaseManager.shared.updateSession(sessionId) { session in
+                session.tabs = newTabs
+            }
+            coordinator.tabPersistence.saveTabsImmediately(
+                tabs: newTabs,
+                selectedTabId: tabManager.selectedTabId
+            )
+
+            if newTabs.isEmpty {
+                coordinator.tabPersistence.clearSavedState()
+            }
+        }
+    }
+
+    private func handleColumnsChange(newColumns: [String]?) {
+        guard let newColumns = newColumns, !newColumns.isEmpty,
+              let tab = tabManager.selectedTab,
+              !tab.pendingChanges.hasChanges,
+              changeManager.columns != newColumns,
+              changeManager.tableName == tab.tableName ?? "" else { return }
 
         changeManager.configureForTable(
             tableName: tab.tableName ?? "",
@@ -1802,435 +290,102 @@ struct MainContentView: View {
         )
     }
 
-    /// Handle refresh all action
-    private func handleRefreshAll() {
-        // Check for unsaved changes
-        let hasEditedCells = changeManager.hasChanges
-        let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
-
-        if hasEditedCells || hasPendingTableOps {
-            // Show unified alert
-            pendingDiscardAction = .refreshAll
-        } else {
-            // No changes, just refresh
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
-            }
-            runQuery()
+    private func handleErrorChange(_ newError: String?) {
+        if let error = newError, !error.isEmpty {
+            coordinator.errorAlertMessage = error
+            coordinator.showErrorAlert = true
         }
     }
 
-    /// Unified handler for all discard actions
-    private func handleDiscard() {
-        guard let action = pendingDiscardAction else { return }
-
-        // CRITICAL: Restore original values BEFORE clearing changes
-        let originalValues = changeManager.getOriginalValues()
-        if let index = tabManager.selectedTabIndex {
-            for (rowIndex, columnIndex, originalValue) in originalValues {
-                if rowIndex < tabManager.tabs[index].resultRows.count {
-                    tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = originalValue
-                }
-            }
-            
-            // Remove newly inserted rows (they shouldn't exist after discard)
-            // Get inserted row indices and remove in reverse order to maintain correct indices
-            let insertedIndices = changeManager.insertedRowIndices.sorted(by: >)
-            for rowIndex in insertedIndices {
-                if rowIndex < tabManager.tabs[index].resultRows.count {
-                    tabManager.tabs[index].resultRows.remove(at: rowIndex)
-                }
-            }
-        }
-
-        // Clear pending table operations (for all actions)
-        pendingTruncates.removeAll()
-        pendingDeletes.removeAll()
-
-        // Clear changes
-        changeManager.clearChanges()
-        if let index = tabManager.selectedTabIndex {
-            tabManager.tabs[index].pendingChanges = TabPendingChanges()
-        }
-
-        // Force reload to show restored values
-        changeManager.reloadVersion += 1
-
-        // Refresh table browser to clear delete/truncate visual indicators
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
-        }
-
-        // Execute the specific action
-        switch action {
-        case .refresh, .refreshAll:
-            // Rebuild query for table tabs before refreshing
-            if let tabIndex = tabManager.selectedTabIndex,
-               tabManager.tabs[tabIndex].tabType == .table {
-                rebuildTableQuery(at: tabIndex)
-            }
-            runQuery()
-        case .closeTab:
-            closeCurrentTab()
-        }
-
-        // Clear the pending action
-        pendingDiscardAction = nil
-    }
-
-    /// Handle close action with progressive behavior:
-    /// 1. Has tabs → close current tab
-    /// 2. No tabs → go to welcome screen
-    private func handleCloseAction() {
-        if currentTab != nil {
-            // Check for unsaved changes before closing
-            let hasEditedCells = changeManager.hasChanges
-            let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
-
-            if hasEditedCells || hasPendingTableOps {
-                pendingDiscardAction = .closeTab
-            } else {
-                closeCurrentTab()
-            }
-        } else {
-            // No tabs - go to welcome screen
-            NotificationCenter.default.post(name: .deselectConnection, object: nil)
+    private func handleConnectionChange(_ isConnected: Bool?) {
+        if isConnected == true && coordinator.needsLazyLoad {
+            coordinator.needsLazyLoad = false
+            coordinator.runQuery()
         }
     }
 
-    /// Close the current tab
-    private func closeCurrentTab() {
-        guard let tab = currentTab else { return }
-        tabManager.closeTab(tab)
+    private func handleSessionStatusChange(_ newStatus: ConnectionStatus?) {
+        if let status = newStatus {
+            toolbarState.connectionState = mapSessionStatus(status)
+        }
     }
 
-    /// Save pending changes (Cmd+S)
-    private func saveChanges() {
-        let hasEditedCells = changeManager.hasChanges
-        let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
-
-        guard hasEditedCells || hasPendingTableOps else {
-            return
+    private func handleTableSelectionChange(from oldTables: Set<TableInfo>, to newTables: Set<TableInfo>) {
+        let added = newTables.subtracting(oldTables)
+        if let table = added.first {
+            selectedRowIndices = []
+            coordinator.openTableTab(table.name)
         }
-
-        var allStatements: [String] = []
-
-        // 1. Generate SQL for cell edits
-        if hasEditedCells {
-            let cellStatements = changeManager.generateSQL()
-            allStatements.append(contentsOf: cellStatements)
-        }
-
-        // 2. Generate SQL for table operations
-        if hasPendingTableOps {
-            // Truncate tables first
-            for tableName in pendingTruncates {
-                let quotedName = connection.type.quoteIdentifier(tableName)
-                let stmt = "TRUNCATE TABLE \(quotedName)"
-                allStatements.append(stmt)
-            }
-
-            // Then delete tables
-            for tableName in pendingDeletes {
-                let quotedName = connection.type.quoteIdentifier(tableName)
-                let stmt = "DROP TABLE \(quotedName)"
-                allStatements.append(stmt)
-            }
-        }
-
-        guard !allStatements.isEmpty else {
-            if let index = tabManager.selectedTabIndex {
-                tabManager.tabs[index].errorMessage = "Could not generate SQL for changes."
-            }
-            return
-        }
-
-        let sql = allStatements.joined(separator: ";\n")
-        executeCommitSQL(sql, clearTableOps: hasPendingTableOps)
+        AppState.shared.hasTableSelection = !newTables.isEmpty
     }
 
-    /// Execute commit SQL and refresh data
-    private func executeCommitSQL(_ sql: String, clearTableOps: Bool = false) {
+    // MARK: - Helper Methods
+
+    private func loadTableMetadataIfNeeded() async {
+        guard let tableName = currentTab?.tableName,
+              coordinator.tableMetadata?.tableName != tableName else { return }
+        await coordinator.loadTableMetadata(tableName: tableName)
+    }
+
+    private func executeCommitSQL(_ sql: String) {
         guard !sql.isEmpty else { return }
 
         Task {
-            let overallStartTime = Date()
-            
             do {
-                // Use activeDriver from DatabaseManager (already connected with SSH tunnel)
                 guard let driver = DatabaseManager.shared.activeDriver else {
-                    await MainActor.run {
-                        if let index = tabManager.selectedTabIndex {
-                            tabManager.tabs[index].errorMessage = "Not connected to database"
-                        }
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = "Not connected to database"
                     }
-                    throw DatabaseError.notConnected
+                    return
                 }
 
-                // Execute each statement and record to history
                 let statements = sql.components(separatedBy: ";").filter {
                     !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 }
 
                 for statement in statements {
-                    let statementStartTime = Date()
+                    let startTime = Date()
                     _ = try await driver.execute(query: statement)
-                    let executionTime = Date().timeIntervalSince(statementStartTime)
-                    
-                    // Record successful statement to query history
-                    await MainActor.run {
-                        QueryHistoryManager.shared.recordQuery(
-                            query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
-                            connectionId: connection.id,
-                            databaseName: connection.database ?? "",
-                            executionTime: executionTime,
-                            rowCount: 0,  // DML statements don't return row count
-                            wasSuccessful: true,
-                            errorMessage: nil
-                        )
-                    }
-                }
+                    let executionTime = Date().timeIntervalSince(startTime)
 
-                // Clear pending changes since they're now saved
-                await MainActor.run {
-                    changeManager.clearChanges()
-                    // Also clear the tab's stored pending changes
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].pendingChanges = TabPendingChanges()
-                        tabManager.tabs[index].errorMessage = nil  // Clear any previous errors
-                    }
-
-                    // Clear table operations if any were executed
-                    if clearTableOps {
-                        // Before clearing, capture which tables were deleted
-                        let deletedTables = Set(pendingDeletes)
-
-                        pendingTruncates.removeAll()
-                        pendingDeletes.removeAll()
-
-                        // Close tabs for deleted tables to prevent errors
-                        if !deletedTables.isEmpty {
-                            // Note: We don't need to preserve selection - tabManager handles it
-                            _ = tabManager.selectedTabId
-
-                            // Collect tabs to close
-                            var tabsToClose: [QueryTab] = []
-                            for tab in tabManager.tabs {
-                                if let tableName = tab.tableName, deletedTables.contains(tableName)
-                                {
-                                    tabsToClose.append(tab)
-                                }
-                            }
-
-                            // Close tabs using the manager's method
-                            for tab in tabsToClose {
-                                tabManager.closeTab(tab)
-                            }
-                        }
-
-                        // Refresh table browser to show updated table list
-                        DispatchQueue.main.async {
-                            NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
-                        }
-                    }
-
-                }
-
-                // Refresh the current query to show updated data (if tab still exists)
-                if tabManager.selectedTabIndex != nil && !tabManager.tabs.isEmpty {
-                    runQuery()
-                }
-
-            } catch {
-                let executionTime = Date().timeIntervalSince(overallStartTime)
-                
-                // Record failed statement to query history
-                await MainActor.run {
                     QueryHistoryManager.shared.recordQuery(
-                        query: sql,
+                        query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
                         connectionId: connection.id,
                         databaseName: connection.database ?? "",
                         executionTime: executionTime,
                         rowCount: 0,
-                        wasSuccessful: false,
-                        errorMessage: error.localizedDescription
+                        wasSuccessful: true,
+                        errorMessage: nil
                     )
-                    
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage =
-                            "Save failed: \(error.localizedDescription)"
-                    }
                 }
-            }
-        }
-    }
 
-    /// Debounced update of changeManager to prevent crashes during rapid navigation
-    /// Only updates if tab remains selected for 100ms
-    private func debouncedUpdateChangeManager(for tabId: UUID) {
-        // Cancel any pending update
-        changeManagerUpdateTask?.cancel()
+                changeManager.clearChanges()
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].pendingChanges = TabPendingChanges()
+                    tabManager.tabs[index].errorMessage = nil
+                }
 
-        // Schedule new update after delay
-        changeManagerUpdateTask = Task { @MainActor in
-            // Wait 100ms to allow rapid navigation to settle
-            try? await Task.sleep(nanoseconds: 100_000_000)
+                coordinator.runQuery()
 
-            guard !Task.isCancelled else { return }
-            guard tabManager.selectedTabId == tabId else { return }
-            guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else { return }
-
-            let tab = tabManager.tabs[idx]
-            changeManager.configureForTable(
-                tableName: tab.tableName ?? "",
-                columns: tab.resultColumns,
-                primaryKeyColumn: tab.resultColumns.first,
-                databaseType: connection.type
-            )
-        }
-    }
-
-    /// Open table data (TablePlus-style smart tab behavior)
-    /// - Reuses clean table tabs instead of creating new ones
-    /// - Creates new tab if current tab has unsaved changes or is a query tab
-    /// - Preserves pending changes per-tab when switching
-    private func TableProData(_ tableName: String) {
-        // Note: Save/restore of pending changes is handled by onChange(of: selectedTabId)
-        // which fires whenever the selected tab changes
-
-        // Use smart tab opening - reuse clean table tabs
-        // Returns true if we need to run query (new/replaced tab), false if just switching to existing
-        let needsQuery = tabManager.TableProTabSmart(
-            tableName: tableName, hasUnsavedChanges: changeManager.hasChanges,
-            databaseType: connection.type)
-
-        // Clear selection for new/replaced tabs (prevents old selection from leaking)
-        // For existing tabs, onChange will restore their saved selection
-        if needsQuery {
-            selectedRowIndices = []
-            
-            // Execute query for new/replaced tabs
-            // IMPORTANT: Wrapped in Task to ensure SwiftUI processes tab property updates first
-            // - For NEW tabs: selectedTabId changes → onChange fires → lazy load also triggers
-            //   (both will try to run query, but the second will be blocked by isExecuting guard)
-            // - For REPLACED tabs: selectedTabId stays same → onChange doesn't fire → we MUST call runQuery
-            Task { @MainActor in
-                runQuery()
-            }
-        }
-    }
-    
-    /// Show all tables with metadata when user clicks "Tables" heading in sidebar
-    private func showAllTablesMetadata() {
-        // Generate SQL query based on database type
-        let sql: String
-        switch connection.type {
-        case .postgresql:
-            sql = """
-            SELECT 
-                schemaname as schema,
-                tablename as name,
-                'TABLE' as kind,
-                n_live_tup as estimated_rows,
-                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as total_size,
-                pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) as data_size,
-                pg_size_pretty(pg_indexes_size(schemaname||'.'||tablename)) as index_size,
-                obj_description((schemaname||'.'||tablename)::regclass) as comment
-            FROM pg_stat_user_tables
-            WHERE schemaname = 'public'
-            ORDER BY tablename
-            """
-        case .mysql, .mariadb:
-            sql = """
-            SELECT 
-                TABLE_SCHEMA as `schema`,
-                TABLE_NAME as name,
-                TABLE_TYPE as kind,
-                IFNULL(CCSA.CHARACTER_SET_NAME, '') as charset,
-                TABLE_COLLATION as collation,
-                TABLE_ROWS as estimated_rows,
-                CONCAT(ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2), ' MB') as total_size,
-                CONCAT(ROUND(DATA_LENGTH / 1024 / 1024, 2), ' MB') as data_size,
-                CONCAT(ROUND(INDEX_LENGTH / 1024 / 1024, 2), ' MB') as index_size,
-                TABLE_COMMENT as comment
-            FROM information_schema.TABLES
-            LEFT JOIN information_schema.COLLATION_CHARACTER_SET_APPLICABILITY CCSA
-                ON TABLE_COLLATION = CCSA.COLLATION_NAME
-            WHERE TABLE_SCHEMA = DATABASE()
-            ORDER BY TABLE_NAME
-            """
-        case .sqlite:
-            sql = """
-            SELECT 
-                '' as schema,
-                name,
-                type as kind,
-                '' as charset,
-                '' as collation,
-                '' as estimated_rows,
-                '' as total_size,
-                '' as data_size,
-                '' as index_size,
-                '' as comment
-            FROM sqlite_master 
-            WHERE type IN ('table', 'view')
-            AND name NOT LIKE 'sqlite_%'
-            ORDER BY name
-            """
-        }
-        
-        // Check if a "Tables" tab already exists and reuse it
-        if let existingTab = tabManager.tabs.first(where: { $0.title == "Tables" }) {
-            // Update the query in case the database type changed
-            if let index = tabManager.tabs.firstIndex(where: { $0.id == existingTab.id }) {
-                tabManager.tabs[index].query = sql
-            }
-            tabManager.selectedTabId = existingTab.id
-            runQuery()
-            return
-        }
-        
-        // Create a new table tab (no SQL editor shown)
-        let newTab = QueryTab(
-            title: "Tables",
-            query: sql,
-            tabType: .table,
-            tableName: nil  // Special case - not an actual table
-        )
-        tabManager.tabs.append(newTab)
-        tabManager.selectedTabId = newTab.id
-        
-        // Execute the query
-        runQuery()
-    }
-
-    /// Switch to a different database on the same server
-    private func switchToDatabase(_ database: String) {
-        let newConnection = DatabaseConnection(
-            id: UUID(),
-            name: connection.name,
-            host: connection.host,
-            port: connection.port,
-            database: database,
-            username: connection.username,
-            type: connection.type,
-            sshConfig: connection.sshConfig,
-            color: connection.color,
-            tagId: connection.tagId
-        )
-
-        Task {
-            do {
-                try await DatabaseManager.shared.connectToSession(newConnection)
             } catch {
-                await MainActor.run {
-                    errorAlertMessage = "Failed to connect to database '\(database)': \(error.localizedDescription)"
-                    showErrorAlert = true
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
                 }
             }
+        }
+    }
+
+    private func mapSessionStatus(_ status: ConnectionStatus) -> ToolbarConnectionState {
+        switch status {
+        case .connected: return .connected
+        case .connecting: return .executing
+        case .disconnected: return .disconnected
+        case .error: return .error("")
         }
     }
 }
+
+// MARK: - Preview
 
 #Preview("With Connection") {
     MainContentView(
