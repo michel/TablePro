@@ -155,21 +155,9 @@ struct TableOperationDialog: View {
         .frame(width: 320)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
-            // Reset state when dialog opens, respecting disabled states
+            // Reset state when dialog opens
             ignoreForeignKeys = false
             cascade = false
-        }
-        .onChange(of: cascadeDisabled) { _, isDisabled in
-            // Reset cascade when it becomes disabled to avoid silent override
-            if isDisabled {
-                cascade = false
-            }
-        }
-        .onChange(of: ignoreFKDisabled) { _, isDisabled in
-            // Reset ignoreForeignKeys when it becomes disabled
-            if isDisabled {
-                ignoreForeignKeys = false
-            }
         }
         .onExitCommand {
             isPresented = false
