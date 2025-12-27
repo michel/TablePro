@@ -302,9 +302,13 @@ struct MainContentView: View {
     private func handleColumnsChange(newColumns: [String]?) {
         guard let newColumns = newColumns, !newColumns.isEmpty,
               let tab = tabManager.selectedTab,
-              !tab.pendingChanges.hasChanges,
-              changeManager.columns != newColumns,
-              changeManager.tableName == tab.tableName ?? "" else { return }
+              !tab.pendingChanges.hasChanges else { return }
+        
+        // Reconfigure if columns changed OR table name changed (switching tables)
+        let columnsChanged = changeManager.columns != newColumns
+        let tableChanged = changeManager.tableName != (tab.tableName ?? "")
+        
+        guard columnsChanged || tableChanged else { return }
 
         changeManager.configureForTable(
             tableName: tab.tableName ?? "",
