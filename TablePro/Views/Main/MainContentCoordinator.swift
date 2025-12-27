@@ -715,10 +715,11 @@ final class MainContentCoordinator: ObservableObject {
 
     /// Generates DROP TABLE statement with optional CASCADE.
     private func dropTableStatement(quotedName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
-        let cascade = options.cascade ? " CASCADE" : ""
         return switch dbType {
-        case .mysql, .mariadb, .postgresql: "DROP TABLE \(quotedName)\(cascade)"
-        case .sqlite: "DROP TABLE \(quotedName)"
+        case .postgresql:
+            "DROP TABLE \(quotedName)\(options.cascade ? " CASCADE" : "")"
+        case .mysql, .mariadb, .sqlite:
+            "DROP TABLE \(quotedName)"
         }
     }
 
