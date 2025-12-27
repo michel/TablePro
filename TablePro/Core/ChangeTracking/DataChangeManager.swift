@@ -496,19 +496,33 @@ final class DataChangeManager: ObservableObject {
 
     // MARK: - SQL Generation
 
-    func generateSQL() -> [String] {
+    func generateSQL() throws -> [String] {
         let generator = SQLStatementGenerator(
             tableName: tableName,
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
             databaseType: databaseType
         )
-        return generator.generateStatements(
+        let statements = generator.generateStatements(
             from: changes,
             insertedRowData: insertedRowData,
             deletedRowIndices: deletedRowIndices,
             insertedRowIndices: insertedRowIndices
         )
+        
+        // Count expected statements (updates + deletes, inserts are separate)
+        let expectedUpdateDeletes = changes.filter { $0.type == .update || $0.type == .delete }.count
+        let actualStatements = statements.filter { !$0.contains("INSERT INTO") }.count
+        
+        // Check if any UPDATE/DELETE statements were skipped due to missing primary key
+        if expectedUpdateDeletes > 0 && actualStatements < expectedUpdateDeletes {
+            throw DatabaseError.queryFailed(
+                "Cannot save changes to table '\(tableName)' without a primary key. " +
+                "Please add a primary key to this table or use raw SQL queries instead."
+            )
+        }
+        
+        return statements
     }
 
     // MARK: - Actions

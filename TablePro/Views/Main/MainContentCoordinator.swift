@@ -583,7 +583,18 @@ final class MainContentCoordinator: ObservableObject {
 
         if hasEditedCells {
             // changeManager.generateSQL() does NOT include transaction statements
-            allStatements.append(contentsOf: changeManager.generateSQL())
+            do {
+                let editStatements = try changeManager.generateSQL()
+                allStatements.append(contentsOf: editStatements)
+            } catch {
+                // Show error to user and abort save
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].errorMessage = error.localizedDescription
+                }
+                errorAlertMessage = error.localizedDescription
+                showErrorAlert = true
+                return
+            }
         }
 
         if hasPendingTableOps {
