@@ -88,7 +88,7 @@ struct TableOperationDialog: View {
         VStack(spacing: 0) {
             // Header
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
                 .padding(.vertical, 16)
                 .padding(.horizontal, 20)
 
@@ -99,7 +99,7 @@ struct TableOperationDialog: View {
                 // Note for multiple tables
                 if isMultipleTables {
                     Text("Same options will be applied to all selected tables.")
-                        .font(.system(size: 11))
+                        .font(.system(size: DesignConstants.FontSize.small))
                         .foregroundStyle(.secondary)
                 }
 
@@ -107,14 +107,14 @@ struct TableOperationDialog: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle(isOn: $ignoreForeignKeys) {
                         Text("Ignore foreign key checks")
-                            .font(.system(size: 13))
+                            .font(.system(size: DesignConstants.FontSize.body))
                     }
                     .toggleStyle(.checkbox)
                     .disabled(ignoreFKDisabled)
 
                     if let description = ignoreFKDescription {
                         Text(description)
-                            .font(.system(size: 11))
+                            .font(.system(size: DesignConstants.FontSize.small))
                             .foregroundStyle(.secondary)
                             .padding(.leading, 20)
                     }
@@ -125,13 +125,13 @@ struct TableOperationDialog: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle(isOn: $cascade) {
                         Text("Cascade")
-                            .font(.system(size: 13))
+                            .font(.system(size: DesignConstants.FontSize.body))
                     }
                     .toggleStyle(.checkbox)
                     .disabled(cascadeDisabled)
 
                     Text(cascadeDescription)
-                        .font(.system(size: 11))
+                        .font(.system(size: DesignConstants.FontSize.small))
                         .foregroundStyle(.secondary)
                         .padding(.leading, 20)
                 }

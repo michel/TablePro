@@ -34,9 +34,9 @@ final class SQLCompletionWindowController: NSObject {
     }
     
     // MARK: - Window Configuration
-    
+
     private let windowWidth: CGFloat = 400
-    private let rowHeight: CGFloat = 26
+    private let rowHeight: CGFloat = DesignConstants.RowHeight.compact
     private let maxVisibleRows: Int = 10
     
     // MARK: - Public API

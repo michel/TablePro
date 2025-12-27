@@ -133,23 +133,23 @@ struct SidebarView: View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-                .font(.system(size: 12))
+                .font(.system(size: DesignConstants.FontSize.medium))
 
             TextField("Filter", text: $searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.system(size: DesignConstants.FontSize.body))
 
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
-                        .font(.system(size: 12))
+                        .font(.system(size: DesignConstants.FontSize.medium))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 5)
+        .padding(.vertical, DesignConstants.Spacing.xxs)
         .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(6)
         .padding(.horizontal, 10)
@@ -441,28 +441,28 @@ struct TableRow: View {
             ZStack(alignment: .bottomTrailing) {
                 Image(systemName: table.type == .view ? "eye" : "tablecells")
                     .foregroundStyle(iconColor)
-                    .frame(width: 14)
+                    .frame(width: DesignConstants.IconSize.default)
 
                 // Pending operation indicator
                 if isPendingDelete {
                     Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 10))
+                        .font(.system(size: DesignConstants.FontSize.caption))
                         .foregroundStyle(.red)
                         .offset(x: 4, y: 4)
                 } else if isPendingTruncate {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 10))
+                        .font(.system(size: DesignConstants.FontSize.caption))
                         .foregroundStyle(.orange)
                         .offset(x: 4, y: 4)
                 }
             }
 
             Text(table.name)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.system(size: DesignConstants.FontSize.medium, design: .monospaced))
                 .lineLimit(1)
                 .foregroundStyle(textColor)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, DesignConstants.Spacing.xxs)
     }
 
     private var iconColor: Color {

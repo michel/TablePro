@@ -159,7 +159,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         let table = HistoryTableView()
         table.style = .plain
         table.headerView = nil
-        table.rowHeight = 56
+        table.rowHeight = DesignConstants.RowHeight.comfortable
         table.intercellSpacing = NSSize(width: 0, height: 1)
         table.backgroundColor = .clear
         table.usesAlternatingRowBackgroundColors = false

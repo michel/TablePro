@@ -261,7 +261,7 @@ struct TableStructureView: View {
                     .help("Decrease font size")
                     
                     Text("\(Int(ddlFontSize))")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
                         .foregroundColor(.secondary)
                         .frame(width: 24)
                     
@@ -284,7 +284,7 @@ struct TableStructureView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                         Text("Copied!")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
                     }
                     .transition(.scale.combined(with: .opacity))
                 }
@@ -305,7 +305,7 @@ struct TableStructureView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, DesignConstants.Spacing.sm)
             .background(Color(nsColor: .controlBackgroundColor))
             
             Divider()

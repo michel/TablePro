@@ -96,7 +96,7 @@ struct ConnectionTagEditor: View {
                         .foregroundStyle(.secondary)
                 } else {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10))
+                        .font(.system(size: DesignConstants.FontSize.caption))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -143,7 +143,7 @@ struct TagChip: View {
             if isSelected, let onRemove = onRemove {
                 Button(action: onRemove) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: DesignConstants.IconSize.statusDot, weight: .bold))
                 }
                 .buttonStyle(.plain)
             }
@@ -217,11 +217,11 @@ private struct TagColorPicker: View {
             ForEach(availableColors) { color in
                 Circle()
                     .fill(color.color)
-                    .frame(width: 18, height: 18)
+                    .frame(width: DesignConstants.IconSize.medium, height: DesignConstants.IconSize.medium)
                     .overlay(
                         Circle()
                             .stroke(Color.primary, lineWidth: selectedColor == color ? 2 : 0)
-                            .frame(width: 22, height: 22)
+                            .frame(width: DesignConstants.IconSize.large, height: DesignConstants.IconSize.large)
                     )
                     .onTapGesture {
                         selectedColor = color

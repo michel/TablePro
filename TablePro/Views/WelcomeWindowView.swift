@@ -102,10 +102,10 @@ struct WelcomeWindowView: View {
                 
                 VStack(spacing: 6) {
                     Text("TablePro")
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    
+                        .font(.system(size: DesignConstants.IconSize.extraLarge, weight: .semibold, design: .rounded))
+
                     Text("Version \(Bundle.main.appVersion)")
-                        .font(.system(size: 12))
+                        .font(.system(size: DesignConstants.FontSize.medium))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -130,9 +130,9 @@ struct WelcomeWindowView: View {
                 KeyboardHint(keys: "⌘N", label: "New")
                 KeyboardHint(keys: "⌘,", label: "Settings")
             }
-            .font(.system(size: 11))
+            .font(.system(size: DesignConstants.FontSize.small))
             .foregroundStyle(.tertiary)
-            .padding(.bottom, 20)
+            .padding(.bottom, DesignConstants.Spacing.lg)
         }
         .frame(width: 260)
     }
@@ -145,9 +145,9 @@ struct WelcomeWindowView: View {
             HStack(spacing: 8) {
                 Button(action: { openWindow(id: "connection-form") }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .frame(width: 24, height: 24)
+                        .frame(width: DesignConstants.IconSize.extraLarge, height: DesignConstants.IconSize.extraLarge)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(Color.primary.opacity(0.06))
@@ -155,25 +155,25 @@ struct WelcomeWindowView: View {
                 }
                 .buttonStyle(.plain)
                 .help("New Connection (⌘N)")
-                
+
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 12))
+                        .font(.system(size: DesignConstants.FontSize.medium))
                         .foregroundStyle(.tertiary)
-                    
+
                     TextField("Search for connection...", text: $searchText)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 13))
+                        .font(.system(size: DesignConstants.FontSize.body))
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, DesignConstants.Spacing.sm)
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.primary.opacity(0.04))
                 )
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, DesignConstants.Spacing.md)
+            .padding(.vertical, DesignConstants.Spacing.sm)
             
             Divider()
             
@@ -213,7 +213,7 @@ struct WelcomeWindowView: View {
                     }
                 )
                 .tag(connection.id)
-                .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+                .listRowInsets(DesignConstants.swiftUIListRowInsets)
                 .listRowSeparator(.hidden)
             }
             // Reorder only when not searching to prevent index mapping issues
@@ -244,20 +244,20 @@ struct WelcomeWindowView: View {
             Spacer()
             
             Image(systemName: "cylinder.split.1x2")
-                .font(.system(size: 32))
+                .font(.system(size: DesignConstants.IconSize.huge))
                 .foregroundStyle(.quaternary)
-            
+
             if searchText.isEmpty {
                 Text("No connections yet")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.title3, weight: .medium))
                     .foregroundStyle(.secondary)
-                
+
                 Text("Click + to create your first connection")
-                    .font(.system(size: 12))
+                    .font(.system(size: DesignConstants.FontSize.medium))
                     .foregroundStyle(.tertiary)
             } else {
                 Text("No matching connections")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.title3, weight: .medium))
                     .foregroundStyle(.secondary)
             }
             
@@ -362,35 +362,35 @@ private struct ConnectionRow: View {
             // Database type indicator - uses custom color if set
             Circle()
                 .fill(connection.displayColor)
-                .frame(width: 10, height: 10)
+                .frame(width: DesignConstants.IconSize.statusDot + 2, height: DesignConstants.IconSize.statusDot + 2)
 
             // Connection info
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(connection.name)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
                         .foregroundStyle(.primary)
 
                     // Tag (single)
                     if let tag = displayTag {
                         Text(tag.name)
-                            .font(.system(size: 9))
+                            .font(.system(size: DesignConstants.FontSize.tiny))
                             .foregroundStyle(tag.color.color)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
+                            .padding(.horizontal, DesignConstants.Spacing.xxs)
+                            .padding(.vertical, DesignConstants.Spacing.xxxs)
                             .background(Capsule().fill(tag.color.color.opacity(0.15)))
                     }
                 }
 
                 Text(connectionSubtitle)
-                    .font(.system(size: 11))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
             Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, DesignConstants.Spacing.xxs)
         .contentShape(Rectangle())
         .overlay(
             DoubleClickView(onDoubleClick: { onConnect?() })
@@ -455,7 +455,7 @@ private struct EnvironmentBadge: View {
     
     var body: some View {
         Text("(\(environment.rawValue.lowercased()))")
-            .font(.system(size: 11))
+            .font(.system(size: DesignConstants.FontSize.small))
             .foregroundStyle(environment.badgeColor)
     }
 }
@@ -465,10 +465,10 @@ private struct EnvironmentBadge: View {
 private struct WelcomeButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13))
+            .font(.system(size: DesignConstants.FontSize.body))
             .foregroundStyle(.primary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, DesignConstants.Spacing.md)
+            .padding(.vertical, DesignConstants.Spacing.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 8)
@@ -486,9 +486,9 @@ private struct KeyboardHint: View {
     var body: some View {
         HStack(spacing: 4) {
             Text(keys)
-                .font(.system(size: 10, design: .monospaced))
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
+                .font(.system(size: DesignConstants.FontSize.caption, design: .monospaced))
+                .padding(.horizontal, DesignConstants.Spacing.xxs + 1)
+                .padding(.vertical, DesignConstants.Spacing.xxxs)
                 .background(
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color.primary.opacity(0.06))

@@ -38,7 +38,7 @@ final class DataGridCellFactory {
 
             cell = NSTextField(labelWithString: "")
             cell.alignment = .right
-            cell.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+            cell.font = .monospacedDigitSystemFont(ofSize: DesignConstants.FontSize.medium, weight: .regular)
             cell.textColor = .secondaryLabelColor
             cell.translatesAutoresizingMaskIntoConstraints = false
 
@@ -92,7 +92,7 @@ final class DataGridCellFactory {
             cellView.wantsLayer = true
 
             cell = CellTextField()
-            cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+            cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular)
             cell.drawsBackground = false
             cell.isBordered = false
             cell.focusRingType = .none
@@ -128,7 +128,7 @@ final class DataGridCellFactory {
                 cell.placeholderString = "NULL"
                 cell.textColor = .secondaryLabelColor
                 if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
-                    cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
+                    cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular).withTraits(.italic)
                 }
             } else {
                 cell.textColor = .secondaryLabelColor
@@ -138,7 +138,7 @@ final class DataGridCellFactory {
             if !isLargeDataset {
                 cell.placeholderString = "DEFAULT"
                 cell.textColor = .systemBlue
-                cell.font = .monospacedSystemFont(ofSize: 13, weight: .medium)
+                cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .medium)
             } else {
                 cell.textColor = .systemBlue
             }
@@ -148,7 +148,7 @@ final class DataGridCellFactory {
                 cell.placeholderString = "Empty"
                 cell.textColor = .secondaryLabelColor
                 if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
-                    cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular).withTraits(.italic)
+                    cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular).withTraits(.italic)
                 }
             } else {
                 cell.textColor = .secondaryLabelColor
@@ -158,7 +158,7 @@ final class DataGridCellFactory {
             cell.textColor = .labelColor
             if cell.font?.fontDescriptor.symbolicTraits.contains(.italic) == true ||
                cell.font?.fontDescriptor.symbolicTraits.contains(.bold) == true {
-                cell.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+                cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular)
             }
         }
 
@@ -189,7 +189,7 @@ final class DataGridCellFactory {
     // MARK: - Column Width Calculation
 
     func calculateColumnWidth(for columnName: String) -> CGFloat {
-        let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        let font = NSFont.systemFont(ofSize: DesignConstants.FontSize.body, weight: .semibold)
         let attributes: [NSAttributedString.Key: Any] = [.font: font]
         let size = (columnName as NSString).size(withAttributes: attributes)
         let width = size.width + 48

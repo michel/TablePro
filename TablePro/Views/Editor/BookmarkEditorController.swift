@@ -91,29 +91,29 @@ final class BookmarkEditorController: NSViewController {
         // Name row
         let nameLabel = NSTextField(labelWithString: "Name:")
         nameLabel.alignment = .right
-        nameLabel.font = .systemFont(ofSize: 13)
+        nameLabel.font = .systemFont(ofSize: DesignConstants.FontSize.body)
         nameField = NSTextField()
         nameField.placeholderString = "Bookmark name"
-        nameField.font = .systemFont(ofSize: 13)
+        nameField.font = .systemFont(ofSize: DesignConstants.FontSize.body)
 
         // Query row
         let queryLabel = NSTextField(labelWithString: "Query:")
         queryLabel.alignment = .right
-        queryLabel.font = .systemFont(ofSize: 13)
+        queryLabel.font = .systemFont(ofSize: DesignConstants.FontSize.body)
         let queryScrollView = buildQueryScrollView()
 
         // Tags row
         let tagsLabel = NSTextField(labelWithString: "Tags:")
         tagsLabel.alignment = .right
-        tagsLabel.font = .systemFont(ofSize: 13)
+        tagsLabel.font = .systemFont(ofSize: DesignConstants.FontSize.body)
         tagsField = NSTextField()
         tagsField.placeholderString = "e.g., reports, analytics, daily"
-        tagsField.font = .systemFont(ofSize: 13)
+        tagsField.font = .systemFont(ofSize: DesignConstants.FontSize.body)
 
         // Notes row
         let notesLabel = NSTextField(labelWithString: "Notes:")
         notesLabel.alignment = .right
-        notesLabel.font = .systemFont(ofSize: 13)
+        notesLabel.font = .systemFont(ofSize: DesignConstants.FontSize.body)
         let notesScrollView = buildNotesScrollView()
 
         // Create grid
@@ -160,7 +160,7 @@ final class BookmarkEditorController: NSViewController {
         queryTextView = NSTextView()
         queryTextView.isEditable = false
         queryTextView.isSelectable = true
-        queryTextView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        queryTextView.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.small, weight: .regular)
         queryTextView.string = query
         queryTextView.textContainerInset = NSSize(width: 8, height: 8)
         queryTextView.isVerticallyResizable = true
@@ -185,7 +185,7 @@ final class BookmarkEditorController: NSViewController {
 
         notesTextView = NSTextView()
         notesTextView.isRichText = false
-        notesTextView.font = .systemFont(ofSize: 13)
+        notesTextView.font = .systemFont(ofSize: DesignConstants.FontSize.body)
         notesTextView.textContainerInset = NSSize(width: 8, height: 8)
         notesTextView.isVerticallyResizable = true
         notesTextView.isHorizontallyResizable = false

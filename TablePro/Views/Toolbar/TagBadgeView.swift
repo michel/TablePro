@@ -14,10 +14,10 @@ struct TagBadgeView: View {
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: "tag.fill")
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: DesignConstants.FontSize.tiny, weight: .semibold))
 
             Text(tag.name.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: DesignConstants.FontSize.caption, weight: .bold))
         }
         .foregroundStyle(tag.color.color)
         .padding(.horizontal, 8)

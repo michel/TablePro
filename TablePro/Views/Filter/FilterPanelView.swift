@@ -69,11 +69,11 @@ struct FilterPanelView: View {
     private var filterHeader: some View {
         HStack(spacing: 8) {
             Text("Filters")
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
 
             if filterState.hasAppliedFilters {
                 Text("(\(filterState.appliedFilters.count) active)")
-                    .font(.system(size: 11))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
             }
 
@@ -93,7 +93,7 @@ struct FilterPanelView: View {
             // Settings button
             Button(action: { showSettingsPopover.toggle() }) {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 12))
+                    .font(.system(size: DesignConstants.IconSize.small))
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)
@@ -107,14 +107,14 @@ struct FilterPanelView: View {
                 filterState.addFilter(columns: columns, primaryKeyColumn: primaryKeyColumn)
             }) {
                 Image(systemName: "plus")
-                    .font(.system(size: 12))
+                    .font(.system(size: DesignConstants.IconSize.small))
             }
             .buttonStyle(.borderless)
             .foregroundColor(.accentColor)
             .help("Add Filter (Cmd+Shift+F)")
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .padding(.vertical, DesignConstants.Spacing.xs)
         .background(Color(nsColor: .controlBackgroundColor))
         .contentShape(Rectangle())
         .onTapGesture { filterState.focusedFilterId = nil }
@@ -163,7 +163,7 @@ struct FilterPanelView: View {
             }
         } label: {
             Image(systemName: "folder")
-                .font(.system(size: 12))
+                .font(.system(size: DesignConstants.IconSize.small))
         }
         .buttonStyle(.borderless)
         .foregroundStyle(.secondary)
@@ -178,11 +178,11 @@ struct FilterPanelView: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "line.3.horizontal.decrease.circle")
-                .font(.system(size: 32))
+                .font(.system(size: DesignConstants.IconSize.huge))
                 .foregroundStyle(.tertiary)
 
             Text("No filters active")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
@@ -193,7 +193,7 @@ struct FilterPanelView: View {
                 .controlSize(.small)
 
                 Text("or use Quick Search above")
-                    .font(.system(size: 11))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.tertiary)
             }
         }
@@ -240,7 +240,7 @@ struct FilterPanelView: View {
         HStack(spacing: 8) {
             Toggle("Select All", isOn: selectAllBinding)
                 .toggleStyle(.checkbox)
-                .font(.system(size: 11))
+                .font(.system(size: DesignConstants.FontSize.small))
                 .foregroundStyle(.secondary)
                 .disabled(filterState.filters.isEmpty)
 

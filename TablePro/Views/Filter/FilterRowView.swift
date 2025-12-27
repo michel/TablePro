@@ -78,7 +78,7 @@ struct FilterRowView: View {
             // Action buttons
             actionButtons
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, DesignConstants.Spacing.xs)
         .padding(.horizontal, 8)
         .background(
             RoundedRectangle(cornerRadius: 4)

@@ -66,7 +66,7 @@ struct ConnectionFormView: View {
                     .font(.headline)
                 Spacer()
             }
-            .padding(.top, 14)
+            .padding(.top, DesignConstants.Spacing.md)
             .padding(.bottom, 16)
             
             // Form content

@@ -113,7 +113,7 @@ struct TabItem: View {
             if isHovering && !tab.isPinned {
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: DesignConstants.IconSize.small, weight: .bold))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.borderless)
@@ -121,7 +121,7 @@ struct TabItem: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, DesignConstants.Spacing.xs)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(isSelected ? Color(nsColor: .controlBackgroundColor) : Color.clear)

@@ -86,7 +86,7 @@ final class QueryPreviewViewController: NSViewController {
 
     private let primaryMetadataLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 11)
+        label.font = .systemFont(ofSize: DesignConstants.FontSize.small)
         label.textColor = .secondaryLabelColor
         label.lineBreakMode = .byTruncatingTail
         return label
@@ -94,7 +94,7 @@ final class QueryPreviewViewController: NSViewController {
 
     private let secondaryMetadataLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 11)
+        label.font = .systemFont(ofSize: DesignConstants.FontSize.small)
         label.textColor = .tertiaryLabelColor
         label.lineBreakMode = .byTruncatingTail
         return label
@@ -146,12 +146,12 @@ final class QueryPreviewViewController: NSViewController {
         ])
 
         let titleLabel = NSTextField(labelWithString: "Select a Query")
-        titleLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        titleLabel.font = .systemFont(ofSize: DesignConstants.FontSize.title3, weight: .medium)
         titleLabel.textColor = .secondaryLabelColor
         titleLabel.alignment = .center
 
         let subtitleLabel = NSTextField(labelWithString: "Choose a query from the list\nto see its full content here.")
-        subtitleLabel.font = .systemFont(ofSize: 12)
+        subtitleLabel.font = .systemFont(ofSize: DesignConstants.FontSize.medium)
         subtitleLabel.textColor = .tertiaryLabelColor
         subtitleLabel.alignment = .center
         subtitleLabel.maximumNumberOfLines = 2

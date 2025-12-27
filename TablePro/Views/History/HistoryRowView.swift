@@ -20,7 +20,7 @@ final class HistoryRowView: NSTableCellView {
 
     private let queryLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
-        label.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        label.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.small + 1, weight: .regular)
         label.textColor = .labelColor
         label.lineBreakMode = .byTruncatingTail
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -29,7 +29,7 @@ final class HistoryRowView: NSTableCellView {
 
     private let secondaryLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 10)
+        label.font = .systemFont(ofSize: DesignConstants.FontSize.small)
         label.textColor = .secondaryLabelColor
         label.lineBreakMode = .byTruncatingTail
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -38,7 +38,7 @@ final class HistoryRowView: NSTableCellView {
 
     private let timeLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 10)
+        label.font = .systemFont(ofSize: DesignConstants.FontSize.small)
         label.textColor = .tertiaryLabelColor
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -46,7 +46,7 @@ final class HistoryRowView: NSTableCellView {
 
     private let durationLabel: NSTextField = {
         let label = NSTextField(labelWithString: "")
-        label.font = .systemFont(ofSize: 10)
+        label.font = .systemFont(ofSize: DesignConstants.FontSize.small)
         label.textColor = .tertiaryLabelColor
         label.alignment = .right
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -148,7 +148,7 @@ final class HistoryRowView: NSTableCellView {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        queryLabel.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        queryLabel.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.small + 1, weight: .regular)
         statusIcon.image = nil
         queryLabel.stringValue = ""
         secondaryLabel.stringValue = ""

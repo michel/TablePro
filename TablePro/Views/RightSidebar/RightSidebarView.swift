@@ -55,10 +55,10 @@ struct RightSidebarView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(mode)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: DesignConstants.FontSize.small, weight: .semibold))
                 if let name = tableName {
                     Text(name)
-                        .font(.system(size: 10))
+                        .font(.system(size: DesignConstants.FontSize.caption))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -74,23 +74,23 @@ struct RightSidebarView: View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.tertiary)
-                .font(.system(size: 10))
-            
+                .font(.system(size: DesignConstants.FontSize.caption))
+
             TextField("Filter", text: $searchText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 11))
-            
+                .font(.system(size: DesignConstants.FontSize.small))
+
             if !searchText.isEmpty {
                 Button(action: { searchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.tertiary)
-                        .font(.system(size: 10))
+                        .font(.system(size: DesignConstants.FontSize.caption))
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, DesignConstants.Spacing.xs)
         .background(Color(NSColor.textBackgroundColor).opacity(0.5))
     }
     
@@ -99,10 +99,10 @@ struct RightSidebarView: View {
     private var emptyState: some View {
         VStack(spacing: 8) {
             Image(systemName: "sidebar.right")
-                .font(.system(size: 24))
+                .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.quaternary)
             Text("No Selection")
-                .font(.system(size: 11))
+                .font(.system(size: DesignConstants.FontSize.small))
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
@@ -178,22 +178,22 @@ struct RightSidebarView: View {
     
     private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 10, weight: .medium))
+            .font(.system(size: DesignConstants.FontSize.caption, weight: .medium))
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.top, 12)
             .padding(.bottom, 4)
     }
-    
+
     private func propertyRow(_ key: String, _ value: String) -> some View {
         HStack {
             Text(key)
-                .font(.system(size: 11))
+                .font(.system(size: DesignConstants.FontSize.small))
                 .foregroundStyle(.secondary)
             Spacer()
             Text(value)
-                .font(.system(size: 11))
+                .font(.system(size: DesignConstants.FontSize.small))
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 12)
@@ -205,38 +205,38 @@ struct RightSidebarView: View {
             // Field name + type badge
             HStack(spacing: 6) {
                 Text(field.column)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
                     .foregroundStyle(.primary)
-                
+
                 Text(field.type)
-                    .font(.system(size: 9))
+                    .font(.system(size: DesignConstants.FontSize.tiny))
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
+                    .padding(.vertical, DesignConstants.Spacing.xxxs)
                     .background(Color.secondary.opacity(0.1))
                     .cornerRadius(3)
             }
-            
+
             // Value
             if let value = field.value {
                 Text(value)
-                    .font(.system(size: 11))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                     .lineLimit(3)
             } else {
                 Text("NULL")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.caption, weight: .medium))
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, DesignConstants.Spacing.xxs)
+                    .padding(.vertical, DesignConstants.Spacing.xxxs)
                     .background(Color.secondary.opacity(0.12))
                     .cornerRadius(3)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.vertical, DesignConstants.Spacing.xs)
     }
 }
 

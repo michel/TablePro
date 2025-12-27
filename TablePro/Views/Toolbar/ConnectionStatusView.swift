@@ -47,12 +47,12 @@ struct ConnectionStatusView: View {
         HStack(spacing: 6) {
             // Database type icon
             Image(systemName: databaseType.iconName)
-                .font(.system(size: 14))
+                .font(.system(size: DesignConstants.IconSize.default))
                 .foregroundStyle(displayColor)
 
             // Database type + version
             Text(formattedDatabaseInfo)
-                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .font(.system(size: DesignConstants.FontSize.medium, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
         }
         .help("Database: \(formattedDatabaseInfo)")
@@ -65,11 +65,11 @@ struct ConnectionStatusView: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "cylinder")
-                    .font(.system(size: 11))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
 
                 Text(databaseName)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
                     .foregroundStyle(.primary)
             }
         }
@@ -82,7 +82,7 @@ struct ConnectionStatusView: View {
         HStack(spacing: 8) {
             // Connection name
             Text(connectionName)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
 
@@ -99,7 +99,7 @@ struct ConnectionStatusView: View {
             // Show pulsing dot for connecting/executing states
             Circle()
                 .fill(connectionState.indicatorColor)
-                .frame(width: 8, height: 8)
+                .frame(width: DesignConstants.IconSize.statusDot, height: DesignConstants.IconSize.statusDot)
                 .overlay(
                     Circle()
                         .stroke(connectionState.indicatorColor.opacity(0.5), lineWidth: 2)
@@ -110,7 +110,7 @@ struct ConnectionStatusView: View {
             // Static status dot
             Circle()
                 .fill(connectionState.indicatorColor)
-                .frame(width: 8, height: 8)
+                .frame(width: DesignConstants.IconSize.statusDot, height: DesignConstants.IconSize.statusDot)
         }
     }
 

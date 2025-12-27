@@ -89,36 +89,36 @@ struct ConnectionSidebarHeader: View {
                     // Database icon
                     if let session = currentSession {
                         Image(systemName: session.connection.type.iconName)
-                            .font(.system(size: 16))
+                            .font(.system(size: DesignConstants.IconSize.medium))
                             .foregroundStyle(session.connection.displayColor)
                     } else {
                         Image(systemName: "cylinder")
-                            .font(.system(size: 16))
+                            .font(.system(size: DesignConstants.IconSize.medium))
                             .foregroundStyle(.secondary)
                     }
-                    
+
                     // Connection name
                     Text(currentSession?.connection.name ?? "No Connection")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
                         .lineLimit(1)
-                    
+
                     Spacer()
-                    
+
                     // Status + Chevron
                     HStack(spacing: 6) {
                         if let session = currentSession {
                             Circle()
                                 .fill(statusColor(for: session))
-                                .frame(width: 6, height: 6)
+                                .frame(width: DesignConstants.IconSize.tinyDot, height: DesignConstants.IconSize.tinyDot)
                         }
-                        
+
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.system(size: DesignConstants.FontSize.tiny, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.vertical, DesignConstants.Spacing.sm)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -138,8 +138,8 @@ struct ConnectionSidebarHeader: View {
         HStack(spacing: 4) {
             Circle()
                 .fill(statusColor(for: session))
-                .frame(width: 6, height: 6)
-            
+                .frame(width: DesignConstants.IconSize.tinyDot, height: DesignConstants.IconSize.tinyDot)
+
             if case .connecting = session.status {
                 ProgressView()
                     .controlSize(.mini)

@@ -36,7 +36,7 @@ struct DatabaseSwitcherSheet: View {
         VStack(spacing: 0) {
             // Header
             Text("Open database")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
                 .padding(.vertical, 12)
 
             Divider()
@@ -45,17 +45,17 @@ struct DatabaseSwitcherSheet: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.tertiary)
-                    .font(.system(size: 13))
+                    .font(.system(size: DesignConstants.FontSize.body))
 
                 TextField("Search for database...", text: $searchText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 13))
+                    .font(.system(size: DesignConstants.FontSize.body))
                     .onSubmit {
                         openSelectedDatabase()
                     }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.vertical, DesignConstants.Spacing.sm)
 
             Divider()
 
@@ -112,7 +112,7 @@ struct DatabaseSwitcherSheet: View {
                 databaseRow(database)
                     .id(database)
                     .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
+                    .listRowInsets(DesignConstants.swiftUIListRowInsets)
                     .listRowBackground(
                         RoundedRectangle(cornerRadius: 4)
                             .fill(database == selectedItem ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
@@ -125,7 +125,7 @@ struct DatabaseSwitcherSheet: View {
             .listStyle(.inset)
             .scrollContentBackground(.hidden)
             .alternatingRowBackgrounds(.disabled)
-            .environment(\.defaultMinListRowHeight, 28)
+            .environment(\.defaultMinListRowHeight, DesignConstants.RowHeight.compact)
             .onChange(of: filteredDatabases) { _, newList in
                 // Reset selection when list changes
                 if let selected = selectedItem, !newList.contains(selected) {
@@ -162,11 +162,11 @@ struct DatabaseSwitcherSheet: View {
 
         return HStack(spacing: 10) {
             Image(systemName: "cylinder")
-                .font(.system(size: 13))
+                .font(.system(size: DesignConstants.FontSize.body))
                 .foregroundStyle(isSelected ? .white : (isCurrent ? .blue : .secondary))
 
             Text(database)
-                .font(.system(size: 13))
+                .font(.system(size: DesignConstants.FontSize.body))
                 .foregroundStyle(isSelected ? .white : .primary)
                 .lineLimit(1)
 
@@ -174,7 +174,7 @@ struct DatabaseSwitcherSheet: View {
 
             if isCurrent {
                 Text("current")
-                    .font(.system(size: 10))
+                    .font(.system(size: DesignConstants.FontSize.caption))
                     .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
             }
         }
@@ -194,7 +194,7 @@ struct DatabaseSwitcherSheet: View {
             ProgressView()
                 .scaleEffect(0.8)
             Text("Loading databases...")
-                .font(.system(size: 12))
+                .font(.system(size: DesignConstants.FontSize.medium))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -203,14 +203,14 @@ struct DatabaseSwitcherSheet: View {
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 24))
+                .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.orange)
 
             Text("Failed to load databases")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
 
             Text(message)
-                .font(.system(size: 11))
+                .font(.system(size: DesignConstants.FontSize.small))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
@@ -227,14 +227,14 @@ struct DatabaseSwitcherSheet: View {
     private var sqliteEmptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "doc.fill")
-                .font(.system(size: 24))
+                .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.secondary)
 
             Text("SQLite is file-based")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
 
             Text("Each SQLite file is a separate database.\nTo open a different database, create a new connection.")
-                .font(.system(size: 11))
+                .font(.system(size: DesignConstants.FontSize.small))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
@@ -245,18 +245,18 @@ struct DatabaseSwitcherSheet: View {
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 24))
+                .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.secondary)
 
             if searchText.isEmpty {
                 Text("No databases found")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
             } else {
                 Text("No matching databases")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
 
                 Text("No databases match \"\(searchText)\"")
-                    .font(.system(size: 11))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
             }
         }
