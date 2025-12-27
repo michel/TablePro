@@ -84,6 +84,15 @@ struct TableProToolbar: ViewModifier {
                             NotificationCenter.default.post(name: .newTab, object: nil)
                         }
                         .help("New Query Tab (⌘T)")
+                        
+                        // Refresh button
+                        Button {
+                            NotificationCenter.default.post(name: .refreshData, object: nil)
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .help("Refresh (⌘R)")
+                        .disabled(state.connectionState != .connected)
                     }
                 }
 
