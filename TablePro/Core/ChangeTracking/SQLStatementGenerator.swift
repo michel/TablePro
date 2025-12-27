@@ -251,23 +251,32 @@ struct SQLStatementGenerator {
             return "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(value)"
         }.joined(separator: ", ")
 
-        // Use primary key for WHERE clause
-        var whereClause = "1=1"  // Fallback - dangerous but necessary without PK
-
-        if let pkColumn = primaryKeyColumn,
-           let pkColumnIndex = columns.firstIndex(of: pkColumn) {
-            // Try to get PK value from originalRow first
-            if let originalRow = change.originalRow, pkColumnIndex < originalRow.count {
-                let pkValue = originalRow[pkColumnIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
-                whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)"
-            }
-            // Otherwise try from cellChanges (if PK column was edited)
-            else if let pkChange = change.cellChanges.first(where: { $0.columnName == pkColumn }) {
-                let pkValue = pkChange.oldValue.map { "'\(escapeSQLString($0))'" } ?? "NULL"
-                whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)"
-            }
+        // CRITICAL FIX: Require primary key for safe updates
+        // DO NOT generate UPDATE without WHERE clause - prevents data corruption
+        guard let pkColumn = primaryKeyColumn,
+              let pkColumnIndex = columns.firstIndex(of: pkColumn) else {
+            // Cannot generate safe UPDATE without primary key - skip this update
+            print("⚠️ WARNING: Skipping UPDATE for table '\(tableName)' - no primary key defined")
+            return nil
         }
-
+        
+        // Try to get PK value from originalRow first
+        var pkValue: String? = nil
+        if let originalRow = change.originalRow, pkColumnIndex < originalRow.count {
+            pkValue = originalRow[pkColumnIndex].map { "'\(escapeSQLString($0))'" }
+        }
+        // Otherwise try from cellChanges (if PK column was edited)
+        else if let pkChange = change.cellChanges.first(where: { $0.columnName == pkColumn }) {
+            pkValue = pkChange.oldValue.map { "'\(escapeSQLString($0))'" }
+        }
+        
+        // CRITICAL: Require valid PK value - do NOT fall back to WHERE 1=1
+        guard let pkValue = pkValue else {
+            print("⚠️ WARNING: Skipping UPDATE for table '\(tableName)' - cannot determine primary key value for row")
+            return nil
+        }
+        
+        let whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)"
         return "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
     }
 
