@@ -69,7 +69,22 @@ struct TableProToolbar: ViewModifier {
             .toolbar {
                 // MARK: - Navigation (Left)
                 ToolbarItem(placement: .navigation) {
-                    EmptyView()
+                    HStack(spacing: 8) {
+                        // Database switcher button
+                        Button {
+                            NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
+                        } label: {
+                            Image(systemName: "cylinder")
+                        }
+                        .help("Open Database (⌘K)")
+                        .disabled(state.connectionState != .connected || state.databaseType == .sqlite)
+                        
+                        // SQL query tab button
+                        Button("SQL") {
+                            NotificationCenter.default.post(name: .newTab, object: nil)
+                        }
+                        .help("New Query Tab (⌘T)")
+                    }
                 }
 
                 // MARK: - Principal (Center)

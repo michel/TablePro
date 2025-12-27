@@ -10,7 +10,7 @@ import Foundation
 /// Represents an active database connection session with all associated state
 struct ConnectionSession: Identifiable {
     let id: UUID  // Same as connection.id
-    let connection: DatabaseConnection
+    var connection: DatabaseConnection  // Made var to allow database switching
     var driver: DatabaseDriver?
     var status: ConnectionStatus = .disconnected
     var lastError: String?

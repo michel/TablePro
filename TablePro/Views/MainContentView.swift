@@ -37,6 +37,7 @@ struct MainContentView: View {
     @State var selectedRowIndices: Set<Int> = []
     @State private var editingCell: CellPosition? = nil
     @State private var notificationHandler: MainContentNotificationHandler?
+    @State private var showDatabaseSwitcher = false
 
     // MARK: - Environment
 
@@ -127,6 +128,16 @@ struct MainContentView: View {
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
             }
             .onAppear { setupNotificationHandler() }
+            .sheet(isPresented: $showDatabaseSwitcher) {
+                DatabaseSwitcherSheet(
+                    isPresented: $showDatabaseSwitcher,
+                    currentDatabase: DatabaseManager.shared.currentSession?.connection.database,
+                    databaseType: connection.type,
+                    onSelect: { database in
+                        switchDatabase(to: database)
+                    }
+                )
+            }
     }
 
     // MARK: - Main Content
@@ -228,8 +239,17 @@ struct MainContentView: View {
             pendingDeletes: $pendingDeletes,
             tableOperationOptions: $tableOperationOptions,
             isInspectorPresented: $isInspectorPresented,
-            editingCell: $editingCell
+            editingCell: $editingCell,
+            showDatabaseSwitcher: $showDatabaseSwitcher
         )
+    }
+    
+    // MARK: - Database Switcher
+    
+    private func switchDatabase(to database: String) {
+        Task {
+            await coordinator.switchDatabase(to: database)
+        }
     }
 
     // MARK: - Event Handlers

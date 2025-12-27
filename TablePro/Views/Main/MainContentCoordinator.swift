@@ -1131,6 +1131,63 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Database Switching
 
+    /// Switch to a different database (called from database switcher)
+    func switchDatabase(to database: String) async {
+        guard let driver = DatabaseManager.shared.activeDriver else {
+            errorAlertMessage = "Not connected to database"
+            showErrorAlert = true
+            return
+        }
+        
+        do {
+            // For MySQL/MariaDB, use USE command
+            if connection.type == .mysql || connection.type == .mariadb {
+                _ = try await driver.execute(query: "USE `\(database)`")
+                
+                // Update session with new database
+                if let sessionId = DatabaseManager.shared.currentSessionId {
+                    DatabaseManager.shared.updateSession(sessionId) { session in
+                        var updatedConnection = session.connection
+                        updatedConnection.database = database
+                        session.connection = updatedConnection
+                    }
+                }
+                
+                // Update toolbar state
+                toolbarState.databaseName = database
+                
+                // Clear tab results but keep tabs open
+                tabManager.tabs = tabManager.tabs.map { tab in
+                    var updatedTab = tab
+                    updatedTab.resultColumns = []
+                    updatedTab.resultRows = []
+                    updatedTab.errorMessage = nil
+                    updatedTab.executionTime = nil
+                    return updatedTab
+                }
+                
+                // Reload schema for autocomplete
+                await loadSchema()
+                
+                // Re-execute current tab's query if it's a table tab
+                if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
+                    runQuery()
+                }
+                
+            } else {
+                // For PostgreSQL and SQLite, reconnect with new database
+                // (SQLite doesn't apply, but keeping for completeness)
+                errorAlertMessage = "Database switching for \(connection.type.rawValue) requires reconnection. Please create a new connection."
+                showErrorAlert = true
+            }
+            
+        } catch {
+            errorAlertMessage = "Failed to switch database: \(error.localizedDescription)"
+            showErrorAlert = true
+        }
+    }
+    
+    /// Switch to a different database (legacy method - creates new connection)
     func switchToDatabase(_ database: String) {
         let newConnection = DatabaseConnection(
             id: UUID(),
