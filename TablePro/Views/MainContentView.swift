@@ -21,6 +21,7 @@ struct MainContentView: View {
     @Binding var selectedTables: Set<TableInfo>
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
+    @Binding var tableOperationOptions: [String: TableOperationOptions]
     @Binding var isInspectorPresented: Bool
 
     // MARK: - State Objects
@@ -49,6 +50,7 @@ struct MainContentView: View {
         selectedTables: Binding<Set<TableInfo>>,
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
+        tableOperationOptions: Binding<[String: TableOperationOptions]>,
         isInspectorPresented: Binding<Bool>
     ) {
         self.connection = connection
@@ -56,6 +58,7 @@ struct MainContentView: View {
         self._selectedTables = selectedTables
         self._pendingTruncates = pendingTruncates
         self._pendingDeletes = pendingDeletes
+        self._tableOperationOptions = tableOperationOptions
         self._isInspectorPresented = isInspectorPresented
 
         // Create state objects
@@ -223,6 +226,7 @@ struct MainContentView: View {
             selectedTables: $selectedTables,
             pendingTruncates: $pendingTruncates,
             pendingDeletes: $pendingDeletes,
+            tableOperationOptions: $tableOperationOptions,
             isInspectorPresented: $isInspectorPresented,
             editingCell: $editingCell
         )
@@ -394,6 +398,7 @@ struct MainContentView: View {
         selectedTables: .constant([]),
         pendingTruncates: .constant([]),
         pendingDeletes: .constant([]),
+        tableOperationOptions: .constant([:]),
         isInspectorPresented: .constant(false)
     )
     .frame(width: 1000, height: 600)

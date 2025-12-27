@@ -22,6 +22,7 @@ struct ConnectionSession: Identifiable {
     var selectedTabId: UUID?
     var pendingTruncates: Set<String> = []
     var pendingDeletes: Set<String> = []
+    var tableOperationOptions: [String: TableOperationOptions] = [:]
     
     // Metadata
     let connectedAt: Date

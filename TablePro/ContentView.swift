@@ -157,7 +157,9 @@ struct ContentView: View {
                             showAllTablesMetadata()
                         },
                         pendingTruncates: sessionPendingTruncatesBinding,
-                        pendingDeletes: sessionPendingDeletesBinding
+                        pendingDeletes: sessionPendingDeletesBinding,
+                        tableOperationOptions: sessionTableOperationOptionsBinding,
+                        databaseType: currentSession?.connection.type ?? .sqlite
                     )
                 }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 350)
@@ -169,6 +171,7 @@ struct ContentView: View {
                     selectedTables: sessionSelectedTablesBinding,
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding,
+                    tableOperationOptions: sessionTableOperationOptionsBinding,
                     isInspectorPresented: $isInspectorPresented
                 )
                 .id(currentSession!.id)
@@ -246,6 +249,14 @@ struct ContentView: View {
             get: { $0.pendingDeletes },
             set: { $0.pendingDeletes = $1 },
             defaultValue: []
+        )
+    }
+
+    private var sessionTableOperationOptionsBinding: Binding<[String: TableOperationOptions]> {
+        createSessionBinding(
+            get: { $0.tableOperationOptions },
+            set: { $0.tableOperationOptions = $1 },
+            defaultValue: [:]
         )
     }
 
