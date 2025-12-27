@@ -290,9 +290,10 @@ struct SidebarView: View {
         guard !tablesToToggle.isEmpty else { return }
 
         // Check if all tables are already pending truncate - if so, remove them
+        // Cancellation doesn't require confirmation since it's a safe operation that
+        // simply removes the pending state. The stored options are intentionally discarded.
         let allAlreadyPending = tablesToToggle.allSatisfy { pendingTruncates.contains($0) }
         if allAlreadyPending {
-            // Remove from pending
             var updated = pendingTruncates
             for name in tablesToToggle {
                 updated.remove(name)
@@ -313,9 +314,10 @@ struct SidebarView: View {
         guard !tablesToToggle.isEmpty else { return }
 
         // Check if all tables are already pending delete - if so, remove them
+        // Cancellation doesn't require confirmation since it's a safe operation that
+        // simply removes the pending state. The stored options are intentionally discarded.
         let allAlreadyPending = tablesToToggle.allSatisfy { pendingDeletes.contains($0) }
         if allAlreadyPending {
-            // Remove from pending
             var updated = pendingDeletes
             for name in tablesToToggle {
                 updated.remove(name)
@@ -439,7 +441,7 @@ struct TableRow: View {
             ZStack(alignment: .bottomTrailing) {
                 Image(systemName: table.type == .view ? "eye" : "tablecells")
                     .foregroundStyle(iconColor)
-                    .frame(width: 20)
+                    .frame(width: 14)
 
                 // Pending operation indicator
                 if isPendingDelete {
@@ -456,7 +458,7 @@ struct TableRow: View {
             }
 
             Text(table.name)
-                .font(.system(.body, design: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .lineLimit(1)
                 .foregroundStyle(textColor)
         }

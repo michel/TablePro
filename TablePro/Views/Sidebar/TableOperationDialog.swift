@@ -119,7 +119,7 @@ struct TableOperationDialog: View {
                             .padding(.leading, 20)
                     }
                 }
-                .opacity(ignoreFKDisabled ? 0.5 : 1.0)
+                .opacity(ignoreFKDisabled ? 0.6 : 1.0)
 
                 // Cascade option
                 VStack(alignment: .leading, spacing: 4) {
@@ -135,7 +135,7 @@ struct TableOperationDialog: View {
                         .foregroundStyle(.secondary)
                         .padding(.leading, 20)
                 }
-                .opacity(cascadeDisabled ? 0.5 : 1.0)
+                .opacity(cascadeDisabled ? 0.6 : 1.0)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 20)
@@ -147,6 +147,7 @@ struct TableOperationDialog: View {
                 Button("Cancel") {
                     isPresented = false
                 }
+                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 

@@ -563,6 +563,17 @@ final class MainContentCoordinator: ObservableObject {
         guard hasEditedCells || hasPendingTableOps else { return }
 
         var allStatements: [String] = []
+        let dbType = connection.type
+
+        // Check if any table operation needs FK disabled (must be outside transaction)
+        let needsDisableFK = dbType != .postgresql && pendingTruncates.union(pendingDeletes).contains { tableName in
+            tableOperationOptions[tableName]?.ignoreForeignKeys == true
+        }
+
+        // FK disable must be FIRST, before any transaction begins
+        if needsDisableFK {
+            allStatements.append(contentsOf: fkDisableStatements(for: dbType))
+        }
 
         // Wrap all operations in a single transaction when we have multiple operations
         let needsTransaction = hasEditedCells && hasPendingTableOps
@@ -571,23 +582,29 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         if hasEditedCells {
+            // changeManager.generateSQL() does NOT include transaction statements
             allStatements.append(contentsOf: changeManager.generateSQL())
         }
 
         if hasPendingTableOps {
-            // Generate table operation SQL with FK/cascade options
-            // Don't wrap in transaction if we're already in one
+            // Generate table operation SQL WITHOUT FK handling (already done above)
             let tableOpStatements = generateTableOperationSQL(
                 truncates: pendingTruncates,
                 deletes: pendingDeletes,
                 options: tableOperationOptions,
-                wrapInTransaction: !needsTransaction
+                wrapInTransaction: !needsTransaction,
+                includeFKHandling: false  // FK handling done at this level
             )
             allStatements.append(contentsOf: tableOpStatements)
         }
 
         if needsTransaction {
             allStatements.append("COMMIT")
+        }
+
+        // FK re-enable must be LAST, after transaction commits
+        if needsDisableFK {
+            allStatements.append(contentsOf: fkEnableStatements(for: dbType))
         }
 
         guard !allStatements.isEmpty else {
@@ -597,9 +614,9 @@ final class MainContentCoordinator: ObservableObject {
             return
         }
 
-        let sql = allStatements.joined(separator: ";\n")
-        executeCommitSQL(
-            sql,
+        // Pass statements as array to avoid SQL injection via semicolon splitting
+        executeCommitStatements(
+            allStatements,
             clearTableOps: hasPendingTableOps,
             pendingTruncates: &pendingTruncates,
             pendingDeletes: &pendingDeletes,
@@ -607,18 +624,20 @@ final class MainContentCoordinator: ObservableObject {
         )
     }
 
-    /// Generates SQL statements for table truncate/drop operations with FK handling.
+    /// Generates SQL statements for table truncate/drop operations.
     /// - Parameters:
     ///   - truncates: Set of table names to truncate
     ///   - deletes: Set of table names to drop
     ///   - options: Per-table options for FK and cascade handling
     ///   - wrapInTransaction: Whether to wrap statements in BEGIN/COMMIT
+    ///   - includeFKHandling: Whether to include FK disable/enable statements (set false when caller handles FK)
     /// - Returns: Array of SQL statements to execute
     private func generateTableOperationSQL(
         truncates: Set<String>,
         deletes: Set<String>,
         options: [String: TableOperationOptions],
-        wrapInTransaction: Bool = true
+        wrapInTransaction: Bool = true,
+        includeFKHandling: Bool = true
     ) -> [String] {
         var statements: [String] = []
         let dbType = connection.type
@@ -628,7 +647,7 @@ final class MainContentCoordinator: ObservableObject {
         let sortedDeletes = deletes.sorted()
 
         // Check if any operation needs FK disabled (not applicable to PostgreSQL)
-        let needsDisableFK = dbType != .postgresql && truncates.union(deletes).contains { tableName in
+        let needsDisableFK = includeFKHandling && dbType != .postgresql && truncates.union(deletes).contains { tableName in
             options[tableName]?.ignoreForeignKeys == true
         }
 
@@ -704,10 +723,16 @@ final class MainContentCoordinator: ObservableObject {
             let cascade = options.cascade ? " CASCADE" : ""
             return ["TRUNCATE TABLE \(quotedName)\(cascade)"]
         case .sqlite:
-            // DELETE FROM + reset auto-increment counter for true TRUNCATE semantics
+            // DELETE FROM + reset auto-increment counter for true TRUNCATE semantics.
+            // Note: quotedName uses backticks (via quoteIdentifier) for SQL identifiers,
+            // while escapedName uses single-quote escaping for string literals in the
+            // sqlite_sequence query. These are different SQL quoting mechanisms for
+            // different purposes (identifier vs string literal).
             let escapedName = tableName.replacingOccurrences(of: "'", with: "''")
             return [
                 "DELETE FROM \(quotedName)",
+                // sqlite_sequence may not exist if no table has AUTOINCREMENT.
+                // This DELETE will succeed silently if the table isn't in sqlite_sequence.
                 "DELETE FROM sqlite_sequence WHERE name = '\(escapedName)'"
             ]
         }
@@ -723,14 +748,23 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
-    private func executeCommitSQL(
-        _ sql: String,
+    /// Executes an array of SQL statements sequentially.
+    /// This approach prevents SQL injection by avoiding semicolon-based string splitting.
+    /// - Parameters:
+    ///   - statements: Pre-segmented array of SQL statements to execute
+    ///   - clearTableOps: Whether to clear pending table operations on success
+    ///   - pendingTruncates: Inout binding to pending truncate operations (restored on failure)
+    ///   - pendingDeletes: Inout binding to pending delete operations (restored on failure)
+    ///   - tableOperationOptions: Inout binding to operation options (restored on failure)
+    private func executeCommitStatements(
+        _ statements: [String],
         clearTableOps: Bool,
         pendingTruncates: inout Set<String>,
         pendingDeletes: inout Set<String>,
         tableOperationOptions: inout [String: TableOperationOptions]
     ) {
-        guard !sql.isEmpty else { return }
+        let validStatements = statements.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !validStatements.isEmpty else { return }
 
         let deletedTables = Set(pendingDeletes)
         let truncatedTables = Set(pendingTruncates)
@@ -749,6 +783,7 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         // Clear operations immediately (to prevent double-execution)
+        // Store references to restore synchronously on failure
         if clearTableOps {
             pendingTruncates.removeAll()
             pendingDeletes.removeAll()
@@ -756,6 +791,10 @@ final class MainContentCoordinator: ObservableObject {
                 tableOperationOptions.removeValue(forKey: table)
             }
         }
+
+        // Capture inout references for async restoration via notification
+        // This avoids the race condition of async updateSession
+        let restoreNotificationName = Notification.Name("RestorePendingTableOperations_\(conn.id)")
 
         Task {
             let overallStartTime = Date()
@@ -770,11 +809,7 @@ final class MainContentCoordinator: ObservableObject {
                     throw DatabaseError.notConnected
                 }
 
-                let statements = sql.components(separatedBy: ";").filter {
-                    !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                }
-
-                for statement in statements {
+                for statement in validStatements {
                     let statementStartTime = Date()
                     _ = try await driver.execute(query: statement)
                     let executionTime = Date().timeIntervalSince(statementStartTime)
@@ -830,15 +865,15 @@ final class MainContentCoordinator: ObservableObject {
                         do {
                             try await driver.execute(query: statement)
                         } catch {
-                            // Log failure to re-enable FK checks so it is not silently ignored
                             print("Warning: Failed to re-enable foreign key checks with statement '\(statement)': \(error)")
                         }
                     }
                 }
 
                 await MainActor.run {
+                    let allSQL = validStatements.joined(separator: "; ")
                     QueryHistoryManager.shared.recordQuery(
-                        query: sql,
+                        query: allSQL,
                         connectionId: conn.id,
                         databaseName: conn.database ?? "",
                         executionTime: executionTime,
@@ -851,8 +886,20 @@ final class MainContentCoordinator: ObservableObject {
                         tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
                     }
 
-                    // Restore operations on failure so user can retry
+                    // Restore operations on failure so user can retry.
+                    // Use notification to restore via MainContentView's bindings for synchronous update.
                     if clearTableOps {
+                        NotificationCenter.default.post(
+                            name: restoreNotificationName,
+                            object: nil,
+                            userInfo: [
+                                "truncates": truncatedTables,
+                                "deletes": deletedTables,
+                                "options": capturedOptions
+                            ]
+                        )
+
+                        // Also update session for persistence
                         DatabaseManager.shared.updateSession(conn.id) { session in
                             session.pendingTruncates = truncatedTables
                             session.pendingDeletes = deletedTables
