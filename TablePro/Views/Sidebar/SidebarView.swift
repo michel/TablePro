@@ -66,6 +66,11 @@ struct SidebarView: View {
                 loadTables()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshData)) { _ in
+            Task { @MainActor in
+                loadTables()
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .refreshAll)) { _ in
             Task { @MainActor in
                 loadTables()

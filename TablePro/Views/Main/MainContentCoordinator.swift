@@ -1184,14 +1184,14 @@ final class MainContentCoordinator: ObservableObject {
         if hasEditedCells || hasPendingTableOps {
             pendingDiscardAction = .refresh
         } else {
-            currentQueryTask?.cancel()
-
+            // Only execute query if we're in a table tab
+            // Query tabs should not auto-execute on refresh (use Cmd+Enter to execute)
             if let tabIndex = tabManager.selectedTabIndex,
                tabManager.tabs[tabIndex].tabType == .table {
+                currentQueryTask?.cancel()
                 rebuildTableQuery(at: tabIndex)
+                runQuery()
             }
-
-            runQuery()
         }
     }
 }
