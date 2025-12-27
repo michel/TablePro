@@ -104,19 +104,22 @@ struct SidebarView: View {
             }
         }
         .sheet(isPresented: $showOperationDialog) {
-            if let operationType = pendingOperationType,
-               let firstTable = pendingOperationTables.first {
-                TableOperationDialog(
-                    isPresented: $showOperationDialog,
-                    tableName: pendingOperationTables.count > 1
-                        ? "\(pendingOperationTables.count) tables"
-                        : firstTable,
-                    operationType: operationType,
-                    databaseType: databaseType,
-                    onConfirm: { options in
-                        confirmOperation(options: options)
-                    }
-                )
+            if let operationType = pendingOperationType {
+                let tables = pendingOperationTables
+                if let firstTable = tables.first {
+                    let tableName = tables.count > 1
+                        ? "\(tables.count) tables"
+                        : firstTable
+                    TableOperationDialog(
+                        isPresented: $showOperationDialog,
+                        tableName: tableName,
+                        operationType: operationType,
+                        databaseType: databaseType,
+                        onConfirm: { options in
+                            confirmOperation(options: options)
+                        }
+                    )
+                }
             }
         }
         .onChange(of: showOperationDialog) { _, isPresented in
