@@ -36,8 +36,14 @@ struct TableOperationDialog: View {
     }
 
     private var cascadeSupported: Bool {
-        // SQLite doesn't support CASCADE
-        databaseType != .sqlite
+        // PostgreSQL supports CASCADE for both DROP and TRUNCATE.
+        // MySQL, MariaDB, and SQLite do not support CASCADE for these operations.
+        switch databaseType {
+        case .postgresql:
+            return true
+        default:
+            return false
+        }
     }
 
     private var isMultipleTables: Bool {
