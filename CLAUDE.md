@@ -8,7 +8,7 @@ Guide for working with TablePro codebase.
 
 **Databases**: MySQL/MariaDB (MariaDB Connector/C), PostgreSQL (libpq), SQLite (native)
 
-**Stack**: Swift 5.9+, SwiftUI, async/await, Keychain, UserDefaults, NotificationCenter
+**Stack**: Swift 6, SwiftUI, async/await, Keychain, UserDefaults, NotificationCenter
 
 ## Core Philosophy
 
