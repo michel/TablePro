@@ -826,7 +826,12 @@ final class MainContentCoordinator: ObservableObject {
                 // Try to re-enable FK checks if they were disabled
                 if fkWasDisabled, let driver = DatabaseManager.shared.activeDriver {
                     for statement in self.fkEnableStatements(for: dbType) {
-                        try? await driver.execute(query: statement)
+                        do {
+                            try await driver.execute(query: statement)
+                        } catch {
+                            // Log failure to re-enable FK checks so it is not silently ignored
+                            print("Warning: Failed to re-enable foreign key checks with statement '\(statement)': \(error)")
+                        }
                     }
                 }
 
