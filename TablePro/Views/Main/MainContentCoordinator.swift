@@ -1169,6 +1169,9 @@ final class MainContentCoordinator: ObservableObject {
                 // Reload schema for autocomplete
                 await loadSchema()
                 
+                // Refresh tables list in sidebar
+                NotificationCenter.default.post(name: .refreshAll, object: nil)
+                
                 // Re-execute current tab's query if it's a table tab
                 if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
                     runQuery()
