@@ -42,7 +42,7 @@ struct ExportCSVOptionsView: View {
                     .frame(width: 140, alignment: .trailing)
                 }
 
-                optionRow("Swap") {
+                optionRow("Quote") {
                     Picker("", selection: $options.quoteHandling) {
                         ForEach(CSVQuoteHandling.allCases) { handling in
                             Text(handling.rawValue).tag(handling)
