@@ -628,11 +628,13 @@ final class ExportService: ObservableObject {
             process.arguments = ["-c", source.path]
 
             let outputFile = try FileHandle(forWritingTo: destination)
+            defer {
+                try? outputFile.close()
+            }
             process.standardOutput = outputFile
 
             try process.run()
             process.waitUntilExit()
-            try outputFile.close()
 
             guard process.terminationStatus == 0 else {
                 throw ExportError.compressionFailed
