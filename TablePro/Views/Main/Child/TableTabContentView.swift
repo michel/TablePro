@@ -128,7 +128,9 @@ struct TableTabContentView: View {
             Spacer(minLength: 8)
             
             // Dismiss button - needs to be wired to coordinator
-            Button(action: {}) {
+            Button(action: {
+                tab.errorMessage = nil
+            }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
