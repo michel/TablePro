@@ -259,6 +259,9 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .contextMenu {
+            sidebarContextMenu()
+        }
         .onDeleteCommand {
             batchToggleDelete()
         }
@@ -269,6 +272,13 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func tableContextMenu(for table: TableInfo) -> some View {
+        Button("Create New Table...") {
+            NotificationCenter.default.post(name: .createTable, object: nil)
+        }
+        .keyboardShortcut("n", modifiers: [.command, .shift])
+        
+        Divider()
+        
         Button("Copy Name") {
             let names = selectedTables.isEmpty ? [table.name] : selectedTables.map { $0.name }.sorted()
             NSPasteboard.general.clearContents()
@@ -287,6 +297,37 @@ struct SidebarView: View {
             batchToggleDelete()
         }
         .keyboardShortcut(.delete, modifiers: .command)
+    }
+    
+    @ViewBuilder
+    private func sidebarContextMenu() -> some View {
+        Button("Create New Table...") {
+            NotificationCenter.default.post(name: .createTable, object: nil)
+        }
+        .keyboardShortcut("n", modifiers: [.command, .shift])
+        
+        if !selectedTables.isEmpty {
+            Divider()
+            
+            Button("Copy Name") {
+                let names = selectedTables.map { $0.name }.sorted()
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(names.joined(separator: ","), forType: .string)
+            }
+            .keyboardShortcut("c", modifiers: .command)
+
+            Divider()
+
+            Button("Truncate") {
+                batchToggleTruncate()
+            }
+            .keyboardShortcut(.delete, modifiers: .option)
+
+            Button("Delete", role: .destructive) {
+                batchToggleDelete()
+            }
+            .keyboardShortcut(.delete, modifiers: .command)
+        }
     }
     
     /// Batch toggle truncate for all selected tables

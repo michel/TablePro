@@ -57,16 +57,29 @@ struct SQLStatementGenerator {
             }
         }
 
-        // Generate batched UPDATE statements (group by same columns being updated)
+        // Generate individual UPDATE statements with LIMIT 1 (safer than batched CASE/WHEN)
+        // This prevents accidentally updating multiple rows with the same value
         if !updateChanges.isEmpty {
-            let batchedUpdates = generateBatchUpdateSQL(for: updateChanges)
-            statements.append(contentsOf: batchedUpdates)
+            for change in updateChanges {
+                if let sql = generateUpdateSQL(for: change) {
+                    statements.append(sql)
+                }
+            }
         }
 
-        // Generate batched DELETE statement (single DELETE with OR conditions)
+        // Generate DELETE statements
+        // Try batched DELETE first (uses PK if available), fall back to individual DELETEs
         if !deleteChanges.isEmpty {
             if let sql = generateBatchDeleteSQL(for: deleteChanges) {
+                // Batched delete successful (has PK)
                 statements.append(sql)
+            } else {
+                // No PK - generate individual DELETE statements matching all columns
+                for change in deleteChanges {
+                    if let sql = generateDeleteSQL(for: change) {
+                        statements.append(sql)
+                    }
+                }
             }
         }
 
@@ -277,7 +290,12 @@ struct SQLStatementGenerator {
         }
         
         let whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)"
-        return "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
+        
+        // Add LIMIT 1 for MySQL/MariaDB to ensure only one row is updated (TablePlus-style safety)
+        // PostgreSQL doesn't support LIMIT in UPDATE, but the PK constraint ensures single row
+        let limitClause = (databaseType == .mysql || databaseType == .mariadb) ? " LIMIT 1" : ""
+        
+        return "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
     }
 
     // MARK: - DELETE Generation
@@ -286,27 +304,65 @@ struct SQLStatementGenerator {
     /// Example: DELETE FROM table WHERE id = 1 OR id = 2 OR id = 3
     private func generateBatchDeleteSQL(for changes: [RowChange]) -> String? {
         guard !changes.isEmpty else { return nil }
-        guard let pkColumn = primaryKeyColumn else { return nil }
-        guard let pkIndex = columns.firstIndex(of: pkColumn) else { return nil }
-
-        // Build OR conditions for all rows
-        var conditions: [String] = []
-
-        for change in changes {
-            guard let originalRow = change.originalRow,
-                  pkIndex < originalRow.count else {
-                continue
+        
+        // If we have a primary key, use it for efficient deletion
+        if let pkColumn = primaryKeyColumn,
+           let pkIndex = columns.firstIndex(of: pkColumn) {
+            
+            // Build OR conditions for all rows using PK
+            var conditions: [String] = []
+            
+            for change in changes {
+                guard let originalRow = change.originalRow,
+                      pkIndex < originalRow.count else {
+                    continue
+                }
+                
+                let pkValue = originalRow[pkIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
+                conditions.append("\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)")
             }
-
-            let pkValue = originalRow[pkIndex].map { "'\(escapeSQLString($0))'" } ?? "NULL"
-            conditions.append("\(databaseType.quoteIdentifier(pkColumn)) = \(pkValue)")
+            
+            guard !conditions.isEmpty else { return nil }
+            
+            // Combine all conditions with OR
+            let whereClause = conditions.joined(separator: " OR ")
+            return "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
         }
-
+        
+        // Fallback: No primary key - generate individual DELETE statements matching all columns
+        // This is safe but requires exact row matching
+        return nil  // Return nil to trigger individual DELETE generation
+    }
+    
+    /// Generate individual DELETE statement for a single row (used when no PK or as fallback)
+    /// Matches all column values to ensure we delete the exact row
+    private func generateDeleteSQL(for change: RowChange) -> String? {
+        guard let originalRow = change.originalRow else { return nil }
+        
+        // Build WHERE clause matching ALL columns to uniquely identify the row
+        var conditions: [String] = []
+        
+        for (index, columnName) in columns.enumerated() {
+            guard index < originalRow.count else { continue }
+            
+            let value = originalRow[index]
+            let quotedColumn = databaseType.quoteIdentifier(columnName)
+            
+            if let value = value {
+                conditions.append("\(quotedColumn) = '\(escapeSQLString(value))'")
+            } else {
+                conditions.append("\(quotedColumn) IS NULL")
+            }
+        }
+        
         guard !conditions.isEmpty else { return nil }
-
-        // Combine all conditions with OR
-        let whereClause = conditions.joined(separator: " OR ")
-        return "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
+        
+        let whereClause = conditions.joined(separator: " AND ")
+        
+        // Add LIMIT 1 for MySQL/MariaDB to be extra safe
+        let limitClause = (databaseType == .mysql || databaseType == .mariadb) ? " LIMIT 1" : ""
+        
+        return "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)\(limitClause)"
     }
 
     // MARK: - Helper Functions

@@ -17,8 +17,9 @@ extension Notification.Name {
 
 /// Type of tab
 enum TabType: Equatable, Codable {
-    case query  // SQL editor tab
-    case table  // Direct table view tab
+    case query       // SQL editor tab
+    case table       // Direct table view tab
+    case createTable // Table creation tab
 }
 
 /// Minimal representation of a tab for persistence
@@ -88,19 +89,100 @@ struct SortState: Equatable {
     }
 }
 
-/// Tracks pagination state for lazy loading with Load More button
+/// Tracks pagination state for navigating large datasets
 struct PaginationState: Equatable {
-    var totalRowCount: Int?      // Total rows in table (fetched once, nil if unknown)
-    var pageSize: Int = 200     // Rows per page
-    var isLoadingMore: Bool = false  // True while fetching more rows
+    var totalRowCount: Int?         // Total rows in table (from COUNT(*))
+    var pageSize: Int = 200          // Rows per page
+    var currentPage: Int = 1         // Current page number (1-based)
+    var currentOffset: Int = 0       // Current OFFSET for SQL query
+    var isLoading: Bool = false      // Loading indicator
     
-    /// Whether there are more rows to load
-    func hasMore(loadedCount: Int) -> Bool {
+    // MARK: - Computed Properties
+    
+    /// Total number of pages
+    var totalPages: Int {
+        guard let total = totalRowCount, total > 0 else { return 1 }
+        return (total + pageSize - 1) / pageSize  // Ceiling division
+    }
+    
+    /// Whether there is a next page available
+    var hasNextPage: Bool {
+        currentPage < totalPages
+    }
+    
+    /// Whether there is a previous page available
+    var hasPreviousPage: Bool {
+        currentPage > 1
+    }
+    
+    /// Starting row number for current page (1-based)
+    var rangeStart: Int {
+        currentOffset + 1
+    }
+    
+    /// Ending row number for current page (1-based)
+    var rangeEnd: Int {
         guard let total = totalRowCount else {
-            // If we don't know total, assume there might be more
-            return loadedCount > 0 && loadedCount % pageSize == 0
+            return currentOffset + pageSize
         }
-        return loadedCount < total
+        return min(currentOffset + pageSize, total)
+    }
+    
+    // MARK: - Navigation Methods
+    
+    /// Navigate to next page
+    mutating func goToNextPage() {
+        guard hasNextPage else { return }
+        currentPage += 1
+        currentOffset = (currentPage - 1) * pageSize
+    }
+    
+    /// Navigate to previous page
+    mutating func goToPreviousPage() {
+        guard hasPreviousPage else { return }
+        currentPage -= 1
+        currentOffset = (currentPage - 1) * pageSize
+    }
+    
+    /// Navigate to first page
+    mutating func goToFirstPage() {
+        currentPage = 1
+        currentOffset = 0
+    }
+    
+    /// Navigate to last page
+    mutating func goToLastPage() {
+        currentPage = totalPages
+        currentOffset = (totalPages - 1) * pageSize
+    }
+    
+    /// Navigate to specific page
+    mutating func goToPage(_ page: Int) {
+        guard page > 0 && page <= totalPages else { return }
+        currentPage = page
+        currentOffset = (page - 1) * pageSize
+    }
+    
+    /// Reset pagination to first page
+    mutating func reset() {
+        currentPage = 1
+        currentOffset = 0
+        isLoading = false
+    }
+    
+    /// Update page size (limit)
+    mutating func updatePageSize(_ newSize: Int) {
+        guard newSize > 0 else { return }
+        pageSize = newSize
+        // Recalculate current page based on current offset
+        currentPage = (currentOffset / pageSize) + 1
+    }
+    
+    /// Update offset directly and recalculate page
+    mutating func updateOffset(_ newOffset: Int) {
+        guard newOffset >= 0 else { return }
+        currentOffset = newOffset
+        currentPage = (currentOffset / pageSize) + 1
     }
 }
 
@@ -145,6 +227,9 @@ struct QueryTab: Identifiable, Equatable {
 
     // Per-tab filter state (preserves filters when switching tabs)
     var filterState: TabFilterState
+    
+    // Table creation options (for .createTable tabs only)
+    var tableCreationOptions: TableCreationOptions?
 
     init(
         id: UUID = UUID(),
@@ -176,6 +261,7 @@ struct QueryTab: Identifiable, Equatable {
         self.hasUserInteraction = false
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
+        self.tableCreationOptions = nil
     }
     
     /// Initialize from persisted tab state (used when restoring tabs)
@@ -204,6 +290,7 @@ struct QueryTab: Identifiable, Equatable {
         self.hasUserInteraction = false
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
+        self.tableCreationOptions = nil
     }
     
     /// Convert tab to persisted format for storage
@@ -275,6 +362,39 @@ final class QueryTabManager: ObservableObject {
             tabType: .table,
             tableName: tableName
         )
+        tabs.append(newTab)
+        selectedTabId = newTab.id
+    }
+    
+    /// Add a new "Create Table" tab
+    /// - Parameters:
+    ///   - databaseName: The database/schema name to create the table in
+    ///   - databaseType: The type of database (MySQL, PostgreSQL, SQLite)
+    func addCreateTableTab(databaseName: String, databaseType: DatabaseType) {
+        let createTableCount = tabs.filter { $0.tabType == .createTable }.count
+        
+        // Initialize with one default column (id INT AUTO_INCREMENT PRIMARY KEY)
+        var options = TableCreationOptions()
+        options.databaseName = databaseName
+        options.tableName = "new_table"
+        
+        // Add default ID column
+        let idColumn = ColumnDefinition(
+            name: "id",
+            dataType: "INT",
+            notNull: true,
+            autoIncrement: true
+        )
+        options.columns = [idColumn]
+        options.primaryKeyColumns = ["id"]
+        
+        var newTab = QueryTab(
+            title: "New Table \(createTableCount + 1)",
+            tabType: .createTable
+        )
+        newTab.tableCreationOptions = options
+        newTab.hasUserInteraction = false  // Not yet interacted with
+        
         tabs.append(newTab)
         selectedTabId = newTab.id
     }

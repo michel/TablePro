@@ -195,6 +195,13 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.coordinator?.showAllTablesMetadata()
             }
             .store(in: &cancellables)
+        
+        NotificationCenter.default.publisher(for: .createTable)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleCreateTable()
+            }
+            .store(in: &cancellables)
     }
 
     private func handleNewTab() {
@@ -217,6 +224,18 @@ final class MainContentNotificationHandler: ObservableObject {
         if let tableName = notification.object as? String {
             selectedTables.wrappedValue = selectedTables.wrappedValue.filter { $0.name != tableName }
         }
+    }
+    
+    private func handleCreateTable() {
+        guard let coordinator = coordinator else { return }
+        
+        // Get current database name from the connection
+        let currentDatabase = connection.database
+        
+        coordinator.tabManager.addCreateTableTab(
+            databaseName: currentDatabase,
+            databaseType: connection.type
+        )
     }
 
     // MARK: - Filter Operations

@@ -36,6 +36,15 @@ struct MainEditorContentView: View {
     let onQuickSearch: (String) -> Void
     let onCommit: (String) -> Void
     let onRefresh: () -> Void
+    
+    // Pagination callbacks
+    let onFirstPage: () -> Void
+    let onPreviousPage: () -> Void
+    let onNextPage: () -> Void
+    let onLastPage: () -> Void
+    let onLimitChange: (Int) -> Void
+    let onOffsetChange: (Int) -> Void
+    let onPaginationGo: () -> Void
 
     // MARK: - Environment
 
@@ -73,10 +82,13 @@ struct MainEditorContentView: View {
 
     @ViewBuilder
     private func tabContent(for tab: QueryTab) -> some View {
-        if tab.tabType == .query {
+        switch tab.tabType {
+        case .query:
             queryTabContent(tab: tab)
-        } else {
+        case .table:
             tableTabContent(tab: tab)
+        case .createTable:
+            createTableTabContent(tab: tab)
         }
     }
 
@@ -128,12 +140,53 @@ struct MainEditorContentView: View {
     private func tableTabContent(tab: QueryTab) -> some View {
         resultsSection(tab: tab)
     }
+    
+    // MARK: - Create Table Tab Content
+    
+    @ViewBuilder
+    private func createTableTabContent(tab: QueryTab) -> some View {
+        if let options = tab.tableCreationOptions {
+            CreateTableView(
+                options: createTableOptionsBinding(for: tab),
+                databaseType: connection.type,
+                onCancel: {
+                    // Close this tab
+                    tabManager.closeTab(tab)
+                },
+                onCreate: { options in
+                    coordinator.createTable(options)
+                }
+            )
+        } else {
+            // Fallback if options are missing
+            Text("Table creation options not available")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+    
+    private func createTableOptionsBinding(for tab: QueryTab) -> Binding<TableCreationOptions> {
+        Binding(
+            get: { tab.tableCreationOptions ?? TableCreationOptions() },
+            set: { newValue in
+                guard let index = tabManager.selectedTabIndex,
+                      index < tabManager.tabs.count else { return }
+                
+                tabManager.tabs[index].tableCreationOptions = newValue
+            }
+        )
+    }
 
     // MARK: - Results Section
 
     @ViewBuilder
     private func resultsSection(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
+            // Error banner (if query failed)
+            if let errorMessage = tab.errorMessage, !errorMessage.isEmpty {
+                errorBanner(errorMessage)
+            }
+            
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
                     .frame(maxHeight: .infinity)
@@ -233,7 +286,14 @@ struct MainEditorContentView: View {
             tab: tab,
             filterStateManager: filterStateManager,
             selectedRowIndices: selectedRowIndices,
-            showStructure: showStructureBinding(for: tab)
+            showStructure: showStructureBinding(for: tab),
+            onFirstPage: onFirstPage,
+            onPreviousPage: onPreviousPage,
+            onNextPage: onNextPage,
+            onLastPage: onLastPage,
+            onLimitChange: onLimitChange,
+            onOffsetChange: onOffsetChange,
+            onPaginationGo: onPaginationGo
         )
     }
 
@@ -241,8 +301,10 @@ struct MainEditorContentView: View {
         Binding(
             get: { tab.showStructure },
             set: { newValue in
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].showStructure = newValue
+                Task { @MainActor in
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].showStructure = newValue
+                    }
                 }
             }
         )
@@ -265,5 +327,57 @@ struct MainEditorContentView: View {
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Error Banner
+
+extension MainEditorContentView {
+    @ViewBuilder
+    private func errorBanner(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            // Native macOS error icon
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundStyle(.red)
+                .font(.system(size: 16))
+                .symbolRenderingMode(.multicolor)
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text(message)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer(minLength: 8)
+            
+            // Dismiss button
+            Button(action: {
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].errorMessage = nil
+                }
+            }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Dismiss")
+            .opacity(0.6)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 0.5)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5)
+        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 }
