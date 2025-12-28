@@ -113,7 +113,7 @@ struct TableTabContentView: View {
         HStack(alignment: .top, spacing: 10) {
             // Native macOS error icon
             Image(systemName: "exclamationmark.circle.fill")
-                .foregroundStyle(.red)
+                .foregroundStyle(DesignConstants.Colors.error)
                 .font(.system(size: 16))
                 .symbolRenderingMode(.multicolor)
             
