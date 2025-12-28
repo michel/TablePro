@@ -354,8 +354,10 @@ extension MainEditorContentView {
             
             // Dismiss button
             Button(action: {
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage = nil
+                Task { @MainActor in
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = nil
+                    }
                 }
             }) {
                 Image(systemName: "xmark")
