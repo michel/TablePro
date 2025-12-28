@@ -56,7 +56,20 @@ final class ExportService: ObservableObject {
 
     // MARK: - Cancellation
 
-    private var isCancelled: Bool = false
+    private let isCancelledLock = NSLock()
+    private var _isCancelled: Bool = false
+    private var isCancelled: Bool {
+        get {
+            isCancelledLock.lock()
+            defer { isCancelledLock.unlock() }
+            return _isCancelled
+        }
+        set {
+            isCancelledLock.lock()
+            _isCancelled = newValue
+            isCancelledLock.unlock()
+        }
+    }
 
     // MARK: - Progress Throttling
 
