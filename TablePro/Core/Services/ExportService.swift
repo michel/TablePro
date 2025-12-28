@@ -224,7 +224,12 @@ final class ExportService: ObservableObject {
         config: ExportConfiguration,
         to url: URL
     ) async throws {
-        var output = ""
+        // Create file and get handle for streaming writes
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+        let fileHandle = try FileHandle(forWritingTo: url)
+        defer { try? fileHandle.close() }
+
+        let lineBreak = config.csvOptions.lineBreak.value
 
         for (index, table) in tables.enumerated() {
             try checkCancellation()
@@ -234,37 +239,36 @@ final class ExportService: ObservableObject {
 
             // Add table header comment if multiple tables
             if tables.count > 1 {
-                output += "# Table: \(table.qualifiedName)\n"
+                try fileHandle.write(contentsOf: "# Table: \(table.qualifiedName)\n".data(using: .utf8)!)
             }
 
             // Fetch all data from table
             let tableRef = qualifiedTableRef(for: table)
             let result = try await driver.execute(query: "SELECT * FROM \(tableRef)")
 
-            // Build CSV content with row tracking
-            output += try await buildCSVContentWithProgress(
+            // Stream CSV content directly to file
+            try await writeCSVContentWithProgress(
                 columns: result.columns,
                 rows: result.rows,
-                options: config.csvOptions
+                options: config.csvOptions,
+                to: fileHandle
             )
 
             if index < tables.count - 1 {
-                output += config.csvOptions.lineBreak.value
-                output += config.csvOptions.lineBreak.value
+                try fileHandle.write(contentsOf: "\(lineBreak)\(lineBreak)".data(using: .utf8)!)
             }
         }
 
         try checkCancellation()
-        try output.write(to: url, atomically: true, encoding: .utf8)
         progress = 1.0
     }
 
-    private func buildCSVContentWithProgress(
+    private func writeCSVContentWithProgress(
         columns: [String],
         rows: [[String?]],
-        options: CSVExportOptions
-    ) async throws -> String {
-        var lines: [String] = []
+        options: CSVExportOptions,
+        to fileHandle: FileHandle
+    ) async throws {
         let delimiter = options.delimiter.actualValue
         let lineBreak = options.lineBreak.value
 
@@ -273,10 +277,10 @@ final class ExportService: ObservableObject {
             let headerLine = columns
                 .map { escapeCSVField($0, options: options) }
                 .joined(separator: delimiter)
-            lines.append(headerLine)
+            try fileHandle.write(contentsOf: (headerLine + lineBreak).data(using: .utf8)!)
         }
 
-        // Data rows with progress tracking
+        // Data rows with progress tracking - stream directly to file
         for row in rows {
             try checkCancellation()
 
@@ -304,7 +308,8 @@ final class ExportService: ObservableObject {
                 return escapeCSVField(processed, options: options)
             }.joined(separator: delimiter)
 
-            lines.append(rowLine)
+            // Write row directly to file
+            try fileHandle.write(contentsOf: (rowLine + lineBreak).data(using: .utf8)!)
 
             // Update progress (throttled)
             await incrementProgress()
@@ -312,8 +317,6 @@ final class ExportService: ObservableObject {
 
         // Ensure final count is shown
         await finalizeTableProgress()
-
-        return lines.joined(separator: lineBreak)
     }
 
     private func escapeCSVField(_ field: String, options: CSVExportOptions) -> String {
@@ -397,90 +400,107 @@ final class ExportService: ObservableObject {
         config: ExportConfiguration,
         to url: URL
     ) async throws {
-        var output = ""
+        // For gzip, write to temp file first then compress
+        // For non-gzip, stream directly to destination
+        let targetURL: URL
+        let tempFileURL: URL?
 
-        // Add header comment
-        let dateFormatter = ISO8601DateFormatter()
-        output += "-- TablePro SQL Export\n"
-        output += "-- Generated: \(dateFormatter.string(from: Date()))\n"
-        output += "-- Database Type: \(databaseType.rawValue)\n\n"
+        if config.sqlOptions.compressWithGzip {
+            tempFileURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString + ".sql")
+            targetURL = tempFileURL!
+        } else {
+            tempFileURL = nil
+            targetURL = url
+        }
 
-        for (index, table) in tables.enumerated() {
-            try checkCancellation()
+        // Create file and get handle for streaming writes
+        FileManager.default.createFile(atPath: targetURL.path, contents: nil)
+        let fileHandle = try FileHandle(forWritingTo: targetURL)
 
-            currentTableIndex = index + 1
-            currentTable = table.qualifiedName
+        do {
+            // Add header comment
+            let dateFormatter = ISO8601DateFormatter()
+            try fileHandle.write(contentsOf: "-- TablePro SQL Export\n".data(using: .utf8)!)
+            try fileHandle.write(contentsOf: "-- Generated: \(dateFormatter.string(from: Date()))\n".data(using: .utf8)!)
+            try fileHandle.write(contentsOf: "-- Database Type: \(databaseType.rawValue)\n\n".data(using: .utf8)!)
 
-            let sqlOptions = table.sqlOptions
-            let tableRef = qualifiedTableRef(for: table)
+            for (index, table) in tables.enumerated() {
+                try checkCancellation()
 
-            output += "-- --------------------------------------------------------\n"
-            output += "-- Table: \(table.qualifiedName)\n"
-            output += "-- --------------------------------------------------------\n\n"
+                currentTableIndex = index + 1
+                currentTable = table.qualifiedName
 
-            // DROP statement
-            if sqlOptions.includeDrop {
-                output += "DROP TABLE IF EXISTS \(tableRef);\n\n"
-            }
+                let sqlOptions = table.sqlOptions
+                let tableRef = qualifiedTableRef(for: table)
 
-            // CREATE TABLE (structure)
-            if sqlOptions.includeStructure {
-                // For cross-database, we need the full reference
-                let ddl = try await driver.fetchTableDDL(table: tableRef)
-                output += ddl
-                if !ddl.hasSuffix(";") {
-                    output += ";"
+                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n".data(using: .utf8)!)
+                try fileHandle.write(contentsOf: "-- Table: \(table.qualifiedName)\n".data(using: .utf8)!)
+                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n\n".data(using: .utf8)!)
+
+                // DROP statement
+                if sqlOptions.includeDrop {
+                    try fileHandle.write(contentsOf: "DROP TABLE IF EXISTS \(tableRef);\n\n".data(using: .utf8)!)
                 }
-                output += "\n\n"
-            }
 
-            // INSERT statements (data)
-            if sqlOptions.includeData {
-                let result = try await driver.execute(query: "SELECT * FROM \(tableRef)")
+                // CREATE TABLE (structure)
+                if sqlOptions.includeStructure {
+                    let ddl = try await driver.fetchTableDDL(table: tableRef)
+                    try fileHandle.write(contentsOf: ddl.data(using: .utf8)!)
+                    if !ddl.hasSuffix(";") {
+                        try fileHandle.write(contentsOf: ";".data(using: .utf8)!)
+                    }
+                    try fileHandle.write(contentsOf: "\n\n".data(using: .utf8)!)
+                }
 
-                if !result.rows.isEmpty {
-                    output += try await buildInsertStatementsWithProgress(
-                        table: table,
-                        columns: result.columns,
-                        rows: result.rows
-                    )
-                    output += "\n"
+                // INSERT statements (data) - stream directly to file
+                if sqlOptions.includeData {
+                    let result = try await driver.execute(query: "SELECT * FROM \(tableRef)")
+
+                    if !result.rows.isEmpty {
+                        try await writeInsertStatementsWithProgress(
+                            table: table,
+                            columns: result.columns,
+                            rows: result.rows,
+                            to: fileHandle
+                        )
+                        try fileHandle.write(contentsOf: "\n".data(using: .utf8)!)
+                    }
                 }
             }
+
+            try fileHandle.close()
+        } catch {
+            try? fileHandle.close()
+            if let tempURL = tempFileURL {
+                try? FileManager.default.removeItem(at: tempURL)
+            }
+            throw error
         }
 
         try checkCancellation()
 
         // Handle gzip compression
-        if config.sqlOptions.compressWithGzip {
+        if config.sqlOptions.compressWithGzip, let tempURL = tempFileURL {
             statusMessage = "Compressing..."
             await Task.yield()
 
-            guard let data = output.data(using: .utf8) else {
-                throw ExportError.exportFailed("Failed to encode SQL content")
+            defer {
+                try? FileManager.default.removeItem(at: tempURL)
             }
 
-            // Compress directly to destination file (much faster than piping)
-            try await compressToFile(data, destination: url)
-        } else {
-            statusMessage = "Writing file..."
-            await Task.yield()
-
-            let outputCopy = output
-            try await Task.detached {
-                try outputCopy.write(to: url, atomically: true, encoding: .utf8)
-            }.value
+            try await compressFileToFile(source: tempURL, destination: url)
         }
 
         progress = 1.0
     }
 
-    private func buildInsertStatementsWithProgress(
+    private func writeInsertStatementsWithProgress(
         table: ExportTableItem,
         columns: [String],
-        rows: [[String?]]
-    ) async throws -> String {
-        var output = ""
+        rows: [[String?]],
+        to fileHandle: FileHandle
+    ) async throws {
         let tableRef = qualifiedTableRef(for: table)
         let quotedColumns = columns
             .map { databaseType.quoteIdentifier($0) }
@@ -496,7 +516,8 @@ final class ExportService: ObservableObject {
                 return "'\(escaped)'"
             }.joined(separator: ", ")
 
-            output += "INSERT INTO \(tableRef) (\(quotedColumns)) VALUES (\(values));\n"
+            let statement = "INSERT INTO \(tableRef) (\(quotedColumns)) VALUES (\(values));\n"
+            try fileHandle.write(contentsOf: statement.data(using: .utf8)!)
 
             // Update progress (throttled)
             await incrementProgress()
@@ -504,48 +525,31 @@ final class ExportService: ObservableObject {
 
         // Ensure final count is shown
         await finalizeTableProgress()
-
-        return output
     }
 
     // MARK: - Compression
 
-    private func compressToFile(_ data: Data, destination: URL) async throws {
+    private func compressFileToFile(source: URL, destination: URL) async throws {
         // Run compression on background thread to avoid blocking main thread
         try await Task.detached(priority: .userInitiated) {
-            let tempDir = FileManager.default.temporaryDirectory
-            let tempFile = tempDir.appendingPathComponent(UUID().uuidString + ".sql")
-
-            defer {
-                try? FileManager.default.removeItem(at: tempFile)
-                // gzip creates tempFile.gz, clean it up if it exists
-                let gzFile = tempFile.appendingPathExtension("gz")
-                try? FileManager.default.removeItem(at: gzFile)
-            }
-
-            // Write uncompressed data to temp file
-            try data.write(to: tempFile)
-
-            // Use gzip to compress the file in place (creates .sql.gz)
+            // Use gzip to compress the file
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
-            process.arguments = ["-f", tempFile.path]
+            process.arguments = ["-c", source.path]
+
+            let outputFile = try FileHandle(forWritingTo: {
+                FileManager.default.createFile(atPath: destination.path, contents: nil)
+                return destination
+            }())
+            process.standardOutput = outputFile
 
             try process.run()
             process.waitUntilExit()
+            try outputFile.close()
 
             guard process.terminationStatus == 0 else {
                 throw ExportError.compressionFailed
             }
-
-            // gzip creates file with .gz extension
-            let compressedFile = tempFile.appendingPathExtension("gz")
-
-            // Move compressed file to destination
-            if FileManager.default.fileExists(atPath: destination.path) {
-                try FileManager.default.removeItem(at: destination)
-            }
-            try FileManager.default.moveItem(at: compressedFile, to: destination)
         }.value
     }
 }

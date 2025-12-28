@@ -421,10 +421,12 @@ struct ExportDialog: View {
     }
 
     private func fetchTablesForSchema(_ schema: String, driver: DatabaseDriver) async throws -> [TableInfo] {
+        // Escape single quotes to prevent SQL injection
+        let escapedSchema = schema.replacingOccurrences(of: "'", with: "''")
         let query = """
             SELECT table_name, table_type
             FROM information_schema.tables
-            WHERE table_schema = '\(schema)'
+            WHERE table_schema = '\(escapedSchema)'
             ORDER BY table_name
             """
         let result = try await driver.execute(query: query)
@@ -437,11 +439,13 @@ struct ExportDialog: View {
     }
 
     private func fetchTablesForDatabase(_ database: String, driver: DatabaseDriver) async throws -> [TableInfo] {
+        // Escape single quotes to prevent SQL injection
+        let escapedDatabase = database.replacingOccurrences(of: "'", with: "''")
         // MySQL/MariaDB: query information_schema for tables in specific database
         let query = """
             SELECT TABLE_NAME, TABLE_TYPE
             FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = '\(database)'
+            WHERE TABLE_SCHEMA = '\(escapedDatabase)'
             ORDER BY TABLE_NAME
             """
         let result = try await driver.execute(query: query)

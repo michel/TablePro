@@ -293,7 +293,6 @@ struct SidebarView: View {
             }
             NotificationCenter.default.post(name: .exportTables, object: nil)
         }
-        .keyboardShortcut("e", modifiers: [.command, .shift])
 
         Divider()
 
@@ -320,7 +319,6 @@ struct SidebarView: View {
         Button("Export...") {
             NotificationCenter.default.post(name: .exportTables, object: nil)
         }
-        .keyboardShortcut("e", modifiers: [.command, .shift])
 
         if !selectedTables.isEmpty {
             Divider()
