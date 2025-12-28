@@ -630,14 +630,32 @@ final class ExportService: ObservableObject {
             let outputFile = try FileHandle(forWritingTo: destination)
             defer {
                 try? outputFile.close()
+            defer {
+                try? outputFile.close()
             }
             process.standardOutput = outputFile
+
+            // Capture stderr to provide detailed error messages on failure
+            let errorPipe = Pipe()
+            process.standardError = errorPipe
 
             try process.run()
             process.waitUntilExit()
 
-            guard process.terminationStatus == 0 else {
-                throw ExportError.compressionFailed
+            let status = process.terminationStatus
+            guard status == 0 else {
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorString = String(data: errorData, encoding: .utf8)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+                let message: String
+                if errorString.isEmpty {
+                    message = "Compression failed with exit status \(status)"
+                } else {
+                    message = "Compression failed with exit status \(status): \(errorString)"
+                }
+
+                throw ExportError.exportFailed(message)
             }
         }.value
     }
