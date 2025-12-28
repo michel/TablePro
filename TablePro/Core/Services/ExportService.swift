@@ -524,12 +524,18 @@ final class ExportService: ObservableObject {
 
                 // CREATE TABLE (structure)
                 if sqlOptions.includeStructure {
-                    let ddl = try await driver.fetchTableDDL(table: tableRef)
-                    try fileHandle.write(contentsOf: ddl.toUTF8Data())
-                    if !ddl.hasSuffix(";") {
-                        try fileHandle.write(contentsOf: ";".toUTF8Data())
+                    do {
+                        let ddl = try await driver.fetchTableDDL(table: tableRef)
+                        try fileHandle.write(contentsOf: ddl.toUTF8Data())
+                        if !ddl.hasSuffix(";") {
+                            try fileHandle.write(contentsOf: ";".toUTF8Data())
+                        }
+                        try fileHandle.write(contentsOf: "\n\n".toUTF8Data())
+                    } catch {
+                        let warningMessage = "Warning: failed to fetch DDL for table \(table.qualifiedName): \(error)"
+                        print(warningMessage)
+                        try fileHandle.write(contentsOf: "-- \(warningMessage)\n\n".toUTF8Data())
                     }
-                    try fileHandle.write(contentsOf: "\n\n".toUTF8Data())
                 }
 
                 // INSERT statements (data) - stream directly to file
