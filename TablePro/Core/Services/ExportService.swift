@@ -7,7 +7,6 @@
 //
 
 import Combine
-import Compression
 import Foundation
 
 // MARK: - Export Error
@@ -19,6 +18,7 @@ enum ExportError: LocalizedError {
     case exportFailed(String)
     case compressionFailed
     case fileWriteFailed(String)
+    case encodingFailed
 
     var errorDescription: String? {
         switch self {
@@ -32,7 +32,21 @@ enum ExportError: LocalizedError {
             return "Failed to compress data"
         case .fileWriteFailed(let path):
             return "Failed to write file: \(path)"
+        case .encodingFailed:
+            return "Failed to encode content as UTF-8"
         }
+    }
+}
+
+// MARK: - String Extension for Safe Encoding
+
+private extension String {
+    /// Safely encode string to UTF-8 data, throwing if encoding fails
+    func toUTF8Data() throws -> Data {
+        guard let data = self.data(using: .utf8) else {
+            throw ExportError.encodingFailed
+        }
+        return data
     }
 }
 
@@ -217,6 +231,16 @@ final class ExportService: ObservableObject {
         }
     }
 
+    // MARK: - File Helpers
+
+    /// Create a file at the given URL and return a FileHandle for writing
+    private func createFileHandle(at url: URL) throws -> FileHandle {
+        guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
+            throw ExportError.fileWriteFailed(url.path)
+        }
+        return try FileHandle(forWritingTo: url)
+    }
+
     // MARK: - CSV Export
 
     private func exportToCSV(
@@ -225,8 +249,7 @@ final class ExportService: ObservableObject {
         to url: URL
     ) async throws {
         // Create file and get handle for streaming writes
-        FileManager.default.createFile(atPath: url.path, contents: nil)
-        let fileHandle = try FileHandle(forWritingTo: url)
+        let fileHandle = try createFileHandle(at: url)
         defer { try? fileHandle.close() }
 
         let lineBreak = config.csvOptions.lineBreak.value
@@ -239,7 +262,7 @@ final class ExportService: ObservableObject {
 
             // Add table header comment if multiple tables
             if tables.count > 1 {
-                try fileHandle.write(contentsOf: "# Table: \(table.qualifiedName)\n".data(using: .utf8)!)
+                try fileHandle.write(contentsOf: "# Table: \(table.qualifiedName)\n".toUTF8Data())
             }
 
             // Fetch all data from table
@@ -255,7 +278,7 @@ final class ExportService: ObservableObject {
             )
 
             if index < tables.count - 1 {
-                try fileHandle.write(contentsOf: "\(lineBreak)\(lineBreak)".data(using: .utf8)!)
+                try fileHandle.write(contentsOf: "\(lineBreak)\(lineBreak)".toUTF8Data())
             }
         }
 
@@ -277,7 +300,7 @@ final class ExportService: ObservableObject {
             let headerLine = columns
                 .map { escapeCSVField($0, options: options) }
                 .joined(separator: delimiter)
-            try fileHandle.write(contentsOf: (headerLine + lineBreak).data(using: .utf8)!)
+            try fileHandle.write(contentsOf: (headerLine + lineBreak).toUTF8Data())
         }
 
         // Data rows with progress tracking - stream directly to file
@@ -309,7 +332,7 @@ final class ExportService: ObservableObject {
             }.joined(separator: delimiter)
 
             // Write row directly to file
-            try fileHandle.write(contentsOf: (rowLine + lineBreak).data(using: .utf8)!)
+            try fileHandle.write(contentsOf: (rowLine + lineBreak).toUTF8Data())
 
             // Update progress (throttled)
             await incrementProgress()
@@ -346,31 +369,51 @@ final class ExportService: ObservableObject {
         config: ExportConfiguration,
         to url: URL
     ) async throws {
-        var exportData: [String: [[String: Any]]] = [:]
+        // Stream JSON directly to file to minimize memory usage
+        let fileHandle = try createFileHandle(at: url)
+        defer { try? fileHandle.close() }
 
-        for (index, table) in tables.enumerated() {
+        let prettyPrint = config.jsonOptions.prettyPrint
+        let indent = prettyPrint ? "  " : ""
+        let newline = prettyPrint ? "\n" : ""
+
+        // Opening brace
+        try fileHandle.write(contentsOf: "{\(newline)".toUTF8Data())
+
+        for (tableIndex, table) in tables.enumerated() {
             try checkCancellation()
 
-            currentTableIndex = index + 1
+            currentTableIndex = tableIndex + 1
             currentTable = table.qualifiedName
 
             let tableRef = qualifiedTableRef(for: table)
             let result = try await driver.execute(query: "SELECT * FROM \(tableRef)")
 
-            var tableData: [[String: Any]] = []
-            for row in result.rows {
+            // Write table key and opening bracket
+            let escapedTableName = escapeJSONString(table.qualifiedName)
+            try fileHandle.write(contentsOf: "\(indent)\"\(escapedTableName)\": [\(newline)".toUTF8Data())
+
+            // Write rows
+            for (rowIndex, row) in result.rows.enumerated() {
                 try checkCancellation()
 
-                var rowDict: [String: Any] = [:]
+                // Build row object
+                var rowParts: [String] = []
                 for (colIndex, column) in result.columns.enumerated() {
                     if colIndex < row.count {
                         let value = row[colIndex]
                         if config.jsonOptions.includeNullValues || value != nil {
-                            rowDict[column] = value ?? NSNull()
+                            let escapedKey = escapeJSONString(column)
+                            let jsonValue = formatJSONValue(value)
+                            rowParts.append("\"\(escapedKey)\": \(jsonValue)")
                         }
                     }
                 }
-                tableData.append(rowDict)
+
+                let rowJSON = rowParts.joined(separator: ", ")
+                let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
+                let rowSuffix = rowIndex < result.rows.count - 1 ? ",\(newline)" : newline
+                try fileHandle.write(contentsOf: "\(rowPrefix){\(rowJSON)}\(rowSuffix)".toUTF8Data())
 
                 // Update progress (throttled)
                 await incrementProgress()
@@ -379,18 +422,55 @@ final class ExportService: ObservableObject {
             // Ensure final count is shown for this table
             await finalizeTableProgress()
 
-            exportData[table.qualifiedName] = tableData
+            // Close array
+            let tableSuffix = tableIndex < tables.count - 1 ? ",\(newline)" : newline
+            try fileHandle.write(contentsOf: "\(indent)]\(tableSuffix)".toUTF8Data())
         }
 
+        // Closing brace
+        try fileHandle.write(contentsOf: "}".toUTF8Data())
+
         try checkCancellation()
-
-        let options: JSONSerialization.WritingOptions = config.jsonOptions.prettyPrint
-            ? [.prettyPrinted, .sortedKeys]
-            : [.sortedKeys]
-
-        let jsonData = try JSONSerialization.data(withJSONObject: exportData, options: options)
-        try jsonData.write(to: url)
         progress = 1.0
+    }
+
+    /// Escape a string for JSON output
+    private func escapeJSONString(_ string: String) -> String {
+        var result = ""
+        for char in string {
+            switch char {
+            case "\"": result += "\\\""
+            case "\\": result += "\\\\"
+            case "\n": result += "\\n"
+            case "\r": result += "\\r"
+            case "\t": result += "\\t"
+            default: result.append(char)
+            }
+        }
+        return result
+    }
+
+    /// Format a value for JSON output
+    private func formatJSONValue(_ value: String?) -> String {
+        guard let val = value else { return "null" }
+
+        // Try to detect numbers and booleans
+        if let intVal = Int(val) {
+            return String(intVal)
+        }
+        if let doubleVal = Double(val), !val.contains("e") && !val.contains("E") {
+            // Avoid scientific notation issues
+            if doubleVal.truncatingRemainder(dividingBy: 1) == 0 && !val.contains(".") {
+                return String(Int(doubleVal))
+            }
+            return String(doubleVal)
+        }
+        if val.lowercased() == "true" || val.lowercased() == "false" {
+            return val.lowercased()
+        }
+
+        // String value - escape and quote
+        return "\"\(escapeJSONString(val))\""
     }
 
     // MARK: - SQL Export
@@ -415,15 +495,14 @@ final class ExportService: ObservableObject {
         }
 
         // Create file and get handle for streaming writes
-        FileManager.default.createFile(atPath: targetURL.path, contents: nil)
-        let fileHandle = try FileHandle(forWritingTo: targetURL)
+        let fileHandle = try createFileHandle(at: targetURL)
 
         do {
             // Add header comment
             let dateFormatter = ISO8601DateFormatter()
-            try fileHandle.write(contentsOf: "-- TablePro SQL Export\n".data(using: .utf8)!)
-            try fileHandle.write(contentsOf: "-- Generated: \(dateFormatter.string(from: Date()))\n".data(using: .utf8)!)
-            try fileHandle.write(contentsOf: "-- Database Type: \(databaseType.rawValue)\n\n".data(using: .utf8)!)
+            try fileHandle.write(contentsOf: "-- TablePro SQL Export\n".toUTF8Data())
+            try fileHandle.write(contentsOf: "-- Generated: \(dateFormatter.string(from: Date()))\n".toUTF8Data())
+            try fileHandle.write(contentsOf: "-- Database Type: \(databaseType.rawValue)\n\n".toUTF8Data())
 
             for (index, table) in tables.enumerated() {
                 try checkCancellation()
@@ -434,23 +513,23 @@ final class ExportService: ObservableObject {
                 let sqlOptions = table.sqlOptions
                 let tableRef = qualifiedTableRef(for: table)
 
-                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n".data(using: .utf8)!)
-                try fileHandle.write(contentsOf: "-- Table: \(table.qualifiedName)\n".data(using: .utf8)!)
-                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n\n".data(using: .utf8)!)
+                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n".toUTF8Data())
+                try fileHandle.write(contentsOf: "-- Table: \(table.qualifiedName)\n".toUTF8Data())
+                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n\n".toUTF8Data())
 
                 // DROP statement
                 if sqlOptions.includeDrop {
-                    try fileHandle.write(contentsOf: "DROP TABLE IF EXISTS \(tableRef);\n\n".data(using: .utf8)!)
+                    try fileHandle.write(contentsOf: "DROP TABLE IF EXISTS \(tableRef);\n\n".toUTF8Data())
                 }
 
                 // CREATE TABLE (structure)
                 if sqlOptions.includeStructure {
                     let ddl = try await driver.fetchTableDDL(table: tableRef)
-                    try fileHandle.write(contentsOf: ddl.data(using: .utf8)!)
+                    try fileHandle.write(contentsOf: ddl.toUTF8Data())
                     if !ddl.hasSuffix(";") {
-                        try fileHandle.write(contentsOf: ";".data(using: .utf8)!)
+                        try fileHandle.write(contentsOf: ";".toUTF8Data())
                     }
-                    try fileHandle.write(contentsOf: "\n\n".data(using: .utf8)!)
+                    try fileHandle.write(contentsOf: "\n\n".toUTF8Data())
                 }
 
                 // INSERT statements (data) - stream directly to file
@@ -464,7 +543,7 @@ final class ExportService: ObservableObject {
                             rows: result.rows,
                             to: fileHandle
                         )
-                        try fileHandle.write(contentsOf: "\n".data(using: .utf8)!)
+                        try fileHandle.write(contentsOf: "\n".toUTF8Data())
                     }
                 }
             }
@@ -517,7 +596,7 @@ final class ExportService: ObservableObject {
             }.joined(separator: ", ")
 
             let statement = "INSERT INTO \(tableRef) (\(quotedColumns)) VALUES (\(values));\n"
-            try fileHandle.write(contentsOf: statement.data(using: .utf8)!)
+            try fileHandle.write(contentsOf: statement.toUTF8Data())
 
             // Update progress (throttled)
             await incrementProgress()
@@ -532,15 +611,17 @@ final class ExportService: ObservableObject {
     private func compressFileToFile(source: URL, destination: URL) async throws {
         // Run compression on background thread to avoid blocking main thread
         try await Task.detached(priority: .userInitiated) {
+            // Create output file
+            guard FileManager.default.createFile(atPath: destination.path, contents: nil) else {
+                throw ExportError.fileWriteFailed(destination.path)
+            }
+
             // Use gzip to compress the file
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
             process.arguments = ["-c", source.path]
 
-            let outputFile = try FileHandle(forWritingTo: {
-                FileManager.default.createFile(atPath: destination.path, contents: nil)
-                return destination
-            }())
+            let outputFile = try FileHandle(forWritingTo: destination)
             process.standardOutput = outputFile
 
             try process.run()
