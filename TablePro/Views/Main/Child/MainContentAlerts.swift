@@ -40,15 +40,7 @@ struct MainContentAlerts: ViewModifier {
             } message: {
                 Text(discardAlertMessage)
             }
-            .alert("Query Error", isPresented: $coordinator.showErrorAlert) {
-                Button("OK", role: .cancel) {
-                    if let index = coordinator.tabManager.selectedTabIndex {
-                        coordinator.tabManager.tabs[index].errorMessage = nil
-                    }
-                }
-            } message: {
-                Text(coordinator.errorAlertMessage)
-            }
+
             .sheet(isPresented: $coordinator.showDatabaseSwitcher) {
                 DatabaseSwitcherSheet(
                     isPresented: $coordinator.showDatabaseSwitcher,

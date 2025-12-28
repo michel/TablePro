@@ -36,6 +36,15 @@ struct MainEditorContentView: View {
     let onQuickSearch: (String) -> Void
     let onCommit: (String) -> Void
     let onRefresh: () -> Void
+    
+    // Pagination callbacks
+    let onFirstPage: () -> Void
+    let onPreviousPage: () -> Void
+    let onNextPage: () -> Void
+    let onLastPage: () -> Void
+    let onLimitChange: (Int) -> Void
+    let onOffsetChange: (Int) -> Void
+    let onPaginationGo: () -> Void
 
     // MARK: - Environment
 
@@ -73,10 +82,13 @@ struct MainEditorContentView: View {
 
     @ViewBuilder
     private func tabContent(for tab: QueryTab) -> some View {
-        if tab.tabType == .query {
+        switch tab.tabType {
+        case .query:
             queryTabContent(tab: tab)
-        } else {
+        case .table:
             tableTabContent(tab: tab)
+        case .createTable:
+            createTableTabContent(tab: tab)
         }
     }
 
@@ -128,12 +140,57 @@ struct MainEditorContentView: View {
     private func tableTabContent(tab: QueryTab) -> some View {
         resultsSection(tab: tab)
     }
+    
+    // MARK: - Create Table Tab Content
+    
+    @ViewBuilder
+    private func createTableTabContent(tab: QueryTab) -> some View {
+        if let options = tab.tableCreationOptions {
+            CreateTableView(
+                options: createTableOptionsBinding(for: tab),
+                databaseType: connection.type,
+                onCancel: {
+                    // Close this tab
+                    tabManager.closeTab(tab)
+                },
+                onCreate: { options in
+                    coordinator.createTable(options)
+                }
+            )
+        } else {
+            // Fallback if options are missing
+            Text("Table creation options not available")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+    
+    private func createTableOptionsBinding(for tab: QueryTab) -> Binding<TableCreationOptions> {
+        Binding(
+            get: { tab.tableCreationOptions ?? TableCreationOptions() },
+            set: { newValue in
+                guard let index = tabManager.selectedTabIndex,
+                      index < tabManager.tabs.count else { return }
+                
+                tabManager.tabs[index].tableCreationOptions = newValue
+            }
+        )
+    }
 
     // MARK: - Results Section
 
     @ViewBuilder
     private func resultsSection(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
+            // Error banner (if query failed)
+            if let errorMessage = tab.errorMessage, !errorMessage.isEmpty {
+                InlineErrorBanner(message: errorMessage) {
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = nil
+                    }
+                }
+            }
+
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
                     .frame(maxHeight: .infinity)
@@ -165,6 +222,7 @@ struct MainEditorContentView: View {
         }
         .frame(minHeight: 150)
         .animation(.easeInOut(duration: 0.2), value: filterStateManager.isVisible)
+        .animation(.easeInOut(duration: 0.2), value: tab.errorMessage)
     }
 
     @ViewBuilder
@@ -233,7 +291,14 @@ struct MainEditorContentView: View {
             tab: tab,
             filterStateManager: filterStateManager,
             selectedRowIndices: selectedRowIndices,
-            showStructure: showStructureBinding(for: tab)
+            showStructure: showStructureBinding(for: tab),
+            onFirstPage: onFirstPage,
+            onPreviousPage: onPreviousPage,
+            onNextPage: onNextPage,
+            onLastPage: onLastPage,
+            onLimitChange: onLimitChange,
+            onOffsetChange: onOffsetChange,
+            onPaginationGo: onPaginationGo,
         )
     }
 
@@ -241,8 +306,10 @@ struct MainEditorContentView: View {
         Binding(
             get: { tab.showStructure },
             set: { newValue in
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].showStructure = newValue
+                Task { @MainActor in
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].showStructure = newValue
+                    }
                 }
             }
         )

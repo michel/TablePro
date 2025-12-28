@@ -23,18 +23,20 @@ struct TableQueryBuilder {
 
     // MARK: - Query Building
 
-    /// Build a base SELECT query for a table with optional sorting
+    /// Build a base SELECT query for a table with optional sorting and pagination
     /// - Parameters:
     ///   - tableName: The table to query
     ///   - sortState: Optional sort state to apply ORDER BY
     ///   - columns: Available columns (for sort column validation)
     ///   - limit: Row limit (default 200)
+    ///   - offset: Starting row offset for pagination (default 0)
     /// - Returns: Complete SQL query string
     func buildBaseQuery(
         tableName: String,
         sortState: SortState? = nil,
         columns: [String] = [],
-        limit: Int = 200
+        limit: Int = 200,
+        offset: Int = 0
     ) -> String {
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
@@ -44,24 +46,26 @@ struct TableQueryBuilder {
             query += " \(orderBy)"
         }
 
-        query += " LIMIT \(limit)"
+        query += " LIMIT \(limit) OFFSET \(offset)"
         return query
     }
 
-    /// Build a query with filters applied
+    /// Build a query with filters applied and pagination support
     /// - Parameters:
     ///   - tableName: The table to query
     ///   - filters: Array of filters to apply
     ///   - sortState: Optional sort state
     ///   - columns: Available columns
     ///   - limit: Row limit (default 200)
+    ///   - offset: Starting row offset for pagination (default 0)
     /// - Returns: Complete SQL query string with WHERE clause
     func buildFilteredQuery(
         tableName: String,
         filters: [TableFilter],
         sortState: SortState? = nil,
         columns: [String] = [],
-        limit: Int = 200
+        limit: Int = 200,
+        offset: Int = 0
     ) -> String {
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
@@ -78,24 +82,26 @@ struct TableQueryBuilder {
             query += " \(orderBy)"
         }
 
-        query += " LIMIT \(limit)"
+        query += " LIMIT \(limit) OFFSET \(offset)"
         return query
     }
 
-    /// Build a quick search query that searches across all columns
+    /// Build a quick search query that searches across all columns with pagination
     /// - Parameters:
     ///   - tableName: The table to query
     ///   - searchText: Text to search for
     ///   - columns: Columns to search in
     ///   - sortState: Optional sort state
     ///   - limit: Row limit (default 200)
+    ///   - offset: Starting row offset for pagination (default 0)
     /// - Returns: Complete SQL query with OR conditions across all columns
     func buildQuickSearchQuery(
         tableName: String,
         searchText: String,
         columns: [String],
         sortState: SortState? = nil,
-        limit: Int = 200
+        limit: Int = 200,
+        offset: Int = 0
     ) -> String {
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
@@ -117,7 +123,7 @@ struct TableQueryBuilder {
             query += " \(orderBy)"
         }
 
-        query += " LIMIT \(limit)"
+        query += " LIMIT \(limit) OFFSET \(offset)"
         return query
     }
 

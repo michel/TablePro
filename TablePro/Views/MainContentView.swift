@@ -104,9 +104,6 @@ struct MainContentView: View {
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
-            .onChange(of: currentTab?.errorMessage) { _, newError in
-                handleErrorChange(newError)
-            }
             .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { _, isConnected in
                 handleConnectionChange(isConnected)
             }
@@ -182,6 +179,27 @@ struct MainContentView: View {
                 },
                 onRefresh: {
                     coordinator.runQuery()
+                },
+                onFirstPage: {
+                    coordinator.goToFirstPage()
+                },
+                onPreviousPage: {
+                    coordinator.goToPreviousPage()
+                },
+                onNextPage: {
+                    coordinator.goToNextPage()
+                },
+                onLastPage: {
+                    coordinator.goToLastPage()
+                },
+                onLimitChange: { newLimit in
+                    coordinator.updatePageSize(newLimit)
+                },
+                onOffsetChange: { newOffset in
+                    coordinator.updateOffset(newOffset)
+                },
+                onPaginationGo: {
+                    coordinator.applyPaginationSettings()
                 }
             )
 
@@ -318,12 +336,6 @@ struct MainContentView: View {
         )
     }
 
-    private func handleErrorChange(_ newError: String?) {
-        if let error = newError, !error.isEmpty {
-            coordinator.errorAlertMessage = error
-            coordinator.showErrorAlert = true
-        }
-    }
 
     private func handleConnectionChange(_ isConnected: Bool?) {
         if isConnected == true && coordinator.needsLazyLoad {

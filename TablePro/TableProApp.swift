@@ -143,6 +143,12 @@ struct TableProApp: App {
                 }
                 .keyboardShortcut("t", modifiers: .command)
                 .disabled(!appState.isConnected)
+                
+                Button("New Table...") {
+                    NotificationCenter.default.post(name: .createTable, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(!appState.isConnected)
 
                 Button("Open Database...") {
                     NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
@@ -309,6 +315,9 @@ extension Notification.Name {
 
     // Database switcher notifications
     static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
+    
+    // Table creation notifications
+    static let createTable = Notification.Name("createTable")
 
     // Window lifecycle notifications
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")

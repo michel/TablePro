@@ -34,6 +34,15 @@ struct QueryTabContentView: View {
     let onQuickSearch: (String) -> Void
     let sortedRows: [QueryResultRow]
     
+    // Pagination callbacks
+    let onFirstPage: () -> Void
+    let onPreviousPage: () -> Void
+    let onNextPage: () -> Void
+    let onLastPage: () -> Void
+    let onLimitChange: (Int) -> Void
+    let onOffsetChange: (Int) -> Void
+    let onPaginationGo: () -> Void
+    
     @Binding var sortState: SortState
     @Binding var showStructure: Bool
     
@@ -69,6 +78,13 @@ struct QueryTabContentView: View {
                 onClearFilters: onClearFilters,
                 onQuickSearch: onQuickSearch,
                 sortedRows: sortedRows,
+                onFirstPage: onFirstPage,
+                onPreviousPage: onPreviousPage,
+                onNextPage: onNextPage,
+                onLastPage: onLastPage,
+                onLimitChange: onLimitChange,
+                onOffsetChange: onOffsetChange,
+                onPaginationGo: onPaginationGo,
                 sortState: $sortState,
                 showStructure: $showStructure
             )

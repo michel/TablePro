@@ -29,11 +29,26 @@ struct TableTabContentView: View {
     let onQuickSearch: (String) -> Void
     let sortedRows: [QueryResultRow]
     
+    // Pagination callbacks
+    let onFirstPage: () -> Void
+    let onPreviousPage: () -> Void
+    let onNextPage: () -> Void
+    let onLastPage: () -> Void
+    let onLimitChange: (Int) -> Void
+    let onOffsetChange: (Int) -> Void
+    let onPaginationGo: () -> Void
+    let onDismissError: () -> Void
+    
     @Binding var sortState: SortState
     @Binding var showStructure: Bool
     
     var body: some View {
         VStack(spacing: 0) {
+            // Error banner (if query failed)
+            if let errorMessage = tab.errorMessage, !errorMessage.isEmpty {
+                InlineErrorBanner(message: errorMessage, onDismiss: onDismissError)
+            }
+
             // Show structure view or data view based on toggle
             if showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
@@ -81,10 +96,16 @@ struct TableTabContentView: View {
                 tab: tab,
                 filterStateManager: filterStateManager,
                 selectedRowIndices: selectedRowIndices,
-                showStructure: $showStructure
+                showStructure: $showStructure,
+                onFirstPage: onFirstPage,
+                onPreviousPage: onPreviousPage,
+                onNextPage: onNextPage,
+                onLastPage: onLastPage,
+                onLimitChange: onLimitChange,
+                onOffsetChange: onOffsetChange,
+                onPaginationGo: onPaginationGo
             )
         }
-        .frame(minHeight: 150)
-        .animation(.easeInOut(duration: 0.2), value: filterStateManager.isVisible)
+        .animation(.easeInOut(duration: 0.2), value: tab.errorMessage)
     }
 }

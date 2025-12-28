@@ -43,8 +43,7 @@ final class MainContentCoordinator: ObservableObject {
     @Published var cursorPosition: Int = 0
     @Published var tableMetadata: TableMetadata?
     @Published var pendingDiscardAction: DiscardAction?
-    @Published var showErrorAlert = false
-    @Published var errorAlertMessage = ""
+    // Removed: showErrorAlert and errorAlertMessage - errors now display inline
     @Published var showDatabaseSwitcher = false
     @Published var needsLazyLoad = false
 
@@ -138,7 +137,14 @@ final class MainContentCoordinator: ObservableObject {
         toolbarState.isExecuting = true
 
         let fullQuery = tabManager.tabs[index].query
-        let sql = extractQueryAtCursor(from: fullQuery, at: cursorPosition)
+        
+        // For table tabs, use the full query. For query tabs, extract at cursor
+        let sql: String
+        if tabManager.tabs[index].tabType == .table {
+            sql = fullQuery
+        } else {
+            sql = extractQueryAtCursor(from: fullQuery, at: cursorPosition)
+        }
 
         guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             tabManager.tabs[index].isExecuting = false
@@ -337,6 +343,9 @@ final class MainContentCoordinator: ObservableObject {
 
         tabManager.tabs[tabIndex].sortState = currentSort
         tabManager.tabs[tabIndex].hasUserInteraction = true
+        
+        // Reset pagination to page 1 when sorting changes
+        tabManager.tabs[tabIndex].pagination.reset()
 
         if tab.tabType == .query {
             Task { @MainActor in
@@ -357,18 +366,123 @@ final class MainContentCoordinator: ObservableObject {
         runQuery()
     }
 
+    // MARK: - Pagination
+
+    /// Navigate to next page
+    func goToNextPage() {
+        guard let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count else { return }
+        
+        var tab = tabManager.tabs[tabIndex]
+        guard tab.pagination.hasNextPage else { return }
+        
+        tab.pagination.goToNextPage()
+        tabManager.tabs[tabIndex] = tab
+        reloadCurrentPage()
+    }
+
+    /// Navigate to previous page
+    func goToPreviousPage() {
+        guard let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count else { return }
+        
+        var tab = tabManager.tabs[tabIndex]
+        guard tab.pagination.hasPreviousPage else { return }
+        
+        tab.pagination.goToPreviousPage()
+        tabManager.tabs[tabIndex] = tab
+        reloadCurrentPage()
+    }
+
+    /// Navigate to first page
+    func goToFirstPage() {
+        guard let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count else { return }
+        
+        var tab = tabManager.tabs[tabIndex]
+        guard tab.pagination.currentPage != 1 else { return }
+        
+        tab.pagination.goToFirstPage()
+        tabManager.tabs[tabIndex] = tab
+        reloadCurrentPage()
+    }
+
+    /// Navigate to last page
+    func goToLastPage() {
+        guard let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count else { return }
+        
+        var tab = tabManager.tabs[tabIndex]
+        guard tab.pagination.currentPage != tab.pagination.totalPages else { return }
+        
+        tab.pagination.goToLastPage()
+        tabManager.tabs[tabIndex] = tab
+        reloadCurrentPage()
+    }
+
+    /// Update page size (limit) and reload
+    func updatePageSize(_ newSize: Int) {
+        guard let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count,
+              newSize > 0 else { return }
+        
+        tabManager.tabs[tabIndex].pagination.updatePageSize(newSize)
+        reloadCurrentPage()
+    }
+    
+    /// Update offset and reload
+    func updateOffset(_ newOffset: Int) {
+        guard let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count,
+              newOffset >= 0 else { return }
+        
+        tabManager.tabs[tabIndex].pagination.updateOffset(newOffset)
+        reloadCurrentPage()
+    }
+    
+    /// Apply both limit and offset changes and reload
+    func applyPaginationSettings() {
+        reloadCurrentPage()
+    }
+    
+    /// Reload current page data
+    private func reloadCurrentPage() {
+        guard let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count,
+              let tableName = tabManager.tabs[tabIndex].tableName else { return }
+        
+        let tab = tabManager.tabs[tabIndex]
+        let pagination = tab.pagination
+        
+        let newQuery = queryBuilder.buildBaseQuery(
+            tableName: tableName,
+            sortState: tab.sortState,
+            columns: tab.resultColumns,
+            limit: pagination.pageSize,
+            offset: pagination.currentOffset
+        )
+        
+        tabManager.tabs[tabIndex].query = newQuery
+        runQuery()
+    }
+
     // MARK: - Filtering
 
     func applyFilters(_ filters: [TableFilter]) {
         guard let tabIndex = tabManager.selectedTabIndex,
               tabIndex < tabManager.tabs.count,
               let tableName = tabManager.tabs[tabIndex].tableName else { return }
+        
+        // Reset pagination when filters change
+        tabManager.tabs[tabIndex].pagination.reset()
 
         let newQuery = queryBuilder.buildFilteredQuery(
             tableName: tableName,
             filters: filters,
             sortState: tabManager.tabs[tabIndex].sortState,
-            columns: tabManager.tabs[tabIndex].resultColumns
+            columns: tabManager.tabs[tabIndex].resultColumns,
+            limit: tabManager.tabs[tabIndex].pagination.pageSize,
+            offset: tabManager.tabs[tabIndex].pagination.currentOffset
         )
 
         tabManager.tabs[tabIndex].query = newQuery
@@ -385,13 +499,18 @@ final class MainContentCoordinator: ObservableObject {
               tabIndex < tabManager.tabs.count,
               let tableName = tabManager.tabs[tabIndex].tableName,
               !searchText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        
+        // Reset pagination when search changes
+        tabManager.tabs[tabIndex].pagination.reset()
 
         let tab = tabManager.tabs[tabIndex]
         let newQuery = queryBuilder.buildQuickSearchQuery(
             tableName: tableName,
             searchText: searchText,
             columns: tab.resultColumns,
-            sortState: tab.sortState
+            sortState: tab.sortState,
+            limit: tab.pagination.pageSize,
+            offset: tab.pagination.currentOffset
         )
 
         tabManager.tabs[tabIndex].query = newQuery
@@ -591,8 +710,6 @@ final class MainContentCoordinator: ObservableObject {
                 if let index = tabManager.selectedTabIndex {
                     tabManager.tabs[index].errorMessage = error.localizedDescription
                 }
-                errorAlertMessage = error.localizedDescription
-                showErrorAlert = true
                 return
             }
         }
@@ -924,6 +1041,85 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Table Creation
+    
+    /// Creates a new table from the provided options
+    /// - Parameter options: Table creation configuration
+    func createTable(_ options: TableCreationOptions) {
+        let service = CreateTableService(databaseType: connection.type)
+        
+        // Generate SQL
+        let sql: String
+        do {
+            sql = try service.generateSQL(options)
+        } catch {
+            // Show error in current tab
+            if let index = tabManager.selectedTabIndex {
+                tabManager.tabs[index].errorMessage = error.localizedDescription
+            }
+            return
+        }
+        
+        // Execute the CREATE TABLE statement
+        Task {
+            let startTime = Date()
+            
+            do {
+                guard let driver = DatabaseManager.shared.activeDriver else {
+                    await MainActor.run {
+                        if let index = tabManager.selectedTabIndex {
+                            tabManager.tabs[index].errorMessage = "Not connected to database"
+                        }
+                    }
+                    throw DatabaseError.notConnected
+                }
+                
+                // Execute CREATE TABLE
+                let _ = try await driver.execute(query: sql)
+                
+                let duration = Date().timeIntervalSince(startTime)
+                
+                // Refresh schema to show new table (outside MainActor)
+                await schemaProvider.invalidateCache()
+                
+                let needsQuery = await MainActor.run { () -> Bool in
+                    // Close the create table tab
+                    if let tabIndex = tabManager.selectedTabIndex,
+                       tabIndex < tabManager.tabs.count {
+                        let currentTab = tabManager.tabs[tabIndex]
+                        tabManager.closeTab(currentTab)
+                    }
+                    
+                    // Open the newly created table in a new tab
+                    let needs = tabManager.TableProTabSmart(
+                        tableName: options.tableName,
+                        hasUnsavedChanges: changeManager.hasChanges,
+                        databaseType: connection.type
+                    )
+                    
+                    // Refresh sidebar to show new table
+                    NotificationCenter.default.post(name: .refreshData, object: nil)
+                    
+                    return needs
+                }
+                
+                // Execute query to load table data if needed (runs async)
+                if needsQuery {
+                    await MainActor.run {
+                        runQuery()
+                    }
+                }
+                
+            } catch {
+                await MainActor.run {
+                    if let index = tabManager.selectedTabIndex {
+                        tabManager.tabs[index].errorMessage = "Failed to create table: \(error.localizedDescription)"
+                    }
+                }
+            }
+        }
+    }
+    
     // MARK: - Discard Handling
 
     func handleDiscard(
@@ -1055,6 +1251,11 @@ final class MainContentCoordinator: ObservableObject {
             hasUnsavedChanges: changeManager.hasChanges,
             databaseType: connection.type
         )
+        
+        // Initialize pagination for new table tab
+        if needsQuery, let tabIndex = tabManager.selectedTabIndex {
+            tabManager.tabs[tabIndex].pagination.reset()
+        }
 
         if needsQuery {
             Task { @MainActor in
@@ -1145,8 +1346,6 @@ final class MainContentCoordinator: ObservableObject {
     /// Switch to a different database (called from database switcher)
     func switchDatabase(to database: String) async {
         guard let driver = DatabaseManager.shared.activeDriver else {
-            errorAlertMessage = "Not connected to database"
-            showErrorAlert = true
             return
         }
         
@@ -1191,13 +1390,9 @@ final class MainContentCoordinator: ObservableObject {
             } else {
                 // For PostgreSQL and SQLite, reconnect with new database
                 // (SQLite doesn't apply, but keeping for completeness)
-                errorAlertMessage = "Database switching for \(connection.type.rawValue) requires reconnection. Please create a new connection."
-                showErrorAlert = true
             }
             
         } catch {
-            errorAlertMessage = "Failed to switch database: \(error.localizedDescription)"
-            showErrorAlert = true
         }
     }
     
@@ -1221,8 +1416,6 @@ final class MainContentCoordinator: ObservableObject {
                 try await DatabaseManager.shared.connectToSession(newConnection)
             } catch {
                 await MainActor.run {
-                    errorAlertMessage = "Failed to connect to database '\(database)': \(error.localizedDescription)"
-                    showErrorAlert = true
                 }
             }
         }
@@ -1266,3 +1459,4 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 }
+
