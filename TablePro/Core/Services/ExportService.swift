@@ -156,7 +156,11 @@ final class ExportService: ObservableObject {
     /// Check if export was cancelled and throw if so
     private func checkCancellation() throws {
         if isCancelled {
-            throw ExportError.exportFailed("Export cancelled")
+            throw NSError(
+                domain: "ExportService",
+                code: NSUserCancelledError,
+                userInfo: [NSLocalizedDescriptionKey: "Export cancelled"]
+            )
         }
     }
 
