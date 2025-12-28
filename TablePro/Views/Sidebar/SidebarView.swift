@@ -286,6 +286,15 @@ struct SidebarView: View {
         }
         .keyboardShortcut("c", modifiers: .command)
 
+        Button("Export...") {
+            // Select the table if not already selected
+            if selectedTables.isEmpty {
+                selectedTables.insert(table)
+            }
+            NotificationCenter.default.post(name: .exportTables, object: nil)
+        }
+        .keyboardShortcut("e", modifiers: [.command, .shift])
+
         Divider()
 
         Button("Truncate") {
@@ -305,10 +314,17 @@ struct SidebarView: View {
             NotificationCenter.default.post(name: .createTable, object: nil)
         }
         .keyboardShortcut("n", modifiers: [.command, .shift])
-        
+
+        Divider()
+
+        Button("Export...") {
+            NotificationCenter.default.post(name: .exportTables, object: nil)
+        }
+        .keyboardShortcut("e", modifiers: [.command, .shift])
+
         if !selectedTables.isEmpty {
             Divider()
-            
+
             Button("Copy Name") {
                 let names = selectedTables.map { $0.name }.sorted()
                 NSPasteboard.general.clearContents()
