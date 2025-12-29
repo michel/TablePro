@@ -163,8 +163,8 @@ final class ExportService: ObservableObject {
         }
     }
 
-    /// Fetch total row count for all tables
-    /// Returns the total count and a flag indicating if any counts failed
+    /// Fetch total row count for all tables.
+    /// - Returns: The total row count across all tables. Any failures are logged but do not affect the returned value.
     private func fetchTotalRowCount(for tables: [ExportTableItem]) async -> Int {
         var total = 0
         var failedCount = 0
