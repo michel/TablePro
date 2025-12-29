@@ -341,9 +341,9 @@ struct ExportDialog: View {
         let invalidChars = CharacterSet(charactersIn: "/\\:*?\"<>|")
         guard name.rangeOfCharacter(from: invalidChars) == nil else { return false }
 
-        // Prevent path traversal attempts where ".." is used as a path component
+        // Prevent path traversal attempts and special directory names
         let isPathTraversalPattern =
-            name == ".." ||
+            name == "." || name == ".." ||  // Current/parent directory
             name.hasPrefix("../") || name.hasPrefix("..\\") ||
             name.hasSuffix("/..") || name.hasSuffix("\\..") ||
             name.contains("/../") || name.contains("\\..\\")

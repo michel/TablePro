@@ -238,6 +238,22 @@ final class ExportService: ObservableObject {
         }
     }
 
+    /// Sanitize a name for use in SQL comments to prevent comment injection
+    ///
+    /// Removes characters that could break out of SQL comments:
+    /// - Newlines (could start new SQL statements)
+    /// - Comment terminators (* /)
+    private func sanitizeForSQLComment(_ name: String) -> String {
+        var result = name
+        // Replace newlines with spaces
+        result = result.replacingOccurrences(of: "\n", with: " ")
+        result = result.replacingOccurrences(of: "\r", with: " ")
+        // Remove comment terminators (remove the asterisk-slash sequence)
+        result = result.replacingOccurrences(of: "*/", with: "")
+        result = result.replacingOccurrences(of: "--", with: "")
+        return result
+    }
+
     // MARK: - File Helpers
 
     /// Create a file at the given URL and return a FileHandle for writing
@@ -268,8 +284,10 @@ final class ExportService: ObservableObject {
             currentTable = table.qualifiedName
 
             // Add table header comment if multiple tables
+            // Sanitize name to prevent newlines from breaking the comment line
             if tables.count > 1 {
-                try fileHandle.write(contentsOf: "# Table: \(table.qualifiedName)\n".toUTF8Data())
+                let sanitizedName = sanitizeForSQLComment(table.qualifiedName)
+                try fileHandle.write(contentsOf: "# Table: \(sanitizedName)\n".toUTF8Data())
             }
 
             // Fetch all data from table
@@ -477,9 +495,14 @@ final class ExportService: ObservableObject {
         progress = 1.0
     }
 
-    /// Escape a string for JSON output
+    /// Escape a string for JSON output per RFC 8259
+    ///
+    /// Escapes:
+    /// - Quotation mark, backslash (required)
+    /// - Control characters U+0000 to U+001F (required by spec)
     private func escapeJSONString(_ string: String) -> String {
         var result = ""
+        result.reserveCapacity(string.count)
         for char in string {
             switch char {
             case "\"": result += "\\\""
@@ -487,7 +510,16 @@ final class ExportService: ObservableObject {
             case "\n": result += "\\n"
             case "\r": result += "\\r"
             case "\t": result += "\\t"
-            default: result.append(char)
+            case "\u{08}": result += "\\b"  // Backspace
+            case "\u{0C}": result += "\\f"  // Form feed
+            default:
+                // Escape other control characters (U+0000 to U+001F) as \uXXXX
+                if let scalar = char.unicodeScalars.first,
+                   scalar.value < 0x20 {
+                    result += String(format: "\\u%04X", scalar.value)
+                } else {
+                    result.append(char)
+                }
             }
         }
         return result
@@ -578,8 +610,9 @@ final class ExportService: ObservableObject {
                 let sqlOptions = table.sqlOptions
                 let tableRef = qualifiedTableRef(for: table)
 
+                let sanitizedName = sanitizeForSQLComment(table.qualifiedName)
                 try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n".toUTF8Data())
-                try fileHandle.write(contentsOf: "-- Table: \(table.qualifiedName)\n".toUTF8Data())
+                try fileHandle.write(contentsOf: "-- Table: \(sanitizedName)\n".toUTF8Data())
                 try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n\n".toUTF8Data())
 
                 // DROP statement
@@ -597,9 +630,10 @@ final class ExportService: ObservableObject {
                         }
                         try fileHandle.write(contentsOf: "\n\n".toUTF8Data())
                     } catch {
-                        let warningMessage = "Warning: failed to fetch DDL for table \(table.qualifiedName): \(error)"
+                        // Use sanitizedName (already defined above) for safe comment output
+                        let warningMessage = "Warning: failed to fetch DDL for table \(sanitizedName): \(error)"
                         print(warningMessage)
-                        try fileHandle.write(contentsOf: "-- \(warningMessage)\n\n".toUTF8Data())
+                        try fileHandle.write(contentsOf: "-- \(sanitizeForSQLComment(warningMessage))\n\n".toUTF8Data())
                     }
                 }
 
