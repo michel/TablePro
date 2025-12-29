@@ -164,10 +164,11 @@ struct ExportDialog: View {
                     Spacer()
                 }
             } else {
-                ExportTableTreeView(
+                ExportTableOutlineView(
                     databaseItems: $databaseItems,
                     format: config.format
                 )
+                .frame(minHeight: 300, maxHeight: .infinity)
             }
         }
     }
