@@ -288,8 +288,15 @@ final class MySQLDriver: DatabaseDriver {
     }
 
     func fetchTableDDL(table: String) async throws -> String {
-        // Note: table parameter may already be quoted (e.g., `db`.`table`)
-        // so don't add additional backticks
+        // The `table` argument must be a valid MySQL/MariaDB table identifier, optionally
+        // schema-qualified, and is interpolated verbatim into the query. Examples:
+        //   - "users"
+        //   - "`mydb`.`users`"
+        //   - "`users`"
+        //
+        // This method does not add any quoting or escaping around `table`. It is the
+        // caller's responsibility to provide a correctly formatted and safely quoted
+        // identifier when needed.
         let query = "SHOW CREATE TABLE \(table)"
         let result = try await execute(query: query)
         
