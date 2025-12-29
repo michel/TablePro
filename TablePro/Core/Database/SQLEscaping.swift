@@ -16,7 +16,8 @@ enum SQLEscaping {
     /// Handles the following special characters:
     /// - Backslashes (must be escaped first to avoid double-escaping)
     /// - Single quotes (SQL standard: doubled)
-    /// - Newlines, carriage returns, tabs, null bytes
+    /// - Control characters: null, backspace, tab, newline, form feed, carriage return
+    /// - MySQL EOF marker (\x1A) which can cause parsing issues
     ///
     /// Example:
     /// ```swift
@@ -33,11 +34,15 @@ enum SQLEscaping {
         result = result.replacingOccurrences(of: "\\", with: "\\\\")
         // Single quote: SQL standard escaping (double the quote)
         result = result.replacingOccurrences(of: "'", with: "''")
-        // Control characters
+        // Common control characters
         result = result.replacingOccurrences(of: "\n", with: "\\n")
         result = result.replacingOccurrences(of: "\r", with: "\\r")
         result = result.replacingOccurrences(of: "\t", with: "\\t")
         result = result.replacingOccurrences(of: "\0", with: "\\0")
+        // Additional control characters that can cause issues
+        result = result.replacingOccurrences(of: "\u{08}", with: "\\b")  // Backspace
+        result = result.replacingOccurrences(of: "\u{0C}", with: "\\f")  // Form feed
+        result = result.replacingOccurrences(of: "\u{1A}", with: "\\Z")  // MySQL EOF marker (Ctrl+Z)
         return result
     }
 

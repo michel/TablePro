@@ -493,11 +493,17 @@ final class ExportService: ObservableObject {
         return result
     }
 
-    /// Format a value for JSON output
+    /// Format a value for JSON output with optional type detection
+    ///
     /// - Parameters:
     ///   - value: The value to format
     ///   - preserveAsString: If true, always output as string without type detection
     ///                       (preserves leading zeros in ZIP codes, phone numbers, etc.)
+    ///
+    /// - Note: When type detection is enabled (preserveAsString = false), integers beyond
+    ///   JavaScript's Number.MAX_SAFE_INTEGER (2^53-1 = 9007199254740991) may lose precision
+    ///   when parsed by JavaScript. For large IDs or precise numeric data, enable the
+    ///   "Preserve All Values as Strings" option in export settings.
     private func formatJSONValue(_ value: String?, preserveAsString: Bool) -> String {
         guard let val = value else { return "null" }
 
@@ -507,6 +513,7 @@ final class ExportService: ObservableObject {
         }
 
         // Try to detect numbers and booleans
+        // Note: Large integers (> 2^53-1) may lose precision in JavaScript consumers
         if let intVal = Int(val) {
             return String(intVal)
         }
@@ -695,6 +702,15 @@ final class ExportService: ObservableObject {
     private func compressFileToFile(source: URL, destination: URL) async throws {
         // Run compression on background thread to avoid blocking main thread
         try await Task.detached(priority: .userInitiated) {
+            // Pre-flight check: verify gzip is available
+            let gzipPath = "/usr/bin/gzip"
+            guard FileManager.default.isExecutableFile(atPath: gzipPath) else {
+                throw ExportError.exportFailed(
+                    "Compression unavailable: gzip not found at \(gzipPath). " +
+                    "Please install gzip or disable compression in export options."
+                )
+            }
+
             // Create output file
             guard FileManager.default.createFile(atPath: destination.path, contents: nil) else {
                 throw ExportError.fileWriteFailed(destination.path)
@@ -702,7 +718,7 @@ final class ExportService: ObservableObject {
 
             // Use gzip to compress the file
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
+            process.executableURL = URL(fileURLWithPath: gzipPath)
             process.arguments = ["-c", source.path]
 
             let outputFile = try FileHandle(forWritingTo: destination)

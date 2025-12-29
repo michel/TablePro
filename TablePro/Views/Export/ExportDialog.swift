@@ -325,6 +325,13 @@ struct ExportDialog: View {
         return config.format.fileExtension
     }
 
+    /// Windows reserved device names (case-insensitive)
+    private static let windowsReservedNames: Set<String> = [
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    ]
+
     /// Validates that the filename is not empty and contains no invalid filesystem characters
     private var isFileNameValid: Bool {
         let name = config.fileName.trimmingCharacters(in: .whitespaces)
@@ -341,6 +348,17 @@ struct ExportDialog: View {
             name.hasSuffix("/..") || name.hasSuffix("\\..") ||
             name.contains("/../") || name.contains("\\..\\")
         guard !isPathTraversalPattern else { return false }
+
+        // Check for Windows reserved device names (case-insensitive)
+        // These can cause issues if the export file is copied to Windows
+        let baseName = name.components(separatedBy: ".").first ?? name
+        guard !Self.windowsReservedNames.contains(baseName.uppercased()) else { return false }
+
+        // Prevent hidden files on Unix (starting with .)
+        guard !name.hasPrefix(".") else { return false }
+
+        // Check filename length (255 bytes is common limit on most filesystems)
+        guard name.utf8.count <= 255 else { return false }
 
         return true
     }
