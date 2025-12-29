@@ -354,9 +354,6 @@ struct ExportDialog: View {
         let baseName = name.components(separatedBy: ".").first ?? name
         guard !Self.windowsReservedNames.contains(baseName.uppercased()) else { return false }
 
-        // Prevent hidden files on Unix (starting with .)
-        guard !name.hasPrefix(".") else { return false }
-
         // Check filename length (255 bytes is common limit on most filesystems)
         guard name.utf8.count <= 255 else { return false }
 
