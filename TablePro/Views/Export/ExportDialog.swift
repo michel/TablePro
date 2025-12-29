@@ -465,18 +465,22 @@ struct ExportDialog: View {
     }
 
     private func fetchTablesForSchema(_ schema: String, driver: DatabaseDriver) async throws -> [TableInfo] {
-        // Use proper SQL escaping to prevent injection (handles backslashes, quotes, etc.)
-        let escapedSchema = SQLEscaping.escapeStringLiteral(schema)
+        // Fetch tables from information_schema and filter by schema in Swift to avoid SQL interpolation.
         let query = """
-            SELECT table_name, table_type
+            SELECT table_schema, table_name, table_type
             FROM information_schema.tables
-            WHERE table_schema = '\(escapedSchema)'
             ORDER BY table_name
             """
         let result = try await driver.execute(query: query)
         return result.rows.compactMap { row in
-            guard let name = row[0] else { return nil }
-            let typeStr = row.count > 1 ? (row[1] ?? "BASE TABLE") : "BASE TABLE"
+            // Expect: [table_schema, table_name, table_type]
+            guard row.count >= 2,
+                  let rowSchema = row[0],
+                  rowSchema == schema,
+                  let name = row[1] else {
+                return nil
+            }
+            let typeStr = row.count > 2 ? (row[2] ?? "BASE TABLE") : "BASE TABLE"
             let type: TableInfo.TableType = typeStr.uppercased().contains("VIEW") ? .view : .table
             return TableInfo(name: name, type: type, rowCount: nil)
         }
