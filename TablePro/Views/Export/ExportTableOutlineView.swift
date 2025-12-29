@@ -240,7 +240,8 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
             let table = database.tables[index]
             return tableWrappers[table.id]!
         }
-        fatalError("Unexpected item type")
+        assertionFailure("Unexpected item type in outlineView(_:child:ofItem:): \(String(describing: item))")
+        return NSObject()
     }
 
     func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
