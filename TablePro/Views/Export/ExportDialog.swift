@@ -502,20 +502,24 @@ struct ExportDialog: View {
     }
 
     private func fetchTablesForDatabase(_ database: String, driver: DatabaseDriver) async throws -> [TableInfo] {
-        // Use proper SQL escaping to prevent injection (handles backslashes, quotes, etc.)
-        let escapedDatabase = SQLEscaping.escapeStringLiteral(database)
-        // MySQL/MariaDB: query information_schema for tables in specific database
+        // Fetch tables from information_schema and filter by database in Swift to avoid SQL interpolation.
+        // MySQL/MariaDB: information_schema.TABLES contains TABLE_SCHEMA, TABLE_NAME, and TABLE_TYPE.
         let query = """
-            SELECT TABLE_NAME, TABLE_TYPE
+            SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
             FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = '\(escapedDatabase)'
             ORDER BY TABLE_NAME
             """
         let result = try await driver.execute(query: query)
 
         return result.rows.compactMap { row in
-            guard let name = row[0] else { return nil }
-            let typeStr = row.count > 1 ? (row[1] ?? "BASE TABLE") : "BASE TABLE"
+            // Expect: [TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE]
+            guard row.count >= 2,
+                  let rowSchema = row[0],
+                  rowSchema == database,
+                  let name = row[1] else {
+                return nil
+            }
+            let typeStr = row.count > 2 ? (row[2] ?? "BASE TABLE") : "BASE TABLE"
             let type: TableInfo.TableType = typeStr.uppercased().contains("VIEW") ? .view : .table
             return TableInfo(name: name, type: type, rowCount: nil)
         }
