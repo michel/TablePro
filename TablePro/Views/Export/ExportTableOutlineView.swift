@@ -183,6 +183,11 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
     init(databaseItems: Binding<[ExportDatabaseItem]>, format: ExportFormat) {
         self._databaseItems = databaseItems
         self.format = format
+        self.expandedDatabases = Set(
+            databaseItems.wrappedValue
+                .filter { $0.isExpanded }
+                .map { $0.id }
+        )
         super.init()
     }
 
