@@ -586,13 +586,17 @@ final class ExportService: ObservableObject {
         }
         if let doubleVal = Double(val), !val.contains("e") && !val.contains("E") {
             // Avoid scientific notation issues
+            let jsMaxSafeInteger = 9007199254740991.0 // 2^53 - 1, JavaScript's Number.MAX_SAFE_INTEGER
+
             if doubleVal.truncatingRemainder(dividingBy: 1) == 0 && !val.contains(".") {
-                // Safely convert integral Double to Int only when within bounds
-                if doubleVal >= Double(Int.min) && doubleVal <= Double(Int.max) {
+                // For integral values, only convert to Int when within both Int and JS safe integer bounds
+                if abs(doubleVal) <= jsMaxSafeInteger,
+                   doubleVal >= Double(Int.min),
+                   doubleVal <= Double(Int.max) {
                     return String(Int(doubleVal))
                 } else {
-                    // Fall back to Double representation to avoid overflow
-                    return String(doubleVal)
+                    // Preserve original integral representation to avoid scientific notation / precision changes
+                    return val
                 }
             }
             return String(doubleVal)
