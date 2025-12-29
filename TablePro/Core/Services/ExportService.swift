@@ -67,6 +67,13 @@ final class ExportService: ObservableObject {
     @Published var totalRows: Int = 0
     @Published var statusMessage: String = ""
     @Published var errorMessage: String?
+    /// Non-fatal warnings that occurred during export (e.g., DDL fetch failures)
+    @Published var warningMessage: String?
+
+    // MARK: - DDL Failure Tracking
+
+    /// Tables that failed DDL fetch during SQL export
+    private var ddlFailures: [String] = []
 
     // MARK: - Cancellation
 
@@ -136,6 +143,8 @@ final class ExportService: ObservableObject {
         currentTableIndex = 0
         statusMessage = ""
         errorMessage = nil
+        warningMessage = nil
+        ddlFailures = []
 
         defer {
             isExporting = false
@@ -165,6 +174,7 @@ final class ExportService: ObservableObject {
 
     /// Fetch total row count for all tables.
     /// - Returns: The total row count across all tables. Any failures are logged but do not affect the returned value.
+    /// - Note: When row count fails for some tables, the statusMessage is updated to inform the user that progress is estimated.
     private func fetchTotalRowCount(for tables: [ExportTableItem]) async -> Int {
         var total = 0
         var failedCount = 0
@@ -183,6 +193,8 @@ final class ExportService: ObservableObject {
         }
         if failedCount > 0 {
             print("Warning: \(failedCount) table(s) failed row count - progress indicator may be inaccurate")
+            // Update status message so user knows progress is estimated
+            statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
         }
         return total
     }
@@ -243,6 +255,8 @@ final class ExportService: ObservableObject {
     /// Removes characters that could break out of or nest SQL comments:
     /// - Newlines (could start new SQL statements)
     /// - Comment sequences (/* */ --)
+    ///
+    /// Logs a warning when the name is modified.
     private func sanitizeForSQLComment(_ name: String) -> String {
         var result = name
         // Replace newlines with spaces
@@ -252,6 +266,12 @@ final class ExportService: ObservableObject {
         result = result.replacingOccurrences(of: "/*", with: "")
         result = result.replacingOccurrences(of: "*/", with: "")
         result = result.replacingOccurrences(of: "--", with: "")
+
+        // Log when sanitization modifies the name
+        if result != name {
+            print("Warning: Table name '\(name)' was sanitized to '\(result)' for SQL comment safety")
+        }
+
         return result
     }
 
@@ -265,6 +285,17 @@ final class ExportService: ObservableObject {
         return try FileHandle(forWritingTo: url)
     }
 
+    /// Close a file handle with error logging instead of silent suppression
+    ///
+    /// Used in defer blocks where we can't throw but want visibility into failures.
+    private func closeFileHandle(_ handle: FileHandle) {
+        do {
+            try handle.close()
+        } catch {
+            print("Warning: Failed to close export file handle: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - CSV Export
 
     private func exportToCSV(
@@ -274,7 +305,7 @@ final class ExportService: ObservableObject {
     ) async throws {
         // Create file and get handle for streaming writes
         let fileHandle = try createFileHandle(at: url)
-        defer { try? fileHandle.close() }
+        defer { closeFileHandle(fileHandle) }
 
         let lineBreak = config.csvOptions.lineBreak.value
 
@@ -295,6 +326,7 @@ final class ExportService: ObservableObject {
             let tableRef = qualifiedTableRef(for: table)
             let batchSize = 10_000
             var offset = 0
+            var isFirstBatch = true
 
             while true {
                 try checkCancellation()
@@ -308,13 +340,20 @@ final class ExportService: ObservableObject {
                 }
 
                 // Stream CSV content for this batch directly to file
+                // Only include headers on the first batch to avoid duplication
+                var batchOptions = config.csvOptions
+                if !isFirstBatch {
+                    batchOptions.includeFieldNames = false
+                }
+
                 try await writeCSVContentWithProgress(
                     columns: result.columns,
                     rows: result.rows,
-                    options: config.csvOptions,
+                    options: batchOptions,
                     to: fileHandle
                 )
 
+                isFirstBatch = false
                 offset += batchSize
             }
             if index < tables.count - 1 {
@@ -436,7 +475,7 @@ final class ExportService: ObservableObject {
     ) async throws {
         // Stream JSON directly to file to minimize memory usage
         let fileHandle = try createFileHandle(at: url)
-        defer { try? fileHandle.close() }
+        defer { closeFileHandle(fileHandle) }
 
         let prettyPrint = config.jsonOptions.prettyPrint
         let indent = prettyPrint ? "  " : ""
@@ -684,10 +723,13 @@ final class ExportService: ObservableObject {
                         }
                         try fileHandle.write(contentsOf: "\n\n".toUTF8Data())
                     } catch {
+                        // Track the failure for user notification
+                        ddlFailures.append(sanitizedName)
+
                         // Use sanitizedName (already defined above) for safe comment output
-                        let warningMessage = "Warning: failed to fetch DDL for table \(sanitizedName): \(error)"
-                        print(warningMessage)
-                        try fileHandle.write(contentsOf: "-- \(sanitizeForSQLComment(warningMessage))\n\n".toUTF8Data())
+                        let ddlWarning = "Warning: failed to fetch DDL for table \(sanitizedName): \(error)"
+                        print(ddlWarning)
+                        try fileHandle.write(contentsOf: "-- \(sanitizeForSQLComment(ddlWarning))\n\n".toUTF8Data())
                     }
                 }
 
@@ -727,7 +769,7 @@ final class ExportService: ObservableObject {
 
             try fileHandle.close()
         } catch {
-            try? fileHandle.close()
+            closeFileHandle(fileHandle)
             if let tempURL = tempFileURL {
                 try? FileManager.default.removeItem(at: tempURL)
             }
@@ -751,6 +793,12 @@ final class ExportService: ObservableObject {
                 try? FileManager.default.removeItem(at: url)
                 throw error
             }
+        }
+
+        // Surface DDL failures to user as a warning
+        if !ddlFailures.isEmpty {
+            let failedTables = ddlFailures.joined(separator: ", ")
+            warningMessage = "Export completed with warnings: Could not fetch table structure for: \(failedTables)"
         }
 
         progress = 1.0

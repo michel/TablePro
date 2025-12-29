@@ -251,6 +251,13 @@ struct ExportDialog: View {
                         .lineLimit(1)
                         .fixedSize()
                 }
+
+                // Show validation error if filename is invalid
+                if let validationError = fileNameValidationError {
+                    Text(validationError)
+                        .font(.system(size: DesignConstants.FontSize.small))
+                        .foregroundStyle(.red)
+                }
             }
             .padding(16)
         }
@@ -332,32 +339,45 @@ struct ExportDialog: View {
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
     ]
 
-    /// Validates that the filename is not empty and contains no invalid filesystem characters
-    private var isFileNameValid: Bool {
+    /// Returns a validation error message if the filename is invalid, nil if valid
+    private var fileNameValidationError: String? {
         let name = config.fileName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return false }
+
+        if name.isEmpty {
+            return "Filename cannot be empty"
+        }
 
         // Invalid filesystem characters (covers macOS, Windows, and Linux)
         let invalidChars = CharacterSet(charactersIn: "/\\:*?\"<>|")
-        guard name.rangeOfCharacter(from: invalidChars) == nil else { return false }
+        if name.rangeOfCharacter(from: invalidChars) != nil {
+            return "Filename contains invalid characters: / \\ : * ? \" < > |"
+        }
 
         // Prevent path traversal attempts and special directory names
-        let isPathTraversalPattern =
-            name == "." || name == ".." ||  // Current/parent directory
-            name.hasPrefix("../") || name.hasPrefix("..\\") ||
-            name.hasSuffix("/..") || name.hasSuffix("\\..") ||
-            name.contains("/../") || name.contains("\\..\\")
-        guard !isPathTraversalPattern else { return false }
+        if name == "." || name == ".." ||
+           name.hasPrefix("../") || name.hasPrefix("..\\") ||
+           name.hasSuffix("/..") || name.hasSuffix("\\..") ||
+           name.contains("/../") || name.contains("\\..\\") {
+            return "Filename cannot be '.' or '..' or contain path traversal"
+        }
 
         // Check for Windows reserved device names (case-insensitive)
-        // These can cause issues if the export file is copied to Windows
         let baseName = name.components(separatedBy: ".").first ?? name
-        guard !Self.windowsReservedNames.contains(baseName.uppercased()) else { return false }
+        if Self.windowsReservedNames.contains(baseName.uppercased()) {
+            return "'\(baseName)' is a reserved Windows device name"
+        }
 
         // Check filename length (255 bytes is common limit on most filesystems)
-        guard name.utf8.count <= 255 else { return false }
+        if name.utf8.count > 255 {
+            return "Filename is too long (max 255 bytes)"
+        }
 
-        return true
+        return nil
+    }
+
+    /// Validates that the filename is not empty and contains no invalid filesystem characters
+    private var isFileNameValid: Bool {
+        fileNameValidationError == nil
     }
 
     // MARK: - Actions
