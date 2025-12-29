@@ -595,8 +595,6 @@ final class ExportService: ObservableObject {
             throw error
         }
 
-        try checkCancellation()
-
         // Handle gzip compression
         if config.sqlOptions.compressWithGzip, let tempURL = tempFileURL {
             statusMessage = "Compressing..."
