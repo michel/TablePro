@@ -89,7 +89,7 @@ final class DatabaseRowCellView: NSTableCellView {
         checkboxAction?(sender)
     }
 
-    func configure(database: ExportDatabaseItem, format: ExportFormat, action: @escaping (NSButton) -> Void) {
+    func configure(database: ExportDatabaseItem, action: @escaping (NSButton) -> Void) {
         nameLabel.stringValue = database.name
         checkboxAction = action
 
