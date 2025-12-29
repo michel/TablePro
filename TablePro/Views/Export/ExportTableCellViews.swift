@@ -94,13 +94,20 @@ final class DatabaseRowCellView: NSTableCellView {
         checkboxAction = action
 
         // Calculate tristate based on table selection
-        let selectedCount = database.tables.filter(\.isSelected).count
-        if selectedCount == 0 {
+        if database.tables.isEmpty {
+            // Explicitly handle databases with no tables: keep visual "off" but disable interaction
             checkbox.state = .off
-        } else if selectedCount == database.tables.count {
-            checkbox.state = .on
+            checkbox.isEnabled = false
         } else {
-            checkbox.state = .mixed
+            let selectedCount = database.tables.filter(\.isSelected).count
+            if selectedCount == 0 {
+                checkbox.state = .off
+            } else if selectedCount == database.tables.count {
+                checkbox.state = .on
+            } else {
+                checkbox.state = .mixed
+            }
+            checkbox.isEnabled = true
         }
 
         // No spacer needed - SQL checkboxes are in separate columns now
