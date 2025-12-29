@@ -240,15 +240,16 @@ final class ExportService: ObservableObject {
 
     /// Sanitize a name for use in SQL comments to prevent comment injection
     ///
-    /// Removes characters that could break out of SQL comments:
+    /// Removes characters that could break out of or nest SQL comments:
     /// - Newlines (could start new SQL statements)
-    /// - Comment terminators (* /)
+    /// - Comment sequences (/* */ --)
     private func sanitizeForSQLComment(_ name: String) -> String {
         var result = name
         // Replace newlines with spaces
         result = result.replacingOccurrences(of: "\n", with: " ")
         result = result.replacingOccurrences(of: "\r", with: " ")
-        // Remove comment terminators (remove the asterisk-slash sequence)
+        // Remove comment sequences (both opening and closing)
+        result = result.replacingOccurrences(of: "/*", with: "")
         result = result.replacingOccurrences(of: "*/", with: "")
         result = result.replacingOccurrences(of: "--", with: "")
         return result
