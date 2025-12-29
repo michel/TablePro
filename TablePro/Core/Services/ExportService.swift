@@ -725,8 +725,17 @@ final class ExportService: ObservableObject {
             // Use gzip to compress the file
             let process = Process()
             process.executableURL = URL(fileURLWithPath: gzipPath)
-            process.arguments = ["-c", source.path]
 
+            // Derive a sanitized, non-encoded filesystem path for the source
+            let sanitizedSourcePath = source.standardizedFileURL.path(percentEncoded: false)
+
+            // Basic validation to avoid passing obviously malformed paths to the process
+            if sanitizedSourcePath.contains("\0") ||
+                sanitizedSourcePath.contains(where: { $0.isNewline }) {
+                throw ExportError.exportFailed("Invalid source path for compression")
+            }
+
+            process.arguments = ["-c", sanitizedSourcePath]
             let outputFile = try FileHandle(forWritingTo: destination)
             defer {
                 try? outputFile.close()
