@@ -385,11 +385,25 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
         isUpdating = true
         defer { isUpdating = false }
 
-        // Determine target state based on current selection
-        // If any tables are selected, unselect all. Otherwise, select all.
+        // Determine target state based on checkbox state, with a sensible tristate behavior.
+        // - .on: select all tables
+        // - .off: deselect all tables
+        // - .mixed: if not all selected, select all; otherwise deselect all
         let currentSelectedCount = databaseItems[dbIndex].tables.filter(\.isSelected).count
-        let shouldSelect = (currentSelectedCount == 0)
+        let totalCount = databaseItems[dbIndex].tables.count
 
+        let shouldSelect: Bool
+        switch state {
+        case .on:
+            shouldSelect = true
+        case .off:
+            shouldSelect = false
+        case .mixed:
+            shouldSelect = currentSelectedCount < totalCount
+        default:
+            // Fallback to previous behavior: if any tables are selected, unselect all; otherwise, select all.
+            shouldSelect = (currentSelectedCount == 0)
+        }
         // Update all child tables
         for tableIndex in databaseItems[dbIndex].tables.indices {
             databaseItems[dbIndex].tables[tableIndex].isSelected = shouldSelect
