@@ -234,11 +234,23 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
         if item == nil {
             // Root level: return database wrapper
             let database = databaseItems[index]
-            return databaseWrappers[database.id]!
+            guard let wrapper = databaseWrappers[database.id] else {
+                assertionFailure("Missing database wrapper for id \(database.id)")
+                let newWrapper = ItemWrapper(database)
+                databaseWrappers[database.id] = newWrapper
+                return newWrapper
+            }
+            return wrapper
         } else if let wrapper = item as? ItemWrapper, let database = wrapper.database {
             // Database level: return table wrapper
             let table = database.tables[index]
-            return tableWrappers[table.id]!
+            guard let tableWrapper = tableWrappers[table.id] else {
+                assertionFailure("Missing table wrapper for id \(table.id)")
+                let newWrapper = ItemWrapper(table)
+                tableWrappers[table.id] = newWrapper
+                return newWrapper
+            }
+            return tableWrapper
         }
         assertionFailure("Unexpected item type in outlineView(_:child:ofItem:): \(String(describing: item))")
         return NSObject()
