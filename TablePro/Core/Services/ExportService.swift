@@ -164,8 +164,10 @@ final class ExportService: ObservableObject {
     }
 
     /// Fetch total row count for all tables
+    /// Returns the total count and a flag indicating if any counts failed
     private func fetchTotalRowCount(for tables: [ExportTableItem]) async -> Int {
         var total = 0
+        var failedCount = 0
         for table in tables {
             let tableRef = qualifiedTableRef(for: table)
             do {
@@ -174,8 +176,13 @@ final class ExportService: ObservableObject {
                     total += count
                 }
             } catch {
-                // If count fails, estimate based on 0 (progress will be less accurate)
+                // Log the error but continue - progress will be less accurate
+                failedCount += 1
+                print("Warning: Failed to get row count for \(table.qualifiedName): \(error.localizedDescription)")
             }
+        }
+        if failedCount > 0 {
+            print("Warning: \(failedCount) table(s) failed row count - progress indicator may be inaccurate")
         }
         return total
     }
@@ -314,6 +321,9 @@ final class ExportService: ObservableObject {
 
                 var processed = val
 
+                // Check for line breaks BEFORE converting them (for quote detection)
+                let hadLineBreaks = val.contains("\n") || val.contains("\r")
+
                 // Convert line breaks to space
                 if options.convertLineBreakToSpace {
                     processed = processed
@@ -328,7 +338,7 @@ final class ExportService: ObservableObject {
                     processed = processed.replacingOccurrences(of: ".", with: ",")
                 }
 
-                return escapeCSVField(processed, options: options)
+                return escapeCSVField(processed, options: options, originalHadLineBreaks: hadLineBreaks)
             }.joined(separator: delimiter)
 
             // Write row directly to file
@@ -342,7 +352,13 @@ final class ExportService: ObservableObject {
         await finalizeTableProgress()
     }
 
-    private func escapeCSVField(_ field: String, options: CSVExportOptions) -> String {
+    /// Escape and quote a CSV field according to the specified options
+    /// - Parameters:
+    ///   - field: The field value to escape
+    ///   - options: CSV export options
+    ///   - originalHadLineBreaks: Whether the original value had line breaks before conversion.
+    ///                            Used for proper quote detection when convertLineBreakToSpace is enabled.
+    private func escapeCSVField(_ field: String, options: CSVExportOptions, originalHadLineBreaks: Bool = false) -> String {
         var processed = field
 
         // Sanitize formula-like prefixes to prevent CSV formula injection
@@ -362,10 +378,14 @@ final class ExportService: ObservableObject {
         case .never:
             return processed
         case .asNeeded:
+            // Check current content for special characters, OR if original had line breaks
+            // (important when convertLineBreakToSpace is enabled - original line breaks
+            // mean the field should still be quoted even after conversion to spaces)
             let needsQuotes = processed.contains(options.delimiter.actualValue) ||
                               processed.contains("\"") ||
                               processed.contains("\n") ||
-                              processed.contains("\r")
+                              processed.contains("\r") ||
+                              originalHadLineBreaks
             if needsQuotes {
                 let escaped = processed.replacingOccurrences(of: "\"", with: "\"\"")
                 return "\"\(escaped)\""
@@ -579,6 +599,7 @@ final class ExportService: ObservableObject {
                             table: table,
                             columns: result.columns,
                             rows: result.rows,
+                            batchSize: config.sqlOptions.batchSize,
                             to: fileHandle
                         )
                         try fileHandle.write(contentsOf: "\n".toUTF8Data())
@@ -621,12 +642,20 @@ final class ExportService: ObservableObject {
         table: ExportTableItem,
         columns: [String],
         rows: [[String?]],
+        batchSize: Int,
         to fileHandle: FileHandle
     ) async throws {
         let tableRef = qualifiedTableRef(for: table)
         let quotedColumns = columns
             .map { databaseType.quoteIdentifier($0) }
             .joined(separator: ", ")
+
+        let insertPrefix = "INSERT INTO \(tableRef) (\(quotedColumns)) VALUES\n"
+
+        // Effective batch size (<=1 means no batching, one row per INSERT)
+        let effectiveBatchSize = batchSize <= 1 ? 1 : batchSize
+        var valuesBatch: [String] = []
+        valuesBatch.reserveCapacity(effectiveBatchSize)
 
         for row in rows {
             try checkCancellation()
@@ -638,11 +667,23 @@ final class ExportService: ObservableObject {
                 return "'\(escaped)'"
             }.joined(separator: ", ")
 
-            let statement = "INSERT INTO \(tableRef) (\(quotedColumns)) VALUES (\(values));\n"
-            try fileHandle.write(contentsOf: statement.toUTF8Data())
+            valuesBatch.append("  (\(values))")
+
+            // Write batch when full
+            if valuesBatch.count >= effectiveBatchSize {
+                let statement = insertPrefix + valuesBatch.joined(separator: ",\n") + ";\n\n"
+                try fileHandle.write(contentsOf: statement.toUTF8Data())
+                valuesBatch.removeAll(keepingCapacity: true)
+            }
 
             // Update progress (throttled)
             await incrementProgress()
+        }
+
+        // Write remaining rows in final batch
+        if !valuesBatch.isEmpty {
+            let statement = insertPrefix + valuesBatch.joined(separator: ",\n") + ";\n\n"
+            try fileHandle.write(contentsOf: statement.toUTF8Data())
         }
 
         // Ensure final count is shown
@@ -679,6 +720,10 @@ final class ExportService: ObservableObject {
 
             let status = process.terminationStatus
             guard status == 0 else {
+                // Explicitly close the file handle before throwing to ensure
+                // the destination file can be deleted in the error handler
+                try? outputFile.close()
+
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorString = String(data: errorData, encoding: .utf8)?
                     .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

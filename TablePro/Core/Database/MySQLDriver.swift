@@ -288,7 +288,9 @@ final class MySQLDriver: DatabaseDriver {
     }
 
     func fetchTableDDL(table: String) async throws -> String {
-        let query = "SHOW CREATE TABLE `\(table)`"
+        // Note: table parameter may already be quoted (e.g., `db`.`table`)
+        // so don't add additional backticks
+        let query = "SHOW CREATE TABLE \(table)"
         let result = try await execute(query: query)
         
         // SHOW CREATE TABLE returns 2 columns: Table name and Create Table statement

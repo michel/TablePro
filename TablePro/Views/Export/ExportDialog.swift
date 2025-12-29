@@ -193,11 +193,20 @@ struct ExportDialog: View {
                     Spacer()
                 }
 
-                // Selection count
-                Text("\(selectedCount) table\(selectedCount == 1 ? "" : "s") selected")
-                    .font(.system(size: DesignConstants.FontSize.small))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                // Selection count (shows exportable count for SQL format when some tables have no options)
+                VStack(spacing: 2) {
+                    Text("\(exportableCount) table\(exportableCount == 1 ? "" : "s") to export")
+                        .font(.system(size: DesignConstants.FontSize.small))
+                        .foregroundStyle(.secondary)
+
+                    // Show warning if some selected tables will be skipped (SQL format only)
+                    if config.format == .sql && exportableCount < selectedCount {
+                        Text("\(selectedCount - exportableCount) skipped (no options)")
+                            .font(.system(size: DesignConstants.FontSize.small))
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -278,7 +287,7 @@ struct ExportDialog: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.return, modifiers: [])
-            .disabled(selectedCount == 0 || isExporting || !isFileNameValid)
+            .disabled(exportableCount == 0 || isExporting || !isFileNameValid)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -292,6 +301,21 @@ struct ExportDialog: View {
 
     private var selectedTables: [ExportTableItem] {
         databaseItems.flatMap { $0.selectedTables }
+    }
+
+    /// Tables that will actually be exported (filters out SQL tables with no options enabled)
+    private var exportableTables: [ExportTableItem] {
+        let tables = selectedTables
+        // For SQL format, filter out tables with all options disabled (no output would be generated)
+        if config.format == .sql {
+            return tables.filter { $0.sqlOptions.hasAnyOption }
+        }
+        return tables
+    }
+
+    /// Count of tables that will actually produce output
+    private var exportableCount: Int {
+        exportableTables.count
     }
 
     private var fileExtension: String {
@@ -494,7 +518,7 @@ struct ExportDialog: View {
             savePanel.nameFieldStringValue = config.fullFileName
         }
 
-        savePanel.message = "Export \(selectedCount) table(s) to \(config.format.rawValue)"
+        savePanel.message = "Export \(exportableCount) table(s) to \(config.format.rawValue)"
 
         savePanel.begin { response in
             guard response == .OK, let url = savePanel.url else { return }
@@ -527,7 +551,7 @@ struct ExportDialog: View {
 
         do {
             try await service.export(
-                tables: selectedTables,
+                tables: exportableTables,
                 config: config,
                 to: url
             )

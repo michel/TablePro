@@ -124,11 +124,20 @@ struct SQLTableExportOptions: Equatable {
     var includeStructure: Bool = true
     var includeDrop: Bool = true
     var includeData: Bool = true
+
+    /// Returns true if at least one export option is enabled
+    var hasAnyOption: Bool {
+        includeStructure || includeDrop || includeData
+    }
 }
 
 /// Global options for SQL export
 struct SQLExportOptions: Equatable {
     var compressWithGzip: Bool = false
+    /// Number of rows per INSERT statement. Default 500.
+    /// Higher values = fewer statements, smaller file, faster import.
+    /// Set to 1 for single-row INSERT statements (legacy behavior).
+    var batchSize: Int = 500
 }
 
 // MARK: - Export Configuration
