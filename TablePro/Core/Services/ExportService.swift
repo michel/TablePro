@@ -520,7 +520,13 @@ final class ExportService: ObservableObject {
         if let doubleVal = Double(val), !val.contains("e") && !val.contains("E") {
             // Avoid scientific notation issues
             if doubleVal.truncatingRemainder(dividingBy: 1) == 0 && !val.contains(".") {
-                return String(Int(doubleVal))
+                // Safely convert integral Double to Int only when within bounds
+                if doubleVal >= Double(Int.min) && doubleVal <= Double(Int.max) {
+                    return String(Int(doubleVal))
+                } else {
+                    // Fall back to Double representation to avoid overflow
+                    return String(doubleVal)
+                }
             }
             return String(doubleVal)
         }
