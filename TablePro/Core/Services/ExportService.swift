@@ -570,11 +570,18 @@ final class ExportService: ObservableObject {
             statusMessage = "Compressing..."
             await Task.yield()
 
-            defer {
-                try? FileManager.default.removeItem(at: tempURL)
-            }
+            do {
+                defer {
+                    // Always remove the temporary file, regardless of success or failure
+                    try? FileManager.default.removeItem(at: tempURL)
+                }
 
-            try await compressFileToFile(source: tempURL, destination: url)
+                try await compressFileToFile(source: tempURL, destination: url)
+            } catch {
+                // Remove the (possibly partially written) destination file on compression failure
+                try? FileManager.default.removeItem(at: url)
+                throw error
+            }
         }
 
         progress = 1.0
