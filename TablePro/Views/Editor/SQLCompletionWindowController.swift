@@ -39,7 +39,17 @@ final class SQLCompletionWindowController: NSObject {
     private let windowWidth: CGFloat = 400
     private let rowHeight: CGFloat = DesignConstants.RowHeight.compact
     private let maxVisibleRows: Int = 10
-    
+
+    // MARK: - Lifecycle
+
+    deinit {
+        removeMouseMonitor()
+        if let panel = window {
+            panel.parent?.removeChildWindow(panel)
+            panel.orderOut(nil)
+        }
+    }
+
     // MARK: - Public API
     
     /// Show completions at the specified screen position
