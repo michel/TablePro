@@ -161,6 +161,7 @@ private final class ItemWrapper: NSObject {
 
 // MARK: - Coordinator
 
+@MainActor
 final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
 
     @Binding var databaseItems: [ExportDatabaseItem]
@@ -402,13 +403,12 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
         isUpdating = true
         defer { isUpdating = false }
 
-        // Determine target state based on checkbox state, with a sensible tristate behavior.
-        // - .on: select all tables
-        // - .off: deselect all tables
-        // - .mixed: if not all selected, select all; otherwise deselect all
-        let currentSelectedCount = databaseItems[dbIndex].tables.filter(\.isSelected).count
-        let totalCount = databaseItems[dbIndex].tables.count
-
+        // Determine target state based on checkbox state after user click.
+        // Note: The checkbox state parameter is the NEW state after NSButton processed the click.
+        // - .on: User clicked to select → select all tables
+        // - .off: User clicked to deselect → deselect all tables
+        // - .mixed: Should not occur from user interaction (mixed state is set programmatically)
+        //   If it does occur, treat as "select all" per standard macOS checkbox behavior
         let shouldSelect: Bool
         switch state {
         case .on:
@@ -416,10 +416,14 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
         case .off:
             shouldSelect = false
         case .mixed:
-            shouldSelect = currentSelectedCount < totalCount
+            // Defensive: mixed state should only be set programmatically in configure()
+            // If user somehow triggers this, default to "select all"
+            assertionFailure("Mixed state should not be triggered by user click")
+            shouldSelect = true
         default:
-            // Fallback to previous behavior: if any tables are selected, unselect all; otherwise, select all.
-            shouldSelect = (currentSelectedCount == 0)
+            // Fallback for any other state values (shouldn't occur)
+            assertionFailure("Unexpected checkbox state: \(state.rawValue)")
+            shouldSelect = false
         }
         // Update all child tables
         for tableIndex in databaseItems[dbIndex].tables.indices {

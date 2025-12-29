@@ -174,7 +174,7 @@ final class TableRowCellView: NSTableCellView {
             let symbolName: String
             let tintColor: NSColor
 
-            if table.isView {
+            if table.type == .view {
                 symbolName = "eye"
                 tintColor = .systemPurple
             } else {
