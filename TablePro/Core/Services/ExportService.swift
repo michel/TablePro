@@ -690,18 +690,35 @@ final class ExportService: ObservableObject {
                     }
                 }
 
-                // INSERT statements (data) - stream directly to file
+                // INSERT statements (data) - stream directly to file in batches
                 if sqlOptions.includeData {
-                    let result = try await driver.execute(query: "SELECT * FROM \(tableRef)")
+                    let batchSize = config.sqlOptions.batchSize
+                    var offset = 0
+                    var wroteAnyRows = false
 
-                    if !result.rows.isEmpty {
+                    while true {
+                        try checkCancellation()
+
+                        let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
+                        let result = try await driver.execute(query: query)
+
+                        if result.rows.isEmpty {
+                            break
+                        }
+
                         try await writeInsertStatementsWithProgress(
                             table: table,
                             columns: result.columns,
                             rows: result.rows,
-                            batchSize: config.sqlOptions.batchSize,
+                            batchSize: batchSize,
                             to: fileHandle
                         )
+
+                        wroteAnyRows = true
+                        offset += batchSize
+                    }
+
+                    if wroteAnyRows {
                         try fileHandle.write(contentsOf: "\n".toUTF8Data())
                     }
                 }
