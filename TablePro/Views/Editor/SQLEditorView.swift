@@ -56,7 +56,13 @@ struct SQLEditorView: NSViewRepresentable {
         textView.drawsBackground = true
         textView.insertionPointColor = SQLEditorTheme.insertionPoint
         textView.textContainerInset = SQLEditorTheme.textContainerInset
-        
+
+        // Disable automatic text substitutions for SQL syntax integrity
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+
         // Set initial text
         textView.string = text
         
