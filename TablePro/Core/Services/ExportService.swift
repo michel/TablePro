@@ -397,23 +397,34 @@ final class ExportService: ObservableObject {
             for (rowIndex, row) in result.rows.enumerated() {
                 try checkCancellation()
 
-                // Build row object
-                var rowParts: [String] = []
+                // Stream JSON row object directly to file to avoid building large strings in memory
+                let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
+                let rowSuffix = rowIndex < result.rows.count - 1 ? ",\(newline)" : newline
+
+                // Write row prefix and opening brace
+                try fileHandle.write(contentsOf: rowPrefix.toUTF8Data())
+                try fileHandle.write(contentsOf: "{".toUTF8Data())
+
+                var isFirstField = true
                 for (colIndex, column) in result.columns.enumerated() {
                     if colIndex < row.count {
                         let value = row[colIndex]
                         if config.jsonOptions.includeNullValues || value != nil {
+                            if !isFirstField {
+                                try fileHandle.write(contentsOf: ", ".toUTF8Data())
+                            }
+                            isFirstField = false
+
                             let escapedKey = escapeJSONString(column)
                             let jsonValue = formatJSONValue(value)
-                            rowParts.append("\"\(escapedKey)\": \(jsonValue)")
+                            try fileHandle.write(contentsOf: "\"\(escapedKey)\": \(jsonValue)".toUTF8Data())
                         }
                     }
                 }
 
-                let rowJSON = rowParts.joined(separator: ", ")
-                let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
-                let rowSuffix = rowIndex < result.rows.count - 1 ? ",\(newline)" : newline
-                try fileHandle.write(contentsOf: "\(rowPrefix){\(rowJSON)}\(rowSuffix)".toUTF8Data())
+                // Close row object and write row suffix
+                try fileHandle.write(contentsOf: "}".toUTF8Data())
+                try fileHandle.write(contentsOf: rowSuffix.toUTF8Data())
 
                 // Update progress (throttled)
                 await incrementProgress()
