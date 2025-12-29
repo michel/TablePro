@@ -168,6 +168,25 @@ final class TableRowCellView: NSTableCellView {
         selectionCheckbox.state = table.isSelected ? .on : .off
         self.selectionAction = selectionAction
         selectionCheckbox.setAccessibilityLabel("Select table \(table.name)")
+
+        // Update icon based on whether this item is a view or a regular table
+        if #available(macOS 11.0, *) {
+            let symbolName: String
+            let tintColor: NSColor
+
+            if table.isView {
+                symbolName = "eye"
+                tintColor = .systemPurple
+            } else {
+                symbolName = "tablecells"
+                tintColor = .systemGray
+            }
+
+            if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) {
+                iconView.image = image
+                iconView.contentTintColor = tintColor
+            }
+        }
     }
 }
 
