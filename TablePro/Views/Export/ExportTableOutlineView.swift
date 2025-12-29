@@ -68,6 +68,9 @@ struct ExportTableOutlineView: NSViewRepresentable {
         let oldFormat = context.coordinator.format
         context.coordinator.format = format
 
+        // Update wrappers to sync with latest data
+        context.coordinator.updateWrappers()
+
         // If format changed, swap to the appropriate outline view
         if oldFormat != format {
             let newOutlineView = (format == .sql) ? context.coordinator.sqlOutlineView : context.coordinator.csvOutlineView
@@ -185,7 +188,7 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
 
     // MARK: - Wrapper Management
 
-    private func updateWrappers() {
+    func updateWrappers() {
         // Update database wrappers
         var newDatabaseWrappers: [UUID: ItemWrapper] = [:]
         for database in databaseItems {
@@ -216,8 +219,6 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
     // MARK: - Data Source
 
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-        updateWrappers()  // Ensure wrappers are up to date
-
         if item == nil {
             // Root level: return number of databases
             return databaseItems.count
@@ -330,7 +331,7 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
         }
 
         let databaseId = database.id
-        cellView?.configure(database: database, format: format) { [weak self] checkbox in
+        cellView?.configure(database: database) { [weak self] checkbox in
             self?.databaseCheckboxChanged(databaseId: databaseId, state: checkbox.state)
         }
 

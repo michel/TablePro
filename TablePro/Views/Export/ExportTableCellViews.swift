@@ -17,8 +17,6 @@ final class DatabaseRowCellView: NSTableCellView {
     private let checkbox: NSButton
     private let iconView: NSImageView
     private let nameLabel: NSTextField
-    private let spacerView: NSView
-    private var spacerWidthConstraint: NSLayoutConstraint!
 
     var checkboxAction: ((NSButton) -> Void)?
 
@@ -40,19 +38,11 @@ final class DatabaseRowCellView: NSTableCellView {
         nameLabel.lineBreakMode = .byTruncatingMiddle
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        // Create spacer for SQL format alignment
-        spacerView = NSView()
-        spacerView.translatesAutoresizingMaskIntoConstraints = false
-
         super.init(frame: frameRect)
 
         addSubview(checkbox)
         addSubview(iconView)
         addSubview(nameLabel)
-        addSubview(spacerView)
-
-        // Create spacer width constraint (will be updated based on format)
-        spacerWidthConstraint = spacerView.widthAnchor.constraint(equalToConstant: 0)
 
         NSLayoutConstraint.activate([
             // Checkbox
@@ -69,12 +59,7 @@ final class DatabaseRowCellView: NSTableCellView {
             // Name
             nameLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 3),
             nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            nameLabel.trailingAnchor.constraint(equalTo: spacerView.leadingAnchor, constant: -2),
-
-            // Spacer (for SQL format alignment)
-            spacerView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            spacerWidthConstraint,
-            spacerView.heightAnchor.constraint(equalToConstant: 1)
+            nameLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2),
         ])
 
         checkbox.target = self
@@ -109,9 +94,6 @@ final class DatabaseRowCellView: NSTableCellView {
             }
             checkbox.isEnabled = true
         }
-
-        // No spacer needed - SQL checkboxes are in separate columns now
-        spacerWidthConstraint.constant = 0
 
         checkbox.setAccessibilityLabel("Select database \(database.name)")
     }
