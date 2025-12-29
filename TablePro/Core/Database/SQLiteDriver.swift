@@ -277,9 +277,69 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
         }
         
-        return ddl
+        return formatDDL(ddl)
     }
-    
+
+    // MARK: - DDL Formatting
+
+    private func formatDDL(_ ddl: String) -> String {
+        guard ddl.uppercased().hasPrefix("CREATE TABLE") else {
+            return ddl // Only format CREATE TABLE statements
+        }
+
+        var formatted = ddl
+
+        // Step 1: Find the first opening parenthesis (after table name) and add newline
+        if let range = formatted.range(of: "(") {
+            let before = String(formatted[..<range.lowerBound])
+            let after = String(formatted[range.upperBound...])
+            formatted = before + "(\n  " + after.trimmingCharacters(in: .whitespaces)
+        }
+
+        // Step 2: Add newline after commas at the top level (column separators)
+        // We need to track parenthesis depth to avoid formatting commas inside type definitions
+        var result = ""
+        var depth = 0
+        var i = 0
+        let chars = Array(formatted)
+
+        while i < chars.count {
+            let char = chars[i]
+
+            if char == "(" {
+                depth += 1
+                result.append(char)
+            } else if char == ")" {
+                depth -= 1
+                result.append(char)
+            } else if char == "," && depth == 1 {
+                // This is a comma at column level, add newline
+                result.append(",\n  ")
+                // Skip any following whitespace
+                i += 1
+                while i < chars.count && chars[i].isWhitespace {
+                    i += 1
+                }
+                i -= 1 // Will be incremented at end of loop
+            } else {
+                result.append(char)
+            }
+
+            i += 1
+        }
+
+        formatted = result
+
+        // Step 3: Add newline before the final closing parenthesis
+        if let range = formatted.range(of: ")", options: .backwards) {
+            let before = String(formatted[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+            let after = String(formatted[range.lowerBound...])
+            formatted = before + "\n" + after
+        }
+
+        return formatted.isEmpty ? ddl : formatted // Fallback to original if empty
+    }
+
     // MARK: - Paginated Query Support
     
     func fetchRowCount(query: String) async throws -> Int {
