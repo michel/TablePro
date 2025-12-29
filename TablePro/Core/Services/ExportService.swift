@@ -437,53 +437,88 @@ final class ExportService: ObservableObject {
             currentTable = table.qualifiedName
 
             let tableRef = qualifiedTableRef(for: table)
-            let result = try await driver.execute(query: "SELECT * FROM \(tableRef)")
 
             // Write table key and opening bracket
             let escapedTableName = escapeJSONString(table.qualifiedName)
             try fileHandle.write(contentsOf: "\(indent)\"\(escapedTableName)\": [\(newline)".toUTF8Data())
 
-            // Write rows
-            for (rowIndex, row) in result.rows.enumerated() {
+            // Stream rows in batches to avoid loading the entire table into memory
+            let batchSize = 1000
+            var offset = 0
+            var hasWrittenRow = false
+            var columns: [String]? = nil
+
+            batchLoop: while true {
                 try checkCancellation()
 
-                // Stream JSON row object directly to file to avoid building large strings in memory
-                let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
-                let rowSuffix = rowIndex < result.rows.count - 1 ? ",\(newline)" : newline
+                let result = try await driver.execute(
+                    query: "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
+                )
 
-                // Write row prefix and opening brace
-                try fileHandle.write(contentsOf: rowPrefix.toUTF8Data())
-                try fileHandle.write(contentsOf: "{".toUTF8Data())
-
-                var isFirstField = true
-                for (colIndex, column) in result.columns.enumerated() {
-                    if colIndex < row.count {
-                        let value = row[colIndex]
-                        if config.jsonOptions.includeNullValues || value != nil {
-                            if !isFirstField {
-                                try fileHandle.write(contentsOf: ", ".toUTF8Data())
-                            }
-                            isFirstField = false
-
-                            let escapedKey = escapeJSONString(column)
-                            let jsonValue = formatJSONValue(value, preserveAsString: config.jsonOptions.preserveAllAsStrings)
-                            try fileHandle.write(contentsOf: "\"\(escapedKey)\": \(jsonValue)".toUTF8Data())
-                        }
-                    }
+                if result.rows.isEmpty {
+                    break batchLoop
                 }
 
-                // Close row object and write row suffix
-                try fileHandle.write(contentsOf: "}".toUTF8Data())
-                try fileHandle.write(contentsOf: rowSuffix.toUTF8Data())
+                if columns == nil {
+                    columns = result.columns
+                }
 
-                // Update progress (throttled)
-                await incrementProgress()
+                for row in result.rows {
+                    try checkCancellation()
+
+                    // Stream JSON row object directly to file to avoid building large strings in memory
+                    let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
+
+                    // Write comma/newline before every row except the first
+                    if hasWrittenRow {
+                        try fileHandle.write(contentsOf: ",\(newline)".toUTF8Data())
+                    }
+
+                    // Write row prefix and opening brace
+                    try fileHandle.write(contentsOf: rowPrefix.toUTF8Data())
+                    try fileHandle.write(contentsOf: "{".toUTF8Data())
+
+                    if let columns = columns {
+                        var isFirstField = true
+                        for (colIndex, column) in columns.enumerated() {
+                            if colIndex < row.count {
+                                let value = row[colIndex]
+                                if config.jsonOptions.includeNullValues || value != nil {
+                                    if !isFirstField {
+                                        try fileHandle.write(contentsOf: ", ".toUTF8Data())
+                                    }
+                                    isFirstField = false
+
+                                    let escapedKey = escapeJSONString(column)
+                                    let jsonValue = formatJSONValue(
+                                        value,
+                                        preserveAsString: config.jsonOptions.preserveAllAsStrings
+                                    )
+                                    try fileHandle.write(contentsOf: "\"\(escapedKey)\": \(jsonValue)".toUTF8Data())
+                                }
+                            }
+                        }
+                    }
+
+                    // Close row object
+                    try fileHandle.write(contentsOf: "}".toUTF8Data())
+
+                    hasWrittenRow = true
+
+                    // Update progress (throttled)
+                    await incrementProgress()
+                }
+
+                offset += result.rows.count
             }
 
             // Ensure final count is shown for this table
             await finalizeTableProgress()
 
             // Close array
+            if hasWrittenRow {
+                try fileHandle.write(contentsOf: newline.toUTF8Data())
+            }
             let tableSuffix = tableIndex < tables.count - 1 ? ",\(newline)" : newline
             try fileHandle.write(contentsOf: "\(indent)]\(tableSuffix)".toUTF8Data())
         }
