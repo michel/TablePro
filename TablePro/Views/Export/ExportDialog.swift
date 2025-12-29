@@ -310,8 +310,13 @@ struct ExportDialog: View {
         let invalidChars = CharacterSet(charactersIn: "/\\:*?\"<>|")
         guard name.rangeOfCharacter(from: invalidChars) == nil else { return false }
 
-        // Prevent path traversal attempts
-        guard !name.contains("..") else { return false }
+        // Prevent path traversal attempts where ".." is used as a path component
+        let isPathTraversalPattern =
+            name == ".." ||
+            name.hasPrefix("../") || name.hasPrefix("..\\") ||
+            name.hasSuffix("/..") || name.hasSuffix("\\..") ||
+            name.contains("/../") || name.contains("\\..\\")
+        guard !isPathTraversalPattern else { return false }
 
         return true
     }
