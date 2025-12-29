@@ -315,6 +315,14 @@ struct ContentView: View {
         escapeKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // Escape key code is 53
             if event.keyCode == 53 {
+                // CRITICAL: Check if completion window is visible first
+                if let frontmostWindow = NSApp.keyWindow,
+                   frontmostWindow.level == .popUpMenu,
+                   frontmostWindow.isVisible {
+                    // Let the completion window handle Escape
+                    return event
+                }
+
                 // Don't consume ESC if a sheet is presented - let it dismiss the sheet
                 if AppState.shared.isSheetPresented {
                     return event

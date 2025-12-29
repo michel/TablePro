@@ -14,11 +14,12 @@ import SwiftUI
 final class SQLCompletionWindowController: NSObject {
     
     // MARK: - Properties
-    
+
     private var window: NSPanel?
     private var tableView: NSTableView?
     private var scrollView: NSScrollView?
-    
+    private var mouseEventMonitor: Any?
+
     private var items: [SQLCompletionItem] = []
     private var selectedIndex: Int = 0
     
@@ -101,6 +102,9 @@ final class SQLCompletionWindowController: NSObject {
                 parent.addChildWindow(panel, ordered: .above)
             }
             panel?.orderFront(nil)
+
+            // Install mouse monitor for click-outside detection
+            self.installMouseMonitor()
         }
         
         if Thread.isMainThread {
@@ -156,6 +160,7 @@ final class SQLCompletionWindowController: NSObject {
         }
         
         let dismissAction = { [weak self] in
+            self?.removeMouseMonitor()
             panel.parent?.removeChildWindow(panel)
             panel.orderOut(nil)
             self?.onDismiss?()
@@ -167,7 +172,37 @@ final class SQLCompletionWindowController: NSObject {
             DispatchQueue.main.async(execute: dismissAction)
         }
     }
-    
+
+    // MARK: - Mouse Event Monitoring
+
+    private func installMouseMonitor() {
+        removeMouseMonitor()
+
+        mouseEventMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            guard let self = self, let window = self.window else { return }
+
+            // Get click location in screen coordinates
+            let clickLocation = event.locationInWindow
+            let clickScreenX = clickLocation.x + (event.window?.frame.origin.x ?? 0)
+            let clickScreenY = clickLocation.y + (event.window?.frame.origin.y ?? 0)
+            let clickScreen = NSPoint(x: clickScreenX, y: clickScreenY)
+
+            // If click is outside completion window, dismiss
+            if !window.frame.contains(clickScreen) {
+                self.dismiss()
+            }
+        }
+    }
+
+    private func removeMouseMonitor() {
+        if let monitor = mouseEventMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseEventMonitor = nil
+        }
+    }
+
     // MARK: - Keyboard Navigation
     
     /// Handle key event, returns true if handled

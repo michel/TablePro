@@ -199,7 +199,7 @@ final class EditorTextView: NSTextView {
         
         // If click is far from current cursor position, dismiss completion
         let currentCursor = selectedRange().location
-        if abs(characterIndex - currentCursor) > 1 {
+        if abs(characterIndex - currentCursor) > 0 {
             onClickOutsideCompletion?()
         }
         

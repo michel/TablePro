@@ -96,6 +96,14 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
             name: NSNotification.Name("QueryTabDidChange"),
             object: nil
         )
+
+        // Observe clearSelection notification to dismiss completion
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleClearSelection),
+            name: .clearSelection,
+            object: nil
+        )
     }
     
     deinit {
@@ -106,7 +114,12 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
         // Dismiss completion when switching tabs to prevent duplicates
         dismissCompletion()
     }
-    
+
+    @objc private func handleClearSelection() {
+        // Dismiss completion window if visible
+        dismissCompletion()
+    }
+
     // MARK: - NSTextViewDelegate
     
     func textDidChange(_ notification: Notification) {
