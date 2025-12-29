@@ -352,7 +352,7 @@ final class ExportService: ObservableObject {
 
                 // Handle decimal format
                 if options.decimalFormat == .comma,
-                   Double(processed) != nil {
+                   processed.range(of: #"^[+-]?\d+\.\d+$"#, options: .regularExpression) != nil {
                     processed = processed.replacingOccurrences(of: ".", with: ",")
                 }
 
