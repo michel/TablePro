@@ -290,18 +290,32 @@ final class ExportService: ObservableObject {
                 try fileHandle.write(contentsOf: "# Table: \(sanitizedName)\n".toUTF8Data())
             }
 
-            // Fetch all data from table
+            // Fetch data from table in batches to avoid loading everything into memory
             let tableRef = qualifiedTableRef(for: table)
-            let result = try await driver.execute(query: "SELECT * FROM \(tableRef)")
+            let batchSize = 10_000
+            var offset = 0
 
-            // Stream CSV content directly to file
-            try await writeCSVContentWithProgress(
-                columns: result.columns,
-                rows: result.rows,
-                options: config.csvOptions,
-                to: fileHandle
-            )
+            while true {
+                try checkCancellation()
 
+                let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
+                let result = try await driver.execute(query: query)
+
+                // No more rows to process
+                if result.rows.isEmpty {
+                    break
+                }
+
+                // Stream CSV content for this batch directly to file
+                try await writeCSVContentWithProgress(
+                    columns: result.columns,
+                    rows: result.rows,
+                    options: config.csvOptions,
+                    to: fileHandle
+                )
+
+                offset += batchSize
+            }
             if index < tables.count - 1 {
                 try fileHandle.write(contentsOf: "\(lineBreak)\(lineBreak)".toUTF8Data())
             }
