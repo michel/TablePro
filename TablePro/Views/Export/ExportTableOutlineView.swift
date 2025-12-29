@@ -369,7 +369,8 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
                 self?.tableSQLOptionChanged(tableId: tableId, option: \.includeData, value: checkbox.state == .on)
             }
         default:
-            break
+            NSLog("ExportTableOutlineView: Unknown SQL option column '%@' for table id %@", column, tableId.uuidString)
+            return nil
         }
 
         return cellView
