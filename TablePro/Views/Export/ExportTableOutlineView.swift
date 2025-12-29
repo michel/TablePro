@@ -76,11 +76,9 @@ struct ExportTableOutlineView: NSViewRepresentable {
                 scrollView.documentView = newView
                 context.coordinator.outlineView = newView
 
-                // Reload data in the new view asynchronously
-                DispatchQueue.main.async {
-                    newView.reloadData()
-                    context.coordinator.restoreExpansionState(in: newView)
-                }
+                // Reload data in the new view synchronously; updateNSView is already on the main thread
+                newView.reloadData()
+                context.coordinator.restoreExpansionState(in: newView)
             }
         }
 
