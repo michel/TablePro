@@ -300,6 +300,7 @@ struct SidebarView: View {
             }
             NotificationCenter.default.post(name: .exportTables, object: nil)
         }
+        .disabled(!hasSelection)
 
         Divider()
 
