@@ -430,7 +430,13 @@ struct ImportDialog: View {
                 throw ImportError.decompressFailed
             }
             let outputFile = try FileHandle(forWritingTo: tempURL)
-            defer { try? outputFile.close() }
+            defer {
+                do {
+                    try outputFile.close()
+                } catch {
+                    print("Failed to close decompressed output file handle at \(tempURL.path): \(error)")
+                }
+            }
 
             process.standardOutput = outputFile
 
