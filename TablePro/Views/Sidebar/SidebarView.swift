@@ -302,6 +302,10 @@ struct SidebarView: View {
         }
         .disabled(!hasSelection)
 
+        Button("Import...") {
+            NotificationCenter.default.post(name: .importTables, object: nil)
+        }
+
         Divider()
 
         Button("Truncate") {
