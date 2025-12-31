@@ -219,16 +219,30 @@ final class ImportService: ObservableObject {
 
     // MARK: - Private Helpers
 
+    /// Returns a filesystem path string for the given URL, using the
+    /// preferred `URL.path()` API on macOS 13+ and falling back to
+    /// the legacy `path` property on earlier versions.
+    private func fileSystemPath(for url: URL) -> String {
+        if #available(macOS 13.0, *) {
+            return url.path()
+        } else {
+            return url.path
+        }
+    }
+
     private func decompressIfNeeded(_ url: URL) async throws -> URL {
         guard url.pathExtension == "gz" else { return url }
 
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".sql")
 
+        // Derive the filesystem path once and pass it into the detached task.
+        let filePath = fileSystemPath(for: url)
+
         return try await Task.detached {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/gunzip")
-            process.arguments = ["-c", url.path]
+            process.arguments = ["-c", filePath]
 
             let fileManager = FileManager.default
             guard fileManager.createFile(atPath: tempURL.path, contents: nil, attributes: nil) else {
