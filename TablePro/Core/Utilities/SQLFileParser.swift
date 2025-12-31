@@ -159,8 +159,13 @@ final class SQLFileParser {
                             index = buffer.index(after: index)
                         }
 
-                        // Clear processed buffer
-                        buffer = ""
+                        // Clear processed buffer, but retain any trailing character
+                        // that could start or complete a multi-character sequence
+                        if let lastChar = buffer.last, "-/*\\".contains(lastChar) {
+                            buffer = String(lastChar)
+                        } else {
+                            buffer = ""
+                        }
                     }
 
                     // Add final statement if any
