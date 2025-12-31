@@ -73,28 +73,45 @@ final class SQLFileParser {
                                 currentLine += 1
                             }
 
+                            // Track whether we manually advanced the index (for two-char sequences)
+                            var didManuallyAdvance = false
+
                             // State machine transitions
                             switch state {
                             case .normal:
                                 if char == "-" && nextChar == "-" {
-                                    // Start of single-line comment
+                                    // Start of single-line comment (skip both '-' chars)
                                     state = .inSingleLineComment
-                                    index = nextIndex // Skip second -
+                                    index = buffer.index(after: nextIndex)
+                                    didManuallyAdvance = true
                                 } else if char == "/" && nextChar == "*" {
-                                    // Start of multi-line comment
+                                    // Start of multi-line comment (skip both '/*' chars)
                                     state = .inMultiLineComment
-                                    index = nextIndex // Skip *
+                                    index = buffer.index(after: nextIndex)
+                                    didManuallyAdvance = true
                                 } else if char == "'" {
                                     // Start of single-quoted string
                                     state = .inSingleQuotedString
+                                    // Track statement start on first non-whitespace character
+                                    if currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        statementStartLine = currentLine
+                                    }
                                     currentStatement.append(char)
                                 } else if char == "\"" {
                                     // Start of double-quoted string
                                     state = .inDoubleQuotedString
+                                    // Track statement start on first non-whitespace character
+                                    if currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        statementStartLine = currentLine
+                                    }
                                     currentStatement.append(char)
                                 } else if char == "`" {
                                     // Start of backtick-quoted string
                                     state = .inBacktickQuotedString
+                                    // Track statement start on first non-whitespace character
+                                    if currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        statementStartLine = currentLine
+                                    }
                                     currentStatement.append(char)
                                 } else if char == ";" {
                                     // Statement boundary!
@@ -103,8 +120,12 @@ final class SQLFileParser {
                                         continuation.yield((trimmed, statementStartLine))
                                     }
                                     currentStatement = ""
-                                    statementStartLine = currentLine
+                                    // Don't update statementStartLine here - will be set when next statement starts
                                 } else {
+                                    // Track statement start on first non-whitespace character
+                                    if currentStatement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !char.isWhitespace {
+                                        statementStartLine = currentLine
+                                    }
                                     currentStatement.append(char)
                                 }
 
@@ -117,21 +138,24 @@ final class SQLFileParser {
 
                             case .inMultiLineComment:
                                 if char == "*" && nextChar == "/" {
-                                    // End of multi-line comment
+                                    // End of multi-line comment (skip both '*/' chars)
                                     state = .normal
-                                    index = nextIndex // Skip /
+                                    index = buffer.index(after: nextIndex)
+                                    didManuallyAdvance = true
                                 }
 
                             case .inSingleQuotedString:
                                 currentStatement.append(char)
                                 if char == "\\" && nextChar != nil {
-                                    // Escaped character - add both \ and next char
-                                    index = nextIndex
-                                    currentStatement.append(buffer[index])
+                                    // Escaped character - append both '\' and next char, then skip both
+                                    currentStatement.append(nextChar!)
+                                    index = buffer.index(after: nextIndex)
+                                    didManuallyAdvance = true
                                 } else if char == "'" && nextChar == "'" {
-                                    // Doubled quote (SQL escape) - add both
-                                    index = nextIndex
-                                    currentStatement.append(buffer[index])
+                                    // Doubled quote (SQL escape) - append both quotes, then skip both
+                                    currentStatement.append(nextChar!)
+                                    index = buffer.index(after: nextIndex)
+                                    didManuallyAdvance = true
                                 } else if char == "'" {
                                     // End of string
                                     state = .normal
@@ -140,9 +164,10 @@ final class SQLFileParser {
                             case .inDoubleQuotedString:
                                 currentStatement.append(char)
                                 if char == "\\" && nextChar != nil {
-                                    // Escaped character - add both \ and next char
-                                    index = nextIndex
-                                    currentStatement.append(buffer[index])
+                                    // Escaped character - append both '\' and next char, then skip both
+                                    currentStatement.append(nextChar!)
+                                    index = buffer.index(after: nextIndex)
+                                    didManuallyAdvance = true
                                 } else if char == "\"" {
                                     // End of string
                                     state = .normal
@@ -156,7 +181,10 @@ final class SQLFileParser {
                                 }
                             }
 
-                            index = buffer.index(after: index)
+                            // Only advance if we didn't already manually advance
+                            if !didManuallyAdvance {
+                                index = buffer.index(after: index)
+                            }
                         }
 
                         // Clear processed buffer, but retain any trailing character

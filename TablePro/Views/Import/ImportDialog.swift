@@ -274,9 +274,18 @@ struct ImportDialog: View {
             fileSize = attrs[.size] as? Int64 ?? 0
         }
 
+        // Decompress .gz files before preview
+        let urlToRead: URL
+        do {
+            urlToRead = try await decompressIfNeeded(url)
+        } catch {
+            filePreview = "Failed to decompress file: \(error.localizedDescription)"
+            return
+        }
+
         // Load preview (up to 5MB for preview)
         do {
-            let handle = try FileHandle(forReadingFrom: url)
+            let handle = try FileHandle(forReadingFrom: urlToRead)
             defer { try? handle.close() }
 
             // Load up to 5MB for preview (enough for most SQL files)
@@ -294,7 +303,7 @@ struct ImportDialog: View {
 
         // Count statements asynchronously
         Task {
-            await countStatements(url: url)
+            await countStatements(url: urlToRead)
         }
     }
 
@@ -359,6 +368,50 @@ struct ImportDialog: View {
                 }
             }
         }
+    }
+
+    /// Decompress .gz file if needed, returns URL to read
+    private func decompressIfNeeded(_ url: URL) async throws -> URL {
+        guard url.pathExtension == "gz" else { return url }
+
+        // Check if gunzip exists
+        let gunzipPath = "/usr/bin/gunzip"
+        guard FileManager.default.fileExists(atPath: gunzipPath) else {
+            throw ImportError.fileReadFailed("gunzip not found at \(gunzipPath)")
+        }
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".sql")
+
+        return try await Task.detached {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: gunzipPath)
+            process.arguments = ["-c", url.path]
+
+            let fileManager = FileManager.default
+            guard fileManager.createFile(atPath: tempURL.path, contents: nil, attributes: nil) else {
+                throw ImportError.decompressFailed
+            }
+            let outputFile = try FileHandle(forWritingTo: tempURL)
+            defer { try? outputFile.close() }
+
+            process.standardOutput = outputFile
+
+            let errorPipe = Pipe()
+            process.standardError = errorPipe
+
+            try process.run()
+            process.waitUntilExit()
+
+            guard process.terminationStatus == 0 else {
+                // Try to read error message
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+                throw ImportError.fileReadFailed("Failed to decompress .gz file: \(errorMessage)")
+            }
+
+            return tempURL
+        }.value
     }
 
 }

@@ -246,6 +246,12 @@ final class ImportService: ObservableObject {
     private func decompressIfNeeded(_ url: URL) async throws -> URL {
         guard url.pathExtension == "gz" else { return url }
 
+        // Check if gunzip exists
+        let gunzipPath = "/usr/bin/gunzip"
+        guard FileManager.default.fileExists(atPath: gunzipPath) else {
+            throw ImportError.fileReadFailed("gunzip not found at \(gunzipPath)")
+        }
+
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".sql")
 
@@ -254,7 +260,7 @@ final class ImportService: ObservableObject {
 
         return try await Task.detached {
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/gunzip")
+            process.executableURL = URL(fileURLWithPath: gunzipPath)
             process.arguments = ["-c", filePath]
 
             let fileManager = FileManager.default
@@ -273,7 +279,10 @@ final class ImportService: ObservableObject {
             process.waitUntilExit()
 
             guard process.terminationStatus == 0 else {
-                throw ImportError.decompressFailed
+                // Try to read error message
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+                throw ImportError.fileReadFailed("Failed to decompress .gz file: \(errorMessage)")
             }
 
             return tempURL
