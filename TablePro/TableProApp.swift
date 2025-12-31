@@ -197,7 +197,7 @@ struct TableProApp: App {
                 Button("Import...") {
                     NotificationCenter.default.post(name: .importTables, object: nil)
                 }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .keyboardShortcut("i", modifiers: [.command, .option])
                 .disabled(!appState.isConnected)
             }
             
