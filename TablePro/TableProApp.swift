@@ -193,6 +193,12 @@ struct TableProApp: App {
                 }
                 .keyboardShortcut("e", modifiers: [.command, .shift])
                 .disabled(!appState.isConnected)
+
+                Button("Import...") {
+                    NotificationCenter.default.post(name: .importTables, object: nil)
+                }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .disabled(!appState.isConnected)
             }
             
             // Edit menu - Undo/Redo (smart handling for both text editor and data grid)
@@ -329,6 +335,9 @@ extension Notification.Name {
 
     // Export notifications
     static let exportTables = Notification.Name("exportTables")
+
+    // Import notifications
+    static let importTables = Notification.Name("importTables")
 
     // Window lifecycle notifications
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")

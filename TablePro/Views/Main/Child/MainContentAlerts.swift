@@ -68,6 +68,21 @@ struct MainContentAlerts: ViewModifier {
             .onChange(of: coordinator.showExportDialog) { _, isPresented in
                 appState.isSheetPresented = isPresented
             }
+
+            .sheet(isPresented: $coordinator.showImportDialog) {
+                ImportDialog(
+                    isPresented: $coordinator.showImportDialog,
+                    connection: connection,
+                    initialFileURL: coordinator.importFileURL
+                )
+            }
+            .onChange(of: coordinator.showImportDialog) { _, isPresented in
+                appState.isSheetPresented = isPresented
+                // Clear the file URL when dialog is dismissed
+                if !isPresented {
+                    coordinator.importFileURL = nil
+                }
+            }
     }
 
     // MARK: - Computed Properties

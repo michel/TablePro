@@ -46,6 +46,8 @@ final class MainContentCoordinator: ObservableObject {
     // Removed: showErrorAlert and errorAlertMessage - errors now display inline
     @Published var showDatabaseSwitcher = false
     @Published var showExportDialog = false
+    @Published var showImportDialog = false
+    @Published var importFileURL: URL?
     @Published var needsLazyLoad = false
 
     // MARK: - Internal State

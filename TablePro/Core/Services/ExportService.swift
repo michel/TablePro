@@ -701,9 +701,9 @@ final class ExportService: ObservableObject {
                 currentTable = table.qualifiedName
 
                 let sqlOptions = table.sqlOptions
-                let tableRef = qualifiedTableRef(for: table)
+                let tableRef = databaseType.quoteIdentifier(table.name)
 
-                let sanitizedName = sanitizeForSQLComment(table.qualifiedName)
+                let sanitizedName = sanitizeForSQLComment(table.name)
                 try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n".toUTF8Data())
                 try fileHandle.write(contentsOf: "-- Table: \(sanitizedName)\n".toUTF8Data())
                 try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n\n".toUTF8Data())
