@@ -84,7 +84,11 @@ final class ImportService: ObservableObject {
         let needsCleanup = fileURL != url
         defer {
             if needsCleanup {
-                try? FileManager.default.removeItem(at: fileURL)
+                do {
+                    try FileManager.default.removeItem(at: fileURL)
+                } catch {
+                    print("WARNING: Failed to clean up temporary file at \(fileURL.path): \(error)")
+                }
             }
         }
 
