@@ -119,7 +119,7 @@ final class ImportService: ObservableObject {
 
             // 5. Begin transaction (if enabled)
             if config.wrapInTransaction {
-                _ = try await driver.execute(query: "BEGIN")
+                _ = try await driver.execute(query: "START TRANSACTION")
             }
 
             // 6. Parse and execute statements
