@@ -390,11 +390,19 @@ struct ImportDialog: View {
     /// Clean up temporary decompressed files
     private func cleanupTempFiles() {
         if let tempURL = tempPreviewURL {
-            try? FileManager.default.removeItem(at: tempURL)
+            do {
+                try FileManager.default.removeItem(at: tempURL)
+            } catch {
+                print("ImportDialog.cleanupTempFiles: Failed to remove tempPreviewURL at \(tempURL.path): \(error.localizedDescription)")
+            }
             tempPreviewURL = nil
         }
         if let tempURL = tempCountURL {
-            try? FileManager.default.removeItem(at: tempURL)
+            do {
+                try FileManager.default.removeItem(at: tempURL)
+            } catch {
+                print("ImportDialog.cleanupTempFiles: Failed to remove tempCountURL at \(tempURL.path): \(error.localizedDescription)")
+            }
             tempCountURL = nil
         }
     }
