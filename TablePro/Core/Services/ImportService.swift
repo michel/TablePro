@@ -230,6 +230,10 @@ final class ImportService: ObservableObject {
             process.executableURL = URL(fileURLWithPath: "/usr/bin/gunzip")
             process.arguments = ["-c", url.path]
 
+            let fileManager = FileManager.default
+            guard fileManager.createFile(atPath: tempURL.path, contents: nil, attributes: nil) else {
+                throw ImportError.decompressFailed
+            }
             let outputFile = try FileHandle(forWritingTo: tempURL)
             defer { try? outputFile.close() }
 
