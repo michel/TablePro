@@ -364,19 +364,7 @@ struct ImportDialog: View {
                 await MainActor.run {
                     showProgressDialog = false
                     importResult = result
-
-                    if result.failedStatement == nil {
-                        showSuccessDialog = true
-                    } else {
-                        let statement = result.failedStatement ?? ""
-                        let line = result.failedLine ?? 0
-                        importError = ImportError.importFailed(
-                            statement: statement,
-                            line: line,
-                            error: "Unknown error"
-                        )
-                        showErrorDialog = true
-                    }
+                    showSuccessDialog = true
                 }
 
             } catch let error as ImportError {
