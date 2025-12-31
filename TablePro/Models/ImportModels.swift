@@ -14,7 +14,6 @@ struct ImportConfiguration {
     var encoding: String.Encoding = .utf8
     var wrapInTransaction: Bool = true
     var disableForeignKeyChecks: Bool = true
-    var stopOnError: Bool = true
 }
 
 // MARK: - Import Encoding Options
