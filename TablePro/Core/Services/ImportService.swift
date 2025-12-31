@@ -123,6 +123,19 @@ final class ImportService: ObservableObject {
             }
 
             // 6. Parse and execute statements
+            // NOTE:
+            // This call may re-parse the file after a prior pass that counted
+            // the total number of statements for progress reporting. For large
+            // files this can roughly double the I/O and parsing overhead.
+            //
+            // This is currently an intentional tradeoff in favor of providing
+            // an accurate, determinate progress value (executedCount /
+            // totalStatements) to the UI. If import performance for very large
+            // files becomes an issue, consider:
+            //   - Removing the initial counting pass and using an indeterminate
+            //     progress indicator instead, or
+            //   - Parsing once and caching the statements, at the cost of
+            //     additional memory usage.
             let stream = try await parser.parseFile(url: fileURL, encoding: config.encoding)
 
             for try await (statement, lineNumber) in stream {
