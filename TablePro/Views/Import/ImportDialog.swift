@@ -80,6 +80,8 @@ struct ImportDialog: View {
             }
         }
         .onDisappear {
+            // Cancel any in-progress file loading when dialog is dismissed
+            loadFileTask?.cancel()
             // Clean up temp files when dialog is dismissed
             cleanupTempFiles()
         }
