@@ -52,6 +52,8 @@ enum ImportError: LocalizedError {
     case importFailed(statement: String, line: Int, error: String)
     case cancelled
     case invalidEncoding
+    case rollbackFailed(String)
+    case foreignKeyCleanupFailed(String)
 
     var errorDescription: String? {
         switch self {
@@ -69,6 +71,10 @@ enum ImportError: LocalizedError {
             return "Import cancelled by user"
         case .invalidEncoding:
             return "Invalid file encoding. Try a different encoding option."
+        case .rollbackFailed(let message):
+            return "CRITICAL: Transaction rollback failed - database may be in inconsistent state: \(message)"
+        case .foreignKeyCleanupFailed(let message):
+            return "WARNING: Failed to re-enable foreign key checks: \(message). Please manually verify FK constraints are enabled."
         }
     }
 }

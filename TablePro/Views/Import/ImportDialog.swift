@@ -31,6 +31,10 @@ struct ImportDialog: View {
     @State private var importResult: ImportResult?
     @State private var importError: ImportError?
 
+    // Track temp files for cleanup
+    @State private var tempPreviewURL: URL?
+    @State private var tempCountURL: URL?
+
     // MARK: - Import Service
 
     @StateObject private var importServiceState = ImportServiceState()
@@ -71,6 +75,10 @@ struct ImportDialog: View {
             if !importServiceState.isImporting {
                 isPresented = false
             }
+        }
+        .onDisappear {
+            // Clean up temp files when dialog is dismissed
+            cleanupTempFiles()
         }
         .sheet(isPresented: $showProgressDialog) {
             ImportProgressView(
@@ -267,6 +275,9 @@ struct ImportDialog: View {
 
     @MainActor
     private func loadFile(_ url: URL) async {
+        // Clean up previous temp files
+        cleanupTempFiles()
+
         fileURL = url
 
         // Get file size
@@ -278,6 +289,10 @@ struct ImportDialog: View {
         let urlToRead: URL
         do {
             urlToRead = try await decompressIfNeeded(url)
+            // Track temp file if decompression occurred
+            if urlToRead != url {
+                tempPreviewURL = urlToRead
+            }
         } catch {
             filePreview = "Failed to decompress file: \(error.localizedDescription)"
             return
@@ -367,6 +382,18 @@ struct ImportDialog: View {
                     showErrorDialog = true
                 }
             }
+        }
+    }
+
+    /// Clean up temporary decompressed files
+    private func cleanupTempFiles() {
+        if let tempURL = tempPreviewURL {
+            try? FileManager.default.removeItem(at: tempURL)
+            tempPreviewURL = nil
+        }
+        if let tempURL = tempCountURL {
+            try? FileManager.default.removeItem(at: tempURL)
+            tempCountURL = nil
         }
     }
 

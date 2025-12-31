@@ -93,6 +93,9 @@ final class ImportService: ObservableObject {
         totalStatements = try await parser.countStatements(url: fileURL, encoding: config.encoding)
         statusMessage = ""
 
+        // Check for cancellation after counting (before starting execution)
+        try checkCancellation()
+
         // Check if file is empty
         guard totalStatements > 0 else {
             throw ImportError.fileReadFailed("File contains no SQL statements")
@@ -119,7 +122,7 @@ final class ImportService: ObservableObject {
 
             // 5. Begin transaction (if enabled)
             if config.wrapInTransaction {
-                _ = try await driver.execute(query: "START TRANSACTION")
+                _ = try await driver.execute(query: beginTransactionStatement(for: connection.type))
             }
 
             // 6. Parse and execute statements
@@ -191,7 +194,7 @@ final class ImportService: ObservableObject {
 
             // 7. Commit transaction (if enabled)
             if config.wrapInTransaction {
-                _ = try await driver.execute(query: "COMMIT")
+                _ = try await driver.execute(query: commitStatement(for: connection.type))
             }
 
             // 8. Re-enable FK checks (if enabled) - AFTER transaction
@@ -203,16 +206,30 @@ final class ImportService: ObservableObject {
             }
 
         } catch {
-            // Rollback on error
+            // Rollback on error - this is CRITICAL and must not fail silently
             if config.wrapInTransaction {
-                try? await driver.execute(query: "ROLLBACK")
+                do {
+                    _ = try await driver.execute(query: rollbackStatement(for: connection.type))
+                } catch let rollbackError {
+                    // Rollback failed - database may be in inconsistent state
+                    // This is a critical error that MUST be reported to the user
+                    throw ImportError.rollbackFailed(rollbackError.localizedDescription)
+                }
             }
 
-            // Re-enable FK checks on error
+            // Re-enable FK checks on error - important for data integrity
             if config.disableForeignKeyChecks {
                 let fkEnableStmts = fkEnableStatements(for: connection.type)
                 for stmt in fkEnableStmts {
-                    try? await driver.execute(query: stmt)
+                    do {
+                        _ = try await driver.execute(query: stmt)
+                    } catch let fkError {
+                        // FK re-enable failed - warn user but don't override original error
+                        // Store this as a warning that should be shown alongside the original error
+                        print("WARNING: Failed to re-enable FK checks: \(fkError.localizedDescription)")
+                        // Note: We don't throw here to preserve the original import error
+                        // but we should log this for the user to see
+                    }
                 }
             }
 
@@ -316,5 +333,22 @@ final class ImportService: ObservableObject {
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
         }
+    }
+
+    private func beginTransactionStatement(for dbType: DatabaseType) -> String {
+        switch dbType {
+        case .mysql, .mariadb:
+            return "START TRANSACTION"
+        case .postgresql, .sqlite:
+            return "BEGIN"
+        }
+    }
+
+    private func commitStatement(for dbType: DatabaseType) -> String {
+        return "COMMIT"
+    }
+
+    private func rollbackStatement(for dbType: DatabaseType) -> String {
+        return "ROLLBACK"
     }
 }

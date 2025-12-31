@@ -5,6 +5,12 @@
 //  Streaming SQL file parser that splits SQL statements while handling
 //  comments, string literals, and escape sequences.
 //
+//  Implementation: Uses a finite state machine to track parser context
+//  (normal, in-comment, in-string) while processing files in 4KB chunks.
+//  Handles edge cases where multi-character sequences (comments, escapes)
+//  span chunk boundaries by deferring processing of special characters
+//  until the next chunk arrives.
+//
 
 import Foundation
 
@@ -54,6 +60,9 @@ final class SQLFileParser {
                         if data.isEmpty { break }
 
                         guard let chunk = String(data: data, encoding: encoding) else {
+                            // Encoding failure - log error and finish stream
+                            print("ERROR: Failed to decode file chunk with encoding \(encoding.description)")
+                            print("This usually means the file encoding doesn't match the selected encoding option.")
                             continuation.finish()
                             return
                         }
@@ -68,12 +77,21 @@ final class SQLFileParser {
                             let nextIndex = buffer.index(after: index)
                             let nextChar: Character? = nextIndex < buffer.endIndex ? buffer[nextIndex] : nil
 
+                            // At chunk boundary: defer processing of characters that could start
+                            // multi-character sequences until we have the next chunk
+                            if nextChar == nil && (char == "-" || char == "/" || char == "\\" || char == "*") {
+                                // Keep this character in buffer for next chunk
+                                break
+                            }
+
                             // Track line numbers
                             if char == "\n" {
                                 currentLine += 1
                             }
 
-                            // Track whether we manually advanced the index (for two-char sequences)
+                            // Track whether we already advanced the index in the state machine logic.
+                            // Used for multi-character sequences like --, /*, */ and escape sequences
+                            // like \', '', \" where we need to skip both characters at once.
                             var didManuallyAdvance = false
 
                             // State machine transitions
@@ -82,11 +100,13 @@ final class SQLFileParser {
                                 if char == "-" && nextChar == "-" {
                                     // Start of single-line comment (skip both '-' chars)
                                     state = .inSingleLineComment
+                                    if nextChar == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 } else if char == "/" && nextChar == "*" {
                                     // Start of multi-line comment (skip both '/*' chars)
                                     state = .inMultiLineComment
+                                    if nextChar == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 } else if char == "'" {
@@ -140,6 +160,7 @@ final class SQLFileParser {
                                 if char == "*" && nextChar == "/" {
                                     // End of multi-line comment (skip both '*/' chars)
                                     state = .normal
+                                    if nextChar == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 }
@@ -147,13 +168,17 @@ final class SQLFileParser {
                             case .inSingleQuotedString:
                                 currentStatement.append(char)
                                 if char == "\\" && nextChar != nil {
-                                    // Escaped character - append both '\' and next char, then skip both
+                                    // Backslash escape (MySQL, PostgreSQL): \' escapes the quote
+                                    // Append both '\' and the escaped character, then skip both
                                     currentStatement.append(nextChar!)
+                                    if nextChar == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 } else if char == "'" && nextChar == "'" {
-                                    // Doubled quote (SQL escape) - append both quotes, then skip both
+                                    // SQL standard escape: '' (doubled quote) escapes the quote
+                                    // Append both quotes, then skip both
                                     currentStatement.append(nextChar!)
+                                    if nextChar == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 } else if char == "'" {
@@ -166,6 +191,7 @@ final class SQLFileParser {
                                 if char == "\\" && nextChar != nil {
                                     // Escaped character - append both '\' and next char, then skip both
                                     currentStatement.append(nextChar!)
+                                    if nextChar == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 } else if char == "\"" {
@@ -187,10 +213,10 @@ final class SQLFileParser {
                             }
                         }
 
-                        // Clear processed buffer, but retain any trailing character
-                        // that could start or complete a multi-character sequence
-                        if let lastChar = buffer.last, "-/*\\".contains(lastChar) {
-                            buffer = String(lastChar)
+                        // Keep any unprocessed characters in buffer for next chunk
+                        // (happens when we break early due to potential multi-char sequence at chunk boundary)
+                        if index < buffer.endIndex {
+                            buffer = String(buffer[index...])
                         } else {
                             buffer = ""
                         }
@@ -205,6 +231,11 @@ final class SQLFileParser {
                     continuation.finish()
 
                 } catch {
+                    // Log parsing errors - these should not fail silently
+                    print("ERROR: SQL file parsing failed: \(error.localizedDescription)")
+                    if let fileError = error as? NSError {
+                        print("Error details: domain=\(fileError.domain), code=\(fileError.code)")
+                    }
                     continuation.finish()
                 }
             }
