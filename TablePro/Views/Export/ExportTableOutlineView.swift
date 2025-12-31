@@ -416,9 +416,8 @@ final class OutlineViewCoordinator: NSObject, NSOutlineViewDataSource, NSOutline
         case .off:
             shouldSelect = false
         case .mixed:
-            // Defensive: mixed state should only be set programmatically in configure()
-            // If user somehow triggers this, default to "select all"
-            assertionFailure("Mixed state should not be triggered by user click")
+            // When user clicks a checkbox in mixed state, select all remaining tables
+            // This matches standard macOS tristate checkbox behavior
             shouldSelect = true
         default:
             // Fallback for any other state values (shouldn't occur)
