@@ -811,7 +811,8 @@ final class ExportService: ObservableObject {
         batchSize: Int,
         to fileHandle: FileHandle
     ) async throws {
-        let tableRef = qualifiedTableRef(for: table)
+        // Use unqualified table name for INSERT statements (schema-agnostic export)
+        let tableRef = databaseType.quoteIdentifier(table.name)
         let quotedColumns = columns
             .map { databaseType.quoteIdentifier($0) }
             .joined(separator: ", ")
