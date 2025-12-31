@@ -208,8 +208,16 @@ final class SQLFileParser {
                             case .inBacktickQuotedString:
                                 currentStatement.append(char)
                                 if char == "`" {
-                                    // End of string
-                                    state = .normal
+                                    if let nextChar = nextChar, nextChar == "`" {
+                                        // Escaped backtick (``) inside identifier - append both and skip the next one
+                                        currentStatement.append(nextChar)
+                                        if nextChar == "\n" { currentLine += 1 }
+                                        index = buffer.index(after: nextIndex)
+                                        didManuallyAdvance = true
+                                    } else {
+                                        // End of backtick-quoted identifier
+                                        state = .normal
+                                    }
                                 }
                             }
 
