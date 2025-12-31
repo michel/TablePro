@@ -301,7 +301,13 @@ struct ImportDialog: View {
         // Load preview (up to 5MB for preview)
         do {
             let handle = try FileHandle(forReadingFrom: urlToRead)
-            defer { try? handle.close() }
+            defer {
+                do {
+                    try handle.close()
+                } catch {
+                    print("WARNING: Failed to close file handle for preview: \(error)")
+                }
+            }
 
             // Load up to 5MB for preview (enough for most SQL files)
             let maxPreviewSize = 5 * 1024 * 1024 // 5 MB
