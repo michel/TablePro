@@ -334,9 +334,11 @@ struct ImportDialog: View {
                     if result.failedStatement == nil {
                         showSuccessDialog = true
                     } else {
+                        let statement = result.failedStatement ?? ""
+                        let line = result.failedLine ?? 0
                         importError = ImportError.importFailed(
-                            statement: result.failedStatement!,
-                            line: result.failedLine!,
+                            statement: statement,
+                            line: line,
                             error: "Unknown error"
                         )
                         showErrorDialog = true
