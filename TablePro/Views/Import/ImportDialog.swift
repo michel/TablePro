@@ -310,7 +310,11 @@ struct ImportDialog: View {
             if let preview = String(data: previewData, encoding: config.encoding) {
                 filePreview = preview
             } else {
-                filePreview = "Failed to load preview with selected encoding"
+                let encodingDescription = String(describing: config.encoding)
+                filePreview = """
+                Failed to load preview using encoding: \(encodingDescription).
+                Try selecting a different text encoding from the encoding picker and reload the preview.
+                """
             }
         } catch {
             filePreview = "Failed to load preview: \(error.localizedDescription)"
