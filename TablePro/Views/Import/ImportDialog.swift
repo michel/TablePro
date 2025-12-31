@@ -332,8 +332,8 @@ struct ImportDialog: View {
             let count = try await parser.countStatements(url: url, encoding: config.encoding)
             statementCount = count
         } catch {
-            // If counting fails, just don't show count
-            statementCount = 0
+            // If counting fails, use a sentinel value to distinguish from a real 0
+            statementCount = -1
         }
 
         isCountingStatements = false
