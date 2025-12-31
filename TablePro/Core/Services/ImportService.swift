@@ -280,62 +280,7 @@ final class ImportService: ObservableObject {
     }
 
     private func decompressIfNeeded(_ url: URL) async throws -> URL {
-        guard url.pathExtension == "gz" else { return url }
-
-        // gzip decompression currently depends on the system `gunzip` tool
-        // being available at this path.
-        let gunzipPath = "/usr/bin/gunzip"
-        guard FileManager.default.fileExists(atPath: gunzipPath) else {
-            throw ImportError.fileReadFailed(
-                """
-                gunzip is required to import .gz files but was not found at \(gunzipPath). \
-                Please install gunzip on your system, or decompress the file manually and \
-                then import the uncompressed .sql file.
-                """
-            )
-        }
-
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString + ".sql")
-
-        // Derive the filesystem path once and pass it into the detached task.
-        let filePath = fileSystemPath(for: url)
-
-        return try await Task.detached {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: gunzipPath)
-            process.arguments = ["-c", filePath]
-
-            let fileManager = FileManager.default
-            guard fileManager.createFile(atPath: tempURL.path, contents: nil, attributes: nil) else {
-                throw ImportError.decompressFailed
-            }
-            let outputFile = try FileHandle(forWritingTo: tempURL)
-            defer {
-                do {
-                    try outputFile.close()
-                } catch {
-                    print("WARNING: Failed to close temp file handle: \(error)")
-                }
-            }
-
-            process.standardOutput = outputFile
-
-            let errorPipe = Pipe()
-            process.standardError = errorPipe
-
-            try process.run()
-            process.waitUntilExit()
-
-            guard process.terminationStatus == 0 else {
-                // Try to read error message
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                throw ImportError.fileReadFailed("Failed to decompress .gz file: \(errorMessage)")
-            }
-
-            return tempURL
-        }.value
+        return try await FileDecompressor.decompressIfNeeded(url, fileSystemPath: fileSystemPath)
     }
 
     private func checkCancellation() throws {

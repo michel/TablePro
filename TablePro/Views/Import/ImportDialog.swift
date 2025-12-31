@@ -434,55 +434,7 @@ struct ImportDialog: View {
 
     /// Decompress .gz file if needed, returns URL to read
     private func decompressIfNeeded(_ url: URL) async throws -> URL {
-        guard url.pathExtension == "gz" else { return url }
-
-        // Check if gunzip exists
-        let gunzipPath = "/usr/bin/gunzip"
-        guard FileManager.default.fileExists(atPath: gunzipPath) else {
-            throw ImportError.fileReadFailed("gunzip not found at \(gunzipPath)")
-        }
-
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString + ".sql")
-
-        // Get filesystem path using appropriate API
-        let filePath = fileSystemPath(for: url)
-
-        return try await Task.detached {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: gunzipPath)
-            process.arguments = ["-c", filePath]
-
-            let fileManager = FileManager.default
-            guard fileManager.createFile(atPath: tempURL.path, contents: nil, attributes: nil) else {
-                throw ImportError.decompressFailed
-            }
-            let outputFile = try FileHandle(forWritingTo: tempURL)
-            defer {
-                do {
-                    try outputFile.close()
-                } catch {
-                    print("Failed to close decompressed output file handle at \(tempURL.path): \(error)")
-                }
-            }
-
-            process.standardOutput = outputFile
-
-            let errorPipe = Pipe()
-            process.standardError = errorPipe
-
-            try process.run()
-            process.waitUntilExit()
-
-            guard process.terminationStatus == 0 else {
-                // Try to read error message
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                throw ImportError.fileReadFailed("Failed to decompress .gz file: \(errorMessage)")
-            }
-
-            return tempURL
-        }.value
+        return try await FileDecompressor.decompressIfNeeded(url, fileSystemPath: fileSystemPath)
     }
 
 }
