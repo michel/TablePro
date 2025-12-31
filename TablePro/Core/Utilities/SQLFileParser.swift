@@ -44,7 +44,13 @@ final class SQLFileParser {
             Task {
                 do {
                     let fileHandle = try FileHandle(forReadingFrom: url)
-                    defer { try? fileHandle.close() }
+                    defer {
+                        do {
+                            try fileHandle.close()
+                        } catch {
+                            print("WARNING: Failed to close file handle for \(url.path): \(error)")
+                        }
+                    }
 
                     var state: ParserState = .normal
                     var currentStatement = ""
