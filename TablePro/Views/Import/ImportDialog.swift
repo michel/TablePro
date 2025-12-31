@@ -35,6 +35,9 @@ struct ImportDialog: View {
     @State private var tempPreviewURL: URL?
     @State private var tempCountURL: URL?
 
+    // Track active tasks for cancellation
+    @State private var loadFileTask: Task<Void, Never>?
+
     // MARK: - Import Service
 
     @StateObject private var importServiceState = ImportServiceState()
@@ -205,9 +208,11 @@ struct ImportDialog: View {
                     .frame(width: 120)
                     .onChange(of: selectedEncoding) { _, newEncoding in
                         config.encoding = newEncoding.encoding
+                        // Cancel previous task to avoid race conditions
+                        loadFileTask?.cancel()
                         // Reload preview with new encoding
                         if let url = fileURL {
-                            Task {
+                            loadFileTask = Task {
                                 await loadFile(url)
                             }
                         }
@@ -277,6 +282,14 @@ struct ImportDialog: View {
     private func loadFile(_ url: URL) async {
         // Clean up previous temp files
         cleanupTempFiles()
+
+        // Validate that the URL points to a regular file, not a directory or symlink
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+              !isDirectory.boolValue else {
+            filePreview = "Error: Selected path is not a regular file"
+            return
+        }
 
         fileURL = url
 
@@ -407,6 +420,15 @@ struct ImportDialog: View {
         }
     }
 
+    /// Returns filesystem path for URL, using appropriate API for macOS version
+    private func fileSystemPath(for url: URL) -> String {
+        if #available(macOS 13.0, *) {
+            return url.path()
+        } else {
+            return url.path
+        }
+    }
+
     /// Decompress .gz file if needed, returns URL to read
     private func decompressIfNeeded(_ url: URL) async throws -> URL {
         guard url.pathExtension == "gz" else { return url }
@@ -420,10 +442,13 @@ struct ImportDialog: View {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".sql")
 
+        // Get filesystem path using appropriate API
+        let filePath = fileSystemPath(for: url)
+
         return try await Task.detached {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: gunzipPath)
-            process.arguments = ["-c", url.path]
+            process.arguments = ["-c", filePath]
 
             let fileManager = FileManager.default
             guard fileManager.createFile(atPath: tempURL.path, contents: nil, attributes: nil) else {
