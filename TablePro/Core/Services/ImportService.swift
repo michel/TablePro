@@ -148,7 +148,7 @@ final class ImportService: ObservableObject {
             for try await (statement, lineNumber) in stream {
                 try checkCancellation()
 
-                currentStatement = String(statement.prefix(50))
+                currentStatement = statement.count > 50 ? String(statement.prefix(50)) + "..." : statement
                 currentStatementIndex = executedCount + 1
 
                 let statementStartTime = Date()
