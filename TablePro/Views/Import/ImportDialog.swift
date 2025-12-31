@@ -281,8 +281,12 @@ struct ImportDialog: View {
         fileURL = url
 
         // Get file size
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path) {
+        do {
+            let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
             fileSize = attrs[.size] as? Int64 ?? 0
+        } catch {
+            print("WARNING: Failed to get file attributes for \(url.path): \(error)")
+            fileSize = 0
         }
 
         // Decompress .gz files before preview
