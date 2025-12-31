@@ -6,9 +6,11 @@
 //  Uses Combine for cleaner subscription management.
 //
 
+import AppKit
 import Combine
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Handles all NotificationCenter subscriptions for MainContentView
 @MainActor
@@ -321,6 +323,13 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.handleExportTables()
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .importTables)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleImportTables()
+            }
+            .store(in: &cancellables)
     }
 
     private func handleRefreshData() {
@@ -353,6 +362,31 @@ final class MainContentNotificationHandler: ObservableObject {
 
     private func handleExportTables() {
         coordinator?.showExportDialog = true
+    }
+
+    private func handleImportTables() {
+        // Open file picker first, then show dialog with selected file
+        let panel = NSOpenPanel()
+        var contentTypes: [UTType] = []
+        if let sqlType = UTType(filenameExtension: "sql") {
+            contentTypes.append(sqlType)
+        }
+        if let gzType = UTType(filenameExtension: "gz") {
+            contentTypes.append(gzType)
+        }
+        if !contentTypes.isEmpty {
+            panel.allowedContentTypes = contentTypes
+        }
+        panel.allowsMultipleSelection = false
+        panel.message = "Select SQL file to import"
+
+        panel.begin { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+
+            // Store the selected file URL and show dialog
+            self?.coordinator?.importFileURL = url
+            self?.coordinator?.showImportDialog = true
+        }
     }
 
     // MARK: - UI Operations

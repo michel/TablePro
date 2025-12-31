@@ -701,9 +701,9 @@ final class ExportService: ObservableObject {
                 currentTable = table.qualifiedName
 
                 let sqlOptions = table.sqlOptions
-                let tableRef = qualifiedTableRef(for: table)
+                let tableRef = databaseType.quoteIdentifier(table.name)
 
-                let sanitizedName = sanitizeForSQLComment(table.qualifiedName)
+                let sanitizedName = sanitizeForSQLComment(table.name)
                 try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n".toUTF8Data())
                 try fileHandle.write(contentsOf: "-- Table: \(sanitizedName)\n".toUTF8Data())
                 try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n\n".toUTF8Data())
@@ -811,7 +811,8 @@ final class ExportService: ObservableObject {
         batchSize: Int,
         to fileHandle: FileHandle
     ) async throws {
-        let tableRef = qualifiedTableRef(for: table)
+        // Use unqualified table name for INSERT statements (schema-agnostic export)
+        let tableRef = databaseType.quoteIdentifier(table.name)
         let quotedColumns = columns
             .map { databaseType.quoteIdentifier($0) }
             .joined(separator: ", ")
