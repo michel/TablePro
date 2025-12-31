@@ -224,16 +224,31 @@ final class ImportService: ObservableObject {
             // Re-enable FK checks on error - important for data integrity
             if config.disableForeignKeyChecks {
                 let fkEnableStmts = fkEnableStatements(for: connection.type)
+                var fkReenableErrors: [String] = []
                 for stmt in fkEnableStmts {
                     do {
                         _ = try await driver.execute(query: stmt)
                     } catch let fkError {
                         // FK re-enable failed - warn user but don't override original error
                         // Store this as a warning that should be shown alongside the original error
-                        print("WARNING: Failed to re-enable FK checks: \(fkError.localizedDescription)")
+                        let message = fkError.localizedDescription
+                        fkReenableErrors.append(message)
+                        print("WARNING: Failed to re-enable FK checks: \(message)")
                         // Note: We don't throw here to preserve the original import error
                         // but we should log this for the user to see
                     }
+                }
+
+                // If FK re-enable failed, surface this information alongside the original error
+                if !fkReenableErrors.isEmpty {
+                    let fkDetails = fkReenableErrors.joined(separator: "; ")
+                    let combinedMessage = """
+                    Import failed: \(error.localizedDescription)
+                    Additionally, failed to re-enable foreign key checks: \(fkDetails)
+                    """
+                    // Expose the combined message so callers / UI can present it to the user
+                    statusMessage = combinedMessage
+                    errorMessage = combinedMessage
                 }
             }
 
