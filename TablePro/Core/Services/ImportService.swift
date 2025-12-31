@@ -282,10 +282,17 @@ final class ImportService: ObservableObject {
     private func decompressIfNeeded(_ url: URL) async throws -> URL {
         guard url.pathExtension == "gz" else { return url }
 
-        // Check if gunzip exists
+        // gzip decompression currently depends on the system `gunzip` tool
+        // being available at this path.
         let gunzipPath = "/usr/bin/gunzip"
         guard FileManager.default.fileExists(atPath: gunzipPath) else {
-            throw ImportError.fileReadFailed("gunzip not found at \(gunzipPath)")
+            throw ImportError.fileReadFailed(
+                """
+                gunzip is required to import .gz files but was not found at \(gunzipPath). \
+                Please install gunzip on your system, or decompress the file manually and \
+                then import the uncompressed .sql file.
+                """
+            )
         }
 
         let tempURL = FileManager.default.temporaryDirectory
