@@ -570,8 +570,8 @@ final class SQLContextAnalyzer {
     
     /// Pre-compiled regex for extracting table name from ALTER TABLE statements
     private static let alterTableRegex: NSRegularExpression? = {
-        // Pattern: ALTER TABLE tablename
-        let pattern = "(?i)\\bALTER\\s+TABLE\\s+[`\"']?([\\w]+)[`\"']?"
+        // Pattern: ALTER TABLE tablename (supports optional quoting and special characters)
+        let pattern = "(?i)\\bALTER\\s+TABLE\\s+[`\"']?([^`\"']+)[`\"']?"
         return try? NSRegularExpression(pattern: pattern)
     }()
     
