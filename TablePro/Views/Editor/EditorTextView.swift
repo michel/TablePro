@@ -112,7 +112,7 @@ final class EditorTextView: NSTextView {
                 nsString.getLineStart(&lineStart,
                                        end: &lineEnd,
                                        contentsEnd: &contentsEnd,
-                                       forRange: NSRange(location: index, length: 0))
+                                       for: NSRange(location: index, length: 0))
                 
                 // If we've reached the last line, stop
                 if lineEnd <= index {
