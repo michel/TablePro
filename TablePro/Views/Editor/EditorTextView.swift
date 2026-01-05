@@ -89,25 +89,45 @@ final class EditorTextView: NSTextView {
         
         let cursorPos = selectedRange().location
         
-        // Calculate current line using simple loop (no closure overhead or intermediate arrays)
+        // Calculate current line using NSString's line APIs to avoid per-character scanning
         let currentLine: Int
         if string.isEmpty {
             currentLine = 0
-        } else if cursorPos >= string.count {
-            // Count total newlines in string
-            var count = 0
-            for char in string {
-                if char == "\n" { count += 1 }
-            }
-            currentLine = count
         } else {
-            // Count newlines up to cursor position
-            let index = string.index(string.startIndex, offsetBy: cursorPos)
-            var count = 0
-            for char in string[..<index] {
-                if char == "\n" { count += 1 }
+            let nsString = string as NSString
+            let length = nsString.length
+            
+            // Clamp cursor position to valid UTF-16 range
+            let clampedCursorPos = min(max(cursorPos, 0), length)
+            
+            var lineNumber = 0
+            var index = 0
+            
+            // Walk line by line until we reach or pass the cursor position
+            while index < clampedCursorPos {
+                var lineStart = 0
+                var lineEnd = 0
+                var contentsEnd = 0
+                
+                nsString.getLineStart(&lineStart,
+                                       end: &lineEnd,
+                                       contentsEnd: &contentsEnd,
+                                       forRange: NSRange(location: index, length: 0))
+                
+                // If we've reached the last line, stop
+                if lineEnd <= index {
+                    break
+                }
+                
+                if lineEnd > clampedCursorPos {
+                    break
+                }
+                
+                lineNumber += 1
+                index = lineEnd
             }
-            currentLine = count
+            
+            currentLine = lineNumber
         }
         
         // Skip if cursor is on the same line
