@@ -247,9 +247,7 @@ final class SQLFileParser {
                 } catch {
                     // Log parsing errors - these should not fail silently
                     print("ERROR: SQL file parsing failed: \(error.localizedDescription)")
-                    if let fileError = error as? NSError {
-                        print("Error details: domain=\(fileError.domain), code=\(fileError.code)")
-                    }
+                    print("Error details: \(error)")
                     continuation.finish()
                 }
             }

@@ -24,6 +24,12 @@ final class EditorTextView: NSTextView {
     /// Callback when user clicks at a different position (to dismiss completion)
     var onClickOutsideCompletion: (() -> Void)?
     
+    /// Track the last cursor position for smart invalidation
+    private var lastCursorLine: Int = -1
+    
+    /// Margin to expand invalidation rect to ensure borders/effects are redrawn
+    private let lineInvalidationMargin: CGFloat = 2
+    
     // MARK: - Auto-Pairing Configuration
     
     private let bracketPairs: [Character: Character] = [
@@ -64,6 +70,20 @@ final class EditorTextView: NSTextView {
             name: NSTextView.didChangeSelectionNotification,
             object: self
         )
+        // Observe text changes to invalidate line cache
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(textDidChange(_:)),
+            name: NSText.didChangeNotification,
+            object: self
+        )
+    }
+    
+    @objc private func textDidChange(_ notification: Notification) {
+        // Invalidate line cache when text changes
+        lineCache = nil
+        // Reset last cursor line to avoid stale line numbers from previous document state
+        lastCursorLine = -1
     }
     
     deinit {
@@ -71,8 +91,170 @@ final class EditorTextView: NSTextView {
     }
     
     @objc private func selectionDidChange(_ notification: Notification) {
-        // Trigger redraw for current line highlight and bracket matching
-        needsDisplay = true
+        // Smart invalidation: only redraw the affected line regions
+        // instead of the entire view
+        invalidateLineHighlightIfNeeded()
+    }
+    
+    /// Invalidate only the current and previous line regions for redraw
+    private func invalidateLineHighlightIfNeeded() {
+        guard let layoutManager = layoutManager,
+              let textContainer = textContainer else {
+            needsDisplay = true
+            return
+        }
+        
+        let cursorPos = selectedRange().location
+        
+        // Calculate current line by iterating line-by-line with NSString's line APIs
+        // (more efficient than manual per-character scanning, but still linear in the
+        // number of lines before the cursor)
+        let currentLine: Int
+        if string.isEmpty {
+            currentLine = 0
+        } else {
+            let nsString = string as NSString
+            let length = nsString.length
+            
+            // Clamp cursor position to valid UTF-16 range
+            let clampedCursorPos = min(max(cursorPos, 0), length)
+            
+            var lineNumber = 0
+            var index = 0
+            
+            // Walk line by line until we reach or pass the cursor position
+            while index < clampedCursorPos {
+                var lineStart = 0
+                var lineEnd = 0
+                var contentsEnd = 0
+                
+                nsString.getLineStart(&lineStart,
+                                       end: &lineEnd,
+                                       contentsEnd: &contentsEnd,
+                                       for: NSRange(location: index, length: 0))
+                
+                // If we've reached the last line, stop
+                if lineEnd <= index {
+                    break
+                }
+                
+                if lineEnd > clampedCursorPos {
+                    break
+                }
+                
+                lineNumber += 1
+                index = lineEnd
+            }
+            
+            currentLine = lineNumber
+        }
+        
+        // Skip if cursor is on the same line
+        if currentLine == lastCursorLine {
+            return
+        }
+        
+        // Invalidate the previous line rect
+        if lastCursorLine >= 0 {
+            if let rect = lineRectForLine(lastCursorLine, layoutManager: layoutManager, textContainer: textContainer) {
+                setNeedsDisplay(rect.insetBy(dx: -lineInvalidationMargin, dy: -lineInvalidationMargin))
+            }
+        }
+        
+        // Invalidate the current line rect
+        if let rect = lineRectForLine(currentLine, layoutManager: layoutManager, textContainer: textContainer) {
+            setNeedsDisplay(rect.insetBy(dx: -lineInvalidationMargin, dy: -lineInvalidationMargin))
+        }
+        
+        lastCursorLine = currentLine
+    }
+    
+    /// Simple cache for line lookups to avoid repeated O(n) scans for consecutive lines.
+    ///
+    /// NOTE:
+    /// - This cache is shared by both `invalidateLineHighlightIfNeeded()` (which typically
+    ///   queries the current and previous cursor lines) and generic callers of
+    ///   `lineRectForLine(_:,layoutManager:textContainer:)`, which may request any line.
+    /// - The cache only provides a benefit when the requested line is the same as, or
+    ///   adjacent to, the last cached line (see the `abs(cache.lastLine - lineNumber) <= 1`
+    ///   check in `lineRectForLine`). Calls for distant line numbers will effectively
+    ///   overwrite the cache and may reduce its effectiveness for cursor-movement tracking.
+    /// - This limitation is intentional: the cache is an opportunistic optimization and
+    ///   must not be relied upon for correctness or for guaranteeing fast lookups for
+    ///   arbitrary line numbers.
+    private var lineCache: (lastLine: Int, charIndex: Int, searchRange: NSRange)?
+    
+    /// Get the rect for a specific line number using efficient NSString lineRange
+    private func lineRectForLine(_ lineNumber: Int, layoutManager: NSLayoutManager, textContainer: NSTextContainer) -> NSRect? {
+        guard layoutManager.numberOfGlyphs > 0 else { return nil }
+        
+        let text = string as NSString
+        guard text.length > 0 else { return nil }
+        
+        var charIndex = 0
+        var searchRange = NSRange(location: 0, length: text.length)
+        var startLine = 0
+        
+        // Use cache if we're looking for a nearby line AND cache is still valid for current text
+        if let cache = lineCache,
+           cache.searchRange.location < text.length,
+           NSMaxRange(cache.searchRange) <= text.length,
+           abs(cache.lastLine - lineNumber) <= 1 {
+            
+            if cache.lastLine == lineNumber {
+                // Exact cache hit - use cached position
+                charIndex = min(cache.charIndex, text.length - 1)
+                searchRange = cache.searchRange
+                startLine = lineNumber
+            } else if cache.lastLine + 1 == lineNumber {
+                // Start iteration from cached line to reach the next line
+                charIndex = min(cache.charIndex, text.length - 1)
+                searchRange = cache.searchRange
+                startLine = cache.lastLine
+            }
+        }
+        
+        // Iterate from cached position (or start) to the target line
+        for _ in startLine..<lineNumber {
+            guard searchRange.location < text.length else {
+                // Line number is beyond document, clamp to last valid position
+                charIndex = max(0, text.length - 1)
+                lineCache = nil // Invalidate cache for out-of-bounds
+                break
+            }
+            
+            let lineRange = text.lineRange(for: searchRange)
+            
+            // Move to next line
+            searchRange.location = NSMaxRange(lineRange)
+            searchRange.length = text.length - searchRange.location
+            charIndex = searchRange.location
+        }
+        
+        // Only cache if the result is valid
+        if charIndex < text.length && searchRange.location <= text.length {
+            lineCache = (lineNumber, charIndex, searchRange)
+        } else {
+            lineCache = nil
+        }
+        
+        // If we reached the target line, charIndex is already set to its start
+        // Otherwise it was clamped to the last valid position
+        
+        layoutManager.ensureLayout(for: textContainer)
+        
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: charIndex)
+        guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
+        
+        var lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        
+        // Adjust for text container origin
+        let origin = textContainerOrigin
+        lineRect.origin.x = origin.x
+        lineRect.origin.y += origin.y
+        lineRect.size.width = bounds.width - origin.x * 2
+        
+        return lineRect
     }
     
     // MARK: - Drawing

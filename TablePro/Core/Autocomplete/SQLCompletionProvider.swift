@@ -153,6 +153,13 @@ final class SQLCompletionProvider {
                 "CONSTRAINT", "ENGINE", "CHARSET", "COLLATE"
             ])
             
+        case .alterTableColumn:
+            // After ALTER TABLE tablename DROP/MODIFY/CHANGE COLUMN - suggest column names
+            if let firstTable = context.tableReferences.first {
+                items = await schemaProvider.columnCompletionItems(for: firstTable.tableName)
+            }
+            items += filterKeywords(["COLUMN", "FIRST", "AFTER"])
+            
         case .createTable:
             // Inside CREATE TABLE (...) - suggest constraints and data types
             items = filterKeywords([
