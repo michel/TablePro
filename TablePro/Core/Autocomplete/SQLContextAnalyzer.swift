@@ -126,8 +126,11 @@ final class SQLContextAnalyzer {
             // SELECT is most general
             ("\\bSELECT\\s+[^;]*$", .select),
         ]
-        return patterns.map { pattern, clause in
-            let regex = try! NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+        return patterns.compactMap { pattern, clause in
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+                assertionFailure("Invalid SQL clause regex pattern: \(pattern)")
+                return nil
+            }
             return (regex, clause)
         }
     }()
