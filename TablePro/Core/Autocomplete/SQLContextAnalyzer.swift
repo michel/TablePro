@@ -570,12 +570,16 @@ final class SQLContextAnalyzer {
         return references
     }
     
-    /// Extract table name from ALTER TABLE statement
-    private func extractAlterTableName(from query: String) -> String? {
+    /// Pre-compiled regex for extracting table name from ALTER TABLE statements
+    private static let alterTableRegex: NSRegularExpression? = {
         // Pattern: ALTER TABLE tablename
         let pattern = "(?i)\\bALTER\\s+TABLE\\s+[`\"']?([\\w]+)[`\"']?"
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        return try? NSRegularExpression(pattern: pattern)
+    }()
+    
+    /// Extract table name from ALTER TABLE statement
+    private func extractAlterTableName(from query: String) -> String? {
+        guard let regex = Self.alterTableRegex else { return nil }
         
         let range = NSRange(query.startIndex..., in: query)
         if let match = regex.firstMatch(in: query, range: range),
