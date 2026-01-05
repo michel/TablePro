@@ -97,6 +97,7 @@ final class DataGridCellFactory {
             cell.isBordered = false
             cell.focusRingType = .none
             cell.lineBreakMode = .byTruncatingTail
+            cell.maximumNumberOfLines = 1
             cell.cell?.truncatesLastVisibleLine = true
             cell.translatesAutoresizingMaskIntoConstraints = false
 
@@ -154,7 +155,11 @@ final class DataGridCellFactory {
                 cell.textColor = .secondaryLabelColor
             }
         } else {
-            cell.stringValue = value ?? ""
+            // Sanitize value: replace newlines with spaces for single-line display
+            let sanitizedValue = value?
+                .replacingOccurrences(of: "\n", with: " ")
+                .replacingOccurrences(of: "\r", with: " ")
+            cell.stringValue = sanitizedValue ?? ""
             cell.textColor = .labelColor
             if cell.font?.fontDescriptor.symbolicTraits.contains(.italic) == true ||
                cell.font?.fontDescriptor.symbolicTraits.contains(.bold) == true {
