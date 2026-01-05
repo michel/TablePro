@@ -15,6 +15,9 @@ final class DataGridCellFactory {
 
     /// Large dataset threshold - above this, disable expensive visual features
     private let largeDatasetThreshold = 5000
+    
+    /// Maximum characters to render in a cell (for performance with very large text)
+    private let maxCellTextLength = 500
 
     // MARK: - Row Number Cell
 
@@ -155,11 +158,19 @@ final class DataGridCellFactory {
                 cell.textColor = .secondaryLabelColor
             }
         } else {
-            // Sanitize value: replace newlines with spaces for single-line display
-            let sanitizedValue = value?
+            // Truncate very large text for performance (only visible chars matter)
+            var displayValue = value ?? ""
+            if displayValue.count > maxCellTextLength {
+                let truncateIndex = displayValue.index(displayValue.startIndex, offsetBy: maxCellTextLength)
+                displayValue = String(displayValue[..<truncateIndex]) + "..."
+            }
+            
+            // Sanitize: replace newlines with spaces for single-line display
+            displayValue = displayValue
                 .replacingOccurrences(of: "\n", with: " ")
                 .replacingOccurrences(of: "\r", with: " ")
-            cell.stringValue = sanitizedValue ?? ""
+            
+            cell.stringValue = displayValue
             cell.textColor = .labelColor
             if cell.font?.fontDescriptor.symbolicTraits.contains(.italic) == true ||
                cell.font?.fontDescriptor.symbolicTraits.contains(.bold) == true {
