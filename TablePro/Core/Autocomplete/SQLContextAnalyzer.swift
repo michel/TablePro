@@ -135,11 +135,34 @@ final class SQLContextAnalyzer {
         }
     }()
     
-    /// Pre-compiled regex for removing strings and comments
-    private static let singleQuoteStringRegex = try! NSRegularExpression(pattern: "'[^']*'")
-    private static let doubleQuoteStringRegex = try! NSRegularExpression(pattern: "\"[^\"]*\"")
-    private static let blockCommentRegex = try! NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/")
-    private static let lineCommentRegex = try! NSRegularExpression(pattern: "--[^\n]*")
+    /// Pre-compiled regex for removing strings and comments (force-unwrap safe: simple patterns)
+    private static let singleQuoteStringRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(pattern: "'[^']*'") else {
+            fatalError("Failed to compile singleQuoteStringRegex - invalid pattern")
+        }
+        return regex
+    }()
+    
+    private static let doubleQuoteStringRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(pattern: "\"[^\"]*\"") else {
+            fatalError("Failed to compile doubleQuoteStringRegex - invalid pattern")
+        }
+        return regex
+    }()
+    
+    private static let blockCommentRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/") else {
+            fatalError("Failed to compile blockCommentRegex - invalid pattern")
+        }
+        return regex
+    }()
+    
+    private static let lineCommentRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(pattern: "--[^\n]*") else {
+            fatalError("Failed to compile lineCommentRegex - invalid pattern")
+        }
+        return regex
+    }()
     
     // MARK: - Main Analysis
     
@@ -624,21 +647,29 @@ final class SQLContextAnalyzer {
         var result = text
         
         // Use pre-compiled regex patterns for performance
-        if let regex = Self.singleQuoteStringRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "''")
-        }
+        result = Self.singleQuoteStringRegex.stringByReplacingMatches(
+            in: result,
+            range: NSRange(result.startIndex..., in: result),
+            withTemplate: "''"
+        )
         
-        if let regex = Self.doubleQuoteStringRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "\"\"")
-        }
+        result = Self.doubleQuoteStringRegex.stringByReplacingMatches(
+            in: result,
+            range: NSRange(result.startIndex..., in: result),
+            withTemplate: "\"\""
+        )
         
-        if let regex = Self.blockCommentRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
-        }
+        result = Self.blockCommentRegex.stringByReplacingMatches(
+            in: result,
+            range: NSRange(result.startIndex..., in: result),
+            withTemplate: ""
+        )
         
-        if let regex = Self.lineCommentRegex {
-            result = regex.stringByReplacingMatches(in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
-        }
+        result = Self.lineCommentRegex.stringByReplacingMatches(
+            in: result,
+            range: NSRange(result.startIndex..., in: result),
+            withTemplate: ""
+        )
         
         return result
     }

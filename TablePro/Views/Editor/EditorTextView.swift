@@ -24,6 +24,9 @@ final class EditorTextView: NSTextView {
     /// Callback when user clicks at a different position (to dismiss completion)
     var onClickOutsideCompletion: (() -> Void)?
     
+    /// Track the last cursor position for smart invalidation
+    private var lastCursorLine: Int = -1
+    
     // MARK: - Auto-Pairing Configuration
     
     private let bracketPairs: [Character: Character] = [
@@ -55,9 +58,6 @@ final class EditorTextView: NSTextView {
         super.init(coder: coder)
         commonInit()
     }
-    
-    /// Track the last cursor position for smart invalidation
-    private var lastCursorLine: Int = -1
     
     private func commonInit() {
         // Observe selection changes for visual updates
@@ -150,6 +150,9 @@ final class EditorTextView: NSTextView {
         lastCursorLine = currentLine
     }
     
+    /// Simple cache for line lookups to avoid repeated O(n) scans for consecutive lines
+    private var lineCache: (lastLine: Int, charIndex: Int, searchRange: NSRange)?
+    
     /// Get the rect for a specific line number using efficient NSString lineRange
     private func lineRectForLine(_ lineNumber: Int, layoutManager: NSLayoutManager, textContainer: NSTextContainer) -> NSRect? {
         guard layoutManager.numberOfGlyphs > 0 else { return nil }
@@ -157,15 +160,31 @@ final class EditorTextView: NSTextView {
         let text = string as NSString
         guard text.length > 0 else { return nil }
         
-        // Find the character index for the target line using NSString's lineRange
         var charIndex = 0
         var searchRange = NSRange(location: 0, length: text.length)
+        var startLine = 0
         
-        // Iterate to the target line
-        for _ in 0..<lineNumber {
+        // Use cache if we're looking for a nearby line (common case: prev/current line)
+        if let cache = lineCache, abs(cache.lastLine - lineNumber) <= 1 {
+            if cache.lastLine == lineNumber {
+                // Exact cache hit
+                charIndex = cache.charIndex
+                searchRange = cache.searchRange
+                startLine = lineNumber
+            } else if cache.lastLine + 1 == lineNumber {
+                // Next line after cached (common: moving from prev to current)
+                charIndex = cache.charIndex
+                searchRange = cache.searchRange
+                startLine = cache.lastLine
+            }
+        }
+        
+        // Iterate from cached position (or start) to the target line
+        for _ in startLine..<lineNumber {
             guard searchRange.location < text.length else {
                 // Line number is beyond document, clamp to last valid position
                 charIndex = max(0, text.length - 1)
+                lineCache = nil // Invalidate cache for out-of-bounds
                 break
             }
             
@@ -174,10 +193,11 @@ final class EditorTextView: NSTextView {
             // Move to next line
             searchRange.location = NSMaxRange(lineRange)
             searchRange.length = text.length - searchRange.location
-            
-            // Set charIndex to the start of the next line
             charIndex = searchRange.location
         }
+        
+        // Cache the result for next lookup
+        lineCache = (lineNumber, charIndex, searchRange)
         
         // If we reached the target line, charIndex is already set to its start
         // Otherwise it was clamped to the last valid position
