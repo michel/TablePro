@@ -137,31 +137,39 @@ final class SQLContextAnalyzer {
     
     /// Pre-compiled regex for removing strings and comments (force-unwrap safe: simple patterns)
     private static let singleQuoteStringRegex: NSRegularExpression = {
-        guard let regex = try? NSRegularExpression(pattern: "'[^']*'") else {
-            fatalError("Failed to compile singleQuoteStringRegex - invalid pattern")
+        if let regex = try? NSRegularExpression(pattern: "'[^']*'") {
+            return regex
         }
-        return regex
+        assertionFailure("Failed to compile singleQuoteStringRegex - invalid pattern")
+        // Fallback to a regex that matches nothing
+        return try! NSRegularExpression(pattern: "(?!)")
     }()
     
     private static let doubleQuoteStringRegex: NSRegularExpression = {
-        guard let regex = try? NSRegularExpression(pattern: "\"[^\"]*\"") else {
-            fatalError("Failed to compile doubleQuoteStringRegex - invalid pattern")
+        if let regex = try? NSRegularExpression(pattern: "\"[^\"]*\"") {
+            return regex
         }
-        return regex
+        assertionFailure("Failed to compile doubleQuoteStringRegex - invalid pattern")
+        // Fallback to a regex that matches nothing
+        return try! NSRegularExpression(pattern: "(?!)")
     }()
     
     private static let blockCommentRegex: NSRegularExpression = {
-        guard let regex = try? NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/") else {
-            fatalError("Failed to compile blockCommentRegex - invalid pattern")
+        if let regex = try? NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/") {
+            return regex
         }
-        return regex
+        assertionFailure("Failed to compile blockCommentRegex - invalid pattern")
+        // Fallback to a regex that matches nothing
+        return try! NSRegularExpression(pattern: "(?!)")
     }()
     
     private static let lineCommentRegex: NSRegularExpression = {
-        guard let regex = try? NSRegularExpression(pattern: "--[^\n]*") else {
-            fatalError("Failed to compile lineCommentRegex - invalid pattern")
+        if let regex = try? NSRegularExpression(pattern: "--[^\n]*") {
+            return regex
         }
-        return regex
+        assertionFailure("Failed to compile lineCommentRegex - invalid pattern")
+        // Fallback to a regex that matches nothing
+        return try! NSRegularExpression(pattern: "(?!)")
     }()
     
     // MARK: - Main Analysis
