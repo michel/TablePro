@@ -89,7 +89,9 @@ final class EditorTextView: NSTextView {
         
         let cursorPos = selectedRange().location
         
-        // Calculate current line using NSString's line APIs to avoid per-character scanning
+        // Calculate current line by iterating line-by-line with NSString's line APIs
+        // (more efficient than manual per-character scanning, but still linear in the
+        // number of lines before the cursor)
         let currentLine: Int
         if string.isEmpty {
             currentLine = 0
