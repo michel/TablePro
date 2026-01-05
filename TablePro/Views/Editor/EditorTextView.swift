@@ -152,7 +152,19 @@ final class EditorTextView: NSTextView {
         lastCursorLine = currentLine
     }
     
-    /// Simple cache for line lookups to avoid repeated O(n) scans for consecutive lines
+    /// Simple cache for line lookups to avoid repeated O(n) scans for consecutive lines.
+    ///
+    /// NOTE:
+    /// - This cache is shared by both `invalidateLineHighlightIfNeeded()` (which typically
+    ///   queries the current and previous cursor lines) and generic callers of
+    ///   `lineRectForLine(_:,layoutManager:textContainer:)`, which may request any line.
+    /// - The cache only provides a benefit when the requested line is the same as, or
+    ///   adjacent to, the last cached line (see the `abs(cache.lastLine - lineNumber) <= 1`
+    ///   check in `lineRectForLine`). Calls for distant line numbers will effectively
+    ///   overwrite the cache and may reduce its effectiveness for cursor-movement tracking.
+    /// - This limitation is intentional: the cache is an opportunistic optimization and
+    ///   must not be relied upon for correctness or for guaranteeing fast lookups for
+    ///   arbitrary line numbers.
     private var lineCache: (lastLine: Int, charIndex: Int, searchRange: NSRange)?
     
     /// Get the rect for a specific line number using efficient NSString lineRange
