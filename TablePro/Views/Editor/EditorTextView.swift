@@ -154,7 +154,7 @@ final class EditorTextView: NSTextView {
         
         layoutManager.ensureLayout(for: textContainer)
         
-        let glyphIndex = layoutManager.glyphIndexForCharacter(at: min(charIndex, max(0, text.length - 1)))
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: charIndex)
         guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
         
         var lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
