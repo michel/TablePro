@@ -89,17 +89,25 @@ final class EditorTextView: NSTextView {
         
         let cursorPos = selectedRange().location
         
-        // Calculate current line efficiently without intermediate arrays
+        // Calculate current line using simple loop (no closure overhead or intermediate arrays)
         let currentLine: Int
         if string.isEmpty {
             currentLine = 0
         } else if cursorPos >= string.count {
             // Count total newlines in string
-            currentLine = string.reduce(0) { $0 + ($1 == "\n" ? 1 : 0) }
+            var count = 0
+            for char in string {
+                if char == "\n" { count += 1 }
+            }
+            currentLine = count
         } else {
             // Count newlines up to cursor position
             let index = string.index(string.startIndex, offsetBy: cursorPos)
-            currentLine = string[..<index].reduce(0) { $0 + ($1 == "\n" ? 1 : 0) }
+            var count = 0
+            for char in string[..<index] {
+                if char == "\n" { count += 1 }
+            }
+            currentLine = count
         }
         
         // Skip if cursor is on the same line
@@ -130,27 +138,29 @@ final class EditorTextView: NSTextView {
         guard text.length > 0 else { return nil }
         
         // Find the character index for the target line using NSString's lineRange
-        var currentLine = 0
         var charIndex = 0
         var searchRange = NSRange(location: 0, length: text.length)
         
-        while currentLine < lineNumber && searchRange.location < text.length {
+        // Iterate to the target line
+        for _ in 0..<lineNumber {
+            guard searchRange.location < text.length else {
+                // Line number is beyond document, clamp to last valid position
+                charIndex = max(0, text.length - 1)
+                break
+            }
+            
             let lineRange = text.lineRange(for: searchRange)
-            charIndex = lineRange.location
-            currentLine += 1
             
             // Move to next line
             searchRange.location = NSMaxRange(lineRange)
             searchRange.length = text.length - searchRange.location
+            
+            // Set charIndex to the start of the next line
+            charIndex = searchRange.location
         }
         
-        // If we found the line, use its start position
-        if currentLine == lineNumber {
-            // Use the actual line start position we found
-        } else {
-            // Line number is beyond document, clamp to last valid position
-            charIndex = max(0, text.length - 1)
-        }
+        // If we reached the target line, charIndex is already set to its start
+        // Otherwise it was clamped to the last valid position
         
         layoutManager.ensureLayout(for: textContainer)
         
