@@ -89,15 +89,17 @@ final class EditorTextView: NSTextView {
         
         let cursorPos = selectedRange().location
         
-        // Calculate current line
+        // Calculate current line efficiently without intermediate arrays
         let currentLine: Int
         if string.isEmpty {
             currentLine = 0
         } else if cursorPos >= string.count {
-            currentLine = string.filter { $0 == "\n" }.count
+            // Count total newlines in string
+            currentLine = string.reduce(0) { $0 + ($1 == "\n" ? 1 : 0) }
         } else {
+            // Count newlines up to cursor position
             let index = string.index(string.startIndex, offsetBy: cursorPos)
-            currentLine = string[..<index].filter { $0 == "\n" }.count
+            currentLine = string[..<index].reduce(0) { $0 + ($1 == "\n" ? 1 : 0) }
         }
         
         // Skip if cursor is on the same line
@@ -120,33 +122,39 @@ final class EditorTextView: NSTextView {
         lastCursorLine = currentLine
     }
     
-    /// Get the rect for a specific line number
+    /// Get the rect for a specific line number using efficient NSString lineRange
     private func lineRectForLine(_ lineNumber: Int, layoutManager: NSLayoutManager, textContainer: NSTextContainer) -> NSRect? {
         guard layoutManager.numberOfGlyphs > 0 else { return nil }
         
-        // Find the character index for the start of the line
+        let text = string as NSString
+        guard text.length > 0 else { return nil }
+        
+        // Find the character index for the target line using NSString's lineRange
         var currentLine = 0
         var charIndex = 0
-        let text = string
+        var searchRange = NSRange(location: 0, length: text.length)
         
-        for (index, char) in text.enumerated() {
-            if currentLine == lineNumber {
-                charIndex = index
-                break
-            }
-            if char == "\n" {
-                currentLine += 1
-            }
+        while currentLine < lineNumber && searchRange.location < text.length {
+            let lineRange = text.lineRange(for: searchRange)
+            charIndex = lineRange.location
+            currentLine += 1
+            
+            // Move to next line
+            searchRange.location = NSMaxRange(lineRange)
+            searchRange.length = text.length - searchRange.location
         }
         
-        // Handle cursor at end of text
-        if currentLine < lineNumber {
-            charIndex = text.count > 0 ? text.count - 1 : 0
+        // If we found the line, use its start position
+        if currentLine == lineNumber {
+            // Use the actual line start position we found
+        } else {
+            // Line number is beyond document, clamp to last valid position
+            charIndex = max(0, text.length - 1)
         }
         
         layoutManager.ensureLayout(for: textContainer)
         
-        let glyphIndex = layoutManager.glyphIndexForCharacter(at: min(charIndex, max(0, text.count - 1)))
+        let glyphIndex = layoutManager.glyphIndexForCharacter(at: min(charIndex, max(0, text.length - 1)))
         guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
         
         var lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
