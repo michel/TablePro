@@ -82,7 +82,12 @@ struct DataGridView: NSViewRepresentable {
         for (index, columnName) in rowProvider.columns.enumerated() {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
             column.title = columnName
-            column.width = cellFactory.calculateColumnWidth(for: columnName)
+            // Use optimal width calculation based on both header and cell content
+            column.width = cellFactory.calculateOptimalColumnWidth(
+                for: columnName,
+                columnIndex: index,
+                rowProvider: rowProvider
+            )
             column.minWidth = 30
             column.resizingMask = .userResizingMask
             column.isEditable = isEditable
@@ -146,7 +151,12 @@ struct DataGridView: NSViewRepresentable {
             for (index, columnName) in rowProvider.columns.enumerated() {
                 let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
                 column.title = columnName
-                column.width = cellFactory.calculateColumnWidth(for: columnName)
+                // Use optimal width calculation based on both header and cell content
+                column.width = cellFactory.calculateOptimalColumnWidth(
+                    for: columnName,
+                    columnIndex: index,
+                    rowProvider: rowProvider
+                )
                 column.minWidth = 30
                 column.resizingMask = .userResizingMask
                 column.isEditable = isEditable
