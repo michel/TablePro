@@ -60,15 +60,17 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
-    /// SF Symbol name for each database type
+    /// Asset name for each database type icon
     var iconName: String {
         switch self {
-        case .mysql, .mariadb:
-            return "cylinder.split.1x2.fill"
+        case .mysql:
+            return "mysql-icon"
+        case .mariadb:
+            return "mariadb-icon"
         case .postgresql:
-            return "server.rack"
+            return "postgresql-icon"
         case .sqlite:
-            return "doc.fill"
+            return "sqlite-icon"
         }
     }
 
