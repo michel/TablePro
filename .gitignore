@@ -132,3 +132,10 @@ Sourcery/GeneratedMocks
 
 # XCFilelists
 *.xcfilelists
+
+# Build artifacts
+build/
+*.xcarchive
+Libs/libmariadb_universal.a
+Libs/libmariadb_arm64.a
+Libs/libmariadb_x86_64.a

@@ -1,0 +1,111 @@
+# Building TablePro
+
+## Architecture Support
+
+TablePro supports both Apple Silicon (ARM64) and Intel (x86_64) Macs.
+
+### Build Options
+
+#### Option 1: Separate Builds (Recommended for Distribution)
+
+Build architecture-specific binaries to minimize download size:
+
+```bash
+# Build Apple Silicon version only (9.4MB)
+./build-release.sh arm64
+
+# Build Intel version only (9.5MB)
+./build-release.sh x86_64
+
+# Build both
+./build-release.sh both
+```
+
+**Output:**
+- `build/Release/TablePro-arm64.app` - For Apple Silicon Macs
+- `build/Release/TablePro-x86_64.app` - For Intel Macs
+
+**Benefits:**
+- ✅ Smaller file size (~9.5MB each vs 19MB universal)
+- ✅ Users only download what they need
+- ✅ Faster downloads
+- ✅ Less disk space
+
+#### Option 2: Universal Binary (Single Build)
+
+Build one app that runs on both architectures:
+
+```bash
+xcodebuild -project TablePro.xcodeproj \
+           -scheme TablePro \
+           -configuration Release \
+           -arch arm64 -arch x86_64 \
+           ONLY_ACTIVE_ARCH=NO \
+           build
+```
+
+**Output:**
+- `TablePro.app` - Runs on both Apple Silicon and Intel (~19MB)
+
+**Benefits:**
+- ✅ One download for all users
+- ✅ Simpler distribution
+- ❌ 2x file size
+
+## Size Comparison
+
+| Build Type | Size | Notes |
+|------------|------|-------|
+| ARM64-only | 9.4MB | Apple Silicon Macs only |
+| x86_64-only | 9.5MB | Intel Macs only |
+| Universal | 19MB | Both architectures |
+
+## Dependencies
+
+### Apple Silicon Mac (ARM64)
+```bash
+brew install mariadb-connector-c libpq
+```
+
+### Intel Mac (x86_64)
+```bash
+# Install Rosetta first
+softwareupdate --install-rosetta
+
+# Install x86_64 Homebrew
+arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install dependencies
+arch -x86_64 /usr/local/bin/brew install mariadb-connector-c libpq
+```
+
+### Building on Apple Silicon for Intel
+
+To build Intel binaries on an Apple Silicon Mac, you need both Homebrew installations:
+1. ARM64 Homebrew at `/opt/homebrew` (default)
+2. x86_64 Homebrew at `/usr/local` (for cross-compilation)
+
+## Distribution Recommendations
+
+**For GitHub Releases:**
+```
+✅ TablePro-v0.1.13-arm64.dmg (Apple Silicon)
+✅ TablePro-v0.1.13-x86_64.dmg (Intel)
+```
+
+**For simple distribution:**
+```
+✅ TablePro-v0.1.13-universal.dmg (Both architectures)
+```
+
+Most modern apps (Discord, Slack, VSCode) distribute separate builds to save bandwidth.
+
+## Quick Start
+
+```bash
+# Development (current architecture)
+xcodebuild -project TablePro.xcodeproj -scheme TablePro build
+
+# Release builds
+./build-release.sh both
+```
