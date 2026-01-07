@@ -46,7 +46,8 @@ struct ConnectionStatusView: View {
     private var databaseInfoSection: some View {
         HStack(spacing: 6) {
             // Database type icon
-            Image(systemName: databaseType.iconName)
+            Image(databaseType.iconName)
+                .renderingMode(.template)
                 .font(.system(size: DesignConstants.IconSize.default))
                 .foregroundStyle(displayColor)
 

@@ -359,10 +359,12 @@ private struct ConnectionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Database type indicator - uses custom color if set
-            Circle()
-                .fill(connection.displayColor)
-                .frame(width: DesignConstants.IconSize.statusDot + 2, height: DesignConstants.IconSize.statusDot + 2)
+            // Database type icon
+            Image(connection.type.iconName)
+                .renderingMode(.template)
+                .font(.system(size: DesignConstants.IconSize.medium))
+                .foregroundStyle(connection.displayColor)
+                .frame(width: DesignConstants.IconSize.medium, height: DesignConstants.IconSize.medium)
 
             // Connection info
             VStack(alignment: .leading, spacing: 2) {
