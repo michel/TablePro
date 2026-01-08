@@ -82,12 +82,32 @@ jobs:
             exit 1
           fi
 
-          # Verify libraries exist at expected paths
-          if [ ! -f "/opt/homebrew/opt/mariadb-connector-c/lib/mariadb/libmariadb.a" ]; then
+          # Get the actual prefix for mariadb-connector-c (handles keg-only formulas)
+          MARIADB_PREFIX=$(brew --prefix mariadb-connector-c)
+          echo "MariaDB Connector/C prefix: $MARIADB_PREFIX"
+
+          # Find the library file (may be in lib/ or lib/mariadb/)
+          MARIADB_LIB=""
+          for path in "$MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$MARIADB_PREFIX/lib/libmariadb.a"; do
+            if [ -f "$path" ]; then
+              MARIADB_LIB="$path"
+              break
+            fi
+          done
+
+          if [ -z "$MARIADB_LIB" ]; then
             echo "❌ ERROR: mariadb-connector-c installed but library file not found"
+            echo "Searched in:"
+            echo "  - $MARIADB_PREFIX/lib/mariadb/libmariadb.a"
+            echo "  - $MARIADB_PREFIX/lib/libmariadb.a"
+            echo ""
+            echo "Contents of $MARIADB_PREFIX/lib/:"
+            ls -la "$MARIADB_PREFIX/lib/" || echo "Directory not found"
             exit 1
           fi
 
+          echo "✅ Found ARM64 MariaDB library at: $MARIADB_LIB"
+          echo "ARM64_MARIADB_LIB=$MARIADB_LIB" >> $GITHUB_ENV
           echo "✅ All ARM64 dependencies installed successfully"
 
       - name: Install x86_64 Homebrew
@@ -161,30 +181,53 @@ jobs:
             exit 1
           fi
 
-          # Verify libraries exist at expected paths
-          if [ ! -f "/usr/local/opt/mariadb-connector-c/lib/mariadb/libmariadb.a" ]; then
+          # Get the actual prefix for mariadb-connector-c (handles keg-only formulas)
+          X86_MARIADB_PREFIX=$(arch -x86_64 /usr/local/bin/brew --prefix mariadb-connector-c)
+          echo "x86_64 MariaDB Connector/C prefix: $X86_MARIADB_PREFIX"
+
+          # Find the library file (may be in lib/ or lib/mariadb/)
+          X86_MARIADB_LIB=""
+          for path in "$X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$X86_MARIADB_PREFIX/lib/libmariadb.a"; do
+            if [ -f "$path" ]; then
+              X86_MARIADB_LIB="$path"
+              break
+            fi
+          done
+
+          if [ -z "$X86_MARIADB_LIB" ]; then
             echo "❌ ERROR: mariadb-connector-c installed but library file not found"
+            echo "Searched in:"
+            echo "  - $X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a"
+            echo "  - $X86_MARIADB_PREFIX/lib/libmariadb.a"
+            echo ""
+            echo "Contents of $X86_MARIADB_PREFIX/lib/:"
+            ls -la "$X86_MARIADB_PREFIX/lib/" || echo "Directory not found"
             exit 1
           fi
 
+          echo "✅ Found x86_64 MariaDB library at: $X86_MARIADB_LIB"
+          echo "X86_MARIADB_LIB=$X86_MARIADB_LIB" >> $GITHUB_ENV
           echo "✅ All x86_64 dependencies installed successfully"
 
       - name: Create universal libmariadb library
         run: |
           echo "Creating universal libmariadb.a..."
 
-          # Define library paths
-          ARM64_LIB="/opt/homebrew/opt/mariadb-connector-c/lib/mariadb/libmariadb.a"
-          X86_LIB="/usr/local/opt/mariadb-connector-c/lib/mariadb/libmariadb.a"
+          # Use library paths from environment (set by previous steps)
+          ARM64_LIB="${ARM64_MARIADB_LIB}"
+          X86_LIB="${X86_MARIADB_LIB}"
+
+          echo "ARM64 library path: $ARM64_LIB"
+          echo "x86_64 library path: $X86_LIB"
 
           # Verify input files exist
-          if [ ! -f "$ARM64_LIB" ]; then
+          if [ -z "$ARM64_LIB" ] || [ ! -f "$ARM64_LIB" ]; then
             echo "❌ ERROR: ARM64 library not found at: $ARM64_LIB"
             echo "ARM64 Homebrew installation may have failed"
             exit 1
           fi
 
-          if [ ! -f "$X86_LIB" ]; then
+          if [ -z "$X86_LIB" ] || [ ! -f "$X86_LIB" ]; then
             echo "❌ ERROR: x86_64 library not found at: $X86_LIB"
             echo "x86_64 Homebrew installation may have failed"
             exit 1
