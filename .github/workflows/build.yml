@@ -18,6 +18,7 @@ env:
   XCODE_PROJECT: TablePro.xcodeproj
   XCODE_SCHEME: TablePro
   BUILD_CONFIGURATION: Release
+  XCODE_VERSION: '16.1'
 
 jobs:
   lint:
@@ -346,6 +347,12 @@ jobs:
 
           echo "✅ ARM64 dependencies installed"
 
+      - name: Select Xcode version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer
+          echo "Selected Xcode version:"
+          xcodebuild -version
+
       - name: Build ARM64
         run: |
           chmod +x build-release.sh
@@ -543,6 +550,12 @@ jobs:
           fi
 
           echo "✅ x86_64 dependencies installed"
+
+      - name: Select Xcode version
+        run: |
+          sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app/Contents/Developer
+          echo "Selected Xcode version:"
+          xcodebuild -version
 
       - name: Build x86_64
         run: |
