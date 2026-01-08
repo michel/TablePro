@@ -1,0 +1,302 @@
+name: Build TablePro
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
+      - '.vscode/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+env:
+  XCODE_PROJECT: TablePro.xcodeproj
+  XCODE_SCHEME: TablePro
+  BUILD_CONFIGURATION: Release
+
+jobs:
+  lint:
+    name: SwiftLint
+    runs-on: macos-14
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache SwiftLint
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew/swiftlint*
+          key: swiftlint-${{ runner.os }}-${{ hashFiles('.swiftlint.yml') }}
+          restore-keys: |
+            swiftlint-${{ runner.os }}-
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: swiftlint lint --strict
+
+  prepare-libs:
+    name: Prepare Universal Libraries
+    runs-on: macos-14
+    needs: lint
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /opt/homebrew/Cellar/mariadb-connector-c
+            /opt/homebrew/Cellar/libpq
+            /usr/local/Cellar/mariadb-connector-c
+            /usr/local/Cellar/libpq
+          key: brew-deps-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          restore-keys: |
+            brew-deps-${{ runner.os }}-
+
+      - name: Install ARM64 Homebrew dependencies
+        run: |
+          brew install mariadb-connector-c libpq
+
+      - name: Install x86_64 Homebrew
+        run: |
+          # Install Rosetta 2 if needed
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
+            echo "Installing Rosetta 2..."
+            softwareupdate --install-rosetta --agree-to-license
+          fi
+
+          # Check if x86_64 Homebrew is already installed
+          if [ ! -f /usr/local/bin/brew ]; then
+            echo "Installing x86_64 Homebrew..."
+            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          else
+            echo "x86_64 Homebrew already installed"
+          fi
+
+      - name: Install x86_64 Homebrew dependencies
+        run: |
+          arch -x86_64 /usr/local/bin/brew install mariadb-connector-c libpq
+
+      - name: Create universal libmariadb library
+        run: |
+          echo "Creating universal libmariadb.a..."
+          lipo -create \
+            /opt/homebrew/opt/mariadb-connector-c/lib/mariadb/libmariadb.a \
+            /usr/local/opt/mariadb-connector-c/lib/mariadb/libmariadb.a \
+            -output Libs/libmariadb_universal.a
+
+          echo "Verifying universal library:"
+          lipo -info Libs/libmariadb_universal.a
+          ls -lh Libs/libmariadb_universal.a
+
+      - name: Upload library artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libs-universal
+          path: Libs/
+          retention-days: 1
+
+  build-arm64:
+    name: Build ARM64
+    runs-on: macos-14
+    needs: prepare-libs
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download library artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libs-universal
+          path: Libs/
+
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /opt/homebrew/Cellar/mariadb-connector-c
+            /opt/homebrew/Cellar/libpq
+          key: brew-arm64-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          restore-keys: |
+            brew-arm64-${{ runner.os }}-
+
+      - name: Install ARM64 dependencies
+        run: brew install mariadb-connector-c libpq
+
+      - name: Build ARM64
+        run: |
+          chmod +x build-release.sh
+          ./build-release.sh arm64
+
+      - name: Verify build
+        run: |
+          echo "Build completed. Binary info:"
+          ls -lh build/Release/TablePro-arm64.app/Contents/MacOS/TablePro
+          lipo -info build/Release/TablePro-arm64.app/Contents/MacOS/TablePro
+          du -sh build/Release/TablePro-arm64.app
+
+      - name: Create ZIP archive
+        run: |
+          cd build/Release
+          zip -r TablePro-arm64.zip TablePro-arm64.app
+          ls -lh TablePro-arm64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TablePro-arm64-${{ github.sha }}
+          path: build/Release/TablePro-arm64.zip
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 90 || 7 }}
+
+  build-x86_64:
+    name: Build x86_64
+    runs-on: macos-14
+    needs: prepare-libs
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download library artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libs-universal
+          path: Libs/
+
+      - name: Cache Homebrew packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/mariadb-connector-c
+            /usr/local/Cellar/libpq
+          key: brew-x86_64-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          restore-keys: |
+            brew-x86_64-${{ runner.os }}-
+
+      - name: Install Rosetta 2
+        run: |
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
+            softwareupdate --install-rosetta --agree-to-license
+          fi
+
+      - name: Install x86_64 Homebrew
+        run: |
+          if [ ! -f /usr/local/bin/brew ]; then
+            arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+
+      - name: Install x86_64 dependencies
+        run: arch -x86_64 /usr/local/bin/brew install mariadb-connector-c libpq
+
+      - name: Build x86_64
+        run: |
+          chmod +x build-release.sh
+          ./build-release.sh x86_64
+
+      - name: Verify build
+        run: |
+          echo "Build completed. Binary info:"
+          ls -lh build/Release/TablePro-x86_64.app/Contents/MacOS/TablePro
+          lipo -info build/Release/TablePro-x86_64.app/Contents/MacOS/TablePro
+          du -sh build/Release/TablePro-x86_64.app
+
+      - name: Create ZIP archive
+        run: |
+          cd build/Release
+          zip -r TablePro-x86_64.zip TablePro-x86_64.app
+          ls -lh TablePro-x86_64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TablePro-x86_64-${{ github.sha }}
+          path: build/Release/TablePro-x86_64.zip
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/v') && 90 || 7 }}
+
+  release:
+    name: Create GitHub Release
+    runs-on: macos-14
+    needs: [build-arm64, build-x86_64]
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TablePro-arm64-${{ github.sha }}
+          path: artifacts/
+
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: TablePro-x86_64-${{ github.sha }}
+          path: artifacts/
+
+      - name: Rename artifacts for release
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          mv artifacts/TablePro-arm64.zip artifacts/TablePro-${VERSION}-arm64.zip
+          mv artifacts/TablePro-x86_64.zip artifacts/TablePro-${VERSION}-x86_64.zip
+          ls -lh artifacts/
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          cat > release_notes.md <<EOF
+          ## TablePro ${VERSION}
+
+          ### Downloads
+
+          Choose the appropriate version for your Mac:
+
+          - **Apple Silicon (M1/M2/M3)**: Download \`TablePro-${VERSION}-arm64.zip\`
+          - **Intel**: Download \`TablePro-${VERSION}-x86_64.zip\`
+
+          ### Installation
+
+          1. Download the appropriate ZIP file for your Mac
+          2. Unzip the file
+          3. Move TablePro.app to your Applications folder
+          4. Right-click and select "Open" on first launch (unsigned app)
+
+          ### Changes
+
+          $(git log --pretty=format:"- %s" $(git describe --tags --abbrev=0 HEAD^)..HEAD)
+          EOF
+
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/*.zip
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') || contains(github.ref, '-rc') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

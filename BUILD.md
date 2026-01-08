@@ -26,7 +26,7 @@ Build architecture-specific binaries to minimize download size:
 - `build/Release/TablePro-x86_64.app` - For Intel Macs
 
 **Benefits:**
-- ✅ Smaller file size (~9.5MB each vs 19MB universal)
+- ✅ Smaller file size (~6MB each vs 12MB universal)
 - ✅ Users only download what they need
 - ✅ Faster downloads
 - ✅ Less disk space
@@ -45,7 +45,7 @@ xcodebuild -project TablePro.xcodeproj \
 ```
 
 **Output:**
-- `TablePro.app` - Runs on both Apple Silicon and Intel (~19MB)
+- `TablePro.app` - Runs on both Apple Silicon and Intel (~12MB)
 
 **Benefits:**
 - ✅ One download for all users
@@ -56,9 +56,9 @@ xcodebuild -project TablePro.xcodeproj \
 
 | Build Type | Size | Notes |
 |------------|------|-------|
-| ARM64-only | 9.4MB | Apple Silicon Macs only |
-| x86_64-only | 9.5MB | Intel Macs only |
-| Universal | 19MB | Both architectures |
+| ARM64-only | 5.9MB | Apple Silicon Macs only |
+| x86_64-only | 6.0MB | Intel Macs only |
+| Universal | ~12MB | Both architectures |
 
 ## Dependencies
 
@@ -89,16 +89,25 @@ To build Intel binaries on an Apple Silicon Mac, you need both Homebrew installa
 
 **For GitHub Releases:**
 ```
-✅ TablePro-v0.1.13-arm64.dmg (Apple Silicon)
-✅ TablePro-v0.1.13-x86_64.dmg (Intel)
+✅ TablePro-v0.1.13-arm64.zip (~2MB zipped, ~6MB unzipped)
+✅ TablePro-v0.1.13-x86_64.zip (~2MB zipped, ~6MB unzipped)
 ```
 
 **For simple distribution:**
 ```
-✅ TablePro-v0.1.13-universal.dmg (Both architectures)
+✅ TablePro-v0.1.13-universal.zip (~4MB zipped, ~12MB unzipped)
 ```
 
 Most modern apps (Discord, Slack, VSCode) distribute separate builds to save bandwidth.
+
+## Build Optimizations
+
+Release builds are optimized with:
+- `DEPLOYMENT_POSTPROCESSING = YES` - Enables symbol stripping
+- `COPY_PHASE_STRIP = YES` - Strips symbols during copy
+- `DEAD_CODE_STRIPPING = YES` - Removes unused code
+
+These settings reduce binary size by ~60% (from 9.4MB to 3.7MB per architecture).
 
 ## Quick Start
 
