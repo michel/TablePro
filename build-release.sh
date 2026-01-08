@@ -57,6 +57,10 @@ build_for_arch() {
 
     # Copy and rename app
     OUTPUT_NAME="TablePro-${arch}.app"
+    if [ ! -d "$APP_PATH" ]; then
+        echo "❌ Error: Built app not found at expected path: $APP_PATH"
+        exit 1
+    fi
     cp -R "$APP_PATH" "$BUILD_DIR/$OUTPUT_NAME"
 
     # Get size
