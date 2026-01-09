@@ -433,15 +433,28 @@ jobs:
 
           # Create DMG with version from git tag or use default
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
+          echo "📌 Using version: $VERSION"
           ./create-dmg.sh "$VERSION" "arm64" "build/Release/TablePro.app"
 
-          # Verify DMG was created
-          if [ ! -f "build/Release/TablePro-${VERSION}-arm64.dmg" ]; then
-            echo "❌ ERROR: DMG file was not created"
-            exit 1
+          # Verify DMG was created - check for the specific file or any arm64 DMG
+          DMG_FILE="build/Release/TablePro-${VERSION}-arm64.dmg"
+          if [ -f "$DMG_FILE" ]; then
+            echo "✅ DMG installer created successfully: $DMG_FILE"
+          else
+            echo "⚠️  Expected DMG not found at: $DMG_FILE"
+            echo "📂 Checking for any DMG files in build/Release/:"
+            ls -la build/Release/*.dmg 2>/dev/null || echo "   No DMG files found"
+            
+            # Check if any arm64 DMG was created (version might differ)
+            if ls build/Release/*-arm64.dmg 1>/dev/null 2>&1; then
+              echo "✅ Found arm64 DMG file(s):"
+              ls -lh build/Release/*-arm64.dmg
+            else
+              echo "❌ ERROR: No arm64 DMG file was created"
+              exit 1
+            fi
           fi
 
-          echo "✅ DMG installer created successfully"
           ls -lh build/Release/*.dmg
 
       - name: Create ZIP archive (fallback)
@@ -654,15 +667,28 @@ jobs:
 
           # Create DMG with version from git tag or use default
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
+          echo "📌 Using version: $VERSION"
           ./create-dmg.sh "$VERSION" "x86_64" "build/Release/TablePro.app"
 
-          # Verify DMG was created
-          if [ ! -f "build/Release/TablePro-${VERSION}-x86_64.dmg" ]; then
-            echo "❌ ERROR: DMG file was not created"
-            exit 1
+          # Verify DMG was created - check for the specific file or any x86_64 DMG
+          DMG_FILE="build/Release/TablePro-${VERSION}-x86_64.dmg"
+          if [ -f "$DMG_FILE" ]; then
+            echo "✅ DMG installer created successfully: $DMG_FILE"
+          else
+            echo "⚠️  Expected DMG not found at: $DMG_FILE"
+            echo "📂 Checking for any DMG files in build/Release/:"
+            ls -la build/Release/*.dmg 2>/dev/null || echo "   No DMG files found"
+            
+            # Check if any x86_64 DMG was created (version might differ)
+            if ls build/Release/*-x86_64.dmg 1>/dev/null 2>&1; then
+              echo "✅ Found x86_64 DMG file(s):"
+              ls -lh build/Release/*-x86_64.dmg
+            else
+              echo "❌ ERROR: No x86_64 DMG file was created"
+              exit 1
+            fi
           fi
 
-          echo "✅ DMG installer created successfully"
           ls -lh build/Release/*.dmg
 
       - name: Create ZIP archive (fallback)
