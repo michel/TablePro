@@ -54,18 +54,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache Homebrew packages
+      - name: Cache Homebrew downloads
         uses: actions/cache@v4
+        continue-on-error: true
         with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /opt/homebrew/Cellar/mariadb-connector-c
-            /opt/homebrew/Cellar/libpq
-            /usr/local/Cellar/mariadb-connector-c
-            /usr/local/Cellar/libpq
-          key: brew-deps-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          path: ~/Library/Caches/Homebrew
+          key: brew-downloads-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
           restore-keys: |
-            brew-deps-${{ runner.os }}-
+            brew-downloads-${{ runner.os }}-
 
       - name: Install ARM64 Homebrew dependencies
         run: |
@@ -326,16 +322,14 @@ jobs:
           lipo -info Libs/libmariadb_universal.a
           ls -lh Libs/libmariadb_universal.a
 
-      - name: Cache Homebrew packages
+      - name: Cache Homebrew downloads
         uses: actions/cache@v4
+        continue-on-error: true
         with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /opt/homebrew/Cellar/mariadb-connector-c
-            /opt/homebrew/Cellar/libpq
-          key: brew-arm64-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          path: ~/Library/Caches/Homebrew
+          key: brew-arm64-downloads-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
           restore-keys: |
-            brew-arm64-${{ runner.os }}-
+            brew-arm64-downloads-${{ runner.os }}-
 
       - name: Install ARM64 dependencies
         run: |
@@ -420,21 +414,18 @@ jobs:
         run: |
           echo "Creating DMG installer..."
 
-          # Rename app to remove architecture suffix for better UX
-          if [ -d "build/Release/TablePro-arm64.app" ]; then
-            cp -R "build/Release/TablePro-arm64.app" "build/Release/TablePro.app"
-          else
-            echo "❌ ERROR: App bundle not found"
-            exit 1
-          fi
+          # Install create-dmg tool for proper icon handling in CI
+          echo "📦 Installing create-dmg tool..."
+          brew install create-dmg
 
           # Make DMG creation script executable
           chmod +x create-dmg.sh
 
           # Create DMG with version from git tag or use default
+          # The script handles app renaming internally
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
           echo "📌 Using version: $VERSION"
-          ./create-dmg.sh "$VERSION" "arm64" "build/Release/TablePro.app"
+          ./create-dmg.sh "$VERSION" "arm64" "build/Release/TablePro-arm64.app"
 
           # Verify DMG was created - check for the specific file or any arm64 DMG
           DMG_FILE="build/Release/TablePro-${VERSION}-arm64.dmg"
@@ -511,16 +502,14 @@ jobs:
           echo "✅ Universal library found"
           lipo -info Libs/libmariadb_universal.a
 
-      - name: Cache Homebrew packages
+      - name: Cache Homebrew downloads
         uses: actions/cache@v4
+        continue-on-error: true
         with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Cellar/mariadb-connector-c
-            /usr/local/Cellar/libpq
-          key: brew-x86_64-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          path: ~/Library/Caches/Homebrew
+          key: brew-x86_64-downloads-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
           restore-keys: |
-            brew-x86_64-${{ runner.os }}-
+            brew-x86_64-downloads-${{ runner.os }}-
 
       - name: Install Rosetta 2
         run: |
@@ -654,21 +643,18 @@ jobs:
         run: |
           echo "Creating DMG installer..."
 
-          # Rename app to remove architecture suffix for better UX
-          if [ -d "build/Release/TablePro-x86_64.app" ]; then
-            cp -R "build/Release/TablePro-x86_64.app" "build/Release/TablePro.app"
-          else
-            echo "❌ ERROR: App bundle not found"
-            exit 1
-          fi
+          # Install create-dmg tool for proper icon handling in CI
+          echo "📦 Installing create-dmg tool..."
+          brew install create-dmg
 
           # Make DMG creation script executable
           chmod +x create-dmg.sh
 
           # Create DMG with version from git tag or use default
+          # The script handles app renaming internally
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
           echo "📌 Using version: $VERSION"
-          ./create-dmg.sh "$VERSION" "x86_64" "build/Release/TablePro.app"
+          ./create-dmg.sh "$VERSION" "x86_64" "build/Release/TablePro-x86_64.app"
 
           # Verify DMG was created - check for the specific file or any x86_64 DMG
           DMG_FILE="build/Release/TablePro-${VERSION}-x86_64.dmg"

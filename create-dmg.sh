@@ -1,6 +1,6 @@
 #!/bin/bash
 # Create a DMG installer with drag-and-drop installation window
-# No Apple Developer account required
+# Uses create-dmg tool for reliable CI builds
 
 set -e
 
@@ -11,8 +11,6 @@ ARCH="${2:-universal}"
 SOURCE_APP="${3:-build/Release/${APP_NAME}.app}"
 DMG_NAME="${APP_NAME}-${VERSION}-${ARCH}.dmg"
 VOLUME_NAME="${APP_NAME} ${VERSION}"
-DMG_DIR="build/dmg"
-TEMP_DMG="$DMG_DIR/temp.dmg"
 FINAL_DMG="build/Release/$DMG_NAME"
 
 echo "📦 Creating DMG installer for $APP_NAME..."
@@ -26,222 +24,193 @@ if [ ! -d "$SOURCE_APP" ]; then
     exit 1
 fi
 
-# Clean and create DMG directory
-rm -rf "$DMG_DIR"
-mkdir -p "$DMG_DIR"
+# Ensure output directory exists
+mkdir -p "build/Release"
 
-# Create staging directory
-STAGING_DIR="$DMG_DIR/staging"
-mkdir -p "$STAGING_DIR"
-
-echo "📋 Preparing DMG contents..."
-
-# Copy app to staging
-echo "  Copying $APP_NAME.app..."
-cp -R "$SOURCE_APP" "$STAGING_DIR/$APP_NAME.app"
-
-# Create Applications symlink for drag-and-drop
-echo "  Creating Applications symlink..."
-if ! ln -s /Applications "$STAGING_DIR/Applications"; then
-    echo "❌ ERROR: Failed to create Applications symlink"
-    exit 1
+# Create a staging copy of the app with the correct name (TablePro.app)
+# This ensures the DMG shows "TablePro.app" regardless of the source name
+STAGING_APP="build/Release/${APP_NAME}.app"
+if [ "$SOURCE_APP" != "$STAGING_APP" ]; then
+    echo "📋 Preparing $APP_NAME.app for DMG..."
+    rm -rf "$STAGING_APP"
+    cp -R "$SOURCE_APP" "$STAGING_APP"
 fi
 
-# Verify symlink was created
-if [ ! -L "$STAGING_DIR/Applications" ]; then
-    echo "❌ ERROR: Applications symlink not found"
-    exit 1
+# Get the app icon from the built app
+APP_ICON=""
+if [ -f "$STAGING_APP/Contents/Resources/AppIcon.icns" ]; then
+    APP_ICON="$STAGING_APP/Contents/Resources/AppIcon.icns"
+    echo "   Using app icon: $APP_ICON"
 fi
 
-echo "  ✓ Applications symlink created"
+# Create a temporary directory for DMG staging
+DMG_STAGING="build/dmg-staging"
+rm -rf "$DMG_STAGING"
+mkdir -p "$DMG_STAGING"
 
-# Copy the Applications folder icon to ensure it displays properly
-# Extract the icon from the actual Applications folder
-echo "  Setting up Applications folder icon..."
-if [ -f "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ApplicationsFolderIcon.icns" ]; then
-    # Create a resource fork for the symlink (for icon display)
-    # Note: This is optional and might not work on all macOS versions
-    cp "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ApplicationsFolderIcon.icns" \
-       "$STAGING_DIR/.VolumeIcon.icns" 2>/dev/null || true
-fi
+# Copy app to staging directory
+cp -R "$STAGING_APP" "$DMG_STAGING/$APP_NAME.app"
 
-# Create .background directory for custom background
-mkdir -p "$STAGING_DIR/.background"
-
-# Create a simple background image using ImageMagick or skip if not available
-MAGICK_CMD=""
-if command -v magick &> /dev/null; then
-    MAGICK_CMD="magick"
-elif command -v convert &> /dev/null; then
-    MAGICK_CMD="convert"
-fi
-
-if [ -n "$MAGICK_CMD" ]; then
-    echo "🎨 Creating background image..."
-
-    # Create a nice gradient background
-    $MAGICK_CMD -size 600x400 \
-        canvas:"#f5f5f7" \
-        "$STAGING_DIR/.background/background.png"
-
-    # Add installation arrow
-    $MAGICK_CMD "$STAGING_DIR/.background/background.png" \
-        -stroke '#007AFF' \
-        -strokewidth 3 \
-        -fill none \
-        -draw "path 'M 250,200 L 350,200'" \
-        -draw "path 'M 340,190 L 350,200 L 340,210'" \
-        "$STAGING_DIR/.background/background.png"
-
-    # Add text hint
-    $MAGICK_CMD "$STAGING_DIR/.background/background.png" \
-        -font "Helvetica" \
-        -pointsize 13 \
-        -fill '#86868b' \
-        -gravity South \
-        -annotate +0+30 'Drag the app to Applications to install' \
-        "$STAGING_DIR/.background/background.png"
-
-    echo "  ✓ Background image created"
-else
-    echo "⚠️  ImageMagick not found, creating simple background"
-    echo "   Install with: brew install imagemagick"
-
-    # Create a simple solid color background as fallback
-    # This doesn't require ImageMagick - just create a minimal PNG
-    echo "  Creating basic background..."
-fi
-
-# Calculate size needed for DMG
-echo "📐 Calculating DMG size..."
-SIZE=$(du -sh "$STAGING_DIR" | awk '{print $1}')
-echo "   Staging size: $SIZE"
-
-# Add 50MB padding
-SIZE_MB=$(du -sm "$STAGING_DIR" | awk '{print $1}')
-SIZE_MB=$((SIZE_MB + 50))
-
-echo "🔨 Creating temporary DMG ($SIZE_MB MB)..."
-
-# Create temporary DMG
-hdiutil create -srcfolder "$STAGING_DIR" \
-    -volname "$VOLUME_NAME" \
-    -fs HFS+ \
-    -fsargs "-c c=64,a=16,e=16" \
-    -format UDRW \
-    -size ${SIZE_MB}m \
-    "$TEMP_DMG"
-
-echo "📝 Configuring DMG layout..."
-
-# Mount the temporary DMG
-MOUNT_DIR="/Volumes/$VOLUME_NAME"
-hdiutil attach "$TEMP_DMG" -readwrite -noverify -noautoopen
-
-# Wait for mount
-sleep 2
-
-# Check if background image exists
-BACKGROUND_EXISTS=false
-if [ -f "$STAGING_DIR/.background/background.png" ]; then
-    BACKGROUND_EXISTS=true
-fi
-
-# Run AppleScript to set window properties
-if [ "$BACKGROUND_EXISTS" = true ]; then
-    echo "  Setting custom background..."
-    osascript <<EOF
-tell application "Finder"
-    tell disk "$VOLUME_NAME"
-        open
-        set current view of container window to icon view
-        set toolbar visible of container window to false
-        set statusbar visible of container window to false
-        set the bounds of container window to {100, 100, 700, 500}
-        set viewOptions to the icon view options of container window
-        set arrangement of viewOptions to not arranged
-        set icon size of viewOptions to 72
-        set background picture of viewOptions to file ".background:background.png"
-        set shows item info of viewOptions to false
-        set shows icon preview of viewOptions to true
-
-        -- Position icons (wait for them to appear)
-        delay 1
-        set position of item "$APP_NAME.app" of container window to {150, 200}
-        set position of item "Applications" of container window to {450, 200}
-
-        -- Force update
-        close
-        open
-        update without registering applications
-        delay 2
-        close
-    end tell
-end tell
-EOF
-else
-    echo "  Using default background (no ImageMagick)..."
-    osascript <<EOF
-tell application "Finder"
-    tell disk "$VOLUME_NAME"
-        open
-        set current view of container window to icon view
-        set toolbar visible of container window to false
-        set statusbar visible of container window to false
-        set the bounds of container window to {100, 100, 700, 500}
-        set viewOptions to the icon view options of container window
-        set arrangement of viewOptions to not arranged
-        set icon size of viewOptions to 72
-        set shows item info of viewOptions to false
-        set shows icon preview of viewOptions to true
-
-        -- Position icons (wait for them to appear)
-        delay 1
-        set position of item "$APP_NAME.app" of container window to {150, 200}
-        set position of item "Applications" of container window to {450, 200}
-
-        -- Force update
-        close
-        open
-        update without registering applications
-        delay 2
-        close
-    end tell
-end tell
-EOF
-fi
-
-# Ensure .DS_Store is written
-echo "💾 Saving Finder settings..."
-sleep 2
-
-# Force Finder to write the .DS_Store file
+# Create an Applications alias (not symlink) with proper icon
+# Using osascript to create a proper Finder alias
+echo "📁 Creating Applications alias..."
 osascript <<EOF
 tell application "Finder"
+    set applicationsFolder to POSIX file "/Applications" as alias
+    set stagingFolder to POSIX file "$(pwd)/$DMG_STAGING" as alias
+    try
+        make new alias file at stagingFolder to applicationsFolder with properties {name:"Applications"}
+    on error
+        -- If alias creation fails, we'll fall back to symlink
+    end try
+end tell
+EOF
+
+# Check if alias was created, otherwise fall back to symlink
+if [ ! -e "$DMG_STAGING/Applications" ]; then
+    echo "   ⚠️  Alias creation failed, using symlink instead"
+    ln -s /Applications "$DMG_STAGING/Applications"
+fi
+
+# Copy Applications folder icon to the alias
+APPS_ICON="/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ApplicationsFolderIcon.icns"
+if [ -f "$APPS_ICON" ] && [ -e "$DMG_STAGING/Applications" ]; then
+    # Use Rez/SetFile to set custom icon on the alias (if available)
+    if command -v SetFile &> /dev/null; then
+        # Create an Icon\r file with the icon data
+        cp "$APPS_ICON" "$DMG_STAGING/Applications/Icon"$'\r' 2>/dev/null || true
+        # Set custom icon flag
+        SetFile -a C "$DMG_STAGING/Applications" 2>/dev/null || true
+    fi
+fi
+
+# Check if create-dmg tool is available (brew install create-dmg)
+if command -v create-dmg &> /dev/null; then
+    echo "🔨 Using create-dmg tool..."
+    
+    # Remove existing DMG if present
+    rm -f "$FINAL_DMG"
+    
+    # Build create-dmg command with options
+    CREATE_DMG_ARGS=(
+        --volname "$VOLUME_NAME"
+        --window-pos 200 120
+        --window-size 600 400
+        --icon-size 80
+        --icon "$APP_NAME.app" 150 190
+        --icon "Applications" 450 190
+        --hide-extension "$APP_NAME.app"
+        --no-internet-enable
+    )
+    
+    # Add volume icon if available
+    if [ -n "$APP_ICON" ] && [ -f "$APP_ICON" ]; then
+        CREATE_DMG_ARGS+=(--volicon "$APP_ICON")
+    fi
+    
+    # Add background if exists
+    if [ -f ".dmg-assets/dmg-background.png" ]; then
+        CREATE_DMG_ARGS+=(--background ".dmg-assets/dmg-background.png")
+        echo "   Using custom background"
+    fi
+    
+    # Create DMG from staging directory (which has both the app and Applications alias)
+    if ! create-dmg "${CREATE_DMG_ARGS[@]}" "$FINAL_DMG" "$DMG_STAGING"; then
+        echo "⚠️  create-dmg exited with non-zero (may be expected in CI due to AppleScript)"
+        # Check if DMG was still created
+        if [ -f "$FINAL_DMG" ]; then
+            echo "   DMG was created despite exit code"
+        else
+            echo "❌ ERROR: DMG was not created"
+            rm -rf "$DMG_STAGING"
+            exit 1
+        fi
+    fi
+    
+else
+    echo "⚠️  create-dmg tool not found, using basic hdiutil method..."
+    echo "   Install with: brew install create-dmg"
+    
+    # Calculate size needed for DMG
+    SIZE_MB=$(du -sm "$DMG_STAGING" | awk '{print $1}')
+    SIZE_MB=$((SIZE_MB + 50))
+    
+    TEMP_DMG="build/Release/temp.dmg"
+    
+    echo "🔨 Creating temporary DMG ($SIZE_MB MB)..."
+    
+    # Create temporary DMG
+    hdiutil create -srcfolder "$DMG_STAGING" \
+        -volname "$VOLUME_NAME" \
+        -fs HFS+ \
+        -fsargs "-c c=64,a=16,e=16" \
+        -format UDRW \
+        -size ${SIZE_MB}m \
+        "$TEMP_DMG"
+    
+    # Mount the temporary DMG for customization
+    MOUNT_DIR="/Volumes/$VOLUME_NAME"
+    hdiutil attach "$TEMP_DMG" -readwrite -noverify -noautoopen
+    
+    # Wait for mount
+    sleep 2
+    
+    # Set volume icon if available
+    if [ -n "$APP_ICON" ] && [ -f "$APP_ICON" ]; then
+        cp "$APP_ICON" "$MOUNT_DIR/.VolumeIcon.icns"
+        SetFile -a C "$MOUNT_DIR" 2>/dev/null || true
+    fi
+    
+    # Try AppleScript to set icon positions (may fail in CI, that's OK)
+    osascript <<EOF 2>/dev/null || echo "  ⚠️  AppleScript layout skipped (headless environment)"
+tell application "Finder"
     tell disk "$VOLUME_NAME"
         open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set the bounds of container window to {100, 100, 700, 500}
+        set viewOptions to the icon view options of container window
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to 80
+        set shows item info of viewOptions to false
+        set shows icon preview of viewOptions to true
+        
+        -- Position icons
+        delay 1
+        set position of item "$APP_NAME.app" of container window to {150, 200}
+        set position of item "Applications" of container window to {450, 200}
+        
+        -- Force update
+        close
+        open
+        update without registering applications
         delay 1
         close
     end tell
 end tell
 EOF
 
-# Sync changes
-sync
-sleep 1
+    # Sync and unmount
+    sync
+    sleep 1
+    hdiutil detach "$MOUNT_DIR" -force
+    
+    # Convert to compressed read-only DMG
+    hdiutil convert "$TEMP_DMG" \
+        -format UDZO \
+        -imagekey zlib-level=9 \
+        -o "$FINAL_DMG"
+    
+    # Clean up temp DMG
+    rm -f "$TEMP_DMG"
+fi
 
-# Unmount
-echo "💾 Finalizing DMG..."
-hdiutil detach "$MOUNT_DIR" -force
-
-# Convert to compressed read-only DMG
-hdiutil convert "$TEMP_DMG" \
-    -format UDZO \
-    -imagekey zlib-level=9 \
-    -o "$FINAL_DMG"
-
-# Clean up
-rm -rf "$DMG_DIR"
+# Clean up staging directories
+rm -rf "$DMG_STAGING"
+if [ "$SOURCE_APP" != "$STAGING_APP" ] && [ -d "$STAGING_APP" ]; then
+    rm -rf "$STAGING_APP"
+fi
 
 # Verify final DMG
 if [ ! -f "$FINAL_DMG" ]; then
@@ -259,9 +228,3 @@ echo "   📊 Size: $FINAL_SIZE"
 echo ""
 echo "🧪 Test the DMG:"
 echo "   open \"$FINAL_DMG\""
-echo ""
-echo "📝 Note: If the Applications folder icon doesn't appear:"
-echo "   1. Eject the DMG"
-echo "   2. Re-open it"
-echo "   3. The icon should appear correctly after re-mounting"
-echo "   (This is normal - macOS caches folder icons)"
