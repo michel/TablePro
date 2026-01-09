@@ -141,8 +141,16 @@ hdiutil attach "$TEMP_DMG" -readwrite -noverify -noautoopen
 # Wait for mount
 sleep 2
 
+# Check if background image exists
+BACKGROUND_EXISTS=false
+if [ -f "$STAGING_DIR/.background/background.png" ]; then
+    BACKGROUND_EXISTS=true
+fi
+
 # Run AppleScript to set window properties
-osascript <<EOF
+if [ "$BACKGROUND_EXISTS" = true ]; then
+    echo "  Setting custom background..."
+    osascript <<EOF
 tell application "Finder"
     tell disk "$VOLUME_NAME"
         open
@@ -171,6 +179,37 @@ tell application "Finder"
     end tell
 end tell
 EOF
+else
+    echo "  Using default background (no ImageMagick)..."
+    osascript <<EOF
+tell application "Finder"
+    tell disk "$VOLUME_NAME"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set the bounds of container window to {100, 100, 700, 500}
+        set viewOptions to the icon view options of container window
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to 72
+        set shows item info of viewOptions to false
+        set shows icon preview of viewOptions to true
+
+        -- Position icons (wait for them to appear)
+        delay 1
+        set position of item "$APP_NAME.app" of container window to {150, 200}
+        set position of item "Applications" of container window to {450, 200}
+
+        -- Force update
+        close
+        open
+        update without registering applications
+        delay 2
+        close
+    end tell
+end tell
+EOF
+fi
 
 # Ensure .DS_Store is written
 echo "💾 Saving Finder settings..."
