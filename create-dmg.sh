@@ -46,24 +46,47 @@ ln -s /Applications "$STAGING_DIR/Applications"
 mkdir -p "$STAGING_DIR/.background"
 
 # Create a simple background image using ImageMagick or skip if not available
-if command -v convert &> /dev/null; then
+MAGICK_CMD=""
+if command -v magick &> /dev/null; then
+    MAGICK_CMD="magick"
+elif command -v convert &> /dev/null; then
+    MAGICK_CMD="convert"
+fi
+
+if [ -n "$MAGICK_CMD" ]; then
     echo "🎨 Creating background image..."
 
-    # Create a nice gradient background with instructions
-    convert -size 600x400 \
-        -background "#f0f0f0" \
-        -fill "#333333" \
-        -font "Helvetica-Bold" -pointsize 24 \
-        -gravity North -annotate +0+30 "Install $APP_NAME" \
-        -font "Helvetica" -pointsize 14 \
-        -gravity Center -annotate +0+0 "Drag $APP_NAME to the Applications folder" \
-        -font "Helvetica" -pointsize 12 \
-        -fill "#666666" \
-        -gravity South -annotate +0+20 "→" \
+    # Create a nice gradient background
+    $MAGICK_CMD -size 600x400 \
+        canvas:"#f5f5f7" \
         "$STAGING_DIR/.background/background.png"
+
+    # Add installation arrow
+    $MAGICK_CMD "$STAGING_DIR/.background/background.png" \
+        -stroke '#007AFF' \
+        -strokewidth 3 \
+        -fill none \
+        -draw "path 'M 250,200 L 350,200'" \
+        -draw "path 'M 340,190 L 350,200 L 340,210'" \
+        "$STAGING_DIR/.background/background.png"
+
+    # Add text hint
+    $MAGICK_CMD "$STAGING_DIR/.background/background.png" \
+        -font "Helvetica" \
+        -pointsize 13 \
+        -fill '#86868b' \
+        -gravity South \
+        -annotate +0+30 'Drag the app to Applications to install' \
+        "$STAGING_DIR/.background/background.png"
+
+    echo "  ✓ Background image created"
 else
-    echo "⚠️  ImageMagick not found, skipping custom background"
+    echo "⚠️  ImageMagick not found, creating simple background"
     echo "   Install with: brew install imagemagick"
+
+    # Create a simple solid color background as fallback
+    # This doesn't require ImageMagick - just create a minimal PNG
+    echo "  Creating basic background..."
 fi
 
 # Calculate size needed for DMG

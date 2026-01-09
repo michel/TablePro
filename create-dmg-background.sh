@@ -10,7 +10,13 @@ mkdir -p "$OUTPUT_DIR"
 
 echo "🎨 Creating DMG background image..."
 
-if ! command -v convert &> /dev/null; then
+# Check for ImageMagick (v7 uses 'magick', v6 uses 'convert')
+MAGICK_CMD=""
+if command -v magick &> /dev/null; then
+    MAGICK_CMD="magick"
+elif command -v convert &> /dev/null; then
+    MAGICK_CMD="convert"
+else
     echo "❌ ERROR: ImageMagick not found"
     echo "   Install with: brew install imagemagick"
     exit 1
@@ -21,12 +27,12 @@ WIDTH=600
 HEIGHT=400
 
 # Create background with gradient
-convert -size ${WIDTH}x${HEIGHT} \
+$MAGICK_CMD -size ${WIDTH}x${HEIGHT} \
     gradient:'#f5f5f7-#ffffff' \
     "$OUTPUT_FILE"
 
 # Add arrow pointing from left to right
-convert "$OUTPUT_FILE" \
+$MAGICK_CMD "$OUTPUT_FILE" \
     -stroke '#007AFF' \
     -strokewidth 3 \
     -fill none \
@@ -35,7 +41,7 @@ convert "$OUTPUT_FILE" \
     "$OUTPUT_FILE"
 
 # Add subtle text hint at bottom
-convert "$OUTPUT_FILE" \
+$MAGICK_CMD "$OUTPUT_FILE" \
     -font "Helvetica" \
     -pointsize 13 \
     -fill '#86868b' \
@@ -44,7 +50,7 @@ convert "$OUTPUT_FILE" \
     "$OUTPUT_FILE"
 
 # Add subtle shadow effect
-convert "$OUTPUT_FILE" \
+$MAGICK_CMD "$OUTPUT_FILE" \
     \( +clone -background black -shadow 60x3+0+0 \) \
     +swap -background none -layers merge +repage \
     "$OUTPUT_FILE"
