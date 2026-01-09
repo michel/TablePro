@@ -9,8 +9,13 @@
 #ifndef CLibPQ_h
 #define CLibPQ_h
 
-// Use absolute path to avoid Xcode Build Settings dependency
-// This path is for Apple Silicon Macs with Homebrew
-#include "/opt/homebrew/opt/libpq/include/libpq-fe.h"
+// Use architecture-specific paths for Homebrew installations
+// ARM64: /opt/homebrew (Apple Silicon)
+// x86_64: /usr/local (Intel or Rosetta)
+#if defined(__arm64__) || defined(__aarch64__)
+    #include "/opt/homebrew/opt/libpq/include/libpq-fe.h"
+#else
+    #include "/usr/local/opt/libpq/include/libpq-fe.h"
+#endif
 
 #endif /* CLibPQ_h */
