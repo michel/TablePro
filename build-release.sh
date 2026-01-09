@@ -75,6 +75,9 @@ build_for_arch() {
         -configuration "$CONFIG" \
         -arch "$arch" \
         ONLY_ACTIVE_ARCH=YES \
+        CODE_SIGN_IDENTITY="" \
+        CODE_SIGNING_REQUIRED=NO \
+        CODE_SIGNING_ALLOWED=NO \
         clean build 2>&1 | tee "build-${arch}.log"; then
         echo "❌ FATAL: xcodebuild failed for $arch"
         echo "Check build-${arch}.log for details"
