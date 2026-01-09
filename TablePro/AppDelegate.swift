@@ -91,6 +91,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Save tab state for all active sessions
+    @MainActor
     private func saveAllTabStates() {
         for (connectionId, session) in DatabaseManager.shared.activeSessions {
             if session.tabs.isEmpty {

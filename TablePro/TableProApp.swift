@@ -117,7 +117,7 @@ struct TableProApp: App {
 
         // Connection Form Window - opens when creating/editing a connection
         WindowGroup("Connection", id: "connection-form", for: UUID?.self) { $connectionId in
-            ConnectionFormView(connectionId: connectionId)
+            ConnectionFormView(connectionId: connectionId ?? nil)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)

@@ -287,6 +287,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     // MARK: - Row Visual State Cache
 
+    @MainActor
     func rebuildVisualStateCache() {
         rowVisualStateCache.removeAll(keepingCapacity: true)
         guard changeManager.hasChanges else { return }
@@ -561,6 +562,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     // MARK: - Row Actions
 
+    @MainActor
     func undoDeleteRow(at index: Int) {
         changeManager.undoRowDeletion(rowIndex: index)
         tableView?.reloadData(
@@ -572,6 +574,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         onAddRow?()
     }
 
+    @MainActor
     func undoInsertRow(at index: Int) {
         onUndoInsert?(index)
         changeManager.undoRowInsertion(rowIndex: index)
@@ -602,6 +605,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         setCellValueAtColumn(value, at: rowIndex, columnIndex: columnIndex)
     }
 
+    @MainActor
     func setCellValueAtColumn(_ value: String?, at rowIndex: Int, columnIndex: Int) {
         guard let tableView = tableView else { return }
         guard columnIndex >= 0 && columnIndex < rowProvider.columns.count else { return }

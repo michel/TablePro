@@ -297,8 +297,8 @@ struct MainEditorContentView: View {
             onLastPage: onLastPage,
             onLimitChange: onLimitChange,
             onOffsetChange: onOffsetChange,
-            onPaginationGo: onPaginationGo,
-            )
+            onPaginationGo: onPaginationGo
+        )
     }
 
     private func showStructureBinding(for tab: QueryTab) -> Binding<Bool> {

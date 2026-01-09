@@ -211,7 +211,7 @@ final class ImportService: ObservableObject {
             if config.wrapInTransaction {
                 do {
                     _ = try await driver.execute(query: rollbackStatement(for: connection.type))
-                } catch {
+                } catch let rollbackError {
                     // Rollback failed - database may be in inconsistent state
                     // This is a critical error that MUST be reported to the user
                     throw ImportError.rollbackFailed(rollbackError.localizedDescription)
@@ -225,7 +225,7 @@ final class ImportService: ObservableObject {
                 for stmt in fkEnableStmts {
                     do {
                         _ = try await driver.execute(query: stmt)
-                    } catch {
+                    } catch let fkError {
                         // FK re-enable failed - warn user but don't override original error
                         // Store this as a warning that should be shown alongside the original error
                         let message = fkError.localizedDescription
