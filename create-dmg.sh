@@ -37,10 +37,33 @@ mkdir -p "$STAGING_DIR"
 echo "📋 Preparing DMG contents..."
 
 # Copy app to staging
+echo "  Copying $APP_NAME.app..."
 cp -R "$SOURCE_APP" "$STAGING_DIR/$APP_NAME.app"
 
 # Create Applications symlink for drag-and-drop
-ln -s /Applications "$STAGING_DIR/Applications"
+echo "  Creating Applications symlink..."
+if ! ln -s /Applications "$STAGING_DIR/Applications"; then
+    echo "❌ ERROR: Failed to create Applications symlink"
+    exit 1
+fi
+
+# Verify symlink was created
+if [ ! -L "$STAGING_DIR/Applications" ]; then
+    echo "❌ ERROR: Applications symlink not found"
+    exit 1
+fi
+
+echo "  ✓ Applications symlink created"
+
+# Copy the Applications folder icon to ensure it displays properly
+# Extract the icon from the actual Applications folder
+echo "  Setting up Applications folder icon..."
+if [ -f "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ApplicationsFolderIcon.icns" ]; then
+    # Create a resource fork for the symlink (for icon display)
+    # Note: This is optional and might not work on all macOS versions
+    cp "/System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/ApplicationsFolderIcon.icns" \
+       "$STAGING_DIR/.VolumeIcon.icns" 2>/dev/null || true
+fi
 
 # Create .background directory for custom background
 mkdir -p "$STAGING_DIR/.background"
@@ -129,27 +152,48 @@ tell application "Finder"
         set the bounds of container window to {100, 100, 700, 500}
         set viewOptions to the icon view options of container window
         set arrangement of viewOptions to not arranged
-        set icon size of viewOptions to 80
+        set icon size of viewOptions to 72
         set background picture of viewOptions to file ".background:background.png"
+        set shows item info of viewOptions to false
+        set shows icon preview of viewOptions to true
 
-        -- Position icons
+        -- Position icons (wait for them to appear)
+        delay 1
         set position of item "$APP_NAME.app" of container window to {150, 200}
         set position of item "Applications" of container window to {450, 200}
 
+        -- Force update
         close
         open
         update without registering applications
         delay 2
+        close
+    end tell
+end tell
+EOF
+
+# Ensure .DS_Store is written
+echo "💾 Saving Finder settings..."
+sleep 2
+
+# Force Finder to write the .DS_Store file
+osascript <<EOF
+tell application "Finder"
+    tell disk "$VOLUME_NAME"
+        open
+        delay 1
+        close
     end tell
 end tell
 EOF
 
 # Sync changes
 sync
+sleep 1
 
 # Unmount
 echo "💾 Finalizing DMG..."
-hdiutil detach "$MOUNT_DIR"
+hdiutil detach "$MOUNT_DIR" -force
 
 # Convert to compressed read-only DMG
 hdiutil convert "$TEMP_DMG" \
@@ -176,3 +220,9 @@ echo "   📊 Size: $FINAL_SIZE"
 echo ""
 echo "🧪 Test the DMG:"
 echo "   open \"$FINAL_DMG\""
+echo ""
+echo "📝 Note: If the Applications folder icon doesn't appear:"
+echo "   1. Eject the DMG"
+echo "   2. Re-open it"
+echo "   3. The icon should appear correctly after re-mounting"
+echo "   (This is normal - macOS caches folder icons)"
