@@ -72,6 +72,10 @@ jobs:
           echo "Installing ARM64 dependencies..."
           brew install mariadb-connector-c libpq
 
+          # Link packages (needed when restored from cache)
+          brew link mariadb-connector-c || true
+          brew link libpq || true
+
           # Verify installations
           if ! brew list mariadb-connector-c >/dev/null 2>&1; then
             echo "❌ ERROR: mariadb-connector-c installation failed or incomplete"
@@ -170,6 +174,10 @@ jobs:
         run: |
           echo "Installing x86_64 dependencies..."
           arch -x86_64 /usr/local/bin/brew install mariadb-connector-c libpq
+
+          # Link packages (needed when restored from cache)
+          arch -x86_64 /usr/local/bin/brew link mariadb-connector-c || true
+          arch -x86_64 /usr/local/bin/brew link libpq || true
 
           # Verify installations
           if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c >/dev/null 2>&1; then
@@ -333,6 +341,10 @@ jobs:
         run: |
           echo "Installing ARM64 dependencies..."
           brew install mariadb-connector-c libpq
+
+          # Link packages (needed when restored from cache)
+          brew link mariadb-connector-c || true
+          brew link libpq || true
 
           # Verify installations
           if ! brew list mariadb-connector-c >/dev/null 2>&1; then
@@ -537,6 +549,10 @@ jobs:
         run: |
           echo "Installing x86_64 dependencies..."
           arch -x86_64 /usr/local/bin/brew install mariadb-connector-c libpq
+
+          # Link packages (needed when restored from cache)
+          arch -x86_64 /usr/local/bin/brew link mariadb-connector-c || true
+          arch -x86_64 /usr/local/bin/brew link libpq || true
 
           # Verify installations
           if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c >/dev/null 2>&1; then
