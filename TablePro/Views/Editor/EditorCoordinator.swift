@@ -195,12 +195,23 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
 
         // Don't show autocomplete right after semicolon or newline-only context
         if cursorPosition > 0 {
-            let prevIndex = text.index(text.startIndex, offsetBy: cursorPosition - 1)
-            let prevChar = text[prevIndex]
-            if prevChar == ";" || prevChar == "\n" {
-                let afterCursor = String(text[text.index(text.startIndex, offsetBy: cursorPosition)...])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if afterCursor.isEmpty || cursorPosition == text.count {
+            // Use UTF-16 view to match NSTextView's cursor position encoding
+            let nsString = text as NSString
+            guard cursorPosition - 1 < nsString.length else { return }
+            
+            let prevChar = nsString.character(at: cursorPosition - 1)
+            let semicolon = UInt16(UnicodeScalar(";").value)
+            let newline = UInt16(UnicodeScalar("\n").value)
+            
+            if prevChar == semicolon || prevChar == newline {
+                guard cursorPosition < nsString.length else {
+                    completionWindow.dismiss()
+                    return
+                }
+                
+                let afterCursor = nsString.substring(from: cursorPosition)
+                    .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                if afterCursor.isEmpty || cursorPosition == nsString.length {
                     completionWindow.dismiss()
                     return
                 }

@@ -345,7 +345,7 @@ final class EditorTextView: NSTextView {
             }
         }
 
-        if bracket == nil && cursorPos > 0 {
+        if bracket == nil && cursorPos > 0 && cursorPos - 1 < chars.count {
             let char = chars[cursorPos - 1]
             if bracketPairs[char] != nil || reverseBracketPairs[char] != nil {
                 bracketPos = cursorPos - 1
@@ -511,26 +511,35 @@ final class EditorTextView: NSTextView {
 
     private func shouldSkipClosingQuote(_ quote: Character) -> Bool {
         let pos = selectedRange().location
-        guard pos < string.count else { return false }
-        let index = string.index(string.startIndex, offsetBy: pos)
-        return string[index] == quote
+        let utf16View = string.utf16
+        guard pos < utf16View.count else { return false }
+        let index = utf16View.index(utf16View.startIndex, offsetBy: pos)
+        guard let scalar = UnicodeScalar(utf16View[index]) else { return false }
+        return Character(scalar) == quote
     }
 
     private func shouldSkipClosingBracket(_ bracket: Character) -> Bool {
         let pos = selectedRange().location
-        guard pos < string.count else { return false }
-        let index = string.index(string.startIndex, offsetBy: pos)
-        return string[index] == bracket
+        let utf16View = string.utf16
+        guard pos < utf16View.count else { return false }
+        let index = utf16View.index(utf16View.startIndex, offsetBy: pos)
+        guard let scalar = UnicodeScalar(utf16View[index]) else { return false }
+        return Character(scalar) == bracket
     }
 
     private func shouldDeletePair() -> Bool {
         let pos = selectedRange().location
-        guard pos > 0, pos < string.count else { return false }
+        let utf16View = string.utf16
+        guard pos > 0, pos < utf16View.count else { return false }
 
-        let prevIndex = string.index(string.startIndex, offsetBy: pos - 1)
-        let nextIndex = string.index(string.startIndex, offsetBy: pos)
-        let prevChar = string[prevIndex]
-        let nextChar = string[nextIndex]
+        let prevIndex = utf16View.index(utf16View.startIndex, offsetBy: pos - 1)
+        let nextIndex = utf16View.index(utf16View.startIndex, offsetBy: pos)
+        
+        guard let prevScalar = UnicodeScalar(utf16View[prevIndex]),
+              let nextScalar = UnicodeScalar(utf16View[nextIndex]) else { return false }
+        
+        let prevChar = Character(prevScalar)
+        let nextChar = Character(nextScalar)
 
         // Check if we're between a matching pair
         if let closing = bracketPairs[prevChar], closing == nextChar {
