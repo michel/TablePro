@@ -92,10 +92,28 @@ struct SortState: Equatable {
 /// Tracks pagination state for navigating large datasets
 struct PaginationState: Equatable {
     var totalRowCount: Int?         // Total rows in table (from COUNT(*))
-    var pageSize: Int = 200          // Rows per page
+    var pageSize: Int               // Rows per page (passed from manager/coordinator)
     var currentPage: Int = 1         // Current page number (1-based)
     var currentOffset: Int = 0       // Current OFFSET for SQL query
     var isLoading: Bool = false      // Loading indicator
+
+    /// Default page size constant (used when no explicit value is provided)
+    /// Note: For new tabs, callers should pass AppSettingsManager.shared.dataGrid.defaultPageSize
+    static let defaultPageSize = 1000
+
+    init(
+        totalRowCount: Int? = nil,
+        pageSize: Int = PaginationState.defaultPageSize,
+        currentPage: Int = 1,
+        currentOffset: Int = 0,
+        isLoading: Bool = false
+    ) {
+        self.totalRowCount = totalRowCount
+        self.pageSize = pageSize
+        self.currentPage = currentPage
+        self.currentOffset = currentOffset
+        self.isLoading = isLoading
+    }
 
     // MARK: - Computed Properties
 
@@ -197,6 +215,7 @@ struct QueryTab: Identifiable, Equatable {
 
     // Results
     var resultColumns: [String]
+    var columnTypes: [ColumnType]  // Column type metadata for formatting
     var columnDefaults: [String: String?]  // Column name -> default value from schema
     var resultRows: [QueryResultRow]
     var executionTime: TimeInterval?
@@ -246,6 +265,7 @@ struct QueryTab: Identifiable, Equatable {
         self.tabType = tabType
         self.lastExecutedAt = nil
         self.resultColumns = []
+        self.columnTypes = []
         self.columnDefaults = [:]
         self.resultRows = []
         self.executionTime = nil
@@ -276,6 +296,7 @@ struct QueryTab: Identifiable, Equatable {
         // Initialize runtime state with defaults
         self.lastExecutedAt = nil
         self.resultColumns = []
+        self.columnTypes = []
         self.columnDefaults = [:]
         self.resultRows = []
         self.executionTime = nil
@@ -356,12 +377,14 @@ final class QueryTabManager: ObservableObject {
         }
 
         let quotedName = databaseType.quoteIdentifier(tableName)
-        let newTab = QueryTab(
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+        var newTab = QueryTab(
             title: tableName,
-            query: "SELECT * FROM \(quotedName) LIMIT 200;",
+            query: "SELECT * FROM \(quotedName) LIMIT \(pageSize);",
             tabType: .table,
             tableName: tableName
         )
+        newTab.pagination = PaginationState(pageSize: pageSize)
         tabs.append(newTab)
         selectedTabId = newTab.id
     }
@@ -416,6 +439,7 @@ final class QueryTabManager: ObservableObject {
         }
 
         let quotedName = databaseType.quoteIdentifier(tableName)
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
 
         // 2. Try to reuse the current tab if it's a clean table tab (no changes, no user interaction)
         if let selectedId = selectedTabId,
@@ -428,7 +452,7 @@ final class QueryTabManager: ObservableObject {
             // Replace the current table tab instead of creating a new one
             tabs[selectedIndex].title = tableName
             tabs[selectedIndex].tableName = tableName
-            tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT 200;"
+            tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
             tabs[selectedIndex].resultColumns = []
             tabs[selectedIndex].resultRows = []
             tabs[selectedIndex].executionTime = nil
@@ -440,16 +464,18 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].pendingChanges = TabPendingChanges()  // Reset changes
             tabs[selectedIndex].hasUserInteraction = false  // Reset interaction flag
             tabs[selectedIndex].filterState = TabFilterState()  // Reset filter state
+            tabs[selectedIndex].pagination = PaginationState(pageSize: pageSize)  // Reset with settings
             return true  // Need to run query for new table
         }
 
         // 3. Otherwise, create a new tab
-        let newTab = QueryTab(
+        var newTab = QueryTab(
             title: tableName,
-            query: "SELECT * FROM \(quotedName) LIMIT 200;",
+            query: "SELECT * FROM \(quotedName) LIMIT \(pageSize);",
             tabType: .table,
             tableName: tableName
         )
+        newTab.pagination = PaginationState(pageSize: pageSize)
         tabs.append(newTab)
         selectedTabId = newTab.id
         return true  // Need to run query for new tab
@@ -503,6 +529,7 @@ final class QueryTabManager: ObservableObject {
             query: tab.query
         )
         newTab.resultColumns = tab.resultColumns
+        newTab.columnTypes = tab.columnTypes
         newTab.resultRows = tab.resultRows
 
         if let index = tabs.firstIndex(of: tab) {

@@ -88,13 +88,26 @@ final class SQLiteDriver: DatabaseDriver {
         // Get column info
         let columnCount = sqlite3_column_count(statement)
         var columns: [String] = []
+        var columnTypes: [ColumnType] = []
 
         for i in 0..<columnCount {
+            // Extract column name
             if let name = sqlite3_column_name(statement, i) {
                 columns.append(String(cString: name))
             } else {
                 columns.append("column_\(i)")
             }
+            
+            // Extract column type from declared type
+            // sqlite3_column_decltype returns the declared type (e.g., "INTEGER", "TEXT", "DATETIME")
+            let declaredType: String? = {
+                if let typePtr = sqlite3_column_decltype(statement, i) {
+                    return String(cString: typePtr)
+                }
+                return nil
+            }()
+            
+            columnTypes.append(ColumnType(fromSQLiteType: declaredType))
         }
 
         // Execute and fetch rows
@@ -126,6 +139,7 @@ final class SQLiteDriver: DatabaseDriver {
 
         return QueryResult(
             columns: columns,
+            columnTypes: columnTypes,
             rows: rows,
             rowsAffected: rowsAffected,
             executionTime: executionTime,

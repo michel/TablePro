@@ -17,6 +17,8 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
     @Binding var cursorPosition: Int
 
     weak var textView: EditorTextView?
+    weak var lineNumberView: NSView?
+    var lineNumberWidthConstraint: NSLayoutConstraint?
 
     var onExecute: (() -> Void)?
 

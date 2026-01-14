@@ -6,6 +6,7 @@
 //  Communicates via NotificationCenter (NOT ObservableObject)
 //
 
+import Combine
 import Foundation
 
 /// Notification names for query history updates
@@ -21,9 +22,41 @@ final class QueryHistoryManager {
     static let shared = QueryHistoryManager()
 
     private let storage = QueryHistoryStorage.shared
+    
+    // Settings observer for immediate cleanup when settings change
+    private var settingsObserver: AnyCancellable?
 
     private init() {
-        // Perform cleanup on initialization (app launch)
+        // Note: Cleanup is now triggered from app startup with settings check
+        // See TableProApp.swift for startup cleanup logic
+        
+        // Subscribe to history settings changes for immediate cleanup
+        settingsObserver = NotificationCenter.default.publisher(for: .historySettingsDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                
+                // Update settings cache
+                self.storage.updateSettingsCache()
+                
+                // Perform cleanup if auto-cleanup is enabled
+                if AppSettingsManager.shared.history.autoCleanup {
+                    self.storage.cleanup()
+                }
+            }
+    }
+
+    /// Perform cleanup if auto-cleanup is enabled in settings
+    /// Should be called from app startup (MainActor context)
+    @MainActor
+    func performStartupCleanup() {
+        // Check if auto cleanup is enabled
+        guard AppSettingsManager.shared.history.autoCleanup else { return }
+
+        // Update the settings cache before cleanup
+        storage.updateSettingsCache()
+
+        // Perform cleanup
         storage.cleanup()
     }
 
@@ -190,7 +223,11 @@ final class QueryHistoryManager {
     // MARK: - Cleanup
 
     /// Manually trigger cleanup (normally runs automatically)
+    /// Must be called from MainActor context
+    @MainActor
     func cleanup() {
+        // Update settings cache before cleanup
+        storage.updateSettingsCache()
         storage.cleanup()
     }
 }

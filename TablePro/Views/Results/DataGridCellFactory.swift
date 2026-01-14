@@ -73,6 +73,7 @@ final class DataGridCellFactory {
         row: Int,
         columnIndex: Int,
         value: String?,
+        columnType: ColumnType?,
         visualState: RowVisualState,
         isEditable: Bool,
         isLargeDataset: Bool,
@@ -129,7 +130,8 @@ final class DataGridCellFactory {
         if value == nil {
             cell.stringValue = ""
             if !isLargeDataset {
-                cell.placeholderString = "NULL"
+                // Use settings for NULL display text
+                cell.placeholderString = AppSettingsManager.shared.dataGrid.nullDisplay
                 cell.textColor = .secondaryLabelColor
                 if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
                     cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular).withTraits(.italic)
@@ -160,6 +162,15 @@ final class DataGridCellFactory {
         } else {
             // Truncate very large text for performance (only visible chars matter)
             var displayValue = value ?? ""
+            
+            // Format dates using DateFormattingService if this is a date column
+            if let columnType = columnType, columnType.isDateType, !displayValue.isEmpty {
+                if let formattedDate = DateFormattingService.shared.format(dateString: displayValue) {
+                    displayValue = formattedDate
+                }
+                // If formatting fails, fall back to original string
+            }
+            
             if displayValue.count > maxCellTextLength {
                 let truncateIndex = displayValue.index(displayValue.startIndex, offsetBy: maxCellTextLength)
                 displayValue = String(displayValue[..<truncateIndex]) + "..."

@@ -116,6 +116,9 @@ final class DatabaseManager: ObservableObject {
                 activeSessions[connection.id]?.selectedTabId = tabState.selectedTabId
             }
 
+            // Save as last connection for "Reopen Last Session" feature
+            AppSettingsStorage.shared.saveLastConnectionId(connection.id)
+
             // Post notification for reliable delivery
             NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
         } catch {

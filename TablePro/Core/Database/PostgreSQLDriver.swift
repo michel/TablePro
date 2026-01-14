@@ -72,9 +72,15 @@ final class PostgreSQLDriver: DatabaseDriver {
 
         do {
             let result = try await pqConn.executeQuery(query)
+            
+            // Convert PostgreSQL Oids to ColumnType enum
+            let columnTypes = result.columnOids.map { oid in
+                ColumnType(fromPostgreSQLOid: oid)
+            }
 
             return QueryResult(
                 columns: result.columns,
+                columnTypes: columnTypes,
                 rows: result.rows,
                 rowsAffected: result.affectedRows,
                 executionTime: Date().timeIntervalSince(startTime),

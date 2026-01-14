@@ -443,6 +443,57 @@ final class EditorTextView: NSTextView {
 
         super.keyDown(with: event)
     }
+    
+    // MARK: - Tab Handling
+    
+    /// Override tab to insert spaces based on tab width setting
+    override func insertTab(_ sender: Any?) {
+        let tabWidth = SQLEditorTheme.tabWidth
+        let spaces = String(repeating: " ", count: tabWidth)
+        insertText(spaces, replacementRange: selectedRange())
+    }
+    
+    // MARK: - Auto-Indent
+    
+    /// Override newline to auto-indent based on previous line
+    override func insertNewline(_ sender: Any?) {
+        guard SQLEditorTheme.autoIndent else {
+            super.insertNewline(sender)
+            return
+        }
+        
+        let text = self.string
+        let cursorPos = selectedRange().location
+        
+        // Find start of current line
+        let textBeforeCursor = String(text.prefix(cursorPos))
+        guard let lastNewline = textBeforeCursor.lastIndex(of: "\n") else {
+            // First line, no indent to copy
+            super.insertNewline(sender)
+            return
+        }
+        
+        let lineStart = textBeforeCursor.index(after: lastNewline)
+        let currentLine = String(textBeforeCursor[lineStart...])
+        
+        // Extract leading whitespace
+        var indent = ""
+        for char in currentLine {
+            if char == " " || char == "\t" {
+                indent.append(char)
+            } else {
+                break
+            }
+        }
+        
+        // Insert newline
+        super.insertNewline(sender)
+        
+        // Insert indent if exists
+        if !indent.isEmpty {
+            insertText(indent, replacementRange: selectedRange())
+        }
+    }
 
     // MARK: - Auto-Pairing Logic
 

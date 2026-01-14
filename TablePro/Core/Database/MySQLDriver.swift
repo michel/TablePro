@@ -100,6 +100,7 @@ final class MySQLDriver: DatabaseDriver {
                     let columns = try await fetchColumnNames(for: tableName)
                     return QueryResult(
                         columns: columns,
+                        columnTypes: Array(repeating: .text, count: columns.count),  // Default to text for empty results
                         rows: [],
                         rowsAffected: Int(result.affectedRows),
                         executionTime: Date().timeIntervalSince(startTime),
@@ -108,8 +109,16 @@ final class MySQLDriver: DatabaseDriver {
                 }
             }
 
+            // Convert MySQL column types to ColumnType enum
+            let columnTypes = result.columnTypes.enumerated().map { index, mysqlType in
+                // Also check field length for boolean detection (TINYINT(1))
+                // Note: We don't have length info here, so we use just the type
+                ColumnType(fromMySQLType: mysqlType)
+            }
+
             return QueryResult(
                 columns: result.columns,
+                columnTypes: columnTypes,
                 rows: result.rows,
                 rowsAffected: Int(result.affectedRows),
                 executionTime: Date().timeIntervalSince(startTime),

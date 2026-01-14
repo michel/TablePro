@@ -49,6 +49,10 @@ final class MainContentCoordinator: ObservableObject {
     @Published var importFileURL: URL?
     @Published var needsLazyLoad = false
 
+    // Dangerous query confirmation
+    @Published var showDangerousQueryAlert = false
+    @Published var pendingDangerousQuery: String?
+
     // MARK: - Internal State
 
     private var queryGeneration: Int = 0
@@ -123,20 +127,37 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Dangerous Query Detection
+
+    /// Check if a query is potentially dangerous (DROP, TRUNCATE, DELETE without WHERE)
+    private func isDangerousQuery(_ sql: String) -> Bool {
+        let uppercased = sql.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Check for DROP
+        if uppercased.hasPrefix("DROP ") {
+            return true
+        }
+
+        // Check for TRUNCATE
+        if uppercased.hasPrefix("TRUNCATE ") {
+            return true
+        }
+
+        // Check for DELETE without WHERE clause
+        if uppercased.hasPrefix("DELETE ") {
+            // Check if there's a WHERE clause (handle any whitespace: space, tab, newline)
+            let hasWhere = uppercased.range(of: "\\sWHERE\\s", options: .regularExpression) != nil
+            return !hasWhere
+        }
+
+        return false
+    }
+
     // MARK: - Query Execution
 
     func runQuery() {
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
-
-        currentQueryTask?.cancel()
-        queryGeneration += 1
-        let capturedGeneration = queryGeneration
-
-        tabManager.tabs[index].isExecuting = true
-        tabManager.tabs[index].executionTime = nil
-        tabManager.tabs[index].errorMessage = nil
-        toolbarState.isExecuting = true
 
         let fullQuery = tabManager.tabs[index].query
 
@@ -149,10 +170,45 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            tabManager.tabs[index].isExecuting = false
-            toolbarState.isExecuting = false
             return
         }
+
+        // Check for dangerous queries if setting is enabled
+        if AppSettingsManager.shared.general.confirmBeforeDangerousQuery && isDangerousQuery(sql) {
+            pendingDangerousQuery = sql
+            showDangerousQueryAlert = true
+            return
+        }
+
+        // Execute the query directly
+        executeQueryInternal(sql)
+    }
+
+    /// Called when user confirms a dangerous query
+    func confirmDangerousQuery() {
+        guard let sql = pendingDangerousQuery else { return }
+        pendingDangerousQuery = nil
+        executeQueryInternal(sql)
+    }
+
+    /// Cancel a dangerous query
+    func cancelDangerousQuery() {
+        pendingDangerousQuery = nil
+    }
+
+    /// Internal query execution (called after any confirmations)
+    private func executeQueryInternal(_ sql: String) {
+        guard let index = tabManager.selectedTabIndex else { return }
+        guard !tabManager.tabs[index].isExecuting else { return }
+
+        currentQueryTask?.cancel()
+        queryGeneration += 1
+        let capturedGeneration = queryGeneration
+
+        tabManager.tabs[index].isExecuting = true
+        tabManager.tabs[index].executionTime = nil
+        tabManager.tabs[index].errorMessage = nil
+        toolbarState.isExecuting = true
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
@@ -190,6 +246,7 @@ final class MainContentCoordinator: ObservableObject {
 
                 // Deep copy to prevent C buffer retention issues
                 let safeColumns = result.columns.map { String($0) }
+                let safeColumnTypes = result.columnTypes  // Column types are already value types (enum)
                 let safeRows = result.rows.map { row in
                     QueryResultRow(values: row.map { $0.map { String($0) } })
                 }
@@ -220,6 +277,7 @@ final class MainContentCoordinator: ObservableObject {
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         var updatedTab = tabManager.tabs[idx]
                         updatedTab.resultColumns = safeColumns
+                        updatedTab.columnTypes = safeColumnTypes
                         updatedTab.columnDefaults = safeColumnDefaults
                         updatedTab.resultRows = safeRows
                         updatedTab.executionTime = safeExecutionTime
@@ -1176,7 +1234,8 @@ final class MainContentCoordinator: ObservableObject {
         if tabManager.selectedTab != nil {
             let hasEditedCells = changeManager.hasChanges
 
-            if hasEditedCells {
+            // Only show confirmation if setting is enabled AND there are unsaved changes
+            if hasEditedCells && AppSettingsManager.shared.general.confirmBeforeClosingUnsaved {
                 pendingDiscardAction = .closeTab
             } else {
                 closeCurrentTab()

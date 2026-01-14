@@ -20,6 +20,7 @@ struct QueryResultRow: Identifiable, Equatable {
 /// Result of a database query execution
 struct QueryResult {
     let columns: [String]
+    let columnTypes: [ColumnType]  // NEW: Type metadata for each column
     let rows: [[String?]]
     let rowsAffected: Int
     let executionTime: TimeInterval
@@ -46,6 +47,7 @@ struct QueryResult {
 
     static let empty = QueryResult(
         columns: [],
+        columnTypes: [],
         rows: [],
         rowsAffected: 0,
         executionTime: 0,
