@@ -2,17 +2,11 @@ name: Build TablePro
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
     paths-ignore:
       - '**.md'
       - 'docs/**'
       - '.vscode/**'
-  pull_request:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
 
 env:
   XCODE_PROJECT: TablePro.xcodeproj
