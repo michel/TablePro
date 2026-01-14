@@ -62,14 +62,17 @@ final class InMemoryRowProvider: RowProvider {
     private var rows: [TableRowData] = []
     private(set) var columns: [String]
     private(set) var columnDefaults: [String: String?]
+    private(set) var columnTypes: [ColumnType]
 
     var totalRowCount: Int {
         rows.count
     }
 
-    init(rows: [QueryResultRow], columns: [String], columnDefaults: [String: String?] = [:]) {
+    init(rows: [QueryResultRow], columns: [String], columnDefaults: [String: String?] = [:], columnTypes: [ColumnType]? = nil) {
         self.columns = columns
         self.columnDefaults = columnDefaults
+        // Default to .text if columnTypes not provided
+        self.columnTypes = columnTypes ?? Array(repeating: .text, count: columns.count)
         self.rows = rows.enumerated().map { index, row in
             TableRowData(index: index, values: row.values)
         }

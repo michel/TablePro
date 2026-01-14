@@ -105,11 +105,26 @@ struct TableProApp: App {
 
     @StateObject private var appState = AppState.shared
     @StateObject private var dbManager = DatabaseManager.shared
+    @StateObject private var settingsManager = AppSettingsManager.shared
+
+    init() {
+        // Perform startup cleanup of query history if auto-cleanup is enabled
+        Task { @MainActor in
+            QueryHistoryManager.shared.performStartupCleanup()
+        }
+    }
+
+    /// Get tint color from settings (nil for system default)
+    private var accentTint: Color? {
+        settingsManager.appearance.accentColor.tintColor
+    }
 
     var body: some Scene {
         // Welcome Window - opens on launch
         Window("Welcome to TablePro", id: "welcome") {
             WelcomeWindowView()
+                .tint(accentTint)
+                .background(OpenWindowHandler())  // Handle window notifications from startup
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -118,6 +133,7 @@ struct TableProApp: App {
         // Connection Form Window - opens when creating/editing a connection
         WindowGroup("Connection", id: "connection-form", for: UUID?.self) { $connectionId in
             ConnectionFormView(connectionId: connectionId ?? nil)
+                .tint(accentTint)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -127,9 +143,17 @@ struct TableProApp: App {
             ContentView()
                 .environmentObject(appState)
                 .background(OpenWindowHandler())
+                .tint(accentTint)
         }
         .windowStyle(.automatic)
         .defaultSize(width: 1_200, height: 800)
+
+        // Settings Window - opens with Cmd+,
+        Settings {
+            SettingsView()
+                .tint(accentTint)
+        }
+
         .commands {
             // File menu
             CommandGroup(replacing: .newItem) {
@@ -343,11 +367,12 @@ extension Notification.Name {
 
     // Window lifecycle notifications
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")
+    static let openMainWindow = Notification.Name("openMainWindow")
 }
 
 // MARK: - Open Window Handler
 
-/// Helper view that listens for openWelcomeWindow notification
+/// Helper view that listens for window open notifications
 private struct OpenWindowHandler: View {
     @Environment(\.openWindow)
     private var openWindow
@@ -357,6 +382,9 @@ private struct OpenWindowHandler: View {
             .frame(width: 0, height: 0)
             .onReceive(NotificationCenter.default.publisher(for: .openWelcomeWindow)) { _ in
                 openWindow(id: "welcome")
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openMainWindow)) { _ in
+                openWindow(id: "main")
             }
     }
 }

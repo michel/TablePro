@@ -81,9 +81,36 @@ struct MainContentAlerts: ViewModifier {
                     coordinator.importFileURL = nil
                 }
             }
+
+            // Dangerous query confirmation alert
+            .alert("Potentially Dangerous Query", isPresented: $coordinator.showDangerousQueryAlert) {
+                Button("Cancel", role: .cancel) {
+                    coordinator.cancelDangerousQuery()
+                }
+                Button("Execute", role: .destructive) {
+                    coordinator.confirmDangerousQuery()
+                }
+            } message: {
+                Text(dangerousQueryMessage)
+            }
     }
 
     // MARK: - Computed Properties
+
+    private var dangerousQueryMessage: String {
+        guard let query = coordinator.pendingDangerousQuery else {
+            return "This query may permanently modify or delete data."
+        }
+        let uppercased = query.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if uppercased.hasPrefix("DROP ") {
+            return "This DROP query will permanently remove database objects. This action cannot be undone."
+        } else if uppercased.hasPrefix("TRUNCATE ") {
+            return "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone."
+        } else if uppercased.hasPrefix("DELETE ") {
+            return "This DELETE query has no WHERE clause and will delete ALL rows in the table. This action cannot be undone."
+        }
+        return "This query may permanently modify or delete data."
+    }
 
     private var showDiscardAlert: Binding<Bool> {
         Binding(

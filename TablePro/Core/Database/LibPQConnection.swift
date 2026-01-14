@@ -39,6 +39,7 @@ struct LibPQError: Error, LocalizedError {
 /// Result from a PostgreSQL query execution
 struct LibPQQueryResult {
     let columns: [String]
+    let columnOids: [UInt32]  // NEW: PostgreSQL Oid for each column
     let rows: [[String?]]
     let affectedRows: Int
     let commandTag: String?
@@ -211,6 +212,7 @@ final class LibPQConnection: @unchecked Sendable {
             PQclear(result)
             return LibPQQueryResult(
                 columns: [],
+                columnOids: [],
                 rows: [],
                 affectedRows: affected,
                 commandTag: cmdTag
@@ -237,17 +239,24 @@ final class LibPQConnection: @unchecked Sendable {
         let numFields = Int(PQnfields(result))
         let numRows = Int(PQntuples(result))
 
-        // Fetch column names
+        // Fetch column names and types
         var columns: [String] = []
+        var columnOids: [UInt32] = []
         columns.reserveCapacity(numFields)
+        columnOids.reserveCapacity(numFields)
 
         for i in 0..<numFields {
+            // Extract column name
             if let namePtr = PQfname(result, Int32(i)) {
                 let cStr = String(cString: namePtr)
                 columns.append(String(cStr.unicodeScalars.map { Character($0) }))
             } else {
                 columns.append("column_\(i)")
             }
+            
+            // Extract column type Oid (NEW)
+            let oid = PQftype(result, Int32(i))
+            columnOids.append(UInt32(oid))
         }
 
         // Fetch all rows
@@ -287,6 +296,7 @@ final class LibPQConnection: @unchecked Sendable {
 
         return LibPQQueryResult(
             columns: columns,
+            columnOids: columnOids,
             rows: rows,
             affectedRows: numRows,
             commandTag: getCommandTag(from: result)

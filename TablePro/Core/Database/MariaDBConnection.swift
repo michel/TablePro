@@ -37,6 +37,7 @@ struct MariaDBError: Error, LocalizedError {
 /// Result from a MySQL query execution
 struct MariaDBQueryResult {
     let columns: [String]
+    let columnTypes: [UInt32]  // NEW: MySQL field type for each column
     let rows: [[String?]]
     let affectedRows: UInt64
     let insertId: UInt64
@@ -301,6 +302,7 @@ final class MariaDBConnection: @unchecked Sendable {
                 let insertId = mysql_insert_id(mysql)
                 return MariaDBQueryResult(
                     columns: [],
+                    columnTypes: [],
                     rows: [],
                     affectedRows: affected,
                     insertId: insertId
@@ -314,11 +316,14 @@ final class MariaDBConnection: @unchecked Sendable {
         // Fetch column metadata
         let numFields = Int(mysql_num_fields(resultPtr))
         var columns: [String] = []
+        var columnTypes: [UInt32] = []  // NEW: Store column types
         columns.reserveCapacity(numFields)
+        columnTypes.reserveCapacity(numFields)
 
         if let fields = mysql_fetch_fields(resultPtr) {
             for i in 0..<numFields {
                 let field = fields[i]
+                // Extract column name
                 if let namePtr = field.name {
                     // Create completely independent copy of column name
                     let cStr = String(cString: namePtr)
@@ -326,6 +331,8 @@ final class MariaDBConnection: @unchecked Sendable {
                 } else {
                     columns.append("column_\(i)")
                 }
+                // Extract column type (NEW)
+                columnTypes.append(field.type.rawValue)
             }
         }
 
@@ -375,6 +382,7 @@ final class MariaDBConnection: @unchecked Sendable {
 
         return MariaDBQueryResult(
             columns: columns,
+            columnTypes: columnTypes,
             rows: rows,
             affectedRows: UInt64(rows.count),
             insertId: 0

@@ -56,14 +56,17 @@ struct DataGridView: NSViewRepresentable {
         let tableView = KeyHandlingTableView()
         tableView.coordinator = context.coordinator
         tableView.style = .plain
-        tableView.usesAlternatingRowBackgroundColors = true
+        // Use settings for alternate row backgrounds
+        let settings = AppSettingsManager.shared.dataGrid
+        tableView.usesAlternatingRowBackgroundColors = settings.showAlternateRows
         tableView.allowsMultipleSelection = true
         tableView.allowsColumnReordering = true
         tableView.allowsColumnResizing = true
         tableView.columnAutoresizingStyle = .noColumnAutoresizing
         tableView.gridStyleMask = [.solidVerticalGridLineMask]
         tableView.intercellSpacing = NSSize(width: 1, height: 0)
-        tableView.rowHeight = 24
+        // Use settings for row height
+        tableView.rowHeight = CGFloat(settings.rowHeight.rawValue)
 
         tableView.delegate = context.coordinator
         tableView.dataSource = context.coordinator
@@ -112,6 +115,15 @@ struct DataGridView: NSViewRepresentable {
         guard let tableView = scrollView.documentView as? NSTableView else { return }
 
         let coordinator = context.coordinator
+
+        // Update settings-based properties dynamically
+        let settings = AppSettingsManager.shared.dataGrid
+        if tableView.rowHeight != CGFloat(settings.rowHeight.rawValue) {
+            tableView.rowHeight = CGFloat(settings.rowHeight.rawValue)
+        }
+        if tableView.usesAlternatingRowBackgroundColors != settings.showAlternateRows {
+            tableView.usesAlternatingRowBackgroundColors = settings.showAlternateRows
+        }
 
         if tableView.editedRow >= 0 { return }
 
@@ -246,6 +258,9 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     weak var tableView: NSTableView?
     var cellFactory: DataGridCellFactory?
+    
+    // Settings observer for real-time updates
+    private var settingsObserver: NSObjectProtocol?
 
     @Binding var selectedRowIndices: Set<Int>
 
@@ -278,6 +293,24 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         self.onCellEdit = onCellEdit
         super.init()
         updateCache()
+        
+        // Subscribe to settings changes for real-time updates
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: .dataGridSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // Reload table to apply new date format or NULL display settings
+            // Note: Row height and alternate rows are handled in updateView, but we
+            // reload anyway for simplicity. In practice, settings changes are infrequent.
+            self?.tableView?.reloadData()
+        }
+    }
+    
+    deinit {
+        if let observer = settingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     func updateCache() {
@@ -400,6 +433,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         let value = rowData.value(at: columnIndex)
         let state = visualState(for: row)
+        
+        // Get column type for date formatting
+        let columnType: ColumnType? = {
+            guard columnIndex < rowProvider.columnTypes.count else { return nil }
+            return rowProvider.columnTypes[columnIndex]
+        }()
 
         let tableColumnIndex = columnIndex + 1
         let isFocused: Bool = {
@@ -414,6 +453,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             row: row,
             columnIndex: columnIndex,
             value: value,
+            columnType: columnType,
             visualState: state,
             isEditable: isEditable && !state.isDeleted,
             isLargeDataset: isLargeDataset,

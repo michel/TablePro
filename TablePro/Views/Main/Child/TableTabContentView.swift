@@ -58,7 +58,8 @@ struct TableTabContentView: View {
                     rowProvider: InMemoryRowProvider(
                         rows: sortedRows,
                         columns: tab.resultColumns,
-                        columnDefaults: tab.columnDefaults
+                        columnDefaults: tab.columnDefaults,
+                        columnTypes: tab.columnTypes
                     ),
                     changeManager: changeManager,
                     isEditable: tab.isEditable,

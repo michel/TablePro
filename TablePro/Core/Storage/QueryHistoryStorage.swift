@@ -40,9 +40,10 @@ final class QueryHistoryStorage {
     private let queue = DispatchQueue(label: "com.TablePro.queryhistory", qos: .utility)
     private var db: OpaquePointer?
 
-    // Configuration
-    private let maxHistoryEntries = 1_000
-    private let maxHistoryDays = 30
+    // Configuration - cached from settings (to avoid MainActor issues on background queue)
+    // These are updated via updateSettingsCache() before cleanup runs
+    private var cachedMaxHistoryEntries: Int = 10_000
+    private var cachedMaxHistoryDays: Int = 90
 
     private init() {
         queue.sync {
@@ -617,46 +618,63 @@ final class QueryHistoryStorage {
 
     // MARK: - Cleanup
 
+    /// Update cached settings from AppSettingsManager (must be called from MainActor)
+    @MainActor
+    func updateSettingsCache() {
+        let settings = AppSettingsManager.shared.history
+        // Use Int.max for "unlimited" (0) values
+        cachedMaxHistoryEntries = settings.maxEntries == 0 ? Int.max : settings.maxEntries
+        cachedMaxHistoryDays = settings.maxDays == 0 ? Int.max : settings.maxDays
+    }
+
     /// Perform cleanup: delete old entries and limit total count
     private func performCleanup() {
-        // Delete entries older than maxHistoryDays
-        let cutoffDate = Date().addingTimeInterval(-Double(maxHistoryDays * 24 * 60 * 60))
-        let deleteOldSQL = "DELETE FROM history WHERE executed_at < ?;"
+        // Skip cleanup if days is unlimited
+        if cachedMaxHistoryDays < Int.max {
+            // Delete entries older than maxHistoryDays
+            let cutoffDate = Date().addingTimeInterval(-Double(cachedMaxHistoryDays * 24 * 60 * 60))
+            let deleteOldSQL = "DELETE FROM history WHERE executed_at < ?;"
 
-        var statement: OpaquePointer?
-        if sqlite3_prepare_v2(db, deleteOldSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_double(statement, 1, cutoffDate.timeIntervalSince1970)
-            sqlite3_step(statement)
+            var statement: OpaquePointer?
+            if sqlite3_prepare_v2(db, deleteOldSQL, -1, &statement, nil) == SQLITE_OK {
+                sqlite3_bind_double(statement, 1, cutoffDate.timeIntervalSince1970)
+                sqlite3_step(statement)
+            }
+            sqlite3_finalize(statement)
         }
-        sqlite3_finalize(statement)
 
-        // Delete oldest entries if count exceeds limit
-        let countSQL = "SELECT COUNT(*) FROM history;"
-        if sqlite3_prepare_v2(db, countSQL, -1, &statement, nil) == SQLITE_OK {
-            if sqlite3_step(statement) == SQLITE_ROW {
-                let count = Int(sqlite3_column_int(statement, 0))
-                sqlite3_finalize(statement)
+        // Skip entry limit cleanup if unlimited
+        if cachedMaxHistoryEntries < Int.max {
+            // Delete oldest entries if count exceeds limit
+            let countSQL = "SELECT COUNT(*) FROM history;"
+            var countStatement: OpaquePointer?
+            if sqlite3_prepare_v2(db, countSQL, -1, &countStatement, nil) == SQLITE_OK {
+                if sqlite3_step(countStatement) == SQLITE_ROW {
+                    let count = Int(sqlite3_column_int(countStatement, 0))
+                    sqlite3_finalize(countStatement)
 
-                if count > maxHistoryEntries {
-                    let deleteExcessSQL = """
-                    DELETE FROM history WHERE id IN (
-                        SELECT id FROM history ORDER BY executed_at ASC LIMIT ?
-                    );
-                    """
+                    if count > cachedMaxHistoryEntries {
+                        let deleteExcessSQL = """
+                        DELETE FROM history WHERE id IN (
+                            SELECT id FROM history ORDER BY executed_at ASC LIMIT ?
+                        );
+                        """
 
-                    if sqlite3_prepare_v2(db, deleteExcessSQL, -1, &statement, nil) == SQLITE_OK {
-                        sqlite3_bind_int(statement, 1, Int32(count - maxHistoryEntries))
-                        sqlite3_step(statement)
+                        var deleteStatement: OpaquePointer?
+                        if sqlite3_prepare_v2(db, deleteExcessSQL, -1, &deleteStatement, nil) == SQLITE_OK {
+                            sqlite3_bind_int(deleteStatement, 1, Int32(count - cachedMaxHistoryEntries))
+                            sqlite3_step(deleteStatement)
+                            sqlite3_finalize(deleteStatement)
+                        }
                     }
-                    sqlite3_finalize(statement)
+                } else {
+                    sqlite3_finalize(countStatement)
                 }
-            } else {
-                sqlite3_finalize(statement)
             }
         }
     }
 
-    /// Manually trigger cleanup (call on app launch)
+    /// Manually trigger cleanup (call on app launch if autoCleanup is enabled)
     func cleanup() {
         queue.async { [weak self] in
             self?.performCleanup()

@@ -36,7 +36,19 @@ struct SQLEditorView: NSViewRepresentable {
         textStorage.addLayoutManager(layoutManager)
 
         let textContainer = NSTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
-        textContainer.widthTracksTextView = true
+        
+        // Word wrap configuration based on settings
+        let wordWrap = SQLEditorTheme.wordWrap
+        if wordWrap {
+            textContainer.widthTracksTextView = true
+        } else {
+            textContainer.widthTracksTextView = false
+            textContainer.containerSize = NSSize(
+                width: CGFloat.greatestFiniteMagnitude,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        }
+        
         textContainer.lineFragmentPadding = SQLEditorTheme.lineFragmentPadding
         layoutManager.addTextContainer(textContainer)
 
@@ -45,7 +57,7 @@ struct SQLEditorView: NSViewRepresentable {
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
+        textView.isHorizontallyResizable = !wordWrap
         textView.autoresizingMask = .width
 
         textView.isRichText = false
@@ -83,9 +95,21 @@ struct SQLEditorView: NSViewRepresentable {
         lineNumberView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
 
+        // Store reference to line number view for visibility control
+        context.coordinator.lineNumberView = lineNumberView
+
+        // Apply initial line number visibility from settings
+        let showLineNumbers = SQLEditorTheme.showLineNumbers
+        lineNumberView.isHidden = !showLineNumbers
+
         // Set up layout constraints
+        // Use width constraint for line number view that can be toggled
+        let lineNumberWidthConstraint = lineNumberView.widthAnchor.constraint(equalToConstant: showLineNumbers ? lineNumberView.intrinsicContentSize.width : 0)
+        lineNumberWidthConstraint.priority = .defaultHigh
+        context.coordinator.lineNumberWidthConstraint = lineNumberWidthConstraint
+
         NSLayoutConstraint.activate([
-            // Line number view: left side, full height, intrinsic width
+            // Line number view: left side, full height
             lineNumberView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             lineNumberView.topAnchor.constraint(equalTo: containerView.topAnchor),
             lineNumberView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
@@ -104,6 +128,12 @@ struct SQLEditorView: NSViewRepresentable {
         // Extract scroll view from container view and update text if changed from SwiftUI side
         if let scrollView = nsView.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
             context.coordinator.updateTextViewIfNeeded(with: text)
+        }
+
+        // Update line number visibility based on settings
+        let showLineNumbers = SQLEditorTheme.showLineNumbers
+        if let lineNumberView = context.coordinator.lineNumberView {
+            lineNumberView.isHidden = !showLineNumbers
         }
     }
 

@@ -25,12 +25,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Configure windows after app launch
         configureWelcomeWindow()
 
-        // Close any restored main windows (no active connection on fresh launch)
-        // macOS may restore window state from previous session
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
-                window.close()
-            }
+        // Check startup behavior setting
+        let settings = AppSettingsStorage.shared.loadGeneral()
+        let shouldReopenLast = settings.startupBehavior == .reopenLast
+
+        if shouldReopenLast, let lastConnectionId = AppSettingsStorage.shared.loadLastConnectionId() {
+            // Try to auto-reconnect to last session
+            attemptAutoReconnect(connectionId: lastConnectionId)
+        } else {
+            // Normal startup: close any restored main windows
+            closeRestoredMainWindows()
         }
 
         // Observe for new windows being created
@@ -48,6 +52,59 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWindow.willCloseNotification,
             object: nil
         )
+    }
+
+    /// Attempt to auto-reconnect to the last used connection
+    private func attemptAutoReconnect(connectionId: UUID) {
+        // Load connections and find the one we want
+        let connections = ConnectionStorage.shared.loadConnections()
+        guard let connection = connections.first(where: { $0.id == connectionId }) else {
+            // Connection was deleted, fall back to welcome window
+            AppSettingsStorage.shared.saveLastConnectionId(nil)
+            closeRestoredMainWindows()
+            openWelcomeWindow()
+            return
+        }
+
+        // Open main window first, then attempt connection
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            
+            // Open main window via notification FIRST (before closing welcome window)
+            // The OpenWindowHandler in welcome window will process this
+            NotificationCenter.default.post(name: .openMainWindow, object: nil)
+            
+            // Connect in background and handle result
+            Task { @MainActor in
+                do {
+                    try await DatabaseManager.shared.connectToSession(connection)
+                    
+                    // Connection successful - close welcome window
+                    for window in NSApp.windows where self.isWelcomeWindow(window) {
+                        window.close()
+                    }
+                } catch {
+                    // Log the error for debugging
+                    print("[AppDelegate] Auto-reconnect failed for '\(connection.name)': \(error.localizedDescription)")
+                    
+                    // Connection failed - close main window and show welcome
+                    for window in NSApp.windows where self.isMainWindow(window) {
+                        window.close()
+                    }
+                    
+                    self.openWelcomeWindow()
+                }
+            }
+        }
+    }
+
+    /// Close any macOS-restored main windows
+    private func closeRestoredMainWindows() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
+                window.close()
+            }
+        }
     }
 
     @objc
