@@ -132,6 +132,21 @@ build_for_arch() {
         exit 1
     fi
 
+    # Fix app icon - Xcode strips larger sizes from icns in asset catalogs
+    # Copy the full source icon to ensure all sizes (16-1024px) are included
+    SOURCE_ICON="TablePro/Assets.xcassets/AppIcon.appiconset/AppIcon.icns"
+    DEST_ICON="$BUILD_DIR/$OUTPUT_NAME/Contents/Resources/AppIcon.icns"
+    if [ -f "$SOURCE_ICON" ]; then
+        echo "🎨 Restoring full app icon (Xcode strips large sizes from asset catalog)..."
+        if cp "$SOURCE_ICON" "$DEST_ICON"; then
+            echo "   ✅ Full icon restored ($(ls -lh "$SOURCE_ICON" | awk '{print $5}'))"
+        else
+            echo "   ⚠️  WARNING: Could not copy icon, DMG may have missing icon"
+        fi
+    else
+        echo "   ⚠️  WARNING: Source icon not found at $SOURCE_ICON"
+    fi
+
     # Verify binary exists inside the copied bundle
     BINARY_PATH="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS/TablePro"
     if [ ! -f "$BINARY_PATH" ]; then
