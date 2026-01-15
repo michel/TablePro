@@ -173,8 +173,9 @@ final class DatabaseManager: ObservableObject {
             if let nextSessionId = activeSessions.keys.first {
                 switchToSession(nextSessionId)
             } else {
-                // No more sessions
+                // No more sessions - clear current session and last connection ID
                 currentSessionId = nil
+                AppSettingsStorage.shared.saveLastConnectionId(nil)
             }
         }
     }
