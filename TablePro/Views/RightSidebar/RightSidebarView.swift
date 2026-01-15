@@ -19,7 +19,6 @@ struct RightSidebarView: View {
     @ObservedObject var editState: MultiRowEditState
 
     @State private var searchText: String = ""
-    @State private var fieldValues: [String] = []
 
     private var mode: String {
         if selectedRowData != nil {
