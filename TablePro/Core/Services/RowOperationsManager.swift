@@ -305,7 +305,77 @@ final class RowOperationsManager {
         }
 
         let text = lines.joined(separator: "\n")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        ClipboardService.shared.writeText(text)
+    }
+
+    // MARK: - Paste Rows
+
+    /// Paste rows from clipboard (TSV format) and insert into table
+    /// - Parameters:
+    ///   - columns: Column names for the table
+    ///   - primaryKeyColumn: Primary key column name (will be set to __DEFAULT__)
+    ///   - resultRows: Current rows (will be mutated)
+    ///   - clipboard: Clipboard provider (injectable for testing)
+    ///   - parser: Row data parser (injectable for testing)
+    /// - Returns: Array of (rowIndex, values) for pasted rows, or empty array on failure
+    func pasteRowsFromClipboard(
+        columns: [String],
+        primaryKeyColumn: String?,
+        resultRows: inout [QueryResultRow],
+        clipboard: ClipboardProvider = ClipboardService.shared,
+        parser: RowDataParser = TSVRowParser()
+    ) -> [(rowIndex: Int, values: [String?])] {
+        // Read from clipboard
+        guard let clipboardText = clipboard.readText() else {
+            return []
+        }
+
+        // Create schema
+        let schema = TableSchema(
+            columns: columns,
+            primaryKeyColumn: primaryKeyColumn
+        )
+
+        // Parse clipboard text
+        let parseResult = parser.parse(clipboardText, schema: schema)
+
+        switch parseResult {
+        case .success(let parsedRows):
+            return insertParsedRows(parsedRows, into: &resultRows)
+
+        case .failure(let error):
+            // Log error (in production, this could show a user-facing alert)
+            print("⚠️ Paste failed: \(error.localizedDescription)")
+            return []
+        }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Insert parsed rows into the table
+    /// - Parameters:
+    ///   - parsedRows: Array of parsed rows from clipboard
+    ///   - resultRows: Current rows (will be mutated)
+    /// - Returns: Array of (rowIndex, values) for inserted rows
+    private func insertParsedRows(
+        _ parsedRows: [ParsedRow],
+        into resultRows: inout [QueryResultRow]
+    ) -> [(rowIndex: Int, values: [String?])] {
+        var pastedRowInfo: [(Int, [String?])] = []
+
+        for parsedRow in parsedRows {
+            let rowValues = parsedRow.values
+
+            // Add to resultRows
+            resultRows.append(QueryResultRow(values: rowValues))
+            let newRowIndex = resultRows.count - 1
+
+            // Record as pending INSERT in change manager
+            changeManager.recordRowInsertion(rowIndex: newRowIndex, values: rowValues)
+
+            pastedRowInfo.append((newRowIndex, rowValues))
+        }
+
+        return pastedRowInfo
     }
 }

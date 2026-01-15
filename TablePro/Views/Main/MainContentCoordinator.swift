@@ -719,6 +719,38 @@ final class MainContentCoordinator: ObservableObject {
         )
     }
 
+    func pasteRows(selectedRowIndices: inout Set<Int>, editingCell: inout CellPosition?) {
+        guard let index = tabManager.selectedTabIndex else { return }
+
+        var tab = tabManager.tabs[index]
+
+        // Only paste in table tabs (not query tabs)
+        guard tab.tabType == .table else { return }
+
+        let pastedRows = rowOperationsManager.pasteRowsFromClipboard(
+            columns: tab.resultColumns,
+            primaryKeyColumn: changeManager.primaryKeyColumn,
+            resultRows: &tab.resultRows
+        )
+
+        tabManager.tabs[index].resultRows = tab.resultRows
+
+        // Select pasted rows and scroll to first one
+        if !pastedRows.isEmpty {
+            let newIndices = Set(pastedRows.map { $0.rowIndex })
+            selectedRowIndices = newIndices
+
+            tabManager.tabs[index].selectedRowIndices = newIndices
+            tabManager.tabs[index].hasUserInteraction = true
+
+            // Scroll to first pasted row
+            if let firstIndex = pastedRows.first?.rowIndex {
+                // Trigger scroll via notification if needed
+                // For now, selection change will handle visibility
+            }
+        }
+    }
+
     // MARK: - Cell Operations
 
     func updateCellInTab(rowIndex: Int, columnIndex: Int, value: String?) {

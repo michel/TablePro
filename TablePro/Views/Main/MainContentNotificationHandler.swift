@@ -109,6 +109,13 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.handleCopySelectedRows()
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .pasteRows)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handlePasteRows()
+            }
+            .store(in: &cancellables)
     }
 
     private func handleAddNewRow() {
@@ -157,6 +164,14 @@ final class MainContentNotificationHandler: ObservableObject {
     private func handleCopySelectedRows() {
         let indices = selectedRowIndices.wrappedValue
         coordinator?.copySelectedRowsToClipboard(indices: indices)
+    }
+
+    private func handlePasteRows() {
+        var indices = selectedRowIndices.wrappedValue
+        var cell = editingCell.wrappedValue
+        coordinator?.pasteRows(selectedRowIndices: &indices, editingCell: &cell)
+        selectedRowIndices.wrappedValue = indices
+        editingCell.wrappedValue = cell
     }
 
     // MARK: - Tab Operations

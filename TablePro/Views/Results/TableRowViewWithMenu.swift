@@ -80,6 +80,12 @@ final class TableRowViewWithMenu: NSTableRowView {
             copyItem.target = self
             menu.addItem(copyItem)
 
+            let pasteItem = NSMenuItem(
+                title: "Paste", action: #selector(pasteRows), keyEquivalent: "v")
+            pasteItem.keyEquivalentModifierMask = .command
+            pasteItem.target = self
+            menu.addItem(pasteItem)
+
             if coordinator.isEditable {
                 menu.addItem(NSMenuItem.separator())
 
@@ -132,6 +138,10 @@ final class TableRowViewWithMenu: NSTableRowView {
         } else {
             coordinator.copyRows(at: [rowIndex])
         }
+    }
+
+    @objc private func pasteRows() {
+        NotificationCenter.default.post(name: .pasteRows, object: nil)
     }
 
     @objc private func copyCellValue(_ sender: NSMenuItem) {

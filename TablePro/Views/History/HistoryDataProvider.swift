@@ -37,7 +37,7 @@ final class HistoryDataProvider {
     }
 
     var isEmpty: Bool {
-        isEmpty
+        count == 0
     }
 
     // MARK: - Data Loading

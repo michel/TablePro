@@ -55,7 +55,18 @@ struct PasteboardCommands: Commands {
             .keyboardShortcut("c", modifiers: .command)
 
             Button("Paste") {
-                NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
+                if let firstResponder = NSApp.keyWindow?.firstResponder,
+                   firstResponder is NSTextView {
+                    // User is editing text - let standard paste handle it
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                } else if appState.isCurrentTabEditable {
+                    // Paste rows when in editable table tab
+                    NotificationCenter.default.post(name: .pasteRows, object: nil)
+                } else {
+                    // Fallback to standard paste
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("v", modifiers: .command)
 
@@ -339,6 +350,7 @@ extension Notification.Name {
     static let copyTableNames = Notification.Name("copyTableNames")
     static let truncateTables = Notification.Name("truncateTables")
     static let copySelectedRows = Notification.Name("copySelectedRows")
+    static let pasteRows = Notification.Name("pasteRows")
     static let clearSelection = Notification.Name("clearSelection")
     static let undoChange = Notification.Name("undoChange")
     static let redoChange = Notification.Name("redoChange")

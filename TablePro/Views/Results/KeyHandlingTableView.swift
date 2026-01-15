@@ -72,13 +72,14 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
 
         super.mouseDown(with: event)
 
+        // Only handle editing for valid clicks on data cells (not row number column)
         guard clickedRow >= 0,
               clickedColumn >= 0,
-              clickedColumn < numberOfColumns,
-              selectedRowIndexes.contains(clickedRow) else {
+              clickedColumn < numberOfColumns else {
             return
         }
 
+        // Skip row number column
         let column = tableColumns[clickedColumn]
         if column.identifier.rawValue == "__rowNumber__" {
             focusedRow = -1
@@ -86,9 +87,19 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
             return
         }
 
+        // Update focus
         focusedRow = clickedRow
         focusedColumn = clickedColumn
-        editColumn(clickedColumn, row: clickedRow, with: nil, select: false)
+
+        // TablePlus-style: Always start editing on single click
+        // Use a slight delay to ensure selection has been processed
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            // Verify the row is now selected (after super.mouseDown processing)
+            if self.selectedRowIndexes.contains(clickedRow) {
+                self.editColumn(clickedColumn, row: clickedRow, with: nil, select: false)
+            }
+        }
     }
 
     // MARK: - Standard Edit Menu Actions
