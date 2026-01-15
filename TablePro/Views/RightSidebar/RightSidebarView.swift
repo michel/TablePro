@@ -177,9 +177,9 @@ struct RightSidebarView: View {
 
         sectionHeader("FIELDS (\(filtered.count))")
 
-        ForEach(Array(filtered.enumerated()), id: \.element.columnName) { index, field in
+        ForEach(filtered, id: \.columnName) { field in
             if isEditable && !isRowDeleted {
-                editableFieldRow(field, at: index)
+                editableFieldRow(field, at: field.columnIndex)
             } else {
                 readonlyFieldRow(field)
             }
