@@ -550,7 +550,7 @@ struct MainContentView: View {
             } else if let newValue = field.newValue {
                 // Check if it's a SQL function (don't quote)
                 if isSQLFunction(newValue) {
-                    value = newValue.trimmingCharacters(in: .whitespaces).uppercased()
+                    value = newValue.trimmingCharacters(in: .whitespaces)
                 } else {
                     value = "'\(SQLEscaping.escapeStringLiteral(newValue))'"
                 }
