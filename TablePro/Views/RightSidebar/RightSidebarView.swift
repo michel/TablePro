@@ -12,11 +12,19 @@ struct RightSidebarView: View {
     let tableName: String?
     let tableMetadata: TableMetadata?
     let selectedRowData: [(column: String, value: String?, type: String)]?
+    let isEditable: Bool
+    let isRowDeleted: Bool
+    let onSave: () -> Void
+    
+    @ObservedObject var editState: MultiRowEditState
 
     @State private var searchText: String = ""
 
     private var mode: String {
-        selectedRowData != nil ? "Row Details" : "Table Info"
+        if selectedRowData != nil {
+            return isEditable ? "Edit Row" : "Row Details"
+        }
+        return "Table Info"
     }
 
     var body: some View {
@@ -162,16 +170,69 @@ struct RightSidebarView: View {
 
     @ViewBuilder
     private func rowDetailContent(_ rowData: [(column: String, value: String?, type: String)]) -> some View {
-        let filtered = searchText.isEmpty ? rowData : rowData.filter {
-            $0.column.localizedCaseInsensitiveContains(searchText) ||
-                ($0.value?.localizedCaseInsensitiveContains(searchText) ?? false)
+        let filtered = searchText.isEmpty ? editState.fields : editState.fields.filter {
+            $0.columnName.localizedCaseInsensitiveContains(searchText) ||
+                ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
 
         sectionHeader("FIELDS (\(filtered.count))")
 
-        ForEach(filtered, id: \.column) { field in
-            fieldRow(field)
+        ForEach(filtered, id: \.columnName) { field in
+            if isEditable && !isRowDeleted {
+                editableFieldRow(field, at: field.columnIndex)
+            } else {
+                readonlyFieldRow(field)
+            }
         }
+        
+        if isEditable && !isRowDeleted && editState.hasEdits {
+            saveButton
+        }
+    }
+    
+    private var saveButton: some View {
+        VStack(spacing: 0) {
+            Divider()
+            
+            Button(action: onSave) {
+                Text("Save Changes")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut("s", modifiers: .command)
+            .padding(12)
+        }
+    }
+    
+    @ViewBuilder
+    private func editableFieldRow(_ field: FieldEditState, at index: Int) -> some View {
+        EditableFieldView(
+            columnName: field.columnName,
+            columnType: field.columnType,
+            originalValue: field.originalValue,
+            hasMultipleValues: field.hasMultipleValues,
+            isPendingNull: field.isPendingNull,
+            isPendingDefault: field.isPendingDefault,
+            value: Binding(
+                get: { field.pendingValue ?? field.originalValue ?? "" },
+                set: { editState.updateField(at: index, value: $0) }
+            ),
+            onSetNull: { editState.setFieldToNull(at: index) },
+            onSetDefault: { editState.setFieldToDefault(at: index) },
+            onSetFunction: { editState.setFieldToFunction(at: index, function: $0) }
+        )
+        .padding(.horizontal, 12)
+    }
+    
+    @ViewBuilder
+    private func readonlyFieldRow(_ field: FieldEditState) -> some View {
+        ReadOnlyFieldView(
+            columnName: field.columnName,
+            columnType: field.columnType,
+            value: field.originalValue
+        )
+        .padding(.horizontal, 12)
     }
 
     // MARK: - UI Components
@@ -200,50 +261,13 @@ struct RightSidebarView: View {
         .padding(.vertical, 4)
     }
 
-    private func fieldRow(_ field: (column: String, value: String?, type: String)) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Field name + type badge
-            HStack(spacing: 6) {
-                Text(field.column)
-                    .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
-                    .foregroundStyle(.primary)
-
-                Text(field.type)
-                    .font(.system(size: DesignConstants.FontSize.tiny))
-                    .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, DesignConstants.Spacing.xxxs)
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(3)
-            }
-
-            // Value
-            if let value = field.value {
-                Text(value)
-                    .font(.system(size: DesignConstants.FontSize.small))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .lineLimit(3)
-            } else {
-                Text("NULL")
-                    .font(.system(size: DesignConstants.FontSize.caption, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, DesignConstants.Spacing.xxs)
-                    .padding(.vertical, DesignConstants.Spacing.xxxs)
-                    .background(Color.secondary.opacity(0.12))
-                    .cornerRadius(3)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, DesignConstants.Spacing.xs)
-    }
 }
 
 // MARK: - Preview
 
 #Preview {
-    RightSidebarView(
+    @StateObject var editState = MultiRowEditState()
+    return RightSidebarView(
         tableName: "users",
         tableMetadata: TableMetadata(
             tableName: "users",
@@ -258,7 +282,11 @@ struct RightSidebarView: View {
             createTime: Date(),
             updateTime: nil
         ),
-        selectedRowData: nil
+        selectedRowData: nil,
+        isEditable: false,
+        isRowDeleted: false,
+        onSave: {},
+        editState: editState
     )
     .frame(width: 280, height: 400)
 }
