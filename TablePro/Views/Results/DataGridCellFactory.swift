@@ -17,7 +17,7 @@ final class DataGridCellFactory {
     private let largeDatasetThreshold = 5_000
 
     /// Maximum characters to render in a cell (for performance with very large text)
-    private let maxCellTextLength = 500
+    private let maxCellTextLength = 10_000
 
     // MARK: - Row Number Cell
 
@@ -218,7 +218,7 @@ final class DataGridCellFactory {
     /// Minimum column width
     private static let minColumnWidth: CGFloat = 60
     /// Maximum column width - prevents overly wide columns
-    private static let maxColumnWidth: CGFloat = 400
+    private static let maxColumnWidth: CGFloat = 800
     /// Number of rows to sample for width calculation (for performance)
     private static let sampleRowCount = 100
     /// Font for measuring cell content
