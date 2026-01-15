@@ -1134,6 +1134,38 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Table Creation
 
+    /// Execute sidebar changes immediately (single transaction)
+    func executeSidebarChanges(statements: [String]) async throws {
+        guard let driver = DatabaseManager.shared.activeDriver else {
+            throw DatabaseError.notConnected
+        }
+        
+        let dbType = connection.type
+        var allStatements: [String] = []
+        
+        // Add BEGIN
+        allStatements.append("BEGIN")
+        
+        // Add user statements
+        allStatements.append(contentsOf: statements)
+        
+        // Add COMMIT
+        allStatements.append("COMMIT")
+        
+        // Execute all statements sequentially
+        do {
+            for sql in allStatements {
+                _ = try await driver.execute(query: sql)
+            }
+        } catch {
+            // Try to rollback on error
+            _ = try? await driver.execute(query: "ROLLBACK")
+            throw error
+        }
+    }
+    
+    // MARK: - Table Creation
+
     /// Creates a new table from the provided options
     /// - Parameter options: Table creation configuration
     func createTable(_ options: TableCreationOptions) {

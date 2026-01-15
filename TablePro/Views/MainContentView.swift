@@ -37,6 +37,7 @@ struct MainContentView: View {
     @State private var editingCell: CellPosition?
     @State private var notificationHandler: MainContentNotificationHandler?
     @State private var showDatabaseSwitcher = false
+    @StateObject private var sidebarEditState = MultiRowEditState()
 
     // MARK: - Environment
 
@@ -124,6 +125,10 @@ struct MainContentView: View {
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
+                updateSidebarEditState()
+            }
+            .onChange(of: currentTab?.resultRows) { _, _ in
+                updateSidebarEditState()
             }
             .onAppear { setupNotificationHandler() }
             .sheet(isPresented: $showDatabaseSwitcher) {
@@ -209,7 +214,13 @@ struct MainContentView: View {
                 RightSidebarView(
                     tableName: currentTab?.tableName,
                     tableMetadata: coordinator.tableMetadata,
-                    selectedRowData: selectedRowDataForSidebar
+                    selectedRowData: selectedRowDataForSidebar,
+                    isEditable: isSidebarEditable,
+                    isRowDeleted: isSelectedRowDeleted,
+                    onSave: {
+                        handleSidebarSave()
+                    },
+                    editState: sidebarEditState
                 )
                 .frame(width: 280)
                 .task(id: currentTab?.tableName) {
@@ -421,6 +432,170 @@ struct MainContentView: View {
         case .disconnected: return .disconnected
         case .error: return .error("")
         }
+    }
+    
+    // MARK: - Sidebar Edit Handling
+    
+    private func updateSidebarEditState() {
+        guard isSidebarEditable,
+              let tab = coordinator.tabManager.selectedTab,
+              !selectedRowIndices.isEmpty else {
+            sidebarEditState.fields = []
+            return
+        }
+        
+        // Gather rows for selected indices
+        var allRows: [[String?]] = []
+        for index in selectedRowIndices.sorted() {
+            if index < tab.resultRows.count {
+                allRows.append(tab.resultRows[index].values)
+            }
+        }
+        
+        // Get column types
+        let columnTypes = tab.columnTypes.map { $0.displayName }
+        
+        // Configure edit state (this will preserve pending edits if data hasn't changed)
+        sidebarEditState.configure(
+            selectedRowIndices: selectedRowIndices,
+            allRows: allRows,
+            columns: tab.resultColumns,
+            columnTypes: columnTypes
+        )
+    }
+    
+    private func handleSidebarSave() {
+        Task {
+            await saveSidebarEdits()
+        }
+    }
+    
+    @MainActor
+    private func saveSidebarEdits() async {
+        guard let tab = coordinator.tabManager.selectedTab,
+              !selectedRowIndices.isEmpty,
+              let tableName = tab.tableName else {
+            return
+        }
+        
+        let editedFields = sidebarEditState.getEditedFields()
+        guard !editedFields.isEmpty else { return }
+        
+        do {
+            // Generate SQL for each selected row
+            var statements: [String] = []
+            
+            for rowIndex in selectedRowIndices.sorted() {
+                guard rowIndex < tab.resultRows.count else { continue }
+                let row = tab.resultRows[rowIndex]
+                
+                // Build UPDATE statement
+                guard let updateSQL = generateUpdateSQL(
+                    tableName: tableName,
+                    rowIndex: rowIndex,
+                    originalRow: row.values,
+                    editedFields: editedFields,
+                    columns: tab.resultColumns,
+                    primaryKeyColumn: changeManager.primaryKeyColumn
+                ) else {
+                    continue
+                }
+                
+                statements.append(updateSQL)
+            }
+            
+            guard !statements.isEmpty else { return }
+            
+            // Execute statements
+            try await coordinator.executeSidebarChanges(statements: statements)
+            
+            // Refresh query to show updated data
+            // The onChange(resultRows) handler will automatically update the sidebar
+            coordinator.runQuery()
+            
+        } catch {
+            // Show error using macOS alert
+            let alert = NSAlert()
+            alert.messageText = "Failed to Save Changes"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+    
+    private func generateUpdateSQL(
+        tableName: String,
+        rowIndex: Int,
+        originalRow: [String?],
+        editedFields: [(columnIndex: Int, columnName: String, newValue: String?)],
+        columns: [String],
+        primaryKeyColumn: String?
+    ) -> String? {
+        guard let pkColumn = primaryKeyColumn,
+              let pkIndex = columns.firstIndex(of: pkColumn),
+              pkIndex < originalRow.count,
+              let pkValue = originalRow[pkIndex] else {
+            return nil
+        }
+        
+        let dbType = coordinator.connection.type
+        
+        // Build SET clause
+        let setClauses = editedFields.map { field -> String in
+            let quotedColumn = dbType.quoteIdentifier(field.columnName)
+            let value: String
+            if field.newValue == "__DEFAULT__" {
+                value = "DEFAULT"
+            } else if let newValue = field.newValue {
+                // Check if it's a SQL function (don't quote)
+                if isSQLFunction(newValue) {
+                    value = newValue.trimmingCharacters(in: .whitespaces).uppercased()
+                } else {
+                    value = "'\(SQLEscaping.escapeStringLiteral(newValue))'"
+                }
+            } else {
+                value = "NULL"
+            }
+            return "\(quotedColumn) = \(value)"
+        }.joined(separator: ", ")
+        
+        // Build WHERE clause
+        let quotedPK = dbType.quoteIdentifier(pkColumn)
+        let quotedPKValue = "'\(SQLEscaping.escapeStringLiteral(pkValue))'"
+        let whereClause = "\(quotedPK) = \(quotedPKValue)"
+        
+        // Add LIMIT clause for MySQL/MariaDB
+        let limitClause = (dbType == .mysql || dbType == .mariadb) ? " LIMIT 1" : ""
+        
+        return "UPDATE \(dbType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
+    }
+    
+    private func isSQLFunction(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespaces).uppercased()
+        
+        let sqlFunctions = [
+            "NOW()",
+            "CURRENT_TIMESTAMP()",
+            "CURRENT_TIMESTAMP",
+            "CURDATE()",
+            "CURTIME()",
+            "UTC_TIMESTAMP()",
+            "UTC_DATE()",
+            "UTC_TIME()",
+            "LOCALTIME()",
+            "LOCALTIME",
+            "LOCALTIMESTAMP()",
+            "LOCALTIMESTAMP",
+            "SYSDATE()",
+            "UNIX_TIMESTAMP()",
+            "CURRENT_DATE()",
+            "CURRENT_DATE",
+            "CURRENT_TIME()",
+            "CURRENT_TIME",
+        ]
+        
+        return sqlFunctions.contains(trimmed)
     }
 }
 

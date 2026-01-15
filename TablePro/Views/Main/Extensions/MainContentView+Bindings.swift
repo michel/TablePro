@@ -23,11 +23,29 @@ extension MainContentView {
 
         for (i, col) in tab.resultColumns.enumerated() {
             let value = i < row.values.count ? row.values[i] : nil
-            let type = "string"  // Can be enhanced with actual column type info
+            let type = i < tab.columnTypes.count ? tab.columnTypes[i].displayName : "string"
             data.append((column: col, value: value, type: type))
         }
 
         return data
+    }
+    
+    // MARK: - Sidebar Edit State
+    
+    /// Determine if sidebar should be in editable mode
+    var isSidebarEditable: Bool {
+        guard let tab = coordinator.tabManager.selectedTab,
+              tab.tabType == .table,
+              !selectedRowIndices.isEmpty else {
+            return false
+        }
+        return true
+    }
+    
+    /// Check if selected row is deleted
+    var isSelectedRowDeleted: Bool {
+        guard let firstIndex = selectedRowIndices.min() else { return false }
+        return coordinator.changeManager.isRowDeleted(firstIndex)
     }
 
     // MARK: - Sort State Binding
