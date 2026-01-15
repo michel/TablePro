@@ -1143,8 +1143,15 @@ final class MainContentCoordinator: ObservableObject {
         let dbType = connection.type
         var allStatements: [String] = []
         
-        // Add BEGIN
-        allStatements.append("BEGIN")
+        // Add database-specific BEGIN / START TRANSACTION
+        let beginStatement: String
+        switch dbType {
+        case .mysql, .mariadb:
+            beginStatement = "START TRANSACTION"
+        default:
+            beginStatement = "BEGIN"
+        }
+        allStatements.append(beginStatement)
         
         // Add user statements
         allStatements.append(contentsOf: statements)
