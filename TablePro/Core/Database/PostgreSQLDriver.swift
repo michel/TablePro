@@ -477,8 +477,10 @@ final class PostgreSQLDriver: DatabaseDriver {
         
         // Validate and add collation if provided
         if let collation = collation {
-            // Basic validation - ensure no SQL injection attempts
-            guard !collation.contains("'") && !collation.contains(";") else {
+            // Strict validation: allow only typical locale/collation characters
+            let allowedCollationChars = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-")
+            let isValidCollation = collation.unicodeScalars.allSatisfy { allowedCollationChars.contains($0) }
+            guard isValidCollation else {
                 throw DatabaseError.queryFailed("Invalid collation")
             }
             query += " LC_COLLATE '\(collation)'"
