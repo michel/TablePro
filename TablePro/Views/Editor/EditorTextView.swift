@@ -617,4 +617,31 @@ final class EditorTextView: NSTextView {
 
         return glyphRect
     }
+    
+    // MARK: - Context Menu
+    
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = super.menu(for: event) ?? NSMenu()
+        
+        // Add separator if menu already has items
+        if menu.items.count > 0 {
+            menu.addItem(NSMenuItem.separator())
+        }
+        
+        // Add "Format SQL" menu item
+        let formatItem = NSMenuItem(
+            title: "Format SQL",
+            action: #selector(formatSQLAction),
+            keyEquivalent: ""
+        )
+        formatItem.target = self
+        menu.addItem(formatItem)
+        
+        return menu
+    }
+    
+    @objc private func formatSQLAction() {
+        // Post notification to trigger formatting
+        NotificationCenter.default.post(name: .formatQueryRequested, object: nil)
+    }
 }
