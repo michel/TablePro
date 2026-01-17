@@ -48,8 +48,10 @@ struct LibPQQueryResult {
 
 // MARK: - Type Mapping
 
-/// Convert PostgreSQL OID to type name
-/// Reference: https://www.postgresql.org/docs/current/datatype-oid.html
+/// Converts a PostgreSQL OID value into a human‑readable type name string.
+/// - Parameter oid: The PostgreSQL object identifier (OID) for the column type.
+/// - Returns: The PostgreSQL type name corresponding to the given `oid`, or `"unknown"` if it is not mapped.
+/// - SeeAlso: https://www.postgresql.org/docs/current/datatype-oid.html
 private func pgOidToTypeName(_ oid: UInt32) -> String {
     switch oid {
     case 16: return "boolean"
