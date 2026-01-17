@@ -557,8 +557,10 @@ final class MySQLDriver: DatabaseDriver {
         
         // Validate collation if provided
         if let collation = collation {
-            // Basic validation - collation should match charset prefix
-            guard collation.hasPrefix(charset) else {
+            // Collation must match charset prefix and only contain safe identifier characters
+            let allowedChars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+            let isSafe = collation.unicodeScalars.allSatisfy { allowedChars.contains($0) }
+            guard collation.hasPrefix(charset), isSafe else {
                 throw DatabaseError.queryFailed("Invalid collation for charset")
             }
             query += " COLLATE \(collation)"
