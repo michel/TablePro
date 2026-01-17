@@ -73,9 +73,9 @@ final class PostgreSQLDriver: DatabaseDriver {
         do {
             let result = try await pqConn.executeQuery(query)
             
-            // Convert PostgreSQL Oids to ColumnType enum
-            let columnTypes = result.columnOids.map { oid in
-                ColumnType(fromPostgreSQLOid: oid)
+            // Convert PostgreSQL Oids to ColumnType enum with raw type names
+            let columnTypes = zip(result.columnOids, result.columnTypeNames).map { oid, rawType in
+                ColumnType(fromPostgreSQLOid: oid, rawType: rawType)
             }
 
             return QueryResult(
@@ -101,9 +101,9 @@ final class PostgreSQLDriver: DatabaseDriver {
         do {
             let result = try await pqConn.executeParameterizedQuery(query, parameters: parameters)
             
-            // Convert PostgreSQL Oids to ColumnType enum
-            let columnTypes = result.columnOids.map { oid in
-                ColumnType(fromPostgreSQLOid: oid)
+            // Convert PostgreSQL Oids to ColumnType enum with raw type names
+            let columnTypes = zip(result.columnOids, result.columnTypeNames).map { oid, rawType in
+                ColumnType(fromPostgreSQLOid: oid, rawType: rawType)
             }
 
             return QueryResult(

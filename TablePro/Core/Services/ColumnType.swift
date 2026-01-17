@@ -10,38 +10,48 @@ import Foundation
 
 /// Represents the semantic type of a database column
 enum ColumnType: Equatable {
-    case text
-    case integer
-    case decimal
-    case date
-    case timestamp
-    case datetime
-    case boolean
-    case blob
+    case text(rawType: String?)
+    case integer(rawType: String?)
+    case decimal(rawType: String?)
+    case date(rawType: String?)
+    case timestamp(rawType: String?)
+    case datetime(rawType: String?)
+    case boolean(rawType: String?)
+    case blob(rawType: String?)
+    
+    /// Raw database type name (e.g., "LONGTEXT", "VARCHAR(255)", "CLOB")
+    var rawType: String? {
+        switch self {
+        case .text(let raw), .integer(let raw), .decimal(let raw),
+             .date(let raw), .timestamp(let raw), .datetime(let raw),
+             .boolean(let raw), .blob(let raw):
+            return raw
+        }
+    }
     
     // MARK: - MySQL Type Mapping
     
     /// Initialize from MySQL MYSQL_TYPE_* enum value
     /// Reference: https://dev.mysql.com/doc/c-api/8.0/en/c-api-data-structures.html
-    init(fromMySQLType type: UInt32) {
+    init(fromMySQLType type: UInt32, rawType: String? = nil) {
         switch type {
         // Integer types
         case 1, 2, 3, 8, 9:  // TINY, SHORT, LONG, LONGLONG, INT24
-            self = .integer
+            self = .integer(rawType: rawType)
             
         // Decimal types
         case 4, 5, 246:  // FLOAT, DOUBLE, NEWDECIMAL
-            self = .decimal
+            self = .decimal(rawType: rawType)
             
         // Date/time types
         case 10:  // DATE
-            self = .date
+            self = .date(rawType: rawType)
         case 7:   // TIMESTAMP
-            self = .timestamp
+            self = .timestamp(rawType: rawType)
         case 12:  // DATETIME
-            self = .datetime
+            self = .datetime(rawType: rawType)
         case 11:  // TIME
-            self = .timestamp  // Treat TIME as timestamp for formatting
+            self = .timestamp(rawType: rawType)  // Treat TIME as timestamp for formatting
             
         // Boolean (TINYINT(1))
         // Note: MySQL doesn't have a dedicated boolean type
@@ -49,21 +59,21 @@ enum ColumnType: Equatable {
             
         // Binary/blob types
         case 249, 250, 251, 252:  // TINY_BLOB, MEDIUM_BLOB, LONG_BLOB, BLOB
-            self = .blob
+            self = .blob(rawType: rawType)
             
         // Text types (default)
         default:
-            self = .text
+            self = .text(rawType: rawType)
         }
     }
     
     /// Initialize from MySQL field metadata with size hint for boolean detection
-    init(fromMySQLType type: UInt32, length: UInt64) {
+    init(fromMySQLType type: UInt32, length: UInt64, rawType: String? = nil) {
         // Special case: TINYINT(1) is often used for boolean
         if type == 1 && length == 1 {
-            self = .boolean
+            self = .boolean(rawType: rawType)
         } else {
-            self.init(fromMySQLType: type)
+            self.init(fromMySQLType: type, rawType: rawType)
         }
     }
     
@@ -71,35 +81,35 @@ enum ColumnType: Equatable {
     
     /// Initialize from PostgreSQL Oid
     /// Reference: https://www.postgresql.org/docs/current/datatype-oid.html
-    init(fromPostgreSQLOid oid: UInt32) {
+    init(fromPostgreSQLOid oid: UInt32, rawType: String? = nil) {
         switch oid {
         // Boolean
         case 16:  // BOOLOID
-            self = .boolean
+            self = .boolean(rawType: rawType)
             
         // Integer types
         case 20, 21, 23, 26:  // INT8, INT2, INT4, OID
-            self = .integer
+            self = .integer(rawType: rawType)
             
         // Decimal types
         case 700, 701, 1700:  // FLOAT4, FLOAT8, NUMERIC
-            self = .decimal
+            self = .decimal(rawType: rawType)
             
         // Date/time types
         case 1082:  // DATE
-            self = .date
+            self = .date(rawType: rawType)
         case 1083, 1266:  // TIME, TIMETZ
-            self = .timestamp
+            self = .timestamp(rawType: rawType)
         case 1114, 1184:  // TIMESTAMP, TIMESTAMPTZ
-            self = .timestamp
+            self = .timestamp(rawType: rawType)
             
         // Binary types
         case 17:  // BYTEA
-            self = .blob
+            self = .blob(rawType: rawType)
             
         // Text types (default)
         default:
-            self = .text
+            self = .text(rawType: rawType)
         }
     }
     
@@ -109,28 +119,28 @@ enum ColumnType: Equatable {
     /// SQLite uses type affinity rules: https://www.sqlite.org/datatype3.html
     init(fromSQLiteType declaredType: String?) {
         guard let type = declaredType?.uppercased() else {
-            self = .text
+            self = .text(rawType: declaredType)
             return
         }
         
         // SQLite type affinity rules
         if type.contains("INT") {
-            self = .integer
+            self = .integer(rawType: declaredType)
         } else if type.contains("CHAR") || type.contains("CLOB") || type.contains("TEXT") {
-            self = .text
+            self = .text(rawType: declaredType)
         } else if type.contains("BLOB") || type.isEmpty {
-            self = .blob
+            self = .blob(rawType: declaredType)
         } else if type.contains("REAL") || type.contains("FLOA") || type.contains("DOUB") {
-            self = .decimal
+            self = .decimal(rawType: declaredType)
         } else if type.contains("DATE") && !type.contains("TIME") {
-            self = .date
+            self = .date(rawType: declaredType)
         } else if type.contains("TIME") || type.contains("TIMESTAMP") {
-            self = .timestamp
+            self = .timestamp(rawType: declaredType)
         } else if type.contains("BOOL") {
-            self = .boolean
+            self = .boolean(rawType: declaredType)
         } else {
             // Numeric affinity (catch-all for numeric types)
-            self = .text
+            self = .text(rawType: declaredType)
         }
     }
     
@@ -158,5 +168,25 @@ enum ColumnType: Equatable {
         default:
             return false
         }
+    }
+    
+    /// Whether this type represents long text that should use multi-line editor
+    /// Checks for TEXT, LONGTEXT, MEDIUMTEXT, TINYTEXT, CLOB types
+    var isLongText: Bool {
+        guard let raw = rawType?.uppercased() else {
+            return false
+        }
+        
+        // MySQL long text types (exact match to avoid matching VARCHAR, etc.)
+        if raw == "TEXT" || raw == "TINYTEXT" || raw == "MEDIUMTEXT" || raw == "LONGTEXT" {
+            return true
+        }
+        
+        // PostgreSQL/SQLite CLOB type
+        if raw == "CLOB" {
+            return true
+        }
+        
+        return false
     }
 }

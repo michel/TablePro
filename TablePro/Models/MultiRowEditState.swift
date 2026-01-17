@@ -14,6 +14,7 @@ struct FieldEditState {
     let columnIndex: Int
     let columnName: String
     let columnType: String
+    let isLongText: Bool  // NEW: Whether to use multi-line editor
     
     /// Original values from all selected rows (nil if multiple different values)
     let originalValue: String?
@@ -53,7 +54,7 @@ class MultiRowEditState: ObservableObject {
     private(set) var selectedRowIndices: Set<Int> = []
     private(set) var allRows: [[String?]] = []
     private(set) var columns: [String] = []
-    private(set) var columnTypes: [String] = []
+    private(set) var columnTypes: [ColumnType] = []  // Changed from [String] to [ColumnType]
     
     var hasEdits: Bool {
         fields.contains { $0.hasEdit }
@@ -64,7 +65,7 @@ class MultiRowEditState: ObservableObject {
         selectedRowIndices: Set<Int>,
         allRows: [[String?]],
         columns: [String],
-        columnTypes: [String]
+        columnTypes: [ColumnType]  // Changed from [String] to [ColumnType]
     ) {
         // Check if the underlying data has changed (not just edits)
         let dataChanged = self.allRows != allRows || self.columns != columns
@@ -78,7 +79,9 @@ class MultiRowEditState: ObservableObject {
         var newFields: [FieldEditState] = []
         
         for (colIndex, columnName) in columns.enumerated() {
-            let columnType = colIndex < columnTypes.count ? columnTypes[colIndex] : "string"
+            let columnTypeEnum = colIndex < columnTypes.count ? columnTypes[colIndex] : ColumnType.text(rawType: nil)
+            let columnType = columnTypeEnum.displayName
+            let isLongText = columnTypeEnum.isLongText
             
             // Gather values from all selected rows
             var values: [String?] = []
@@ -115,6 +118,7 @@ class MultiRowEditState: ObservableObject {
                 columnIndex: colIndex,
                 columnName: columnName,
                 columnType: columnType,
+                isLongText: isLongText,
                 originalValue: originalValue,
                 hasMultipleValues: hasMultipleValues,
                 pendingValue: pendingValue,

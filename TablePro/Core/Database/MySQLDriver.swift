@@ -95,8 +95,10 @@ final class MySQLDriver: DatabaseDriver {
             // For security, we use the prepared statement API which handles parameter binding safely
             let result = try await conn.executeParameterizedQuery(query, parameters: parameters)
 
-            // Convert MySQL column types to ColumnType enum
-            let columnTypes = result.columnTypes.map { ColumnType(fromMySQLType: $0) }
+            // Convert MySQL column types to ColumnType enum with raw type names
+            let columnTypes = zip(result.columnTypes, result.columnTypeNames).map { mysqlType, rawType in
+                ColumnType(fromMySQLType: mysqlType, rawType: rawType)
+            }
 
             return QueryResult(
                 columns: result.columns,
@@ -128,7 +130,7 @@ final class MySQLDriver: DatabaseDriver {
                     let columns = try await fetchColumnNames(for: tableName)
                     return QueryResult(
                         columns: columns,
-                        columnTypes: Array(repeating: .text, count: columns.count),  // Default to text for empty results
+                        columnTypes: Array(repeating: .text(rawType: nil), count: columns.count),  // Default to text for empty results
                         rows: [],
                         rowsAffected: Int(result.affectedRows),
                         executionTime: Date().timeIntervalSince(startTime),
@@ -138,10 +140,8 @@ final class MySQLDriver: DatabaseDriver {
             }
 
             // Convert MySQL column types to ColumnType enum
-            let columnTypes = result.columnTypes.enumerated().map { index, mysqlType in
-                // Also check field length for boolean detection (TINYINT(1))
-                // Note: We don't have length info here, so we use just the type
-                ColumnType(fromMySQLType: mysqlType)
+            let columnTypes = zip(result.columnTypes, result.columnTypeNames).map { mysqlType, rawType in
+                ColumnType(fromMySQLType: mysqlType, rawType: rawType)
             }
 
             return QueryResult(

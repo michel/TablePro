@@ -72,7 +72,7 @@ final class InMemoryRowProvider: RowProvider {
         self.columns = columns
         self.columnDefaults = columnDefaults
         // Default to .text if columnTypes not provided
-        self.columnTypes = columnTypes ?? Array(repeating: .text, count: columns.count)
+        self.columnTypes = columnTypes ?? Array(repeating: ColumnType.text(rawType: nil), count: columns.count)
         self.rows = rows.enumerated().map { index, row in
             TableRowData(index: index, values: row.values)
         }
