@@ -37,6 +37,13 @@ protocol DatabaseDriver: AnyObject {
     /// Execute a SQL query and return results
     func execute(query: String) async throws -> QueryResult
 
+    /// Execute a prepared statement with parameters (prevents SQL injection)
+    /// - Parameters:
+    ///   - query: SQL query with placeholders (? for MySQL/SQLite, $1/$2 for PostgreSQL)
+    ///   - parameters: Array of parameter values to bind
+    /// - Returns: Query result
+    func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult
+
     /// Fetch total row count for a query (wraps with COUNT(*))
     func fetchRowCount(query: String) async throws -> Int
 

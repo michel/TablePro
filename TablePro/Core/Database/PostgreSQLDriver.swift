@@ -91,6 +91,34 @@ final class PostgreSQLDriver: DatabaseDriver {
         }
     }
 
+    func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
+        guard let pqConn = libpqConnection else {
+            throw DatabaseError.connectionFailed("Not connected to PostgreSQL")
+        }
+
+        let startTime = Date()
+
+        do {
+            let result = try await pqConn.executeParameterizedQuery(query, parameters: parameters)
+            
+            // Convert PostgreSQL Oids to ColumnType enum
+            let columnTypes = result.columnOids.map { oid in
+                ColumnType(fromPostgreSQLOid: oid)
+            }
+
+            return QueryResult(
+                columns: result.columns,
+                columnTypes: columnTypes,
+                rows: result.rows,
+                rowsAffected: result.affectedRows,
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+        } catch {
+            throw DatabaseError.queryFailed(error.localizedDescription)
+        }
+    }
+
     // MARK: - Schema
 
     func fetchTables() async throws -> [TableInfo] {

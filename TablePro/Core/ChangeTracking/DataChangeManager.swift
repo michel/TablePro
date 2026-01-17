@@ -496,7 +496,7 @@ final class DataChangeManager: ObservableObject {
 
     // MARK: - SQL Generation
 
-    func generateSQL() throws -> [String] {
+    func generateSQL() throws -> [ParameterizedStatement] {
         let generator = SQLStatementGenerator(
             tableName: tableName,
             columns: columns,
@@ -512,7 +512,7 @@ final class DataChangeManager: ObservableObject {
 
         // Count expected UPDATE statements (DELETEs can work without PK using full row match)
         let expectedUpdates = changes.filter { $0.type == .update }.count
-        let actualUpdates = statements.filter { $0.hasPrefix("UPDATE") }.count
+        let actualUpdates = statements.filter { $0.sql.hasPrefix("UPDATE") }.count
 
         // Check if any UPDATE statements were skipped due to missing primary key
         // Note: DELETEs are allowed without PK (they match all columns)

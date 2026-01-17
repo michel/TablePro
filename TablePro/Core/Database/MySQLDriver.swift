@@ -83,6 +83,34 @@ final class MySQLDriver: DatabaseDriver {
         try await executeWithReconnect(query: query, isRetry: false)
     }
 
+    func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
+        let startTime = Date()
+
+        guard let conn = mariadbConnection else {
+            throw DatabaseError.notConnected
+        }
+
+        do {
+            // MariaDB Connector/C supports prepared statements via mysql_stmt_* API
+            // For security, we use the prepared statement API which handles parameter binding safely
+            let result = try await conn.executeParameterizedQuery(query, parameters: parameters)
+
+            // Convert MySQL column types to ColumnType enum
+            let columnTypes = result.columnTypes.map { ColumnType(fromMySQLType: $0) }
+
+            return QueryResult(
+                columns: result.columns,
+                columnTypes: columnTypes,
+                rows: result.rows,
+                rowsAffected: Int(result.affectedRows),
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+        } catch let error as MariaDBError {
+            throw DatabaseError.queryFailed(error.localizedDescription)
+        }
+    }
+
     /// Execute query with automatic reconnection on connection-lost errors
     private func executeWithReconnect(query: String, isRetry: Bool) async throws -> QueryResult {
         let startTime = Date()

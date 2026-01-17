@@ -185,6 +185,34 @@ final class LibPQConnection: @unchecked Sendable {
         }
     }
 
+    /// Execute a parameterized query using prepared statements (prevents SQL injection)
+    /// PostgreSQL uses $1, $2, etc. as placeholders
+    /// - Parameters:
+    ///   - query: SQL query with $1, $2, etc. placeholders
+    ///   - parameters: Array of parameter values to bind
+    /// - Returns: Query result
+    /// - Throws: LibPQError on failure
+    func executeParameterizedQuery(_ query: String, parameters: [Any?]) async throws -> LibPQQueryResult {
+        let queryToRun = String(query)
+        let params = parameters
+
+        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<LibPQQueryResult, Error>) in
+            queue.async { [self] in
+                guard !isShuttingDown else {
+                    cont.resume(throwing: LibPQError.notConnected)
+                    return
+                }
+
+                do {
+                    let result = try executeParameterizedQuerySync(queryToRun, parameters: params)
+                    cont.resume(returning: result)
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
     /// Synchronous query execution - must be called on the serial queue
     private func executeQuerySync(_ query: String) throws -> LibPQQueryResult {
         guard !isShuttingDown, let conn = self.conn else {
@@ -195,6 +223,94 @@ final class LibPQConnection: @unchecked Sendable {
         let localQuery = String(query)
         let result: OpaquePointer? = localQuery.withCString { queryPtr in
             PQexec(conn, queryPtr)
+        }
+
+        guard let result = result else {
+            throw getError(from: conn)
+        }
+
+        // Check result status
+        let status = PQresultStatus(result)
+
+        switch status {
+        case PGRES_COMMAND_OK:
+            // Non-SELECT query (INSERT, UPDATE, DELETE, etc.)
+            let affected = getAffectedRows(from: result)
+            let cmdTag = getCommandTag(from: result)
+            PQclear(result)
+            return LibPQQueryResult(
+                columns: [],
+                columnOids: [],
+                rows: [],
+                affectedRows: affected,
+                commandTag: cmdTag
+            )
+
+        case PGRES_TUPLES_OK:
+            // SELECT query - fetch results
+            let queryResult = fetchResults(from: result)
+            PQclear(result)
+            return queryResult
+
+        default:
+            // Error occurred
+            let error = getResultError(from: result)
+            PQclear(result)
+            throw error
+        }
+    }
+
+    /// Synchronous parameterized query execution using PQexecParams
+    /// MUST be called on the serial queue
+    private func executeParameterizedQuerySync(_ query: String, parameters: [Any?]) throws -> LibPQQueryResult {
+        guard !isShuttingDown, let conn = self.conn else {
+            throw LibPQError.notConnected
+        }
+
+        // Convert parameters to C strings
+        var paramValues: [UnsafePointer<CChar>?] = []
+        var paramStrings: [String] = []
+        
+        defer {
+            // Free allocated C strings
+            for ptr in paramValues {
+                ptr?.deallocate()
+            }
+        }
+
+        for param in parameters {
+            if let param = param {
+                // Convert parameter to string
+                let stringValue: String
+                if let str = param as? String {
+                    stringValue = str
+                } else {
+                    stringValue = "\(param)"
+                }
+                paramStrings.append(stringValue)
+                
+                // Allocate and copy C string
+                let cStr = strdup(stringValue)
+                paramValues.append(UnsafePointer(cStr))
+            } else {
+                // NULL parameter
+                paramValues.append(nil)
+            }
+        }
+
+        // Execute parameterized query using PQexecParams
+        let localQuery = String(query)
+        let result: OpaquePointer? = localQuery.withCString { queryPtr in
+            PQexecParams(
+                conn,
+                queryPtr,
+                Int32(parameters.count),
+                nil,  // paramTypes (NULL = infer types)
+                paramValues,  // paramValues
+                nil,  // paramLengths (NULL = text format)
+                nil,  // paramFormats (NULL = all text)
+                0  // resultFormat (0 = text)
+            )
         }
 
         guard let result = result else {

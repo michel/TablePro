@@ -147,6 +147,115 @@ final class SQLiteDriver: DatabaseDriver {
         )
     }
 
+    func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
+        guard status == .connected, let db = db else {
+            throw DatabaseError.notConnected
+        }
+
+        let startTime = Date()
+        var statement: OpaquePointer?
+
+        // Prepare statement
+        let prepareResult = sqlite3_prepare_v2(db, query, -1, &statement, nil)
+
+        if prepareResult != SQLITE_OK {
+            let errorMessage = String(cString: sqlite3_errmsg(db))
+            throw DatabaseError.queryFailed(errorMessage)
+        }
+
+        defer {
+            sqlite3_finalize(statement)
+        }
+
+        // Bind parameters (SQLite uses 1-based indexing for parameters)
+        for (index, param) in parameters.enumerated() {
+            let bindIndex = Int32(index + 1)
+            
+            if let param = param {
+                // Convert parameter to string for simplicity (SQLite handles type coercion)
+                let stringValue: String
+                if let str = param as? String {
+                    stringValue = str
+                } else {
+                    stringValue = "\(param)"
+                }
+                
+                let bindResult = sqlite3_bind_text(statement, bindIndex, stringValue, -1, nil)
+                if bindResult != SQLITE_OK {
+                    let errorMessage = String(cString: sqlite3_errmsg(db))
+                    throw DatabaseError.queryFailed("Failed to bind parameter \(index): \(errorMessage)")
+                }
+            } else {
+                // Bind NULL
+                let bindResult = sqlite3_bind_null(statement, bindIndex)
+                if bindResult != SQLITE_OK {
+                    let errorMessage = String(cString: sqlite3_errmsg(db))
+                    throw DatabaseError.queryFailed("Failed to bind NULL parameter \(index): \(errorMessage)")
+                }
+            }
+        }
+
+        // Get column info
+        let columnCount = sqlite3_column_count(statement)
+        var columns: [String] = []
+        var columnTypes: [ColumnType] = []
+
+        for i in 0..<columnCount {
+            // Extract column name
+            if let name = sqlite3_column_name(statement, i) {
+                columns.append(String(cString: name))
+            } else {
+                columns.append("column_\(i)")
+            }
+            
+            // Extract column type from declared type
+            let declaredType: String? = {
+                if let typePtr = sqlite3_column_decltype(statement, i) {
+                    return String(cString: typePtr)
+                }
+                return nil
+            }()
+            
+            columnTypes.append(ColumnType(fromSQLiteType: declaredType))
+        }
+
+        // Execute and fetch rows
+        var rows: [[String?]] = []
+        var rowsAffected = 0
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            var row: [String?] = []
+
+            for i in 0..<columnCount {
+                if sqlite3_column_type(statement, i) == SQLITE_NULL {
+                    row.append(nil)
+                } else if let text = sqlite3_column_text(statement, i) {
+                    row.append(String(cString: text))
+                } else {
+                    row.append(nil)
+                }
+            }
+
+            rows.append(row)
+        }
+
+        // For non-SELECT queries, get affected rows
+        if columns.isEmpty {
+            rowsAffected = Int(sqlite3_changes(db))
+        }
+
+        let executionTime = Date().timeIntervalSince(startTime)
+
+        return QueryResult(
+            columns: columns,
+            columnTypes: columnTypes,
+            rows: rows,
+            rowsAffected: rowsAffected,
+            executionTime: executionTime,
+            error: nil
+        )
+    }
+
     // MARK: - Schema
 
     func fetchTables() async throws -> [TableInfo] {

@@ -773,7 +773,7 @@ final class MainContentCoordinator: ObservableObject {
 
         guard hasEditedCells || hasPendingTableOps else { return }
 
-        var allStatements: [String] = []
+        var allStatements: [ParameterizedStatement] = []
         let dbType = connection.type
 
         // Check if any table operation needs FK disabled (must be outside transaction)
@@ -783,17 +783,19 @@ final class MainContentCoordinator: ObservableObject {
 
         // FK disable must be FIRST, before any transaction begins
         if needsDisableFK {
-            allStatements.append(contentsOf: fkDisableStatements(for: dbType))
+            allStatements.append(contentsOf: fkDisableStatements(for: dbType).map { 
+                ParameterizedStatement(sql: $0, parameters: [])
+            })
         }
 
         // Wrap all operations in a single transaction when we have multiple operations
         let needsTransaction = hasEditedCells && hasPendingTableOps
         if needsTransaction {
-            allStatements.append("BEGIN")
+            allStatements.append(ParameterizedStatement(sql: "BEGIN", parameters: []))
         }
 
         if hasEditedCells {
-            // changeManager.generateSQL() does NOT include transaction statements
+            // changeManager.generateSQL() returns parameterized statements
             do {
                 let editStatements = try changeManager.generateSQL()
                 allStatements.append(contentsOf: editStatements)
@@ -815,16 +817,20 @@ final class MainContentCoordinator: ObservableObject {
                 wrapInTransaction: !needsTransaction,
                 includeFKHandling: false  // FK handling done at this level
             )
-            allStatements.append(contentsOf: tableOpStatements)
+            allStatements.append(contentsOf: tableOpStatements.map { 
+                ParameterizedStatement(sql: $0, parameters: [])
+            })
         }
 
         if needsTransaction {
-            allStatements.append("COMMIT")
+            allStatements.append(ParameterizedStatement(sql: "COMMIT", parameters: []))
         }
 
         // FK re-enable must be LAST, after transaction commits
         if needsDisableFK {
-            allStatements.append(contentsOf: fkEnableStatements(for: dbType))
+            allStatements.append(contentsOf: fkEnableStatements(for: dbType).map { 
+                ParameterizedStatement(sql: $0, parameters: [])
+            })
         }
 
         guard !allStatements.isEmpty else {
@@ -977,13 +983,13 @@ final class MainContentCoordinator: ObservableObject {
     ///   - pendingDeletes: Inout binding to pending delete operations (restored on failure)
     ///   - tableOperationOptions: Inout binding to operation options (restored on failure)
     private func executeCommitStatements(
-        _ statements: [String],
+        _ statements: [ParameterizedStatement],
         clearTableOps: Bool,
         pendingTruncates: inout Set<String>,
         pendingDeletes: inout Set<String>,
         tableOperationOptions: inout [String: TableOperationOptions]
     ) {
-        let validStatements = statements.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let validStatements = statements.filter { !$0.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard !validStatements.isEmpty else { return }
 
         let deletedTables = Set(pendingDeletes)
@@ -1031,12 +1037,19 @@ final class MainContentCoordinator: ObservableObject {
 
                 for statement in validStatements {
                     let statementStartTime = Date()
-                    _ = try await driver.execute(query: statement)
+                    
+                    // Execute parameterized query if has parameters, otherwise use regular execute
+                    if statement.parameters.isEmpty {
+                        _ = try await driver.execute(query: statement.sql)
+                    } else {
+                        _ = try await driver.executeParameterized(query: statement.sql, parameters: statement.parameters)
+                    }
+                    
                     let executionTime = Date().timeIntervalSince(statementStartTime)
 
                     await MainActor.run {
                         QueryHistoryManager.shared.recordQuery(
-                            query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
+                            query: statement.sql.trimmingCharacters(in: .whitespacesAndNewlines),
                             connectionId: conn.id,
                             databaseName: conn.database ?? "",
                             executionTime: executionTime,
@@ -1090,7 +1103,7 @@ final class MainContentCoordinator: ObservableObject {
                 }
 
                 await MainActor.run {
-                    let allSQL = validStatements.joined(separator: "; ")
+                    let allSQL = validStatements.map { $0.sql }.joined(separator: "; ")
                     QueryHistoryManager.shared.recordQuery(
                         query: allSQL,
                         connectionId: conn.id,
