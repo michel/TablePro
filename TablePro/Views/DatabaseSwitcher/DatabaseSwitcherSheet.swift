@@ -245,6 +245,7 @@ struct DatabaseSwitcherSheet: View {
         .tag(database.name)
         .overlay(
             DoubleClickView {
+                viewModel.selectedDatabase = database.name
                 openSelectedDatabase()
             }
         )
