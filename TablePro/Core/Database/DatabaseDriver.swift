@@ -72,6 +72,12 @@ protocol DatabaseDriver: AnyObject {
 
     /// Fetch list of all databases on the server
     func fetchDatabases() async throws -> [String]
+    
+    /// Fetch metadata for a specific database (table count, size, etc.)
+    func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata
+    
+    /// Create a new database
+    func createDatabase(name: String, charset: String, collation: String?) async throws
 }
 
 /// Default implementation for common operations

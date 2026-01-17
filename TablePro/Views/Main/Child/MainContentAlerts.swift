@@ -43,17 +43,14 @@ struct MainContentAlerts: ViewModifier {
             }
 
             .sheet(isPresented: $coordinator.showDatabaseSwitcher) {
-                DatabaseSwitcherSheet(
+                DatabaseSwitcherSheetV2(
                     isPresented: $coordinator.showDatabaseSwitcher,
                     currentDatabase: connection.database.isEmpty ? nil : connection.database,
-                    databaseType: connection.type
-                )                    { database in
+                    databaseType: connection.type,
+                    connectionId: connection.id
+                ) { database in
                     coordinator.switchToDatabase(database)
                 }
-            }
-            .focusedValue(\.isDatabaseSwitcherOpen, coordinator.showDatabaseSwitcher)
-            .onChange(of: coordinator.showDatabaseSwitcher) { _, isPresented in
-                appState.isSheetPresented = isPresented
             }
 
             .sheet(isPresented: $coordinator.showExportDialog) {
@@ -62,9 +59,6 @@ struct MainContentAlerts: ViewModifier {
                     connection: connection,
                     preselectedTables: Set(selectedTables.map { $0.name })
                 )
-            }
-            .onChange(of: coordinator.showExportDialog) { _, isPresented in
-                appState.isSheetPresented = isPresented
             }
 
             .sheet(isPresented: $coordinator.showImportDialog) {
@@ -75,7 +69,6 @@ struct MainContentAlerts: ViewModifier {
                 )
             }
             .onChange(of: coordinator.showImportDialog) { _, isPresented in
-                appState.isSheetPresented = isPresented
                 // Clear the file URL when dialog is dismissed
                 if !isPresented {
                     coordinator.importFileURL = nil

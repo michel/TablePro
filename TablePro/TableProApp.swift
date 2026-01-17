@@ -17,16 +17,13 @@ final class AppState: ObservableObject {
     @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
     @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
     @Published var isHistoryPanelVisible: Bool = false  // Global history panel visibility
-    @Published var isSheetPresented: Bool = false  // True when any modal sheet is open (blocks ESC key handling)
 }
 
-// MARK: - Pasteboard Commands with FocusedValue Support
+// MARK: - Pasteboard Commands
 
-/// Custom Commands struct to properly access FocusedValue for disabling ESC when sheet is open
+/// Custom Commands struct for pasteboard operations
 struct PasteboardCommands: Commands {
     @ObservedObject var appState: AppState
-    @FocusedValue(\.isDatabaseSwitcherOpen)
-    var isDatabaseSwitcherOpen: Bool?
 
     var body: some Commands {
         CommandGroup(replacing: .pasteboard) {
@@ -101,7 +98,6 @@ struct PasteboardCommands: Commands {
                 NotificationCenter.default.post(name: .clearSelection, object: nil)
             }
             .keyboardShortcut(.escape, modifiers: [])
-            .disabled(isDatabaseSwitcherOpen == true)
         }
     }
 }
@@ -155,6 +151,7 @@ struct TableProApp: App {
                 .environmentObject(appState)
                 .background(OpenWindowHandler())
                 .tint(accentTint)
+                .escapeKeySystem() // Install global ESC key handling
         }
         .windowStyle(.automatic)
         .defaultSize(width: 1_200, height: 800)
@@ -202,9 +199,6 @@ struct TableProApp: App {
                 .disabled(!appState.isConnected)
 
                 Button("Close Tab") {
-                    // Don't process if a modal dialog is shown (like disconnect confirmation)
-                    guard !appState.isSheetPresented else { return }
-                    
                     // Check if key window is the main window
                     let keyWindow = NSApp.keyWindow
                     let isMainWindowKey = keyWindow?.identifier?.rawValue.contains("main") == true

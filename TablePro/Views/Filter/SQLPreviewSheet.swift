@@ -65,11 +65,11 @@ struct SQLPreviewSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .keyboardShortcut(.escape)
             }
         }
         .padding(16)
         .frame(width: 480, height: 300)
+        .escapeKeyDismiss(priority: .sheet)
     }
 
     private func copyToClipboard() {

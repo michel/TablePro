@@ -24,7 +24,6 @@ struct ContentView: View {
     @State private var showDisconnectConfirmation = false
     @State private var pendingDisconnectSessionId: UUID?
     @State private var hasLoaded = false
-    @State private var escapeKeyMonitor: Any?
     @State private var isInspectorPresented = false  // Right sidebar (inspector) visibility
 
     @Environment(\.openWindow)
@@ -108,23 +107,13 @@ struct ContentView: View {
                 Text("Are you sure you want to disconnect from this database?")
             }
             .onChange(of: showDisconnectConfirmation) { _, isShowing in
-                // Track alert state in AppState so menu commands can check it
-                AppState.shared.isSheetPresented = isShowing
                 // Reset pending state when alert is dismissed (e.g., by Cmd+W or ESC)
                 if !isShowing {
                     pendingDisconnectSessionId = nil
                 }
             }
-            .onChange(of: showUnsavedChangesAlert) { _, isShowing in
-                // Track alert state in AppState so menu commands can check it
-                AppState.shared.isSheetPresented = isShowing
-            }
             .onAppear {
                 loadConnections()
-                setupEscapeKeyMonitor()
-            }
-            .onDisappear {
-                removeEscapeKeyMonitor()
             }
             .onReceive(NotificationCenter.default.publisher(for: .newConnection)) { _ in
                 openWindow(id: "connection-form", value: nil as UUID?)
@@ -363,44 +352,10 @@ struct ContentView: View {
         storage.deleteConnection(connection)
         storage.saveConnections(connections)
     }
-
-    // MARK: - Escape Key Monitor
-
-    private func setupEscapeKeyMonitor() {
-        escapeKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Escape key code is 53
-            if event.keyCode == 53 {
-                // CRITICAL: Check if completion window is visible first
-                if let frontmostWindow = NSApp.keyWindow,
-                   frontmostWindow.level == .popUpMenu,
-                   frontmostWindow.isVisible {
-                    // Let the completion window handle Escape
-                    return event
-                }
-
-                // Don't consume ESC if a sheet is presented - let it dismiss the sheet
-                if AppState.shared.isSheetPresented {
-                    return event
-                }
-
-                NotificationCenter.default.post(name: .clearSelection, object: nil)
-                // Return nil to consume the event, or return event to let it propagate
-                return nil
-            }
-            return event
-        }
-    }
-
+    
     private func showAllTablesMetadata() {
         // Post notification for MainContentView to handle
         NotificationCenter.default.post(name: .showAllTables, object: nil)
-    }
-
-    private func removeEscapeKeyMonitor() {
-        if let monitor = escapeKeyMonitor {
-            NSEvent.removeMonitor(monitor)
-            escapeKeyMonitor = nil
-        }
     }
 }
 

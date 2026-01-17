@@ -423,4 +423,66 @@ final class PostgreSQLDriver: DatabaseDriver {
         let result = try await execute(query: "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname")
         return result.rows.compactMap { row in row.first.flatMap { $0 } }
     }
+    
+    /// Fetch metadata for a specific database
+    func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata {
+        // Escape single quotes for SQL string literals
+        let escapedDbLiteral = database.replacingOccurrences(of: "'", with: "''")
+        
+        // Query for table count
+        let countQuery = """
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_catalog = '\(escapedDbLiteral)'
+        """
+        let countResult = try await execute(query: countQuery)
+        let tableCount = Int(countResult.rows.first?[0] ?? "0") ?? 0
+        
+        // Query for size
+        let sizeQuery = """
+            SELECT pg_database_size('\(escapedDbLiteral)')
+        """
+        let sizeResult = try await execute(query: sizeQuery)
+        let sizeString = sizeResult.rows.first?[0] ?? "0"
+        let sizeBytes = Int64(sizeString) ?? 0
+        
+        // Determine if system database
+        let systemDatabases = ["postgres", "template0", "template1"]
+        let isSystem = systemDatabases.contains(database)
+        
+        return DatabaseMetadata(
+            id: database,
+            name: database,
+            tableCount: tableCount,
+            sizeBytes: sizeBytes,
+            lastAccessed: nil,
+            isSystemDatabase: isSystem,
+            icon: isSystem ? "gearshape.fill" : "cylinder.fill"
+        )
+    }
+    
+    /// Create a new database
+    func createDatabase(name: String, charset: String, collation: String?) async throws {
+        // Escape double quotes in database name (PostgreSQL identifiers)
+        let escapedName = name.replacingOccurrences(of: "\"", with: "\"\"")
+        
+        // Validate charset (basic validation)
+        let validCharsets = ["UTF8", "LATIN1", "SQL_ASCII"]
+        guard validCharsets.contains(charset) else {
+            throw DatabaseError.queryFailed("Invalid encoding: \(charset)")
+        }
+        
+        var query = "CREATE DATABASE \"\(escapedName)\" ENCODING '\(charset)'"
+        
+        // Validate and add collation if provided
+        if let collation = collation {
+            // Basic validation - ensure no SQL injection attempts
+            guard !collation.contains("'") && !collation.contains(";") else {
+                throw DatabaseError.queryFailed("Invalid collation")
+            }
+            query += " LC_COLLATE '\(collation)'"
+        }
+        
+        _ = try await execute(query: query)
+    }
 }

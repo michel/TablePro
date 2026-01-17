@@ -30,7 +30,6 @@ final class MainContentNotificationHandler: ObservableObject {
     private let tableOperationOptions: Binding<[String: TableOperationOptions]>
     private let isInspectorPresented: Binding<Bool>
     private let editingCell: Binding<CellPosition?>
-    private let showDatabaseSwitcher: Binding<Bool>
 
     // MARK: - State
 
@@ -48,8 +47,7 @@ final class MainContentNotificationHandler: ObservableObject {
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
         isInspectorPresented: Binding<Bool>,
-        editingCell: Binding<CellPosition?>,
-        showDatabaseSwitcher: Binding<Bool>
+        editingCell: Binding<CellPosition?>
     ) {
         self.coordinator = coordinator
         self.filterStateManager = filterStateManager
@@ -61,7 +59,6 @@ final class MainContentNotificationHandler: ObservableObject {
         self.tableOperationOptions = tableOperationOptions
         self.isInspectorPresented = isInspectorPresented
         self.editingCell = editingCell
-        self.showDatabaseSwitcher = showDatabaseSwitcher
 
         setupObservers()
     }
@@ -460,7 +457,7 @@ final class MainContentNotificationHandler: ObservableObject {
         NotificationCenter.default.publisher(for: .openDatabaseSwitcher)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.showDatabaseSwitcher.wrappedValue = true
+                self?.coordinator?.showDatabaseSwitcher = true
             }
             .store(in: &cancellables)
     }

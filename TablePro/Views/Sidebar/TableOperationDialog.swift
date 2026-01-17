@@ -146,7 +146,6 @@ struct TableOperationDialog: View {
                 Button("Cancel") {
                     isPresented = false
                 }
-                .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
@@ -160,6 +159,7 @@ struct TableOperationDialog: View {
         }
         .frame(width: 320)
         .background(Color(nsColor: .windowBackgroundColor))
+        .escapeKeyDismiss(isPresented: $isPresented, priority: .sheet)
         .onAppear {
             // Reset state when dialog opens
             ignoreForeignKeys = false

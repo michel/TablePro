@@ -546,4 +546,22 @@ final class SQLiteDriver: DatabaseDriver {
         // Each SQLite file is a separate database
         []
     }
+    
+    /// SQLite is file-based, return minimal metadata
+    func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata {
+        DatabaseMetadata(
+            id: database,
+            name: database,
+            tableCount: nil,
+            sizeBytes: nil,
+            lastAccessed: nil,
+            isSystemDatabase: false,
+            icon: "doc.fill"
+        )
+    }
+    
+    /// SQLite databases are created as files, not via SQL
+    func createDatabase(name: String, charset: String, collation: String?) async throws {
+        throw DatabaseError.unsupportedOperation
+    }
 }
