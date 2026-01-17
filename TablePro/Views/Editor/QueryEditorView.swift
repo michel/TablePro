@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+extension Notification.Name {
+    static let formatQueryRequested = Notification.Name("formatQueryRequested")
+}
+
 /// SQL query editor view with execute button
 struct QueryEditorView: View {
     @Binding var queryText: String
@@ -28,6 +32,9 @@ struct QueryEditorView: View {
                 .clipped()
         }
         .background(Color(nsColor: .textBackgroundColor))
+        .onReceive(NotificationCenter.default.publisher(for: .formatQueryRequested)) { _ in
+            formatQuery()
+        }
     }
 
     // MARK: - Toolbar
@@ -53,7 +60,8 @@ struct QueryEditorView: View {
                 Image(systemName: "text.alignleft")
             }
             .buttonStyle(.borderless)
-            .help("Format Query")
+            .help("Format Query (⌥⌘F)")
+            .keyboardShortcut("f", modifiers: [.option, .command])
 
             Divider()
                 .frame(height: 16)
@@ -77,24 +85,31 @@ struct QueryEditorView: View {
     // MARK: - Helpers
 
     private func formatQuery() {
-        // Basic formatting: uppercase keywords
-        let keywords = ["SELECT", "FROM", "WHERE", "ORDER BY", "GROUP BY", "HAVING",
-                        "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER",
-                        "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "ON",
-                        "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN", "AS",
-                        "LIMIT", "OFFSET", "DISTINCT", "COUNT", "SUM", "AVG", "MAX", "MIN",
-                        "NULL", "IS", "ASC", "DESC", "SET", "VALUES", "INTO", "TABLE"]
-
-        var formatted = queryText
-        for keyword in keywords {
-            // Match word boundaries
-            let pattern = "\\b\(keyword.lowercased())\\b"
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                let range = NSRange(formatted.startIndex..., in: formatted)
-                formatted = regex.stringByReplacingMatches(in: formatted, range: range, withTemplate: keyword)
+        // Get current database type from active session
+        let dbType = DatabaseManager.shared.currentSession?.connection.type ?? .mysql
+        
+        // Create formatter service
+        let formatter = SQLFormatterService()
+        let options = SQLFormatterOptions.default
+        
+        do {
+            // Format SQL with cursor preservation
+            let result = try formatter.format(
+                queryText,
+                dialect: dbType,
+                cursorOffset: cursorPosition,
+                options: options
+            )
+            
+            // Update text and cursor position
+            queryText = result.formattedSQL
+            if let newCursor = result.cursorOffset {
+                cursorPosition = newCursor
             }
+        } catch {
+            // Show error to user (could enhance with an alert later)
+            print("SQL Formatting error: \(error.localizedDescription)")
         }
-        queryText = formatted
     }
 }
 
