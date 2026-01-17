@@ -56,8 +56,26 @@ struct MariaDBColumnInfo {
 
 // MARK: - Type Mapping
 
-/// Convert MySQL type enum and length to string name
+/// Converts a MySQL/MariaDB field type enum value to a human-readable type name.
+///
+/// This helper interprets the raw MySQL type code together with the field length
+/// and flags (including `BINARY_FLAG`) to distinguish between text and binary
+/// variants (e.g. `TINYTEXT` vs `TINYBLOB`) and between `TEXT`/`BLOB` and
+/// `LONGTEXT`/`LONGBLOB`.
+///
 /// Reference: https://dev.mysql.com/doc/c-api/8.0/en/c-api-data-structures.html
+///
+/// - Parameters:
+///   - type: The MySQL type enum value (e.g. `MYSQL_TYPE_LONG`, `MYSQL_TYPE_BLOB`)
+///           represented as a `UInt32`.
+///   - length: The declared maximum length of the field, used to distinguish
+///             between `TEXT`/`BLOB` and `LONGTEXT`/`LONGBLOB` for certain types.
+///   - flags: The field flags bitmask (including `BINARY_FLAG`) used to determine
+///            whether a field should be treated as binary (e.g. `BLOB`) or text
+///            (e.g. `TEXT`).
+///
+/// - Returns: A string containing the normalized MySQL type name
+///            (for example, `"INT"`, `"VARCHAR"`, `"TEXT"`, `"BLOB"`).
 private func mysqlTypeToString(_ type: UInt32, length: UInt, flags: UInt) -> String {
     // Check if this is a text-based field (not binary)
     let isBinary = (flags & 128) != 0  // BINARY_FLAG = 128
