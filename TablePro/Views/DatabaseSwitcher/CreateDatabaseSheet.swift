@@ -115,7 +115,12 @@ struct CreateDatabaseSheet: View {
             .padding(12)
         }
         .frame(width: 380)
-        .escapeKeyDismiss(priority: .nestedSheet)
+        .onExitCommand {
+            // Prevent dismissing the sheet via ESC while a database is being created
+            if !isCreating {
+                dismiss()
+            }
+        }
         .onChange(of: charset) { _, newCharset in
             // Update collation when charset changes
             if let firstCollation = collations[newCharset]?.first {
