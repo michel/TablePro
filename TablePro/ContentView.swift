@@ -230,6 +230,7 @@ struct ContentView: View {
                 )
                 .id(currentSession.id)
             }
+            .navigationTitle(currentSession.connection.name)
         } else {
             // No active session yet - show loading while connecting
             VStack(spacing: 16) {

@@ -14,20 +14,19 @@
 import SwiftUI
 
 /// Content for the principal (center) toolbar area
-/// Displays environment badge, connection status, and execution indicator in a unified container
+/// Displays environment badge, connection status, and execution indicator in a unified card
 struct ToolbarPrincipalContent: View {
     @ObservedObject var state: ConnectionToolbarState
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ToolbarDesignTokens.Spacing.betweenSections) {
             // Tag badge (if tag is assigned)
             if let tagId = state.tagId,
                let tag = TagStorage.shared.tag(for: tagId) {
                 TagBadgeView(tag: tag)
-
-                // Vertical separator
+                
                 Divider()
-                    .frame(height: 16)
+                    .frame(height: ToolbarDesignTokens.Spacing.dividerHeight)
             }
 
             // Main connection status display
@@ -37,12 +36,12 @@ struct ToolbarPrincipalContent: View {
                 databaseName: state.databaseName,
                 connectionName: state.connectionName,
                 connectionState: state.connectionState,
-                displayColor: state.displayColor
+                displayColor: state.displayColor,
+                tagName: state.tagId.flatMap { TagStorage.shared.tag(for: $0)?.name }
             )
-
-            // Vertical separator before execution indicator
+            
             Divider()
-                .frame(height: 16)
+                .frame(height: ToolbarDesignTokens.Spacing.dividerHeight)
 
             // Execution indicator (spinner or duration)
             ExecutionIndicatorView(
@@ -50,12 +49,8 @@ struct ToolbarPrincipalContent: View {
                 lastDuration: state.lastQueryDuration
             )
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        )
+        .animation(.spring(response: ToolbarDesignTokens.Animation.springResponse, dampingFraction: ToolbarDesignTokens.Animation.springDamping), value: state.tagId)
+        .animation(.easeInOut, value: state.connectionState)
     }
 }
 
@@ -70,6 +65,17 @@ struct TableProToolbar: ViewModifier {
                 // MARK: - Navigation (Left)
                 ToolbarItem(placement: .navigation) {
                     HStack(spacing: 8) {
+                        // Connection switcher button (opens welcome window to select different connection)
+                        Button {
+                            NotificationCenter.default.post(name: .openWelcomeWindow, object: nil)
+                        } label: {
+                            Image(systemName: "network")
+                        }
+                        .help("Switch Connection")
+                        
+                        Divider()
+                            .frame(height: 20)
+                        
                         // Database switcher button
                         Button {
                             NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
@@ -103,14 +109,57 @@ struct TableProToolbar: ViewModifier {
                 }
 
                 // MARK: - Primary Action (Right)
-                // Right sidebar (inspector) toggle button
+                // Action buttons
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
-                    } label: {
-                        Image(systemName: "sidebar.trailing")
+                    HStack(spacing: 8) {
+                        // Filter toggle
+                        Button {
+                            NotificationCenter.default.post(name: .toggleFilterPanel, object: nil)
+                        } label: {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                        }
+                        .help("Toggle Filters (⌘F)")
+                        
+                        // History toggle
+                        Button {
+                            NotificationCenter.default.post(name: .toggleHistoryPanel, object: nil)
+                        } label: {
+                            Image(systemName: "clock")
+                        }
+                        .help("Toggle Query History (⌘⇧H)")
+                        
+                        Divider()
+                            .frame(height: 20)
+                        
+                        // Export
+                        Button {
+                            NotificationCenter.default.post(name: .exportTables, object: nil)
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .help("Export Data (⌘⇧E)")
+                        .disabled(state.connectionState != .connected)
+                        
+                        // Import
+                        Button {
+                            NotificationCenter.default.post(name: .importTables, object: nil)
+                        } label: {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                        .help("Import Data (⌘⇧I)")
+                        .disabled(state.connectionState != .connected)
+                        
+                        Divider()
+                            .frame(height: 20)
+                        
+                        // Inspector toggle
+                        Button {
+                            NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
+                        } label: {
+                            Image(systemName: "sidebar.trailing")
+                        }
+                        .help("Toggle Inspector (⌘⌥B)")
                     }
-                    .help("Toggle Inspector (⌘⌥B)")
                 }
             }
     }

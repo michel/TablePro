@@ -80,6 +80,17 @@ enum ToolbarConnectionState: Equatable {
         case .error(let message): return "Error: \(message)"
         }
     }
+    
+    /// Short label for toolbar display
+    var label: String {
+        switch self {
+        case .disconnected: return "Disconnected"
+        case .connecting: return "Connecting"
+        case .connected: return "Connected"
+        case .executing: return "Executing"
+        case .error: return "Error"
+        }
+    }
 
     /// Whether to show activity indicator
     var isAnimating: Bool {

@@ -14,7 +14,7 @@ struct ExecutionIndicatorView: View {
     let lastDuration: TimeInterval?
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: ToolbarDesignTokens.Spacing.iconTextSpacing) {
             if isExecuting {
                 ProgressView()
                     .controlSize(.small)
@@ -22,18 +22,18 @@ struct ExecutionIndicatorView: View {
             } else if let duration = lastDuration {
                 // Show last query duration when not executing
                 Text(formattedDuration(duration))
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.tertiary)
+                    .font(ToolbarDesignTokens.Typography.executionTime)
+                    .foregroundStyle(ToolbarDesignTokens.Colors.tertiaryText)
                     .help("Last query execution time")
             } else {
                 Text("--")
-                    .font(.system(size: 11, design: .monospaced))
+                    .font(ToolbarDesignTokens.Typography.executionTime)
                     .foregroundStyle(.quaternary)
                     .help("Run a query to see execution time")
             }
         }
-        .frame(minWidth: 50)
-        .animation(.easeInOut(duration: 0.2), value: isExecuting)
+        .padding(.trailing, ToolbarDesignTokens.Spacing.tagPadding)
+        .animation(.easeInOut(duration: ToolbarDesignTokens.Animation.hover), value: isExecuting)
     }
 
     // MARK: - Helpers

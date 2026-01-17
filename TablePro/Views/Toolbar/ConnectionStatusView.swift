@@ -16,47 +16,33 @@ struct ConnectionStatusView: View {
     let connectionName: String
     let connectionState: ToolbarConnectionState
     let displayColor: Color
+    let tagName: String? // Tag name to avoid duplication
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: ToolbarDesignTokens.Spacing.betweenSections) {
             // Database type icon + version
             databaseInfoSection
 
             // Vertical separator
             Divider()
-                .frame(height: 16)
+                .frame(height: ToolbarDesignTokens.Spacing.dividerHeight)
+                .background(ToolbarDesignTokens.Colors.divider)
 
             // Database name (clickable to switch databases)
             if !databaseName.isEmpty {
                 databaseNameSection
-
-                // Vertical separator
-                Divider()
-                    .frame(height: 16)
             }
-
-            // Connection name + status indicator
-            connectionInfoSection
         }
     }
 
     // MARK: - Subviews
 
-    /// Database type icon and version info
+    /// Database type and version info
     private var databaseInfoSection: some View {
-        HStack(spacing: 6) {
-            // Database type icon
-            Image(databaseType.iconName)
-                .renderingMode(.template)
-                .font(.system(size: DesignConstants.IconSize.default))
-                .foregroundStyle(displayColor)
-
-            // Database type + version
-            Text(formattedDatabaseInfo)
-                .font(.system(size: DesignConstants.FontSize.medium, weight: .medium, design: .monospaced))
-                .foregroundStyle(.secondary)
-        }
-        .help("Database: \(formattedDatabaseInfo)")
+        Text(formattedDatabaseInfo)
+            .font(ToolbarDesignTokens.Typography.databaseType)
+            .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
+            .help("Database: \(formattedDatabaseInfo)")
     }
 
     /// Database name (clickable to open database switcher)
@@ -66,53 +52,16 @@ struct ConnectionStatusView: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "cylinder")
-                    .font(.system(size: DesignConstants.FontSize.small))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: ToolbarDesignTokens.Spacing.iconSize))
+                    .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
 
                 Text(databaseName)
-                    .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
+                    .font(ToolbarDesignTokens.Typography.databaseName)
                     .foregroundStyle(.primary)
             }
         }
         .buttonStyle(.plain)
         .help("Current database: \(databaseName) (⌘K to switch)")
-    }
-
-    /// Connection name and status dot
-    private var connectionInfoSection: some View {
-        HStack(spacing: 8) {
-            // Connection name
-            Text(connectionName)
-                .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-
-            // Status indicator
-            statusIndicator
-        }
-        .help(connectionState.description)
-    }
-
-    /// Animated status indicator dot
-    @ViewBuilder
-    private var statusIndicator: some View {
-        if connectionState.isAnimating {
-            // Show pulsing dot for connecting/executing states
-            Circle()
-                .fill(connectionState.indicatorColor)
-                .frame(width: DesignConstants.IconSize.statusDot, height: DesignConstants.IconSize.statusDot)
-                .overlay(
-                    Circle()
-                        .stroke(connectionState.indicatorColor.opacity(0.5), lineWidth: 2)
-                        .scaleEffect(1.5)
-                )
-                .modifier(PulseAnimation())
-        } else {
-            // Static status dot
-            Circle()
-                .fill(connectionState.indicatorColor)
-                .frame(width: DesignConstants.IconSize.statusDot, height: DesignConstants.IconSize.statusDot)
-        }
     }
 
     // MARK: - Computed Properties
@@ -125,26 +74,6 @@ struct ConnectionStatusView: View {
     }
 }
 
-// MARK: - Pulse Animation
-
-/// Subtle pulsing animation for active states
-private struct PulseAnimation: ViewModifier {
-    @State private var isPulsing = false
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(isPulsing ? 0.6 : 1.0)
-            .onAppear {
-                withAnimation(
-                    .easeInOut(duration: 0.8)
-                        .repeatForever(autoreverses: true)
-                ) {
-                    isPulsing = true
-                }
-            }
-    }
-}
-
 // MARK: - Preview
 
 #Preview("Connected") {
@@ -154,33 +83,51 @@ private struct PulseAnimation: ViewModifier {
         databaseName: "production_db",
         connectionName: "Production Database",
         connectionState: .connected,
-        displayColor: .cyan
+        displayColor: .cyan,
+        tagName: "production"
     )
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))
 }
 
-#Preview("Executing") {
+#Preview("Executing - No Duplicate") {
     ConnectionStatusView(
         databaseType: .mysql,
         databaseVersion: "8.0.35",
         databaseName: "dev_db",
         connectionName: "Development",
         connectionState: .executing,
-        displayColor: .orange
+        displayColor: .orange,
+        tagName: "local"
     )
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))
 }
 
-#Preview("Dark Mode") {
+#Preview("No Tag") {
     ConnectionStatusView(
         databaseType: .postgresql,
         databaseVersion: "16.1",
         databaseName: "analytics",
         connectionName: "Analytics DB",
         connectionState: .connected,
-        displayColor: .blue
+        displayColor: .blue,
+        tagName: nil
+    )
+    .padding()
+    .background(Color(nsColor: .windowBackgroundColor))
+    .preferredColorScheme(.dark)
+}
+
+#Preview("Duplicate Name") {
+    ConnectionStatusView(
+        databaseType: .mysql,
+        databaseVersion: "9.5.0",
+        databaseName: "laravel",
+        connectionName: "Local",
+        connectionState: .connected,
+        displayColor: .green,
+        tagName: "local"
     )
     .padding()
     .background(Color(nsColor: .windowBackgroundColor))

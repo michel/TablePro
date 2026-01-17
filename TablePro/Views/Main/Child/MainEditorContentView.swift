@@ -318,18 +318,59 @@ struct MainEditorContentView: View {
     // MARK: - Empty State
 
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "tray")
-                .font(.system(size: 64))
-                .foregroundStyle(.tertiary)
+        VStack(spacing: 20) {
+            // Icon
+            Image(systemName: "tablecells")
+                .font(.system(size: 56))
+                .foregroundStyle(.quaternary)
+                .symbolRenderingMode(.hierarchical)
 
+            // Title
             Text("No tabs open")
-                .font(.title2)
+                .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(.secondary)
 
-            Text("Select a table from the sidebar")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
+            // Helpful instructions with keyboard shortcuts
+            VStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Text("⌘T")
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                    Text("Open SQL Editor")
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
+                }
+                
+                HStack(spacing: 6) {
+                    Text("Click a table")
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
+                    Text("to view data")
+                        .font(.callout)
+                        .foregroundStyle(.quaternary)
+                }
+                
+                HStack(spacing: 6) {
+                    Text("⌘K")
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.secondary.opacity(0.1))
+                        )
+                    Text("Switch Database")
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
