@@ -1,5 +1,5 @@
 //
-//  DatabaseSwitcherSheetV2.swift
+//  DatabaseSwitcherSheet.swift
 //  TablePro
 //
 //  Complete redesign of the database switcher dialog.
@@ -8,45 +8,49 @@
 
 import SwiftUI
 
-struct DatabaseSwitcherSheetV2: View {
+struct DatabaseSwitcherSheet: View {
     @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
-    
+
     let currentDatabase: String?
     let databaseType: DatabaseType
     let connectionId: UUID
     let onSelect: (String) -> Void
-    
+
     @StateObject private var viewModel: DatabaseSwitcherViewModel
     @State private var showCreateDialog = false
-    
-    init(isPresented: Binding<Bool>, currentDatabase: String?, databaseType: DatabaseType, connectionId: UUID, onSelect: @escaping (String) -> Void) {
+
+    init(
+        isPresented: Binding<Bool>, currentDatabase: String?, databaseType: DatabaseType,
+        connectionId: UUID, onSelect: @escaping (String) -> Void
+    ) {
         self._isPresented = isPresented
         self.currentDatabase = currentDatabase
         self.databaseType = databaseType
         self.connectionId = connectionId
         self.onSelect = onSelect
-        self._viewModel = StateObject(wrappedValue: DatabaseSwitcherViewModel(
-            connectionId: connectionId,
-            currentDatabase: currentDatabase,
-            databaseType: databaseType
-        ))
+        self._viewModel = StateObject(
+            wrappedValue: DatabaseSwitcherViewModel(
+                connectionId: connectionId,
+                currentDatabase: currentDatabase,
+                databaseType: databaseType
+            ))
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             Text("Open Database")
                 .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
                 .padding(.vertical, 12)
-            
+
             Divider()
-            
+
             // Toolbar: Search + Refresh + Create
             toolbar
-            
+
             Divider()
-            
+
             // Content
             if viewModel.isLoading {
                 loadingView
@@ -59,9 +63,9 @@ struct DatabaseSwitcherSheetV2: View {
             } else {
                 databaseList
             }
-            
+
             Divider()
-            
+
             // Footer
             footer
         }
@@ -72,7 +76,8 @@ struct DatabaseSwitcherSheetV2: View {
         }
         .sheet(isPresented: $showCreateDialog) {
             CreateDatabaseSheet { name, charset, collation in
-                try await viewModel.createDatabase(name: name, charset: charset, collation: collation)
+                try await viewModel.createDatabase(
+                    name: name, charset: charset, collation: collation)
                 await viewModel.refreshDatabases()
             }
         }
@@ -94,9 +99,9 @@ struct DatabaseSwitcherSheetV2: View {
             return .handled
         }
     }
-    
+
     // MARK: - Toolbar
-    
+
     private var toolbar: some View {
         HStack(spacing: 8) {
             // Search
@@ -104,11 +109,11 @@ struct DatabaseSwitcherSheetV2: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: DesignConstants.FontSize.body))
                     .foregroundStyle(.tertiary)
-                
+
                 TextField("Search databases...", text: $viewModel.searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: DesignConstants.FontSize.body))
-                
+
                 if !viewModel.searchText.isEmpty {
                     Button(action: { viewModel.searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -121,7 +126,7 @@ struct DatabaseSwitcherSheetV2: View {
             .padding(.vertical, 6)
             .background(Color(nsColor: .controlBackgroundColor))
             .cornerRadius(6)
-            
+
             // Refresh
             Button(action: {
                 Task { await viewModel.refreshDatabases() }
@@ -131,7 +136,7 @@ struct DatabaseSwitcherSheetV2: View {
             }
             .buttonStyle(.borderless)
             .help("Refresh database list")
-            
+
             // Create (only for non-SQLite)
             if databaseType != .sqlite {
                 Button(action: { showCreateDialog = true }) {
@@ -145,12 +150,12 @@ struct DatabaseSwitcherSheetV2: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
-    
+
     // MARK: - Database List
-    
+
     private var databaseList: some View {
         ScrollViewReader { proxy in
-            List {
+            List(selection: $viewModel.selectedDatabase) {
                 // Recent section
                 if !viewModel.recentDatabaseMetadata.isEmpty {
                     Section {
@@ -159,11 +164,13 @@ struct DatabaseSwitcherSheetV2: View {
                         }
                     } header: {
                         Text("RECENT")
-                            .font(.system(size: DesignConstants.FontSize.caption, weight: .semibold))
+                            .font(
+                                .system(size: DesignConstants.FontSize.caption, weight: .semibold)
+                            )
                             .foregroundStyle(.secondary)
                     }
                 }
-                
+
                 // All databases
                 Section {
                     ForEach(viewModel.allDatabases) { db in
@@ -172,7 +179,9 @@ struct DatabaseSwitcherSheetV2: View {
                 } header: {
                     if !viewModel.recentDatabaseMetadata.isEmpty {
                         Text("ALL DATABASES")
-                            .font(.system(size: DesignConstants.FontSize.caption, weight: .semibold))
+                            .font(
+                                .system(size: DesignConstants.FontSize.caption, weight: .semibold)
+                            )
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -188,24 +197,25 @@ struct DatabaseSwitcherSheetV2: View {
             }
         }
     }
-    
+
     private func databaseRow(_ database: DatabaseMetadata) -> some View {
         let isSelected = database.name == viewModel.selectedDatabase
         let isCurrent = database.name == currentDatabase
-        
+
         return HStack(spacing: 10) {
             // Icon
             Image(systemName: database.icon)
                 .font(.system(size: 14))
-                .foregroundStyle(isSelected ? .white : (database.isSystemDatabase ? .orange : .blue))
-            
+                .foregroundStyle(
+                    isSelected ? .white : (database.isSystemDatabase ? .orange : .blue))
+
             // Name
             Text(database.name)
                 .font(.system(size: 13))
                 .foregroundStyle(isSelected ? .white : .primary)
-            
+
             Spacer()
-            
+
             // Current badge
             if isCurrent {
                 Text("current")
@@ -215,7 +225,10 @@ struct DatabaseSwitcherSheetV2: View {
                     .padding(.vertical, 2)
                     .background(
                         Capsule()
-                            .fill(isSelected ? Color.white.opacity(0.15) : Color(nsColor: .separatorColor).opacity(0.5))
+                            .fill(
+                                isSelected
+                                    ? Color.white.opacity(0.15)
+                                    : Color(nsColor: .separatorColor).opacity(0.5))
                     )
             }
         }
@@ -229,19 +242,16 @@ struct DatabaseSwitcherSheetV2: View {
         .listRowInsets(DesignConstants.swiftUIListRowInsets)
         .listRowSeparator(.hidden)
         .id(database.name)
-        .onTapGesture {
-            viewModel.selectedDatabase = database.name
-        }
+        .tag(database.name)
         .overlay(
             DoubleClickView {
-                viewModel.selectedDatabase = database.name
                 openSelectedDatabase()
             }
         )
     }
-    
+
     // MARK: - Empty States
-    
+
     private var loadingView: some View {
         VStack(spacing: 12) {
             ProgressView()
@@ -252,22 +262,22 @@ struct DatabaseSwitcherSheetV2: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.orange)
-            
+
             Text("Failed to load databases")
                 .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
-            
+
             Text(message)
                 .font(.system(size: DesignConstants.FontSize.small))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            
+
             Button("Retry") {
                 Task { await viewModel.fetchDatabases() }
             }
@@ -276,38 +286,40 @@ struct DatabaseSwitcherSheetV2: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var sqliteEmptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "doc.fill")
                 .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.secondary)
-            
+
             Text("SQLite is file-based")
                 .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
-            
-            Text("Each SQLite file is a separate database.\nTo open a different database, create a new connection.")
-                .font(.system(size: DesignConstants.FontSize.small))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+
+            Text(
+                "Each SQLite file is a separate database.\nTo open a different database, create a new connection."
+            )
+            .font(.system(size: DesignConstants.FontSize.small))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var emptyState: some View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.secondary)
-            
+
             if viewModel.searchText.isEmpty {
                 Text("No databases found")
                     .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
             } else {
                 Text("No matching databases")
                     .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
-                
+
                 Text("No databases match \"\(viewModel.searchText)\"")
                     .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
@@ -315,35 +327,38 @@ struct DatabaseSwitcherSheetV2: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     // MARK: - Footer
-    
+
     private var footer: some View {
         HStack {
             Button("Cancel") {
                 dismiss()
             }
-            
+
             Spacer()
-            
+
             Button("Open") {
                 openSelectedDatabase()
             }
             .buttonStyle(.borderedProminent)
-            .disabled(viewModel.selectedDatabase == nil || viewModel.selectedDatabase == currentDatabase)
+            .disabled(
+                viewModel.selectedDatabase == nil || viewModel.selectedDatabase == currentDatabase
+            )
             .keyboardShortcut(.return, modifiers: [])
         }
         .padding(12)
     }
-    
+
     // MARK: - Actions
-    
+
     private func moveSelection(up: Bool) {
         let allDbs = viewModel.recentDatabaseMetadata + viewModel.allDatabases
         guard !allDbs.isEmpty else { return }
-        
+
         if let selected = viewModel.selectedDatabase,
-           let currentIndex = allDbs.firstIndex(where: { $0.name == selected }) {
+            let currentIndex = allDbs.firstIndex(where: { $0.name == selected })
+        {
             if up {
                 let newIndex = max(0, currentIndex - 1)
                 viewModel.selectedDatabase = allDbs[newIndex].name
@@ -355,19 +370,19 @@ struct DatabaseSwitcherSheetV2: View {
             viewModel.selectedDatabase = up ? allDbs.last?.name : allDbs.first?.name
         }
     }
-    
+
     private func openSelectedDatabase() {
         guard let database = viewModel.selectedDatabase else { return }
-        
+
         // Don't reopen current database
         if database == currentDatabase {
             dismiss()
             return
         }
-        
+
         // Track access
         viewModel.trackAccess(database: database)
-        
+
         // Call onSelect callback
         onSelect(database)
         dismiss()
@@ -406,7 +421,7 @@ private class PassThroughDoubleClickView: NSView {
 // MARK: - Preview
 
 #Preview("MySQL Databases") {
-    DatabaseSwitcherSheetV2(
+    DatabaseSwitcherSheet(
         isPresented: .constant(true),
         currentDatabase: "production",
         databaseType: .mysql,
@@ -415,7 +430,7 @@ private class PassThroughDoubleClickView: NSView {
 }
 
 #Preview("SQLite Empty") {
-    DatabaseSwitcherSheetV2(
+    DatabaseSwitcherSheet(
         isPresented: .constant(true),
         currentDatabase: nil,
         databaseType: .sqlite,
