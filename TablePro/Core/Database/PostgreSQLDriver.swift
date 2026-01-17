@@ -483,7 +483,9 @@ final class PostgreSQLDriver: DatabaseDriver {
             guard isValidCollation else {
                 throw DatabaseError.queryFailed("Invalid collation")
             }
-            query += " LC_COLLATE '\(collation)'"
+            // Escape single quotes for safe SQL literal usage
+            let escapedCollation = collation.replacingOccurrences(of: "'", with: "''")
+            query += " LC_COLLATE '\(escapedCollation)'"
         }
         
         _ = try await execute(query: query)
