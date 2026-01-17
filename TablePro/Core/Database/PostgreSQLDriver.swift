@@ -468,11 +468,12 @@ final class PostgreSQLDriver: DatabaseDriver {
         
         // Validate charset (basic validation)
         let validCharsets = ["UTF8", "LATIN1", "SQL_ASCII"]
-        guard validCharsets.contains(charset) else {
+        let normalizedCharset = charset.uppercased()
+        guard validCharsets.contains(normalizedCharset) else {
             throw DatabaseError.queryFailed("Invalid encoding: \(charset)")
         }
         
-        var query = "CREATE DATABASE \"\(escapedName)\" ENCODING '\(charset)'"
+        var query = "CREATE DATABASE \"\(escapedName)\" ENCODING '\(normalizedCharset)'"
         
         // Validate and add collation if provided
         if let collation = collation {
