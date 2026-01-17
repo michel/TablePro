@@ -452,15 +452,12 @@ struct MainContentView: View {
             }
         }
         
-        // Get column types
-        let columnTypes = tab.columnTypes.map { $0.displayName }
-        
         // Configure edit state (this will preserve pending edits if data hasn't changed)
         sidebarEditState.configure(
             selectedRowIndices: selectedRowIndices,
             allRows: allRows,
             columns: tab.resultColumns,
-            columnTypes: columnTypes
+            columnTypes: tab.columnTypes  // Pass ColumnType array, not String array
         )
     }
     

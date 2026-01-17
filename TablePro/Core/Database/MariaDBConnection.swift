@@ -38,6 +38,7 @@ struct MariaDBError: Error, LocalizedError {
 struct MariaDBQueryResult {
     let columns: [String]
     let columnTypes: [UInt32]  // NEW: MySQL field type for each column
+    let columnTypeNames: [String]  // NEW: Raw type names (e.g., "TEXT", "LONGTEXT")
     let rows: [[String?]]
     let affectedRows: UInt64
     let insertId: UInt64
@@ -51,6 +52,73 @@ struct MariaDBColumnInfo {
     let type: UInt32
     let flags: UInt32
     let decimals: UInt32
+}
+
+// MARK: - Type Mapping
+
+/// Converts a MySQL/MariaDB field type enum value to a human-readable type name.
+///
+/// This helper interprets the raw MySQL type code together with the field length
+/// and flags (including `BINARY_FLAG`) to distinguish between text and binary
+/// variants (e.g. `TINYTEXT` vs `TINYBLOB`) and between `TEXT`/`BLOB` and
+/// `LONGTEXT`/`LONGBLOB`.
+///
+/// Reference: https://dev.mysql.com/doc/c-api/8.0/en/c-api-data-structures.html
+///
+/// - Parameters:
+///   - type: The MySQL type enum value (e.g. `MYSQL_TYPE_LONG`, `MYSQL_TYPE_BLOB`)
+///           represented as a `UInt32`.
+///   - length: The declared maximum length of the field, used to distinguish
+///             between `TEXT`/`BLOB` and `LONGTEXT`/`LONGBLOB` for certain types.
+///   - flags: The field flags bitmask (including `BINARY_FLAG`) used to determine
+///            whether a field should be treated as binary (e.g. `BLOB`) or text
+///            (e.g. `TEXT`).
+///
+/// - Returns: A string containing the normalized MySQL type name
+///            (for example, `"INT"`, `"VARCHAR"`, `"TEXT"`, `"BLOB"`).
+private func mysqlTypeToString(_ type: UInt32, length: UInt, flags: UInt) -> String {
+    // Check if this is a text-based field (not binary)
+    let isBinary = (flags & 128) != 0  // BINARY_FLAG = 128
+    
+    switch type {
+    case 0: return "DECIMAL"
+    case 1: return "TINYINT"
+    case 2: return "SMALLINT"
+    case 3: return "INT"
+    case 4: return "FLOAT"
+    case 5: return "DOUBLE"
+    case 6: return "NULL"
+    case 7: return "TIMESTAMP"
+    case 8: return "BIGINT"
+    case 9: return "MEDIUMINT"
+    case 10: return "DATE"
+    case 11: return "TIME"
+    case 12: return "DATETIME"
+    case 13: return "YEAR"
+    case 14: return "NEWDATE"
+    case 15: return "VARCHAR"
+    case 16: return "BIT"
+    case 245: return "JSON"
+    case 246: return "NEWDECIMAL"
+    case 247: return "ENUM"
+    case 248: return "SET"
+    case 249:  // TINYBLOB/TINYTEXT
+        return isBinary ? "TINYBLOB" : "TINYTEXT"
+    case 250:  // MEDIUMBLOB/MEDIUMTEXT
+        return isBinary ? "MEDIUMBLOB" : "MEDIUMTEXT"
+    case 251:  // LONGBLOB/LONGTEXT
+        return isBinary ? "LONGBLOB" : "LONGTEXT"
+    case 252:  // BLOB/TEXT - distinguish by length
+        if isBinary {
+            return length > 65535 ? "LONGBLOB" : "BLOB"
+        } else {
+            return length > 65535 ? "LONGTEXT" : "TEXT"
+        }
+    case 253: return "VARCHAR"  // VAR_STRING
+    case 254: return "CHAR"      // STRING
+    case 255: return "GEOMETRY"
+    default: return "UNKNOWN"
+    }
 }
 
 // MARK: - Connection Class
@@ -330,6 +398,7 @@ final class MariaDBConnection: @unchecked Sendable {
                 return MariaDBQueryResult(
                     columns: [],
                     columnTypes: [],
+                    columnTypeNames: [],
                     rows: [],
                     affectedRows: affected,
                     insertId: insertId
@@ -344,8 +413,10 @@ final class MariaDBConnection: @unchecked Sendable {
         let numFields = Int(mysql_num_fields(resultPtr))
         var columns: [String] = []
         var columnTypes: [UInt32] = []  // NEW: Store column types
+        var columnTypeNames: [String] = []  // NEW: Store raw type names
         columns.reserveCapacity(numFields)
         columnTypes.reserveCapacity(numFields)
+        columnTypeNames.reserveCapacity(numFields)
 
         if let fields = mysql_fetch_fields(resultPtr) {
             for i in 0..<numFields {
@@ -360,6 +431,12 @@ final class MariaDBConnection: @unchecked Sendable {
                 }
                 // Extract column type (NEW)
                 columnTypes.append(field.type.rawValue)
+                // Extract raw type name (NEW)
+                columnTypeNames.append(mysqlTypeToString(
+                    field.type.rawValue,
+                    length: field.length,
+                    flags: UInt(field.flags)
+                ))
             }
         }
 
@@ -410,6 +487,7 @@ final class MariaDBConnection: @unchecked Sendable {
         return MariaDBQueryResult(
             columns: columns,
             columnTypes: columnTypes,
+            columnTypeNames: columnTypeNames,
             rows: rows,
             affectedRows: UInt64(rows.count),
             insertId: 0
@@ -543,6 +621,7 @@ final class MariaDBConnection: @unchecked Sendable {
             return MariaDBQueryResult(
                 columns: [],
                 columnTypes: [],
+                columnTypeNames: [],
                 rows: [],
                 affectedRows: UInt64(affected),
                 insertId: UInt64(insertId)
@@ -561,6 +640,7 @@ final class MariaDBConnection: @unchecked Sendable {
         // Get column information
         var columns: [String] = []
         var columnTypes: [UInt32] = []
+        var columnTypeNames: [String] = []
         let numFields = Int(mysql_num_fields(metadata))
 
         if let fields = mysql_fetch_fields(metadata) {
@@ -573,6 +653,11 @@ final class MariaDBConnection: @unchecked Sendable {
                     columns.append("column_\(i)")
                 }
                 columnTypes.append(field.type.rawValue)
+                columnTypeNames.append(mysqlTypeToString(
+                    field.type.rawValue,
+                    length: field.length,
+                    flags: UInt(field.flags)
+                ))
             }
         }
 
@@ -644,6 +729,7 @@ final class MariaDBConnection: @unchecked Sendable {
         return MariaDBQueryResult(
             columns: columns,
             columnTypes: columnTypes,
+            columnTypeNames: columnTypeNames,
             rows: rows,
             affectedRows: UInt64(rows.count),
             insertId: 0

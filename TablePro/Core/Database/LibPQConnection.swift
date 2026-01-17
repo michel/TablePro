@@ -40,9 +40,49 @@ struct LibPQError: Error, LocalizedError {
 struct LibPQQueryResult {
     let columns: [String]
     let columnOids: [UInt32]  // NEW: PostgreSQL Oid for each column
+    let columnTypeNames: [String]  // NEW: Raw type names (e.g., "text", "varchar")
     let rows: [[String?]]
     let affectedRows: Int
     let commandTag: String?
+}
+
+// MARK: - Type Mapping
+
+/// Converts a PostgreSQL OID value into a human‑readable type name string.
+/// - Parameter oid: The PostgreSQL object identifier (OID) for the column type.
+/// - Returns: The PostgreSQL type name corresponding to the given `oid`, or `"unknown"` if it is not mapped.
+/// - SeeAlso: https://www.postgresql.org/docs/current/datatype-oid.html
+private func pgOidToTypeName(_ oid: UInt32) -> String {
+    switch oid {
+    case 16: return "boolean"
+    case 17: return "bytea"
+    case 18: return "char"
+    case 19: return "name"
+    case 20: return "bigint"
+    case 21: return "smallint"
+    case 23: return "integer"
+    case 25: return "text"
+    case 26: return "oid"
+    case 114: return "json"
+    case 142: return "xml"
+    case 650: return "cidr"
+    case 700: return "real"
+    case 701: return "double precision"
+    case 829: return "macaddr"
+    case 869: return "inet"
+    case 1009: return "text[]"
+    case 1042: return "char"
+    case 1043: return "varchar"
+    case 1082: return "date"
+    case 1083: return "time"
+    case 1114: return "timestamp"
+    case 1184: return "timestamptz"
+    case 1266: return "timetz"
+    case 1700: return "numeric"
+    case 2950: return "uuid"
+    case 3802: return "jsonb"
+    default: return "unknown"
+    }
 }
 
 // MARK: - Connection Class
@@ -241,6 +281,7 @@ final class LibPQConnection: @unchecked Sendable {
             return LibPQQueryResult(
                 columns: [],
                 columnOids: [],
+                columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
                 commandTag: cmdTag
@@ -329,6 +370,7 @@ final class LibPQConnection: @unchecked Sendable {
             return LibPQQueryResult(
                 columns: [],
                 columnOids: [],
+                columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
                 commandTag: cmdTag
@@ -358,8 +400,10 @@ final class LibPQConnection: @unchecked Sendable {
         // Fetch column names and types
         var columns: [String] = []
         var columnOids: [UInt32] = []
+        var columnTypeNames: [String] = []
         columns.reserveCapacity(numFields)
         columnOids.reserveCapacity(numFields)
+        columnTypeNames.reserveCapacity(numFields)
 
         for i in 0..<numFields {
             // Extract column name
@@ -373,6 +417,7 @@ final class LibPQConnection: @unchecked Sendable {
             // Extract column type Oid (NEW)
             let oid = PQftype(result, Int32(i))
             columnOids.append(UInt32(oid))
+            columnTypeNames.append(pgOidToTypeName(UInt32(oid)))
         }
 
         // Fetch all rows
@@ -413,6 +458,7 @@ final class LibPQConnection: @unchecked Sendable {
         return LibPQQueryResult(
             columns: columns,
             columnOids: columnOids,
+            columnTypeNames: columnTypeNames,
             rows: rows,
             affectedRows: numRows,
             commandTag: getCommandTag(from: result)

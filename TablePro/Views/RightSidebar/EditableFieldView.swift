@@ -12,12 +12,12 @@ import SwiftUI
 struct EditableFieldView: View {
     let columnName: String
     let columnType: String
+    let isLongText: Bool  // NEW: Whether to use multi-line editor
+    @Binding var value: String
     let originalValue: String?
-    let hasMultipleValues: Bool
+    let hasMultipleValues: Bool  // Whether multiple selected rows have different values
     let isPendingNull: Bool
     let isPendingDefault: Bool
-    
-    @Binding var value: String
     
     let onSetNull: () -> Void
     let onSetDefault: () -> Void
@@ -64,20 +64,39 @@ struct EditableFieldView: View {
             
             // Input row
             HStack(spacing: 0) {
-                // Text field - custom styled for full control
-                TextField(placeholderText, text: $value)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: DesignConstants.FontSize.small))
-                    .disabled(isPendingNull || isPendingDefault)
-                    .focused($isFocused)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(5)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
-                    )
+                // Conditional: TextEditor for long text, TextField for short text
+                if isLongText {
+                    // Multi-line text editor for long text types (TEXT, LONGTEXT, etc.)
+                    TextEditor(text: $value)
+                        .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
+                        .disabled(isPendingNull || isPendingDefault)
+                        .focused($isFocused)
+                        .frame(height: 120)  // Fixed height with internal scrolling
+                        .scrollContentBackground(.hidden)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+                        )
+                } else {
+                    // Single-line text field for short text, numbers, etc.
+                    TextField(placeholderText, text: $value)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: DesignConstants.FontSize.small))
+                        .disabled(isPendingNull || isPendingDefault)
+                        .focused($isFocused)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+                        )
+                }
                 
                 // Menu button - custom button to avoid any default indicators
                 Menu {
@@ -136,6 +155,7 @@ struct EditableFieldView: View {
 struct ReadOnlyFieldView: View {
     let columnName: String
     let columnType: String
+    let isLongText: Bool  // NEW: Whether to use multi-line display
     let value: String?
     
     var body: some View {
@@ -153,17 +173,38 @@ struct ReadOnlyFieldView: View {
             
             // Value display - looks like disabled text field
             HStack {
-                if let value = value {
-                    Text(value)
-                        .font(.system(size: DesignConstants.FontSize.small))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                if isLongText {
+                    // Multi-line display for long text with scrolling
+                    ScrollView {
+                        if let value = value {
+                            Text(value)
+                                .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
+                                .foregroundStyle(.primary)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Text("NULL")
+                                .font(.system(size: DesignConstants.FontSize.small))
+                                .foregroundStyle(.tertiary)
+                                .italic()
+                        }
+                    }
+                    .frame(height: 120)  // Fixed height matching editable field
                 } else {
-                    Text("NULL")
-                        .font(.system(size: DesignConstants.FontSize.small))
-                        .foregroundStyle(.tertiary)
-                        .italic()
+                    // Single-line display for short text
+                    if let value = value {
+                        Text(value)
+                            .font(.system(size: DesignConstants.FontSize.small))
+                            .foregroundStyle(.primary)
+                            .textSelection(.enabled)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        Text("NULL")
+                            .font(.system(size: DesignConstants.FontSize.small))
+                            .foregroundStyle(.tertiary)
+                            .italic()
+                    }
                 }
             }
             .padding(.horizontal, 6)

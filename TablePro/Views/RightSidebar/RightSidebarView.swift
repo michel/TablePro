@@ -210,14 +210,15 @@ struct RightSidebarView: View {
         EditableFieldView(
             columnName: field.columnName,
             columnType: field.columnType,
-            originalValue: field.originalValue,
-            hasMultipleValues: field.hasMultipleValues,
-            isPendingNull: field.isPendingNull,
-            isPendingDefault: field.isPendingDefault,
+            isLongText: field.isLongText,
             value: Binding(
                 get: { field.pendingValue ?? field.originalValue ?? "" },
                 set: { editState.updateField(at: index, value: $0) }
             ),
+            originalValue: field.originalValue,
+            hasMultipleValues: field.hasMultipleValues,
+            isPendingNull: field.isPendingNull,
+            isPendingDefault: field.isPendingDefault,
             onSetNull: { editState.setFieldToNull(at: index) },
             onSetDefault: { editState.setFieldToDefault(at: index) },
             onSetFunction: { editState.setFieldToFunction(at: index, function: $0) }
@@ -230,6 +231,7 @@ struct RightSidebarView: View {
         ReadOnlyFieldView(
             columnName: field.columnName,
             columnType: field.columnType,
+            isLongText: field.isLongText,
             value: field.originalValue
         )
         .padding(.horizontal, 12)
