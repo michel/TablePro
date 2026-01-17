@@ -503,10 +503,20 @@ final class MySQLDriver: DatabaseDriver {
         return result.rows.compactMap { row in row.first.flatMap { $0 } }
     }
     
+    /// Escape a value for safe use in a single-quoted SQL string literal.
+    ///
+    /// This helper is intended *only* for contexts where the value will be placed
+    /// inside single quotes (e.g. `WHERE TABLE_SCHEMA = '...'`) and should not be
+    /// used for identifiers (such as database, table, or column names).
+    private func escapeForSQLStringLiteral(_ value: String) -> String {
+        // Escape single quotes by doubling them, per SQL standard.
+        return value.replacingOccurrences(of: "'", with: "''")
+    }
+    
     /// Fetch metadata for a specific database
     func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata {
-        // Escape database name for SQL (backticks for MySQL identifiers, single quotes for string literals)
-        let escapedDbLiteral = database.replacingOccurrences(of: "'", with: "''")
+        // Escape database name for use as a SQL string literal in information_schema queries
+        let escapedDbLiteral = escapeForSQLStringLiteral(database)
         
         // Query for table count
         let countQuery = """
