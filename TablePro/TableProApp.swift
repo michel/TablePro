@@ -202,6 +202,9 @@ struct TableProApp: App {
                 .disabled(!appState.isConnected)
 
                 Button("Close Tab") {
+                    // Don't process if a modal dialog is shown (like disconnect confirmation)
+                    guard !appState.isSheetPresented else { return }
+                    
                     // Check if key window is the main window
                     let keyWindow = NSApp.keyWindow
                     let isMainWindowKey = keyWindow?.identifier?.rawValue.contains("main") == true

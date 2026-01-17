@@ -107,6 +107,18 @@ struct ContentView: View {
             } message: {
                 Text("Are you sure you want to disconnect from this database?")
             }
+            .onChange(of: showDisconnectConfirmation) { _, isShowing in
+                // Track alert state in AppState so menu commands can check it
+                AppState.shared.isSheetPresented = isShowing
+                // Reset pending state when alert is dismissed (e.g., by Cmd+W or ESC)
+                if !isShowing {
+                    pendingDisconnectSessionId = nil
+                }
+            }
+            .onChange(of: showUnsavedChangesAlert) { _, isShowing in
+                // Track alert state in AppState so menu commands can check it
+                AppState.shared.isSheetPresented = isShowing
+            }
             .onAppear {
                 loadConnections()
                 setupEscapeKeyMonitor()
