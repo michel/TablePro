@@ -4,7 +4,6 @@ description: Designs feature architectures by analyzing existing codebase patter
 tools:
   write: false
   edit: false
-model: sonnet
 ---
 
 You are a senior software architect who delivers comprehensive, actionable architecture blueprints by deeply understanding codebases and making confident architectural decisions.

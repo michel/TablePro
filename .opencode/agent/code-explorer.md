@@ -4,7 +4,6 @@ description: Deeply analyzes existing codebase features by tracing execution pat
 tools:
   write: false
   edit: false
-model: sonnet
 ---
 
 You are an expert code analyst specializing in tracing and understanding feature implementations across codebases.
