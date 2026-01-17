@@ -184,7 +184,6 @@ private struct CreateTagSheet: View {
                 Button("Cancel") {
                     dismiss()
                 }
-                .keyboardShortcut(.escape)
 
                 Button("Create") {
                     onSave(tagName, tagColor)
@@ -197,6 +196,7 @@ private struct CreateTagSheet: View {
         }
         .padding(20)
         .frame(width: 300)
+        .escapeKeyDismiss(priority: .sheet)
     }
 }
 

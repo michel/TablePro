@@ -36,7 +36,6 @@ struct MainContentView: View {
     @State var selectedRowIndices: Set<Int> = []
     @State private var editingCell: CellPosition?
     @State private var notificationHandler: MainContentNotificationHandler?
-    @State private var showDatabaseSwitcher = false
     @StateObject private var sidebarEditState = MultiRowEditState()
 
     // MARK: - Environment
@@ -131,15 +130,6 @@ struct MainContentView: View {
                 updateSidebarEditState()
             }
             .onAppear { setupNotificationHandler() }
-            .sheet(isPresented: $showDatabaseSwitcher) {
-                DatabaseSwitcherSheet(
-                    isPresented: $showDatabaseSwitcher,
-                    currentDatabase: DatabaseManager.shared.currentSession?.connection.database,
-                    databaseType: connection.type
-                )                    { database in
-                    switchDatabase(to: database)
-                }
-            }
     }
 
     // MARK: - Main Content
@@ -268,8 +258,7 @@ struct MainContentView: View {
             pendingDeletes: $pendingDeletes,
             tableOperationOptions: $tableOperationOptions,
             isInspectorPresented: $isInspectorPresented,
-            editingCell: $editingCell,
-            showDatabaseSwitcher: $showDatabaseSwitcher
+            editingCell: $editingCell
         )
     }
 

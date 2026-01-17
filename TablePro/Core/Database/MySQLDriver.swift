@@ -502,4 +502,80 @@ final class MySQLDriver: DatabaseDriver {
         let result = try await execute(query: "SHOW DATABASES")
         return result.rows.compactMap { row in row.first.flatMap { $0 } }
     }
+    
+    /// Escape a value for safe use in a single-quoted SQL string literal.
+    ///
+    /// This helper is intended *only* for contexts where the value will be placed
+    /// inside single quotes (e.g. `WHERE TABLE_SCHEMA = '...'`) and should not be
+    /// used for identifiers (such as database, table, or column names).
+    private func escapeForSQLStringLiteral(_ value: String) -> String {
+        // Escape single quotes by doubling them, per SQL standard.
+        return value.replacingOccurrences(of: "'", with: "''")
+    }
+    
+    /// Fetch metadata for a specific database
+    func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata {
+        // Escape database name for use as a SQL string literal in information_schema queries
+        let escapedDbLiteral = escapeForSQLStringLiteral(database)
+        
+        // Query for table count
+        let countQuery = """
+            SELECT COUNT(*) as table_count 
+            FROM information_schema.TABLES 
+            WHERE TABLE_SCHEMA = '\(escapedDbLiteral)'
+        """
+        let countResult = try await execute(query: countQuery)
+        let tableCount = Int(countResult.rows.first?[0] ?? "0") ?? 0
+        
+        // Query for size
+        let sizeQuery = """
+            SELECT SUM(DATA_LENGTH + INDEX_LENGTH) as size
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = '\(escapedDbLiteral)'
+        """
+        let sizeResult = try await execute(query: sizeQuery)
+        let sizeString = sizeResult.rows.first?[0] ?? "0"
+        let sizeBytes = Int64(sizeString) ?? 0
+        
+        // Determine if system database
+        let systemDatabases = ["information_schema", "mysql", "performance_schema", "sys"]
+        let isSystem = systemDatabases.contains(database)
+        
+        return DatabaseMetadata(
+            id: database,
+            name: database,
+            tableCount: tableCount,
+            sizeBytes: sizeBytes,
+            lastAccessed: nil,  // Could track separately if needed
+            isSystemDatabase: isSystem,
+            icon: isSystem ? "gearshape.fill" : "cylinder.fill"
+        )
+    }
+    
+    /// Create a new database
+    func createDatabase(name: String, charset: String, collation: String?) async throws {
+        // Escape backticks in database name
+        let escapedName = name.replacingOccurrences(of: "`", with: "``")
+        
+        // Validate charset (basic validation - should be expanded)
+        let validCharsets = ["utf8mb4", "utf8", "latin1", "ascii"]
+        guard validCharsets.contains(charset) else {
+            throw DatabaseError.queryFailed("Invalid character set: \(charset)")
+        }
+        
+        var query = "CREATE DATABASE `\(escapedName)` CHARACTER SET \(charset)"
+        
+        // Validate collation if provided
+        if let collation = collation {
+            // Collation must match charset prefix and only contain safe identifier characters
+            let allowedChars = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+            let isSafe = collation.unicodeScalars.allSatisfy { allowedChars.contains($0) }
+            guard collation.hasPrefix(charset), isSafe else {
+                throw DatabaseError.queryFailed("Invalid collation for charset")
+            }
+            query += " COLLATE \(collation)"
+        }
+        
+        _ = try await execute(query: query)
+    }
 }

@@ -126,9 +126,6 @@ struct SidebarView: View {
                 }
             }
         }
-        .onChange(of: showOperationDialog) { _, isPresented in
-            AppState.shared.isSheetPresented = isPresented
-        }
     }
 
     // MARK: - Search Field

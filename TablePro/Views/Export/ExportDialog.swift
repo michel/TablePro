@@ -63,13 +63,15 @@ struct ExportDialog: View {
         }
         .frame(width: dialogWidth)
         .background(Color(nsColor: .windowBackgroundColor))
-        .task {
-            await loadDatabaseItems()
-        }
-        .onExitCommand {
+        .escapeKeyHandler(priority: .sheet) {
             if !isExporting {
                 isPresented = false
+                return .handled
             }
+            return .ignored
+        }
+        .task {
+            await loadDatabaseItems()
         }
         .alert("Export Error", isPresented: $showError) {
             Button("OK") { }
@@ -270,7 +272,6 @@ struct ExportDialog: View {
             Button("Cancel") {
                 isPresented = false
             }
-            .keyboardShortcut(.cancelAction)
             .disabled(isExporting)
 
             Spacer()

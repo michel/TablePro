@@ -69,7 +69,7 @@ struct CreateTableView: View {
         }
         .animation(.easeInOut(duration: DesignConstants.AnimationDuration.smooth), value: showDetailPanel)
         .background(Color(nsColor: .textBackgroundColor))
-        .onKeyPress(.escape) {
+        .escapeKeyHandler(priority: .view) {
             if showDetailPanel {
                 showDetailPanel = false
                 return .handled
@@ -582,7 +582,6 @@ struct CreateTableView: View {
             Button("Cancel") {
                 onCancel()
             }
-            .keyboardShortcut(.escape)
 
             Button("Create Table") {
                 createTable()

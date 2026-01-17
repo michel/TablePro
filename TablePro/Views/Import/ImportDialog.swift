@@ -68,15 +68,17 @@ struct ImportDialog: View {
             footerView
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .escapeKeyHandler(priority: .sheet) {
+            if !importServiceState.isImporting {
+                isPresented = false
+                return .handled
+            }
+            return .ignored
+        }
         .task {
             // Load initial file if provided
             if let initialURL = initialFileURL, fileURL == nil {
                 await loadFile(initialURL)
-            }
-        }
-        .onExitCommand {
-            if !importServiceState.isImporting {
-                isPresented = false
             }
         }
         .onDisappear {
@@ -239,7 +241,6 @@ struct ImportDialog: View {
             Button("Cancel") {
                 isPresented = false
             }
-            .keyboardShortcut(.cancelAction)
 
             Spacer()
 

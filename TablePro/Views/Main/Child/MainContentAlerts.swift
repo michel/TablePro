@@ -46,14 +46,11 @@ struct MainContentAlerts: ViewModifier {
                 DatabaseSwitcherSheet(
                     isPresented: $coordinator.showDatabaseSwitcher,
                     currentDatabase: connection.database.isEmpty ? nil : connection.database,
-                    databaseType: connection.type
-                )                    { database in
+                    databaseType: connection.type,
+                    connectionId: connection.id
+                ) { database in
                     coordinator.switchToDatabase(database)
                 }
-            }
-            .focusedValue(\.isDatabaseSwitcherOpen, coordinator.showDatabaseSwitcher)
-            .onChange(of: coordinator.showDatabaseSwitcher) { _, isPresented in
-                appState.isSheetPresented = isPresented
             }
 
             .sheet(isPresented: $coordinator.showExportDialog) {
@@ -62,9 +59,6 @@ struct MainContentAlerts: ViewModifier {
                     connection: connection,
                     preselectedTables: Set(selectedTables.map { $0.name })
                 )
-            }
-            .onChange(of: coordinator.showExportDialog) { _, isPresented in
-                appState.isSheetPresented = isPresented
             }
 
             .sheet(isPresented: $coordinator.showImportDialog) {
@@ -75,7 +69,6 @@ struct MainContentAlerts: ViewModifier {
                 )
             }
             .onChange(of: coordinator.showImportDialog) { _, isPresented in
-                appState.isSheetPresented = isPresented
                 // Clear the file URL when dialog is dismissed
                 if !isPresented {
                     coordinator.importFileURL = nil
@@ -83,16 +76,17 @@ struct MainContentAlerts: ViewModifier {
             }
 
             // Dangerous query confirmation alert
-            .alert("Potentially Dangerous Query", isPresented: $coordinator.showDangerousQueryAlert) {
-                Button("Cancel", role: .cancel) {
-                    coordinator.cancelDangerousQuery()
-                }
-                Button("Execute", role: .destructive) {
-                    coordinator.confirmDangerousQuery()
-                }
-            } message: {
-                Text(dangerousQueryMessage)
+            .alert("Potentially Dangerous Query", isPresented: $coordinator.showDangerousQueryAlert)
+        {
+            Button("Cancel", role: .cancel) {
+                coordinator.cancelDangerousQuery()
             }
+            Button("Execute", role: .destructive) {
+                coordinator.confirmDangerousQuery()
+            }
+        } message: {
+            Text(dangerousQueryMessage)
+        }
     }
 
     // MARK: - Computed Properties
@@ -103,11 +97,14 @@ struct MainContentAlerts: ViewModifier {
         }
         let uppercased = query.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
         if uppercased.hasPrefix("DROP ") {
-            return "This DROP query will permanently remove database objects. This action cannot be undone."
+            return
+                "This DROP query will permanently remove database objects. This action cannot be undone."
         } else if uppercased.hasPrefix("TRUNCATE ") {
-            return "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone."
+            return
+                "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone."
         } else if uppercased.hasPrefix("DELETE ") {
-            return "This DELETE query has no WHERE clause and will delete ALL rows in the table. This action cannot be undone."
+            return
+                "This DELETE query has no WHERE clause and will delete ALL rows in the table. This action cannot be undone."
         }
         return "This query may permanently modify or delete data."
     }
@@ -142,13 +139,14 @@ extension View {
         tables: [TableInfo],
         selectedTables: Set<TableInfo>
     ) -> some View {
-        modifier(MainContentAlerts(
-            coordinator: coordinator,
-            connection: connection,
-            pendingTruncates: pendingTruncates,
-            pendingDeletes: pendingDeletes,
-            tables: tables,
-            selectedTables: selectedTables
-        ))
+        modifier(
+            MainContentAlerts(
+                coordinator: coordinator,
+                connection: connection,
+                pendingTruncates: pendingTruncates,
+                pendingDeletes: pendingDeletes,
+                tables: tables,
+                selectedTables: selectedTables
+            ))
     }
 }

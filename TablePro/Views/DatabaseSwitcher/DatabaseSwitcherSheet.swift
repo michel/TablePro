@@ -2,92 +2,92 @@
 //  DatabaseSwitcherSheet.swift
 //  TablePro
 //
-//  Modal sheet to display and switch between databases.
-//  Similar to TablePlus's "Open database" feature (Cmd+K).
+//  Complete redesign of the database switcher dialog.
+//  Features: Rich metadata, recent databases, refresh, create database, preview panel.
 //
 
 import SwiftUI
 
-/// Modal sheet to display available databases and switch between them
 struct DatabaseSwitcherSheet: View {
     @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
+
     let currentDatabase: String?
     let databaseType: DatabaseType
+    let connectionId: UUID
     let onSelect: (String) -> Void
 
-    @State private var databases: [String] = []
-    @State private var searchText = ""
-    @State private var isLoading = true
-    @State private var errorMessage: String?
-    @State private var selectedItem: String?
-    @State private var shouldScrollToSelection = false
+    @StateObject private var viewModel: DatabaseSwitcherViewModel
+    @State private var showCreateDialog = false
 
-    var filteredDatabases: [String] {
-        if searchText.isEmpty {
-            return databases
-        }
-        return databases.filter {
-            $0.localizedCaseInsensitiveContains(searchText)
-        }
+    init(
+        isPresented: Binding<Bool>, currentDatabase: String?, databaseType: DatabaseType,
+        connectionId: UUID, onSelect: @escaping (String) -> Void
+    ) {
+        self._isPresented = isPresented
+        self.currentDatabase = currentDatabase
+        self.databaseType = databaseType
+        self.connectionId = connectionId
+        self.onSelect = onSelect
+        self._viewModel = StateObject(
+            wrappedValue: DatabaseSwitcherViewModel(
+                connectionId: connectionId,
+                currentDatabase: currentDatabase,
+                databaseType: databaseType
+            ))
     }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            Text("Open database")
+            Text("Open Database")
                 .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
                 .padding(.vertical, 12)
 
             Divider()
 
-            // Search field
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.tertiary)
-                    .font(.system(size: DesignConstants.FontSize.body))
-
-                TextField("Search for database...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: DesignConstants.FontSize.body))
-                    .onSubmit {
-                        openSelectedDatabase()
-                    }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, DesignConstants.Spacing.sm)
+            // Toolbar: Search + Refresh + Create
+            toolbar
 
             Divider()
 
-            // Database list or empty state
-            if isLoading {
+            // Content
+            if viewModel.isLoading {
                 loadingView
-            } else if let error = errorMessage {
+            } else if let error = viewModel.errorMessage {
                 errorView(error)
             } else if databaseType == .sqlite {
                 sqliteEmptyState
-            } else if filteredDatabases.isEmpty {
+            } else if viewModel.filteredDatabases.isEmpty {
                 emptyState
             } else {
-                databaseListView
+                databaseList
             }
 
             Divider()
 
-            // Footer buttons
-            footerView
+            // Footer
+            footer
         }
-        .frame(width: 360, height: 340)
+        .frame(width: 420, height: 480)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
-            loadDatabases()
+            Task { await viewModel.fetchDatabases() }
         }
-        .onChange(of: searchText) { _, _ in
-            // Reset selection when search changes
-            selectedItem = filteredDatabases.first
+        .sheet(isPresented: $showCreateDialog) {
+            CreateDatabaseSheet { name, charset, collation in
+                try await viewModel.createDatabase(
+                    name: name, charset: charset, collation: collation)
+                await viewModel.refreshDatabases()
+            }
         }
-        .onKeyPress(.escape) {
+        .escapeKeyHandler(priority: .sheet) {
+            // Nested sheet has higher priority (.nestedSheet), so this only runs when no nested sheets are open
             dismiss()
+            return .handled
+        }
+        .onKeyPress(.return) {
+            openSelectedDatabase()
             return .handled
         }
         .onKeyPress(.upArrow) {
@@ -98,90 +98,154 @@ struct DatabaseSwitcherSheet: View {
             moveSelection(up: false)
             return .handled
         }
-        .onKeyPress(.return) {
-            openSelectedDatabase()
-            return .handled
+    }
+
+    // MARK: - Toolbar
+
+    private var toolbar: some View {
+        HStack(spacing: 8) {
+            // Search
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: DesignConstants.FontSize.body))
+                    .foregroundStyle(.tertiary)
+
+                TextField("Search databases...", text: $viewModel.searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: DesignConstants.FontSize.body))
+
+                if !viewModel.searchText.isEmpty {
+                    Button(action: { viewModel.searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .cornerRadius(6)
+
+            // Refresh
+            Button(action: {
+                Task { await viewModel.refreshDatabases() }
+            }) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 14))
+            }
+            .buttonStyle(.borderless)
+            .help("Refresh database list")
+
+            // Create (only for non-SQLite)
+            if databaseType != .sqlite {
+                Button(action: { showCreateDialog = true }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(.borderless)
+                .help("Create new database")
+            }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Database List
 
-    private var databaseListView: some View {
+    private var databaseList: some View {
         ScrollViewReader { proxy in
-            List(filteredDatabases, id: \.self) { database in
-                databaseRow(database)
-                    .id(database)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(DesignConstants.swiftUIListRowInsets)
-                    .listRowBackground(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(database == selectedItem ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
-                            .padding(.horizontal, 4)
-                    )
-                    .onTapGesture {
-                        selectedItem = database
+            List(selection: $viewModel.selectedDatabase) {
+                // Recent section
+                if !viewModel.recentDatabaseMetadata.isEmpty {
+                    Section {
+                        ForEach(viewModel.recentDatabaseMetadata) { db in
+                            databaseRow(db)
+                        }
+                    } header: {
+                        Text("RECENT")
+                            .font(
+                                .system(size: DesignConstants.FontSize.caption, weight: .semibold)
+                            )
+                            .foregroundStyle(.secondary)
                     }
-            }
-            .listStyle(.inset)
-            .scrollContentBackground(.hidden)
-            .alternatingRowBackgrounds(.disabled)
-            .environment(\.defaultMinListRowHeight, DesignConstants.RowHeight.compact)
-            .onChange(of: filteredDatabases) { _, newList in
-                // Reset selection when list changes
-                if let selected = selectedItem, !newList.contains(selected) {
-                    selectedItem = newList.first
+                }
+
+                // All databases
+                Section {
+                    ForEach(viewModel.allDatabases) { db in
+                        databaseRow(db)
+                    }
+                } header: {
+                    if !viewModel.recentDatabaseMetadata.isEmpty {
+                        Text("ALL DATABASES")
+                            .font(
+                                .system(size: DesignConstants.FontSize.caption, weight: .semibold)
+                            )
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-            .onChange(of: selectedItem) { _, newValue in
-                // Scroll to selected item when navigating with keyboard
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .onChange(of: viewModel.selectedDatabase) { _, newValue in
                 if let item = newValue {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         proxy.scrollTo(item, anchor: .center)
                     }
                 }
             }
-            .onChange(of: shouldScrollToSelection) { _, shouldScroll in
-                // Scroll to selection after databases load
-                if shouldScroll, let item = selectedItem {
-                    shouldScrollToSelection = false
-
-                    // Delay scroll to ensure List is fully rendered
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            proxy.scrollTo(item, anchor: .center)
-                        }
-                    }
-                }
-            }
         }
     }
 
-    private func databaseRow(_ database: String) -> some View {
-        let isSelected = database == selectedItem
-        let isCurrent = database == currentDatabase
+    private func databaseRow(_ database: DatabaseMetadata) -> some View {
+        let isSelected = database.name == viewModel.selectedDatabase
+        let isCurrent = database.name == currentDatabase
 
         return HStack(spacing: 10) {
-            Image(systemName: "cylinder")
-                .font(.system(size: DesignConstants.FontSize.body))
-                .foregroundStyle(isSelected ? .white : (isCurrent ? .blue : .secondary))
+            // Icon
+            Image(systemName: database.icon)
+                .font(.system(size: 14))
+                .foregroundStyle(
+                    isSelected ? .white : (database.isSystemDatabase ? .orange : .blue))
 
-            Text(database)
-                .font(.system(size: DesignConstants.FontSize.body))
+            // Name
+            Text(database.name)
+                .font(.system(size: 13))
                 .foregroundStyle(isSelected ? .white : .primary)
-                .lineLimit(1)
 
             Spacer()
 
+            // Current badge
             if isCurrent {
                 Text("current")
-                    .font(.system(size: DesignConstants.FontSize.caption))
-                    .foregroundStyle(isSelected ? .white.opacity(0.8) : .secondary)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(
+                                isSelected
+                                    ? Color.white.opacity(0.15)
+                                    : Color(nsColor: .separatorColor).opacity(0.5))
+                    )
             }
         }
+        .padding(.vertical, 4)
         .contentShape(Rectangle())
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(isSelected ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
+                .padding(.horizontal, 4)
+        )
+        .listRowInsets(DesignConstants.swiftUIListRowInsets)
+        .listRowSeparator(.hidden)
+        .id(database.name)
+        .tag(database.name)
         .overlay(
             DoubleClickView {
-                selectedItem = database
+                viewModel.selectedDatabase = database.name
                 openSelectedDatabase()
             }
         )
@@ -216,7 +280,7 @@ struct DatabaseSwitcherSheet: View {
                 .padding(.horizontal)
 
             Button("Retry") {
-                loadDatabases()
+                Task { await viewModel.fetchDatabases() }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -233,11 +297,13 @@ struct DatabaseSwitcherSheet: View {
             Text("SQLite is file-based")
                 .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
 
-            Text("Each SQLite file is a separate database.\nTo open a different database, create a new connection.")
-                .font(.system(size: DesignConstants.FontSize.small))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            Text(
+                "Each SQLite file is a separate database.\nTo open a different database, create a new connection."
+            )
+            .font(.system(size: DesignConstants.FontSize.small))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -248,14 +314,14 @@ struct DatabaseSwitcherSheet: View {
                 .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.secondary)
 
-            if searchText.isEmpty {
+            if viewModel.searchText.isEmpty {
                 Text("No databases found")
                     .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
             } else {
                 Text("No matching databases")
                     .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
 
-                Text("No databases match \"\(searchText)\"")
+                Text("No databases match \"\(viewModel.searchText)\"")
                     .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
             }
@@ -265,7 +331,7 @@ struct DatabaseSwitcherSheet: View {
 
     // MARK: - Footer
 
-    private var footerView: some View {
+    private var footer: some View {
         HStack {
             Button("Cancel") {
                 dismiss()
@@ -277,7 +343,10 @@ struct DatabaseSwitcherSheet: View {
                 openSelectedDatabase()
             }
             .buttonStyle(.borderedProminent)
-            .disabled(selectedItem == nil || selectedItem == currentDatabase)
+            .disabled(
+                viewModel.selectedDatabase == nil || viewModel.selectedDatabase == currentDatabase
+            )
+            .keyboardShortcut(.return, modifiers: [])
         }
         .padding(12)
     }
@@ -285,65 +354,26 @@ struct DatabaseSwitcherSheet: View {
     // MARK: - Actions
 
     private func moveSelection(up: Bool) {
-        guard !filteredDatabases.isEmpty else { return }
+        let allDbs = viewModel.recentDatabaseMetadata + viewModel.allDatabases
+        guard !allDbs.isEmpty else { return }
 
-        // Determine the current index only if the selected item exists in the filtered list
-        if let selected = selectedItem,
-           let currentIndex = filteredDatabases.firstIndex(of: selected) {
+        if let selected = viewModel.selectedDatabase,
+            let currentIndex = allDbs.firstIndex(where: { $0.name == selected })
+        {
             if up {
                 let newIndex = max(0, currentIndex - 1)
-                selectedItem = filteredDatabases[newIndex]
+                viewModel.selectedDatabase = allDbs[newIndex].name
             } else {
-                let newIndex = min(filteredDatabases.count - 1, currentIndex + 1)
-                selectedItem = filteredDatabases[newIndex]
+                let newIndex = min(allDbs.count - 1, currentIndex + 1)
+                viewModel.selectedDatabase = allDbs[newIndex].name
             }
         } else {
-            // No valid current selection; choose a sensible starting point
-            selectedItem = up ? filteredDatabases.last : filteredDatabases.first
-        }
-    }
-
-    private func loadDatabases() {
-        isLoading = true
-        errorMessage = nil
-
-        Task {
-            do {
-                guard let driver = DatabaseManager.shared.activeDriver else {
-                    await MainActor.run {
-                        errorMessage = "No active connection"
-                        isLoading = false
-                    }
-                    return
-                }
-
-                let result = try await driver.fetchDatabases()
-
-                await MainActor.run {
-                    databases = result
-                    isLoading = false
-
-                    // Pre-select current database if available
-                    if let current = currentDatabase, result.contains(current) {
-                        selectedItem = current
-                    } else {
-                        selectedItem = result.first
-                    }
-
-                    // Trigger scroll to selection and focus
-                    shouldScrollToSelection = true
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isLoading = false
-                }
-            }
+            viewModel.selectedDatabase = up ? allDbs.last?.name : allDbs.first?.name
         }
     }
 
     private func openSelectedDatabase() {
-        guard let database = selectedItem else { return }
+        guard let database = viewModel.selectedDatabase else { return }
 
         // Don't reopen current database
         if database == currentDatabase {
@@ -351,24 +381,27 @@ struct DatabaseSwitcherSheet: View {
             return
         }
 
+        // Track access
+        viewModel.trackAccess(database: database)
+
+        // Call onSelect callback
         onSelect(database)
         dismiss()
     }
 }
-
 
 // MARK: - DoubleClickView
 
 /// NSViewRepresentable that detects double-clicks without interfering with native List selection
 private struct DoubleClickView: NSViewRepresentable {
     let onDoubleClick: () -> Void
-
+    
     func makeNSView(context: Context) -> NSView {
         let view = PassThroughDoubleClickView()
         view.onDoubleClick = onDoubleClick
         return view
     }
-
+    
     func updateNSView(_ nsView: NSView, context: Context) {
         (nsView as? PassThroughDoubleClickView)?.onDoubleClick = onDoubleClick
     }
@@ -376,7 +409,7 @@ private struct DoubleClickView: NSViewRepresentable {
 
 private class PassThroughDoubleClickView: NSView {
     var onDoubleClick: (() -> Void)?
-
+    
     override func mouseDown(with event: NSEvent) {
         if event.clickCount == 2 {
             onDoubleClick?()
@@ -391,15 +424,17 @@ private class PassThroughDoubleClickView: NSView {
 #Preview("MySQL Databases") {
     DatabaseSwitcherSheet(
         isPresented: .constant(true),
-        currentDatabase: "laravel",
-        databaseType: .mysql
-    )           { db in print("Selected: \(db)") }
+        currentDatabase: "production",
+        databaseType: .mysql,
+        connectionId: UUID()
+    ) { db in print("Selected: \(db)") }
 }
 
 #Preview("SQLite Empty") {
     DatabaseSwitcherSheet(
         isPresented: .constant(true),
         currentDatabase: nil,
-        databaseType: .sqlite
-    )           { db in print("Selected: \(db)") }
+        databaseType: .sqlite,
+        connectionId: UUID()
+    ) { db in print("Selected: \(db)") }
 }

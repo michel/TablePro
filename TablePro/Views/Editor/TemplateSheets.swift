@@ -24,7 +24,6 @@ struct SaveTemplateSheet: View {
 
             HStack {
                 Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.escape)
 
                 Spacer()
 
@@ -37,6 +36,10 @@ struct SaveTemplateSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 350)
+        .escapeKeyHandler(priority: .sheet) {
+            onCancel()
+            return .handled
+        }
     }
 }
 
@@ -92,7 +95,6 @@ struct LoadTemplateSheet: View {
 
             HStack {
                 Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.escape)
 
                 Spacer()
 
@@ -109,6 +111,10 @@ struct LoadTemplateSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 400)
+        .escapeKeyHandler(priority: .sheet) {
+            onCancel()
+            return .handled
+        }
     }
 }
 
@@ -138,7 +144,6 @@ struct ImportDDLSheet: View {
 
             HStack {
                 Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.escape)
 
                 Spacer()
 
@@ -153,6 +158,10 @@ struct ImportDDLSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 500)
+        .escapeKeyHandler(priority: .sheet) {
+            onCancel()
+            return .handled
+        }
     }
 }
 
@@ -196,7 +205,6 @@ struct DuplicateTableSheet: View {
 
             HStack {
                 Button("Cancel", action: onCancel)
-                    .keyboardShortcut(.escape)
 
                 Spacer()
 
@@ -211,5 +219,9 @@ struct DuplicateTableSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 400)
+        .escapeKeyHandler(priority: .sheet) {
+            onCancel()
+            return .handled
+        }
     }
 }
