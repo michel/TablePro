@@ -296,21 +296,21 @@ final class DatabaseManager: ObservableObject {
         let statements = try generator.generate(changes: changes)
         
         // Execute in transaction
-        try await driver.execute(query: "BEGIN")
+        try await driver.beginTransaction()
         
         do {
             for stmt in statements {
                 try await driver.execute(query: stmt.sql)
             }
             
-            try await driver.execute(query: "COMMIT")
+            try await driver.commitTransaction()
             
             // Post notification to refresh UI
             NotificationCenter.default.post(name: .refreshData, object: nil)
             
         } catch {
             // Rollback on error
-            try? await driver.execute(query: "ROLLBACK")
+            try? await driver.rollbackTransaction()
             throw DatabaseError.queryFailed("Schema change failed: \(error.localizedDescription)")
         }
     }

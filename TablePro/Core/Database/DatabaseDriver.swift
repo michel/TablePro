@@ -78,6 +78,17 @@ protocol DatabaseDriver: AnyObject {
     
     /// Create a new database
     func createDatabase(name: String, charset: String, collation: String?) async throws
+    
+    // MARK: - Transaction Management
+    
+    /// Begin a transaction
+    func beginTransaction() async throws
+    
+    /// Commit the current transaction
+    func commitTransaction() async throws
+    
+    /// Rollback the current transaction
+    func rollbackTransaction() async throws
 }
 
 /// Default implementation for common operations
@@ -94,6 +105,30 @@ extension DatabaseDriver {
         } catch {
             throw error
         }
+    }
+    
+    // MARK: - Default Transaction Implementation
+    
+    /// Default transaction implementation using database-specific SQL
+    func beginTransaction() async throws {
+        let sql: String
+        switch connection.type {
+        case .mysql, .mariadb:
+            sql = "START TRANSACTION"
+        case .postgresql:
+            sql = "BEGIN"
+        case .sqlite:
+            sql = "BEGIN"
+        }
+        _ = try await execute(query: sql)
+    }
+    
+    func commitTransaction() async throws {
+        _ = try await execute(query: "COMMIT")
+    }
+    
+    func rollbackTransaction() async throws {
+        _ = try await execute(query: "ROLLBACK")
     }
 }
 

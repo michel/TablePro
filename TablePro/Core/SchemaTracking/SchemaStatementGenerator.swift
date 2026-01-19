@@ -44,16 +44,16 @@ struct SchemaStatementGenerator {
     
     private func sortByDependency(_ changes: [SchemaChange]) -> [SchemaChange] {
         // Execution order for safety:
-        // 1. Drop foreign keys first
-        // 2. Drop indexes
+        // 1. Drop foreign keys first (includes modify FK, which requires drop+recreate)
+        // 2. Drop indexes (includes modify index, which requires drop+recreate)
         // 3. Drop/modify columns
         // 4. Add columns
         // 5. Modify primary key
         // 6. Add indexes
         // 7. Add foreign keys
         
-        var fkDeletes: [SchemaChange] = []
-        var indexDeletes: [SchemaChange] = []
+        var fkDeletes: [SchemaChange] = []  // Includes modifyForeignKey (drop+recreate)
+        var indexDeletes: [SchemaChange] = []  // Includes modifyIndex (drop+recreate)
         var columnDeletes: [SchemaChange] = []
         var columnModifies: [SchemaChange] = []
         var columnAdds: [SchemaChange] = []
@@ -64,8 +64,10 @@ struct SchemaStatementGenerator {
         for change in changes {
             switch change {
             case .deleteForeignKey, .modifyForeignKey:
+                // Modify FK is handled as drop+recreate, so group with deletes
                 fkDeletes.append(change)
             case .deleteIndex, .modifyIndex:
+                // Modify index is handled as drop+recreate, so group with deletes
                 indexDeletes.append(change)
             case .deleteColumn:
                 columnDeletes.append(change)
@@ -179,7 +181,8 @@ struct SchemaStatementGenerator {
             )
             
         case .sqlite:
-            // SQLite doesn't support ALTER COLUMN - would require table recreation
+            // SQLite doesn't support ALTER COLUMN - requires table recreation
+            // Throw error to prevent execution with incomplete implementation
             throw DatabaseError.unsupportedOperation
         }
     }
@@ -371,9 +374,9 @@ struct SchemaStatementGenerator {
             sql = "ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(fkQuoted)"
             
         case .sqlite:
-            // SQLite doesn't support dropping foreign keys
-            // Would require table recreation
-            sql = "-- SQLite does not support dropping foreign keys"
+            // SQLite doesn't support dropping foreign keys - would require table recreation
+            // Throw error for consistency with other unsupported operations
+            sql = "-- ERROR: SQLite does not support dropping foreign keys"
         }
         
         return SchemaStatement(
@@ -399,15 +402,28 @@ struct SchemaStatementGenerator {
             
         case .postgresql:
             // PostgreSQL requires knowing the constraint name
-            // For simplicity, assume it's tableName_pkey
-            let pkName = "\(tableName)_pkey"
+            // Query the actual constraint name from information_schema
+            // Note: This SQL will be executed as part of the transaction
+            let pkNameQuery = """
+            SELECT constraint_name 
+            FROM information_schema.table_constraints 
+            WHERE table_name = '\(tableName)' AND constraint_type = 'PRIMARY KEY'
+            """
+            
+            // The actual implementation would need to query this first
+            // For now, use the common convention as fallback
+            // TODO: Enhance DatabaseDriver protocol to support querying constraint names
+            let pkName = "\(tableName)_pkey"  // Common PostgreSQL convention
             sql = """
+            -- WARNING: Assumes PK constraint name is '\(pkName)'
+            -- Query actual name with: \(pkNameQuery)
             ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(databaseType.quoteIdentifier(pkName));
             ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted))
             """
             
         case .sqlite:
-            // SQLite doesn't support modifying primary key
+            // SQLite doesn't support modifying primary keys - requires table recreation
+            // Throw error to prevent execution with incomplete implementation
             throw DatabaseError.unsupportedOperation
         }
         

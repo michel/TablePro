@@ -41,14 +41,12 @@ actor SQLSchemaProvider {
             // Pre-load columns for ALL tables asynchronously
             // Use TaskGroup with concurrency limit to avoid overwhelming the database
             let maxConcurrentTasks = 20  // Limit parallel requests
-            var pendingTables = Array(tables)
             
             await withTaskGroup(of: (String, [ColumnInfo]?).self) { group in
-                // Start initial batch
-                var activeTaskCount = 0
-                while activeTaskCount < min(maxConcurrentTasks, pendingTables.count) {
-                    let table = pendingTables.removeFirst()
-                    activeTaskCount += 1
+                var index = 0
+                
+                // Seed initial batch
+                for table in tables.prefix(maxConcurrentTasks) {
                     group.addTask {
                         do {
                             let columns = try await driver.fetchColumns(table: table.name)
@@ -57,17 +55,19 @@ actor SQLSchemaProvider {
                             return (table.name.lowercased(), nil)
                         }
                     }
+                    index += 1
                 }
                 
-                // As tasks complete, start new ones
+                // Process results and spawn new tasks
                 for await (tableName, columns) in group {
                     if let columns = columns {
                         columnCache[tableName] = columns
                     }
                     
-                    // Start next task if any remain
-                    if !pendingTables.isEmpty {
-                        let table = pendingTables.removeFirst()
+                    // Add next task if available
+                    if index < tables.count {
+                        let table = tables[index]
+                        index += 1
                         group.addTask {
                             do {
                                 let columns = try await driver.fetchColumns(table: table.name)

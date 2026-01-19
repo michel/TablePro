@@ -53,11 +53,13 @@ final class AnyChangeManager: ObservableObject {
             dataManager.consumeChangedRowIndices()
         }
         
-        // Sync published properties
+        // Sync published properties - store in cancellables to prevent retain cycles
         dataManager.$hasChanges
-            .assign(to: &$hasChanges)
+            .assign(to: \.hasChanges, on: self)
+            .store(in: &cancellables)
         dataManager.$reloadVersion
-            .assign(to: &$reloadVersion)
+            .assign(to: \.reloadVersion, on: self)
+            .store(in: &cancellables)
     }
     
     /// Wrap a StructureChangeManager
@@ -73,11 +75,13 @@ final class AnyChangeManager: ObservableObject {
             structureManager.consumeChangedRowIndices()
         }
         
-        // Sync published properties
+        // Sync published properties - store in cancellables to prevent retain cycles
         structureManager.$hasChanges
-            .assign(to: &$hasChanges)
+            .assign(to: \.hasChanges, on: self)
+            .store(in: &cancellables)
         structureManager.$reloadVersion
-            .assign(to: &$reloadVersion)
+            .assign(to: \.reloadVersion, on: self)
+            .store(in: &cancellables)
     }
     
     // MARK: - Public API
