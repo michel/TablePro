@@ -81,10 +81,9 @@ struct DatabaseSwitcherSheet: View {
                 await viewModel.refreshDatabases()
             }
         }
-        .escapeKeyHandler(priority: .sheet) {
-            // Nested sheet has higher priority (.nestedSheet), so this only runs when no nested sheets are open
+        .onExitCommand {
+            // SwiftUI handles sheet priority automatically - no nested sheets take precedence
             dismiss()
-            return .handled
         }
         .onKeyPress(.return) {
             openSelectedDatabase()
@@ -357,18 +356,21 @@ struct DatabaseSwitcherSheet: View {
         let allDbs = viewModel.recentDatabaseMetadata + viewModel.allDatabases
         guard !allDbs.isEmpty else { return }
 
-        if let selected = viewModel.selectedDatabase,
-            let currentIndex = allDbs.firstIndex(where: { $0.name == selected })
-        {
-            if up {
-                let newIndex = max(0, currentIndex - 1)
-                viewModel.selectedDatabase = allDbs[newIndex].name
+        // Defer state update to avoid "Publishing changes from within view updates" warning
+        Task { @MainActor in
+            if let selected = viewModel.selectedDatabase,
+                let currentIndex = allDbs.firstIndex(where: { $0.name == selected })
+            {
+                if up {
+                    let newIndex = max(0, currentIndex - 1)
+                    viewModel.selectedDatabase = allDbs[newIndex].name
+                } else {
+                    let newIndex = min(allDbs.count - 1, currentIndex + 1)
+                    viewModel.selectedDatabase = allDbs[newIndex].name
+                }
             } else {
-                let newIndex = min(allDbs.count - 1, currentIndex + 1)
-                viewModel.selectedDatabase = allDbs[newIndex].name
+                viewModel.selectedDatabase = up ? allDbs.last?.name : allDbs.first?.name
             }
-        } else {
-            viewModel.selectedDatabase = up ? allDbs.last?.name : allDbs.first?.name
         }
     }
 

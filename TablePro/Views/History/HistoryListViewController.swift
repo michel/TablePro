@@ -397,14 +397,14 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
         guard count > 0 else { return }
 
-        let alert = NSAlert()
-        alert.messageText = "Clear All \(displayMode == .history ? "History" : "Bookmarks")?"
-        alert.informativeText = "This will permanently delete \(count) \(itemName). This action cannot be undone."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Clear All")
-        alert.addButton(withTitle: "Cancel")
+        let confirmed = AlertHelper.confirmDestructive(
+            title: "Clear All \(displayMode == .history ? "History" : "Bookmarks")?",
+            message: "This will permanently delete \(count) \(itemName). This action cannot be undone.",
+            confirmButton: "Clear All",
+            cancelButton: "Cancel"
+        )
 
-        if alert.runModal() == .alertFirstButtonReturn {
+        if confirmed {
             _ = dataProvider.clearAll()
         }
     }
@@ -699,7 +699,8 @@ extension HistoryListViewController: HistoryTableViewKeyboardDelegate {
         editBookmarkForSelectedRow()
     }
 
-    func handleEscapeKey() {
+    /// Handle ESC key - clear search or selection (responder chain method)
+    @objc override func cancelOperation(_ sender: Any?) {
         if !searchText.isEmpty {
             searchField.stringValue = ""
             searchText = ""

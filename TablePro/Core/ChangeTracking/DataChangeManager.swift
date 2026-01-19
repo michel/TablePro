@@ -18,6 +18,9 @@ final class DataChangeManager: ObservableObject {
     @Published var changes: [RowChange] = []
     @Published var hasChanges: Bool = false
     @Published var reloadVersion: Int = 0  // Incremented to trigger table reload
+    
+    // Track which rows changed since last reload for granular updates
+    private(set) var changedRowIndices: Set<Int> = []
 
     var tableName: String = ""
     var primaryKeyColumn: String?
@@ -57,6 +60,13 @@ final class DataChangeManager: ObservableObject {
     private func cellKey(rowIndex: Int, columnIndex: Int) -> String {
         "\(rowIndex)-\(columnIndex)"
     }
+    
+    /// Consume and clear changed row indices (for granular table reloads)
+    func consumeChangedRowIndices() -> Set<Int> {
+        let indices = changedRowIndices
+        changedRowIndices.removeAll()
+        return indices
+    }
 
     // MARK: - Configuration
 
@@ -67,6 +77,7 @@ final class DataChangeManager: ObservableObject {
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
         insertedRowData.removeAll()
+        changedRowIndices.removeAll()
         undoManager.clearAll()
         hasChanges = false
         reloadVersion += 1
@@ -88,6 +99,7 @@ final class DataChangeManager: ObservableObject {
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
         insertedRowData.removeAll()
+        changedRowIndices.removeAll()
         undoManager.clearAll()
 
         changes.removeAll()
@@ -156,6 +168,7 @@ final class DataChangeManager: ObservableObject {
                 previousValue: oldValue,
                 newValue: newValue
             ))
+            changedRowIndices.insert(rowIndex)
             hasChanges = !changes.isEmpty
             return
         }
@@ -188,6 +201,7 @@ final class DataChangeManager: ObservableObject {
                 changes[existingIndex].cellChanges.append(cellChange)
                 modifiedCells.insert(key)
             }
+            changedRowIndices.insert(rowIndex)
         } else {
             let rowChange = RowChange(
                 rowIndex: rowIndex,
@@ -197,6 +211,7 @@ final class DataChangeManager: ObservableObject {
             )
             changes.append(rowChange)
             modifiedCells.insert(key)
+            changedRowIndices.insert(rowIndex)
         }
 
         pushUndo(.cellEdit(
@@ -216,6 +231,7 @@ final class DataChangeManager: ObservableObject {
         let rowChange = RowChange(rowIndex: rowIndex, type: .delete, originalRow: originalRow)
         changes.append(rowChange)
         deletedRowIndices.insert(rowIndex)
+        changedRowIndices.insert(rowIndex)  // Track for granular reload
         pushUndo(.rowDeletion(rowIndex: rowIndex, originalRow: originalRow))
         hasChanges = true
         reloadVersion += 1
@@ -238,6 +254,7 @@ final class DataChangeManager: ObservableObject {
             let rowChange = RowChange(rowIndex: rowIndex, type: .delete, originalRow: originalRow)
             changes.append(rowChange)
             deletedRowIndices.insert(rowIndex)
+            changedRowIndices.insert(rowIndex)  // Track for granular reload
             batchData.append((rowIndex: rowIndex, originalRow: originalRow))
         }
 
@@ -251,6 +268,7 @@ final class DataChangeManager: ObservableObject {
         let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: [])
         changes.append(rowChange)
         insertedRowIndices.insert(rowIndex)
+        changedRowIndices.insert(rowIndex)  // Track for granular reload
         pushUndo(.rowInsertion(rowIndex: rowIndex))
         hasChanges = true
     }

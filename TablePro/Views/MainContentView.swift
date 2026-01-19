@@ -87,14 +87,6 @@ struct MainContentView: View {
     var body: some View {
         mainContentView
             .tableProToolbar(state: toolbarState)
-            .mainContentAlerts(
-                coordinator: coordinator,
-                connection: connection,
-                pendingTruncates: $pendingTruncates,
-                pendingDeletes: $pendingDeletes,
-                tables: tables,
-                selectedTables: selectedTables
-            )
             .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
                 handleTabSelectionChange(from: oldTabId, to: newTabId)
@@ -410,6 +402,13 @@ struct MainContentView: View {
                 if let index = tabManager.selectedTabIndex {
                     tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
                 }
+                
+                // Show error alert to user
+                AlertHelper.showErrorSheet(
+                    title: "Save Failed",
+                    message: error.localizedDescription,
+                    window: NSApplication.shared.keyWindow
+                )
             }
         }
     }
@@ -501,12 +500,11 @@ struct MainContentView: View {
             
         } catch {
             // Show error using macOS alert
-            let alert = NSAlert()
-            alert.messageText = "Failed to Save Changes"
-            alert.informativeText = error.localizedDescription
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
+            AlertHelper.showErrorSheet(
+                title: "Failed to Save Changes",
+                message: error.localizedDescription,
+                window: nil
+            )
         }
     }
     

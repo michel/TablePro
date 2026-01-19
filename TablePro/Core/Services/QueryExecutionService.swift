@@ -89,28 +89,18 @@ final class QueryExecutionService: ObservableObject {
                     }
                 }
 
-                // Deep copy all data to prevent C buffer retention issues
-                // result.rows is [[String?]] - raw arrays, not QueryResultRow
-                var safeRows: [QueryResultRow] = []
-                for row in result.rows {
-                    var safeValues: [String?] = []
-                    for val in row {
-                        if let v = val {
-                            safeValues.append(String(v))
-                        } else {
-                            safeValues.append(nil)
-                        }
-                    }
-                    safeRows.append(QueryResultRow(values: safeValues))
-                }
+                // No need for deep copy - database drivers already return Swift-owned strings
+                // MariaDBConnection performs deep copying at the C library level (see lines 461-475)
+                // PostgreSQL and SQLite also return properly owned String objects
+                let rows = result.rows.map { QueryResultRow(values: $0) }
 
-                let safeResult = QueryExecutionResult(
-                    columns: result.columns.map { String($0) },
-                    rows: safeRows,
+                let executionResult = QueryExecutionResult(
+                    columns: result.columns,
+                    rows: rows,
                     executionTime: result.executionTime,
-                    columnDefaults: columnDefaults.mapValues { $0.map { String($0) } },
+                    columnDefaults: columnDefaults,
                     totalRowCount: totalRowCount,
-                    tableName: tableName.map { String($0) },
+                    tableName: tableName,
                     isEditable: isEditable
                 )
 
@@ -118,7 +108,7 @@ final class QueryExecutionService: ObservableObject {
                 guard !Task.isCancelled else {
                     await MainActor.run {
                         isExecuting = false
-                        executionTime = safeResult.executionTime
+                        executionTime = executionResult.executionTime
                     }
                     return
                 }
@@ -130,10 +120,10 @@ final class QueryExecutionService: ObservableObject {
 
                 await MainActor.run {
                     isExecuting = false
-                    executionTime = safeResult.executionTime
+                    executionTime = executionResult.executionTime
                 }
 
-                await onSuccess(safeResult)
+                await onSuccess(executionResult)
             } catch {
                 guard capturedGeneration == queryGeneration else { return }
 

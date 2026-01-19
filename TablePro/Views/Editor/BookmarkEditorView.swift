@@ -5,6 +5,7 @@
 //  Native SwiftUI form for creating/editing bookmarks
 //
 
+import AppKit
 import SwiftUI
 
 struct BookmarkEditorView: View {
@@ -21,7 +22,6 @@ struct BookmarkEditorView: View {
     @State private var name: String
     @State private var tags: String
     @State private var notes: String
-    @State private var showingValidationAlert = false
 
     @FocusState private var focusedField: Field?
 
@@ -127,11 +127,6 @@ struct BookmarkEditorView: View {
         .onAppear {
             focusedField = .name
         }
-        .alert("Name Required", isPresented: $showingValidationAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Please enter a name for this bookmark.")
-        }
     }
 
     // MARK: - Actions
@@ -140,7 +135,11 @@ struct BookmarkEditorView: View {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedName.isEmpty else {
-            showingValidationAlert = true
+            AlertHelper.showInfoSheet(
+                title: "Name Required",
+                message: "Please enter a name for this bookmark.",
+                window: nil
+            )
             return
         }
 

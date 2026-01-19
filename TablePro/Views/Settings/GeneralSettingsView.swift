@@ -17,20 +17,6 @@ struct GeneralSettingsView: View {
                     Text(behavior.displayName).tag(behavior)
                 }
             }
-
-            Section("Confirmations") {
-                Toggle("Confirm before disconnecting", isOn: $settings.confirmBeforeDisconnecting)
-
-                Toggle(
-                    "Confirm before dangerous queries (DROP, TRUNCATE, DELETE)",
-                    isOn: $settings.confirmBeforeDangerousQuery
-                )
-
-                Toggle(
-                    "Confirm before closing with unsaved changes",
-                    isOn: $settings.confirmBeforeClosingUnsaved
-                )
-            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)

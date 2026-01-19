@@ -229,12 +229,11 @@ final class BookmarkEditorController: NSViewController {
         let name = nameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !name.isEmpty else {
-            let alert = NSAlert()
-            alert.messageText = "Name Required"
-            alert.informativeText = "Please enter a name for this bookmark."
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "OK")
-            alert.beginSheetModal(for: view.window!)
+            AlertHelper.showInfoSheet(
+                title: "Name Required",
+                message: "Please enter a name for this bookmark.",
+                window: view.window
+            )
             return
         }
 

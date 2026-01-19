@@ -69,7 +69,9 @@ struct SQLPreviewSheet: View {
         }
         .padding(16)
         .frame(width: 480, height: 300)
-        .escapeKeyDismiss(priority: .sheet)
+        .onExitCommand {
+            dismiss()
+        }
     }
 
     private func copyToClipboard() {

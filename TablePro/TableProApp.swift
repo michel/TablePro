@@ -95,7 +95,8 @@ struct PasteboardCommands: Commands {
             .keyboardShortcut("a", modifiers: .command)
 
             Button("Clear Selection") {
-                NotificationCenter.default.post(name: .clearSelection, object: nil)
+                // Use responder chain - cancelOperation is the standard ESC action
+                NSApp.sendAction(#selector(NSResponder.cancelOperation(_:)), to: nil, from: nil)
             }
             .keyboardShortcut(.escape, modifiers: [])
         }
@@ -151,7 +152,7 @@ struct TableProApp: App {
                 .environmentObject(appState)
                 .background(OpenWindowHandler())
                 .tint(accentTint)
-                .escapeKeySystem() // Install global ESC key handling
+                // ESC key handling now uses native .onExitCommand and cancelOperation(_:)
         }
         .windowStyle(.automatic)
         .defaultSize(width: 1_200, height: 800)
@@ -163,6 +164,22 @@ struct TableProApp: App {
         }
 
         .commands {
+            // MARK: - Keyboard Shortcut Architecture
+            //
+            // This app uses a hybrid approach for keyboard shortcuts:
+            //
+            // 1. **Responder Chain** (Apple Standard):
+            //    - Standard actions: copy, paste, undo, delete, cancelOperation (ESC)
+            //    - Context-aware: First responder handles action appropriately
+            //    - Used for: Edit menu operations, ESC key
+            //
+            // 2. **NotificationCenter** (For specific use cases):
+            //    - Data operations needing batched undo: addNewRow, deleteSelectedRows, saveChanges
+            //    - UI state broadcasts: View menu toggles (multiple listeners)
+            //    - Cross-layer coordination: File menu operations (window management)
+            //
+            // Migration from custom ESC system → native cancelOperation(_:) completed in Phase 4
+            
             // File menu
             CommandGroup(replacing: .newItem) {
                 Button("New Connection...") {
@@ -293,7 +310,9 @@ struct TableProApp: App {
                 .disabled(!appState.hasTableSelection)
             }
 
-            // View menu
+            // View menu - using NotificationCenter for UI state broadcasts
+            // Note: These are UI state changes that multiple views need to know about,
+            // so NotificationCenter is the appropriate pattern here (not responder chain)
             CommandGroup(after: .sidebar) {
                 Button("Toggle Table Browser") {
                     NotificationCenter.default.post(name: .toggleTableBrowser, object: nil)
@@ -333,6 +352,7 @@ extension Notification.Name {
     static let closeCurrentTab = Notification.Name("closeCurrentTab")
     static let deselectConnection = Notification.Name("deselectConnection")
     static let saveChanges = Notification.Name("saveChanges")
+    static let saveStructureChanges = Notification.Name("saveStructureChanges")
     static let refreshData = Notification.Name("refreshData")
     static let refreshAll = Notification.Name("refreshAll")
     static let toggleTableBrowser = Notification.Name("toggleTableBrowser")

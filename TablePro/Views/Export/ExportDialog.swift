@@ -23,8 +23,6 @@ struct ExportDialog: View {
     @State private var databaseItems: [ExportDatabaseItem] = []
     @State private var isLoading = true
     @State private var isExporting = false
-    @State private var showError = false
-    @State private var errorMessage = ""
     @State private var showProgressDialog = false
     @State private var showSuccessDialog = false
     @State private var exportedFileURL: URL?
@@ -63,20 +61,13 @@ struct ExportDialog: View {
         }
         .frame(width: dialogWidth)
         .background(Color(nsColor: .windowBackgroundColor))
-        .escapeKeyHandler(priority: .sheet) {
+        .onExitCommand {
             if !isExporting {
                 isPresented = false
-                return .handled
             }
-            return .ignored
         }
         .task {
             await loadDatabaseItems()
-        }
-        .alert("Export Error", isPresented: $showError) {
-            Button("OK") { }
-        } message: {
-            Text(errorMessage)
         }
         .sheet(isPresented: $showProgressDialog) {
             ExportProgressView(
@@ -387,8 +378,11 @@ struct ExportDialog: View {
     private func loadDatabaseItems() async {
         guard let driver = DatabaseManager.shared.activeDriver else {
             isLoading = false
-            errorMessage = "Not connected to database"
-            showError = true
+            AlertHelper.showErrorSheet(
+                title: "Export Error",
+                message: "Not connected to database",
+                window: nil
+            )
             return
         }
 
@@ -483,8 +477,11 @@ struct ExportDialog: View {
             }
         } catch {
             isLoading = false
-            errorMessage = "Failed to load databases: \(error.localizedDescription)"
-            showError = true
+            AlertHelper.showErrorSheet(
+                title: "Export Error",
+                message: "Failed to load databases: \(error.localizedDescription)",
+                window: nil
+            )
         }
     }
 
@@ -575,8 +572,11 @@ struct ExportDialog: View {
     @MainActor
     private func startExport(to url: URL) async {
         guard let driver = DatabaseManager.shared.activeDriver else {
-            errorMessage = "Not connected to database"
-            showError = true
+            AlertHelper.showErrorSheet(
+                title: "Export Error",
+                message: "Not connected to database",
+                window: nil
+            )
             return
         }
 
@@ -612,8 +612,11 @@ struct ExportDialog: View {
         } catch {
             showProgressDialog = false
             isExporting = false
-            errorMessage = error.localizedDescription
-            showError = true
+            AlertHelper.showErrorSheet(
+                title: "Export Error",
+                message: error.localizedDescription,
+                window: nil
+            )
         }
     }
 

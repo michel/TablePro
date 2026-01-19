@@ -27,16 +27,22 @@ struct RowVisualState {
 /// High-performance table view using AppKit NSTableView
 struct DataGridView: NSViewRepresentable {
     let rowProvider: InMemoryRowProvider
-    @ObservedObject var changeManager: DataChangeManager
+    @ObservedObject var changeManager: AnyChangeManager
     let isEditable: Bool
     var onCommit: ((String) -> Void)?
     var onRefresh: (() -> Void)?
     var onCellEdit: ((Int, Int, String?) -> Void)?
     var onDeleteRows: ((Set<Int>) -> Void)?
+    var onCopyRows: ((Set<Int>) -> Void)?
+    var onPasteRows: (() -> Void)?
+    var onUndo: (() -> Void)?
+    var onRedo: (() -> Void)?
     var onSort: ((Int, Bool) -> Void)?
     var onAddRow: (() -> Void)?
     var onUndoInsert: ((Int) -> Void)?
     var onFilterColumn: ((String) -> Void)?
+    var getVisualState: ((Int) -> RowVisualState)?
+    var dropdownColumns: Set<Int>? // Column indices that should use YES/NO dropdowns
 
     @Binding var selectedRowIndices: Set<Int>
     @Binding var sortState: SortState
@@ -133,7 +139,10 @@ struct DataGridView: NSViewRepresentable {
         let newRowCount = rowProvider.totalRowCount
         let newColumnCount = rowProvider.columns.count
 
-        let needsReload = oldRowCount != newRowCount || oldColumnCount != newColumnCount || versionChanged
+        // Only do full reload if row/column count changed or columns changed
+        // For cell edits (versionChanged but same count), use granular reload
+        let structureChanged = oldRowCount != newRowCount || oldColumnCount != newColumnCount
+        let needsFullReload = structureChanged
 
         coordinator.rowProvider = rowProvider
         coordinator.updateCache()
@@ -142,10 +151,12 @@ struct DataGridView: NSViewRepresentable {
         coordinator.onCommit = onCommit
         coordinator.onRefresh = onRefresh
         coordinator.onCellEdit = onCellEdit
+        coordinator.onDeleteRows = onDeleteRows  // Added: pass delete callback
         coordinator.onSort = onSort
         coordinator.onAddRow = onAddRow
         coordinator.onUndoInsert = onUndoInsert
         coordinator.onFilterColumn = onFilterColumn
+        coordinator.getVisualState = getVisualState
 
         coordinator.rebuildVisualStateCache()
 
@@ -196,8 +207,21 @@ struct DataGridView: NSViewRepresentable {
             }
         }
 
-        if needsReload {
+        if needsFullReload {
             tableView.reloadData()
+        } else if versionChanged {
+            // Granular reload: only reload rows that changed
+            let changedRows = changeManager.consumeChangedRowIndices()
+            if !changedRows.isEmpty {
+                // Some rows changed → granular reload for performance
+                let rowIndexSet = IndexSet(changedRows)
+                let columnIndexSet = IndexSet(integersIn: 0..<tableView.numberOfColumns)
+                tableView.reloadData(forRowIndexes: rowIndexSet, columnIndexes: columnIndexSet)
+            } else if !changeManager.hasChanges {
+                // Version changed but no changed rows → likely cleared changes (refresh)
+                // Do full reload to clear visual states
+                tableView.reloadData()
+            }
         }
 
         coordinator.lastReloadVersion = changeManager.reloadVersion
@@ -234,7 +258,12 @@ struct DataGridView: NSViewRepresentable {
             selectedRowIndices: $selectedRowIndices,
             onCommit: onCommit,
             onRefresh: onRefresh,
-            onCellEdit: onCellEdit
+            onCellEdit: onCellEdit,
+            onDeleteRows: onDeleteRows,
+            onCopyRows: onCopyRows,
+            onPasteRows: onPasteRows,
+            onUndo: onUndo,
+            onRedo: onRedo
         )
     }
 }
@@ -246,15 +275,32 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                                   NSControlTextEditingDelegate, NSTextFieldDelegate, NSMenuDelegate
 {
     var rowProvider: InMemoryRowProvider
-    var changeManager: DataChangeManager
+    var changeManager: AnyChangeManager
     var isEditable: Bool
     var onCommit: ((String) -> Void)?
     var onRefresh: (() -> Void)?
     var onCellEdit: ((Int, Int, String?) -> Void)?
+    var onDeleteRows: ((Set<Int>) -> Void)?
+    var onCopyRows: ((Set<Int>) -> Void)?
+    var onPasteRows: (() -> Void)?
+    var onUndo: (() -> Void)?
+    var onRedo: (() -> Void)?
     var onSort: ((Int, Bool) -> Void)?
     var onAddRow: (() -> Void)?
     var onUndoInsert: ((Int) -> Void)?
     var onFilterColumn: ((String) -> Void)?
+    var getVisualState: ((Int) -> RowVisualState)?
+    
+    /// Check if undo is available
+    func canUndo() -> Bool {
+        return changeManager.hasChanges
+    }
+    
+    /// Check if redo is available
+    func canRedo() -> Bool {
+        // TODO: Implement redo tracking in change manager
+        return false
+    }
 
     weak var tableView: NSTableView?
     var cellFactory: DataGridCellFactory?
@@ -277,12 +323,17 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     init(
         rowProvider: InMemoryRowProvider,
-        changeManager: DataChangeManager,
+        changeManager: AnyChangeManager,
         isEditable: Bool,
         selectedRowIndices: Binding<Set<Int>>,
         onCommit: ((String) -> Void)?,
         onRefresh: (() -> Void)?,
-        onCellEdit: ((Int, Int, String?) -> Void)?
+        onCellEdit: ((Int, Int, String?) -> Void)?,
+        onDeleteRows: ((Set<Int>) -> Void)?,
+        onCopyRows: ((Set<Int>) -> Void)?,
+        onPasteRows: (() -> Void)?,
+        onUndo: (() -> Void)?,
+        onRedo: (() -> Void)?
     ) {
         self.rowProvider = rowProvider
         self.changeManager = changeManager
@@ -291,6 +342,11 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         self.onCommit = onCommit
         self.onRefresh = onRefresh
         self.onCellEdit = onCellEdit
+        self.onDeleteRows = onDeleteRows
+        self.onCopyRows = onCopyRows
+        self.onPasteRows = onPasteRows
+        self.onUndo = onUndo
+        self.onRedo = onRedo
         super.init()
         updateCache()
         
@@ -300,10 +356,28 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            // Reload table to apply new date format or NULL display settings
-            // Note: Row height and alternate rows are handled in updateView, but we
-            // reload anyway for simplicity. In practice, settings changes are infrequent.
-            self?.tableView?.reloadData()
+            guard let self = self, let tableView = self.tableView else { return }
+            
+            // Capture settings on main actor to avoid Sendable warning
+            Task { @MainActor in
+                let newRowHeight = CGFloat(AppSettingsManager.shared.dataGrid.rowHeight.rawValue)
+                
+                // Only reload if row height changed (requires full reload)
+                if tableView.rowHeight != newRowHeight {
+                    tableView.rowHeight = newRowHeight
+                    tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0..<tableView.numberOfRows))
+                } else {
+                    // For other settings (date format, NULL display), just reload visible rows
+                    let visibleRect = tableView.visibleRect
+                    let visibleRange = tableView.rows(in: visibleRect)
+                    if visibleRange.length > 0 {
+                        tableView.reloadData(
+                            forRowIndexes: IndexSet(integersIn: visibleRange.location..<(visibleRange.location + visibleRange.length)),
+                            columnIndexes: IndexSet(integersIn: 0..<tableView.numberOfColumns)
+                        )
+                    }
+                }
+            }
         }
     }
     
@@ -323,14 +397,26 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     @MainActor
     func rebuildVisualStateCache() {
         rowVisualStateCache.removeAll(keepingCapacity: true)
-        guard changeManager.hasChanges else { return }
+        
+        // If custom getVisualState provided, don't build cache (use callback instead)
+        if getVisualState != nil {
+            return
+        }
+        
+        // Always clear cache, then rebuild if there are changes
+        // This ensures deleted state is cleared when changeManager.clearChanges() is called
+        guard changeManager.hasChanges else { 
+            // No changes → cache is now empty (cleared above)
+            return 
+        }
 
         for change in changeManager.changes {
-            let rowIndex = change.rowIndex
-            let isDeleted = change.type == .delete
-            let isInserted = change.type == .insert
-            let modifiedColumns: Set<Int> = change.type == .update
-                ? Set(change.cellChanges.map { $0.columnIndex })
+            guard let rowChange = change as? RowChange else { continue }
+            let rowIndex = rowChange.rowIndex
+            let isDeleted = rowChange.type == .delete
+            let isInserted = rowChange.type == .insert
+            let modifiedColumns: Set<Int> = rowChange.type == .update
+                ? Set(rowChange.cellChanges.map { $0.columnIndex })
                 : []
 
             rowVisualStateCache[rowIndex] = RowVisualState(
@@ -342,7 +428,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     }
 
     func visualState(for row: Int) -> RowVisualState {
-        rowVisualStateCache[row] ?? .empty
+        // If custom callback provided, use it
+        if let callback = getVisualState {
+            return callback(row)
+        }
+        // Otherwise use cache
+        return rowVisualStateCache[row] ?? .empty
     }
 
     // MARK: - NSTableViewDataSource
@@ -653,7 +744,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         let columnName = rowProvider.columns[columnIndex]
         let oldValue = rowProvider.row(at: rowIndex)?.value(at: columnIndex)
-        let originalRow = rowProvider.row(at: rowIndex)?.values
+        let originalRow = rowProvider.row(at: rowIndex)?.values ?? []
 
         changeManager.recordCellChange(
             rowIndex: rowIndex,
@@ -695,7 +786,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             ],
             columns: ["id", "name", "email"]
         ),
-        changeManager: DataChangeManager(),
+        changeManager: AnyChangeManager(dataManager: DataChangeManager()),
         isEditable: true,
         selectedRowIndices: .constant([]),
         sortState: .constant(SortState()),

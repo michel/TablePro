@@ -41,17 +41,12 @@ final class MainContentCoordinator: ObservableObject {
     @Published var schemaProvider = SQLSchemaProvider()
     @Published var cursorPosition: Int = 0
     @Published var tableMetadata: TableMetadata?
-    @Published var pendingDiscardAction: DiscardAction?
     // Removed: showErrorAlert and errorAlertMessage - errors now display inline
     @Published var showDatabaseSwitcher = false
     @Published var showExportDialog = false
     @Published var showImportDialog = false
     @Published var importFileURL: URL?
     @Published var needsLazyLoad = false
-
-    // Dangerous query confirmation
-    @Published var showDangerousQueryAlert = false
-    @Published var pendingDangerousQuery: String?
 
     // MARK: - Internal State
 
@@ -130,7 +125,7 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Dangerous Query Detection
 
     /// Check if a query is potentially dangerous (DROP, TRUNCATE, DELETE without WHERE)
-    private func isDangerousQuery(_ sql: String) -> Bool {
+    func isDangerousQuery(_ sql: String) -> Bool {
         let uppercased = sql.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Check for DROP
@@ -173,27 +168,13 @@ final class MainContentCoordinator: ObservableObject {
             return
         }
 
-        // Check for dangerous queries if setting is enabled
-        if AppSettingsManager.shared.general.confirmBeforeDangerousQuery && isDangerousQuery(sql) {
-            pendingDangerousQuery = sql
-            showDangerousQueryAlert = true
+        // Check for dangerous queries and confirm if needed
+        guard confirmDangerousQueryIfNeeded(sql) else {
             return
         }
 
         // Execute the query directly
         executeQueryInternal(sql)
-    }
-
-    /// Called when user confirms a dangerous query
-    func confirmDangerousQuery() {
-        guard let sql = pendingDangerousQuery else { return }
-        pendingDangerousQuery = nil
-        executeQueryInternal(sql)
-    }
-
-    /// Cancel a dangerous query
-    func cancelDangerousQuery() {
-        pendingDangerousQuery = nil
     }
 
     /// Internal query execution (called after any confirmations)
@@ -221,6 +202,7 @@ final class MainContentCoordinator: ObservableObject {
 
                 var columnDefaults: [String: String?] = [:]
                 var totalRowCount: Int?
+                var primaryKeyColumn: String? = nil
 
                 if isEditable, let tableName = tableName {
                     if let driver = DatabaseManager.shared.activeDriver {
@@ -235,6 +217,9 @@ final class MainContentCoordinator: ObservableObject {
                         for col in columnInfo {
                             columnDefaults[col.name] = col.defaultValue
                         }
+                        
+                        // Detect primary key column
+                        primaryKeyColumn = columnInfo.first(where: { $0.isPrimaryKey })?.name
 
                         if let firstRow = countResult.rows.first,
                            let countStr = firstRow.first as? String,
@@ -254,6 +239,7 @@ final class MainContentCoordinator: ObservableObject {
                 let safeColumnDefaults = columnDefaults.mapValues { $0.map { String($0) } }
                 let safeTableName = tableName.map { String($0) }
                 let safeTotalRowCount = totalRowCount
+                let safePrimaryKeyColumn = primaryKeyColumn.map { String($0) }
 
                 guard !Task.isCancelled else {
                     await MainActor.run {
@@ -288,6 +274,20 @@ final class MainContentCoordinator: ObservableObject {
                         updatedTab.isEditable = isEditable
                         updatedTab.pagination.totalRowCount = safeTotalRowCount
                         tabManager.tabs[idx] = updatedTab
+
+                        // Clear change tracking when loading new data (e.g., from refresh)
+                        // This ensures deleted rows don't retain red background after refresh
+                        if isEditable, let tableName = safeTableName {
+                            changeManager.configureForTable(
+                                tableName: tableName,
+                                columns: safeColumns,
+                                primaryKeyColumn: safePrimaryKeyColumn,
+                                databaseType: conn.type
+                            )
+                        } else {
+                            // For query results, just clear changes
+                            changeManager.clearChanges()
+                        }
 
                         changeManager.reloadVersion += 1
 
@@ -1117,6 +1117,13 @@ final class MainContentCoordinator: ObservableObject {
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
                     }
+                    
+                    // Show error alert to user
+                    AlertHelper.showErrorSheet(
+                        title: "Save Failed",
+                        message: error.localizedDescription,
+                        window: NSApplication.shared.keyWindow
+                    )
 
                     // Restore operations on failure so user can retry.
                     // Use notification to restore via MainContentView's bindings for synchronous update.
@@ -1268,8 +1275,6 @@ final class MainContentCoordinator: ObservableObject {
         pendingTruncates: inout Set<String>,
         pendingDeletes: inout Set<String>
     ) {
-        guard let action = pendingDiscardAction else { return }
-
         let originalValues = changeManager.getOriginalValues()
         if let index = tabManager.selectedTabIndex {
             for (rowIndex, columnIndex, originalValue) in originalValues {
@@ -1297,19 +1302,6 @@ final class MainContentCoordinator: ObservableObject {
         changeManager.reloadVersion += 1
 
         NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
-
-        switch action {
-        case .refresh, .refreshAll:
-            if let tabIndex = tabManager.selectedTabIndex,
-               tabManager.tabs[tabIndex].tabType == .table {
-                rebuildTableQuery(at: tabIndex)
-            }
-            runQuery()
-        case .closeTab:
-            closeCurrentTab()
-        }
-
-        pendingDiscardAction = nil
     }
 
     // MARK: - Tab Operations
@@ -1318,9 +1310,12 @@ final class MainContentCoordinator: ObservableObject {
         if tabManager.selectedTab != nil {
             let hasEditedCells = changeManager.hasChanges
 
-            // Only show confirmation if setting is enabled AND there are unsaved changes
-            if hasEditedCells && AppSettingsManager.shared.general.confirmBeforeClosingUnsaved {
-                pendingDiscardAction = .closeTab
+            // Always confirm if there are unsaved changes
+            if hasEditedCells {
+                let confirmed = confirmDiscardChanges(action: .closeTab)
+                if confirmed {
+                    closeCurrentTab()
+                }
             } else {
                 closeCurrentTab()
             }
@@ -1565,14 +1560,28 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Refresh Handling
 
     func handleRefreshAll(
-        pendingTruncates: Set<String>,
-        pendingDeletes: Set<String>
+        pendingTruncates: inout Set<String>,
+        pendingDeletes: inout Set<String>
     ) {
+        // If showing structure view, let it handle refresh notifications
+        if let tabIndex = tabManager.selectedTabIndex,
+           tabManager.tabs[tabIndex].showStructure {
+            return
+        }
+        
         let hasEditedCells = changeManager.hasChanges
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
         if hasEditedCells || hasPendingTableOps {
-            pendingDiscardAction = .refreshAll
+            let confirmed = confirmDiscardChanges(action: .refreshAll)
+            if confirmed {
+                handleDiscard(
+                    pendingTruncates: &pendingTruncates,
+                    pendingDeletes: &pendingDeletes
+                )
+                NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+                runQuery()
+            }
         } else {
             NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
             runQuery()
@@ -1580,14 +1589,34 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     func handleRefresh(
-        pendingTruncates: Set<String>,
-        pendingDeletes: Set<String>
+        pendingTruncates: inout Set<String>,
+        pendingDeletes: inout Set<String>
     ) {
+        // If showing structure view, let it handle refresh notifications
+        if let tabIndex = tabManager.selectedTabIndex,
+           tabManager.tabs[tabIndex].showStructure {
+            return
+        }
+        
         let hasEditedCells = changeManager.hasChanges
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
         if hasEditedCells || hasPendingTableOps {
-            pendingDiscardAction = .refresh
+            let confirmed = confirmDiscardChanges(action: .refresh)
+            if confirmed {
+                handleDiscard(
+                    pendingTruncates: &pendingTruncates,
+                    pendingDeletes: &pendingDeletes
+                )
+                // Only execute query if we're in a table tab
+                // Query tabs should not auto-execute on refresh (use Cmd+Enter to execute)
+                if let tabIndex = tabManager.selectedTabIndex,
+                   tabManager.tabs[tabIndex].tabType == .table {
+                    currentQueryTask?.cancel()
+                    rebuildTableQuery(at: tabIndex)
+                    runQuery()
+                }
+            }
         } else {
             // Only execute query if we're in a table tab
             // Query tabs should not auto-execute on refresh (use Cmd+Enter to execute)

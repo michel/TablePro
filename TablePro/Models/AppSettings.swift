@@ -29,15 +29,9 @@ enum StartupBehavior: String, Codable, CaseIterable, Identifiable {
 /// General app settings
 struct GeneralSettings: Codable, Equatable {
     var startupBehavior: StartupBehavior
-    var confirmBeforeDisconnecting: Bool
-    var confirmBeforeDangerousQuery: Bool // DROP, TRUNCATE, DELETE without WHERE
-    var confirmBeforeClosingUnsaved: Bool
 
     static let `default` = GeneralSettings(
-        startupBehavior: .showWelcome,
-        confirmBeforeDisconnecting: true,
-        confirmBeforeDangerousQuery: true,
-        confirmBeforeClosingUnsaved: true
+        startupBehavior: .showWelcome
     )
 }
 

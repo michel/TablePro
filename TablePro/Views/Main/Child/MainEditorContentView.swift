@@ -181,15 +181,6 @@ struct MainEditorContentView: View {
     @ViewBuilder
     private func resultsSection(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
-            // Error banner (if query failed)
-            if let errorMessage = tab.errorMessage, !errorMessage.isEmpty {
-                InlineErrorBanner(message: errorMessage) {
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage = nil
-                    }
-                }
-            }
-
             if tab.showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
                     .frame(maxHeight: .infinity)
@@ -233,7 +224,7 @@ struct MainEditorContentView: View {
                 columnDefaults: tab.columnDefaults,
                 columnTypes: tab.columnTypes
             ),
-            changeManager: changeManager,
+            changeManager: AnyChangeManager(dataManager: changeManager),
             isEditable: tab.isEditable,
             onCommit: onCommit,
             onRefresh: onRefresh,

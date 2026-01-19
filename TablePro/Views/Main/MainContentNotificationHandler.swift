@@ -344,31 +344,46 @@ final class MainContentNotificationHandler: ObservableObject {
     }
 
     private func handleRefreshData() {
-        coordinator?.handleRefresh(
-            pendingTruncates: pendingTruncates.wrappedValue,
-            pendingDeletes: pendingDeletes.wrappedValue
-        )
-    }
-
-    private func handleRefreshAll() {
-        coordinator?.handleRefreshAll(
-            pendingTruncates: pendingTruncates.wrappedValue,
-            pendingDeletes: pendingDeletes.wrappedValue
-        )
-    }
-
-    private func handleSaveChanges() {
         var truncates = pendingTruncates.wrappedValue
         var deletes = pendingDeletes.wrappedValue
-        var options = tableOperationOptions.wrappedValue
-        coordinator?.saveChanges(
+        coordinator?.handleRefresh(
             pendingTruncates: &truncates,
-            pendingDeletes: &deletes,
-            tableOperationOptions: &options
+            pendingDeletes: &deletes
         )
         pendingTruncates.wrappedValue = truncates
         pendingDeletes.wrappedValue = deletes
-        tableOperationOptions.wrappedValue = options
+    }
+
+    private func handleRefreshAll() {
+        var truncates = pendingTruncates.wrappedValue
+        var deletes = pendingDeletes.wrappedValue
+        coordinator?.handleRefreshAll(
+            pendingTruncates: &truncates,
+            pendingDeletes: &deletes
+        )
+        pendingTruncates.wrappedValue = truncates
+        pendingDeletes.wrappedValue = deletes
+    }
+
+    private func handleSaveChanges() {
+        // Check if we're in structure view mode
+        if coordinator?.tabManager.selectedTab?.showStructure == true {
+            // Post notification for structure view to handle
+            NotificationCenter.default.post(name: .saveStructureChanges, object: nil)
+        } else {
+            // Handle data grid changes
+            var truncates = pendingTruncates.wrappedValue
+            var deletes = pendingDeletes.wrappedValue
+            var options = tableOperationOptions.wrappedValue
+            coordinator?.saveChanges(
+                pendingTruncates: &truncates,
+                pendingDeletes: &deletes,
+                tableOperationOptions: &options
+            )
+            pendingTruncates.wrappedValue = truncates
+            pendingDeletes.wrappedValue = deletes
+            tableOperationOptions.wrappedValue = options
+        }
     }
 
     private func handleExportTables() {

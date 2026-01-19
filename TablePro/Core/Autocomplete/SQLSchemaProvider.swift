@@ -38,20 +38,52 @@ actor SQLSchemaProvider {
             // Fetch all tables
             tables = try await driver.fetchTables()
 
-            // Pre-load columns for common tables (up to 5)
-            for table in tables.prefix(5) {
-                let columns = try await driver.fetchColumns(table: table.name)
-                columnCache[table.name.lowercased()] = columns
+            // Pre-load columns for ALL tables asynchronously
+            // Use TaskGroup with concurrency limit to avoid overwhelming the database
+            let maxConcurrentTasks = 20  // Limit parallel requests
+            
+            await withTaskGroup(of: (String, [ColumnInfo]?).self) { group in
+                var index = 0
+                
+                // Seed initial batch
+                for table in tables.prefix(maxConcurrentTasks) {
+                    group.addTask {
+                        do {
+                            let columns = try await driver.fetchColumns(table: table.name)
+                            return (table.name.lowercased(), columns)
+                        } catch {
+                            return (table.name.lowercased(), nil)
+                        }
+                    }
+                    index += 1
+                }
+                
+                // Process results and spawn new tasks
+                for await (tableName, columns) in group {
+                    if let columns = columns {
+                        columnCache[tableName] = columns
+                    }
+                    
+                    // Add next task if available
+                    if index < tables.count {
+                        let table = tables[index]
+                        index += 1
+                        group.addTask {
+                            do {
+                                let columns = try await driver.fetchColumns(table: table.name)
+                                return (table.name.lowercased(), columns)
+                            } catch {
+                                return (table.name.lowercased(), nil)
+                            }
+                        }
+                    }
+                }
             }
 
-            // Clear remaining column cache
             isLoading = false
-
-            // Driver will be disconnected by caller, we'll reconnect for additional column loading
         } catch {
             lastLoadError = error
             isLoading = false
-            print("[SQLSchemaProvider] Failed to load schema: \(error)")
         }
     }
 
@@ -69,7 +101,6 @@ actor SQLSchemaProvider {
 
         // Use the cached driver from loadSchema() to ensure we're querying the correct connection
         guard let driver = cachedDriver else {
-            print("[SQLSchemaProvider] No cached driver for column loading")
             return []
         }
 
@@ -78,7 +109,6 @@ actor SQLSchemaProvider {
             columnCache[tableName.lowercased()] = columns
             return columns
         } catch {
-            print("[SQLSchemaProvider] Failed to load columns for \(tableName): \(error)")
             return []
         }
     }

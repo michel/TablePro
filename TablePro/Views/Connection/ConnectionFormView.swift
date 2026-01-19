@@ -401,9 +401,8 @@ struct ConnectionFormView: View {
             .padding(.vertical, 12)
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .escapeKeyHandler(priority: .view) {
+        .onExitCommand {
             dismissWindow(id: "connection-form")
-            return .handled
         }
     }
 

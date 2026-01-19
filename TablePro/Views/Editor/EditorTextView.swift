@@ -393,15 +393,20 @@ final class EditorTextView: NSTextView {
         if let handler = onKeyEvent, handler(event) {
             return
         }
+        
+        guard let key = KeyCode(rawValue: event.keyCode) else {
+            super.keyDown(with: event)
+            return
+        }
 
         // Cmd+Enter to execute query
-        if event.modifierFlags.contains(.command) && event.keyCode == 36 {
+        if event.modifierFlags.contains(.command) && key == .return {
             onExecute?()
             return
         }
 
         // Ctrl+Space to trigger manual completion
-        if event.modifierFlags.contains(.control) && event.keyCode == 49 {
+        if event.modifierFlags.contains(.control) && key == .space {
             onManualCompletion?()
             return
         }
@@ -434,7 +439,7 @@ final class EditorTextView: NSTextView {
         }
 
         // Handle backspace to delete matching pairs
-        if event.keyCode == 51 { // Backspace
+        if key == .delete {
             if shouldDeletePair() {
                 deletePair()
                 return
