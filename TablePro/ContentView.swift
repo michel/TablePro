@@ -5,6 +5,7 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import AppKit
 import os
 import SwiftUI
 
@@ -19,10 +20,6 @@ struct ContentView: View {
     @State private var connectionToEdit: DatabaseConnection?
     @State private var connectionToDelete: DatabaseConnection?
     @State private var showDeleteConfirmation = false
-    @State private var showUnsavedChangesAlert = false
-    @State private var pendingCloseSessionId: UUID?
-    @State private var showDisconnectConfirmation = false
-    @State private var pendingDisconnectSessionId: UUID?
     @State private var hasLoaded = false
     @State private var isInspectorPresented = false  // Right sidebar (inspector) visibility
 
@@ -59,59 +56,6 @@ struct ContentView: View {
             } message: { connection in
                 Text("Are you sure you want to delete \"\(connection.name)\"?")
             }
-            .alert(
-                "Unsaved Changes",
-                isPresented: $showUnsavedChangesAlert
-            ) {
-                Button("Cancel", role: .cancel) {
-                    pendingCloseSessionId = nil
-                }
-                Button("Close Without Saving", role: .destructive) {
-                    if let sessionId = pendingCloseSessionId {
-                        Task {
-                            await dbManager.disconnectSession(sessionId)
-                        }
-                    }
-                    pendingCloseSessionId = nil
-                }
-            } message: {
-                Text("This connection has unsaved changes. Are you sure you want to close it?")
-            }
-            .alert(
-                "Disconnect",
-                isPresented: $showDisconnectConfirmation
-            ) {
-                Button("Cancel", role: .cancel) {
-                    pendingDisconnectSessionId = nil
-                }
-                Button("Disconnect", role: .destructive) {
-                    if let sessionId = pendingDisconnectSessionId {
-                        Task {
-                            await dbManager.disconnectSession(sessionId)
-                        }
-                    }
-                    pendingDisconnectSessionId = nil
-                }
-                Button("Don't Ask Again") {
-                    // Disable future confirmations
-                    AppSettingsManager.shared.general.confirmBeforeDisconnecting = false
-                    // Then disconnect
-                    if let sessionId = pendingDisconnectSessionId {
-                        Task {
-                            await dbManager.disconnectSession(sessionId)
-                        }
-                    }
-                    pendingDisconnectSessionId = nil
-                }
-            } message: {
-                Text("Are you sure you want to disconnect from this database?")
-            }
-            .onChange(of: showDisconnectConfirmation) { _, isShowing in
-                // Reset pending state when alert is dismissed (e.g., by Cmd+W or ESC)
-                if !isShowing {
-                    pendingDisconnectSessionId = nil
-                }
-            }
             .onAppear {
                 loadConnections()
             }
@@ -120,12 +64,16 @@ struct ContentView: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .deselectConnection)) { _ in
                 if let sessionId = dbManager.currentSessionId {
-                    // Check if confirmation is required
-                    if AppSettingsManager.shared.general.confirmBeforeDisconnecting {
-                        pendingDisconnectSessionId = sessionId
-                        showDisconnectConfirmation = true
-                    } else {
-                        Task {
+                    // Always confirm before disconnecting
+                    Task { @MainActor in
+                        let confirmed = AlertHelper.confirmDestructive(
+                            title: "Disconnect",
+                            message: "Are you sure you want to disconnect from this database?",
+                            confirmButton: "Disconnect",
+                            cancelButton: "Cancel"
+                        )
+                        
+                        if confirmed {
                             await dbManager.disconnectSession(sessionId)
                         }
                     }

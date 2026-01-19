@@ -90,6 +90,10 @@ final class DataGridCellFactory {
             cellView = reused
             cell = textField
             isNewCell = false
+            // Ensure layer exists for background color
+            if !cellView.wantsLayer {
+                cellView.wantsLayer = true
+            }
         } else {
             cellView = NSTableCellView()
             cellView.identifier = cellViewId

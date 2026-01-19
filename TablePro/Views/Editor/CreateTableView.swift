@@ -69,12 +69,10 @@ struct CreateTableView: View {
         }
         .animation(.easeInOut(duration: DesignConstants.AnimationDuration.smooth), value: showDetailPanel)
         .background(Color(nsColor: .textBackgroundColor))
-        .escapeKeyHandler(priority: .view) {
+        .onExitCommand {
             if showDetailPanel {
                 showDetailPanel = false
-                return .handled
             }
-            return .ignored
         }
     }
 

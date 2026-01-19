@@ -2,16 +2,26 @@
 //  KeyHandlingTableView.swift
 //  TablePro
 //
-//  NSTableView subclass that handles Delete key and TablePlus-style cell focus.
-//  Extracted from DataGridView for better maintainability.
+//  NSTableView subclass that handles keyboard shortcuts and TablePlus-style cell focus.
+//  Uses Apple's responder chain pattern with interpretKeyEvents for standard shortcuts.
+//
+//  Architecture:
+//  - Keyboard events → interpretKeyEvents → Standard selectors (@objc moveUp, delete, etc.)
+//  - Uses KeyCode enum for readability (no magic numbers)
+//  - Responder chain validation via validateUserInterfaceItem
 //
 
 import AppKit
 
-/// NSTableView subclass that handles Delete key to mark rows for deletion
-/// Also implements TablePlus-style cell focus on click
-final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
+/// NSTableView subclass that handles keyboard shortcuts and TablePlus-style cell focus on click
+final class KeyHandlingTableView: NSTableView {
     weak var coordinator: TableViewCoordinator?
+    
+    // MARK: - First Responder
+    
+    override var acceptsFirstResponder: Bool {
+        return true
+    }
 
     /// Currently focused row index (-1 = no focus)
     var focusedRow: Int = -1 {
@@ -54,13 +64,20 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
     // MARK: - TablePlus-Style Cell Focus
 
     override func mouseDown(with event: NSEvent) {
+        // Become first responder to capture keyboard events (especially Delete key)
+        window?.makeFirstResponder(self)
+        
         let point = convert(event.locationInWindow, from: nil)
         let clickedRow = row(at: point)
         let clickedColumn = column(at: point)
 
         // Double-click in empty area adds a new row
         if event.clickCount == 2 && clickedRow == -1 && coordinator?.isEditable == true {
-            NotificationCenter.default.post(name: .addNewRow, object: nil)
+            if let callback = coordinator?.onAddRow {
+                callback()
+            } else {
+                NotificationCenter.default.post(name: .addNewRow, object: nil)
+            }
             return
         }
 
@@ -104,112 +121,190 @@ final class KeyHandlingTableView: NSTableView, NSMenuItemValidation {
 
     // MARK: - Standard Edit Menu Actions
 
+    /// Delete selected rows - called from menu or keyboard shortcut
     @objc func delete(_ sender: Any?) {
         guard coordinator?.isEditable == true else { return }
         guard !selectedRowIndexes.isEmpty else { return }
-        NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+        
+        // Use callback if available (e.g., Structure tab), otherwise fall back to notification (Data tab)
+        if let callback = coordinator?.onDeleteRows {
+            callback(Set(selectedRowIndexes))
+        } else {
+            // Fallback for views that haven't migrated to callback pattern
+            NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+        }
     }
-
-    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-        if menuItem.action == #selector(delete(_:)) {
+    
+    /// Copy selected rows to clipboard
+    @objc func copy(_ sender: Any?) {
+        if let callback = coordinator?.onCopyRows {
+            callback(Set(selectedRowIndexes))
+        }
+    }
+    
+    /// Paste rows from clipboard
+    @objc func paste(_ sender: Any?) {
+        guard coordinator?.isEditable == true else { return }
+        if let callback = coordinator?.onPasteRows {
+            callback()
+        }
+    }
+    
+    /// Undo last change
+    @objc func undo(_ sender: Any?) {
+        guard coordinator?.isEditable == true else { return }
+        if let callback = coordinator?.onUndo {
+            callback()
+        }
+    }
+    
+    /// Redo last undone change
+    @objc func redo(_ sender: Any?) {
+        guard coordinator?.isEditable == true else { return }
+        if let callback = coordinator?.onRedo {
+            callback()
+        }
+    }
+    
+    /// Validate menu items and shortcuts
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        switch item.action {
+        case #selector(delete(_:)), #selector(deleteBackward(_:)):
             return coordinator?.isEditable == true && !selectedRowIndexes.isEmpty
+        case #selector(copy(_:)):
+            return !selectedRowIndexes.isEmpty
+        case #selector(paste(_:)):
+            return coordinator?.isEditable == true && coordinator?.onPasteRows != nil
+        case #selector(undo(_:)):
+            return coordinator?.isEditable == true && (coordinator?.canUndo() ?? false)
+        case #selector(redo(_:)):
+            return coordinator?.isEditable == true && (coordinator?.canRedo() ?? false)
+        case #selector(insertNewline(_:)):
+            return selectedRow >= 0 && focusedColumn >= 1 && coordinator?.isEditable == true
+        case #selector(cancelOperation(_:)):
+            return focusedRow >= 0 || focusedColumn >= 0 || !selectedRowIndexes.isEmpty
+        default:
+            return super.validateUserInterfaceItem(item)
         }
-        if let action = menuItem.action {
-            return responds(to: action)
-        }
-        return false
     }
 
     // MARK: - Keyboard Handling
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if event.keyCode == 51 || event.keyCode == 117 {
-            if !selectedRowIndexes.isEmpty && coordinator?.isEditable == true {
-                NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
-                return true
-            }
-        }
-        return super.performKeyEquivalent(with: event)
-    }
-
+    
+    /// Convert key events to standard selectors using interpretKeyEvents
+    /// This enables proper responder chain behavior and accessibility support
     override func keyDown(with event: NSEvent) {
+        guard let key = KeyCode(rawValue: event.keyCode) else {
+            super.keyDown(with: event)
+            return
+        }
+        
+        // Handle Tab manually (NSTableView cell navigation requires custom logic)
+        if key == .tab {
+            handleTabKey()
+            return
+        }
+        
+        // Handle arrow keys (custom Shift+selection logic)
         let row = selectedRow
         let isShiftHeld = event.modifierFlags.contains(.shift)
-
-        switch event.keyCode {
-        case 126: // Up arrow
+        
+        switch key {
+        case .upArrow:
             handleUpArrow(currentRow: row, isShiftHeld: isShiftHeld)
             return
-
-        case 125: // Down arrow
+            
+        case .downArrow:
             handleDownArrow(currentRow: row, isShiftHeld: isShiftHeld)
             return
-
-        case 123: // Left arrow
-            if focusedColumn > 1 {
-                focusedColumn -= 1
-                if row >= 0 { scrollColumnToVisible(focusedColumn) }
-            } else if focusedColumn == -1 && numberOfColumns > 1 {
-                focusedColumn = numberOfColumns - 1
-                if row >= 0 { scrollColumnToVisible(focusedColumn) }
-            }
+            
+        case .leftArrow:
+            handleLeftArrow(currentRow: row)
             return
-
-        case 124: // Right arrow
-            if focusedColumn >= 1 && focusedColumn < numberOfColumns - 1 {
-                focusedColumn += 1
-                if row >= 0 { scrollColumnToVisible(focusedColumn) }
-            } else if focusedColumn == -1 && numberOfColumns > 1 {
-                focusedColumn = 1
-                if row >= 0 { scrollColumnToVisible(focusedColumn) }
-            }
+            
+        case .rightArrow:
+            handleRightArrow(currentRow: row)
             return
-
-        case 36: // Enter/Return
-            if row >= 0 && focusedColumn >= 1 && coordinator?.isEditable == true {
-                editColumn(focusedColumn, row: row, with: nil, select: true)
-            }
-            return
-
-        case 53: // Escape
-            focusedRow = -1
-            focusedColumn = -1
-            NotificationCenter.default.post(name: .clearSelection, object: nil)
-            return
-
-        case 51, 117: // Delete or Backspace
-            if !selectedRowIndexes.isEmpty {
-                NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
-                return
-            }
-
-        case 48: // Tab
-            if row >= 0 && focusedColumn >= 1 {
-                var nextColumn = focusedColumn + 1
-                var nextRow = row
-
-                if nextColumn >= numberOfColumns {
-                    nextColumn = 1
-                    nextRow += 1
-                }
-                if nextRow >= numberOfRows {
-                    nextRow = numberOfRows - 1
-                    nextColumn = numberOfColumns - 1
-                }
-
-                selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
-                focusedRow = nextRow
-                focusedColumn = nextColumn
-                scrollRowToVisible(nextRow)
-                scrollColumnToVisible(nextColumn)
-            }
-            return
-
+            
         default:
             break
         }
-
-        super.keyDown(with: event)
+        
+        // For all other keys, use interpretKeyEvents to map to standard selectors
+        // This handles Return → insertNewline(_:), Delete → deleteBackward(_:), ESC → cancelOperation(_:)
+        interpretKeyEvents([event])
+    }
+    
+    // MARK: - Standard Responder Selectors
+    
+    /// Handle Return/Enter key - start editing current cell
+    @objc override func insertNewline(_ sender: Any?) {
+        let row = selectedRow
+        guard row >= 0, focusedColumn >= 1, coordinator?.isEditable == true else {
+            return
+        }
+        editColumn(focusedColumn, row: row, with: nil, select: true)
+    }
+    
+    /// Handle Delete/Backspace key - delete selected rows
+    @objc override func deleteBackward(_ sender: Any?) {
+        guard coordinator?.isEditable == true else { return }
+        guard !selectedRowIndexes.isEmpty else { return }
+        delete(sender)
+    }
+    
+    /// Handle ESC key - clear selection and focus
+    @objc override func cancelOperation(_ sender: Any?) {
+        focusedRow = -1
+        focusedColumn = -1
+        deselectAll(sender)
+    }
+    
+    // MARK: - Arrow Key and Tab Helpers
+    
+    /// Handle left arrow key - move focus to previous column
+    private func handleLeftArrow(currentRow: Int) {
+        if focusedColumn > 1 {
+            focusedColumn -= 1
+            if currentRow >= 0 { scrollColumnToVisible(focusedColumn) }
+        } else if focusedColumn == -1 && numberOfColumns > 1 {
+            focusedColumn = numberOfColumns - 1
+            if currentRow >= 0 { scrollColumnToVisible(focusedColumn) }
+        }
+    }
+    
+    /// Handle right arrow key - move focus to next column
+    private func handleRightArrow(currentRow: Int) {
+        if focusedColumn >= 1 && focusedColumn < numberOfColumns - 1 {
+            focusedColumn += 1
+            if currentRow >= 0 { scrollColumnToVisible(focusedColumn) }
+        } else if focusedColumn == -1 && numberOfColumns > 1 {
+            focusedColumn = 1
+            if currentRow >= 0 { scrollColumnToVisible(focusedColumn) }
+        }
+    }
+    
+    /// Handle Tab key - navigate to next cell (manual implementation required for NSTableView)
+    private func handleTabKey() {
+        let row = selectedRow
+        guard row >= 0, focusedColumn >= 1 else { return }
+        
+        var nextColumn = focusedColumn + 1
+        var nextRow = row
+        
+        if nextColumn >= numberOfColumns {
+            nextColumn = 1
+            nextRow += 1
+        }
+        if nextRow >= numberOfRows {
+            nextRow = numberOfRows - 1
+            nextColumn = numberOfColumns - 1
+        }
+        
+        selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
+        focusedRow = nextRow
+        focusedColumn = nextColumn
+        scrollRowToVisible(nextRow)
+        scrollColumnToVisible(nextColumn)
     }
 
     // MARK: - Arrow Key Selection Helpers

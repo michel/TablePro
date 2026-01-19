@@ -5,11 +5,11 @@
 //  Settings for query history retention and cleanup
 //
 
+import AppKit
 import SwiftUI
 
 struct HistorySettingsView: View {
     @Binding var settings: HistorySettings
-    @State private var showClearConfirmation = false
 
     var body: some View {
         Form {
@@ -39,21 +39,22 @@ struct HistorySettingsView: View {
                     Text("Clear all query history")
                     Spacer()
                     Button("Clear History...") {
-                        showClearConfirmation = true
+                        let confirmed = AlertHelper.confirmDestructive(
+                            title: "Clear All History?",
+                            message: "This will permanently delete all query history entries. This action cannot be undone.",
+                            confirmButton: "Clear",
+                            cancelButton: "Cancel"
+                        )
+                        
+                        if confirmed {
+                            clearAllHistory()
+                        }
                     }
                 }
             }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .alert("Clear All History?", isPresented: $showClearConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Clear", role: .destructive) {
-                clearAllHistory()
-            }
-        } message: {
-            Text("This will permanently delete all query history entries. This action cannot be undone.")
-        }
     }
 
     private func clearAllHistory() {

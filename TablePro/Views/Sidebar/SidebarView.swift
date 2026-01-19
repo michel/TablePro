@@ -258,9 +258,6 @@ struct SidebarView: View {
         .contextMenu {
             tableContextMenu()
         }
-        .onDeleteCommand {
-            batchToggleDelete()
-        }
         .onExitCommand {
             selectedTables.removeAll()
         }

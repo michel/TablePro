@@ -275,4 +275,43 @@ final class DatabaseManager: ObservableObject {
         let driver = DatabaseDriverFactory.createDriver(for: testConnection)
         return try await driver.testConnection()
     }
+    
+    // MARK: - Schema Changes
+    
+    /// Execute schema changes (ALTER TABLE, CREATE INDEX, etc.) in a transaction
+    func executeSchemaChanges(
+        tableName: String,
+        changes: [SchemaChange],
+        databaseType: DatabaseType
+    ) async throws {
+        guard let driver = activeDriver else {
+            throw DatabaseError.notConnected
+        }
+        
+        // Generate SQL statements
+        let generator = SchemaStatementGenerator(
+            tableName: tableName,
+            databaseType: databaseType
+        )
+        let statements = try generator.generate(changes: changes)
+        
+        // Execute in transaction
+        try await driver.execute(query: "BEGIN")
+        
+        do {
+            for stmt in statements {
+                try await driver.execute(query: stmt.sql)
+            }
+            
+            try await driver.execute(query: "COMMIT")
+            
+            // Post notification to refresh UI
+            NotificationCenter.default.post(name: .refreshData, object: nil)
+            
+        } catch {
+            // Rollback on error
+            try? await driver.execute(query: "ROLLBACK")
+            throw DatabaseError.queryFailed("Schema change failed: \(error.localizedDescription)")
+        }
+    }
 }

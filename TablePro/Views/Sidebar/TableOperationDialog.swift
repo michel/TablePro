@@ -159,7 +159,9 @@ struct TableOperationDialog: View {
         }
         .frame(width: 320)
         .background(Color(nsColor: .windowBackgroundColor))
-        .escapeKeyDismiss(isPresented: $isPresented, priority: .sheet)
+        .onExitCommand {
+            isPresented = false
+        }
         .onAppear {
             // Reset state when dialog opens
             ignoreForeignKeys = false

@@ -196,7 +196,9 @@ private struct CreateTagSheet: View {
         }
         .padding(20)
         .frame(width: 300)
-        .escapeKeyDismiss(priority: .sheet)
+        .onExitCommand {
+            dismiss()
+        }
     }
 }
 

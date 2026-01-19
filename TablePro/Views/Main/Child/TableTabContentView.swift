@@ -44,11 +44,6 @@ struct TableTabContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Error banner (if query failed)
-            if let errorMessage = tab.errorMessage, !errorMessage.isEmpty {
-                InlineErrorBanner(message: errorMessage, onDismiss: onDismissError)
-            }
-
             // Show structure view or data view based on toggle
             if showStructure, let tableName = tab.tableName {
                 TableStructureView(tableName: tableName, connection: connection)
@@ -61,7 +56,7 @@ struct TableTabContentView: View {
                         columnDefaults: tab.columnDefaults,
                         columnTypes: tab.columnTypes
                     ),
-                    changeManager: changeManager,
+                    changeManager: AnyChangeManager(dataManager: changeManager),
                     isEditable: tab.isEditable,
                     onCommit: onCommit,
                     onRefresh: onRefresh,

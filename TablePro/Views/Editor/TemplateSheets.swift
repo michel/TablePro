@@ -36,9 +36,8 @@ struct SaveTemplateSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 350)
-        .escapeKeyHandler(priority: .sheet) {
+        .onExitCommand {
             onCancel()
-            return .handled
         }
     }
 }
@@ -111,9 +110,8 @@ struct LoadTemplateSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 400)
-        .escapeKeyHandler(priority: .sheet) {
+        .onExitCommand {
             onCancel()
-            return .handled
         }
     }
 }
@@ -158,9 +156,8 @@ struct ImportDDLSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 500)
-        .escapeKeyHandler(priority: .sheet) {
+        .onExitCommand {
             onCancel()
-            return .handled
         }
     }
 }
@@ -219,9 +216,8 @@ struct DuplicateTableSheet: View {
         .padding(DesignConstants.Spacing.md)
         .fixedSize(horizontal: false, vertical: true)
         .frame(width: 400)
-        .escapeKeyHandler(priority: .sheet) {
+        .onExitCommand {
             onCancel()
-            return .handled
         }
     }
 }

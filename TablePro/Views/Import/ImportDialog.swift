@@ -68,12 +68,10 @@ struct ImportDialog: View {
             footerView
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .escapeKeyHandler(priority: .sheet) {
+        .onExitCommand {
             if !importServiceState.isImporting {
                 isPresented = false
-                return .handled
             }
-            return .ignored
         }
         .task {
             // Load initial file if provided

@@ -6,6 +6,7 @@
 //  Shows on app launch, closes when connecting to a database.
 //
 
+import AppKit
 import SwiftUI
 
 // MARK: - WelcomeWindowView
@@ -23,8 +24,6 @@ struct WelcomeWindowView: View {
     @State private var showDeleteConfirmation = false
     @State private var hoveredConnectionId: UUID?
     @State private var selectedConnectionId: UUID?  // For keyboard navigation
-    @State private var connectionError: String?  // For showing connection errors
-    @State private var showConnectionError = false
 
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -72,11 +71,6 @@ struct WelcomeWindowView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .connectionUpdated)) { _ in
             loadConnections()
-        }
-        .alert("Connection Failed", isPresented: $showConnectionError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(connectionError ?? "Unknown error")
         }
     }
 
@@ -290,8 +284,11 @@ struct WelcomeWindowView: View {
             } catch {
                 // Show error to user and re-open welcome window
                 await MainActor.run {
-                    connectionError = error.localizedDescription
-                    showConnectionError = true
+                    AlertHelper.showErrorSheet(
+                        title: "Connection Failed",
+                        message: error.localizedDescription,
+                        window: nil
+                    )
                     openWindow(id: "welcome")
                 }
                 print("Failed to connect: \(error)")

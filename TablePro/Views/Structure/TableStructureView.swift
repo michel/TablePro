@@ -2,21 +2,15 @@
 //  TableStructureView.swift
 //  TablePro
 //
-//  View for displaying table structure: columns, indexes, foreign keys
+//  View for displaying table structure using DataGridView
+//  Complete refactor to match data grid UX
 //
 
 import SwiftUI
 import UniformTypeIdentifiers
+import AppKit
 
-/// Tab selection for structure view
-enum StructureTab: String, CaseIterable {
-    case columns = "Columns"
-    case indexes = "Indexes"
-    case foreignKeys = "Foreign Keys"
-    case ddl = "DDL"
-}
-
-/// View displaying table structure like TablePlus
+/// View displaying table structure with DataGridView
 struct TableStructureView: View {
     let tableName: String
     let connection: DatabaseConnection
@@ -30,12 +24,82 @@ struct TableStructureView: View {
     @State private var showCopyConfirmation = false
     @State private var isLoading = true
     @State private var errorMessage: String?
-
-    // Lazy loading state - track which tabs have been loaded
     @State private var loadedTabs: Set<StructureTab> = []
+    @State private var isReloadingAfterSave = false  // Prevent onChange loops during save reload
+    @State private var lastSaveTime: Date? = nil  // Track when we last saved
+    
+    // DataGridView state
+    @StateObject private var structureChangeManager = StructureChangeManager()
+    @StateObject private var wrappedChangeManager: AnyChangeManager
+    @State private var selectedRows: Set<Int> = []
+    @State private var sortState = SortState()
+    @State private var editingCell: CellPosition? = nil
+    
+    // Preview dialog
+    @State private var showPreview = false
+    @State private var previewStatements: [String] = []
+    @AppStorage("skipSchemaPreview") private var skipPreview = false
+    
+    init(tableName: String, connection: DatabaseConnection) {
+        self.tableName = tableName
+        self.connection = connection
+        
+        // Initialize wrappedChangeManager using the StateObject's wrappedValue
+        let manager = StructureChangeManager()
+        _structureChangeManager = StateObject(wrappedValue: manager)
+        _wrappedChangeManager = StateObject(wrappedValue: AnyChangeManager(structureManager: manager))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
+            toolbar
+            Divider()
+            contentArea
+        }
+        .task(loadInitialData)
+        .onChange(of: selectedTab, onSelectedTabChanged)
+        .onChange(of: columns, onColumnsChanged)
+        .onChange(of: indexes, onIndexesChanged)
+        .onChange(of: foreignKeys, onForeignKeysChanged)
+        .onChange(of: selectedRows) { _, newSelection in
+            AppState.shared.hasRowSelection = !newSelection.isEmpty
+        }
+        .onAppear {
+            AppState.shared.isCurrentTabEditable = (selectedTab != .ddl)
+            AppState.shared.hasRowSelection = !selectedRows.isEmpty
+        }
+        .onDisappear {
+            AppState.shared.isCurrentTabEditable = false
+            AppState.shared.hasRowSelection = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .refreshData), perform: onRefreshData)
+        .onReceive(NotificationCenter.default.publisher(for: .saveStructureChanges)) { _ in
+            if structureChangeManager.hasChanges && selectedTab != .ddl {
+                Task {
+                    await executeSchemaChanges()
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .copySelectedRows)) { _ in
+            handleCopyRows(selectedRows)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pasteRows)) { _ in
+            handlePaste()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .undoChange)) { _ in
+            handleUndo()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .redoChange)) { _ in
+            handleRedo()
+        }
+    }
+    
+    // MARK: - Toolbar
+    
+    private var toolbar: some View {
+        HStack {
+            Spacer()
+            
             // Tab picker
             Picker("", selection: $selectedTab) {
                 ForEach(StructureTab.allCases, id: \.self) { tab in
@@ -43,274 +107,478 @@ struct TableStructureView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .padding()
-
-            Divider()
-
-            // Content
-            if isLoading {
-                ProgressView("Loading structure...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = errorMessage {
-                VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundColor(.orange)
-                    Text(error)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .labelsHidden()
+            
+            Spacer()
+        }
+        .padding()
+    }
+    
+    // MARK: - Content Area
+    
+    @ViewBuilder
+    private var contentArea: some View {
+        if let error = errorMessage {
+            errorView(error)
+        } else {
+            tabContent
+        }
+    }
+    
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .columns, .indexes, .foreignKeys:
+            structureGrid
+        case .ddl:
+            ddlView
+        }
+    }
+    
+    // MARK: - Structure Grid (DataGridView)
+    
+    private var structureGrid: some View {
+        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab)
+        
+        return DataGridView(
+            rowProvider: provider.asInMemoryProvider(),
+            changeManager: wrappedChangeManager,
+            isEditable: true,
+            onCommit: nil,
+            onRefresh: nil,
+            onCellEdit: handleCellEdit,
+            onDeleteRows: handleDeleteRows,
+            onCopyRows: handleCopyRows,
+            onPasteRows: handlePaste,
+            onUndo: handleUndo,
+            onRedo: handleRedo,
+            onSort: nil,
+            onAddRow: addNewRow,
+            onUndoInsert: nil,
+            onFilterColumn: nil,
+            getVisualState: { row in
+                structureChangeManager.getVisualState(for: row, tab: selectedTab)
+            },
+            dropdownColumns: provider.dropdownColumns,
+            selectedRowIndices: $selectedRows,
+            sortState: $sortState,
+            editingCell: $editingCell
+        )
+    }
+    
+    // MARK: - Event Handlers
+    
+    private func handleCellEdit(_ row: Int, _ column: Int, _ value: String?) {
+        // column parameter is already adjusted for row number column by DataGridView
+        guard column >= 0 else { return }
+        
+        switch selectedTab {
+        case .columns:
+            guard row < structureChangeManager.workingColumns.count else { return }
+            var col = structureChangeManager.workingColumns[row]
+            updateColumn(&col, at: column, with: value ?? "")
+            structureChangeManager.updateColumn(id: col.id, with: col)
+            
+        case .indexes:
+            guard row < structureChangeManager.workingIndexes.count else { return }
+            var idx = structureChangeManager.workingIndexes[row]
+            updateIndex(&idx, at: column, with: value ?? "")
+            structureChangeManager.updateIndex(id: idx.id, with: idx)
+            
+        case .foreignKeys:
+            guard row < structureChangeManager.workingForeignKeys.count else { return }
+            var fk = structureChangeManager.workingForeignKeys[row]
+            updateForeignKey(&fk, at: column, with: value ?? "")
+            structureChangeManager.updateForeignKey(id: fk.id, with: fk)
+            
+        case .ddl:
+            break
+        }
+    }
+    
+    private func updateColumn(_ column: inout EditableColumnDefinition, at index: Int, with value: String) {
+        switch index {
+        case 0: column.name = value
+        case 1: column.dataType = value
+        case 2: column.isNullable = value.uppercased() == "YES" || value == "1"
+        case 3: column.defaultValue = value.isEmpty ? nil : value
+        case 4: column.autoIncrement = value.uppercased() == "YES" || value == "1"
+        case 5: column.comment = value.isEmpty ? nil : value
+        default: break
+        }
+    }
+    
+    private func updateIndex(_ index: inout EditableIndexDefinition, at colIndex: Int, with value: String) {
+        switch colIndex {
+        case 0: index.name = value
+        case 1: index.columns = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        case 2:
+            if let indexType = EditableIndexDefinition.IndexType(rawValue: value.uppercased()) {
+                index.type = indexType
+            }
+        case 3: index.isUnique = value.uppercased() == "YES" || value == "1"
+        default: break
+        }
+    }
+    
+    private func updateForeignKey(_ fk: inout EditableForeignKeyDefinition, at index: Int, with value: String) {
+        switch index {
+        case 0: fk.name = value
+        case 1: fk.columns = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        case 2: fk.referencedTable = value
+        case 3: fk.referencedColumns = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        case 4:
+            if let action = EditableForeignKeyDefinition.ReferentialAction(rawValue: value.uppercased()) {
+                fk.onDelete = action
+            }
+        case 5:
+            if let action = EditableForeignKeyDefinition.ReferentialAction(rawValue: value.uppercased()) {
+                fk.onUpdate = action
+            }
+        default: break
+        }
+    }
+    
+    private func handleDeleteRows(_ rows: Set<Int>) {
+        // Find min/max for smart selection after delete
+        let minRow = rows.min() ?? 0
+        let maxRow = rows.max() ?? 0
+        var currentCount = 0
+        
+        switch selectedTab {
+        case .columns:
+            currentCount = structureChangeManager.workingColumns.count
+            for row in rows.sorted(by: >) {
+                guard row < structureChangeManager.workingColumns.count else { continue }
+                let column = structureChangeManager.workingColumns[row]
+                structureChangeManager.deleteColumn(id: column.id)
+            }
+        case .indexes:
+            currentCount = structureChangeManager.workingIndexes.count
+            for row in rows.sorted(by: >) {
+                guard row < structureChangeManager.workingIndexes.count else { continue }
+                let index = structureChangeManager.workingIndexes[row]
+                structureChangeManager.deleteIndex(id: index.id)
+            }
+        case .foreignKeys:
+            currentCount = structureChangeManager.workingForeignKeys.count
+            for row in rows.sorted(by: >) {
+                guard row < structureChangeManager.workingForeignKeys.count else { continue }
+                let fk = structureChangeManager.workingForeignKeys[row]
+                structureChangeManager.deleteForeignKey(id: fk.id)
+            }
+        case .ddl:
+            selectedRows.removeAll()
+            return
+        }
+        
+        // Smart selection after delete (same as data grid behavior)
+        let newCount: Int
+        switch selectedTab {
+        case .columns:
+            newCount = structureChangeManager.workingColumns.count
+        case .indexes:
+            newCount = structureChangeManager.workingIndexes.count
+        case .foreignKeys:
+            newCount = structureChangeManager.workingForeignKeys.count
+        case .ddl:
+            newCount = 0
+        }
+        
+        // Calculate next row to select
+        if newCount > 0 {
+            if maxRow < newCount {
+                // Select row after the deleted range
+                selectedRows = [maxRow]
+            } else if minRow > 0 {
+                // Deleted at end, select previous row
+                selectedRows = [minRow - 1]
             } else {
-                switch selectedTab {
-                case .columns:
-                    columnsTable
-                case .indexes:
-                    indexesTable
-                case .foreignKeys:
-                    foreignKeysTable
-                case .ddl:
-                    ddlView
-                }
+                // Deleted first row(s), select row 0 if exists
+                selectedRows = [0]
             }
-        }
-        .task {
-            await loadColumns()  // Always load columns first (default tab)
-        }
-        .onChange(of: selectedTab) { _, newTab in
-            // Lazy load data for newly selected tab
-            Task {
-                await loadTabDataIfNeeded(newTab)
-            }
+        } else {
+            // No rows left
+            selectedRows.removeAll()
         }
     }
-
-    // MARK: - Columns Tab
-
-    private var columnsTable: some View {
-        Table(columns) {
-            TableColumn("Name") { column in
-                HStack(spacing: 4) {
-                    if column.isPrimaryKey {
-                        Image(systemName: "key.fill")
-                            .foregroundColor(.yellow)
-                            .font(.caption)
-                    }
-                    Text(column.name)
-                        .fontWeight(column.isPrimaryKey ? .semibold : .regular)
-                }
-            }
-            .width(min: 120, ideal: 150)
-
-            TableColumn("Type") { column in
-                Text(column.dataType)
-                    .foregroundColor(.secondary)
-                    .font(.system(.body, design: .monospaced))
-            }
-            .width(min: 100, ideal: 120)
-
-            TableColumn("Charset") { column in
-                Text(column.charset ?? "-")
-                    .foregroundColor(.secondary)
-                    .font(.system(.body, design: .monospaced))
-            }
-            .width(min: 70, ideal: 90)
-
-            TableColumn("Collation") { column in
-                Text(column.collation ?? "-")
-                    .foregroundColor(.secondary)
-                    .font(.system(.body, design: .monospaced))
-            }
-            .width(min: 120, ideal: 160)
-
-            TableColumn("Nullable") { column in
-                Image(systemName: column.isNullable ? "checkmark.circle" : "xmark.circle")
-                    .foregroundColor(column.isNullable ? .green : .red)
-            }
-            .width(70)
-
-            TableColumn("Default") { column in
-                Text(column.defaultValue ?? "-")
-                    .foregroundColor(.secondary)
-                    .font(.system(.body, design: .monospaced))
-            }
-            .width(min: 80, ideal: 120)
-
-            TableColumn("Extra") { column in
-                Text(column.extra ?? "-")
-                    .foregroundColor(.secondary)
-            }
-            .width(min: 80, ideal: 100)
-
-            TableColumn("Comment") { column in
-                Text(column.comment ?? "-")
-                    .foregroundColor(.secondary)
-                    .font(.body)
-                    .lineLimit(2)
-            }
-            .width(min: 100, ideal: 200)
+    
+    private func addNewRow() {
+        switch selectedTab {
+        case .columns:
+            structureChangeManager.addNewColumn()
+        case .indexes:
+            structureChangeManager.addNewIndex()
+        case .foreignKeys:
+            structureChangeManager.addNewForeignKey()
+        case .ddl:
+            break
         }
     }
-
-    // MARK: - Indexes Tab
-
-    private var indexesTable: some View {
-        Group {
-            if indexes.isEmpty {
-                emptyState("No indexes found")
-            } else {
-                Table(indexes) {
-                    TableColumn("Name") { index in
-                        HStack(spacing: 4) {
-                            if index.isPrimary {
-                                Image(systemName: "key.fill")
-                                    .foregroundColor(.yellow)
-                                    .font(.caption)
-                            } else if index.isUnique {
-                                Image(systemName: "seal.fill")
-                                    .foregroundColor(.blue)
-                                    .font(.caption)
-                            }
-                            Text(index.name)
-                                .fontWeight(index.isPrimary ? .semibold : .regular)
-                        }
-                    }
-                    .width(min: 150, ideal: 200)
-
-                    TableColumn("Columns") { index in
-                        Text(index.columns.joined(separator: ", "))
-                            .font(.system(.body, design: .monospaced))
-                    }
-                    .width(min: 150, ideal: 250)
-
-                    TableColumn("Type") { index in
-                        Text(index.type)
-                            .foregroundColor(.secondary)
-                    }
-                    .width(80)
-
-                    TableColumn("Unique") { index in
-                        Image(systemName: index.isUnique ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(index.isUnique ? .green : .secondary)
-                    }
-                    .width(60)
-                }
+    
+    // MARK: - Undo/Redo
+    
+    private func handleUndo() {
+        guard selectedTab != .ddl else { return }
+        structureChangeManager.undo()
+    }
+    
+    private func handleRedo() {
+        guard selectedTab != .ddl else { return }
+        structureChangeManager.redo()
+    }
+    
+    // MARK: - Copy/Paste
+    
+    // Custom pasteboard type for structure data (to avoid conflicts with data grid)
+    private static let structurePasteboardType = NSPasteboard.PasteboardType("com.tablepro.structure")
+    
+    private func handleCopyRows(_ rowIndices: Set<Int>) {
+        guard selectedTab != .ddl, !rowIndices.isEmpty else { return }
+        
+        var copiedItems: [Any] = []
+        
+        switch selectedTab {
+        case .columns:
+            for row in rowIndices.sorted() {
+                guard row < structureChangeManager.workingColumns.count else { continue }
+                let column = structureChangeManager.workingColumns[row]
+                copiedItems.append(column)
             }
+        case .indexes:
+            for row in rowIndices.sorted() {
+                guard row < structureChangeManager.workingIndexes.count else { continue }
+                let index = structureChangeManager.workingIndexes[row]
+                copiedItems.append(index)
+            }
+        case .foreignKeys:
+            for row in rowIndices.sorted() {
+                guard row < structureChangeManager.workingForeignKeys.count else { continue }
+                let fk = structureChangeManager.workingForeignKeys[row]
+                copiedItems.append(fk)
+            }
+        case .ddl:
+            break
+        }
+        
+        // Store in pasteboard as JSON string using CUSTOM TYPE
+        guard !copiedItems.isEmpty else { return }
+        
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        
+        if let columns = copiedItems as? [EditableColumnDefinition],
+           let encoded = try? JSONEncoder().encode(columns),
+           let jsonString = String(data: encoded, encoding: .utf8) {
+            pasteboard.setString(jsonString, forType: Self.structurePasteboardType)
+        } else if let indexes = copiedItems as? [EditableIndexDefinition],
+                  let encoded = try? JSONEncoder().encode(indexes),
+                  let jsonString = String(data: encoded, encoding: .utf8) {
+            pasteboard.setString(jsonString, forType: Self.structurePasteboardType)
+        } else if let fks = copiedItems as? [EditableForeignKeyDefinition],
+                  let encoded = try? JSONEncoder().encode(fks),
+                  let jsonString = String(data: encoded, encoding: .utf8) {
+            pasteboard.setString(jsonString, forType: Self.structurePasteboardType)
         }
     }
-
-    // MARK: - Foreign Keys Tab
-
-    private var foreignKeysTable: some View {
-        Group {
-            if foreignKeys.isEmpty {
-                emptyState("No foreign keys found")
-            } else {
-                Table(foreignKeys) {
-                    TableColumn("Name") { fk in
-                        Text(fk.name)
-                            .fontWeight(.medium)
-                    }
-                    .width(min: 150, ideal: 200)
-
-                    TableColumn("Column") { fk in
-                        Text(fk.column)
-                            .font(.system(.body, design: .monospaced))
-                    }
-                    .width(min: 100, ideal: 150)
-
-                    TableColumn("References") { fk in
-                        HStack(spacing: 2) {
-                            Text(fk.referencedTable)
-                                .foregroundColor(.blue)
-                            Text(".")
-                                .foregroundColor(.secondary)
-                            Text(fk.referencedColumn)
-                                .font(.system(.body, design: .monospaced))
-                        }
-                    }
-                    .width(min: 150, ideal: 200)
-
-                    TableColumn("On Delete") { fk in
-                        Text(fk.onDelete)
-                            .foregroundColor(fk.onDelete == "CASCADE" ? .orange : .secondary)
-                    }
-                    .width(90)
-
-                    TableColumn("On Update") { fk in
-                        Text(fk.onUpdate)
-                            .foregroundColor(fk.onUpdate == "CASCADE" ? .orange : .secondary)
-                    }
-                    .width(90)
-                }
+    
+    private func handlePaste() {
+        guard let data = NSPasteboard.general.data(forType: Self.structurePasteboardType),
+              let jsonString = String(data: data, encoding: .utf8) else {
+            return
+        }
+        
+        // Try to parse as copied structure items
+        let decoder = JSONDecoder()
+        
+        switch selectedTab {
+        case .columns:
+            guard let columns = try? decoder.decode([EditableColumnDefinition].self, from: Data(jsonString.utf8)) else {
+                return
             }
+            // Create copies with new IDs
+            for item in columns {
+                let newColumn = EditableColumnDefinition(
+                    id: UUID(),
+                    name: item.name,
+                    dataType: item.dataType,
+                    isNullable: item.isNullable,
+                    defaultValue: item.defaultValue,
+                    autoIncrement: item.autoIncrement,
+                    unsigned: item.unsigned,
+                    comment: item.comment,
+                    collation: item.collation,
+                    onUpdate: item.onUpdate,
+                    charset: item.charset,
+                    extra: item.extra,
+                    isPrimaryKey: item.isPrimaryKey
+                )
+                structureChangeManager.addColumn(newColumn)
+            }
+            
+        case .indexes:
+            guard let indexes = try? decoder.decode([EditableIndexDefinition].self, from: Data(jsonString.utf8)) else {
+                return
+            }
+            for item in indexes {
+                let newIndex = EditableIndexDefinition(
+                    id: UUID(),
+                    name: item.name,
+                    columns: item.columns,
+                    type: item.type,
+                    isUnique: item.isUnique,
+                    isPrimary: item.isPrimary,
+                    comment: item.comment
+                )
+                structureChangeManager.addIndex(newIndex)
+            }
+            
+        case .foreignKeys:
+            guard let fks = try? decoder.decode([EditableForeignKeyDefinition].self, from: Data(jsonString.utf8)) else {
+                return
+            }
+            for item in fks {
+                let newFK = EditableForeignKeyDefinition(
+                    id: UUID(),
+                    name: item.name,
+                    columns: item.columns,
+                    referencedTable: item.referencedTable,
+                    referencedColumns: item.referencedColumns,
+                    onDelete: item.onDelete,
+                    onUpdate: item.onUpdate
+                )
+                structureChangeManager.addForeignKey(newFK)
+            }
+            
+        case .ddl:
+            // DDL tab doesn't support paste
+            break
         }
     }
-
-    // MARK: - DDL Tab
-
+    
+    // MARK: - Schema Operations
+    
+    private func executeSchemaChanges() async {
+        let changes = structureChangeManager.getChangesArray()
+        guard !changes.isEmpty else { return }
+        
+        // Set flag BEFORE calling DatabaseManager (so we ignore its refresh notification)
+        isReloadingAfterSave = true
+        
+        do {
+            try await DatabaseManager.shared.executeSchemaChanges(
+                tableName: tableName,
+                changes: changes,
+                databaseType: getDatabaseType()
+            )
+            
+            // Success - reload schema
+            structureChangeManager.discardChanges()
+            loadedTabs.removeAll()
+            
+            // Reload all structure data before calling loadSchemaForEditing
+            await loadColumns()
+            
+            // Load indexes and foreign keys (needed for complete schema state)
+            guard let driver = DatabaseManager.shared.activeDriver else { 
+                isReloadingAfterSave = false
+                return 
+            }
+            do {
+                indexes = try await driver.fetchIndexes(table: tableName)
+                foreignKeys = try await driver.fetchForeignKeys(table: tableName)
+            } catch {
+                print("[TableStructureView] Failed to reload indexes/FKs: \(error)")
+            }
+            
+            // Now load the complete schema into the change manager
+            loadSchemaForEditing()
+            
+            // Load current tab data for display
+            await loadTabDataIfNeeded(selectedTab)
+            
+            // Force clear state after reload (in case it got set during the async process)
+            structureChangeManager.discardChanges()
+            
+            lastSaveTime = Date()  // ✅ Record save time
+            isReloadingAfterSave = false
+            
+        } catch {
+            isReloadingAfterSave = false  // Clear flag on error
+            AlertHelper.showErrorSheet(
+                title: "Error Applying Changes",
+                message: error.localizedDescription,
+                window: nil
+            )
+        }
+    }
+    
+    private func discardChanges() {
+        structureChangeManager.discardChanges()
+    }
+    
+    private func getDatabaseType() -> DatabaseType {
+        guard let driver = DatabaseManager.shared.activeDriver else {
+            return .mysql
+        }
+        
+        if driver is MySQLDriver {
+            return .mysql
+        } else if driver is PostgreSQLDriver {
+            return .postgresql
+        } else if driver is SQLiteDriver {
+            return .sqlite
+        } else {
+            return .mysql
+        }
+    }
+    
+    // MARK: - DDL View
+    
     private var ddlView: some View {
         VStack(spacing: 0) {
-            // Enhanced toolbar with font controls
+            // DDL toolbar
             HStack(spacing: 12) {
-                // Font size controls
                 HStack(spacing: 4) {
                     Button(action: { ddlFontSize = max(10, ddlFontSize - 1) }) {
                         Image(systemName: "textformat.size.smaller")
                     }
-                    .buttonStyle(.borderless)
-                    .help("Decrease font size")
-
                     Text("\(Int(ddlFontSize))")
-                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                        .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(width: 24)
-
                     Button(action: { ddlFontSize = min(24, ddlFontSize + 1) }) {
                         Image(systemName: "textformat.size.larger")
                     }
-                    .buttonStyle(.borderless)
-                    .help("Increase font size")
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.1))
-                .cornerRadius(6)
-
+                .buttonStyle(.borderless)
+                
                 Spacer()
-
-                // Copy confirmation overlay
+                
                 if showCopyConfirmation {
-                    HStack(spacing: 6) {
+                    HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
                         Text("Copied!")
-                            .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
                     }
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(.opacity)
                 }
-
-                // Action buttons
-                HStack(spacing: 8) {
-                    Button(action: copyDDL) {
-                        Label("Copy", systemImage: "doc.on.doc")
-                    }
-                    .buttonStyle(.bordered)
-                    .help("Copy DDL to clipboard")
-
-                    Button(action: exportDDL) {
-                        Label("Export", systemImage: "square.and.arrow.down")
-                    }
-                    .buttonStyle(.bordered)
-                    .help("Export DDL to file")
+                
+                Button(action: copyDDL) {
+                    Label("Copy", systemImage: "doc.on.doc")
                 }
+                .buttonStyle(.bordered)
+                
+                Button(action: exportDDL) {
+                    Label("Export", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, DesignConstants.Spacing.sm)
+            .padding()
             .background(Color(nsColor: .controlBackgroundColor))
-
+            
             Divider()
-
-            // DDL text view
+            
             if ddlStatement.isEmpty {
                 emptyState("No DDL available")
             } else {
@@ -318,46 +586,20 @@ struct TableStructureView: View {
             }
         }
     }
-
-    // MARK: - DDL Actions
-
-    private func copyDDL() {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(ddlStatement, forType: .string)
-
-        // Show confirmation feedback
-        withAnimation(.spring(duration: 0.3)) {
-            showCopyConfirmation = true
+    
+    // MARK: - Helper Views
+    
+    private func errorView(_ message: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.largeTitle)
+                .foregroundColor(.orange)
+            Text(message)
+                .foregroundColor(.secondary)
         }
-
-        // Hide after 2 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation(.spring(duration: 0.3)) {
-                showCopyConfirmation = false
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-
-    private func exportDDL() {
-        let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.init(filenameExtension: "sql")!]
-        savePanel.nameFieldStringValue = "\(tableName).sql"
-        savePanel.message = "Export DDL Statement"
-
-        savePanel.begin { response in
-            guard response == .OK, let url = savePanel.url else { return }
-
-            do {
-                try ddlStatement.write(to: url, atomically: true, encoding: .utf8)
-            } catch {
-                print("Failed to export DDL: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    // MARK: - Empty State
-
+    
     private func emptyState(_ message: String) -> some View {
         VStack(spacing: 8) {
             Image(systemName: "tray")
@@ -368,37 +610,39 @@ struct TableStructureView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-
-    // MARK: - Load Data (Lazy Loading)
-
-    /// Load only columns on initial view (default tab)
+    
+    // MARK: - Data Loading
+    
+    @Sendable
+    private func loadInitialData() async {
+        await loadColumns()
+        loadSchemaForEditing()
+    }
+    
     private func loadColumns() async {
         isLoading = true
         errorMessage = nil
-
+        
         guard let driver = DatabaseManager.shared.activeDriver else {
             errorMessage = "Not connected"
             isLoading = false
             return
         }
-
+        
         do {
             columns = try await driver.fetchColumns(table: tableName)
             loadedTabs.insert(.columns)
         } catch {
             errorMessage = error.localizedDescription
         }
-
+        
         isLoading = false
     }
-
-    /// Load data for tab only when selected (lazy loading)
+    
     private func loadTabDataIfNeeded(_ tab: StructureTab) async {
-        // Skip if already loaded
         guard !loadedTabs.contains(tab) else { return }
-
         guard let driver = DatabaseManager.shared.activeDriver else { return }
-
+        
         do {
             switch tab {
             case .columns:
@@ -414,8 +658,114 @@ struct TableStructureView: View {
             }
             loadedTabs.insert(tab)
         } catch {
-            // Log errors for debugging
             print("[TableStructureView] Failed to load \(tab): \(error.localizedDescription)")
+        }
+    }
+    
+    private func loadSchemaForEditing() {
+        structureChangeManager.loadSchema(
+            tableName: tableName,
+            columns: columns,
+            indexes: indexes,
+            foreignKeys: foreignKeys,
+            primaryKey: columns.filter { $0.isPrimaryKey }.map { $0.name },
+            databaseType: getDatabaseType()
+        )
+    }
+    
+    // MARK: - DDL Actions
+    
+    private func copyDDL() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(ddlStatement, forType: .string)
+        
+        withAnimation {
+            showCopyConfirmation = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation {
+                showCopyConfirmation = false
+            }
+        }
+    }
+    
+    private func exportDDL() {
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.init(filenameExtension: "sql")!]
+        savePanel.nameFieldStringValue = "\(tableName).sql"
+        
+        savePanel.begin { response in
+            guard response == .OK, let url = savePanel.url else { return }
+            do {
+                try ddlStatement.write(to: url, atomically: true, encoding: .utf8)
+            } catch {
+                print("Failed to export: \(error)")
+            }
+        }
+    }
+    
+    // MARK: - Lifecycle Callbacks
+    
+    private func onSelectedTabChanged(_ old: StructureTab, _ new: StructureTab) {
+        // Update AppState when switching to/from DDL tab
+        AppState.shared.isCurrentTabEditable = (new != .ddl)
+        
+        Task {
+            await loadTabDataIfNeeded(new)
+        }
+    }
+    
+    private func onColumnsChanged(_ old: [ColumnInfo], _ new: [ColumnInfo]) {
+        guard !isReloadingAfterSave else { return }
+        loadSchemaForEditing()
+    }
+    
+    private func onIndexesChanged(_ old: [IndexInfo], _ new: [IndexInfo]) {
+        guard !isReloadingAfterSave else { return }
+        loadSchemaForEditing()
+    }
+    
+    private func onForeignKeysChanged(_ old: [ForeignKeyInfo], _ new: [ForeignKeyInfo]) {
+        guard !isReloadingAfterSave else { return }
+        loadSchemaForEditing()
+    }
+    
+    private func onRefreshData(_ notification: Notification) {
+        // Ignore refresh notifications while we're in the middle of our own save/reload
+        guard !isReloadingAfterSave else { 
+            print("[TableStructureView] Ignoring refresh notification - currently reloading after save")
+            return 
+        }
+        
+        // Skip warning if we just saved (within 2 seconds)
+        let justSaved = lastSaveTime.map { Date().timeIntervalSince($0) < 2.0 } ?? false
+        
+        // Check for unsaved changes before refreshing
+        if structureChangeManager.hasChanges && !justSaved {
+            // Show confirmation dialog
+            let confirmed = AlertHelper.confirmDestructive(
+                title: "Discard Changes?",
+                message: "You have unsaved changes to the table structure. Refreshing will discard these changes.",
+                confirmButton: "Discard",
+                cancelButton: "Cancel"
+            )
+            
+            if confirmed {
+                // User chose to discard
+                discardChanges()
+                Task {
+                    await loadColumns()
+                    await loadTabDataIfNeeded(selectedTab)
+                }
+            }
+            // If cancelled, do nothing
+        } else {
+            // No changes (or just saved), safe to refresh
+            Task {
+                await loadColumns()
+                await loadTabDataIfNeeded(selectedTab)
+            }
         }
     }
 }
@@ -426,11 +776,11 @@ struct TableStructureView: View {
         connection: DatabaseConnection(
             name: "Test",
             host: "localhost",
-            port: 3_306,
+            port: 3306,
             database: "test",
             username: "root",
             type: .mysql
         )
     )
-    .frame(width: 800, height: 400)
+    .frame(width: 800, height: 600)
 }
