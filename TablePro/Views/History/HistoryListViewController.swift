@@ -397,15 +397,17 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
         guard count > 0 else { return }
 
-        let confirmed = AlertHelper.confirmDestructive(
-            title: "Clear All \(displayMode == .history ? "History" : "Bookmarks")?",
-            message: "This will permanently delete \(count) \(itemName). This action cannot be undone.",
-            confirmButton: "Clear All",
-            cancelButton: "Cancel"
-        )
+        Task { @MainActor in
+            let confirmed = await AlertHelper.confirmDestructive(
+                title: "Clear All \(displayMode == .history ? "History" : "Bookmarks")?",
+                message: "This will permanently delete \(count) \(itemName). This action cannot be undone.",
+                confirmButton: "Clear All",
+                cancelButton: "Cancel"
+            )
 
-        if confirmed {
-            _ = dataProvider.clearAll()
+            if confirmed {
+                _ = dataProvider.clearAll()
+            }
         }
     }
 

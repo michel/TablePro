@@ -744,17 +744,17 @@ struct TableStructureView: View {
         // Check for unsaved changes before refreshing
         if structureChangeManager.hasChanges && !justSaved {
             // Show confirmation dialog
-            let confirmed = AlertHelper.confirmDestructive(
-                title: "Discard Changes?",
-                message: "You have unsaved changes to the table structure. Refreshing will discard these changes.",
-                confirmButton: "Discard",
-                cancelButton: "Cancel"
-            )
-            
-            if confirmed {
-                // User chose to discard
-                discardChanges()
-                Task {
+            Task { @MainActor in
+                let confirmed = await AlertHelper.confirmDestructive(
+                    title: "Discard Changes?",
+                    message: "You have unsaved changes to the table structure. Refreshing will discard these changes.",
+                    confirmButton: "Discard",
+                    cancelButton: "Cancel"
+                )
+                
+                if confirmed {
+                    // User chose to discard
+                    discardChanges()
                     await loadColumns()
                     await loadTabDataIfNeeded(selectedTab)
                 }

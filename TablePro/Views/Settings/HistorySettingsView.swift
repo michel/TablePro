@@ -39,15 +39,17 @@ struct HistorySettingsView: View {
                     Text("Clear all query history")
                     Spacer()
                     Button("Clear History...") {
-                        let confirmed = AlertHelper.confirmDestructive(
-                            title: "Clear All History?",
-                            message: "This will permanently delete all query history entries. This action cannot be undone.",
-                            confirmButton: "Clear",
-                            cancelButton: "Cancel"
-                        )
-                        
-                        if confirmed {
-                            clearAllHistory()
+                        Task { @MainActor in
+                            let confirmed = await AlertHelper.confirmDestructive(
+                                title: "Clear All History?",
+                                message: "This will permanently delete all query history entries. This action cannot be undone.",
+                                confirmButton: "Clear",
+                                cancelButton: "Cancel"
+                            )
+                            
+                            if confirmed {
+                                clearAllHistory()
+                            }
                         }
                     }
                 }

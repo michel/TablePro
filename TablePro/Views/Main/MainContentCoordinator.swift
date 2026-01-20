@@ -169,12 +169,14 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         // Check for dangerous queries and confirm if needed
-        guard confirmDangerousQueryIfNeeded(sql) else {
-            return
-        }
+        Task { @MainActor in
+            guard await confirmDangerousQueryIfNeeded(sql) else {
+                return
+            }
 
-        // Execute the query directly
-        executeQueryInternal(sql)
+            // Execute the query directly
+            executeQueryInternal(sql)
+        }
     }
 
     /// Internal query execution (called after any confirmations)
@@ -1312,9 +1314,11 @@ final class MainContentCoordinator: ObservableObject {
 
             // Always confirm if there are unsaved changes
             if hasEditedCells {
-                let confirmed = confirmDiscardChanges(action: .closeTab)
-                if confirmed {
-                    closeCurrentTab()
+                Task { @MainActor in
+                    let confirmed = await confirmDiscardChanges(action: .closeTab)
+                    if confirmed {
+                        closeCurrentTab()
+                    }
                 }
             } else {
                 closeCurrentTab()
@@ -1560,8 +1564,8 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Refresh Handling
 
     func handleRefreshAll(
-        pendingTruncates: inout Set<String>,
-        pendingDeletes: inout Set<String>
+        hasPendingTableOps: Bool,
+        onDiscard: @escaping () -> Void
     ) {
         // If showing structure view, let it handle refresh notifications
         if let tabIndex = tabManager.selectedTabIndex,
@@ -1570,17 +1574,16 @@ final class MainContentCoordinator: ObservableObject {
         }
         
         let hasEditedCells = changeManager.hasChanges
-        let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
         if hasEditedCells || hasPendingTableOps {
-            let confirmed = confirmDiscardChanges(action: .refreshAll)
-            if confirmed {
-                handleDiscard(
-                    pendingTruncates: &pendingTruncates,
-                    pendingDeletes: &pendingDeletes
-                )
-                NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
-                runQuery()
+            Task { @MainActor in
+                let confirmed = await confirmDiscardChanges(action: .refreshAll)
+                if confirmed {
+                    onDiscard()
+                    changeManager.clearChanges()
+                    NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+                    runQuery()
+                }
             }
         } else {
             NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
@@ -1589,8 +1592,8 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     func handleRefresh(
-        pendingTruncates: inout Set<String>,
-        pendingDeletes: inout Set<String>
+        hasPendingTableOps: Bool,
+        onDiscard: @escaping () -> Void
     ) {
         // If showing structure view, let it handle refresh notifications
         if let tabIndex = tabManager.selectedTabIndex,
@@ -1599,22 +1602,21 @@ final class MainContentCoordinator: ObservableObject {
         }
         
         let hasEditedCells = changeManager.hasChanges
-        let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
         if hasEditedCells || hasPendingTableOps {
-            let confirmed = confirmDiscardChanges(action: .refresh)
-            if confirmed {
-                handleDiscard(
-                    pendingTruncates: &pendingTruncates,
-                    pendingDeletes: &pendingDeletes
-                )
-                // Only execute query if we're in a table tab
-                // Query tabs should not auto-execute on refresh (use Cmd+Enter to execute)
-                if let tabIndex = tabManager.selectedTabIndex,
-                   tabManager.tabs[tabIndex].tabType == .table {
-                    currentQueryTask?.cancel()
-                    rebuildTableQuery(at: tabIndex)
-                    runQuery()
+            Task { @MainActor in
+                let confirmed = await confirmDiscardChanges(action: .refresh)
+                if confirmed {
+                    onDiscard()
+                    changeManager.clearChanges()
+                    // Only execute query if we're in a table tab
+                    // Query tabs should not auto-execute on refresh (use Cmd+Enter to execute)
+                    if let tabIndex = tabManager.selectedTabIndex,
+                       tabManager.tabs[tabIndex].tabType == .table {
+                        currentQueryTask?.cancel()
+                        rebuildTableQuery(at: tabIndex)
+                        runQuery()
+                    }
                 }
             }
         } else {

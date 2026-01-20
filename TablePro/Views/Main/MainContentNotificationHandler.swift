@@ -344,25 +344,25 @@ final class MainContentNotificationHandler: ObservableObject {
     }
 
     private func handleRefreshData() {
-        var truncates = pendingTruncates.wrappedValue
-        var deletes = pendingDeletes.wrappedValue
+        let hasPendingTableOps = !pendingTruncates.wrappedValue.isEmpty || !pendingDeletes.wrappedValue.isEmpty
         coordinator?.handleRefresh(
-            pendingTruncates: &truncates,
-            pendingDeletes: &deletes
+            hasPendingTableOps: hasPendingTableOps,
+            onDiscard: { [weak self] in
+                self?.pendingTruncates.wrappedValue.removeAll()
+                self?.pendingDeletes.wrappedValue.removeAll()
+            }
         )
-        pendingTruncates.wrappedValue = truncates
-        pendingDeletes.wrappedValue = deletes
     }
 
     private func handleRefreshAll() {
-        var truncates = pendingTruncates.wrappedValue
-        var deletes = pendingDeletes.wrappedValue
+        let hasPendingTableOps = !pendingTruncates.wrappedValue.isEmpty || !pendingDeletes.wrappedValue.isEmpty
         coordinator?.handleRefreshAll(
-            pendingTruncates: &truncates,
-            pendingDeletes: &deletes
+            hasPendingTableOps: hasPendingTableOps,
+            onDiscard: { [weak self] in
+                self?.pendingTruncates.wrappedValue.removeAll()
+                self?.pendingDeletes.wrappedValue.removeAll()
+            }
         )
-        pendingTruncates.wrappedValue = truncates
-        pendingDeletes.wrappedValue = deletes
     }
 
     private func handleSaveChanges() {

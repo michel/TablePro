@@ -16,11 +16,11 @@ extension MainContentCoordinator {
     /// Check if query needs confirmation and show alert if needed
     /// - Parameter sql: SQL query to check
     /// - Returns: true if safe to execute, false if user cancelled
-    func confirmDangerousQueryIfNeeded(_ sql: String) -> Bool {
+    func confirmDangerousQueryIfNeeded(_ sql: String) async -> Bool {
         guard isDangerousQuery(sql) else { return true }
         
         let message = dangerousQueryMessage(for: sql)
-        return AlertHelper.confirmCritical(
+        return await AlertHelper.confirmCritical(
             title: "Potentially Dangerous Query",
             message: message,
             confirmButton: "Execute",
@@ -48,9 +48,9 @@ extension MainContentCoordinator {
     /// Confirm discarding unsaved changes
     /// - Parameter action: The action that requires discarding changes
     /// - Returns: true if user confirmed, false if cancelled
-    func confirmDiscardChanges(action: DiscardAction) -> Bool {
+    func confirmDiscardChanges(action: DiscardAction) async -> Bool {
         let message = discardMessage(for: action)
-        return AlertHelper.confirmDestructive(
+        return await AlertHelper.confirmDestructive(
             title: "Discard Unsaved Changes?",
             message: message,
             confirmButton: "Discard",

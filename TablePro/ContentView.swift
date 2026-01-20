@@ -66,7 +66,7 @@ struct ContentView: View {
                 if let sessionId = dbManager.currentSessionId {
                     // Always confirm before disconnecting
                     Task { @MainActor in
-                        let confirmed = AlertHelper.confirmDestructive(
+                        let confirmed = await AlertHelper.confirmDestructive(
                             title: "Disconnect",
                             message: "Are you sure you want to disconnect from this database?",
                             confirmButton: "Disconnect",
