@@ -3,7 +3,7 @@
 
 # Paths to include during linting
 included:
-  - TablePro
+  - OpenTable
 
 # Paths to exclude during linting
 excluded:
@@ -139,11 +139,11 @@ identifier_name:
     - xc
     - uc
     - lc
-    - TableProDir
+    - OpenTableDir
     - SQLITE_TRANSIENT
     - protocol_tcp
     - where_
-    - TableProTabSmart
+    - OpenTableTabSmart
 
 nesting:
   type_level:

@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-APP_NAME="TablePro"
+APP_NAME="OpenTable"
 VERSION="${1:-0.1.13}"
 ARCH="${2:-universal}"
 SOURCE_APP="${3:-build/Release/${APP_NAME}.app}"
@@ -27,8 +27,8 @@ fi
 # Ensure output directory exists
 mkdir -p "build/Release"
 
-# Create a staging copy of the app with the correct name (TablePro.app)
-# This ensures the DMG shows "TablePro.app" regardless of the source name
+# Create a staging copy of the app with the correct name (OpenTable.app)
+# This ensures the DMG shows "OpenTable.app" regardless of the source name
 STAGING_APP="build/Release/${APP_NAME}.app"
 if [ "$SOURCE_APP" != "$STAGING_APP" ]; then
     echo "📋 Preparing $APP_NAME.app for DMG..."
@@ -87,10 +87,10 @@ fi
 # Check if create-dmg tool is available (brew install create-dmg)
 if command -v create-dmg &> /dev/null; then
     echo "🔨 Using create-dmg tool..."
-    
+
     # Remove existing DMG if present
     rm -f "$FINAL_DMG"
-    
+
     # Build create-dmg command with options
     CREATE_DMG_ARGS=(
         --volname "$VOLUME_NAME"
@@ -102,18 +102,18 @@ if command -v create-dmg &> /dev/null; then
         --hide-extension "$APP_NAME.app"
         --no-internet-enable
     )
-    
+
     # Add volume icon if available
     if [ -n "$APP_ICON" ] && [ -f "$APP_ICON" ]; then
         CREATE_DMG_ARGS+=(--volicon "$APP_ICON")
     fi
-    
+
     # Add background if exists
     if [ -f ".dmg-assets/dmg-background.png" ]; then
         CREATE_DMG_ARGS+=(--background ".dmg-assets/dmg-background.png")
         echo "   Using custom background"
     fi
-    
+
     # Create DMG from staging directory (which has both the app and Applications alias)
     if ! create-dmg "${CREATE_DMG_ARGS[@]}" "$FINAL_DMG" "$DMG_STAGING"; then
         echo "⚠️  create-dmg exited with non-zero (may be expected in CI due to AppleScript)"
@@ -126,19 +126,19 @@ if command -v create-dmg &> /dev/null; then
             exit 1
         fi
     fi
-    
+
 else
     echo "⚠️  create-dmg tool not found, using basic hdiutil method..."
     echo "   Install with: brew install create-dmg"
-    
+
     # Calculate size needed for DMG
     SIZE_MB=$(du -sm "$DMG_STAGING" | awk '{print $1}')
     SIZE_MB=$((SIZE_MB + 50))
-    
+
     TEMP_DMG="build/Release/temp.dmg"
-    
+
     echo "🔨 Creating temporary DMG ($SIZE_MB MB)..."
-    
+
     # Create temporary DMG
     hdiutil create -srcfolder "$DMG_STAGING" \
         -volname "$VOLUME_NAME" \
@@ -147,20 +147,20 @@ else
         -format UDRW \
         -size ${SIZE_MB}m \
         "$TEMP_DMG"
-    
+
     # Mount the temporary DMG for customization
     MOUNT_DIR="/Volumes/$VOLUME_NAME"
     hdiutil attach "$TEMP_DMG" -readwrite -noverify -noautoopen
-    
+
     # Wait for mount
     sleep 2
-    
+
     # Set volume icon if available
     if [ -n "$APP_ICON" ] && [ -f "$APP_ICON" ]; then
         cp "$APP_ICON" "$MOUNT_DIR/.VolumeIcon.icns"
         SetFile -a C "$MOUNT_DIR" 2>/dev/null || true
     fi
-    
+
     # Try AppleScript to set icon positions (may fail in CI, that's OK)
     osascript <<EOF 2>/dev/null || echo "  ⚠️  AppleScript layout skipped (headless environment)"
 tell application "Finder"
@@ -175,12 +175,12 @@ tell application "Finder"
         set icon size of viewOptions to 80
         set shows item info of viewOptions to false
         set shows icon preview of viewOptions to true
-        
+
         -- Position icons
         delay 1
         set position of item "$APP_NAME.app" of container window to {150, 200}
         set position of item "Applications" of container window to {450, 200}
-        
+
         -- Force update
         close
         open
@@ -195,13 +195,13 @@ EOF
     sync
     sleep 1
     hdiutil detach "$MOUNT_DIR" -force
-    
+
     # Convert to compressed read-only DMG
     hdiutil convert "$TEMP_DMG" \
         -format UDZO \
         -imagekey zlib-level=9 \
         -o "$FINAL_DMG"
-    
+
     # Clean up temp DMG
     rm -f "$TEMP_DMG"
 fi

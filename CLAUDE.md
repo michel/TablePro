@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-Guide for working with TablePro codebase.
+Guide for working with OpenTable codebase.
 
 ## Project Overview
 
-**TablePro** - Native macOS database client (SwiftUI + AppKit). Alternative to TablePlus.
+**OpenTable** - Native macOS database client (SwiftUI + AppKit). Alternative to TablePlus.
 
 **Databases**: MySQL/MariaDB (MariaDB Connector/C), PostgreSQL (libpq), SQLite (native)
 
@@ -29,7 +29,7 @@ Guide for working with TablePro codebase.
 brew install mariadb-connector-c libpq
 
 # Build
-xcodebuild -project TablePro.xcodeproj -scheme TablePro build
+xcodebuild -project OpenTable.xcodeproj -scheme OpenTable build
 ```
 
 ## Architecture
