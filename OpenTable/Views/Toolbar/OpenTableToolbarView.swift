@@ -22,7 +22,8 @@ struct ToolbarPrincipalContent: View {
         HStack(spacing: ToolbarDesignTokens.Spacing.betweenSections) {
             // Tag badge (if tag is assigned)
             if let tagId = state.tagId,
-               let tag = TagStorage.shared.tag(for: tagId) {
+                let tag = TagStorage.shared.tag(for: tagId)
+            {
                 TagBadgeView(tag: tag)
 
                 Divider()
@@ -49,7 +50,11 @@ struct ToolbarPrincipalContent: View {
                 lastDuration: state.lastQueryDuration
             )
         }
-        .animation(.spring(response: ToolbarDesignTokens.Animation.springResponse, dampingFraction: ToolbarDesignTokens.Animation.springDamping), value: state.tagId)
+        .animation(
+            .spring(
+                response: ToolbarDesignTokens.Animation.springResponse,
+                dampingFraction: ToolbarDesignTokens.Animation.springDamping), value: state.tagId
+        )
         .animation(.easeInOut, value: state.connectionState)
     }
 }
@@ -78,12 +83,14 @@ struct OpenTableToolbar: ViewModifier {
 
                         // Database switcher button
                         Button {
-                            NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
+                            NotificationCenter.default.post(
+                                name: .openDatabaseSwitcher, object: nil)
                         } label: {
                             Image(systemName: "cylinder")
                         }
                         .help("Open Database (⌘K)")
-                        .disabled(state.connectionState != .connected || state.databaseType == .sqlite)
+                        .disabled(
+                            state.connectionState != .connected || state.databaseType == .sqlite)
 
                         // SQL query tab button
                         Button("SQL") {
@@ -171,7 +178,7 @@ extension View {
     /// Apply the OpenTable toolbar to this view
     /// - Parameter state: The toolbar state to display
     /// - Returns: View with toolbar applied
-    func OpenTableToolbar(state: ConnectionToolbarState) -> some View {
+    func openTableToolbar(state: ConnectionToolbarState) -> some View {
         modifier(OpenTableToolbar(state: state))
     }
 }
@@ -192,7 +199,7 @@ extension View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .textBackgroundColor))
     }
-    .OpenTableToolbar(state: state)
+    .openTableToolbar(state: state)
     .frame(width: 900, height: 400)
 }
 
@@ -211,7 +218,7 @@ extension View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .textBackgroundColor))
     }
-    .OpenTableToolbar(state: state)
+    .openTableToolbar(state: state)
     .frame(width: 900, height: 400)
 }
 
@@ -229,7 +236,7 @@ extension View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(nsColor: .textBackgroundColor))
     }
-    .OpenTableToolbar(state: state)
+    .openTableToolbar(state: state)
     .frame(width: 900, height: 400)
     .preferredColorScheme(.dark)
 }

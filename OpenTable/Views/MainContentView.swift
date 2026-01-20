@@ -73,20 +73,21 @@ struct MainContentView: View {
         _toolbarState = StateObject(wrappedValue: toolbarSt)
 
         // Create coordinator with all dependencies
-        _coordinator = StateObject(wrappedValue: MainContentCoordinator(
-            connection: connection,
-            tabManager: tabMgr,
-            changeManager: changeMgr,
-            filterStateManager: filterMgr,
-            toolbarState: toolbarSt
-        ))
+        _coordinator = StateObject(
+            wrappedValue: MainContentCoordinator(
+                connection: connection,
+                tabManager: tabMgr,
+                changeManager: changeMgr,
+                filterStateManager: filterMgr,
+                toolbarState: toolbarSt
+            ))
     }
 
     // MARK: - Body
 
     var body: some View {
         mainContentView
-            .OpenTableToolbar(state: toolbarState)
+            .openTableToolbar(state: toolbarState)
             .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
                 handleTabSelectionChange(from: oldTabId, to: newTabId)
@@ -122,6 +123,15 @@ struct MainContentView: View {
                 updateSidebarEditState()
             }
             .onAppear { setupNotificationHandler() }
+            .sheet(isPresented: $coordinator.showDatabaseSwitcher) {
+                DatabaseSwitcherSheet(
+                    isPresented: $coordinator.showDatabaseSwitcher,
+                    currentDatabase: connection.database,
+                    databaseType: connection.type,
+                    connectionId: connection.id,
+                    onSelect: switchDatabase
+                )
+            }
     }
 
     // MARK: - Main Content
@@ -138,13 +148,17 @@ struct MainContentView: View {
                 selectedRowIndices: $selectedRowIndices,
                 editingCell: $editingCell,
                 onCellEdit: { rowIndex, colIndex, value in
-                    coordinator.updateCellInTab(rowIndex: rowIndex, columnIndex: colIndex, value: value)
+                    coordinator.updateCellInTab(
+                        rowIndex: rowIndex, columnIndex: colIndex, value: value)
                 },
                 onSort: { columnIndex, ascending in
-                    coordinator.handleSort(columnIndex: columnIndex, ascending: ascending, selectedRowIndices: &selectedRowIndices)
+                    coordinator.handleSort(
+                        columnIndex: columnIndex, ascending: ascending,
+                        selectedRowIndices: &selectedRowIndices)
                 },
                 onAddRow: {
-                    coordinator.addNewRow(selectedRowIndices: &selectedRowIndices, editingCell: &editingCell)
+                    coordinator.addNewRow(
+                        selectedRowIndices: &selectedRowIndices, editingCell: &editingCell)
                 },
                 onUndoInsert: { rowIndex in
                     coordinator.undoInsertRow(at: rowIndex, selectedRowIndices: &selectedRowIndices)
@@ -228,8 +242,9 @@ struct MainContentView: View {
 
             // Execute query for table tabs
             if let selectedTab = tabManager.selectedTab,
-               selectedTab.tabType == .table,
-               !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                selectedTab.tabType == .table,
+                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            {
                 await coordinator.tabPersistence.waitForConnectionAndExecute {
                     coordinator.runQuery()
                 }
@@ -277,7 +292,8 @@ struct MainContentView: View {
 
         // Persist tab selection
         guard !coordinator.tabPersistence.isRestoringTabs,
-              !coordinator.tabPersistence.isDismissing else { return }
+            !coordinator.tabPersistence.isDismissing
+        else { return }
 
         if let sessionId = DatabaseManager.shared.currentSessionId {
             DatabaseManager.shared.updateSession(sessionId) { session in
@@ -292,7 +308,8 @@ struct MainContentView: View {
 
     private func handleTabsChange(_ newTabs: [QueryTab]) {
         guard !coordinator.tabPersistence.isRestoringTabs,
-              !coordinator.tabPersistence.isDismissing else { return }
+            !coordinator.tabPersistence.isDismissing
+        else { return }
 
         if let sessionId = DatabaseManager.shared.currentSessionId {
             DatabaseManager.shared.updateSession(sessionId) { session in
@@ -311,8 +328,9 @@ struct MainContentView: View {
 
     private func handleColumnsChange(newColumns: [String]?) {
         guard let newColumns = newColumns, !newColumns.isEmpty,
-              let tab = tabManager.selectedTab,
-              !tab.pendingChanges.hasChanges else { return }
+            let tab = tabManager.selectedTab,
+            !tab.pendingChanges.hasChanges
+        else { return }
 
         // Reconfigure if columns changed OR table name changed (switching tables)
         let columnsChanged = changeManager.columns != newColumns
@@ -328,7 +346,6 @@ struct MainContentView: View {
         )
     }
 
-
     private func handleConnectionChange(_ isConnected: Bool?) {
         if isConnected == true && coordinator.needsLazyLoad {
             coordinator.needsLazyLoad = false
@@ -342,7 +359,9 @@ struct MainContentView: View {
         }
     }
 
-    private func handleTableSelectionChange(from oldTables: Set<TableInfo>, to newTables: Set<TableInfo>) {
+    private func handleTableSelectionChange(
+        from oldTables: Set<TableInfo>, to newTables: Set<TableInfo>
+    ) {
         let added = newTables.subtracting(oldTables)
         if let table = added.first {
             selectedRowIndices = []
@@ -355,7 +374,8 @@ struct MainContentView: View {
 
     private func loadTableMetadataIfNeeded() async {
         guard let tableName = currentTab?.tableName,
-              coordinator.tableMetadata?.tableName != tableName else { return }
+            coordinator.tableMetadata?.tableName != tableName
+        else { return }
         await coordinator.loadTableMetadata(tableName: tableName)
     }
 
@@ -400,7 +420,8 @@ struct MainContentView: View {
                 coordinator.runQuery()
             } catch {
                 if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage = "Save failed: \(error.localizedDescription)"
+                    tabManager.tabs[index].errorMessage =
+                        "Save failed: \(error.localizedDescription)"
                 }
 
                 // Show error alert to user
@@ -426,8 +447,9 @@ struct MainContentView: View {
 
     private func updateSidebarEditState() {
         guard isSidebarEditable,
-              let tab = coordinator.tabManager.selectedTab,
-              !selectedRowIndices.isEmpty else {
+            let tab = coordinator.tabManager.selectedTab,
+            !selectedRowIndices.isEmpty
+        else {
             sidebarEditState.fields = []
             return
         }
@@ -458,8 +480,9 @@ struct MainContentView: View {
     @MainActor
     private func saveSidebarEdits() async {
         guard let tab = coordinator.tabManager.selectedTab,
-              !selectedRowIndices.isEmpty,
-              let tableName = tab.tableName else {
+            !selectedRowIndices.isEmpty,
+            let tableName = tab.tableName
+        else {
             return
         }
 
@@ -475,14 +498,16 @@ struct MainContentView: View {
                 let row = tab.resultRows[rowIndex]
 
                 // Build UPDATE statement
-                guard let updateSQL = generateUpdateSQL(
-                    tableName: tableName,
-                    rowIndex: rowIndex,
-                    originalRow: row.values,
-                    editedFields: editedFields,
-                    columns: tab.resultColumns,
-                    primaryKeyColumn: changeManager.primaryKeyColumn
-                ) else {
+                guard
+                    let updateSQL = generateUpdateSQL(
+                        tableName: tableName,
+                        rowIndex: rowIndex,
+                        originalRow: row.values,
+                        editedFields: editedFields,
+                        columns: tab.resultColumns,
+                        primaryKeyColumn: changeManager.primaryKeyColumn
+                    )
+                else {
                     continue
                 }
 
@@ -517,9 +542,10 @@ struct MainContentView: View {
         primaryKeyColumn: String?
     ) -> String? {
         guard let pkColumn = primaryKeyColumn,
-              let pkIndex = columns.firstIndex(of: pkColumn),
-              pkIndex < originalRow.count,
-              let pkValue = originalRow[pkIndex] else {
+            let pkIndex = columns.firstIndex(of: pkColumn),
+            pkIndex < originalRow.count,
+            let pkValue = originalRow[pkIndex]
+        else {
             return nil
         }
 
@@ -552,7 +578,8 @@ struct MainContentView: View {
         // Add LIMIT clause for MySQL/MariaDB
         let limitClause = (dbType == .mysql || dbType == .mariadb) ? " LIMIT 1" : ""
 
-        return "UPDATE \(dbType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
+        return
+            "UPDATE \(dbType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
     }
 
     private func isSQLFunction(_ value: String) -> Bool {
