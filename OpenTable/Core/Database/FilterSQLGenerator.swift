@@ -139,25 +139,23 @@ struct FilterSQLGenerator {
     /// Escape a value for SQL, auto-detecting type
     private func escapeValue(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespaces)
+        let upper = trimmed.uppercased()
 
         // Check for NULL literal
-        if trimmed.uppercased() == "NULL" {
+        if upper == "NULL" {
             return "NULL"
         }
 
         // Check for boolean literals
-        if trimmed.uppercased() == "TRUE" {
+        if upper == "TRUE" {
             return databaseType == .postgresql ? "TRUE" : "1"
         }
-        if trimmed.uppercased() == "FALSE" {
+        if upper == "FALSE" {
             return databaseType == .postgresql ? "FALSE" : "0"
         }
 
         // Try to detect numeric values
-        if Int(trimmed) != nil {
-            return trimmed
-        }
-        if Double(trimmed) != nil {
+        if Int(trimmed) != nil || Double(trimmed) != nil {
             return trimmed
         }
 

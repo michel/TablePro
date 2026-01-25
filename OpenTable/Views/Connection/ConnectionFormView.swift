@@ -417,7 +417,8 @@ struct ConnectionFormView: View {
     }
 
     private var isValid: Bool {
-        let basicValid = !name.isEmpty && (type == .sqlite ? !database.isEmpty : !host.isEmpty)
+        // Host and port can be empty (will use defaults: localhost and default port)
+        let basicValid = !name.isEmpty && (type == .sqlite ? !database.isEmpty : true)
         if sshEnabled {
             let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty
             let authValid = sshAuthMethod == .password || !sshPrivateKeyPath.isEmpty
@@ -490,13 +491,18 @@ struct ConnectionFormView: View {
             useSSHConfig: !selectedSSHConfigHost.isEmpty
         )
 
+        // Apply defaults: localhost for empty host, default port for empty/invalid port, root for empty username
+        let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
+        let finalPort = Int(port) ?? type.defaultPort
+        let finalUsername = username.trimmingCharacters(in: .whitespaces).isEmpty ? "root" : username
+
         let connectionToSave = DatabaseConnection(
             id: connectionId ?? UUID(),
             name: name,
-            host: host,
-            port: Int(port) ?? 0,
+            host: finalHost,
+            port: finalPort,
             database: database,
-            username: username,
+            username: finalUsername,
             type: type,
             sshConfig: sshConfig,
             color: connectionColor,
@@ -569,13 +575,18 @@ struct ConnectionFormView: View {
             useSSHConfig: !selectedSSHConfigHost.isEmpty
         )
 
+        // Apply defaults: localhost for empty host, default port for empty/invalid port, root for empty username
+        let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
+        let finalPort = Int(port) ?? type.defaultPort
+        let finalUsername = username.trimmingCharacters(in: .whitespaces).isEmpty ? "root" : username
+
         // Build connection from form values
         let testConn = DatabaseConnection(
             name: name,
-            host: host,
-            port: Int(port) ?? 0,
+            host: finalHost,
+            port: finalPort,
             database: database,
-            username: username,
+            username: finalUsername,
             type: type,
             sshConfig: sshConfig,
             color: connectionColor,
