@@ -323,7 +323,7 @@ struct OpenTableApp: App {
                 Button("Toggle Inspector") {
                     NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
                 }
-                .keyboardShortcut("b", modifiers: [.command, .option])
+                .keyboardShortcut("b", modifiers: [.command, .shift])
                 .disabled(!appState.isConnected)
 
                 Divider()
