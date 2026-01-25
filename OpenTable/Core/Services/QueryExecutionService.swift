@@ -174,12 +174,9 @@ final class QueryExecutionService: ObservableObject {
 
             // Found a statement delimiter
             if char == ";" && !inString {
-                let statement = String(
-                    fullQuery[
-                        fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)..<fullQuery.index(fullQuery.startIndex, offsetBy: i)
-                    ]
-                )
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+                let startIndex = fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)
+                let endIndex = fullQuery.index(fullQuery.startIndex, offsetBy: i)
+                let statement = String(fullQuery[startIndex..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
                 if !statement.isEmpty {
                     statements.append((text: statement, range: currentStart..<(i + 1)))
                 }
@@ -189,10 +186,8 @@ final class QueryExecutionService: ObservableObject {
 
         // Don't forget the last statement (may not end with ;)
         if currentStart < fullQuery.count {
-            let remaining = String(
-                fullQuery[fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)...]
-            )
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+            let startIndex = fullQuery.index(fullQuery.startIndex, offsetBy: currentStart)
+            let remaining = String(fullQuery[startIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
             if !remaining.isEmpty {
                 statements.append((text: remaining, range: currentStart..<fullQuery.count))
             }

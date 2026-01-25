@@ -224,11 +224,9 @@ final class DatabaseManager: ObservableObject {
     }
 
     /// Test a connection without keeping it open
-    func testConnection(_ connection: DatabaseConnection, sshPassword: String? = nil) async throws
-    -> Bool
-    {
+    func testConnection(_ connection: DatabaseConnection, sshPassword: String? = nil) async throws -> Bool {
         // Create SSH tunnel if needed
-        var tunnelPort: Int?
+        let tunnelPort: Int?
         if connection.sshConfig.enabled {
             let sshPwd = sshPassword ?? ConnectionStorage.shared.loadSSHPassword(for: connection.id)
             let keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: connection.id)
@@ -244,6 +242,8 @@ final class DatabaseManager: ObservableObject {
                 remoteHost: connection.host,
                 remotePort: connection.port
             )
+        } else {
+            tunnelPort = nil
         }
 
         defer {

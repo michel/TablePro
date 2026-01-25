@@ -98,13 +98,9 @@ extension DatabaseDriver {
     var serverVersion: String? { nil }
 
     func testConnection() async throws -> Bool {
-        do {
-            try await connect()
-            disconnect()
-            return true
-        } catch {
-            throw error
-        }
+        try await connect()
+        disconnect()
+        return true
     }
 
     // MARK: - Default Transaction Implementation
