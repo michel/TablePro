@@ -132,6 +132,20 @@ struct MainContentView: View {
                     onSelect: switchDatabase
                 )
             }
+            .sheet(isPresented: $coordinator.showExportDialog) {
+                ExportDialog(
+                    isPresented: $coordinator.showExportDialog,
+                    connection: connection,
+                    preselectedTables: []
+                )
+            }
+            .sheet(isPresented: $coordinator.showImportDialog) {
+                ImportDialog(
+                    isPresented: $coordinator.showImportDialog,
+                    connection: connection,
+                    initialFileURL: coordinator.importFileURL
+                )
+            }
     }
 
     // MARK: - Main Content
