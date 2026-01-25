@@ -318,15 +318,17 @@ final class RowOperationsManager {
     ///   - clipboard: Clipboard provider (injectable for testing)
     ///   - parser: Row data parser (injectable for testing)
     /// - Returns: Array of (rowIndex, values) for pasted rows, or empty array on failure
+    @MainActor
     func pasteRowsFromClipboard(
         columns: [String],
         primaryKeyColumn: String?,
         resultRows: inout [QueryResultRow],
-        clipboard: ClipboardProvider = ClipboardService.shared,
-        parser: RowDataParser = TSVRowParser()
+        clipboard: ClipboardProvider? = nil,
+        parser: RowDataParser? = nil
     ) -> [(rowIndex: Int, values: [String?])] {
         // Read from clipboard
-        guard let clipboardText = clipboard.readText() else {
+        let clipboardProvider = clipboard ?? ClipboardService.shared
+        guard let clipboardText = clipboardProvider.readText() else {
             return []
         }
 
@@ -337,7 +339,8 @@ final class RowOperationsManager {
         )
 
         // Parse clipboard text
-        let parseResult = parser.parse(clipboardText, schema: schema)
+        let rowParser = parser ?? TSVRowParser()
+        let parseResult = rowParser.parse(clipboardText, schema: schema)
 
         switch parseResult {
         case .success(let parsedRows):

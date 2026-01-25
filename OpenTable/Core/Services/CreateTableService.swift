@@ -149,7 +149,7 @@ struct CreateTableService {
         sql += "\(quotedDatabase).\(quotedTable) (\n"
 
         // Column definitions
-        let columnDefs = try options.columns.map { column -> String in
+        let columnDefs = options.columns.map { column -> String in
             let isPK = options.primaryKeyColumns.contains(column.name)
             return "  " + buildColumnDefinition(column, dbType: databaseType, isPK: isPK)
         }
@@ -231,7 +231,7 @@ struct CreateTableService {
         sql += "\(quotedSchema).\(quotedTable) (\n"
 
         // Column definitions
-        let columnDefs = try options.columns.map { column -> String in
+        let columnDefs = options.columns.map { column -> String in
             let isPK = options.primaryKeyColumns.contains(column.name)
             return "  " + buildColumnDefinition(column, dbType: databaseType, isPK: isPK)
         }
@@ -312,7 +312,7 @@ struct CreateTableService {
         let hasSinglePK = validPKColumns.count == 1
         let singlePKColumn = hasSinglePK ? validPKColumns.first : nil
 
-        let columnDefs = try options.columns.map { column -> String in
+        let columnDefs = options.columns.map { column -> String in
             // For single PK, add PRIMARY KEY inline
             let isPKInline = singlePKColumn == column.name
             return "  " + buildColumnDefinition(column, dbType: databaseType, isPK: isPKInline)

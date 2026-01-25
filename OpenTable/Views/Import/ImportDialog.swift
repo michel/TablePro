@@ -258,13 +258,7 @@ struct ImportDialog: View {
         let panel = NSOpenPanel()
 
         let allowedTypes = ["sql", "gz"].compactMap { UTType(filenameExtension: $0) }
-        if !allowedTypes.isEmpty {
-            panel.allowedContentTypes = allowedTypes
-        } else {
-            // Fallback: restrict by file extensions if UTType lookup fails
-            NSLog("ImportDialog.selectFile: UTType lookup for extensions [\"sql\", \"gz\"] returned no results; falling back to deprecated allowedFileTypes.")
-            panel.allowedFileTypes = ["sql", "gz"]
-        }
+        panel.allowedContentTypes = allowedTypes.isEmpty ? [.data] : allowedTypes
         panel.allowsMultipleSelection = false
         panel.message = "Select SQL file to import"
 

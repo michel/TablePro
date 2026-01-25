@@ -70,10 +70,8 @@ final class QueryExecutionService: ObservableObject {
                     if let driver = DatabaseManager.shared.activeDriver {
                         // Execute both queries in parallel for better performance
                         async let columnInfoTask = driver.fetchColumns(table: tableName)
-                        async let countTask: QueryResult = {
-                            let quotedTable = connection.type.quoteIdentifier(tableName)
-                            return try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
-                        }()
+                        let quotedTable = connection.type.quoteIdentifier(tableName)
+                        async let countTask: QueryResult = try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
 
                         let (columnInfo, countResult) = try await (columnInfoTask, countTask)
 

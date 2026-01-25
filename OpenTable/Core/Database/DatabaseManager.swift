@@ -300,7 +300,7 @@ final class DatabaseManager: ObservableObject {
 
         do {
             for stmt in statements {
-                try await driver.execute(query: stmt.sql)
+                _ = try await driver.execute(query: stmt.sql)
             }
 
             try await driver.commitTransaction()

@@ -105,7 +105,7 @@ struct DDLParser {
         guard parts.count >= 2 else { return nil }
 
         // Column name (remove quotes)
-        var name = parts[0].replacingOccurrences(of: "`", with: "").replacingOccurrences(of: "\"", with: "")
+        let name = parts[0].replacingOccurrences(of: "`", with: "").replacingOccurrences(of: "\"", with: "")
 
         // Data type (may include length)
         var dataType = parts[1].uppercased()

@@ -417,7 +417,7 @@ struct MainContentView: View {
                     QueryHistoryManager.shared.recordQuery(
                         query: statement.trimmingCharacters(in: .whitespacesAndNewlines),
                         connectionId: connection.id,
-                        databaseName: connection.database ?? "",
+                        databaseName: connection.database,
                         executionTime: executionTime,
                         rowCount: 0,
                         wasSuccessful: true,

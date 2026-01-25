@@ -40,6 +40,7 @@ struct NSPasteboardClipboardProvider: ClipboardProvider {
 }
 
 /// Shared clipboard service instance
+@MainActor
 enum ClipboardService {
     static var shared: ClipboardProvider = NSPasteboardClipboardProvider()
 }

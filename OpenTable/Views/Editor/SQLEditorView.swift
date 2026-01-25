@@ -126,7 +126,7 @@ struct SQLEditorView: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSView, context: Context) {
         // Extract scroll view from container view and update text if changed from SwiftUI side
-        if let scrollView = nsView.subviews.first(where: { $0 is NSScrollView }) as? NSScrollView {
+        if nsView.subviews.first(where: { $0 is NSScrollView }) is NSScrollView {
             context.coordinator.updateTextViewIfNeeded(with: text)
         }
 

@@ -268,7 +268,7 @@ struct RightSidebarView: View {
 // MARK: - Preview
 
 #Preview {
-    @StateObject var editState = MultiRowEditState()
+    @Previewable @StateObject var editState = MultiRowEditState()
     return RightSidebarView(
         tableName: "users",
         tableMetadata: TableMetadata(

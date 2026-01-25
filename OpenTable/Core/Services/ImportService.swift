@@ -161,7 +161,7 @@ final class ImportService: ObservableObject {
                     QueryHistoryManager.shared.recordQuery(
                         query: statement,
                         connectionId: connection.id,
-                        databaseName: connection.database ?? "",
+                        databaseName: connection.database,
                         executionTime: executionTime,
                         rowCount: 0,
                         wasSuccessful: true,
@@ -179,7 +179,7 @@ final class ImportService: ObservableObject {
                     QueryHistoryManager.shared.recordQuery(
                         query: statement,
                         connectionId: connection.id,
-                        databaseName: connection.database ?? "",
+                        databaseName: connection.database,
                         executionTime: 0,
                         rowCount: 0,
                         wasSuccessful: false,

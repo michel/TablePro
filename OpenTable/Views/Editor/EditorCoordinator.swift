@@ -241,7 +241,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
     private func calculateCompletionWindowPosition() -> NSPoint? {
         guard let textView = textView,
               let layoutManager = textView.layoutManager,
-              let textContainer = textView.textContainer else { return nil }
+              let _ = textView.textContainer else { return nil }
 
         let text = textView.string
         let cursorPosition = textView.selectedRange().location

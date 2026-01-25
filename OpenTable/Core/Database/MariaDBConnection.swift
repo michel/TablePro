@@ -664,8 +664,8 @@ final class MariaDBConnection: @unchecked Sendable {
         // Bind result buffers
         var resultBinds: [MYSQL_BIND] = Array(repeating: MYSQL_BIND(), count: numFields)
         var resultBuffers: [UnsafeMutableRawPointer] = []
-        var resultLengths: [UInt] = Array(repeating: 0, count: numFields)
-        var resultIsNulls: [my_bool] = Array(repeating: 0, count: numFields)
+        var _: [UInt] = Array(repeating: 0, count: numFields)
+        var _: [my_bool] = Array(repeating: 0, count: numFields)
 
         defer {
             for buffer in resultBuffers {

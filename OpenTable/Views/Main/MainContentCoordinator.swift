@@ -209,10 +209,8 @@ final class MainContentCoordinator: ObservableObject {
                 if isEditable, let tableName = tableName {
                     if let driver = DatabaseManager.shared.activeDriver {
                         async let columnInfoTask = driver.fetchColumns(table: tableName)
-                        async let countTask: QueryResult = {
-                            let quotedTable = conn.type.quoteIdentifier(tableName)
-                            return try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
-                        }()
+                        let quotedTable = conn.type.quoteIdentifier(tableName)
+                        async let countTask: QueryResult = try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
 
                         let (columnInfo, countResult) = try await (columnInfoTask, countTask)
 
@@ -296,7 +294,7 @@ final class MainContentCoordinator: ObservableObject {
                         QueryHistoryManager.shared.recordQuery(
                             query: sql,
                             connectionId: conn.id,
-                            databaseName: conn.database ?? "",
+                            databaseName: conn.database,
                             executionTime: safeExecutionTime,
                             rowCount: safeRows.count,
                             wasSuccessful: true,
@@ -318,7 +316,7 @@ final class MainContentCoordinator: ObservableObject {
                     QueryHistoryManager.shared.recordQuery(
                         query: sql,
                         connectionId: conn.id,
-                        databaseName: conn.database ?? "",
+                        databaseName: conn.database,
                         executionTime: 0,
                         rowCount: 0,
                         wasSuccessful: false,
@@ -746,7 +744,7 @@ final class MainContentCoordinator: ObservableObject {
             tabManager.tabs[index].hasUserInteraction = true
 
             // Scroll to first pasted row
-            if let firstIndex = pastedRows.first?.rowIndex {
+            if pastedRows.first?.rowIndex != nil {
                 // Trigger scroll via notification if needed
                 // For now, selection change will handle visibility
             }
@@ -1053,7 +1051,7 @@ final class MainContentCoordinator: ObservableObject {
                         QueryHistoryManager.shared.recordQuery(
                             query: statement.sql.trimmingCharacters(in: .whitespacesAndNewlines),
                             connectionId: conn.id,
-                            databaseName: conn.database ?? "",
+                            databaseName: conn.database,
                             executionTime: executionTime,
                             rowCount: 0,
                             wasSuccessful: true,
@@ -1097,7 +1095,7 @@ final class MainContentCoordinator: ObservableObject {
                 if fkWasDisabled, let driver = DatabaseManager.shared.activeDriver {
                     for statement in self.fkEnableStatements(for: dbType) {
                         do {
-                            try await driver.execute(query: statement)
+                            _ = try await driver.execute(query: statement)
                         } catch {
                             print("Warning: Failed to re-enable foreign key checks with statement '\(statement)': \(error)")
                         }
@@ -1109,7 +1107,7 @@ final class MainContentCoordinator: ObservableObject {
                     QueryHistoryManager.shared.recordQuery(
                         query: allSQL,
                         connectionId: conn.id,
-                        databaseName: conn.database ?? "",
+                        databaseName: conn.database,
                         executionTime: executionTime,
                         rowCount: 0,
                         wasSuccessful: false,
@@ -1229,7 +1227,7 @@ final class MainContentCoordinator: ObservableObject {
                 // Execute CREATE TABLE
                 _ = try await driver.execute(query: sql)
 
-                let duration = Date().timeIntervalSince(startTime)
+                _ = Date().timeIntervalSince(startTime)
 
                 // Refresh schema to show new table (outside MainActor)
                 await schemaProvider.invalidateCache()

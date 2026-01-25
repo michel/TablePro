@@ -109,11 +109,11 @@ final class HistoryDataProvider {
         switch displayMode {
         case .history:
             guard let entry = historyEntry(at: index) else { return false }
-            QueryHistoryManager.shared.deleteHistory(id: entry.id)
+            _ = QueryHistoryManager.shared.deleteHistory(id: entry.id)
             return true
         case .bookmarks:
             guard let bookmark = bookmark(at: index) else { return false }
-            QueryHistoryManager.shared.deleteBookmark(id: bookmark.id)
+            _ = QueryHistoryManager.shared.deleteBookmark(id: bookmark.id)
             return true
         }
     }

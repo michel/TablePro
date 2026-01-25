@@ -243,25 +243,21 @@ struct TableStructureView: View {
         // Find min/max for smart selection after delete
         let minRow = rows.min() ?? 0
         let maxRow = rows.max() ?? 0
-        var currentCount = 0
 
         switch selectedTab {
         case .columns:
-            currentCount = structureChangeManager.workingColumns.count
             for row in rows.sorted(by: >) {
                 guard row < structureChangeManager.workingColumns.count else { continue }
                 let column = structureChangeManager.workingColumns[row]
                 structureChangeManager.deleteColumn(id: column.id)
             }
         case .indexes:
-            currentCount = structureChangeManager.workingIndexes.count
             for row in rows.sorted(by: >) {
                 guard row < structureChangeManager.workingIndexes.count else { continue }
                 let index = structureChangeManager.workingIndexes[row]
                 structureChangeManager.deleteIndex(id: index.id)
             }
         case .foreignKeys:
-            currentCount = structureChangeManager.workingForeignKeys.count
             for row in rows.sorted(by: >) {
                 guard row < structureChangeManager.workingForeignKeys.count else { continue }
                 let fk = structureChangeManager.workingForeignKeys[row]

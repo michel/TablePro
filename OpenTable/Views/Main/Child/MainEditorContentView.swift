@@ -144,7 +144,7 @@ struct MainEditorContentView: View {
 
     @ViewBuilder
     private func createTableTabContent(tab: QueryTab) -> some View {
-        if let options = tab.tableCreationOptions {
+        if tab.tableCreationOptions != nil {
             CreateTableView(
                 options: createTableOptionsBinding(for: tab),
                 databaseType: connection.type,
