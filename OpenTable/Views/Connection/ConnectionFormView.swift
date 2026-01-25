@@ -119,7 +119,7 @@ struct ConnectionFormView: View {
                 FormField(label: "Type", icon: "cylinder.split.1x2") {
                     Picker("", selection: $type) {
                         ForEach(DatabaseType.allCases) { dbType in
-                            Label(dbType.rawValue, systemImage: iconForType(dbType))
+                            Label(dbType.rawValue, image: iconForType(dbType))
                                 .tag(dbType)
                         }
                     }
