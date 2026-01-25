@@ -160,12 +160,16 @@ struct DataGridView: NSViewRepresentable {
 
         coordinator.rebuildVisualStateCache()
 
-        // Check if columns changed
+        // Check if columns changed (by name or structure)
         let currentDataColumns = tableView.tableColumns.dropFirst()
         let currentColumnNames = currentDataColumns.map { $0.title }
         let columnsChanged = !rowProvider.columns.isEmpty && (currentColumnNames != rowProvider.columns)
+        
+        // Also rebuild columns when structure changes (e.g., 0 rows → data loaded)
+        // This ensures column widths are recalculated based on actual cell content
+        let shouldRebuildColumns = columnsChanged || (structureChanged && !rowProvider.columns.isEmpty)
 
-        if columnsChanged {
+        if shouldRebuildColumns {
             let columnsToRemove = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
             for column in columnsToRemove {
                 tableView.removeTableColumn(column)
