@@ -44,7 +44,6 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = true
         toolbar.autosavesConfiguration = true
-        toolbar.showsBaselineSeparator = true
     }
 
     /// Attach toolbar to window
