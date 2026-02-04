@@ -322,6 +322,13 @@ final class MainContentCoordinator: ObservableObject {
                         wasSuccessful: false,
                         errorMessage: error.localizedDescription
                     )
+
+                    // Show error alert to user
+                    AlertHelper.showErrorSheet(
+                        title: "Query Execution Failed",
+                        message: error.localizedDescription,
+                        window: NSApp.keyWindow
+                    )
                 }
             }
         }

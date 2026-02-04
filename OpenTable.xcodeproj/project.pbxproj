@@ -7,16 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5AAD95F72F32E60B003E05FC /* COMMIT_MESSAGE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 5AAD95F62F32E60B003E05FC /* COMMIT_MESSAGE.txt */; };
-		5AAD95F92F32E615003E05FC /* commit_push.sh in Resources */ = {isa = PBXBuildFile; fileRef = 5AAD95F82F32E615003E05FC /* commit_push.sh */; };
-		5AAD95FB2F32E628003E05FC /* GIT_COMMANDS.md in Resources */ = {isa = PBXBuildFile; fileRef = 5AAD95FA2F32E628003E05FC /* GIT_COMMANDS.md */; };
+		5AAD97BC2F32E8D1003E05FC /* AUTOCOMPLETE_IMPROVEMENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = 5AAD97BB2F32E8D1003E05FC /* AUTOCOMPLETE_IMPROVEMENTS.md */; };
+		5AAD97BE2F32E8FD003E05FC /* SQLAutocompleteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AAD97BD2F32E8FD003E05FC /* SQLAutocompleteTests.swift */; };
+		5AAD97C02F32E951003E05FC /* AUTOCOMPLETE_SUMMARY.md in Resources */ = {isa = PBXBuildFile; fileRef = 5AAD97BF2F32E951003E05FC /* AUTOCOMPLETE_SUMMARY.md */; };
+		5AAD97C22F32E96E003E05FC /* QUICK_REFERENCE.md in Resources */ = {isa = PBXBuildFile; fileRef = 5AAD97C12F32E96E003E05FC /* QUICK_REFERENCE.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		5A1091C72EF17EDC0055EA7C /* OpenTable.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenTable.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		5AAD95F62F32E60B003E05FC /* COMMIT_MESSAGE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = COMMIT_MESSAGE.txt; sourceTree = "<group>"; };
-		5AAD95F82F32E615003E05FC /* commit_push.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = commit_push.sh; sourceTree = "<group>"; };
-		5AAD95FA2F32E628003E05FC /* GIT_COMMANDS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = GIT_COMMANDS.md; sourceTree = "<group>"; };
+		5AAD97BB2F32E8D1003E05FC /* AUTOCOMPLETE_IMPROVEMENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AUTOCOMPLETE_IMPROVEMENTS.md; sourceTree = "<group>"; };
+		5AAD97BD2F32E8FD003E05FC /* SQLAutocompleteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLAutocompleteTests.swift; sourceTree = "<group>"; };
+		5AAD97BF2F32E951003E05FC /* AUTOCOMPLETE_SUMMARY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AUTOCOMPLETE_SUMMARY.md; sourceTree = "<group>"; };
+		5AAD97C12F32E96E003E05FC /* QUICK_REFERENCE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = QUICK_REFERENCE.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,9 +45,10 @@
 			children = (
 				5A1091C92EF17EDC0055EA7C /* OpenTable */,
 				5A1091C82EF17EDC0055EA7C /* Products */,
-				5AAD95F62F32E60B003E05FC /* COMMIT_MESSAGE.txt */,
-				5AAD95F82F32E615003E05FC /* commit_push.sh */,
-				5AAD95FA2F32E628003E05FC /* GIT_COMMANDS.md */,
+				5AAD97BB2F32E8D1003E05FC /* AUTOCOMPLETE_IMPROVEMENTS.md */,
+				5AAD97BD2F32E8FD003E05FC /* SQLAutocompleteTests.swift */,
+				5AAD97BF2F32E951003E05FC /* AUTOCOMPLETE_SUMMARY.md */,
+				5AAD97C12F32E96E003E05FC /* QUICK_REFERENCE.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -123,9 +126,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5AAD95F92F32E615003E05FC /* commit_push.sh in Resources */,
-				5AAD95F72F32E60B003E05FC /* COMMIT_MESSAGE.txt in Resources */,
-				5AAD95FB2F32E628003E05FC /* GIT_COMMANDS.md in Resources */,
+				5AAD97C02F32E951003E05FC /* AUTOCOMPLETE_SUMMARY.md in Resources */,
+				5AAD97C22F32E96E003E05FC /* QUICK_REFERENCE.md in Resources */,
+				5AAD97BC2F32E8D1003E05FC /* AUTOCOMPLETE_IMPROVEMENTS.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -136,6 +139,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5AAD97BE2F32E8FD003E05FC /* SQLAutocompleteTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -96,9 +96,16 @@ final class SQLContextAnalyzer {
     private static let clauseRegexes: [(regex: NSRegularExpression, clause: SQLClauseType)] = {
         let patterns: [(String, SQLClauseType)] = [
             // DDL patterns (most specific first)
-            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?\\w+\\s+\\w*$", .columnDef),
-            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)\\s+(?:COLUMN\\s+)?(?:[`\"']?\\w+[`\"']?)?\\s*$", .alterTableColumn),
-            ("\\bALTER\\s+TABLE\\s+[^;]*\\bAFTER\\s+\\w*$", .alterTableColumn),
+            // Match AFTER keyword specifically for column positioning
+            ("\\bAFTER\\s+[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
+            ("\\bFIRST\\s*$", .alterTableColumn),
+            // Match column definition after ADD/MODIFY/CHANGE with data type
+            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+(?:\\([^)]*\\))?(?:\\s+(?:NOT\\s+)?NULL|\\s+DEFAULT|\\s+AUTO_INCREMENT|\\s+UNSIGNED|\\s+COMMENT)?\\s+\\w*$", .columnDef),
+            // Match column name after ADD/MODIFY/CHANGE (before data type)
+            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?\\w+\\s*$", .columnDef),
+            // Match DROP/MODIFY/CHANGE/RENAME with column name
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)\\s+(?:COLUMN\\s+)?[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
+            // General ALTER TABLE operations
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
             ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
             // Enhanced context patterns
