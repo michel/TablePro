@@ -30,9 +30,9 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Services
 
-    private let queryBuilder: TableQueryBuilder
+    internal let queryBuilder: TableQueryBuilder
     let tabPersistence: TabPersistenceService
-    private lazy var rowOperationsManager: RowOperationsManager = {
+    internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
     }()
 

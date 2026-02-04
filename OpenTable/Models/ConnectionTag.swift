@@ -43,25 +43,25 @@ extension ConnectionTag {
     /// Preset tags available by default
     static let presets: [ConnectionTag] = [
         ConnectionTag(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID(),
             name: "local",
             isPreset: true,
             color: .green
         ),
         ConnectionTag(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000002") ?? UUID(),
             name: "development",
             isPreset: true,
             color: .blue
         ),
         ConnectionTag(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003")!,
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000003") ?? UUID(),
             name: "production",
             isPreset: true,
             color: .red
         ),
         ConnectionTag(
-            id: UUID(uuidString: "00000000-0000-0000-0000-000000000004")!,
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000004") ?? UUID(),
             name: "testing",
             isPreset: true,
             color: .orange

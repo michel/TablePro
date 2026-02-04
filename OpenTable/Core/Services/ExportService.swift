@@ -675,9 +675,10 @@ final class ExportService: ObservableObject {
         let tempFileURL: URL?
 
         if config.sqlOptions.compressWithGzip {
-            tempFileURL = FileManager.default.temporaryDirectory
+            let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(UUID().uuidString + ".sql")
-            targetURL = tempFileURL!
+            tempFileURL = tempURL
+            targetURL = tempURL
         } else {
             tempFileURL = nil
             targetURL = url

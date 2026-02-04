@@ -687,7 +687,9 @@ struct TableStructureView: View {
 
     private func exportDDL() {
         let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.init(filenameExtension: "sql")!]
+        if let sqlType = UTType(filenameExtension: "sql") {
+            savePanel.allowedContentTypes = [sqlType]
+        }
         savePanel.nameFieldStringValue = "\(tableName).sql"
 
         savePanel.begin { response in

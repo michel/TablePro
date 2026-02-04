@@ -67,9 +67,9 @@ final class SQLCompletionWindowController: NSObject {
 
         // CRITICAL: Dismiss existing window first to prevent duplicates
         // This ensures only one window exists at a time
-        if window?.isVisible == true {
-            window?.parent?.removeChildWindow(window!)
-            window?.orderOut(nil)
+        if let existingWindow = window, existingWindow.isVisible {
+            existingWindow.parent?.removeChildWindow(existingWindow)
+            existingWindow.orderOut(nil)
         }
 
         // Create or update window

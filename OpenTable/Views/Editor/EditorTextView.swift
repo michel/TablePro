@@ -574,10 +574,12 @@ final class EditorTextView: NSTextView {
         let direction: Int
 
         if isOpening {
-            matchingBracket = bracketPairs[bracket]!
+            guard let match = bracketPairs[bracket] else { return nil }
+            matchingBracket = match
             direction = 1
         } else {
-            matchingBracket = reverseBracketPairs[bracket]!
+            guard let match = reverseBracketPairs[bracket] else { return nil }
+            matchingBracket = match
             direction = -1
         }
 
@@ -604,13 +606,14 @@ final class EditorTextView: NSTextView {
 
     private func rectForCharacter(at index: Int) -> NSRect? {
         guard let layoutManager = layoutManager,
+              let container = textContainer,
               index < string.count,
               layoutManager.numberOfGlyphs > 0 else { return nil }
 
         let glyphIndex = layoutManager.glyphIndexForCharacter(at: index)
         guard glyphIndex < layoutManager.numberOfGlyphs else { return nil }
 
-        var glyphRect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 1), in: textContainer!)
+        var glyphRect = layoutManager.boundingRect(forGlyphRange: NSRange(location: glyphIndex, length: 1), in: container)
 
         // Adjust for text container origin
         let origin = textContainerOrigin

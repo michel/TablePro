@@ -171,18 +171,18 @@ final class SQLFileParser {
 
                             case .inSingleQuotedString:
                                 currentStatement.append(char)
-                                if char == "\\" && nextChar != nil {
+                                if char == "\\", let nextCharValue = nextChar {
                                     // Backslash escape (MySQL, PostgreSQL): \' escapes the quote
                                     // Append both '\' and the escaped character, then skip both
-                                    currentStatement.append(nextChar!)
-                                    if nextChar == "\n" { currentLine += 1 }
+                                    currentStatement.append(nextCharValue)
+                                    if nextCharValue == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
-                                } else if char == "'" && nextChar == "'" {
+                                } else if char == "'", let nextCharValue = nextChar, nextCharValue == "'" {
                                     // SQL standard escape: '' (doubled quote) escapes the quote
                                     // Append both quotes, then skip both
-                                    currentStatement.append(nextChar!)
-                                    if nextChar == "\n" { currentLine += 1 }
+                                    currentStatement.append(nextCharValue)
+                                    if nextCharValue == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 } else if char == "'" {
@@ -192,10 +192,10 @@ final class SQLFileParser {
 
                             case .inDoubleQuotedString:
                                 currentStatement.append(char)
-                                if char == "\\" && nextChar != nil {
+                                if char == "\\", let nextCharValue = nextChar {
                                     // Escaped character - append both '\' and next char, then skip both
-                                    currentStatement.append(nextChar!)
-                                    if nextChar == "\n" { currentLine += 1 }
+                                    currentStatement.append(nextCharValue)
+                                    if nextCharValue == "\n" { currentLine += 1 }
                                     index = buffer.index(after: nextIndex)
                                     didManuallyAdvance = true
                                 } else if char == "\"" {

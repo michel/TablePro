@@ -115,7 +115,7 @@ struct ColumnTableRow: View {
 
             // Length/precision info
             if let length = column.length, length > 0 {
-                Text("(\(length)\(column.precision != nil && column.precision! > 0 ? ", \(column.precision!)" : ""))")
+                Text(formatLengthPrecision(length: length, precision: column.precision))
                     .font(.system(size: DesignConstants.FontSize.caption, design: .monospaced))
                     .foregroundStyle(DesignConstants.Colors.tertiaryText)
             }
@@ -230,6 +230,16 @@ struct ColumnTableRow: View {
                     .fill(DesignConstants.Colors.selectedBorder)
                     .frame(width: 3)
             }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func formatLengthPrecision(length: Int, precision: Int?) -> String {
+        if let precision = precision, precision > 0 {
+            return "(\(length), \(precision))"
+        } else {
+            return "(\(length))"
         }
     }
 }

@@ -61,7 +61,9 @@ final class QueryHistoryStorage {
 
     private func setupDatabase() {
         let fileManager = FileManager.default
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            fatalError("Unable to access application support directory")
+        }
         let OpenTableDir = appSupport.appendingPathComponent("OpenTable")
 
         // Create directory if needed

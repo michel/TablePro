@@ -486,8 +486,8 @@ final class SQLContextAnalyzer {
         if let lastNewline = text.lastIndex(of: "\n") {
             let lineStart = text.index(after: lastNewline)
             let currentLine = String(text[lineStart...])
-            if currentLine.contains("--") {
-                let dashIndex = currentLine.range(of: "--")!.lowerBound
+            if currentLine.contains("--"), let dashRange = currentLine.range(of: "--") {
+                let dashIndex = dashRange.lowerBound
                 // Check if -- is before current position in line
                 if currentLine[..<dashIndex].trimmingCharacters(in: .whitespaces).isEmpty ||
                     !currentLine[..<dashIndex].contains("'") {

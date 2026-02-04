@@ -26,6 +26,18 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
     /// Hold references to hosted SwiftUI views to prevent deallocation
     private var hostedViews: [NSToolbarItem.Identifier: Any] = [:]
 
+    // MARK: - Helper Methods
+
+    /// Creates an NSImage from a system symbol name with a fallback
+    private func systemImage(named symbolName: String, description: String) -> NSImage {
+        if let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: description) {
+            return image
+        }
+        // Fallback to a generic symbol if the requested one doesn't exist
+        return NSImage(systemSymbolName: "square.dashed", accessibilityDescription: description)
+            ?? NSImage()
+    }
+
     // MARK: - ToolbarItemFactory
 
     func makeToolbarItem(
@@ -65,7 +77,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.connectionSwitcher.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.connectionSwitcher.iconName, accessibilityDescription: "Connection")!,
+            image: systemImage(named: ToolbarItemIdentifier.connectionSwitcher.iconName, description: "Connection"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.connectionSwitcherAction)
         )
@@ -85,7 +97,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.databaseSwitcher.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.databaseSwitcher.iconName, accessibilityDescription: "Database")!,
+            image: systemImage(named: ToolbarItemIdentifier.databaseSwitcher.iconName, description: "Database"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.databaseSwitcherAction)
         )
@@ -127,7 +139,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.refresh.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.refresh.iconName, accessibilityDescription: "Refresh")!,
+            image: systemImage(named: ToolbarItemIdentifier.refresh.iconName, description: "Refresh"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.refreshAction)
         )
@@ -163,7 +175,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.filterToggle.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.filterToggle.iconName, accessibilityDescription: "Filters")!,
+            image: systemImage(named: ToolbarItemIdentifier.filterToggle.iconName, description: "Filters"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.filterToggleAction)
         )
@@ -183,7 +195,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.historyToggle.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.historyToggle.iconName, accessibilityDescription: "History")!,
+            image: systemImage(named: ToolbarItemIdentifier.historyToggle.iconName, description: "History"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.historyToggleAction)
         )
@@ -203,7 +215,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.export.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.export.iconName, accessibilityDescription: "Export")!,
+            image: systemImage(named: ToolbarItemIdentifier.export.iconName, description: "Export"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.exportAction)
         )
@@ -223,7 +235,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.import.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.import.iconName, accessibilityDescription: "Import")!,
+            image: systemImage(named: ToolbarItemIdentifier.import.iconName, description: "Import"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.importAction)
         )
@@ -243,7 +255,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.inspector.toolTip
 
         let button = NSButton(
-            image: NSImage(systemSymbolName: ToolbarItemIdentifier.inspector.iconName, accessibilityDescription: "Inspector")!,
+            image: systemImage(named: ToolbarItemIdentifier.inspector.iconName, description: "Inspector"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.inspectorAction)
         )

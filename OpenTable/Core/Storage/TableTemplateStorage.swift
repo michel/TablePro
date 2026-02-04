@@ -19,7 +19,9 @@ final class TableTemplateStorage {
     // MARK: - Storage Location
 
     private var templatesURL: URL {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            fatalError("Unable to access application support directory")
+        }
         let appFolder = appSupport.appendingPathComponent("OpenTable", isDirectory: true)
 
         // Create directory if needed

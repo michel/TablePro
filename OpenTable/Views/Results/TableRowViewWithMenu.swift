@@ -96,7 +96,10 @@ final class TableRowViewWithMenu: NSTableRowView {
                 menu.addItem(duplicateItem)
 
                 let deleteItem = NSMenuItem(
-                    title: "Delete", action: #selector(deleteRow), keyEquivalent: String(Character(UnicodeScalar(NSBackspaceCharacter)!)))
+                    title: "Delete",
+                    action: #selector(deleteRow),
+                    keyEquivalent: String(UnicodeScalar(NSBackspaceCharacter).map { Character($0) } ?? "\u{8}")
+                )
                 deleteItem.keyEquivalentModifierMask = []
                 deleteItem.target = self
                 menu.addItem(deleteItem)
