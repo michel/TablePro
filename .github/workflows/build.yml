@@ -60,7 +60,21 @@ jobs:
       - name: Install ARM64 Homebrew dependencies
         run: |
           echo "Installing ARM64 dependencies..."
-          brew install mariadb-connector-c libpq
+          
+          # Check and install only if needed
+          if ! brew list mariadb-connector-c &>/dev/null; then
+            echo "📦 Installing mariadb-connector-c..."
+            brew install mariadb-connector-c
+          else
+            echo "✅ mariadb-connector-c already installed"
+          fi
+          
+          if ! brew list libpq &>/dev/null; then
+            echo "📦 Installing libpq..."
+            brew install libpq
+          else
+            echo "✅ libpq already installed"
+          fi
 
           # Link packages with --force (needed for keg-only formulas)
           brew link --force mariadb-connector-c
@@ -163,7 +177,21 @@ jobs:
       - name: Install x86_64 Homebrew dependencies
         run: |
           echo "Installing x86_64 dependencies..."
-          arch -x86_64 /usr/local/bin/brew install mariadb-connector-c libpq
+          
+          # Check and install only if needed
+          if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c &>/dev/null; then
+            echo "📦 Installing mariadb-connector-c (x86_64)..."
+            arch -x86_64 /usr/local/bin/brew install mariadb-connector-c
+          else
+            echo "✅ mariadb-connector-c (x86_64) already installed"
+          fi
+          
+          if ! arch -x86_64 /usr/local/bin/brew list libpq &>/dev/null; then
+            echo "📦 Installing libpq (x86_64)..."
+            arch -x86_64 /usr/local/bin/brew install libpq
+          else
+            echo "✅ libpq (x86_64) already installed"
+          fi
 
           # Link packages with --force (needed for keg-only formulas)
           arch -x86_64 /usr/local/bin/brew link --force mariadb-connector-c
@@ -328,7 +356,21 @@ jobs:
       - name: Install ARM64 dependencies
         run: |
           echo "Installing ARM64 dependencies..."
-          brew install mariadb-connector-c libpq
+          
+          # Check and install only if needed
+          if ! brew list mariadb-connector-c &>/dev/null; then
+            echo "📦 Installing mariadb-connector-c..."
+            brew install mariadb-connector-c
+          else
+            echo "✅ mariadb-connector-c already installed"
+          fi
+          
+          if ! brew list libpq &>/dev/null; then
+            echo "📦 Installing libpq..."
+            brew install libpq
+          else
+            echo "✅ libpq already installed"
+          fi
 
           # Link packages with --force (needed for keg-only formulas)
           brew link --force mariadb-connector-c
@@ -558,7 +600,21 @@ jobs:
       - name: Install x86_64 dependencies
         run: |
           echo "Installing x86_64 dependencies..."
-          arch -x86_64 /usr/local/bin/brew install mariadb-connector-c libpq
+          
+          # Check and install only if needed
+          if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c &>/dev/null; then
+            echo "📦 Installing mariadb-connector-c (x86_64)..."
+            arch -x86_64 /usr/local/bin/brew install mariadb-connector-c
+          else
+            echo "✅ mariadb-connector-c (x86_64) already installed"
+          fi
+          
+          if ! arch -x86_64 /usr/local/bin/brew list libpq &>/dev/null; then
+            echo "📦 Installing libpq (x86_64)..."
+            arch -x86_64 /usr/local/bin/brew install libpq
+          else
+            echo "✅ libpq (x86_64) already installed"
+          fi
 
           # Link packages with --force (needed for keg-only formulas)
           arch -x86_64 /usr/local/bin/brew link --force mariadb-connector-c
