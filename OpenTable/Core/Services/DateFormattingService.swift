@@ -24,6 +24,9 @@ final class DateFormattingService {
     /// Parsers for common database date formats (ISO 8601, MySQL, PostgreSQL, SQLite)
     private let parsers: [DateFormatter]
 
+    /// Cache for formatted date strings to avoid repeated parsing
+    private let formatCache = NSCache<NSString, NSString>()
+
     // MARK: - Initialization
 
     private init() {
@@ -32,6 +35,8 @@ final class DateFormattingService {
         self.currentFormat = .iso8601
         self.formatter = Self.createFormatter(for: .iso8601)
         self.parsers = Self.createParsers()
+        // Limit cache to 10,000 entries to bound memory usage
+        formatCache.countLimit = 10_000
     }
 
     // MARK: - Public Methods
@@ -41,6 +46,8 @@ final class DateFormattingService {
         guard format != currentFormat else { return }
         currentFormat = format
         formatter = Self.createFormatter(for: format)
+        // Clear cache when format changes since all cached values are now stale
+        formatCache.removeAllObjects()
     }
 
     /// Format a date using current user settings
@@ -54,14 +61,24 @@ final class DateFormattingService {
     /// - Parameter dateString: Date string from database (ISO 8601, MySQL timestamp, etc.)
     /// - Returns: Formatted date string, or nil if unparseable
     func format(dateString: String) -> String? {
+        // Check cache first
+        let cacheKey = dateString as NSString
+        if let cached = formatCache.object(forKey: cacheKey) {
+            // Empty string in cache means unparseable
+            return cached.length == 0 ? nil : cached as String
+        }
+
         // Try parsing with each parser
         for parser in parsers {
             if let date = parser.date(from: dateString) {
-                return format(date)
+                let result = format(date)
+                formatCache.setObject(result as NSString, forKey: cacheKey)
+                return result
             }
         }
 
-        // Could not parse - return nil to signal caller to use original string
+        // Could not parse - cache empty string to avoid re-parsing
+        formatCache.setObject("" as NSString, forKey: cacheKey)
         return nil
     }
 

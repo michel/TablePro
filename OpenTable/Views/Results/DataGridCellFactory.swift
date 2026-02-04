@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import QuartzCore
 
 /// Factory for creating data grid cell views
 final class DataGridCellFactory {
@@ -18,6 +19,34 @@ final class DataGridCellFactory {
 
     /// Maximum characters to render in a cell (for performance with very large text)
     private let maxCellTextLength = 10_000
+
+    // MARK: - Cached Fonts (avoid recreation per cell render)
+
+    private enum CellFonts {
+        static let regular = NSFont.monospacedSystemFont(
+            ofSize: DesignConstants.FontSize.body,
+            weight: .regular
+        )
+        static let italic = regular.withTraits(.italic)
+        static let medium = NSFont.monospacedSystemFont(
+            ofSize: DesignConstants.FontSize.body,
+            weight: .medium
+        )
+        static let rowNumber = NSFont.monospacedDigitSystemFont(
+            ofSize: DesignConstants.FontSize.medium,
+            weight: .regular
+        )
+    }
+
+    // MARK: - Cached Colors (avoid allocation per cell render)
+
+    private enum CellColors {
+        static let deletedBackground = NSColor.systemRed.withAlphaComponent(0.15).cgColor
+        static let insertedBackground = NSColor.systemGreen.withAlphaComponent(0.15).cgColor
+        static let modifiedBackground = NSColor.systemYellow.withAlphaComponent(0.3).cgColor
+        static let deletedText = NSColor.systemRed.withAlphaComponent(0.5)
+        static let focusBorder = NSColor.selectedControlColor.cgColor
+    }
 
     // MARK: - Row Number Cell
 
@@ -41,7 +70,7 @@ final class DataGridCellFactory {
 
             cell = NSTextField(labelWithString: "")
             cell.alignment = .right
-            cell.font = .monospacedDigitSystemFont(ofSize: DesignConstants.FontSize.medium, weight: .regular)
+            cell.font = CellFonts.rowNumber
             cell.textColor = .secondaryLabelColor
             cell.translatesAutoresizingMaskIntoConstraints = false
 
@@ -61,7 +90,7 @@ final class DataGridCellFactory {
         }
 
         cell.stringValue = "\(row + 1)"
-        cell.textColor = visualState.isDeleted ? .systemRed.withAlphaComponent(0.5) : .secondaryLabelColor
+        cell.textColor = visualState.isDeleted ? CellColors.deletedText : .secondaryLabelColor
 
         return cellView
     }
@@ -100,7 +129,7 @@ final class DataGridCellFactory {
             cellView.wantsLayer = true
 
             cell = CellTextField()
-            cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular)
+            cell.font = CellFonts.regular
             cell.drawsBackground = false
             cell.isBordered = false
             cell.focusRingType = .none
@@ -138,7 +167,7 @@ final class DataGridCellFactory {
                 cell.placeholderString = AppSettingsManager.shared.dataGrid.nullDisplay
                 cell.textColor = .secondaryLabelColor
                 if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
-                    cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular).withTraits(.italic)
+                    cell.font = CellFonts.italic
                 }
             } else {
                 cell.textColor = .secondaryLabelColor
@@ -148,7 +177,7 @@ final class DataGridCellFactory {
             if !isLargeDataset {
                 cell.placeholderString = "DEFAULT"
                 cell.textColor = .systemBlue
-                cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .medium)
+                cell.font = CellFonts.medium
             } else {
                 cell.textColor = .systemBlue
             }
@@ -158,7 +187,7 @@ final class DataGridCellFactory {
                 cell.placeholderString = "Empty"
                 cell.textColor = .secondaryLabelColor
                 if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
-                    cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular).withTraits(.italic)
+                    cell.font = CellFonts.italic
                 }
             } else {
                 cell.textColor = .secondaryLabelColor
@@ -181,25 +210,27 @@ final class DataGridCellFactory {
             }
 
             // Sanitize: replace newlines with spaces for single-line display
-            displayValue = displayValue
-                .replacingOccurrences(of: "\n", with: " ")
-                .replacingOccurrences(of: "\r", with: " ")
+            displayValue = displayValue.sanitizedForCellDisplay
 
             cell.stringValue = displayValue
             cell.textColor = .labelColor
             if cell.font?.fontDescriptor.symbolicTraits.contains(.italic) == true ||
                 cell.font?.fontDescriptor.symbolicTraits.contains(.bold) == true {
-                cell.font = .monospacedSystemFont(ofSize: DesignConstants.FontSize.body, weight: .regular)
+                cell.font = CellFonts.regular
             }
         }
 
+        // Batch layer updates to avoid implicit animations
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+
         // Update background color
         if isDeleted {
-            cellView.layer?.backgroundColor = NSColor.systemRed.withAlphaComponent(0.15).cgColor
+            cellView.layer?.backgroundColor = CellColors.deletedBackground
         } else if isInserted {
-            cellView.layer?.backgroundColor = NSColor.systemGreen.withAlphaComponent(0.15).cgColor
+            cellView.layer?.backgroundColor = CellColors.insertedBackground
         } else if isModified && !isLargeDataset {
-            cellView.layer?.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.3).cgColor
+            cellView.layer?.backgroundColor = CellColors.modifiedBackground
         } else {
             cellView.layer?.backgroundColor = nil
         }
@@ -209,10 +240,12 @@ final class DataGridCellFactory {
             cellView.layer?.borderWidth = 0
         } else if isFocused {
             cellView.layer?.borderWidth = 2
-            cellView.layer?.borderColor = NSColor.selectedControlColor.cgColor
+            cellView.layer?.borderColor = CellColors.focusBorder
         } else {
             cellView.layer?.borderWidth = 0
         }
+
+        CATransaction.commit()
 
         return cellView
     }
@@ -285,5 +318,24 @@ extension NSFont {
     func withTraits(_ traits: NSFontDescriptor.SymbolicTraits) -> NSFont {
         let descriptor = fontDescriptor.withSymbolicTraits(traits)
         return NSFont(descriptor: descriptor, size: pointSize) ?? self
+    }
+}
+
+// MARK: - String Extension for Cell Display
+
+private extension String {
+    /// Sanitize string for single-line cell display by replacing newlines with spaces.
+    /// Avoids allocation when string contains no newlines (common case).
+    var sanitizedForCellDisplay: String {
+        // Fast path: if no newlines exist, return self without allocation
+        guard contains(where: { $0 == "\n" || $0 == "\r" }) else { return self }
+
+        // Slow path: build new string with newlines replaced
+        var result = ""
+        result.reserveCapacity(count)
+        for char in self {
+            result.append(char == "\n" || char == "\r" ? " " : char)
+        }
+        return result
     }
 }

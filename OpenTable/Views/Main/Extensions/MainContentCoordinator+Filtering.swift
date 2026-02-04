@@ -64,10 +64,13 @@ extension MainContentCoordinator {
               tabIndex < tabManager.tabs.count,
               let tableName = tabManager.tabs[tabIndex].tableName else { return }
 
+        let tab = tabManager.tabs[tabIndex]
         let newQuery = queryBuilder.buildBaseQuery(
             tableName: tableName,
-            sortState: tabManager.tabs[tabIndex].sortState,
-            columns: tabManager.tabs[tabIndex].resultColumns
+            sortState: tab.sortState,
+            columns: tab.resultColumns,
+            limit: tab.pagination.pageSize,
+            offset: tab.pagination.currentOffset
         )
 
         tabManager.tabs[tabIndex].query = newQuery
@@ -78,18 +81,23 @@ extension MainContentCoordinator {
         guard tabIndex < tabManager.tabs.count,
               let tableName = tabManager.tabs[tabIndex].tableName else { return }
 
+        let tab = tabManager.tabs[tabIndex]
         var newQuery = queryBuilder.buildBaseQuery(
             tableName: tableName,
-            sortState: tabManager.tabs[tabIndex].sortState,
-            columns: tabManager.tabs[tabIndex].resultColumns
+            sortState: tab.sortState,
+            columns: tab.resultColumns,
+            limit: tab.pagination.pageSize,
+            offset: tab.pagination.currentOffset
         )
 
         if filterStateManager.hasAppliedFilters {
             newQuery = queryBuilder.buildFilteredQuery(
                 tableName: tableName,
                 filters: filterStateManager.appliedFilters,
-                sortState: tabManager.tabs[tabIndex].sortState,
-                columns: tabManager.tabs[tabIndex].resultColumns
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
             )
         }
 
