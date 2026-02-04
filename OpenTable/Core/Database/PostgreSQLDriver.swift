@@ -64,6 +64,11 @@ final class PostgreSQLDriver: DatabaseDriver {
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> QueryResult {
+        try await executeWithReconnect(query: query, isRetry: false)
+    }
+    
+    /// Execute query with automatic reconnection on connection-lost errors
+    private func executeWithReconnect(query: String, isRetry: Bool) async throws -> QueryResult {
         guard let pqConn = libpqConnection else {
             throw DatabaseError.connectionFailed("Not connected to PostgreSQL")
         }
@@ -86,12 +91,49 @@ final class PostgreSQLDriver: DatabaseDriver {
                 executionTime: Date().timeIntervalSince(startTime),
                 error: nil
             )
+        } catch let error as NSError where !isRetry && isConnectionLostError(error) {
+            // Connection lost - attempt reconnect and retry once
+            try await reconnect()
+            return try await executeWithReconnect(query: query, isRetry: true)
         } catch {
             throw DatabaseError.queryFailed(error.localizedDescription)
         }
     }
+    
+    // MARK: - Auto-Reconnect
+    
+    /// Check if error indicates a lost connection that can be recovered
+    private func isConnectionLostError(_ error: NSError) -> Bool {
+        // PostgreSQL connection error codes:
+        // - "server closed the connection unexpectedly"
+        // - "connection to server was lost"
+        // - "no connection to the server"
+        // - "could not send data to server"
+        let errorMessage = error.localizedDescription.lowercased()
+        return errorMessage.contains("connection") && 
+               (errorMessage.contains("lost") || 
+                errorMessage.contains("closed") ||
+                errorMessage.contains("no connection") ||
+                errorMessage.contains("could not send"))
+    }
+    
+    /// Reconnect to the database
+    private func reconnect() async throws {
+        // Close existing connection
+        libpqConnection?.disconnect()
+        libpqConnection = nil
+        status = .connecting
+        
+        // Reconnect using stored connection info
+        try await connect()
+    }
 
     func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
+        try await executeParameterizedWithReconnect(query: query, parameters: parameters, isRetry: false)
+    }
+    
+    /// Execute parameterized query with automatic reconnection
+    private func executeParameterizedWithReconnect(query: String, parameters: [Any?], isRetry: Bool) async throws -> QueryResult {
         guard let pqConn = libpqConnection else {
             throw DatabaseError.connectionFailed("Not connected to PostgreSQL")
         }
@@ -114,6 +156,10 @@ final class PostgreSQLDriver: DatabaseDriver {
                 executionTime: Date().timeIntervalSince(startTime),
                 error: nil
             )
+        } catch let error as NSError where !isRetry && isConnectionLostError(error) {
+            // Connection lost - attempt reconnect and retry once
+            try await reconnect()
+            return try await executeParameterizedWithReconnect(query: query, parameters: parameters, isRetry: true)
         } catch {
             throw DatabaseError.queryFailed(error.localizedDescription)
         }

@@ -4,4 +4,10 @@
    <FileRef
       location = "self:">
    </FileRef>
+   <FileRef
+      location = "group:AUTO_RECONNECT_GUIDE.md">
+   </FileRef>
+   <FileRef
+      location = "group:AUTO_RECONNECT_QUICK_REF.md">
+   </FileRef>
 </Workspace>

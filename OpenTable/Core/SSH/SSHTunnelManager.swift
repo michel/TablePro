@@ -7,6 +7,10 @@
 
 import Foundation
 
+extension Notification.Name {
+    static let sshTunnelDied = Notification.Name("sshTunnelDied")
+}
+
 /// Error types for SSH tunnel operations
 enum SSHTunnelError: Error, LocalizedError {
     case tunnelCreationFailed(String)
@@ -51,8 +55,48 @@ actor SSHTunnelManager {
     private var tunnels: [UUID: SSHTunnel] = [:]
     private let portRangeStart = 60_000
     private let portRangeEnd = 65_000
+    private var healthCheckTask: Task<Void, Never>?
 
-    private init() {}
+    private init() {
+        // Start health monitoring
+        startHealthMonitoring()
+    }
+    
+    /// Start monitoring tunnel health
+    private func startHealthMonitoring() {
+        healthCheckTask = Task {
+            while !Task.isCancelled {
+                // Wait 30 seconds between checks
+                try? await Task.sleep(nanoseconds: 30_000_000_000)
+                
+                await checkTunnelHealth()
+            }
+        }
+    }
+    
+    /// Check if tunnels are still alive and attempt reconnection if needed
+    private func checkTunnelHealth() async {
+        for (connectionId, tunnel) in tunnels {
+            // Check if process is still running
+            if !tunnel.process.isRunning {
+                print("⚠️ SSH tunnel for \(connectionId) died, attempting reconnection...")
+                
+                // Notify DatabaseManager to reconnect
+                await notifyTunnelDied(connectionId: connectionId)
+            }
+        }
+    }
+    
+    /// Notify that a tunnel has died (DatabaseManager should handle reconnection)
+    private func notifyTunnelDied(connectionId: UUID) async {
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: .sshTunnelDied,
+                object: nil,
+                userInfo: ["connectionId": connectionId]
+            )
+        }
+    }
 
     /// Create an SSH tunnel for a database connection
     /// - Parameters:
