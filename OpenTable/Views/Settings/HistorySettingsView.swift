@@ -17,9 +17,9 @@ struct HistorySettingsView: View {
                 Picker("Maximum entries:", selection: $settings.maxEntries) {
                     Text("100").tag(100)
                     Text("500").tag(500)
-                    Text("1,000").tag(1000)
-                    Text("5,000").tag(5000)
-                    Text("10,000").tag(10000)
+                    Text("1,000").tag(1_000)
+                    Text("5,000").tag(5_000)
+                    Text("10,000").tag(10_000)
                     Text("Unlimited").tag(0)
                 }
 

@@ -110,9 +110,9 @@ private func mysqlTypeToString(_ type: UInt32, length: UInt, flags: UInt) -> Str
         return isBinary ? "LONGBLOB" : "LONGTEXT"
     case 252:  // BLOB/TEXT - distinguish by length
         if isBinary {
-            return length > 65535 ? "LONGBLOB" : "BLOB"
+            return length > 65_535 ? "LONGBLOB" : "BLOB"
         } else {
-            return length > 65535 ? "LONGTEXT" : "TEXT"
+            return length > 65_535 ? "LONGTEXT" : "TEXT"
         }
     case 253: return "VARCHAR"  // VAR_STRING
     case 254: return "CHAR"      // STRING
@@ -494,6 +494,132 @@ final class MariaDBConnection: @unchecked Sendable {
         )
     }
 
+    /// Helper struct to manage MYSQL_BIND parameter lifecycle
+    private struct ParameterBindings {
+        var binds: [MYSQL_BIND]
+        var buffers: [UnsafeMutableRawPointer?]
+
+        func cleanup() {
+            for buffer in buffers where buffer != nil {
+                buffer?.deallocate()
+            }
+            for bind in binds {
+                bind.length?.deallocate()
+                bind.is_null?.deallocate()
+            }
+        }
+    }
+
+    /// Bind parameters to a prepared statement
+    private func bindParameters(
+        _ parameters: [Any?],
+        toStatement stmt: UnsafeMutablePointer<MYSQL_STMT>
+    ) throws -> ParameterBindings {
+        let paramCount = parameters.count
+        var binds: [MYSQL_BIND] = Array(repeating: MYSQL_BIND(), count: paramCount)
+        var buffers: [UnsafeMutableRawPointer?] = []
+
+        for (index, param) in parameters.enumerated() {
+            if let param = param {
+                let stringValue: String
+                if let str = param as? String {
+                    stringValue = str
+                } else if let num = param as? any Numeric {
+                    stringValue = "\(num)"
+                } else {
+                    stringValue = "\(param)"
+                }
+
+                let data = stringValue.data(using: .utf8) ?? Data()
+                let buffer = UnsafeMutableRawPointer.allocate(byteCount: data.count, alignment: 1)
+                data.copyBytes(to: buffer.assumingMemoryBound(to: UInt8.self), count: data.count)
+
+                binds[index].buffer_type = MYSQL_TYPE_STRING
+                binds[index].buffer = buffer
+                binds[index].buffer_length = UInt(data.count)
+                binds[index].length = UnsafeMutablePointer<UInt>.allocate(capacity: 1)
+                binds[index].length?.pointee = UInt(data.count)
+                binds[index].is_null = UnsafeMutablePointer<my_bool>.allocate(capacity: 1)
+                binds[index].is_null?.pointee = 0
+
+                buffers.append(buffer)
+            } else {
+                binds[index].buffer_type = MYSQL_TYPE_NULL
+                binds[index].is_null = UnsafeMutablePointer<my_bool>.allocate(capacity: 1)
+                binds[index].is_null?.pointee = 1
+            }
+        }
+
+        if mysql_stmt_bind_param(stmt, &binds) != 0 {
+            let bindings = ParameterBindings(binds: binds, buffers: buffers)
+            bindings.cleanup()
+            throw getStmtError(stmt)
+        }
+
+        return ParameterBindings(binds: binds, buffers: buffers)
+    }
+
+    /// Fetch result set from a prepared statement
+    private func fetchResultSet(
+        from stmt: UnsafeMutablePointer<MYSQL_STMT>,
+        metadata: UnsafeMutablePointer<MYSQL_RES>,
+        columns: [String],
+        columnTypes: [UInt32],
+        columnTypeNames: [String]
+    ) throws -> [[String?]] {
+        let numFields = columns.count
+        var resultBinds: [MYSQL_BIND] = Array(repeating: MYSQL_BIND(), count: numFields)
+        var resultBuffers: [UnsafeMutableRawPointer] = []
+
+        defer {
+            for buffer in resultBuffers {
+                buffer.deallocate()
+            }
+            for bind in resultBinds {
+                bind.length?.deallocate()
+                bind.is_null?.deallocate()
+            }
+        }
+
+        for i in 0..<numFields {
+            let bufferSize = 65_536
+            let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 1)
+            resultBuffers.append(buffer)
+
+            resultBinds[i].buffer_type = MYSQL_TYPE_STRING
+            resultBinds[i].buffer = buffer
+            resultBinds[i].buffer_length = UInt(bufferSize)
+            resultBinds[i].length = UnsafeMutablePointer<UInt>.allocate(capacity: 1)
+            resultBinds[i].is_null = UnsafeMutablePointer<my_bool>.allocate(capacity: 1)
+        }
+
+        if mysql_stmt_bind_result(stmt, &resultBinds) != 0 {
+            throw getStmtError(stmt)
+        }
+
+        var rows: [[String?]] = []
+        while mysql_stmt_fetch(stmt) == 0 {
+            var row: [String?] = []
+            for i in 0..<numFields {
+                if resultBinds[i].is_null?.pointee == 1 {
+                    row.append(nil)
+                } else {
+                    let length = Int(resultBinds[i].length?.pointee ?? 0)
+                    let buffer = resultBuffers[i].assumingMemoryBound(to: UInt8.self)
+                    let data = Data(bytes: buffer, count: length)
+                    if let str = String(data: data, encoding: .utf8) {
+                        row.append(String(str.unicodeScalars.map { Character($0) }))
+                    } else {
+                        row.append(nil)
+                    }
+                }
+            }
+            rows.append(row)
+        }
+
+        return rows
+    }
+
     /// Synchronous parameterized query execution using prepared statements
     /// MUST be called on the serial queue
     private func executeParameterizedQuerySync(_ query: String, parameters: [Any?]) throws -> MariaDBQueryResult {
@@ -529,83 +655,15 @@ final class MariaDBConnection: @unchecked Sendable {
             )
         }
 
-        // Bind parameters if any
+        // Bind and execute parameters if any
         if paramCount > 0 {
-            var binds: [MYSQL_BIND] = Array(repeating: MYSQL_BIND(), count: paramCount)
-            var buffers: [UnsafeMutableRawPointer?] = []
-            var lengths: [UInt] = []
-            var isNulls: [my_bool] = []
+            let bindings = try bindParameters(parameters, toStatement: stmt)
+            defer { bindings.cleanup() }
 
-            defer {
-                // Clean up allocated buffers
-                for buffer in buffers {
-                    buffer?.deallocate()
-                }
-            }
-
-            for (index, param) in parameters.enumerated() {
-                if let param = param {
-                    // Convert parameter to string for simplicity
-                    let stringValue: String
-                    if let str = param as? String {
-                        stringValue = str
-                    } else if let num = param as? any Numeric {
-                        stringValue = "\(num)"
-                    } else {
-                        stringValue = "\(param)"
-                    }
-
-                    let data = stringValue.data(using: .utf8) ?? Data()
-                    let buffer = UnsafeMutableRawPointer.allocate(byteCount: data.count, alignment: 1)
-                    data.copyBytes(to: buffer.assumingMemoryBound(to: UInt8.self), count: data.count)
-
-                    binds[index].buffer_type = MYSQL_TYPE_STRING
-                    binds[index].buffer = buffer
-                    binds[index].buffer_length = UInt(data.count)
-                    binds[index].length = UnsafeMutablePointer<UInt>.allocate(capacity: 1)
-                    binds[index].length?.pointee = UInt(data.count)
-                    binds[index].is_null = UnsafeMutablePointer<my_bool>.allocate(capacity: 1)
-                    binds[index].is_null?.pointee = 0
-
-                    buffers.append(buffer)
-                    lengths.append(UInt(data.count))
-                    isNulls.append(0)
-                } else {
-                    // NULL parameter
-                    binds[index].buffer_type = MYSQL_TYPE_NULL
-                    binds[index].is_null = UnsafeMutablePointer<my_bool>.allocate(capacity: 1)
-                    binds[index].is_null?.pointee = 1
-                    isNulls.append(1)
-                }
-            }
-
-            // Bind parameters to statement
-            if mysql_stmt_bind_param(stmt, &binds) != 0 {
-                // Clean up allocated length and is_null pointers
-                for bind in binds {
-                    bind.length?.deallocate()
-                    bind.is_null?.deallocate()
-                }
-                throw getStmtError(stmt)
-            }
-
-            // Execute the prepared statement
             if mysql_stmt_execute(stmt) != 0 {
-                // Clean up allocated length and is_null pointers
-                for bind in binds {
-                    bind.length?.deallocate()
-                    bind.is_null?.deallocate()
-                }
                 throw getStmtError(stmt)
-            }
-
-            // Clean up allocated length and is_null pointers
-            for bind in binds {
-                bind.length?.deallocate()
-                bind.is_null?.deallocate()
             }
         } else {
-            // No parameters - just execute
             if mysql_stmt_execute(stmt) != 0 {
                 throw getStmtError(stmt)
             }
@@ -661,70 +719,14 @@ final class MariaDBConnection: @unchecked Sendable {
             }
         }
 
-        // Bind result buffers
-        var resultBinds: [MYSQL_BIND] = Array(repeating: MYSQL_BIND(), count: numFields)
-        var resultBuffers: [UnsafeMutableRawPointer] = []
-        var _: [UInt] = Array(repeating: 0, count: numFields)
-        var _: [my_bool] = Array(repeating: 0, count: numFields)
-
-        defer {
-            for buffer in resultBuffers {
-                buffer.deallocate()
-            }
-        }
-
-        // Allocate buffers for each column (max 64KB per column)
-        for i in 0..<numFields {
-            let bufferSize = 65536 // 64KB buffer
-            let buffer = UnsafeMutableRawPointer.allocate(byteCount: bufferSize, alignment: 1)
-            resultBuffers.append(buffer)
-
-            resultBinds[i].buffer_type = MYSQL_TYPE_STRING
-            resultBinds[i].buffer = buffer
-            resultBinds[i].buffer_length = UInt(bufferSize)
-            resultBinds[i].length = UnsafeMutablePointer<UInt>.allocate(capacity: 1)
-            resultBinds[i].is_null = UnsafeMutablePointer<my_bool>.allocate(capacity: 1)
-        }
-
-        // Bind result buffers
-        if mysql_stmt_bind_result(stmt, &resultBinds) != 0 {
-            // Clean up allocated pointers
-            for bind in resultBinds {
-                bind.length?.deallocate()
-                bind.is_null?.deallocate()
-            }
-            throw getStmtError(stmt)
-        }
-
-        // Fetch rows
-        var rows: [[String?]] = []
-
-        while mysql_stmt_fetch(stmt) == 0 {
-            var row: [String?] = []
-
-            for i in 0..<numFields {
-                if resultBinds[i].is_null?.pointee == 1 {
-                    row.append(nil)
-                } else {
-                    let length = Int(resultBinds[i].length?.pointee ?? 0)
-                    let buffer = resultBuffers[i].assumingMemoryBound(to: UInt8.self)
-                    let data = Data(bytes: buffer, count: length)
-                    if let str = String(data: data, encoding: .utf8) {
-                        row.append(String(str.unicodeScalars.map { Character($0) }))
-                    } else {
-                        row.append(nil)
-                    }
-                }
-            }
-
-            rows.append(row)
-        }
-
-        // Clean up allocated pointers
-        for bind in resultBinds {
-            bind.length?.deallocate()
-            bind.is_null?.deallocate()
-        }
+        // Fetch all rows
+        let rows = try fetchResultSet(
+            from: stmt,
+            metadata: metadata,
+            columns: columns,
+            columnTypes: columnTypes,
+            columnTypeNames: columnTypeNames
+        )
 
         return MariaDBQueryResult(
             columns: columns,

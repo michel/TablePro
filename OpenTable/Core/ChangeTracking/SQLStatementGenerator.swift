@@ -146,8 +146,8 @@ struct SQLStatementGenerator {
 
         let columnList = nonDefaultColumns.joined(separator: ", ")
         let placeholders = parameters.enumerated().map { index, param in
-            if param is SQLFunctionLiteral {
-                return (param as! SQLFunctionLiteral).value
+            if let funcLiteral = param as? SQLFunctionLiteral {
+                return funcLiteral.value
             }
             return placeholder(at: index)
         }.joined(separator: ", ")
@@ -177,7 +177,7 @@ struct SQLStatementGenerator {
         }.joined(separator: ", ")
 
         var parameters: [Any?] = []
-        let placeholders = nonDefaultChanges.enumerated().map { index, cellChange -> String in
+        let placeholders = nonDefaultChanges.map { cellChange -> String in
             if let newValue = cellChange.newValue {
                 if isSQLFunctionExpression(newValue) {
                     // SQL function - cannot parameterize, use literal
@@ -195,11 +195,11 @@ struct SQLStatementGenerator {
         return ParameterizedStatement(sql: sql, parameters: parameters)
     }
 
-/// Marker type for SQL function literals that cannot be parameterized
-private struct SQLFunctionLiteral {
-    let value: String
-    init(_ value: String) { self.value = value }
-}
+    /// Marker type for SQL function literals that cannot be parameterized
+    private struct SQLFunctionLiteral {
+        let value: String
+        init(_ value: String) { self.value = value }
+    }
 
     // MARK: - UPDATE Generation
 

@@ -29,7 +29,7 @@ final class BooleanCellFormatter: Formatter {
         errorDescription error: AutoreleasingUnsafeMutablePointer<NSString?>?
     ) -> Bool {
         // Allow any input during editing
-        return true
+        true
     }
 
     private func normalizeBooleanString(_ value: String) -> String {

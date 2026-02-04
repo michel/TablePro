@@ -22,11 +22,10 @@ protocol SQLFormatterProtocol {
 // MARK: - Main Formatter Service
 
 struct SQLFormatterService: SQLFormatterProtocol {
-
     // MARK: - Constants
 
     /// Maximum input size: 10MB (protection against DoS)
-    private static let maxInputSize = 10 * 1024 * 1024
+    private static let maxInputSize = 10 * 1_024 * 1_024
 
     /// Alignment for SELECT columns (length of "SELECT ")
     private static let selectKeywordLength = 7
@@ -39,10 +38,9 @@ struct SQLFormatterService: SQLFormatterProtocol {
         cursorOffset: Int? = nil,
         options: SQLFormatterOptions = .default
     ) throws -> SQLFormatterResult {
-
         // Fix #4: Input size limit (DoS protection)
         guard sql.utf8.count <= Self.maxInputSize else {
-            throw SQLFormatterError.internalError("SQL too large (max \(Self.maxInputSize / 1024 / 1024)MB)")
+            throw SQLFormatterError.internalError("SQL too large (max \(Self.maxInputSize / 1_024 / 1_024)MB)")
         }
 
         // Validate input
@@ -381,7 +379,7 @@ struct SQLFormatterService: SQLFormatterProtocol {
 
     private func formatJoins(_ sql: String) -> String {
         // Already handled by addLineBreaks
-        return sql
+        sql
     }
 
     // MARK: - WHERE Condition Alignment
@@ -458,6 +456,6 @@ struct SQLFormatterService: SQLFormatterProtocol {
     /// This can cause issues with emoji and other multi-byte characters.
     private func safeRange(from nsRange: NSRange, in string: String) -> Range<String.Index>? {
         // Use proper Range initializer that handles UTF-16 conversion
-        return Range(nsRange, in: string)
+        Range(nsRange, in: string)
     }
 }

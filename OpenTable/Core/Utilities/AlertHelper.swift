@@ -11,7 +11,6 @@ import AppKit
 /// Provides consistent styling and behavior across the application
 @MainActor
 final class AlertHelper {
-
     // MARK: - Destructive Confirmations
 
     /// Shows a destructive confirmation dialog (warning style)

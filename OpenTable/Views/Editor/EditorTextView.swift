@@ -629,7 +629,7 @@ final class EditorTextView: NSTextView {
         let menu = super.menu(for: event) ?? NSMenu()
 
         // Add separator if menu already has items
-        if menu.items.count > 0 {
+        if !menu.items.isEmpty {
             menu.addItem(NSMenuItem.separator())
         }
 

@@ -46,7 +46,7 @@ struct EditableColumnDefinition: Hashable, Codable, Identifiable {
     /// Check if this definition is valid (not a placeholder)
     var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !dataType.trimmingCharacters(in: .whitespaces).isEmpty
+            !dataType.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     /// Create from existing ColumnInfo

@@ -76,7 +76,7 @@ final class StructureChangeManager: ObservableObject {
         pendingChanges.removeAll()
         validationErrors.removeAll()
         hasChanges = false
-        
+
         // Increment reloadVersion to trigger DataGridView column width recalculation
         // This ensures columns auto-size based on actual cell content after initial load
         reloadVersion += 1

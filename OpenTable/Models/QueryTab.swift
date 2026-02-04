@@ -99,7 +99,7 @@ struct PaginationState: Equatable {
 
     /// Default page size constant (used when no explicit value is provided)
     /// Note: For new tabs, callers should pass AppSettingsManager.shared.dataGrid.defaultPageSize
-    static let defaultPageSize = 1000
+    static let defaultPageSize = 1_000
 
     init(
         totalRowCount: Int? = nil,

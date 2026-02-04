@@ -40,14 +40,14 @@ class DatabaseSwitcherViewModel: ObservableObject {
     }
 
     var recentDatabaseMetadata: [DatabaseMetadata] {
-        return recentDatabases.compactMap { dbName in
+        recentDatabases.compactMap { dbName in
             databases.first { $0.name == dbName }
         }
     }
 
     var allDatabases: [DatabaseMetadata] {
         // Filter out recent databases from "all" list
-        return filteredDatabases.filter { db in
+        filteredDatabases.filter { db in
             !recentDatabases.contains(db.name)
         }
     }
@@ -82,7 +82,7 @@ class DatabaseSwitcherViewModel: ObservableObject {
             let metadataList = await withTaskGroup(of: DatabaseMetadata?.self) { group in
                 for dbName in dbNames {
                     group.addTask {
-                        return await self.fetchMetadata(for: dbName, driver: driver)
+                        await self.fetchMetadata(for: dbName, driver: driver)
                     }
                 }
 
@@ -105,7 +105,6 @@ class DatabaseSwitcherViewModel: ObservableObject {
             } else {
                 selectedDatabase = databases.first?.name
             }
-
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
@@ -136,7 +135,7 @@ class DatabaseSwitcherViewModel: ObservableObject {
 
     /// Fetch metadata for a single database
     private func fetchMetadata(for database: String, driver: DatabaseDriver) async
-        -> DatabaseMetadata?
+    -> DatabaseMetadata?
     {
         do {
             return try await driver.fetchDatabaseMetadata(database)

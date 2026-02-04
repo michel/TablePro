@@ -12,7 +12,6 @@ import SwiftUI
 
 /// NSView that hosts SwiftUI ToolbarPrincipalContent
 final class ToolbarPrincipalContentHostingView: NSView {
-
     // MARK: - Properties
 
     private let hostingController: NSHostingController<ToolbarPrincipalContent>

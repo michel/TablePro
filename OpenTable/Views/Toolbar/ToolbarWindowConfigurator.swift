@@ -12,7 +12,6 @@ import SwiftUI
 /// Configures NSToolbar for SwiftUI windows
 @MainActor
 final class ToolbarWindowConfigurator {
-
     // MARK: - Properties
 
     private var controller: ToolbarController?
@@ -51,7 +50,6 @@ final class ToolbarWindowConfigurator {
 /// SwiftUI view that configures the window's toolbar
 /// Use this in the background of your main content view to attach the toolbar
 struct ToolbarConfigurationView: NSViewRepresentable {
-
     @ObservedObject var state: ConnectionToolbarState
 
     func makeNSView(context: Context) -> NSView {
@@ -80,7 +78,7 @@ struct ToolbarConfigurationView: NSViewRepresentable {
 
         func startObserving(view: NSView, state: ConnectionToolbarState) {
             // Observe window property - configure when window becomes available
-            windowObservation = view.observe(\.window, options: [.new, .initial]) { [weak self] view, change in
+            windowObservation = view.observe(\.window, options: [.new, .initial]) { [weak self] _, change in
                 guard let self = self,
                       let window = change.newValue as? NSWindow else { return }
 

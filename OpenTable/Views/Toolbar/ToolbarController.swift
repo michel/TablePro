@@ -12,7 +12,6 @@ import Combine
 /// Manages the window's NSToolbar
 @MainActor
 final class ToolbarController: NSObject, NSToolbarDelegate {
-
     // MARK: - Properties
 
     private let toolbar: NSToolbar

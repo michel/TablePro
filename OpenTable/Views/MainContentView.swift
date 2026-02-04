@@ -256,8 +256,8 @@ struct MainContentView: View {
 
             // Execute query for table tabs
             if let selectedTab = tabManager.selectedTab,
-                selectedTab.tabType == .table,
-                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+               selectedTab.tabType == .table,
+               !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 await coordinator.tabPersistence.waitForConnectionAndExecute {
                     coordinator.runQuery()
@@ -306,7 +306,7 @@ struct MainContentView: View {
 
         // Persist tab selection
         guard !coordinator.tabPersistence.isRestoringTabs,
-            !coordinator.tabPersistence.isDismissing
+              !coordinator.tabPersistence.isDismissing
         else { return }
 
         if let sessionId = DatabaseManager.shared.currentSessionId {
@@ -322,7 +322,7 @@ struct MainContentView: View {
 
     private func handleTabsChange(_ newTabs: [QueryTab]) {
         guard !coordinator.tabPersistence.isRestoringTabs,
-            !coordinator.tabPersistence.isDismissing
+              !coordinator.tabPersistence.isDismissing
         else { return }
 
         if let sessionId = DatabaseManager.shared.currentSessionId {
@@ -342,8 +342,8 @@ struct MainContentView: View {
 
     private func handleColumnsChange(newColumns: [String]?) {
         guard let newColumns = newColumns, !newColumns.isEmpty,
-            let tab = tabManager.selectedTab,
-            !tab.pendingChanges.hasChanges
+              let tab = tabManager.selectedTab,
+              !tab.pendingChanges.hasChanges
         else { return }
 
         // Reconfigure if columns changed OR table name changed (switching tables)
@@ -388,7 +388,7 @@ struct MainContentView: View {
 
     private func loadTableMetadataIfNeeded() async {
         guard let tableName = currentTab?.tableName,
-            coordinator.tableMetadata?.tableName != tableName
+              coordinator.tableMetadata?.tableName != tableName
         else { return }
         await coordinator.loadTableMetadata(tableName: tableName)
     }
@@ -461,8 +461,8 @@ struct MainContentView: View {
 
     private func updateSidebarEditState() {
         guard isSidebarEditable,
-            let tab = coordinator.tabManager.selectedTab,
-            !selectedRowIndices.isEmpty
+              let tab = coordinator.tabManager.selectedTab,
+              !selectedRowIndices.isEmpty
         else {
             sidebarEditState.fields = []
             return
@@ -494,8 +494,8 @@ struct MainContentView: View {
     @MainActor
     private func saveSidebarEdits() async {
         guard let tab = coordinator.tabManager.selectedTab,
-            !selectedRowIndices.isEmpty,
-            let tableName = tab.tableName
+              !selectedRowIndices.isEmpty,
+              let tableName = tab.tableName
         else {
             return
         }
@@ -536,7 +536,6 @@ struct MainContentView: View {
             // Refresh query to show updated data
             // The onChange(resultRows) handler will automatically update the sidebar
             coordinator.runQuery()
-
         } catch {
             // Show error using macOS alert
             AlertHelper.showErrorSheet(
@@ -556,9 +555,9 @@ struct MainContentView: View {
         primaryKeyColumn: String?
     ) -> String? {
         guard let pkColumn = primaryKeyColumn,
-            let pkIndex = columns.firstIndex(of: pkColumn),
-            pkIndex < originalRow.count,
-            let pkValue = originalRow[pkIndex]
+              let pkIndex = columns.firstIndex(of: pkColumn),
+              pkIndex < originalRow.count,
+              let pkValue = originalRow[pkIndex]
         else {
             return nil
         }

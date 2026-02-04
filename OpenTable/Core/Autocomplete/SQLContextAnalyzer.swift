@@ -98,15 +98,19 @@ final class SQLContextAnalyzer {
             // DDL patterns (most specific first)
             // Match AFTER/BEFORE keyword in ALTER TABLE ADD COLUMN context
             ("\\bADD\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+.*?\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$", .alterTableColumn),
-            // Match AFTER/BEFORE in general ALTER TABLE context  
+            // Match AFTER/BEFORE in general ALTER TABLE context
             ("\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$", .alterTableColumn),
             // Match FIRST keyword for column positioning
             ("\\bFIRST\\s*$", .alterTable),
             // Match ADD keyword immediately after ALTER TABLE tablename (expecting COLUMN, INDEX, etc.)
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+ADD\\s+\\w*$", .alterTable),
             // Match column definition after ADD/MODIFY/CHANGE with data type
-            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+(?:\\([^)]*\\))?(?:\\s+(?:NOT\\s+)?NULL|\\s+DEFAULT(?:\\s+[^\\s]+)?|\\s+AUTO_INCREMENT|\\s+UNSIGNED|\\s+COMMENT(?:\\s+'[^']*')?)*\\s*$", .columnDef),
-            // Match column name after ADD/MODIFY/CHANGE (before data type)  
+            (
+                "\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+(?:\\([^)]*\\))?" +
+                "(?:\\s+(?:NOT\\s+)?NULL|\\s+DEFAULT(?:\\s+[^\\s]+)?|\\s+AUTO_INCREMENT|\\s+UNSIGNED|\\s+COMMENT(?:\\s+'[^']*')?)*\\s*$",
+                .columnDef
+            ),
+            // Match column name after ADD/MODIFY/CHANGE (before data type)
             // Only match if we have COLUMN keyword or it's after ALTER TABLE
             ("\\b(?:ADD|MODIFY|CHANGE)\\s+COLUMN\\s+\\w+\\s*$", .columnDef),
             // Match DROP/MODIFY/CHANGE/RENAME with column name

@@ -22,7 +22,7 @@ struct ToolbarPrincipalContent: View {
         HStack(spacing: ToolbarDesignTokens.Spacing.betweenSections) {
             // Tag badge (if tag is assigned)
             if let tagId = state.tagId,
-                let tag = TagStorage.shared.tag(for: tagId)
+               let tag = TagStorage.shared.tag(for: tagId)
             {
                 TagBadgeView(tag: tag)
 

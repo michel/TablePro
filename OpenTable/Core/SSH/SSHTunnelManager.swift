@@ -61,32 +61,32 @@ actor SSHTunnelManager {
         // Start health monitoring
         startHealthMonitoring()
     }
-    
+
     /// Start monitoring tunnel health
     private func startHealthMonitoring() {
         healthCheckTask = Task {
             while !Task.isCancelled {
                 // Wait 30 seconds between checks
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
-                
+
                 await checkTunnelHealth()
             }
         }
     }
-    
+
     /// Check if tunnels are still alive and attempt reconnection if needed
     private func checkTunnelHealth() async {
         for (connectionId, tunnel) in tunnels {
             // Check if process is still running
             if !tunnel.process.isRunning {
                 print("⚠️ SSH tunnel for \(connectionId) died, attempting reconnection...")
-                
+
                 // Notify DatabaseManager to reconnect
                 await notifyTunnelDied(connectionId: connectionId)
             }
         }
     }
-    
+
     /// Notify that a tunnel has died (DatabaseManager should handle reconnection)
     private func notifyTunnelDied(connectionId: UUID) async {
         await MainActor.run {

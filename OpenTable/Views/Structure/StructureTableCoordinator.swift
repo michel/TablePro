@@ -11,7 +11,6 @@ import Foundation
 
 /// Coordinator for structure table editing
 final class StructureTableCoordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSTextFieldDelegate {
-
     // MARK: - Properties
 
     var structureChangeManager: StructureChangeManager

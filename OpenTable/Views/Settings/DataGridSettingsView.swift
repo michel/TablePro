@@ -47,9 +47,9 @@ struct DataGridSettingsView: View {
                 Picker("Default page size:", selection: $settings.defaultPageSize) {
                     Text("100 rows").tag(100)
                     Text("500 rows").tag(500)
-                    Text("1,000 rows").tag(1000)
-                    Text("5,000 rows").tag(5000)
-                    Text("10,000 rows").tag(10000)
+                    Text("1,000 rows").tag(1_000)
+                    Text("5,000 rows").tag(5_000)
+                    Text("10,000 rows").tag(10_000)
                 }
             }
         }

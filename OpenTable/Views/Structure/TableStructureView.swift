@@ -6,9 +6,9 @@
 //  Complete refactor to match data grid UX
 //
 
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
-import AppKit
 
 /// View displaying table structure with DataGridView
 struct TableStructureView: View {
@@ -26,14 +26,14 @@ struct TableStructureView: View {
     @State private var errorMessage: String?
     @State private var loadedTabs: Set<StructureTab> = []
     @State private var isReloadingAfterSave = false  // Prevent onChange loops during save reload
-    @State private var lastSaveTime: Date? = nil  // Track when we last saved
+    @State private var lastSaveTime: Date?  // Track when we last saved
 
     // DataGridView state
     @StateObject private var structureChangeManager = StructureChangeManager()
     @StateObject private var wrappedChangeManager: AnyChangeManager
     @State private var selectedRows: Set<Int> = []
     @State private var sortState = SortState()
-    @State private var editingCell: CellPosition? = nil
+    @State private var editingCell: CellPosition?
 
     // Preview dialog
     @State private var showPreview = false
@@ -498,7 +498,6 @@ struct TableStructureView: View {
 
             lastSaveTime = Date()  // ✅ Record save time
             isReloadingAfterSave = false
-
         } catch {
             isReloadingAfterSave = false  // Clear flag on error
             AlertHelper.showErrorSheet(
@@ -772,7 +771,7 @@ struct TableStructureView: View {
         connection: DatabaseConnection(
             name: "Test",
             host: "localhost",
-            port: 3306,
+            port: 3_306,
             database: "test",
             username: "root",
             type: .mysql

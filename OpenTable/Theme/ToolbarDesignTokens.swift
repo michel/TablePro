@@ -15,7 +15,6 @@ import SwiftUI
 /// Component-specific design tokens for toolbar components
 /// References DesignConstants for shared values, defines only toolbar-specific semantics
 enum ToolbarDesignTokens {
-
     // MARK: - Typography Hierarchy (Xcode-inspired)
 
     enum Typography {

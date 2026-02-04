@@ -260,7 +260,7 @@ struct DataGridSettings: Codable, Equatable {
         rowHeight: .normal,
         dateFormat: .iso8601,
         nullDisplay: "NULL",
-        defaultPageSize: 1000,
+        defaultPageSize: 1_000,
         showAlternateRows: true
     )
 
@@ -319,7 +319,7 @@ struct HistorySettings: Codable, Equatable {
     var autoCleanup: Bool
 
     static let `default` = HistorySettings(
-        maxEntries: 10000,
+        maxEntries: 10_000,
         maxDays: 90,
         autoCleanup: true
     )

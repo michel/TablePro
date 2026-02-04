@@ -92,15 +92,15 @@ enum ColumnType: Equatable {
             self = .integer(rawType: rawType)
 
         // Decimal types
-        case 700, 701, 1700:  // FLOAT4, FLOAT8, NUMERIC
+        case 700, 701, 1_700:  // FLOAT4, FLOAT8, NUMERIC
             self = .decimal(rawType: rawType)
 
         // Date/time types
-        case 1082:  // DATE
+        case 1_082:  // DATE
             self = .date(rawType: rawType)
-        case 1083, 1266:  // TIME, TIMETZ
+        case 1_083, 1_266:  // TIME, TIMETZ
             self = .timestamp(rawType: rawType)
-        case 1114, 1184:  // TIMESTAMP, TIMESTAMPTZ
+        case 1_114, 1_184:  // TIMESTAMP, TIMESTAMPTZ
             self = .timestamp(rawType: rawType)
 
         // Binary types

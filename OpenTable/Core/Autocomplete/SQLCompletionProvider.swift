@@ -27,7 +27,7 @@ final class SQLCompletionProvider {
         self.schemaProvider = schemaProvider
         self.databaseType = databaseType
     }
-    
+
     /// Update the database type for context-aware completions
     func setDatabaseType(_ type: DatabaseType) {
         self.databaseType = type
@@ -102,7 +102,7 @@ final class SQLCompletionProvider {
             items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
             items += SQLKeywords.operatorItems()
             items += filterKeywords([
-                "AND", "OR", "NOT", "IN", "LIKE", "ILIKE", "BETWEEN", "IS", 
+                "AND", "OR", "NOT", "IN", "LIKE", "ILIKE", "BETWEEN", "IS",
                 "NULL", "NOT NULL", "TRUE", "FALSE", "EXISTS", "NOT EXISTS",
                 "ANY", "ALL", "SOME", "REGEXP", "RLIKE", "SIMILAR TO"
             ])
@@ -227,7 +227,7 @@ final class SQLCompletionProvider {
             // Boolean
             "BOOLEAN", "BOOL",
         ]
-        
+
         // Add database-specific types
         switch databaseType {
         case .mysql, .mariadb:
@@ -238,7 +238,7 @@ final class SQLCompletionProvider {
                 "YEAR", "ENUM", "SET", "JSON",
                 "BINARY", "VARBINARY",
             ]
-            
+
         case .postgresql:
             types += [
                 "BIGSERIAL", "SERIAL", "SMALLSERIAL",
@@ -249,12 +249,12 @@ final class SQLCompletionProvider {
                 "POINT", "LINE", "LSEG", "BOX", "PATH", "POLYGON", "CIRCLE",
                 "INET", "CIDR", "MACADDR", "MACADDR8",
             ]
-            
+
         case .sqlite:
             types += [
                 "BLOB",
             ]
-            
+
         case .none:
             // Include all types if database type is unknown
             types += [
@@ -271,7 +271,7 @@ final class SQLCompletionProvider {
                 "INET", "CIDR", "MACADDR", "MACADDR8",
             ]
         }
-        
+
         return filterKeywords(types)
     }
 
@@ -370,5 +370,3 @@ final class SQLCompletionProvider {
         return score
     }
 }
-
-

@@ -510,7 +510,7 @@ final class MySQLDriver: DatabaseDriver {
     /// used for identifiers (such as database, table, or column names).
     private func escapeForSQLStringLiteral(_ value: String) -> String {
         // Escape single quotes by doubling them, per SQL standard.
-        return value.replacingOccurrences(of: "'", with: "''")
+        value.replacingOccurrences(of: "'", with: "''")
     }
 
     /// Fetch metadata for a specific database

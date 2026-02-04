@@ -66,7 +66,7 @@ final class PostgreSQLDriver: DatabaseDriver {
     func execute(query: String) async throws -> QueryResult {
         try await executeWithReconnect(query: query, isRetry: false)
     }
-    
+
     /// Execute query with automatic reconnection on connection-lost errors
     private func executeWithReconnect(query: String, isRetry: Bool) async throws -> QueryResult {
         guard let pqConn = libpqConnection else {
@@ -99,9 +99,9 @@ final class PostgreSQLDriver: DatabaseDriver {
             throw DatabaseError.queryFailed(error.localizedDescription)
         }
     }
-    
+
     // MARK: - Auto-Reconnect
-    
+
     /// Check if error indicates a lost connection that can be recovered
     private func isConnectionLostError(_ error: NSError) -> Bool {
         // PostgreSQL connection error codes:
@@ -110,20 +110,20 @@ final class PostgreSQLDriver: DatabaseDriver {
         // - "no connection to the server"
         // - "could not send data to server"
         let errorMessage = error.localizedDescription.lowercased()
-        return errorMessage.contains("connection") && 
-               (errorMessage.contains("lost") || 
+        return errorMessage.contains("connection") &&
+            (errorMessage.contains("lost") ||
                 errorMessage.contains("closed") ||
                 errorMessage.contains("no connection") ||
                 errorMessage.contains("could not send"))
     }
-    
+
     /// Reconnect to the database
     private func reconnect() async throws {
         // Close existing connection
         libpqConnection?.disconnect()
         libpqConnection = nil
         status = .connecting
-        
+
         // Reconnect using stored connection info
         try await connect()
     }
@@ -131,7 +131,7 @@ final class PostgreSQLDriver: DatabaseDriver {
     func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
         try await executeParameterizedWithReconnect(query: query, parameters: parameters, isRetry: false)
     }
-    
+
     /// Execute parameterized query with automatic reconnection
     private func executeParameterizedWithReconnect(query: String, parameters: [Any?], isRetry: Bool) async throws -> QueryResult {
         guard let pqConn = libpqConnection else {

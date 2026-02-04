@@ -43,7 +43,7 @@ struct EditableIndexDefinition: Hashable, Codable, Identifiable {
     /// Check if this definition is valid (not a placeholder)
     var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !columns.isEmpty
+            !columns.isEmpty
     }
 
     /// Create from existing IndexInfo

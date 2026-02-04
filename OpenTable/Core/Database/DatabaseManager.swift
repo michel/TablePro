@@ -47,7 +47,7 @@ final class DatabaseManager: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             guard let connectionId = notification.userInfo?["connectionId"] as? UUID else { return }
-            
+
             Task { @MainActor in
                 await self?.handleSSHTunnelDied(connectionId: connectionId)
             }
@@ -294,24 +294,24 @@ final class DatabaseManager: ObservableObject {
     /// Handle SSH tunnel death by attempting reconnection
     private func handleSSHTunnelDied(connectionId: UUID) async {
         guard let session = activeSessions[connectionId] else { return }
-        
+
         print("⚠️ SSH tunnel died for connection: \(session.connection.name)")
-        
+
         // Mark connection as reconnecting
         updateSession(connectionId) { session in
             session.status = .connecting
         }
-        
+
         // Wait a bit before attempting reconnection (give VPN time to reconnect)
         try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-        
+
         do {
             // Attempt to reconnect
             try await connectToSession(session.connection)
             print("✅ Successfully reconnected SSH tunnel for: \(session.connection.name)")
         } catch {
             print("❌ Failed to reconnect SSH tunnel: \(error.localizedDescription)")
-            
+
             // Mark as error
             updateSession(connectionId) { session in
                 session.status = .error("SSH tunnel disconnected. Click to reconnect.")
@@ -350,7 +350,6 @@ final class DatabaseManager: ObservableObject {
 
             // Post notification to refresh UI
             NotificationCenter.default.post(name: .refreshData, object: nil)
-
         } catch {
             // Rollback on error
             try? await driver.rollbackTransaction()

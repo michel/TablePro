@@ -41,9 +41,9 @@ struct EditableForeignKeyDefinition: Hashable, Codable, Identifiable {
     /// Check if this definition is valid (not a placeholder)
     var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !columns.isEmpty &&
-        !referencedTable.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !referencedColumns.isEmpty
+            !columns.isEmpty &&
+            !referencedTable.trimmingCharacters(in: .whitespaces).isEmpty &&
+            !referencedColumns.isEmpty
     }
 
     /// Create from existing ForeignKeyInfo

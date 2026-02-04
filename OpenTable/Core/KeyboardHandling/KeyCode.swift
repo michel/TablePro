@@ -166,9 +166,9 @@ public enum KeyCode: UInt16 {
 
 // MARK: - NSEvent Extension
 
-extension NSEvent {
+public extension NSEvent {
     /// The semantic key code for this event, if recognized
-    public var semanticKeyCode: KeyCode? {
+    var semanticKeyCode: KeyCode? {
         KeyCode(rawValue: keyCode)
     }
 }

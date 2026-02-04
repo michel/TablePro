@@ -237,7 +237,7 @@ struct SchemaStatementGenerator {
         }
 
         // On update (MySQL/MariaDB only for timestamp columns)
-        if (databaseType == .mysql || databaseType == .mariadb),
+        if databaseType == .mysql || databaseType == .mariadb,
            let onUpdate = column.onUpdate, !onUpdate.isEmpty {
             parts.append("ON UPDATE \(onUpdate)")
         }

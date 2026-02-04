@@ -6,8 +6,8 @@
 //  Tracks pending edits across multiple selected rows.
 //
 
-import Foundation
 import Combine
+import Foundation
 
 /// Represents the edit state for a single field across multiple rows
 struct FieldEditState {
@@ -103,7 +103,7 @@ class MultiRowEditState: ObservableObject {
             }
 
             // Preserve pending edits if data hasn't changed
-            var pendingValue: String? = nil
+            var pendingValue: String?
             var isPendingNull = false
             var isPendingDefault = false
 

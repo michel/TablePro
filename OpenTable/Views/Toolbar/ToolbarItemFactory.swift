@@ -21,7 +21,6 @@ protocol ToolbarItemFactory {
 /// Default implementation of toolbar item factory
 @MainActor
 final class DefaultToolbarItemFactory: ToolbarItemFactory {
-
     // MARK: - Properties
 
     /// Hold references to hosted SwiftUI views to prevent deallocation
@@ -264,10 +263,9 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
 /// Singleton that routes toolbar actions to NotificationCenter
 @MainActor
 @objc final class ToolbarActionProxy: NSObject {
-
     static let shared = ToolbarActionProxy()
 
-    private override init() {
+    override private init() {
         super.init()
     }
 

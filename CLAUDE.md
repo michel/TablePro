@@ -106,6 +106,7 @@ struct ContentView: View {
 - **Trailing commas**: Omit in collections (SwiftFormat enforces)
 - **Line endings**: LF only (Unix-style), never CRLF
 - **File endings**: Single newline at EOF
+- **Vertical whitespace**: Maximum 2 consecutive empty lines between declarations
 
 ### Naming Conventions (Apple API Design Guidelines)
 
@@ -135,6 +136,18 @@ struct ContentView: View {
 - Prefer `private` over `fileprivate` unless cross-type access needed
 - Use `private(set)` for read-only public properties
 - IBOutlets should be `private` or `fileprivate`
+- **Extension access modifiers**: Always specify access level on the extension itself, not individual members
+    ```swift
+    // Bad
+    extension NSEvent {
+        public var semanticKeyCode: KeyCode? { ... }
+    }
+
+    // Good
+    public extension NSEvent {
+        var semanticKeyCode: KeyCode? { ... }
+    }
+    ```
 
 ### Optionals & Error Handling
 
@@ -143,6 +156,19 @@ struct ContentView: View {
 - Use `guard` for early returns to reduce nesting
 - Fatal errors must include descriptive messages
 - Don't use force try (`try!`) except in tests or guaranteed scenarios
+- **Safe casting**: Never use force cast (`as!`), always use conditional casting
+    ```swift
+    // Bad
+    let value = param as! SQLFunctionLiteral
+
+    // Good
+    if let value = param as? SQLFunctionLiteral {
+        return value.property
+    }
+
+    // Better (with optional chaining)
+    return (param as? SQLFunctionLiteral)?.property ?? defaultValue
+    ```
 
 ### Property Declarations
 
@@ -164,6 +190,14 @@ func updateUI() {
 - Strip unused closure arguments (use `_` for unused)
 - Remove `self` in closures unless required for capture semantics
 - Prefer trailing closure syntax when last parameter
+- **Avoid unused optional bindings**: Use `!= nil` instead of `let _ =` for existence checks
+    ```swift
+    // Bad
+    guard let _ = textContainer else { return nil }
+
+    // Good
+    guard textContainer != nil else { return nil }
+    ```
 
 ### Collections
 
@@ -171,6 +205,16 @@ func updateUI() {
 - Use `contains(_:)` over `filter { }.count > 0`
 - Use `first(where:)` over `filter { }.first`
 - Use `allSatisfy(_:)` when checking all elements
+- **Remove unused enumeration**: Don't use `.enumerated()` when index is not needed
+    ```swift
+    // Bad
+    items.enumerated().map { _, item in item.value }
+
+    // Good
+    items.map { item in item.value }
+    // Or with key path:
+    items.map(\.value)
+    ```
 
 ### Operators & Spacing
 
@@ -186,6 +230,93 @@ func updateUI() {
 - Maximum file length: 1200 lines (warning), 1800 (error)
 - Cyclomatic complexity: 40 (warning), 60 (error)
 - Organize declarations within types: properties → init → methods
+
+### Refactoring Large Files
+
+When files approach or exceed SwiftLint limits, follow these strategies:
+
+#### 1. Extension Pattern for Large Types
+
+Extract logical sections into separate extension files:
+
+- Place extensions in `Extensions/` subfolder within the same directory
+- Naming: `TypeName+Category.swift` (e.g., `MainContentCoordinator+RowOperations.swift`)
+- Group related functionality (pagination, filtering, row operations, etc.)
+- Keep the main file focused on core type definition and primary responsibilities
+
+**Example structure:**
+```
+OpenTable/Views/Main/
+├── MainContentCoordinator.swift          # Core class definition
+└── Extensions/
+    ├── MainContentCoordinator+RowOperations.swift
+    ├── MainContentCoordinator+Pagination.swift
+    ├── MainContentCoordinator+Filtering.swift
+    └── MainContentCoordinator+Alerts.swift
+```
+
+**Extension file template:**
+```swift
+//
+//  MainContentCoordinator+RowOperations.swift
+//  OpenTable
+//
+//  Row manipulation operations for MainContentCoordinator
+//
+
+import Foundation
+
+extension MainContentCoordinator {
+    // MARK: - Row Operations
+
+    func addNewRow(...) {
+        // Implementation
+    }
+}
+```
+
+#### 2. Helper Method Extraction for Long Functions
+
+When functions exceed 160 lines:
+
+- Extract logical blocks into private helper methods
+- Use descriptive names that explain the helper's purpose
+- Place helper methods near their calling function
+- Consider creating helper structs for complex parameter groups
+
+**Example:**
+```swift
+// Before: 200-line function
+private func executeQuery(_ query: String, parameters: [Any?]) throws -> Result {
+    // 200 lines of code...
+}
+
+// After: Main function + helpers
+private func executeQuery(_ query: String, parameters: [Any?]) throws -> Result {
+    let stmt = try prepareStatement(query)
+    defer { cleanupStatement(stmt) }
+
+    let bindings = try bindParameters(parameters, to: stmt)
+    defer { bindings.cleanup() }
+
+    try executeStatement(stmt)
+    return try fetchResults(from: stmt)
+}
+
+private func bindParameters(_ parameters: [Any?], to stmt: Statement) throws -> Bindings {
+    // Focused binding logic
+}
+
+private func fetchResults(from stmt: Statement) throws -> Result {
+    // Focused result fetching logic
+}
+```
+
+#### 3. When to Refactor
+
+- **Proactive**: When adding features that would push limits
+- **Reactive**: When SwiftLint warnings appear (before errors)
+- **Strategic**: Group by domain logic, not arbitrary line counts
 
 ### Disabled SwiftLint Rules (Allowed)
 
@@ -231,9 +362,15 @@ Prefer throwing errors over returning optionals for failure cases
 ## Notes for AI Agents
 
 - **Never** use tabs for indentation (except Makefile/pbxproj)
-- Run SwiftLint after making changes to verify compliance
+- **Always** run `swiftlint lint --strict` after making changes to verify compliance
 - Check .swiftformat and .swiftlint.yml for authoritative rules
 - Preserve existing architecture: SwiftUI + AppKit, native frameworks only
 - This is macOS-only; no iOS/watchOS/tvOS code needed
 - Keep line length under 120 characters when possible
 - All new view controllers should use SwiftUI unless AppKit is required
+- When refactoring for SwiftLint compliance:
+  - Extract extensions before splitting classes
+  - Maintain logical grouping of related functionality
+  - Preserve all existing functionality and behavior
+  - Update imports in extension files as needed
+  - Test that build succeeds after refactoring

@@ -54,7 +54,6 @@ import AppKit
 /// 2. Validation via `NSUserInterfaceValidations` or `NSMenuItemValidation`
 ///
 @objc protocol OpenTableResponderActions {
-
     // MARK: - Standard Edit Menu Actions
 
     /// Delete the selected items
@@ -168,12 +167,12 @@ import AppKit
 
  ```swift
  final class MyTableView: NSTableView {
-     override var acceptsFirstResponder: Bool { true }
+ override var acceptsFirstResponder: Bool { true }
 
-     @objc func delete(_ sender: Any?) {
-         // Your delete logic here
-         print("Deleting selected rows")
-     }
+ @objc func delete(_ sender: Any?) {
+ // Your delete logic here
+ print("Deleting selected rows")
+ }
  }
  ```
 
@@ -181,15 +180,15 @@ import AppKit
 
  ```swift
  extension MyTableView: NSUserInterfaceValidations {
-     func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
-         switch item.action {
-         case #selector(delete(_:)):
-             // Enable Delete only when rows are selected
-             return selectedRowIndexes.count > 0
-         default:
-             return false
-         }
-     }
+ func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+ switch item.action {
+ case #selector(delete(_:)):
+ // Enable Delete only when rows are selected
+ return selectedRowIndexes.count > 0
+ default:
+ return false
+ }
+ }
  }
  ```
 
@@ -197,13 +196,13 @@ import AppKit
 
  ```swift
  .commands {
-     CommandGroup(after: .newItem) {
-         Button("Delete Row") {
-             NSApp.sendAction(#selector(OpenTableResponderActions.delete(_:)),
-                            to: nil, from: nil)
-         }
-         .keyboardShortcut(.delete, modifiers: .command)
-     }
+ CommandGroup(after: .newItem) {
+ Button("Delete Row") {
+ NSApp.sendAction(#selector(OpenTableResponderActions.delete(_:)),
+ to: nil, from: nil)
+ }
+ .keyboardShortcut(.delete, modifiers: .command)
+ }
  }
  ```
 
@@ -213,11 +212,11 @@ import AppKit
 
  ```swift
  override func keyDown(with event: NSEvent) {
-     interpretKeyEvents([event])
+ interpretKeyEvents([event])
  }
 
  @objc override func moveUp(_ sender: Any?) {
-     // Custom up arrow handling
+ // Custom up arrow handling
  }
  ```
 

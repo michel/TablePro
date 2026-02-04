@@ -10,7 +10,6 @@ import AppKit
 import Foundation
 
 extension MainContentCoordinator {
-
     // MARK: - Dangerous Query Confirmation
 
     /// Check if query needs confirmation and show alert if needed

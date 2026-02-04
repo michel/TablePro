@@ -359,7 +359,7 @@ struct DatabaseSwitcherSheet: View {
         // Defer state update to avoid "Publishing changes from within view updates" warning
         Task { @MainActor in
             if let selected = viewModel.selectedDatabase,
-                let currentIndex = allDbs.firstIndex(where: { $0.name == selected })
+               let currentIndex = allDbs.firstIndex(where: { $0.name == selected })
             {
                 if up {
                     let newIndex = max(0, currentIndex - 1)

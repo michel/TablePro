@@ -152,7 +152,7 @@ struct OpenTableApp: App {
                 .environmentObject(appState)
                 .background(OpenWindowHandler())
                 .tint(accentTint)
-                // ESC key handling now uses native .onExitCommand and cancelOperation(_:)
+            // ESC key handling now uses native .onExitCommand and cancelOperation(_:)
         }
         .windowStyle(.automatic)
         .defaultSize(width: 1_200, height: 800)

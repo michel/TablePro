@@ -20,7 +20,7 @@ final class KeyHandlingTableView: NSTableView {
     // MARK: - First Responder
 
     override var acceptsFirstResponder: Bool {
-        return true
+        true
     }
 
     /// Currently focused row index (-1 = no focus)
