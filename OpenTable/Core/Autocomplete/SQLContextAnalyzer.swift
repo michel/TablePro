@@ -96,13 +96,19 @@ final class SQLContextAnalyzer {
     private static let clauseRegexes: [(regex: NSRegularExpression, clause: SQLClauseType)] = {
         let patterns: [(String, SQLClauseType)] = [
             // DDL patterns (most specific first)
-            // Match AFTER keyword specifically for column positioning
-            ("\\bAFTER\\s+[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
-            ("\\bFIRST\\s*$", .alterTableColumn),
+            // Match AFTER/BEFORE keyword in ALTER TABLE ADD COLUMN context
+            ("\\bADD\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+.*?\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$", .alterTableColumn),
+            // Match AFTER/BEFORE in general ALTER TABLE context  
+            ("\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$", .alterTableColumn),
+            // Match FIRST keyword for column positioning
+            ("\\bFIRST\\s*$", .alterTable),
+            // Match ADD keyword immediately after ALTER TABLE tablename (expecting COLUMN, INDEX, etc.)
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+ADD\\s+\\w*$", .alterTable),
             // Match column definition after ADD/MODIFY/CHANGE with data type
-            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+(?:\\([^)]*\\))?(?:\\s+(?:NOT\\s+)?NULL|\\s+DEFAULT|\\s+AUTO_INCREMENT|\\s+UNSIGNED|\\s+COMMENT)?\\s+\\w*$", .columnDef),
-            // Match column name after ADD/MODIFY/CHANGE (before data type)
-            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?\\w+\\s*$", .columnDef),
+            ("\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+(?:\\([^)]*\\))?(?:\\s+(?:NOT\\s+)?NULL|\\s+DEFAULT(?:\\s+[^\\s]+)?|\\s+AUTO_INCREMENT|\\s+UNSIGNED|\\s+COMMENT(?:\\s+'[^']*')?)*\\s*$", .columnDef),
+            // Match column name after ADD/MODIFY/CHANGE (before data type)  
+            // Only match if we have COLUMN keyword or it's after ALTER TABLE
+            ("\\b(?:ADD|MODIFY|CHANGE)\\s+COLUMN\\s+\\w+\\s*$", .columnDef),
             // Match DROP/MODIFY/CHANGE/RENAME with column name
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+(?:DROP|MODIFY|CHANGE|RENAME)\\s+(?:COLUMN\\s+)?[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
             // General ALTER TABLE operations
@@ -610,8 +616,8 @@ final class SQLContextAnalyzer {
 
     /// Pre-compiled regex for extracting table name from ALTER TABLE statements
     private static let alterTableRegex: NSRegularExpression? = {
-        // Pattern: ALTER TABLE tablename (supports optional quoting and special characters)
-        let pattern = "(?i)\\bALTER\\s+TABLE\\s+[`\"']?([^`\"']+)[`\"']?"
+        // Pattern: ALTER TABLE tablename (supports optional quoting)
+        let pattern = "(?i)\\bALTER\\s+TABLE\\s+[`\"']?(\\w+)[`\"']?"
         return try? NSRegularExpression(pattern: pattern)
     }()
 

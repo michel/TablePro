@@ -165,12 +165,10 @@ final class SQLCompletionProvider {
             ])
 
         case .alterTableColumn:
-            // After ALTER TABLE tablename DROP/MODIFY/CHANGE/AFTER - suggest column names
+            // After ALTER TABLE tablename DROP/MODIFY/CHANGE/RENAME or AFTER/BEFORE - suggest column names
             if let firstTable = context.tableReferences.first {
                 items = await schemaProvider.columnCompletionItems(for: firstTable.tableName)
             }
-            // Add positioning keywords
-            items += filterKeywords(["COLUMN", "FIRST", "AFTER", "BEFORE"])
 
         case .createTable:
             // Inside CREATE TABLE (...) - suggest constraints and data types
@@ -373,125 +371,4 @@ final class SQLCompletionProvider {
     }
 }
 
-// MARK: - SQL Keywords Helper
-
-/// Helper for common SQL keywords and functions
-enum SQLKeywords {
-    /// Common SQL functions for autocomplete
-    static func functionItems() -> [SQLCompletionItem] {
-        let functions: [(name: String, signature: String?, doc: String?)] = [
-            // Aggregate functions
-            ("COUNT", "COUNT(*)", "Counts rows"),
-            ("SUM", "SUM(column)", "Sums values"),
-            ("AVG", "AVG(column)", "Calculates average"),
-            ("MIN", "MIN(column)", "Finds minimum value"),
-            ("MAX", "MAX(column)", "Finds maximum value"),
-            ("GROUP_CONCAT", "GROUP_CONCAT(column)", "Concatenates values (MySQL)"),
-            ("STRING_AGG", "STRING_AGG(column, delimiter)", "Concatenates values (PostgreSQL)"),
-            
-            // String functions
-            ("CONCAT", "CONCAT(str1, str2, ...)", "Concatenates strings"),
-            ("SUBSTRING", "SUBSTRING(str, start, length)", "Extracts substring"),
-            ("SUBSTR", "SUBSTR(str, start, length)", "Extracts substring"),
-            ("UPPER", "UPPER(str)", "Converts to uppercase"),
-            ("LOWER", "LOWER(str)", "Converts to lowercase"),
-            ("TRIM", "TRIM(str)", "Removes whitespace"),
-            ("LTRIM", "LTRIM(str)", "Removes left whitespace"),
-            ("RTRIM", "RTRIM(str)", "Removes right whitespace"),
-            ("LENGTH", "LENGTH(str)", "Returns string length"),
-            ("CHAR_LENGTH", "CHAR_LENGTH(str)", "Returns character length"),
-            ("REPLACE", "REPLACE(str, from, to)", "Replaces substring"),
-            ("LEFT", "LEFT(str, length)", "Returns leftmost characters"),
-            ("RIGHT", "RIGHT(str, length)", "Returns rightmost characters"),
-            ("REVERSE", "REVERSE(str)", "Reverses string"),
-            
-            // Date/Time functions
-            ("NOW", "NOW()", "Returns current datetime"),
-            ("CURRENT_DATE", "CURRENT_DATE", "Returns current date"),
-            ("CURRENT_TIME", "CURRENT_TIME", "Returns current time"),
-            ("CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP", "Returns current timestamp"),
-            ("DATE", "DATE(datetime)", "Extracts date part"),
-            ("TIME", "TIME(datetime)", "Extracts time part"),
-            ("YEAR", "YEAR(date)", "Extracts year"),
-            ("MONTH", "MONTH(date)", "Extracts month"),
-            ("DAY", "DAY(date)", "Extracts day"),
-            ("HOUR", "HOUR(datetime)", "Extracts hour"),
-            ("MINUTE", "MINUTE(datetime)", "Extracts minute"),
-            ("SECOND", "SECOND(datetime)", "Extracts second"),
-            ("DATE_FORMAT", "DATE_FORMAT(date, format)", "Formats date (MySQL)"),
-            ("TO_CHAR", "TO_CHAR(value, format)", "Formats value (PostgreSQL)"),
-            ("EXTRACT", "EXTRACT(field FROM source)", "Extracts date/time field"),
-            ("DATE_ADD", "DATE_ADD(date, INTERVAL value unit)", "Adds interval to date"),
-            ("DATE_SUB", "DATE_SUB(date, INTERVAL value unit)", "Subtracts interval from date"),
-            ("DATEDIFF", "DATEDIFF(date1, date2)", "Difference between dates"),
-            ("AGE", "AGE(timestamp)", "Calculate age (PostgreSQL)"),
-            
-            // Mathematical functions
-            ("ABS", "ABS(number)", "Absolute value"),
-            ("ROUND", "ROUND(number, decimals)", "Rounds number"),
-            ("CEIL", "CEIL(number)", "Rounds up"),
-            ("CEILING", "CEILING(number)", "Rounds up"),
-            ("FLOOR", "FLOOR(number)", "Rounds down"),
-            ("MOD", "MOD(n, m)", "Modulo operation"),
-            ("POWER", "POWER(base, exponent)", "Raises to power"),
-            ("POW", "POW(base, exponent)", "Raises to power"),
-            ("SQRT", "SQRT(number)", "Square root"),
-            ("RAND", "RAND()", "Random number"),
-            ("RANDOM", "RANDOM()", "Random number (PostgreSQL)"),
-            
-            // Conditional functions
-            ("COALESCE", "COALESCE(val1, val2, ...)", "Returns first non-null value"),
-            ("IFNULL", "IFNULL(value, alt)", "Returns alt if value is null (MySQL)"),
-            ("NULLIF", "NULLIF(val1, val2)", "Returns null if values equal"),
-            ("IF", "IF(condition, true_val, false_val)", "Conditional expression (MySQL)"),
-            ("CASE", "CASE WHEN ... THEN ... END", "Case expression"),
-            
-            // Type conversion
-            ("CAST", "CAST(value AS type)", "Converts data type"),
-            ("CONVERT", "CONVERT(value, type)", "Converts data type"),
-            
-            // JSON functions (MySQL 5.7+, PostgreSQL 9.2+)
-            ("JSON_EXTRACT", "JSON_EXTRACT(json, path)", "Extracts JSON value"),
-            ("JSON_OBJECT", "JSON_OBJECT(key, value, ...)", "Creates JSON object"),
-            ("JSON_ARRAY", "JSON_ARRAY(value, ...)", "Creates JSON array"),
-            ("JSONB_BUILD_OBJECT", "JSONB_BUILD_OBJECT(key, val, ...)", "Creates JSONB object (PostgreSQL)"),
-            
-            // Window functions
-            ("ROW_NUMBER", "ROW_NUMBER() OVER(...)", "Assigns row number"),
-            ("RANK", "RANK() OVER(...)", "Assigns rank"),
-            ("DENSE_RANK", "DENSE_RANK() OVER(...)", "Assigns dense rank"),
-            ("LAG", "LAG(column, offset) OVER(...)", "Accesses previous row"),
-            ("LEAD", "LEAD(column, offset) OVER(...)", "Accesses next row"),
-        ]
-        
-        return functions.map { name, signature, doc in
-            SQLCompletionItem.function(name, signature: signature, documentation: doc)
-        }
-    }
-    
-    /// SQL operators for autocomplete
-    static func operatorItems() -> [SQLCompletionItem] {
-        let operators: [(op: String, doc: String)] = [
-            ("=", "Equal to"),
-            ("<>", "Not equal to"),
-            ("!=", "Not equal to (alternative)"),
-            (">", "Greater than"),
-            ("<", "Less than"),
-            (">=", "Greater than or equal"),
-            ("<=", "Less than or equal"),
-            ("IS NULL", "Checks for NULL value"),
-            ("IS NOT NULL", "Checks for non-NULL value"),
-            ("LIKE", "Pattern matching"),
-            ("NOT LIKE", "Negated pattern matching"),
-            ("IN", "Value in list"),
-            ("NOT IN", "Value not in list"),
-            ("BETWEEN", "Value in range"),
-            ("NOT BETWEEN", "Value not in range"),
-        ]
-        
-        return operators.map { op, doc in
-            SQLCompletionItem.operator(op, documentation: doc)
-        }
-    }
-}
 
