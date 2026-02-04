@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/docs",
+      "destination": "https://opentable.nqd.vn/docs"
+    },
+    {
+      "source": "/docs/:match*",
+      "destination": "https://opentable.nqd.vn/docs/:match*"
+    }
+  ]
+}
