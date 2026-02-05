@@ -236,7 +236,7 @@ final class QueryHistoryStorage {
         }
     }
 
-    /// Fetch history with optional filters
+    /// Fetch history with optional filters (synchronous - legacy support)
     func fetchHistory(
         limit: Int = 100,
         offset: Int = 0,
@@ -245,92 +245,124 @@ final class QueryHistoryStorage {
         dateFilter: DateFilter = .all
     ) -> [QueryHistoryEntry] {
         queue.sync {
-            var entries: [QueryHistoryEntry] = []
+            fetchHistorySync(limit: limit, offset: offset, connectionId: connectionId, searchText: searchText, dateFilter: dateFilter)
+        }
+    }
 
-            // Build query with placeholders
-            var sql: String
-            var bindIndex: Int32 = 1
-            var hasConnectionFilter = false
-            var hasDateFilter = false
+    /// Fetch history with optional filters (asynchronous - non-blocking)
+    func fetchHistoryAsync(
+        limit: Int = 100,
+        offset: Int = 0,
+        connectionId: UUID? = nil,
+        searchText: String? = nil,
+        dateFilter: DateFilter = .all,
+        completion: @escaping ([QueryHistoryEntry]) -> Void
+    ) {
+        queue.async { [weak self] in
+            guard let self = self else {
+                DispatchQueue.main.async { completion([]) }
+                return
+            }
+            let entries = self.fetchHistorySync(limit: limit, offset: offset, connectionId: connectionId, searchText: searchText, dateFilter: dateFilter)
+            DispatchQueue.main.async {
+                completion(entries)
+            }
+        }
+    }
 
-            // Use FTS5 for full-text search if search text provided
-            if let searchText = searchText, !searchText.isEmpty {
-                sql = """
-                SELECT h.id, h.query, h.connection_id, h.database_name, h.executed_at, h.execution_time, h.row_count, h.was_successful, h.error_message
-                FROM history h
-                INNER JOIN history_fts ON h.rowid = history_fts.rowid
-                WHERE history_fts MATCH ?
-                """
+    /// Internal synchronous fetch (must be called on queue)
+    private func fetchHistorySync(
+        limit: Int,
+        offset: Int,
+        connectionId: UUID?,
+        searchText: String?,
+        dateFilter: DateFilter
+    ) -> [QueryHistoryEntry] {
+        var entries: [QueryHistoryEntry] = []
 
-                // Add additional filters
-                if connectionId != nil {
-                    sql += " AND h.connection_id = ?"
-                    hasConnectionFilter = true
-                }
+        // Build query with placeholders
+        var sql: String
+        var bindIndex: Int32 = 1
+        var hasConnectionFilter = false
+        var hasDateFilter = false
 
-                if dateFilter.startDate != nil {
-                    sql += " AND h.executed_at >= ?"
-                    hasDateFilter = true
-                }
-            } else {
-                sql = "SELECT id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message FROM history"
+        // Use FTS5 for full-text search if search text provided
+        if let searchText = searchText, !searchText.isEmpty {
+            sql = """
+            SELECT h.id, h.query, h.connection_id, h.database_name, h.executed_at, h.execution_time, h.row_count, h.was_successful, h.error_message
+            FROM history h
+            INNER JOIN history_fts ON h.rowid = history_fts.rowid
+            WHERE history_fts MATCH ?
+            """
 
-                var whereClauses: [String] = []
-
-                if connectionId != nil {
-                    whereClauses.append("connection_id = ?")
-                    hasConnectionFilter = true
-                }
-
-                if dateFilter.startDate != nil {
-                    whereClauses.append("executed_at >= ?")
-                    hasDateFilter = true
-                }
-
-                if !whereClauses.isEmpty {
-                    sql += " WHERE " + whereClauses.joined(separator: " AND ")
-                }
+            // Add additional filters
+            if connectionId != nil {
+                sql += " AND h.connection_id = ?"
+                hasConnectionFilter = true
             }
 
-            sql += " ORDER BY executed_at DESC LIMIT ? OFFSET ?;"
+            if dateFilter.startDate != nil {
+                sql += " AND h.executed_at >= ?"
+                hasDateFilter = true
+            }
+        } else {
+            sql = "SELECT id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message FROM history"
 
-            var statement: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                return entries
+            var whereClauses: [String] = []
+
+            if connectionId != nil {
+                whereClauses.append("connection_id = ?")
+                hasConnectionFilter = true
             }
 
-            defer { sqlite3_finalize(statement) }
-
-            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
-            // Bind parameters in order
-            if let searchText = searchText, !searchText.isEmpty {
-                sqlite3_bind_text(statement, bindIndex, searchText, -1, SQLITE_TRANSIENT)
-                bindIndex += 1
+            if dateFilter.startDate != nil {
+                whereClauses.append("executed_at >= ?")
+                hasDateFilter = true
             }
 
-            if let connectionId = connectionId, hasConnectionFilter {
-                sqlite3_bind_text(statement, bindIndex, connectionId.uuidString, -1, SQLITE_TRANSIENT)
-                bindIndex += 1
+            if !whereClauses.isEmpty {
+                sql += " WHERE " + whereClauses.joined(separator: " AND ")
             }
+        }
 
-            if let startDate = dateFilter.startDate, hasDateFilter {
-                sqlite3_bind_double(statement, bindIndex, startDate.timeIntervalSince1970)
-                bindIndex += 1
-            }
+        sql += " ORDER BY executed_at DESC LIMIT ? OFFSET ?;"
 
-            sqlite3_bind_int(statement, bindIndex, Int32(limit))
-            bindIndex += 1
-            sqlite3_bind_int(statement, bindIndex, Int32(offset))
-
-            while sqlite3_step(statement) == SQLITE_ROW {
-                if let entry = parseHistoryEntry(from: statement) {
-                    entries.append(entry)
-                }
-            }
-
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             return entries
         }
+
+        defer { sqlite3_finalize(statement) }
+
+        let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+        // Bind parameters in order
+        if let searchText = searchText, !searchText.isEmpty {
+            sqlite3_bind_text(statement, bindIndex, searchText, -1, SQLITE_TRANSIENT)
+            bindIndex += 1
+        }
+
+        if let connectionId = connectionId, hasConnectionFilter {
+            sqlite3_bind_text(statement, bindIndex, connectionId.uuidString, -1, SQLITE_TRANSIENT)
+            bindIndex += 1
+        }
+
+        if let startDate = dateFilter.startDate, hasDateFilter {
+            sqlite3_bind_double(statement, bindIndex, startDate.timeIntervalSince1970)
+            bindIndex += 1
+        }
+
+        sqlite3_bind_int(statement, bindIndex, Int32(limit))
+        bindIndex += 1
+        sqlite3_bind_int(statement, bindIndex, Int32(offset))
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let entry = parseHistoryEntry(from: statement) {
+                entries.append(entry)
+            }
+        }
+
+        return entries
     }
 
     /// Delete a specific history entry
@@ -519,64 +551,83 @@ final class QueryHistoryStorage {
         }
     }
 
-    /// Fetch bookmarks with optional filters
+    /// Fetch bookmarks with optional filters (synchronous - legacy support)
     func fetchBookmarks(searchText: String? = nil, tag: String? = nil) -> [QueryBookmark] {
         queue.sync {
-            var bookmarks: [QueryBookmark] = []
+            fetchBookmarksSync(searchText: searchText, tag: tag)
+        }
+    }
 
-            var sql = "SELECT id, name, query, connection_id, tags, created_at, last_used_at, notes FROM bookmarks"
-            var whereClauses: [String] = []
-            var bindIndex: Int32 = 1
-            var hasSearchFilter = false
-            var hasTagFilter = false
-
-            if let searchText = searchText, !searchText.isEmpty {
-                whereClauses.append("(name LIKE ? OR query LIKE ?)")
-                hasSearchFilter = true
+    /// Fetch bookmarks with optional filters (asynchronous - non-blocking)
+    func fetchBookmarksAsync(searchText: String? = nil, tag: String? = nil, completion: @escaping ([QueryBookmark]) -> Void) {
+        queue.async { [weak self] in
+            guard let self = self else {
+                DispatchQueue.main.async { completion([]) }
+                return
             }
-
-            if let tag = tag, !tag.isEmpty {
-                whereClauses.append("tags LIKE ?")
-                hasTagFilter = true
+            let bookmarks = self.fetchBookmarksSync(searchText: searchText, tag: tag)
+            DispatchQueue.main.async {
+                completion(bookmarks)
             }
+        }
+    }
 
-            if !whereClauses.isEmpty {
-                sql += " WHERE " + whereClauses.joined(separator: " AND ")
-            }
+    /// Internal synchronous fetch (must be called on queue)
+    private func fetchBookmarksSync(searchText: String?, tag: String?) -> [QueryBookmark] {
+        var bookmarks: [QueryBookmark] = []
 
-            sql += " ORDER BY created_at DESC;"
+        var sql = "SELECT id, name, query, connection_id, tags, created_at, last_used_at, notes FROM bookmarks"
+        var whereClauses: [String] = []
+        var bindIndex: Int32 = 1
+        var hasSearchFilter = false
+        var hasTagFilter = false
 
-            var statement: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                return bookmarks
-            }
+        if let searchText = searchText, !searchText.isEmpty {
+            whereClauses.append("(name LIKE ? OR query LIKE ?)")
+            hasSearchFilter = true
+        }
 
-            defer { sqlite3_finalize(statement) }
+        if let tag = tag, !tag.isEmpty {
+            whereClauses.append("tags LIKE ?")
+            hasTagFilter = true
+        }
 
-            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+        if !whereClauses.isEmpty {
+            sql += " WHERE " + whereClauses.joined(separator: " AND ")
+        }
 
-            // Bind parameters in order
-            if let searchText = searchText, !searchText.isEmpty, hasSearchFilter {
-                let searchPattern = "%\(searchText)%"
-                sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
-                bindIndex += 1
-                sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
-                bindIndex += 1
-            }
+        sql += " ORDER BY created_at DESC;"
 
-            if let tag = tag, !tag.isEmpty, hasTagFilter {
-                let tagPattern = "%\(tag)%"
-                sqlite3_bind_text(statement, bindIndex, tagPattern, -1, SQLITE_TRANSIENT)
-            }
-
-            while sqlite3_step(statement) == SQLITE_ROW {
-                if let bookmark = parseBookmark(from: statement) {
-                    bookmarks.append(bookmark)
-                }
-            }
-
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             return bookmarks
         }
+
+        defer { sqlite3_finalize(statement) }
+
+        let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+        // Bind parameters in order
+        if let searchText = searchText, !searchText.isEmpty, hasSearchFilter {
+            let searchPattern = "%\(searchText)%"
+            sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
+            bindIndex += 1
+            sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
+            bindIndex += 1
+        }
+
+        if let tag = tag, !tag.isEmpty, hasTagFilter {
+            let tagPattern = "%\(tag)%"
+            sqlite3_bind_text(statement, bindIndex, tagPattern, -1, SQLITE_TRANSIENT)
+        }
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let bookmark = parseBookmark(from: statement) {
+                bookmarks.append(bookmark)
+            }
+        }
+
+        return bookmarks
     }
 
     /// Delete a bookmark

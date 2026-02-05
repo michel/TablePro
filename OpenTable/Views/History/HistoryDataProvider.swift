@@ -37,17 +37,48 @@ final class HistoryDataProvider {
     }
 
     var isEmpty: Bool {
-        isEmpty
+        switch displayMode {
+        case .history:
+            return historyEntries.isEmpty
+        case .bookmarks:
+            return bookmarks.isEmpty
+        }
     }
 
     // MARK: - Data Loading
 
+    /// Load data synchronously (for compatibility with existing code)
     func loadData() {
         switch displayMode {
         case .history:
             loadHistory()
         case .bookmarks:
             loadBookmarks()
+        }
+    }
+
+    /// Load data asynchronously to avoid blocking main thread
+    func loadDataAsync(completion: @escaping () -> Void) {
+        switch displayMode {
+        case .history:
+            QueryHistoryManager.shared.fetchHistoryAsync(
+                limit: 500,
+                offset: 0,
+                connectionId: nil,
+                searchText: searchText.isEmpty ? nil : searchText,
+                dateFilter: dateFilter.toDateFilter
+            ) { [weak self] entries in
+                self?.historyEntries = entries
+                completion()
+            }
+        case .bookmarks:
+            QueryHistoryManager.shared.fetchBookmarksAsync(
+                searchText: searchText.isEmpty ? nil : searchText,
+                tag: nil
+            ) { [weak self] bookmarks in
+                self?.bookmarks = bookmarks
+                completion()
+            }
         }
     }
 

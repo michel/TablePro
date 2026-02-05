@@ -98,7 +98,7 @@ final class QueryHistoryManager {
 
     // MARK: - History Retrieval
 
-    /// Fetch history entries (synchronous - safe for UI)
+    /// Fetch history entries (synchronous - for compatibility)
     func fetchHistory(
         limit: Int = 100,
         offset: Int = 0,
@@ -112,6 +112,25 @@ final class QueryHistoryManager {
             connectionId: connectionId,
             searchText: searchText,
             dateFilter: dateFilter
+        )
+    }
+
+    /// Fetch history entries asynchronously (non-blocking - preferred)
+    func fetchHistoryAsync(
+        limit: Int = 100,
+        offset: Int = 0,
+        connectionId: UUID? = nil,
+        searchText: String? = nil,
+        dateFilter: DateFilter = .all,
+        completion: @escaping ([QueryHistoryEntry]) -> Void
+    ) {
+        storage.fetchHistoryAsync(
+            limit: limit,
+            offset: offset,
+            connectionId: connectionId,
+            searchText: searchText,
+            dateFilter: dateFilter,
+            completion: completion
         )
     }
 
@@ -188,9 +207,14 @@ final class QueryHistoryManager {
         }
     }
 
-    /// Fetch bookmarks with optional filters
+    /// Fetch bookmarks with optional filters (synchronous - for compatibility)
     func fetchBookmarks(searchText: String? = nil, tag: String? = nil) -> [QueryBookmark] {
         storage.fetchBookmarks(searchText: searchText, tag: tag)
+    }
+
+    /// Fetch bookmarks asynchronously (non-blocking - preferred)
+    func fetchBookmarksAsync(searchText: String? = nil, tag: String? = nil, completion: @escaping ([QueryBookmark]) -> Void) {
+        storage.fetchBookmarksAsync(searchText: searchText, tag: tag, completion: completion)
     }
 
     /// Delete a bookmark
