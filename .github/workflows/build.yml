@@ -53,7 +53,7 @@ jobs:
         continue-on-error: true
         with:
           path: ~/Library/Caches/Homebrew
-          key: brew-downloads-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          key: brew-downloads-${{ runner.os }}-${{ hashFiles('**/scripts/build-release.sh') }}
           restore-keys: |
             brew-downloads-${{ runner.os }}-
 
@@ -349,7 +349,7 @@ jobs:
         continue-on-error: true
         with:
           path: ~/Library/Caches/Homebrew
-          key: brew-arm64-downloads-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          key: brew-arm64-downloads-${{ runner.os }}-${{ hashFiles('**/scripts/build-release.sh') }}
           restore-keys: |
             brew-arm64-downloads-${{ runner.os }}-
 
@@ -397,8 +397,8 @@ jobs:
 
       - name: Build ARM64
         run: |
-          chmod +x build-release.sh
-          ./build-release.sh arm64
+          chmod +x scripts/build-release.sh
+          scripts/build-release.sh arm64
 
       - name: Verify build
         run: |
@@ -455,13 +455,13 @@ jobs:
           brew install create-dmg
 
           # Make DMG creation script executable
-          chmod +x create-dmg.sh
+          chmod +x scripts/create-dmg.sh
 
           # Create DMG with version from git tag or use default
           # The script handles app renaming internally
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
           echo "📌 Using version: $VERSION"
-          ./create-dmg.sh "$VERSION" "arm64" "build/Release/OpenTable-arm64.app"
+          scripts/create-dmg.sh "$VERSION" "arm64" "build/Release/OpenTable-arm64.app"
 
           # Verify DMG was created - check for the specific file or any arm64 DMG
           DMG_FILE="build/Release/OpenTable-${VERSION}-arm64.dmg"
@@ -543,7 +543,7 @@ jobs:
         continue-on-error: true
         with:
           path: ~/Library/Caches/Homebrew
-          key: brew-x86_64-downloads-${{ runner.os }}-${{ hashFiles('**/build-release.sh') }}
+          key: brew-x86_64-downloads-${{ runner.os }}-${{ hashFiles('**/scripts/build-release.sh') }}
           restore-keys: |
             brew-x86_64-downloads-${{ runner.os }}-
 
@@ -641,8 +641,8 @@ jobs:
 
       - name: Build x86_64
         run: |
-          chmod +x build-release.sh
-          ./build-release.sh x86_64
+          chmod +x scripts/build-release.sh
+          scripts/build-release.sh x86_64
 
       - name: Verify build
         run: |
@@ -698,13 +698,13 @@ jobs:
           brew install create-dmg
 
           # Make DMG creation script executable
-          chmod +x create-dmg.sh
+          chmod +x scripts/create-dmg.sh
 
           # Create DMG with version from git tag or use default
           # The script handles app renaming internally
           VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
           echo "📌 Using version: $VERSION"
-          ./create-dmg.sh "$VERSION" "x86_64" "build/Release/OpenTable-x86_64.app"
+          scripts/create-dmg.sh "$VERSION" "x86_64" "build/Release/OpenTable-x86_64.app"
 
           # Verify DMG was created - check for the specific file or any x86_64 DMG
           DMG_FILE="build/Release/OpenTable-${VERSION}-x86_64.dmg"

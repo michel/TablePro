@@ -13,9 +13,9 @@ OpenTable is a native macOS database client built with SwiftUI and AppKit. It's 
 xcodebuild -project OpenTable.xcodeproj -scheme OpenTable -configuration Debug build
 
 # Build for specific architecture (release)
-./build-release.sh arm64       # Apple Silicon only
-./build-release.sh x86_64      # Intel only
-./build-release.sh both        # Universal binary
+scripts/build-release.sh arm64       # Apple Silicon only
+scripts/build-release.sh x86_64      # Intel only
+scripts/build-release.sh both        # Universal binary
 
 # Clean build
 xcodebuild -project OpenTable.xcodeproj -scheme OpenTable clean
@@ -57,7 +57,7 @@ xcodebuild -project OpenTable.xcodeproj -scheme OpenTable test -only-testing:Ope
 
 ```bash
 # Create distributable DMG (after building)
-./create-dmg.sh
+scripts/create-dmg.sh
 ```
 
 ## Code Style Guidelines
