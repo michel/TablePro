@@ -188,14 +188,6 @@ final class MariaDBConnection: @unchecked Sendable {
 
                 self.mysql = mysql
 
-                // Configure plugin directory to use bundled plugins
-                // Plugins are bundled directly in Resources/ folder
-                if let pluginDir = Bundle.main.resourcePath {
-                    _ = pluginDir.withCString { pluginDirPtr in
-                        mysql_options(mysql, MYSQL_PLUGIN_DIR, pluginDirPtr)
-                    }
-                }
-
                 // Set connection options
                 // DISABLE auto-reconnect - it can cause memory corruption when reconnecting during queries
                 var reconnect: my_bool = 0
