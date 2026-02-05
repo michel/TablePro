@@ -241,7 +241,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         setupUI()
         setupNotifications()
         restoreState()
-        loadData()
+        loadDataAsync()
     }
 
     // MARK: - Setup
@@ -344,6 +344,22 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         }
     }
 
+    private func loadDataAsync() {
+        dataProvider.loadDataAsync { [weak self] in
+            guard let self = self else { return }
+            self.tableView.reloadData()
+            self.updateEmptyState()
+
+            if let deletedRow = self.pendingDeletionRow, let countBefore = self.pendingDeletionCount {
+                self.selectRowAfterDeletion(deletedRow: deletedRow, countBefore: countBefore)
+                self.pendingDeletionRow = nil
+                self.pendingDeletionCount = nil
+            } else if self.tableView.selectedRow < 0 {
+                self.delegate?.historyListViewControllerDidClearSelection(self)
+            }
+        }
+    }
+
     // MARK: - Search
 
     private func scheduleSearch() {
@@ -440,7 +456,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             case .bookmarks:
                 emptyImageView?.image = NSImage(systemSymbolName: "bookmark", accessibilityDescription: "No bookmarks")
                 emptyTitleLabel?.stringValue = "No Bookmarks Yet"
-                emptySubtitleLabel?.stringValue = "Save frequently used queries\nusing Cmd+Shift+B."
+                emptySubtitleLabel?.stringValue = "Save frequently used queries\nas bookmarks for quick access."
             }
         }
     }
@@ -467,8 +483,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             bookmarkItem.tag = row
             menu.addItem(bookmarkItem)
         case .bookmarks:
-            let editItem = NSMenuItem(title: "Edit Bookmark...", action: #selector(editBookmark(_:)), keyEquivalent: "e")
-            editItem.keyEquivalentModifierMask = .command
+            let editItem = NSMenuItem(title: "Edit Bookmark...", action: #selector(editBookmark(_:)), keyEquivalent: "")
             editItem.tag = row
             menu.addItem(editItem)
         }

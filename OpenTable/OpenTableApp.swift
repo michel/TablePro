@@ -337,7 +337,7 @@ struct OpenTableApp: App {
                 Button("Toggle History") {
                     NotificationCenter.default.post(name: .toggleHistoryPanel, object: nil)
                 }
-                .keyboardShortcut("h", modifiers: [.command, .shift])
+                .keyboardShortcut("y", modifiers: .command)
                 .disabled(!appState.isConnected)
             }
         }

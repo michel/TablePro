@@ -83,12 +83,6 @@ final class HistoryTableView: NSTableView, NSMenuItemValidation {
             }
         }
 
-        // Cmd+E - edit bookmark
-        if key == .e && modifiers == .command {
-            keyboardDelegate?.handleEditBookmark()
-            return
-        }
-
         // Escape key - delegated to cancelOperation(_:) responder method
         if key == .escape && modifiers.isEmpty {
             cancelOperation(nil)
