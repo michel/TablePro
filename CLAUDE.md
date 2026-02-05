@@ -359,10 +359,80 @@ Follow existing driver patterns in `OpenTable/Core/Database/`
 
 Prefer throwing errors over returning optionals for failure cases
 
+## Documentation
+
+The documentation site is located in a separate repository at `opentable.nqd.vn/docs/` (Mintlify-powered).
+
+### When to Update Documentation
+
+**IMPORTANT**: When adding features or making significant changes, always update the corresponding documentation.
+
+| Change Type | Documentation to Update |
+|-------------|------------------------|
+| New feature | Add to relevant feature page in `docs/features/` |
+| New setting/preference | Update `docs/customization/settings.mdx` or related page |
+| UI changes | Update relevant page + add screenshot placeholder |
+| Keyboard shortcut changes | Update `docs/features/keyboard-shortcuts.mdx` |
+| Database driver changes | Update `docs/databases/` pages |
+| Connection options | Update `docs/databases/overview.mdx` |
+| Import/Export changes | Update `docs/features/import-export.mdx` |
+| Build process changes | Update `docs/development/building.mdx` |
+| Architecture changes | Update `docs/development/architecture.mdx` |
+
+### Documentation Structure
+
+```
+opentable.nqd.vn/docs/
+├── index.mdx                    # Introduction
+├── quickstart.mdx               # Getting started guide
+├── installation.mdx             # Installation instructions
+├── databases/                   # Database connection guides
+│   ├── overview.mdx
+│   ├── mysql.mdx
+│   ├── postgresql.mdx
+│   ├── sqlite.mdx
+│   └── ssh-tunneling.mdx
+├── features/                    # Feature documentation
+│   ├── sql-editor.mdx
+│   ├── data-grid.mdx
+│   ├── autocomplete.mdx
+│   ├── table-structure.mdx
+│   ├── import-export.mdx
+│   ├── query-history.mdx
+│   └── keyboard-shortcuts.mdx
+├── customization/               # Settings and customization
+│   ├── settings.mdx
+│   ├── appearance.mdx
+│   └── editor-settings.mdx
+└── development/                 # Developer documentation
+    ├── setup.mdx
+    ├── architecture.mdx
+    ├── code-style.mdx
+    └── building.mdx
+```
+
+### Documentation Guidelines
+
+- Use Mintlify MDX components (`<Tip>`, `<Warning>`, `<Note>`, `<CardGroup>`, etc.)
+- Add screenshot placeholders: `{/* Screenshot: description */}`
+- Use Mermaid for diagrams (use `<br>` for line breaks, not `\n`)
+- Keep content accurate and up-to-date with code changes
+- The docs repo is separate: `git@github.com:datlechin/opentable.nqd.vn.git`
+
+### Preview Documentation Locally
+
+```bash
+cd opentable.nqd.vn/docs
+npm i -g mint
+mint dev
+# Open http://localhost:3000
+```
+
 ## Notes for AI Agents
 
 - **Never** use tabs for indentation (except Makefile/pbxproj)
 - **Always** run `swiftlint lint --strict` after making changes to verify compliance
+- **Always** update documentation when adding or changing features
 - Check .swiftformat and .swiftlint.yml for authoritative rules
 - Preserve existing architecture: SwiftUI + AppKit, native frameworks only
 - This is macOS-only; no iOS/watchOS/tvOS code needed
@@ -374,3 +444,4 @@ Prefer throwing errors over returning optionals for failure cases
   - Preserve all existing functionality and behavior
   - Update imports in extension files as needed
   - Test that build succeeds after refactoring
+- Documentation is in a separate repo (`opentable.nqd.vn/`) - commit docs changes there
