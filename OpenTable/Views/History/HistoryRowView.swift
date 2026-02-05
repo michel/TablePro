@@ -2,13 +2,13 @@
 //  HistoryRowView.swift
 //  OpenTable
 //
-//  Table cell view for history and bookmark entries.
+//  Table cell view for query history entries.
 //  Extracted from HistoryListViewController for better maintainability.
 //
 
 import AppKit
 
-/// Table cell view for history and bookmark entries
+/// Table cell view for query history entries
 final class HistoryRowView: NSTableCellView {
     private let statusIcon: NSImageView = {
         let imageView = NSImageView()
@@ -121,28 +121,6 @@ final class HistoryRowView: NSTableCellView {
 
         // Duration
         durationLabel.stringValue = entry.formattedExecutionTime
-    }
-
-    func configureForBookmark(_ bookmark: QueryBookmark) {
-        // Bookmark icon
-        statusIcon.image = NSImage(systemSymbolName: "bookmark.fill", accessibilityDescription: "Bookmark")
-        statusIcon.contentTintColor = .systemYellow
-
-        // Bookmark name
-        queryLabel.stringValue = bookmark.name
-        queryLabel.font = .systemFont(ofSize: 12, weight: .medium)
-
-        // Tags
-        secondaryLabel.stringValue = bookmark.hasTags ? bookmark.formattedTags : "No tags"
-
-        // Created date
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .none
-        timeLabel.stringValue = dateFormatter.string(from: bookmark.createdAt)
-
-        // Clear duration
-        durationLabel.stringValue = ""
     }
 
     override func prepareForReuse() {

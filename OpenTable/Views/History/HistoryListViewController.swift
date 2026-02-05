@@ -2,7 +2,7 @@
 //  HistoryListViewController.swift
 //  OpenTable
 //
-//  Left pane controller for history/bookmark list with search and filtering.
+//  Left pane controller for query history list with search and filtering.
 //  Child views and data provider extracted to separate files.
 //
 
@@ -11,18 +11,12 @@ import AppKit
 // MARK: - Delegate Protocol
 
 protocol HistoryListViewControllerDelegate: AnyObject {
-    func historyListViewController(_ controller: HistoryListViewController, didSelectHistoryEntry entry: QueryHistoryEntry)
-    func historyListViewController(_ controller: HistoryListViewController, didSelectBookmark bookmark: QueryBookmark)
-    func historyListViewController(_ controller: HistoryListViewController, didDoubleClickHistoryEntry entry: QueryHistoryEntry)
-    func historyListViewController(_ controller: HistoryListViewController, didDoubleClickBookmark bookmark: QueryBookmark)
+    func historyListViewController(
+        _ controller: HistoryListViewController, didSelectHistoryEntry entry: QueryHistoryEntry)
+    func historyListViewController(
+        _ controller: HistoryListViewController, didDoubleClickHistoryEntry entry: QueryHistoryEntry
+    )
     func historyListViewControllerDidClearSelection(_ controller: HistoryListViewController)
-}
-
-// MARK: - Display Mode
-
-enum HistoryDisplayMode: Int {
-    case history = 0
-    case bookmarks = 1
 }
 
 // MARK: - UI Date Filter
@@ -61,16 +55,6 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
     private let dataProvider = HistoryDataProvider()
 
-    private var displayMode: HistoryDisplayMode = .history {
-        didSet {
-            if oldValue != displayMode {
-                dataProvider.displayMode = displayMode
-                updateFilterVisibility()
-                loadData()
-            }
-        }
-    }
-
     private var dateFilter: UIDateFilter = .all {
         didSet {
             if oldValue != dateFilter {
@@ -98,14 +82,6 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         view.blendingMode = .withinWindow
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
-    }()
-
-    private lazy var modeSegment: NSSegmentedControl = {
-        let segment = NSSegmentedControl(labels: ["History", "Bookmarks"], trackingMode: .selectOne, target: self, action: #selector(modeChanged(_:)))
-        segment.selectedSegment = 0
-        segment.translatesAutoresizingMaskIntoConstraints = false
-        segment.controlSize = .small
-        return segment
     }()
 
     private lazy var searchField: NSSearchField = {
@@ -139,7 +115,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         button.translatesAutoresizingMaskIntoConstraints = false
         button.target = self
         button.action = #selector(clearAllClicked(_:))
-        button.toolTip = "Clear all \(displayMode == .history ? "history" : "bookmarks")"
+        button.toolTip = "Clear all history"
         return button
     }()
 
@@ -192,7 +168,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         imageView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             imageView.widthAnchor.constraint(equalToConstant: 48),
-            imageView.heightAnchor.constraint(equalToConstant: 48)
+            imageView.heightAnchor.constraint(equalToConstant: 48),
         ])
         imageView.contentTintColor = .tertiaryLabelColor
         self.emptyImageView = imageView
@@ -219,7 +195,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         container.addSubview(stackView)
         NSLayoutConstraint.activate([
             stackView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            stackView.centerYAnchor.constraint(equalTo: container.centerYAnchor)
+            stackView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
         ])
 
         return container
@@ -255,7 +231,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         headerStack.translatesAutoresizingMaskIntoConstraints = false
         headerStack.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
 
-        let topRow = NSStackView(views: [modeSegment, NSView(), clearAllButton, filterButton])
+        let topRow = NSStackView(views: [NSView(), clearAllButton, filterButton])
         topRow.distribution = .fill
         topRow.spacing = 8
 
@@ -295,27 +271,19 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             emptyStateView.topAnchor.constraint(equalTo: scrollView.topAnchor),
             emptyStateView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
             emptyStateView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
-            emptyStateView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor)
+            emptyStateView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
         ])
-
-        updateFilterVisibility()
     }
 
     private func setupNotifications() {
-        NotificationCenter.default.addObserver(self, selector: #selector(historyDidUpdate), name: .queryHistoryDidUpdate, object: nil)
-        NotificationCenter.default.addObserver(self, selector: #selector(bookmarksDidUpdate), name: .queryBookmarksDidUpdate, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(historyDidUpdate), name: .queryHistoryDidUpdate, object: nil)
     }
 
     // MARK: - State Persistence
 
     private func restoreState() {
-        let savedMode = UserDefaults.standard.integer(forKey: "HistoryPanel.displayMode")
         let savedFilter = UserDefaults.standard.integer(forKey: "HistoryPanel.dateFilter")
-
-        if let mode = HistoryDisplayMode(rawValue: savedMode) {
-            displayMode = mode
-            modeSegment.selectedSegment = mode.rawValue
-        }
 
         if let filter = UIDateFilter(rawValue: savedFilter) {
             dateFilter = filter
@@ -324,7 +292,6 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
     }
 
     private func saveState() {
-        UserDefaults.standard.set(displayMode.rawValue, forKey: "HistoryPanel.displayMode")
         UserDefaults.standard.set(dateFilter.rawValue, forKey: "HistoryPanel.dateFilter")
     }
 
@@ -350,7 +317,8 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
             self.tableView.reloadData()
             self.updateEmptyState()
 
-            if let deletedRow = self.pendingDeletionRow, let countBefore = self.pendingDeletionCount {
+            if let deletedRow = self.pendingDeletionRow, let countBefore = self.pendingDeletionCount
+            {
                 self.selectRowAfterDeletion(deletedRow: deletedRow, countBefore: countBefore)
                 self.pendingDeletionRow = nil
                 self.pendingDeletionCount = nil
@@ -371,13 +339,6 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
     // MARK: - Actions
 
-    @objc private func modeChanged(_ sender: NSSegmentedControl) {
-        if let mode = HistoryDisplayMode(rawValue: sender.selectedSegment) {
-            displayMode = mode
-            saveState()
-        }
-    }
-
     @objc private func filterChanged(_ sender: NSPopUpButton) {
         if let filter = UIDateFilter(rawValue: sender.indexOfSelectedItem) {
             dateFilter = filter
@@ -389,34 +350,25 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         let row = tableView.clickedRow
         guard row >= 0 else { return }
 
-        switch displayMode {
-        case .history:
-            guard let entry = dataProvider.historyEntry(at: row) else { return }
-            delegate?.historyListViewController(self, didDoubleClickHistoryEntry: entry)
-        case .bookmarks:
-            guard let bookmark = dataProvider.bookmark(at: row) else { return }
-            delegate?.historyListViewController(self, didDoubleClickBookmark: bookmark)
-        }
+        guard let entry = dataProvider.historyEntry(at: row) else { return }
+        delegate?.historyListViewController(self, didDoubleClickHistoryEntry: entry)
     }
 
     @objc private func historyDidUpdate() {
-        if displayMode == .history { loadData() }
-    }
-
-    @objc private func bookmarksDidUpdate() {
-        if displayMode == .bookmarks { loadData() }
+        loadData()
     }
 
     @objc private func clearAllClicked(_ sender: Any?) {
         let count = dataProvider.count
-        let itemName = count == 1 ? (displayMode == .history ? "history entry" : "bookmark") : (displayMode == .history ? "history entries" : "bookmarks")
+        let itemName = count == 1 ? "history entry" : "history entries"
 
         guard count > 0 else { return }
 
         Task { @MainActor in
             let confirmed = await AlertHelper.confirmDestructive(
-                title: "Clear All \(displayMode == .history ? "History" : "Bookmarks")?",
-                message: "This will permanently delete \(count) \(itemName). This action cannot be undone.",
+                title: "Clear All History?",
+                message:
+                    "This will permanently delete \(count) \(itemName). This action cannot be undone.",
                 confirmButton: "Clear All",
                 cancelButton: "Cancel"
             )
@@ -429,11 +381,6 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
     // MARK: - UI Updates
 
-    private func updateFilterVisibility() {
-        filterButton.isHidden = displayMode == .bookmarks
-        searchField.placeholderString = displayMode == .history ? "Search queries..." : "Search bookmarks..."
-    }
-
     private func updateEmptyState() {
         let isEmpty = dataProvider.isEmpty
         emptyStateView.isHidden = !isEmpty
@@ -444,20 +391,16 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         let isSearching = !searchText.isEmpty
 
         if isSearching {
-            emptyImageView?.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "No results")
+            emptyImageView?.image = NSImage(
+                systemSymbolName: "magnifyingglass", accessibilityDescription: "No results")
             emptyTitleLabel?.stringValue = "No Matching Queries"
             emptySubtitleLabel?.stringValue = "Try adjusting your search terms\nor date filter."
         } else {
-            switch displayMode {
-            case .history:
-                emptyImageView?.image = NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "No history")
-                emptyTitleLabel?.stringValue = "No Query History Yet"
-                emptySubtitleLabel?.stringValue = "Your executed queries will\nappear here for quick access."
-            case .bookmarks:
-                emptyImageView?.image = NSImage(systemSymbolName: "bookmark", accessibilityDescription: "No bookmarks")
-                emptyTitleLabel?.stringValue = "No Bookmarks Yet"
-                emptySubtitleLabel?.stringValue = "Save frequently used queries\nas bookmarks for quick access."
-            }
+            emptyImageView?.image = NSImage(
+                systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "No history")
+            emptyTitleLabel?.stringValue = "No Query History Yet"
+            emptySubtitleLabel?.stringValue =
+                "Your executed queries will\nappear here for quick access."
         }
     }
 
@@ -466,31 +409,21 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
     private func buildContextMenu(for row: Int) -> NSMenu {
         let menu = NSMenu()
 
-        let copyItem = NSMenuItem(title: "Copy Query", action: #selector(copyQuery(_:)), keyEquivalent: "c")
+        let copyItem = NSMenuItem(
+            title: "Copy Query", action: #selector(copyQuery(_:)), keyEquivalent: "c")
         copyItem.keyEquivalentModifierMask = .command
         copyItem.tag = row
         menu.addItem(copyItem)
 
-        let runItem = NSMenuItem(title: "Run in New Tab", action: #selector(runInNewTab(_:)), keyEquivalent: "\r")
+        let runItem = NSMenuItem(
+            title: "Run in New Tab", action: #selector(runInNewTab(_:)), keyEquivalent: "\r")
         runItem.tag = row
         menu.addItem(runItem)
 
         menu.addItem(NSMenuItem.separator())
 
-        switch displayMode {
-        case .history:
-            let bookmarkItem = NSMenuItem(title: "Save as Bookmark...", action: #selector(saveAsBookmark(_:)), keyEquivalent: "")
-            bookmarkItem.tag = row
-            menu.addItem(bookmarkItem)
-        case .bookmarks:
-            let editItem = NSMenuItem(title: "Edit Bookmark...", action: #selector(editBookmark(_:)), keyEquivalent: "")
-            editItem.tag = row
-            menu.addItem(editItem)
-        }
-
-        menu.addItem(NSMenuItem.separator())
-
-        let deleteItem = NSMenuItem(title: "Delete", action: #selector(deleteEntry(_:)), keyEquivalent: "\u{8}")
+        let deleteItem = NSMenuItem(
+            title: "Delete", action: #selector(deleteEntry(_:)), keyEquivalent: "\u{8}")
         deleteItem.keyEquivalentModifierMask = []
         deleteItem.tag = row
         menu.addItem(deleteItem)
@@ -507,39 +440,10 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
     @objc private func runInNewTab(_ sender: NSMenuItem) {
         guard let query = dataProvider.query(at: sender.tag) else { return }
 
-        if displayMode == .bookmarks {
-            dataProvider.markBookmarkUsed(at: sender.tag)
-        }
-
         NotificationCenter.default.post(name: .newTab, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .loadQueryIntoEditor, object: query)
         }
-    }
-
-    @objc private func saveAsBookmark(_ sender: NSMenuItem) {
-        guard let entry = dataProvider.historyEntry(at: sender.tag) else { return }
-
-        let editor = BookmarkEditorController(bookmark: nil, query: entry.query, connectionId: entry.connectionId)
-        editor.onSave = { bookmark in
-            _ = QueryHistoryManager.shared.saveBookmark(
-                name: bookmark.name,
-                query: bookmark.query,
-                connectionId: bookmark.connectionId,
-                tags: bookmark.tags,
-                notes: bookmark.notes
-            )
-        }
-        view.window?.contentViewController?.presentAsSheet(editor)
-    }
-
-    @objc private func editBookmark(_ sender: NSMenuItem) {
-        guard let bookmark = dataProvider.bookmark(at: sender.tag) else { return }
-
-        let editorView = BookmarkEditorView(bookmark: bookmark, query: bookmark.query, connectionId: bookmark.connectionId) { updatedBookmark in
-            _ = QueryHistoryManager.shared.updateBookmark(updatedBookmark)
-        }
-        presentAsSheet(editorView)
     }
 
     @objc private func deleteEntry(_ sender: NSMenuItem) {
@@ -561,15 +465,8 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         tableView.selectRowIndexes(IndexSet(integer: newSelection), byExtendingSelection: false)
         tableView.scrollRowToVisible(newSelection)
 
-        switch displayMode {
-        case .history:
-            if let entry = dataProvider.historyEntry(at: newSelection) {
-                delegate?.historyListViewController(self, didSelectHistoryEntry: entry)
-            }
-        case .bookmarks:
-            if let bookmark = dataProvider.bookmark(at: newSelection) {
-                delegate?.historyListViewController(self, didSelectBookmark: bookmark)
-            }
+        if let entry = dataProvider.historyEntry(at: newSelection) {
+            delegate?.historyListViewController(self, didSelectHistoryEntry: entry)
         }
     }
 }
@@ -585,30 +482,16 @@ extension HistoryListViewController: NSTableViewDataSource {
 // MARK: - NSTableViewDelegate
 
 extension HistoryListViewController: NSTableViewDelegate {
-    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        switch displayMode {
-        case .history:
-            return historyCell(for: row)
-        case .bookmarks:
-            return bookmarkCell(for: row)
-        }
-    }
-
-    private func historyCell(for row: Int) -> NSView? {
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int)
+        -> NSView?
+    {
         guard let entry = dataProvider.historyEntry(at: row) else { return nil }
         let identifier = NSUserInterfaceItemIdentifier("HistoryCell")
-        let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? HistoryRowView ?? HistoryRowView()
+        let cell =
+            tableView.makeView(withIdentifier: identifier, owner: nil) as? HistoryRowView
+            ?? HistoryRowView()
         cell.identifier = identifier
         cell.configureForHistory(entry)
-        return cell
-    }
-
-    private func bookmarkCell(for row: Int) -> NSView? {
-        guard let bookmark = dataProvider.bookmark(at: row) else { return nil }
-        let identifier = NSUserInterfaceItemIdentifier("BookmarkCell")
-        let cell = tableView.makeView(withIdentifier: identifier, owner: nil) as? HistoryRowView ?? HistoryRowView()
-        cell.identifier = identifier
-        cell.configureForBookmark(bookmark)
         return cell
     }
 
@@ -619,21 +502,17 @@ extension HistoryListViewController: NSTableViewDelegate {
             return
         }
 
-        switch displayMode {
-        case .history:
-            if let entry = dataProvider.historyEntry(at: row) {
-                delegate?.historyListViewController(self, didSelectHistoryEntry: entry)
-            }
-        case .bookmarks:
-            if let bookmark = dataProvider.bookmark(at: row) {
-                delegate?.historyListViewController(self, didSelectBookmark: bookmark)
-            }
+        if let entry = dataProvider.historyEntry(at: row) {
+            delegate?.historyListViewController(self, didSelectHistoryEntry: entry)
         }
     }
 
-    func tableView(_ tableView: NSTableView, rowActionsForRow row: Int, edge: NSTableView.RowActionEdge) -> [NSTableViewRowAction] {
+    func tableView(
+        _ tableView: NSTableView, rowActionsForRow row: Int, edge: NSTableView.RowActionEdge
+    ) -> [NSTableViewRowAction] {
         if edge == .trailing {
-            let delete = NSTableViewRowAction(style: .destructive, title: "Delete") { [weak self] _, row in
+            let delete = NSTableViewRowAction(style: .destructive, title: "Delete") {
+                [weak self] _, row in
                 _ = self?.dataProvider.deleteItem(at: row)
             }
             return [delete]
@@ -651,7 +530,9 @@ extension HistoryListViewController: NSSearchFieldDelegate {
         }
     }
 
-    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+    func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector)
+        -> Bool
+    {
         if commandSelector == #selector(cancelOperation(_:)) {
             if !searchText.isEmpty {
                 searchField.stringValue = ""
@@ -711,11 +592,6 @@ extension HistoryListViewController: HistoryTableViewKeyboardDelegate {
         // Preview panel - future implementation
     }
 
-    func handleEditBookmark() {
-        guard displayMode == .bookmarks else { return }
-        editBookmarkForSelectedRow()
-    }
-
     /// Handle ESC key - clear search or selection (responder chain method)
     @objc override func cancelOperation(_ sender: Any?) {
         if !searchText.isEmpty {
@@ -747,23 +623,9 @@ extension HistoryListViewController: HistoryTableViewKeyboardDelegate {
         let row = tableView.selectedRow
         guard row >= 0, let query = dataProvider.query(at: row) else { return }
 
-        if displayMode == .bookmarks {
-            dataProvider.markBookmarkUsed(at: row)
-        }
-
         NotificationCenter.default.post(name: .newTab, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .loadQueryIntoEditor, object: query)
         }
-    }
-
-    private func editBookmarkForSelectedRow() {
-        let row = tableView.selectedRow
-        guard let bookmark = dataProvider.bookmark(at: row) else { return }
-
-        let editorView = BookmarkEditorView(bookmark: bookmark, query: bookmark.query, connectionId: bookmark.connectionId) { updatedBookmark in
-            _ = QueryHistoryManager.shared.updateBookmark(updatedBookmark)
-        }
-        presentAsSheet(editorView)
     }
 }

@@ -2,20 +2,18 @@
 //  HistoryDataProvider.swift
 //  OpenTable
 //
-//  Data provider for history and bookmark entries.
+//  Data provider for query history entries.
 //  Extracted from HistoryListViewController for better separation of concerns.
 //
 
 import Foundation
 
-/// Data provider for history and bookmark entries
+/// Data provider for query history entries
 final class HistoryDataProvider {
     // MARK: - Properties
 
     private(set) var historyEntries: [QueryHistoryEntry] = []
-    private(set) var bookmarks: [QueryBookmark] = []
 
-    var displayMode: HistoryDisplayMode = .history
     var dateFilter: UIDateFilter = .all
     var searchText: String = ""
 
@@ -28,57 +26,31 @@ final class HistoryDataProvider {
     // MARK: - Computed Properties
 
     var count: Int {
-        switch displayMode {
-        case .history:
-            return historyEntries.count
-        case .bookmarks:
-            return bookmarks.count
-        }
+        historyEntries.count
     }
 
     var isEmpty: Bool {
-        switch displayMode {
-        case .history:
-            return historyEntries.isEmpty
-        case .bookmarks:
-            return bookmarks.isEmpty
-        }
+        historyEntries.isEmpty
     }
 
     // MARK: - Data Loading
 
     /// Load data synchronously (for compatibility with existing code)
     func loadData() {
-        switch displayMode {
-        case .history:
-            loadHistory()
-        case .bookmarks:
-            loadBookmarks()
-        }
+        loadHistory()
     }
 
     /// Load data asynchronously to avoid blocking main thread
     func loadDataAsync(completion: @escaping () -> Void) {
-        switch displayMode {
-        case .history:
-            QueryHistoryManager.shared.fetchHistoryAsync(
-                limit: 500,
-                offset: 0,
-                connectionId: nil,
-                searchText: searchText.isEmpty ? nil : searchText,
-                dateFilter: dateFilter.toDateFilter
-            ) { [weak self] entries in
-                self?.historyEntries = entries
-                completion()
-            }
-        case .bookmarks:
-            QueryHistoryManager.shared.fetchBookmarksAsync(
-                searchText: searchText.isEmpty ? nil : searchText,
-                tag: nil
-            ) { [weak self] bookmarks in
-                self?.bookmarks = bookmarks
-                completion()
-            }
+        QueryHistoryManager.shared.fetchHistoryAsync(
+            limit: 500,
+            offset: 0,
+            connectionId: nil,
+            searchText: searchText.isEmpty ? nil : searchText,
+            dateFilter: dateFilter.toDateFilter
+        ) { [weak self] entries in
+            self?.historyEntries = entries
+            completion()
         }
     }
 
@@ -89,13 +61,6 @@ final class HistoryDataProvider {
             connectionId: nil,
             searchText: searchText.isEmpty ? nil : searchText,
             dateFilter: dateFilter.toDateFilter
-        )
-    }
-
-    private func loadBookmarks() {
-        bookmarks = QueryHistoryManager.shared.fetchBookmarks(
-            searchText: searchText.isEmpty ? nil : searchText,
-            tag: nil
         )
     }
 
@@ -120,49 +85,19 @@ final class HistoryDataProvider {
         return historyEntries[index]
     }
 
-    func bookmark(at index: Int) -> QueryBookmark? {
-        guard index >= 0 && index < bookmarks.count else { return nil }
-        return bookmarks[index]
-    }
-
     func query(at index: Int) -> String? {
-        switch displayMode {
-        case .history:
-            return historyEntry(at: index)?.query
-        case .bookmarks:
-            return bookmark(at: index)?.query
-        }
+        historyEntry(at: index)?.query
     }
 
     // MARK: - Deletion
 
     func deleteItem(at index: Int) -> Bool {
-        switch displayMode {
-        case .history:
-            guard let entry = historyEntry(at: index) else { return false }
-            _ = QueryHistoryManager.shared.deleteHistory(id: entry.id)
-            return true
-        case .bookmarks:
-            guard let bookmark = bookmark(at: index) else { return false }
-            _ = QueryHistoryManager.shared.deleteBookmark(id: bookmark.id)
-            return true
-        }
+        guard let entry = historyEntry(at: index) else { return false }
+        _ = QueryHistoryManager.shared.deleteHistory(id: entry.id)
+        return true
     }
 
     func clearAll() -> Bool {
-        switch displayMode {
-        case .history:
-            return QueryHistoryManager.shared.clearAllHistory()
-        case .bookmarks:
-            return QueryHistoryManager.shared.clearAllBookmarks()
-        }
-    }
-
-    // MARK: - Bookmark Operations
-
-    func markBookmarkUsed(at index: Int) {
-        guard displayMode == .bookmarks,
-              let bookmark = bookmark(at: index) else { return }
-        QueryHistoryManager.shared.markBookmarkUsed(id: bookmark.id)
+        QueryHistoryManager.shared.clearAllHistory()
     }
 }

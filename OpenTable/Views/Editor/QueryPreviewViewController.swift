@@ -13,7 +13,6 @@ final class QueryPreviewViewController: NSViewController {
 
     private enum PreviewMode {
         case history(QueryHistoryEntry)
-        case bookmark(QueryBookmark)
         case empty
     }
 
@@ -274,10 +273,6 @@ final class QueryPreviewViewController: NSViewController {
         previewMode = .history(entry)
     }
 
-    func showBookmark(_ bookmark: QueryBookmark) {
-        previewMode = .bookmark(bookmark)
-    }
-
     func clearPreview() {
         previewMode = .empty
     }
@@ -294,13 +289,6 @@ final class QueryPreviewViewController: NSViewController {
                 query: entry.query,
                 primaryMetadata: buildHistoryPrimaryMetadata(entry),
                 secondaryMetadata: buildHistorySecondaryMetadata(entry)
-            )
-
-        case .bookmark(let bookmark):
-            showQueryPreview(
-                query: bookmark.query,
-                primaryMetadata: buildBookmarkPrimaryMetadata(bookmark),
-                secondaryMetadata: buildBookmarkSecondaryMetadata(bookmark)
             )
         }
     }
@@ -370,35 +358,6 @@ final class QueryPreviewViewController: NSViewController {
         return text
     }
 
-    private func buildBookmarkPrimaryMetadata(_ bookmark: QueryBookmark) -> String {
-        var parts: [String] = []
-        parts.append("Name: \(bookmark.name)")
-
-        if bookmark.hasTags {
-            parts.append("Tags: \(bookmark.formattedTags)")
-        }
-
-        return parts.joined(separator: "  |  ")
-    }
-
-    private func buildBookmarkSecondaryMetadata(_ bookmark: QueryBookmark) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .none
-
-        var text = "Created: \(dateFormatter.string(from: bookmark.createdAt))"
-
-        if let lastUsed = bookmark.lastUsedAt {
-            text += "  |  Last used: \(dateFormatter.string(from: lastUsed))"
-        }
-
-        if let notes = bookmark.notes, !notes.isEmpty {
-            text += "\nNotes: \(notes)"
-        }
-
-        return text
-    }
-
     // MARK: - Actions
 
     @objc private func copyQuery() {
@@ -425,19 +384,12 @@ final class QueryPreviewViewController: NSViewController {
             object: nil,
             userInfo: ["query": query]
         )
-
-        // Mark bookmark as used if applicable
-        if case .bookmark(let bookmark) = previewMode {
-            QueryHistoryManager.shared.markBookmarkUsed(id: bookmark.id)
-        }
     }
 
     private func getCurrentQuery() -> String {
         switch previewMode {
         case .history(let entry):
             return entry.query
-        case .bookmark(let bookmark):
-            return bookmark.query
         case .empty:
             return ""
         }

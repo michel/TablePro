@@ -13,7 +13,6 @@ protocol HistoryTableViewKeyboardDelegate: AnyObject {
     func handleDeleteKey()
     func handleReturnKey()
     func handleSpaceKey()
-    func handleEditBookmark()
     func deleteSelectedRow()
     func copy(_ sender: Any?)
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool

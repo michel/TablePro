@@ -2,12 +2,12 @@
 //  HistoryPanelController.swift
 //  OpenTable
 //
-//  Main controller for history/bookmark panel with split-view layout
+//  Main controller for query history panel with split-view layout
 //
 
 import AppKit
 
-/// Main controller for the history/bookmark panel
+/// Main controller for the query history panel
 /// Uses NSSplitView for master-detail layout: list on left, preview on right
 final class HistoryPanelController: NSViewController {
     // MARK: - Child Controllers
@@ -118,17 +118,8 @@ extension HistoryPanelController: HistoryListViewControllerDelegate {
         previewController.showHistoryEntry(entry)
     }
 
-    func historyListViewController(_ controller: HistoryListViewController, didSelectBookmark bookmark: QueryBookmark) {
-        previewController.showBookmark(bookmark)
-    }
-
     func historyListViewController(_ controller: HistoryListViewController, didDoubleClickHistoryEntry entry: QueryHistoryEntry) {
         loadQueryIntoEditor(entry.query)
-    }
-
-    func historyListViewController(_ controller: HistoryListViewController, didDoubleClickBookmark bookmark: QueryBookmark) {
-        loadQueryIntoEditor(bookmark.query)
-        QueryHistoryManager.shared.markBookmarkUsed(id: bookmark.id)
     }
 
     func historyListViewControllerDidClearSelection(_ controller: HistoryListViewController) {

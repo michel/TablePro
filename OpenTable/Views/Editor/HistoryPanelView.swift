@@ -8,7 +8,7 @@
 import AppKit
 import SwiftUI
 
-/// SwiftUI wrapper for the history/bookmark panel
+/// SwiftUI wrapper for the history panel
 struct HistoryPanelView: NSViewControllerRepresentable {
     func makeNSViewController(context: Context) -> HistoryPanelController {
         HistoryPanelController()
@@ -20,10 +20,10 @@ struct HistoryPanelView: NSViewControllerRepresentable {
 }
 
 #if DEBUG
-struct HistoryPanelView_Previews: PreviewProvider {
-    static var previews: some View {
-        HistoryPanelView()
-            .frame(width: 600, height: 300)
+    struct HistoryPanelView_Previews: PreviewProvider {
+        static var previews: some View {
+            HistoryPanelView()
+                .frame(width: 600, height: 300)
+        }
     }
-}
 #endif

@@ -2,7 +2,7 @@
 //  QueryHistoryStorage.swift
 //  OpenTable
 //
-//  SQLite storage for query history and bookmarks with FTS5 full-text search
+//  SQLite storage for query history with FTS5 full-text search
 //
 
 import Foundation
@@ -32,7 +32,7 @@ enum DateFilter {
     }
 }
 
-/// Thread-safe SQLite storage for query history and bookmarks
+/// Thread-safe SQLite storage for query history
 final class QueryHistoryStorage {
     static let shared = QueryHistoryStorage()
 
@@ -61,7 +61,11 @@ final class QueryHistoryStorage {
 
     private func setupDatabase() {
         let fileManager = FileManager.default
-        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+        guard
+            let appSupport = fileManager.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            ).first
+        else {
             fatalError("Unable to access application support directory")
         }
         let OpenTableDir = appSupport.appendingPathComponent("OpenTable")
@@ -83,71 +87,52 @@ final class QueryHistoryStorage {
     private func createTables() {
         // History table
         let historyTable = """
-        CREATE TABLE IF NOT EXISTS history (
-            id TEXT PRIMARY KEY,
-            query TEXT NOT NULL,
-            connection_id TEXT NOT NULL,
-            database_name TEXT NOT NULL,
-            executed_at REAL NOT NULL,
-            execution_time REAL NOT NULL,
-            row_count INTEGER NOT NULL,
-            was_successful INTEGER NOT NULL,
-            error_message TEXT
-        );
-        """
+            CREATE TABLE IF NOT EXISTS history (
+                id TEXT PRIMARY KEY,
+                query TEXT NOT NULL,
+                connection_id TEXT NOT NULL,
+                database_name TEXT NOT NULL,
+                executed_at REAL NOT NULL,
+                execution_time REAL NOT NULL,
+                row_count INTEGER NOT NULL,
+                was_successful INTEGER NOT NULL,
+                error_message TEXT
+            );
+            """
 
         // FTS5 virtual table for full-text search
         let ftsTable = """
-        CREATE VIRTUAL TABLE IF NOT EXISTS history_fts USING fts5(
-            query,
-            content='history',
-            content_rowid='rowid'
-        );
-        """
+            CREATE VIRTUAL TABLE IF NOT EXISTS history_fts USING fts5(
+                query,
+                content='history',
+                content_rowid='rowid'
+            );
+            """
 
         // Triggers to keep FTS5 in sync
         let ftsInsertTrigger = """
-        CREATE TRIGGER IF NOT EXISTS history_ai AFTER INSERT ON history BEGIN
-            INSERT INTO history_fts(rowid, query) VALUES (new.rowid, new.query);
-        END;
-        """
+            CREATE TRIGGER IF NOT EXISTS history_ai AFTER INSERT ON history BEGIN
+                INSERT INTO history_fts(rowid, query) VALUES (new.rowid, new.query);
+            END;
+            """
 
         let ftsDeleteTrigger = """
-        CREATE TRIGGER IF NOT EXISTS history_ad AFTER DELETE ON history BEGIN
-            INSERT INTO history_fts(history_fts, rowid, query) VALUES('delete', old.rowid, old.query);
-        END;
-        """
+            CREATE TRIGGER IF NOT EXISTS history_ad AFTER DELETE ON history BEGIN
+                INSERT INTO history_fts(history_fts, rowid, query) VALUES('delete', old.rowid, old.query);
+            END;
+            """
 
         let ftsUpdateTrigger = """
-        CREATE TRIGGER IF NOT EXISTS history_au AFTER UPDATE ON history BEGIN
-            INSERT INTO history_fts(history_fts, rowid, query) VALUES('delete', old.rowid, old.query);
-            INSERT INTO history_fts(rowid, query) VALUES (new.rowid, new.query);
-        END;
-        """
+            CREATE TRIGGER IF NOT EXISTS history_au AFTER UPDATE ON history BEGIN
+                INSERT INTO history_fts(history_fts, rowid, query) VALUES('delete', old.rowid, old.query);
+                INSERT INTO history_fts(rowid, query) VALUES (new.rowid, new.query);
+            END;
+            """
 
         // Indexes
         let historyIndexes = [
             "CREATE INDEX IF NOT EXISTS idx_history_connection ON history(connection_id);",
-            "CREATE INDEX IF NOT EXISTS idx_history_executed_at ON history(executed_at DESC);"
-        ]
-
-        // Bookmarks table
-        let bookmarksTable = """
-        CREATE TABLE IF NOT EXISTS bookmarks (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            query TEXT NOT NULL,
-            connection_id TEXT,
-            tags TEXT,
-            created_at REAL NOT NULL,
-            last_used_at REAL,
-            notes TEXT
-        );
-        """
-
-        let bookmarkIndexes = [
-            "CREATE INDEX IF NOT EXISTS idx_bookmarks_name ON bookmarks(name);",
-            "CREATE INDEX IF NOT EXISTS idx_bookmarks_connection ON bookmarks(connection_id);"
+            "CREATE INDEX IF NOT EXISTS idx_history_executed_at ON history(executed_at DESC);",
         ]
 
         // Execute all table creation statements
@@ -157,8 +142,8 @@ final class QueryHistoryStorage {
         execute(ftsDeleteTrigger)
         execute(ftsUpdateTrigger)
         historyIndexes.forEach { execute($0) }
-        execute(bookmarksTable)
-        bookmarkIndexes.forEach { execute($0) }
+
+        execute("DROP TABLE IF EXISTS bookmarks;")
     }
 
     // MARK: - Helper Methods
@@ -197,9 +182,9 @@ final class QueryHistoryStorage {
             self.performCleanup()
 
             let sql = """
-            INSERT INTO history (id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-            """
+                INSERT INTO history (id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """
 
             var statement: OpaquePointer?
             guard sqlite3_prepare_v2(self.db, sql, -1, &statement, nil) == SQLITE_OK else {
@@ -245,7 +230,9 @@ final class QueryHistoryStorage {
         dateFilter: DateFilter = .all
     ) -> [QueryHistoryEntry] {
         queue.sync {
-            fetchHistorySync(limit: limit, offset: offset, connectionId: connectionId, searchText: searchText, dateFilter: dateFilter)
+            fetchHistorySync(
+                limit: limit, offset: offset, connectionId: connectionId, searchText: searchText,
+                dateFilter: dateFilter)
         }
     }
 
@@ -263,7 +250,9 @@ final class QueryHistoryStorage {
                 DispatchQueue.main.async { completion([]) }
                 return
             }
-            let entries = self.fetchHistorySync(limit: limit, offset: offset, connectionId: connectionId, searchText: searchText, dateFilter: dateFilter)
+            let entries = self.fetchHistorySync(
+                limit: limit, offset: offset, connectionId: connectionId, searchText: searchText,
+                dateFilter: dateFilter)
             DispatchQueue.main.async {
                 completion(entries)
             }
@@ -289,11 +278,11 @@ final class QueryHistoryStorage {
         // Use FTS5 for full-text search if search text provided
         if let searchText = searchText, !searchText.isEmpty {
             sql = """
-            SELECT h.id, h.query, h.connection_id, h.database_name, h.executed_at, h.execution_time, h.row_count, h.was_successful, h.error_message
-            FROM history h
-            INNER JOIN history_fts ON h.rowid = history_fts.rowid
-            WHERE history_fts MATCH ?
-            """
+                SELECT h.id, h.query, h.connection_id, h.database_name, h.executed_at, h.execution_time, h.row_count, h.was_successful, h.error_message
+                FROM history h
+                INNER JOIN history_fts ON h.rowid = history_fts.rowid
+                WHERE history_fts MATCH ?
+                """
 
             // Add additional filters
             if connectionId != nil {
@@ -306,7 +295,8 @@ final class QueryHistoryStorage {
                 hasDateFilter = true
             }
         } else {
-            sql = "SELECT id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message FROM history"
+            sql =
+                "SELECT id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message FROM history"
 
             var whereClauses: [String] = []
 
@@ -415,260 +405,6 @@ final class QueryHistoryStorage {
         }
     }
 
-    // MARK: - Bookmark Operations
-
-    /// Add a bookmark
-    func addBookmark(_ bookmark: QueryBookmark) -> Bool {
-        // Capture values as Swift strings BEFORE entering sync block
-        let idString = bookmark.id.uuidString
-        let nameString = bookmark.name
-        let queryString = bookmark.query
-        let connectionIdString = bookmark.connectionId?.uuidString
-        let tagsJSON = try? JSONEncoder().encode(bookmark.tags)
-        let tagsString = tagsJSON.flatMap { String(data: $0, encoding: .utf8) }
-        let createdAt = bookmark.createdAt.timeIntervalSince1970
-        let lastUsedAt = bookmark.lastUsedAt?.timeIntervalSince1970
-        let notesString = bookmark.notes
-
-        return queue.sync {
-            let sql = """
-            INSERT INTO bookmarks (id, name, query, connection_id, tags, created_at, last_used_at, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-            """
-
-            var statement: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                return false
-            }
-
-            defer { sqlite3_finalize(statement) }
-
-            // SQLITE_TRANSIENT tells SQLite to make its own copy of the strings
-            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
-            sqlite3_bind_text(statement, 1, idString, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 2, nameString, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 3, queryString, -1, SQLITE_TRANSIENT)
-
-            if let connectionId = connectionIdString {
-                sqlite3_bind_text(statement, 4, connectionId, -1, SQLITE_TRANSIENT)
-            } else {
-                sqlite3_bind_null(statement, 4)
-            }
-
-            if let tags = tagsString {
-                sqlite3_bind_text(statement, 5, tags, -1, SQLITE_TRANSIENT)
-            } else {
-                sqlite3_bind_null(statement, 5)
-            }
-
-            sqlite3_bind_double(statement, 6, createdAt)
-
-            if let lastUsed = lastUsedAt {
-                sqlite3_bind_double(statement, 7, lastUsed)
-            } else {
-                sqlite3_bind_null(statement, 7)
-            }
-
-            if let notes = notesString {
-                sqlite3_bind_text(statement, 8, notes, -1, SQLITE_TRANSIENT)
-            } else {
-                sqlite3_bind_null(statement, 8)
-            }
-
-            let result = sqlite3_step(statement)
-            let success = result == SQLITE_DONE
-
-            // Silently handle errors
-
-            return success
-        }
-    }
-
-    /// Update a bookmark
-    func updateBookmark(_ bookmark: QueryBookmark) -> Bool {
-        // Capture values as Swift strings BEFORE entering sync block
-        let idString = bookmark.id.uuidString
-        let nameString = bookmark.name
-        let queryString = bookmark.query
-        let connectionIdString = bookmark.connectionId?.uuidString
-        let tagsJSON = try? JSONEncoder().encode(bookmark.tags)
-        let tagsString = tagsJSON.flatMap { String(data: $0, encoding: .utf8) }
-        let lastUsedAt = bookmark.lastUsedAt?.timeIntervalSince1970
-        let notesString = bookmark.notes
-
-        return queue.sync {
-            let sql = """
-            UPDATE bookmarks SET name = ?, query = ?, connection_id = ?, tags = ?, last_used_at = ?, notes = ?
-            WHERE id = ?;
-            """
-
-            var statement: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                return false
-            }
-
-            defer { sqlite3_finalize(statement) }
-
-            // SQLITE_TRANSIENT tells SQLite to make its own copy of the strings
-            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
-            sqlite3_bind_text(statement, 1, nameString, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 2, queryString, -1, SQLITE_TRANSIENT)
-
-            if let connectionId = connectionIdString {
-                sqlite3_bind_text(statement, 3, connectionId, -1, SQLITE_TRANSIENT)
-            } else {
-                sqlite3_bind_null(statement, 3)
-            }
-
-            if let tags = tagsString {
-                sqlite3_bind_text(statement, 4, tags, -1, SQLITE_TRANSIENT)
-            } else {
-                sqlite3_bind_null(statement, 4)
-            }
-
-            if let lastUsed = lastUsedAt {
-                sqlite3_bind_double(statement, 5, lastUsed)
-            } else {
-                sqlite3_bind_null(statement, 5)
-            }
-
-            if let notes = notesString {
-                sqlite3_bind_text(statement, 6, notes, -1, SQLITE_TRANSIENT)
-            } else {
-                sqlite3_bind_null(statement, 6)
-            }
-
-            sqlite3_bind_text(statement, 7, idString, -1, SQLITE_TRANSIENT)
-
-            let result = sqlite3_step(statement)
-            let success = result == SQLITE_DONE
-
-            // Silently handle errors
-
-            return success
-        }
-    }
-
-    /// Fetch bookmarks with optional filters (synchronous - legacy support)
-    func fetchBookmarks(searchText: String? = nil, tag: String? = nil) -> [QueryBookmark] {
-        queue.sync {
-            fetchBookmarksSync(searchText: searchText, tag: tag)
-        }
-    }
-
-    /// Fetch bookmarks with optional filters (asynchronous - non-blocking)
-    func fetchBookmarksAsync(searchText: String? = nil, tag: String? = nil, completion: @escaping ([QueryBookmark]) -> Void) {
-        queue.async { [weak self] in
-            guard let self = self else {
-                DispatchQueue.main.async { completion([]) }
-                return
-            }
-            let bookmarks = self.fetchBookmarksSync(searchText: searchText, tag: tag)
-            DispatchQueue.main.async {
-                completion(bookmarks)
-            }
-        }
-    }
-
-    /// Internal synchronous fetch (must be called on queue)
-    private func fetchBookmarksSync(searchText: String?, tag: String?) -> [QueryBookmark] {
-        var bookmarks: [QueryBookmark] = []
-
-        var sql = "SELECT id, name, query, connection_id, tags, created_at, last_used_at, notes FROM bookmarks"
-        var whereClauses: [String] = []
-        var bindIndex: Int32 = 1
-        var hasSearchFilter = false
-        var hasTagFilter = false
-
-        if let searchText = searchText, !searchText.isEmpty {
-            whereClauses.append("(name LIKE ? OR query LIKE ?)")
-            hasSearchFilter = true
-        }
-
-        if let tag = tag, !tag.isEmpty {
-            whereClauses.append("tags LIKE ?")
-            hasTagFilter = true
-        }
-
-        if !whereClauses.isEmpty {
-            sql += " WHERE " + whereClauses.joined(separator: " AND ")
-        }
-
-        sql += " ORDER BY created_at DESC;"
-
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            return bookmarks
-        }
-
-        defer { sqlite3_finalize(statement) }
-
-        let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-
-        // Bind parameters in order
-        if let searchText = searchText, !searchText.isEmpty, hasSearchFilter {
-            let searchPattern = "%\(searchText)%"
-            sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
-            bindIndex += 1
-            sqlite3_bind_text(statement, bindIndex, searchPattern, -1, SQLITE_TRANSIENT)
-            bindIndex += 1
-        }
-
-        if let tag = tag, !tag.isEmpty, hasTagFilter {
-            let tagPattern = "%\(tag)%"
-            sqlite3_bind_text(statement, bindIndex, tagPattern, -1, SQLITE_TRANSIENT)
-        }
-
-        while sqlite3_step(statement) == SQLITE_ROW {
-            if let bookmark = parseBookmark(from: statement) {
-                bookmarks.append(bookmark)
-            }
-        }
-
-        return bookmarks
-    }
-
-    /// Delete a bookmark
-    func deleteBookmark(id: UUID) -> Bool {
-        let idString = id.uuidString
-
-        return queue.sync {
-            let sql = "DELETE FROM bookmarks WHERE id = ?;"
-            var statement: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                return false
-            }
-
-            defer { sqlite3_finalize(statement) }
-
-            let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-            sqlite3_bind_text(statement, 1, idString, -1, SQLITE_TRANSIENT)
-
-            let result = sqlite3_step(statement)
-            let success = result == SQLITE_DONE
-
-            // Silently handle success/failure
-
-            return success
-        }
-    }
-
-    /// Clear all bookmarks
-    func clearAllBookmarks() -> Bool {
-        queue.sync {
-            let sql = "DELETE FROM bookmarks;"
-            var statement: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-                return false
-            }
-
-            defer { sqlite3_finalize(statement) }
-            return sqlite3_step(statement) == SQLITE_DONE
-        }
-    }
-
     // MARK: - Cleanup
 
     /// Update cached settings from AppSettingsManager (must be called from MainActor)
@@ -708,14 +444,17 @@ final class QueryHistoryStorage {
 
                     if count > cachedMaxHistoryEntries {
                         let deleteExcessSQL = """
-                        DELETE FROM history WHERE id IN (
-                            SELECT id FROM history ORDER BY executed_at ASC LIMIT ?
-                        );
-                        """
+                            DELETE FROM history WHERE id IN (
+                                SELECT id FROM history ORDER BY executed_at ASC LIMIT ?
+                            );
+                            """
 
                         var deleteStatement: OpaquePointer?
-                        if sqlite3_prepare_v2(db, deleteExcessSQL, -1, &deleteStatement, nil) == SQLITE_OK {
-                            sqlite3_bind_int(deleteStatement, 1, Int32(count - cachedMaxHistoryEntries))
+                        if sqlite3_prepare_v2(db, deleteExcessSQL, -1, &deleteStatement, nil)
+                            == SQLITE_OK
+                        {
+                            sqlite3_bind_int(
+                                deleteStatement, 1, Int32(count - cachedMaxHistoryEntries))
                             sqlite3_step(deleteStatement)
                             sqlite3_finalize(deleteStatement)
                         }
@@ -740,11 +479,11 @@ final class QueryHistoryStorage {
         guard let statement = statement else { return nil }
 
         guard let idString = sqlite3_column_text(statement, 0).map({ String(cString: $0) }),
-              let id = UUID(uuidString: idString),
-              let query = sqlite3_column_text(statement, 1).map({ String(cString: $0) }),
-              let connectionIdString = sqlite3_column_text(statement, 2).map({ String(cString: $0) }),
-              let connectionId = UUID(uuidString: connectionIdString),
-              let databaseName = sqlite3_column_text(statement, 3).map({ String(cString: $0) })
+            let id = UUID(uuidString: idString),
+            let query = sqlite3_column_text(statement, 1).map({ String(cString: $0) }),
+            let connectionIdString = sqlite3_column_text(statement, 2).map({ String(cString: $0) }),
+            let connectionId = UUID(uuidString: connectionIdString),
+            let databaseName = sqlite3_column_text(statement, 3).map({ String(cString: $0) })
         else {
             return nil
         }
@@ -765,50 +504,6 @@ final class QueryHistoryStorage {
             rowCount: rowCount,
             wasSuccessful: wasSuccessful,
             errorMessage: errorMessage
-        )
-    }
-
-    private func parseBookmark(from statement: OpaquePointer?) -> QueryBookmark? {
-        guard let statement = statement else { return nil }
-
-        guard let idString = sqlite3_column_text(statement, 0).map({ String(cString: $0) }),
-              let id = UUID(uuidString: idString),
-              let name = sqlite3_column_text(statement, 1).map({ String(cString: $0) }),
-              let query = sqlite3_column_text(statement, 2).map({ String(cString: $0) })
-        else {
-            return nil
-        }
-
-        let connectionId = sqlite3_column_text(statement, 3)
-            .map { String(cString: $0) }
-            .flatMap { UUID(uuidString: $0) }
-
-        var tags: [String] = []
-        if let tagsJSON = sqlite3_column_text(statement, 4).map({ String(cString: $0) }),
-           let tagsData = tagsJSON.data(using: .utf8) {
-            tags = (try? JSONDecoder().decode([String].self, from: tagsData)) ?? []
-        }
-
-        let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 5))
-
-        let lastUsedAt: Date?
-        if sqlite3_column_type(statement, 6) != SQLITE_NULL {
-            lastUsedAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 6))
-        } else {
-            lastUsedAt = nil
-        }
-
-        let notes = sqlite3_column_text(statement, 7).map { String(cString: $0) }
-
-        return QueryBookmark(
-            id: id,
-            name: name,
-            query: query,
-            connectionId: connectionId,
-            tags: tags,
-            createdAt: createdAt,
-            lastUsedAt: lastUsedAt,
-            notes: notes
         )
     }
 }
