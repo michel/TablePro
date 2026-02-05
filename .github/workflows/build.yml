@@ -814,48 +814,82 @@ jobs:
 
           if [ -z "$PREVIOUS_TAG" ]; then
             echo "No previous tag found, showing recent commits"
-            CHANGES=$(git log --pretty=format:"- %s" HEAD~10..HEAD 2>/dev/null || echo "- Initial release")
+            COMMIT_RANGE="HEAD~10..HEAD"
           else
             echo "Generating changes since $PREVIOUS_TAG"
-            CHANGES=$(git log --pretty=format:"- %s" "$PREVIOUS_TAG"..HEAD 2>/dev/null || echo "- Initial release")
+            COMMIT_RANGE="$PREVIOUS_TAG..HEAD"
           fi
 
+          # Extract raw commits
+          RAW_COMMITS=$(git log --pretty=format:"%s" "$COMMIT_RANGE" 2>/dev/null || echo "")
+
+          # Filter noise commits
+          FILTERED_COMMITS=$(echo "$RAW_COMMITS" | awk '
+            tolower($0) ~ /^wip$/ { next }
+            tolower($0) ~ /^wip:/ { next }
+            /^Merge pull request/ { next }
+            /^Merge branch/ { next }
+            /^Bump [0-9]/ { next }
+            tolower($0) ~ /^bump version/ { next }
+            tolower($0) ~ /^bump [0-9]/ { next }
+            /^\[.*[Bb]ot\]/ { next }
+            /^$/ { next }
+            { print }
+          ')
+
+          # Categorize commits by conventional commit type
+          FEAT_COMMITS=$(echo "$FILTERED_COMMITS" | grep -i "^feat:" | sed 's/^feat: *//' || true)
+          FIX_COMMITS=$(echo "$FILTERED_COMMITS" | grep -i "^fix:" | sed 's/^fix: *//' || true)
+          PERF_COMMITS=$(echo "$FILTERED_COMMITS" | grep -i "^perf:" | sed 's/^perf: *//' || true)
+          DOCS_COMMITS=$(echo "$FILTERED_COMMITS" | grep -i "^docs:" | sed 's/^docs: *//' || true)
+          REFACTOR_COMMITS=$(echo "$FILTERED_COMMITS" | grep -i "^refactor:" | sed 's/^refactor: *//' || true)
+          CHORE_COMMITS=$(echo "$FILTERED_COMMITS" | grep -iE "^(chore|style|test):" | sed 's/^[^:]*: *//' || true)
+          OTHER_COMMITS=$(echo "$FILTERED_COMMITS" | grep -ivE "^(feat|fix|perf|docs|refactor|chore|style|test):" || true)
+
+          # Build categorized output
+          CHANGES=""
+
+          if [ -n "$FEAT_COMMITS" ]; then
+            CHANGES="${CHANGES}### New Features"$'\n\n'
+            CHANGES="${CHANGES}$(echo "$FEAT_COMMITS" | sed 's/^/- /')"$'\n\n'
+          fi
+
+          if [ -n "$FIX_COMMITS" ]; then
+            CHANGES="${CHANGES}### Bug Fixes"$'\n\n'
+            CHANGES="${CHANGES}$(echo "$FIX_COMMITS" | sed 's/^/- /')"$'\n\n'
+          fi
+
+          if [ -n "$PERF_COMMITS" ]; then
+            CHANGES="${CHANGES}### Performance Improvements"$'\n\n'
+            CHANGES="${CHANGES}$(echo "$PERF_COMMITS" | sed 's/^/- /')"$'\n\n'
+          fi
+
+          if [ -n "$DOCS_COMMITS" ]; then
+            CHANGES="${CHANGES}### Documentation"$'\n\n'
+            CHANGES="${CHANGES}$(echo "$DOCS_COMMITS" | sed 's/^/- /')"$'\n\n'
+          fi
+
+          if [ -n "$REFACTOR_COMMITS" ]; then
+            CHANGES="${CHANGES}### Refactoring"$'\n\n'
+            CHANGES="${CHANGES}$(echo "$REFACTOR_COMMITS" | sed 's/^/- /')"$'\n\n'
+          fi
+
+          if [ -n "$CHORE_COMMITS" ]; then
+            CHANGES="${CHANGES}### Maintenance"$'\n\n'
+            CHANGES="${CHANGES}$(echo "$CHORE_COMMITS" | sed 's/^/- /')"$'\n\n'
+          fi
+
+          if [ -n "$OTHER_COMMITS" ]; then
+            CHANGES="${CHANGES}### Other Changes"$'\n\n'
+            CHANGES="${CHANGES}$(echo "$OTHER_COMMITS" | sed 's/^/- /')"$'\n\n'
+          fi
+
+          # Fallback if all commits were filtered out
           if [ -z "$CHANGES" ]; then
-            CHANGES="- Initial release"
+            CHANGES="### Changes"$'\n\n'"- Minor improvements and bug fixes"$'\n\n'
           fi
 
           cat > release_notes.md <<EOF
-          ## OpenTable ${VERSION}
-
-          ### Downloads
-
-          Choose the appropriate version for your Mac:
-
-          **Recommended (DMG Installer):**
-          - 🍎 **Apple Silicon (M1/M2/M3/M4)**: \`OpenTable-${VERSION}-arm64.dmg\`
-          - 💻 **Intel**: \`OpenTable-${VERSION}-x86_64.dmg\`
-
-          **Alternative (ZIP Archive):**
-          - \`OpenTable-${VERSION}-arm64.zip\` (Apple Silicon)
-          - \`OpenTable-${VERSION}-x86_64.zip\` (Intel)
-
-          ### Installation
-
-          **DMG Installer (Recommended):**
-          1. Download and open the DMG file
-          2. Drag OpenTable to the Applications folder
-          3. Eject the DMG
-          4. Right-click OpenTable in Applications and select "Open" on first launch
-
-          **ZIP Archive:**
-          1. Download and unzip the file
-          2. Move OpenTable.app to your Applications folder
-          3. Right-click and select "Open" on first launch
-
-          > **Note:** This app is not signed with an Apple Developer certificate. You may need to allow it in System Settings > Privacy & Security on first launch.
-
-          ### Changes
-
           $CHANGES
           EOF
 
