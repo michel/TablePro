@@ -27,10 +27,10 @@ struct NativeTabBar: NSViewRepresentable {
         view.onTabReorder = { [weak tabManager] fromIndex, toIndex in
             guard let tabManager = tabManager,
                   fromIndex >= 0, fromIndex < tabManager.tabs.count,
-                  toIndex >= 0, toIndex <= tabManager.tabs.count else { return }
+                  toIndex >= 0, toIndex < tabManager.tabs.count,
+                  fromIndex != toIndex else { return }
             let tab = tabManager.tabs.remove(at: fromIndex)
-            let insertIndex = toIndex > fromIndex ? toIndex : toIndex
-            tabManager.tabs.insert(tab, at: min(insertIndex, tabManager.tabs.count))
+            tabManager.tabs.insert(tab, at: toIndex)
         }
 
         view.onAddTab = { [weak tabManager] in
