@@ -58,8 +58,10 @@ actor SSHTunnelManager {
     private var healthCheckTask: Task<Void, Never>?
 
     private init() {
-        // Start health monitoring
-        startHealthMonitoring()
+        // Start health monitoring in unstructured task
+        Task {
+            await startHealthMonitoring()
+        }
     }
 
     /// Start monitoring tunnel health
