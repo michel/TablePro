@@ -980,7 +980,7 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Tab Operations
 
     func handleCloseAction() {
-        if tabManager.selectedTab != nil {
+        if let tab = tabManager.selectedTab, !tab.isPinned {
             let hasEditedCells = changeManager.hasChanges
 
             // Always confirm if there are unsaved changes
