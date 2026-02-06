@@ -64,10 +64,15 @@ final class MainContentCoordinator: ObservableObject {
     private var queryGeneration: Int = 0
     private var currentQueryTask: Task<Void, Never>?
     private var changeManagerUpdateTask: Task<Void, Never>?
+    private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
         querySortCache = querySortCache.filter { openTabIds.contains($0.key) }
+        for (tabId, task) in activeSortTasks where !openTabIds.contains(tabId) {
+            task.cancel()
+            activeSortTasks.removeValue(forKey: tabId)
+        }
     }
 
     // MARK: - Initialization
@@ -439,10 +444,11 @@ final class MainContentCoordinator: ObservableObject {
 
             if rows.count > 10_000 {
                 // Large dataset: sort on background thread to avoid UI freeze
+                activeSortTasks[tabId]?.cancel()
                 tabManager.tabs[tabIndex].isExecuting = true
                 querySortCache.removeValue(forKey: tabId)
 
-                Task.detached { [weak self] in
+                let task = Task.detached { [weak self] in
                     let sorted = rows.sorted { row1, row2 in
                         let val1 = row1.values[columnIndex] ?? ""
                         let val2 = row2.values[columnIndex] ?? ""
@@ -455,18 +461,24 @@ final class MainContentCoordinator: ObservableObject {
 
                     await MainActor.run { [weak self] in
                         guard let self else { return }
+                        // Guard against stale completion: verify tab still expects this sort
+                        guard let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }),
+                              self.tabManager.tabs[idx].sortState.columnIndex == columnIndex,
+                              self.tabManager.tabs[idx].sortState.direction == sortDirection else {
+                            return
+                        }
                         self.querySortCache[tabId] = QuerySortCacheEntry(
                             rows: sorted,
                             columnIndex: columnIndex,
                             direction: sortDirection,
                             resultVersion: resultVersion
                         )
-                        if let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                            self.tabManager.tabs[idx].isExecuting = false
-                        }
+                        self.tabManager.tabs[idx].isExecuting = false
+                        self.activeSortTasks.removeValue(forKey: tabId)
                         self.changeManager.reloadVersion += 1
                     }
                 }
+                activeSortTasks[tabId] = task
             } else {
                 // Small dataset: view sorts synchronously, just trigger reload
                 changeManager.reloadVersion += 1
