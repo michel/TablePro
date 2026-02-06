@@ -340,6 +340,54 @@ struct OpenTableApp: App {
                 .keyboardShortcut("y", modifiers: .command)
                 .disabled(!appState.isConnected)
             }
+
+            // Tab navigation shortcuts
+            CommandGroup(after: .windowArrangement) {
+                // Tab switching by number (Cmd+1 through Cmd+9)
+                ForEach(1...9, id: \.self) { number in
+                    Button("Select Tab \(number)") {
+                        NotificationCenter.default.post(
+                            name: .selectTabByNumber,
+                            object: number
+                        )
+                    }
+                    .keyboardShortcut(
+                        KeyEquivalent(Character(String(number))),
+                        modifiers: .command
+                    )
+                    .disabled(!appState.isConnected)
+                }
+
+                Divider()
+
+                // Previous tab (Cmd+Shift+[)
+                Button("Show Previous Tab") {
+                    NotificationCenter.default.post(name: .previousTab, object: nil)
+                }
+                .keyboardShortcut("[", modifiers: [.command, .shift])
+                .disabled(!appState.isConnected)
+
+                // Next tab (Cmd+Shift+])
+                Button("Show Next Tab") {
+                    NotificationCenter.default.post(name: .nextTab, object: nil)
+                }
+                .keyboardShortcut("]", modifiers: [.command, .shift])
+                .disabled(!appState.isConnected)
+
+                // Previous tab (Cmd+Option+Left)
+                Button("Previous Tab") {
+                    NotificationCenter.default.post(name: .previousTab, object: nil)
+                }
+                .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+                .disabled(!appState.isConnected)
+
+                // Next tab (Cmd+Option+Right)
+                Button("Next Tab") {
+                    NotificationCenter.default.post(name: .nextTab, object: nil)
+                }
+                .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+                .disabled(!appState.isConnected)
+            }
         }
     }
 }
@@ -393,6 +441,11 @@ extension Notification.Name {
 
     // Import notifications
     static let importTables = Notification.Name("importTables")
+
+    // Tab navigation notifications
+    static let selectTabByNumber = Notification.Name("selectTabByNumber")
+    static let previousTab = Notification.Name("previousTab")
+    static let nextTab = Notification.Name("nextTab")
 
     // Window lifecycle notifications
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")

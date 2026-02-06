@@ -488,6 +488,9 @@ final class QueryTabManager: ObservableObject {
     }
 
     func closeTab(_ tab: QueryTab) {
+        // Pinned tabs cannot be closed
+        guard !tab.isPinned else { return }
+
         // Capture table info BEFORE removing
         let isTableTab = tab.tabType == .table
         let tableName = tab.tableName

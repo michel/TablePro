@@ -67,7 +67,7 @@ struct MainEditorContentView: View {
         VStack(spacing: 0) {
             // Tab bar - only show when there are tabs
             if !tabManager.tabs.isEmpty {
-                QueryTabBar(tabManager: tabManager)
+                NativeTabBar(tabManager: tabManager)
                 Divider()
             }
 

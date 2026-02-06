@@ -432,7 +432,11 @@ mint dev
 
 - **Never** use tabs for indentation (except Makefile/pbxproj)
 - **Always** run `swiftlint lint --strict` after making changes to verify compliance
-- **Always** update documentation when adding or changing features
+- **Always** update documentation when adding or changing features — this is a **mandatory** step, not optional. After implementing a feature, check the "When to Update Documentation" table above and update both English (`docs/`) and Vietnamese (`docs/vi/`) pages. Key docs to check:
+  - New keyboard shortcuts → `features/keyboard-shortcuts.mdx`
+  - Tab behavior changes → `features/tabs.mdx`
+  - UI changes → relevant feature page + screenshot placeholder
+  - New features → add to relevant page or create new page
 - Check .swiftformat and .swiftlint.yml for authoritative rules
 - Preserve existing architecture: SwiftUI + AppKit, native frameworks only
 - This is macOS-only; no iOS/watchOS/tvOS code needed

@@ -68,6 +68,7 @@ final class MainContentNotificationHandler: ObservableObject {
     private func setupObservers() {
         setupRowOperationObservers()
         setupTabOperationObservers()
+        setupTabNavigationObservers()
         setupFilterOperationObservers()
         setupDataOperationObservers()
         setupUIOperationObservers()
@@ -249,6 +250,45 @@ final class MainContentNotificationHandler: ObservableObject {
             databaseName: currentDatabase,
             databaseType: connection.type
         )
+    }
+
+    // MARK: - Tab Navigation
+
+    private func setupTabNavigationObservers() {
+        // Cmd+1-9: Select tab by number
+        NotificationCenter.default.publisher(for: .selectTabByNumber)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let number = notification.object as? Int,
+                      let tabManager = self?.coordinator?.tabManager else { return }
+                let index = number - 1
+                if index >= 0, index < tabManager.tabs.count {
+                    tabManager.selectTab(tabManager.tabs[index])
+                }
+            }
+            .store(in: &cancellables)
+
+        // Cmd+Shift+[ or Cmd+Option+Left: Previous tab
+        NotificationCenter.default.publisher(for: .previousTab)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let tabManager = self?.coordinator?.tabManager,
+                      let current = tabManager.selectedTabIndex,
+                      current > 0 else { return }
+                tabManager.selectTab(tabManager.tabs[current - 1])
+            }
+            .store(in: &cancellables)
+
+        // Cmd+Shift+] or Cmd+Option+Right: Next tab
+        NotificationCenter.default.publisher(for: .nextTab)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let tabManager = self?.coordinator?.tabManager,
+                      let current = tabManager.selectedTabIndex,
+                      current + 1 < tabManager.tabs.count else { return }
+                tabManager.selectTab(tabManager.tabs[current + 1])
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Filter Operations
