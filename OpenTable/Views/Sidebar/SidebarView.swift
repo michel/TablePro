@@ -48,7 +48,9 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            searchField
+            if !tables.isEmpty {
+                searchField
+            }
             content
         }
         .frame(minWidth: 280)
@@ -88,15 +90,6 @@ struct SidebarView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .clearSelection)) { _ in
             selectedTables.removeAll()
-        }
-        .onChange(of: tables) { _, newTables in
-            // When tables become empty (disconnected), reset to loading state
-            if newTables.isEmpty {
-                // Defer state change to avoid publishing during view update
-                Task { @MainActor in
-                    isLoading = true
-                }
-            }
         }
         .onAppear {
             guard tables.isEmpty else { return }
@@ -195,23 +188,20 @@ struct SidebarView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             Image(systemName: "tablecells")
-                .font(.title)
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 28, weight: .thin))
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
             Text("No Tables")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(nsColor: .secondaryLabelColor))
 
-            Button("Refresh") {
-                loadTables()
-            }
-            .buttonStyle(.link)
-            .controlSize(.small)
+            Text("This database has no tables yet.")
+                .font(.system(size: 11))
+                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.vertical, 20)
     }
 
     private var noMatchState: some View {
