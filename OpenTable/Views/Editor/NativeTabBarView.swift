@@ -325,7 +325,9 @@ final class NativeTabBarView: NSView {
 
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            self.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        }
         // Re-render tab items to update colors
         for snapshot in tabSnapshots {
             tabViews[snapshot.id]?.update(
