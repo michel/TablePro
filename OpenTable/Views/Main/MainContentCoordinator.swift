@@ -446,8 +446,10 @@ final class MainContentCoordinator: ObservableObject {
                 // Large dataset: sort on background thread to avoid UI freeze
                 activeSortTasks[tabId]?.cancel()
                 tabManager.tabs[tabIndex].isExecuting = true
+                toolbarState.isExecuting = true
                 querySortCache.removeValue(forKey: tabId)
 
+                let sortStartTime = Date()
                 let task = Task.detached { [weak self] in
                     let sorted = rows.sorted { row1, row2 in
                         let val1 = row1.values[columnIndex] ?? ""
@@ -458,6 +460,7 @@ final class MainContentCoordinator: ObservableObject {
                             return val1.localizedStandardCompare(val2) == .orderedDescending
                         }
                     }
+                    let sortDuration = Date().timeIntervalSince(sortStartTime)
 
                     await MainActor.run { [weak self] in
                         guard let self else { return }
@@ -474,6 +477,9 @@ final class MainContentCoordinator: ObservableObject {
                             resultVersion: resultVersion
                         )
                         self.tabManager.tabs[idx].isExecuting = false
+                        self.tabManager.tabs[idx].executionTime = sortDuration
+                        self.toolbarState.isExecuting = false
+                        self.toolbarState.lastQueryDuration = sortDuration
                         self.activeSortTasks.removeValue(forKey: tabId)
                         self.changeManager.reloadVersion += 1
                     }
