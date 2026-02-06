@@ -247,6 +247,9 @@ struct QueryTab: Identifiable, Equatable {
     // Per-tab filter state (preserves filters when switching tabs)
     var filterState: TabFilterState
 
+    // Version counter incremented when resultRows changes (used for sort caching)
+    var resultVersion: Int
+
     // Table creation options (for .createTable tabs only)
     var tableCreationOptions: TableCreationOptions?
 
@@ -281,6 +284,7 @@ struct QueryTab: Identifiable, Equatable {
         self.hasUserInteraction = false
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
+        self.resultVersion = 0
         self.tableCreationOptions = nil
     }
 
@@ -311,6 +315,7 @@ struct QueryTab: Identifiable, Equatable {
         self.hasUserInteraction = false
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
+        self.resultVersion = 0
         self.tableCreationOptions = nil
     }
 
@@ -455,6 +460,7 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
             tabs[selectedIndex].resultColumns = []
             tabs[selectedIndex].resultRows = []
+            tabs[selectedIndex].resultVersion += 1
             tabs[selectedIndex].executionTime = nil
             tabs[selectedIndex].errorMessage = nil
             tabs[selectedIndex].lastExecutedAt = nil

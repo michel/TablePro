@@ -128,6 +128,7 @@ extension MainContentCoordinator {
         )
 
         tabManager.tabs[index].resultRows = tab.resultRows
+        tabManager.tabs[index].resultVersion += 1
 
         // Select pasted rows and scroll to first one
         if !pastedRows.isEmpty {
