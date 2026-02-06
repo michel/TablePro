@@ -460,6 +460,7 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
             tabs[selectedIndex].resultColumns = []
             tabs[selectedIndex].resultRows = []
+            tabs[selectedIndex].resultVersion += 1
             tabs[selectedIndex].executionTime = nil
             tabs[selectedIndex].errorMessage = nil
             tabs[selectedIndex].lastExecutedAt = nil

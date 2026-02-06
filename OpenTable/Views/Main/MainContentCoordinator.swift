@@ -1184,6 +1184,7 @@ final class MainContentCoordinator: ObservableObject {
                     var updatedTab = tab
                     updatedTab.resultColumns = []
                     updatedTab.resultRows = []
+                    updatedTab.resultVersion += 1
                     updatedTab.errorMessage = nil
                     updatedTab.executionTime = nil
                     return updatedTab
