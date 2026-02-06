@@ -21,6 +21,7 @@ final class NativeTabItemView: NSView {
     private var tabType: TabType
     private var isSelected: Bool = false
     private var isHovered: Bool = false
+    private var isWindowKey: Bool = true
 
     // MARK: - Callbacks
 
@@ -191,6 +192,43 @@ final class NativeTabItemView: NSView {
         statusIconLeadingConstraint?.isActive = true
     }
 
+    // MARK: - Window Key State
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+
+        NotificationCenter.default.removeObserver(
+            self, name: NSWindow.didBecomeKeyNotification, object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self, name: NSWindow.didResignKeyNotification, object: nil
+        )
+
+        guard let window = window else { return }
+        isWindowKey = window.isKeyWindow
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowKeyStateChanged),
+            name: NSWindow.didBecomeKeyNotification, object: window
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(windowKeyStateChanged),
+            name: NSWindow.didResignKeyNotification, object: window
+        )
+
+        updateAppearance()
+    }
+
+    @objc private func windowKeyStateChanged(_ notification: Notification) {
+        isWindowKey = window?.isKeyWindow ?? true
+        updateAppearance()
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateAppearance()
+    }
+
     // MARK: - Drag Source
 
     private func setupDragSource() {
@@ -239,18 +277,15 @@ final class NativeTabItemView: NSView {
         closeButton.isHidden = !isHovered || isPinned
 
         // Background
-        if isSelected {
-            layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-            layer?.borderColor = NSColor.separatorColor.cgColor
-            layer?.borderWidth = 0.5
-        } else if isHovered {
-            layer?.backgroundColor = NSColor.controlBackgroundColor.withAlphaComponent(0.5).cgColor
-            layer?.borderColor = nil
-            layer?.borderWidth = 0
-        } else {
-            layer?.backgroundColor = nil
-            layer?.borderColor = nil
-            layer?.borderWidth = 0
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            if self.isSelected {
+                self.layer?.backgroundColor = NSColor.controlAccentColor
+                    .withAlphaComponent(0.15).cgColor
+            } else if self.isHovered {
+                self.layer?.backgroundColor = NSColor.quaternaryLabelColor.cgColor
+            } else {
+                self.layer?.backgroundColor = nil
+            }
         }
     }
 
