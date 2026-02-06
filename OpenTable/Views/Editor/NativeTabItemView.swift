@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import QuartzCore
 
 /// Custom pasteboard type for tab drag-and-drop
 private let tabPasteboardType = NSPasteboard.PasteboardType("com.OpenTable.tab")
@@ -276,7 +277,9 @@ final class NativeTabItemView: NSView {
         // Close button (visible on hover, hidden for pinned tabs)
         closeButton.isHidden = !isHovered || isPinned
 
-        // Background
+        // Background — wrap in CATransaction to suppress implicit animations
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         effectiveAppearance.performAsCurrentDrawingAppearance {
             if self.isSelected {
                 self.layer?.backgroundColor = NSColor.controlAccentColor
@@ -287,6 +290,7 @@ final class NativeTabItemView: NSView {
                 self.layer?.backgroundColor = nil
             }
         }
+        CATransaction.commit()
     }
 
     // MARK: - Mouse Events

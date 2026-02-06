@@ -321,6 +321,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     private var rowVisualStateCache: [Int: RowVisualState] = [:]
+    private var lastVisualStateCacheVersion: Int = 0
     private let largeDatasetThreshold = 5_000
 
     var isLargeDataset: Bool { cachedRowCount > largeDatasetThreshold }
@@ -369,7 +370,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 // Only reload if row height changed (requires full reload)
                 if tableView.rowHeight != newRowHeight {
                     tableView.rowHeight = newRowHeight
-                    tableView.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0..<tableView.numberOfRows))
+                    tableView.tile()
                 } else {
                     // For other settings (date format, NULL display), just reload visible rows
                     let visibleRect = tableView.visibleRect
@@ -400,6 +401,10 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     @MainActor
     func rebuildVisualStateCache() {
+        let currentVersion = changeManager.reloadVersion
+        guard currentVersion != lastVisualStateCacheVersion else { return }
+        lastVisualStateCacheVersion = currentVersion
+
         rowVisualStateCache.removeAll(keepingCapacity: true)
 
         // If custom getVisualState provided, don't build cache (use callback instead)

@@ -395,6 +395,16 @@ private final class CompletionCellView: NSTableCellView {
     private let detailField = NSTextField(labelWithString: "")
     private let kindBadge = NSTextField(labelWithString: "")
 
+    /// Cached badge background colors to avoid per-cell CGColor allocation
+    private static var badgeColorCache: [SQLCompletionKind: CGColor] = [:]
+
+    private static func badgeColor(for kind: SQLCompletionKind) -> CGColor {
+        if let cached = badgeColorCache[kind] { return cached }
+        let color = kind.iconColor.withAlphaComponent(0.8).cgColor
+        badgeColorCache[kind] = color
+        return color
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         setupViews()
@@ -475,7 +485,7 @@ private final class CompletionCellView: NSTableCellView {
 
         // Kind badge
         kindBadge.stringValue = kindAbbreviation(for: item.kind)
-        kindBadge.layer?.backgroundColor = item.kind.iconColor.withAlphaComponent(0.8).cgColor
+        kindBadge.layer?.backgroundColor = Self.badgeColor(for: item.kind)
 
         // Detail (show type for columns, signature for functions)
         detailField.stringValue = item.detail ?? ""
