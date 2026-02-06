@@ -42,8 +42,11 @@ final class ImportService: ObservableObject {
         }
     }
 
+    private var countingTask: Task<Int, Error>?
+
     func cancelImport() {
         isCancelled = true
+        countingTask?.cancel()
     }
 
     // MARK: - Dependencies
@@ -93,7 +96,17 @@ final class ImportService: ObservableObject {
 
         // 2. Count statements for progress
         statusMessage = "Analyzing file..."
-        totalStatements = try await parser.countStatements(url: fileURL, encoding: config.encoding)
+        let countEncoding = config.encoding
+        let task = Task.detached { [parser] in
+            try await parser.countStatements(url: fileURL, encoding: countEncoding)
+        }
+        countingTask = task
+        defer { countingTask = nil }
+        do {
+            totalStatements = try await task.value
+        } catch is CancellationError {
+            throw ImportError.cancelled
+        }
         statusMessage = ""
 
         // Check for cancellation after counting (before starting execution)

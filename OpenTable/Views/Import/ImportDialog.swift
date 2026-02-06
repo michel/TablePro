@@ -348,8 +348,11 @@ struct ImportDialog: View {
         statementCount = 0
 
         do {
-            let parser = SQLFileParser()
-            let count = try await parser.countStatements(url: url, encoding: config.encoding)
+            let encoding = config.encoding
+            let count = try await Task.detached {
+                let parser = SQLFileParser()
+                return try await parser.countStatements(url: url, encoding: encoding)
+            }.value
             statementCount = count
         } catch {
             // If counting fails, use a sentinel value to distinguish from a real 0
