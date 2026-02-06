@@ -106,7 +106,7 @@ struct SQLEditorTheme {
     static let lineNumberText = NSColor.secondaryLabelColor
 
     /// Line number ruler background
-    static let lineNumberBackground = NSColor.controlBackgroundColor.withAlphaComponent(0.5)
+    static let lineNumberBackground = NSColor.textBackgroundColor
 
     /// Line number ruler border
     static let lineNumberBorder = NSColor.separatorColor
