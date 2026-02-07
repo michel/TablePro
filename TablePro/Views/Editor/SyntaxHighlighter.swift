@@ -454,7 +454,9 @@ final class SyntaxHighlighter: NSObject, NSTextStorageDelegate {
         }
 
         let isInsideStringOrComment: (NSRange) -> Bool = { checkRange in
-            stringOrCommentIndices.contains(checkRange.location)
+            !stringOrCommentIndices.intersection(
+                IndexSet(integersIn: checkRange.location..<NSMaxRange(checkRange))
+            ).isEmpty
         }
 
         // Highlight keywords (only outside strings/comments)

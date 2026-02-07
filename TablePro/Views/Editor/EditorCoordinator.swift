@@ -180,7 +180,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate {
         textUpdateTask?.cancel()
         textUpdateTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            guard let self, !Task.isCancelled else { return }
+            guard let self, let textView = self.textView, !Task.isCancelled else { return }
             self.isUpdatingFromTextView = true
             self.textVersion &+= 1
             self.lastAppliedTextVersion = self.textVersion
