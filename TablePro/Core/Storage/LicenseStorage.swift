@@ -7,11 +7,14 @@
 
 import Foundation
 import IOKit
+import os
 import Security
 
 /// Persists license data using Keychain (secrets) and UserDefaults (metadata)
 final class LicenseStorage {
     static let shared = LicenseStorage()
+
+    private static let logger = Logger(subsystem: "com.TablePro", category: "LicenseStorage")
 
     private let defaults = UserDefaults.standard
 
@@ -93,7 +96,7 @@ final class LicenseStorage {
             let data = try encoder.encode(license)
             defaults.set(data, forKey: Keys.licensePayload)
         } catch {
-            print("[LicenseStorage] Failed to encode license: \(error)")
+            Self.logger.error("Failed to encode license: \(error.localizedDescription)")
         }
     }
 
@@ -108,7 +111,7 @@ final class LicenseStorage {
             decoder.dateDecodingStrategy = .iso8601
             return try decoder.decode(License.self, from: data)
         } catch {
-            print("[LicenseStorage] Failed to decode license: \(error)")
+            Self.logger.error("Failed to decode license: \(error.localizedDescription)")
             return nil
         }
     }

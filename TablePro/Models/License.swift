@@ -144,16 +144,19 @@ struct License: Codable, Equatable {
         Calendar.current.dateComponents([.day], from: lastValidatedAt, to: Date()).day ?? 0
     }
 
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     /// Create a License from a verified server payload
     static func from(
         payload: LicensePayloadData,
         signedPayload: SignedLicensePayload,
         machineId: String
     ) -> License {
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime]
-
-        let expiresAt = payload.expiresAt.flatMap { dateFormatter.date(from: $0) }
+        let expiresAt = payload.expiresAt.flatMap { iso8601Formatter.date(from: $0) }
         let status: LicenseStatus = switch payload.status {
         case "active": .active
         case "expired": .expired

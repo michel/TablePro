@@ -53,6 +53,14 @@ final class LicenseManager: ObservableObject {
             return
         }
 
+        // Verify license belongs to this machine (prevents backup/restore cross-machine use)
+        guard cached.machineId == storage.machineId else {
+            Self.logger.warning("Cached license machineId mismatch, clearing")
+            storage.clearAll()
+            status = .unlicensed
+            return
+        }
+
         // Re-verify signature offline with embedded public key
         do {
             _ = try verifier.verify(payload: cached.signedPayload)
@@ -165,11 +173,13 @@ final class LicenseManager: ObservableObject {
         do {
             try await apiClient.deactivate(request: request)
         } catch {
-            // Log but don't block — clear local state regardless
+            // Log but don't block — clear local state regardless.
+            // By design, deactivation always clears local data even if the API call fails.
+            // The user will need their license key to reactivate.
             Self.logger.warning("Deactivation API call failed: \(error.localizedDescription)")
         }
 
-        // Clear local state
+        // Clear local state (Keychain key + UserDefaults payload)
         storage.clearAll()
         self.license = nil
         status = .deactivated
