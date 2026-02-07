@@ -21,6 +21,82 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Track windows that have been configured to avoid re-applying styles (which causes flicker)
     private var configuredWindows = Set<ObjectIdentifier>()
 
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+
+        let welcomeItem = NSMenuItem(
+            title: "Show Welcome Window",
+            action: #selector(showWelcomeFromDock),
+            keyEquivalent: ""
+        )
+        welcomeItem.target = self
+        menu.addItem(welcomeItem)
+
+        // Add connections submenu
+        let connections = ConnectionStorage.shared.loadConnections()
+        if !connections.isEmpty {
+            let connectionsItem = NSMenuItem(title: "Open Connection", action: nil, keyEquivalent: "")
+            let submenu = NSMenu()
+
+            for connection in connections {
+                let item = NSMenuItem(
+                    title: connection.name,
+                    action: #selector(connectFromDock(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = connection.id
+                if let original = NSImage(named: connection.type.iconName) {
+                    let resized = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
+                        original.draw(in: rect)
+                        return true
+                    }
+                    item.image = resized
+                }
+                submenu.addItem(item)
+            }
+
+            connectionsItem.submenu = submenu
+            menu.addItem(connectionsItem)
+        }
+
+        return menu
+    }
+
+    @objc
+    private func showWelcomeFromDock() {
+        openWelcomeWindow()
+    }
+
+    @objc
+    private func connectFromDock(_ sender: NSMenuItem) {
+        guard let connectionId = sender.representedObject as? UUID else { return }
+        let connections = ConnectionStorage.shared.loadConnections()
+        guard let connection = connections.first(where: { $0.id == connectionId }) else { return }
+
+        // Open main window and connect (same flow as auto-reconnect)
+        NotificationCenter.default.post(name: .openMainWindow, object: nil)
+
+        Task { @MainActor in
+            do {
+                try await DatabaseManager.shared.connectToSession(connection)
+
+                // Close welcome window on successful connection
+                for window in NSApp.windows where self.isWelcomeWindow(window) {
+                    window.close()
+                }
+            } catch {
+                print("[AppDelegate] Dock connection failed for '\(connection.name)': \(error.localizedDescription)")
+
+                // Connection failed - close main window, reopen welcome
+                for window in NSApp.windows where self.isMainWindow(window) {
+                    window.close()
+                }
+                self.openWelcomeWindow()
+            }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Configure windows after app launch
         configureWelcomeWindow()
