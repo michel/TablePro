@@ -46,8 +46,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 )
                 item.target = self
                 item.representedObject = connection.id
-                item.image = NSImage(named: connection.type.iconName)
-                item.image?.size = NSSize(width: 16, height: 16)
+                if let original = NSImage(named: connection.type.iconName) {
+                    let resized = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
+                        original.draw(in: rect)
+                        return true
+                    }
+                    item.image = resized
+                }
                 submenu.addItem(item)
             }
 
@@ -81,6 +86,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     window.close()
                 }
             } catch {
+                print("[AppDelegate] Dock connection failed for '\(connection.name)': \(error.localizedDescription)")
+
                 // Connection failed - close main window, reopen welcome
                 for window in NSApp.windows where self.isMainWindow(window) {
                     window.close()
