@@ -1142,7 +1142,7 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Table Tab Opening
 
-    func openTableTab(_ tableName: String) {
+    func openTableTab(_ tableName: String, showStructure: Bool = false) {
         let needsQuery = tabManager.TableProTabSmart(
             tableName: tableName,
             hasUnsavedChanges: changeManager.hasChanges,
@@ -1152,6 +1152,11 @@ final class MainContentCoordinator: ObservableObject {
         // Initialize pagination for new table tab
         if needsQuery, let tabIndex = tabManager.selectedTabIndex {
             tabManager.tabs[tabIndex].pagination.reset()
+        }
+
+        // Toggle structure view if requested
+        if showStructure, let tabIndex = tabManager.selectedTabIndex {
+            tabManager.tabs[tabIndex].showStructure = true
         }
 
         if needsQuery {

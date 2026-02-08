@@ -369,6 +369,15 @@ final class MainContentNotificationHandler: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: .showTableStructure)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                if let tableName = notification.object as? String {
+                    self?.coordinator?.openTableTab(tableName, showStructure: true)
+                }
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: .exportTables)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
