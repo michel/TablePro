@@ -131,7 +131,12 @@ final class KeyHandlingTableView: NSTableView {
             callback(Set(selectedRowIndexes))
         } else {
             // Fallback for views that haven't migrated to callback pattern
-            NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+            // Pass selected indices so the handler doesn't rely on SwiftUI binding sync timing
+            NotificationCenter.default.post(
+                name: .deleteSelectedRows,
+                object: nil,
+                userInfo: ["rowIndices": Set(selectedRowIndexes)]
+            )
         }
     }
 

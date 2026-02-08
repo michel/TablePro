@@ -110,7 +110,16 @@ final class TableRowViewWithMenu: NSTableRowView {
     }
 
     @objc private func deleteRow() {
-        NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+        let indices: Set<Int> = if let selected = coordinator?.selectedRowIndices, !selected.isEmpty {
+            selected
+        } else {
+            [rowIndex]
+        }
+        NotificationCenter.default.post(
+            name: .deleteSelectedRows,
+            object: nil,
+            userInfo: ["rowIndices": indices]
+        )
     }
 
     @objc private func duplicateRow() {

@@ -90,8 +90,8 @@ final class MainContentNotificationHandler: ObservableObject {
 
         NotificationCenter.default.publisher(for: .deleteSelectedRows)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleDeleteSelectedRows()
+            .sink { [weak self] notification in
+                self?.handleDeleteSelectedRows(notification)
             }
             .store(in: &cancellables)
 
@@ -125,13 +125,20 @@ final class MainContentNotificationHandler: ObservableObject {
         editingCell.wrappedValue = cell
     }
 
-    private func handleDeleteSelectedRows() {
-        let indices = selectedRowIndices.wrappedValue
+    private func handleDeleteSelectedRows(_ notification: Notification) {
+        // Check if the notification carries row indices directly (from data grid)
+        // This avoids relying on SwiftUI binding sync timing
+        let directIndices = notification.userInfo?["rowIndices"] as? Set<Int>
+        let fromDataGrid = directIndices != nil
+
+        let indices = directIndices ?? selectedRowIndices.wrappedValue
         if !indices.isEmpty {
             var mutableIndices = indices
             coordinator?.deleteSelectedRows(indices: indices, selectedRowIndices: &mutableIndices)
             selectedRowIndices.wrappedValue = mutableIndices
-        } else if !selectedTables.wrappedValue.isEmpty {
+        } else if !fromDataGrid, !selectedTables.wrappedValue.isEmpty {
+            // Only toggle table deletion when the notification did NOT originate from
+            // the data grid (e.g., from the app menu Cmd+Delete with no rows selected)
             var updatedDeletes = pendingDeletes.wrappedValue
             var updatedTruncates = pendingTruncates.wrappedValue
 
