@@ -266,6 +266,16 @@ struct SidebarView: View {
 
         Divider()
 
+        Button("Show Structure") {
+            if let tableName = clickedTable?.name {
+                NotificationCenter.default.post(
+                    name: .showTableStructure,
+                    object: tableName
+                )
+            }
+        }
+        .disabled(clickedTable == nil)
+
         Button("Copy Name") {
             let names: [String]
             if selectedTables.isEmpty, let table = clickedTable {

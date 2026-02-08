@@ -436,6 +436,9 @@ extension Notification.Name {
     // Table creation notifications
     static let createTable = Notification.Name("createTable")
 
+    // Table structure notifications
+    static let showTableStructure = Notification.Name("showTableStructure")
+
     // Export notifications
     static let exportTables = Notification.Name("exportTables")
 
