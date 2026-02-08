@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://tablepro.app/docs/logo/logo.png" width="128" height="128" alt="TablePro">
+  <img src=".github/assets/logo.png" width="128" height="128" alt="TablePro">
 </p>
 
 <h1 align="center">TablePro</h1>
@@ -17,7 +17,7 @@
 ---
 
 <p align="center">
-  <img src="https://tablepro.app/docs/images/hero-dark.png" alt="TablePro Screenshot" width="800">
+  <img src=".github/assets/hero-dark.png" alt="TablePro Screenshot" width="800">
 </p>
 
 ## About
