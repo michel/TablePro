@@ -7,17 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.2] - 2026-02-09
-
-### Fixed
-
-- Fix MySQL 8+ connections failing with `caching_sha2_password` plugin error by rebuilding libmariadb.a with the auth plugin compiled statically
-
-### Changed
-
-- CI release notes now read from CHANGELOG.md instead of auto-generating from commits
-- Removed `prepare-libs` CI job to speed up build pipeline (~5 min savings)
-
 ## [0.1.1] - 2026-02-09
 
 ### Added
@@ -27,14 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Show Structure" context menu for sidebar tables
 - Improved filter panel UI/UX
 - SwiftUI EditorTabBar (replacing AppKit NativeTabBarView)
+- GPL v3 license
 
 ### Fixed
 
+- Fix MySQL 8+ connections failing with `caching_sha2_password` plugin error by rebuilding libmariadb.a with the auth plugin compiled statically
 - Fix Delete key on data grid row from marking table as deleted
+- Downgrade all APIs to support macOS 13.5 (Ventura)
 - Code review fixes for multi-statement execution
 
 ### Changed
 
+- CI release notes now read from CHANGELOG.md instead of auto-generating from commits
+- Removed `prepare-libs` CI job to speed up build pipeline (~5 min savings)
 - Add SPM Package.resolved for CodeEditSourceEditor dependencies
 - Add Claude Code project settings
 - Update build/test commands with `-skipPackagePluginValidation`
@@ -84,7 +78,6 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.1.2...HEAD
-[0.1.2]: https://github.com/datlechin/tablepro/compare/v0.1.1...v0.1.2
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.1.1...HEAD
 [0.1.1]: https://github.com/datlechin/tablepro/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/datlechin/tablepro/releases/tag/v0.1.0
