@@ -38,311 +38,15 @@ jobs:
       - name: Run SwiftLint
         run: swiftlint lint --strict
 
-  prepare-libs:
-    name: Prepare Universal Libraries
-    runs-on: macos-26 # Updated to macOS 26 (Tahoe) runner
-    needs: lint
-    timeout-minutes: 25
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/Library/Caches/Homebrew
-          key: brew-downloads-${{ runner.os }}-${{ hashFiles('**/scripts/build-release.sh') }}
-          restore-keys: |
-            brew-downloads-${{ runner.os }}-
-
-      - name: Install ARM64 Homebrew dependencies
-        run: |
-          echo "Installing ARM64 dependencies..."
-          
-          # Check and install only if needed
-          if ! brew list mariadb-connector-c &>/dev/null; then
-            echo "📦 Installing mariadb-connector-c..."
-            brew install mariadb-connector-c
-          else
-            echo "✅ mariadb-connector-c already installed"
-          fi
-          
-          if ! brew list libpq &>/dev/null; then
-            echo "📦 Installing libpq..."
-            brew install libpq
-          else
-            echo "✅ libpq already installed"
-          fi
-
-          # Link packages with --force (needed for keg-only formulas)
-          brew link --force mariadb-connector-c
-          brew link --force libpq
-
-          # Verify installations
-          if ! brew list mariadb-connector-c >/dev/null 2>&1; then
-            echo "❌ ERROR: mariadb-connector-c installation failed or incomplete"
-            exit 1
-          fi
-
-          if ! brew list libpq >/dev/null 2>&1; then
-            echo "❌ ERROR: libpq installation failed or incomplete"
-            exit 1
-          fi
-
-          # Get the actual prefix for mariadb-connector-c (handles keg-only formulas)
-          MARIADB_PREFIX=$(brew --prefix mariadb-connector-c)
-          echo "MariaDB Connector/C prefix: $MARIADB_PREFIX"
-
-          # Find the library file (may be in lib/ or lib/mariadb/)
-          MARIADB_LIB=""
-          for path in "$MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$MARIADB_PREFIX/lib/libmariadb.a"; do
-            if [ -f "$path" ]; then
-              MARIADB_LIB="$path"
-              break
-            fi
-          done
-
-          if [ -z "$MARIADB_LIB" ]; then
-            echo "❌ ERROR: mariadb-connector-c installed but library file not found"
-            echo "Searched in:"
-            echo "  - $MARIADB_PREFIX/lib/mariadb/libmariadb.a"
-            echo "  - $MARIADB_PREFIX/lib/libmariadb.a"
-            echo ""
-            echo "Contents of $MARIADB_PREFIX/lib/:"
-            ls -la "$MARIADB_PREFIX/lib/" || echo "Directory not found"
-            exit 1
-          fi
-
-          echo "✅ Found ARM64 MariaDB library at: $MARIADB_LIB"
-          echo "ARM64_MARIADB_LIB=$MARIADB_LIB" >> $GITHUB_ENV
-          echo "✅ All ARM64 dependencies installed successfully"
-
-      - name: Install x86_64 Homebrew
-        run: |
-          # Install Rosetta 2 if needed
-          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
-            echo "Installing Rosetta 2..."
-            if ! softwareupdate --install-rosetta --agree-to-license; then
-              echo "❌ ERROR: Failed to install Rosetta 2"
-              echo "This is required to run x86_64 binaries on Apple Silicon"
-              exit 1
-            fi
-
-            # Verify Rosetta 2 is now working
-            if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
-              echo "❌ ERROR: Rosetta 2 installed but not functional"
-              exit 1
-            fi
-
-            echo "✅ Rosetta 2 installed successfully"
-          else
-            echo "✅ Rosetta 2 already installed"
-          fi
-
-          # Check if x86_64 Homebrew is already installed
-          if [ ! -f /usr/local/bin/brew ]; then
-            echo "Installing x86_64 Homebrew..."
-
-            # Using official Homebrew installer (trusted source)
-            if ! arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
-              echo "❌ ERROR: Homebrew installation script failed"
-              exit 1
-            fi
-
-            # Verify installation
-            if [ ! -f /usr/local/bin/brew ]; then
-              echo "❌ ERROR: Homebrew installed but /usr/local/bin/brew not found"
-              exit 1
-            fi
-
-            # Verify it's executable
-            if ! /usr/local/bin/brew --version; then
-              echo "❌ ERROR: Homebrew binary is not functional"
-              exit 1
-            fi
-
-            echo "✅ x86_64 Homebrew installed successfully"
-          else
-            echo "x86_64 Homebrew already installed"
-
-            # Still verify it works
-            if ! /usr/local/bin/brew --version; then
-              echo "❌ ERROR: x86_64 Homebrew exists but is not functional"
-              exit 1
-            fi
-          fi
-
-      - name: Install x86_64 Homebrew dependencies
-        run: |
-          echo "Installing x86_64 dependencies..."
-          
-          # Check and install only if needed
-          if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c &>/dev/null; then
-            echo "📦 Installing mariadb-connector-c (x86_64)..."
-            arch -x86_64 /usr/local/bin/brew install mariadb-connector-c
-          else
-            echo "✅ mariadb-connector-c (x86_64) already installed"
-          fi
-          
-          if ! arch -x86_64 /usr/local/bin/brew list libpq &>/dev/null; then
-            echo "📦 Installing libpq (x86_64)..."
-            arch -x86_64 /usr/local/bin/brew install libpq
-          else
-            echo "✅ libpq (x86_64) already installed"
-          fi
-
-          # Link packages with --force (needed for keg-only formulas)
-          arch -x86_64 /usr/local/bin/brew link --force mariadb-connector-c
-          arch -x86_64 /usr/local/bin/brew link --force libpq
-
-          # Verify installations
-          if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c >/dev/null 2>&1; then
-            echo "❌ ERROR: mariadb-connector-c installation failed or incomplete"
-            exit 1
-          fi
-
-          if ! arch -x86_64 /usr/local/bin/brew list libpq >/dev/null 2>&1; then
-            echo "❌ ERROR: libpq installation failed or incomplete"
-            exit 1
-          fi
-
-          # Get the actual prefix for mariadb-connector-c (handles keg-only formulas)
-          X86_MARIADB_PREFIX=$(arch -x86_64 /usr/local/bin/brew --prefix mariadb-connector-c)
-          echo "x86_64 MariaDB Connector/C prefix: $X86_MARIADB_PREFIX"
-
-          # Find the library file (may be in lib/ or lib/mariadb/)
-          X86_MARIADB_LIB=""
-          for path in "$X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$X86_MARIADB_PREFIX/lib/libmariadb.a"; do
-            if [ -f "$path" ]; then
-              X86_MARIADB_LIB="$path"
-              break
-            fi
-          done
-
-          if [ -z "$X86_MARIADB_LIB" ]; then
-            echo "❌ ERROR: mariadb-connector-c installed but library file not found"
-            echo "Searched in:"
-            echo "  - $X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a"
-            echo "  - $X86_MARIADB_PREFIX/lib/libmariadb.a"
-            echo ""
-            echo "Contents of $X86_MARIADB_PREFIX/lib/:"
-            ls -la "$X86_MARIADB_PREFIX/lib/" || echo "Directory not found"
-            exit 1
-          fi
-
-          echo "✅ Found x86_64 MariaDB library at: $X86_MARIADB_LIB"
-          echo "X86_MARIADB_LIB=$X86_MARIADB_LIB" >> $GITHUB_ENV
-          echo "✅ All x86_64 dependencies installed successfully"
-
-      - name: Create universal libmariadb library
-        run: |
-          echo "Creating universal libmariadb.a..."
-
-          # Use library paths from environment (set by previous steps)
-          ARM64_LIB="${ARM64_MARIADB_LIB}"
-          X86_LIB="${X86_MARIADB_LIB}"
-
-          echo "ARM64 library path: $ARM64_LIB"
-          echo "x86_64 library path: $X86_LIB"
-
-          # Verify input files exist
-          if [ -z "$ARM64_LIB" ] || [ ! -f "$ARM64_LIB" ]; then
-            echo "❌ ERROR: ARM64 library not found at: $ARM64_LIB"
-            echo "ARM64 Homebrew installation may have failed"
-            exit 1
-          fi
-
-          if [ -z "$X86_LIB" ] || [ ! -f "$X86_LIB" ]; then
-            echo "❌ ERROR: x86_64 library not found at: $X86_LIB"
-            echo "x86_64 Homebrew installation may have failed"
-            exit 1
-          fi
-
-          # Verify inputs are correct architectures
-          echo "Verifying input architectures:"
-          lipo -info "$ARM64_LIB"
-          lipo -info "$X86_LIB"
-
-          # Ensure output directory exists
-          mkdir -p Libs
-
-          # Create universal binary
-          if ! lipo -create "$ARM64_LIB" "$X86_LIB" -output Libs/libmariadb_universal.a; then
-            echo "❌ ERROR: Failed to create universal library"
-            echo "This could mean:"
-            echo "  - Libraries are incompatible"
-            echo "  - Libraries are already universal"
-            echo "  - Output directory is not writable"
-            exit 1
-          fi
-
-          # Verify output
-          if [ ! -f "Libs/libmariadb_universal.a" ]; then
-            echo "❌ ERROR: Universal library was not created"
-            exit 1
-          fi
-
-          echo "✅ Universal library created successfully:"
-          lipo -info Libs/libmariadb_universal.a
-          ls -lh Libs/libmariadb_universal.a
-
-          # Verify it's actually universal (contains both architectures)
-          if ! lipo -info Libs/libmariadb_universal.a | grep -q "arm64"; then
-            echo "❌ ERROR: Universal library missing arm64 architecture"
-            exit 1
-          fi
-
-          if ! lipo -info Libs/libmariadb_universal.a | grep -q "x86_64"; then
-            echo "❌ ERROR: Universal library missing x86_64 architecture"
-            exit 1
-          fi
-
-          echo "✅ Verified: Library contains both arm64 and x86_64"
-
-      - name: Upload library artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: libs-universal
-          path: Libs/
-          retention-days: 1
-
   build-arm64:
     name: Build ARM64
     runs-on: macos-26 # Updated to macOS 26 (Tahoe) runner
-    needs: prepare-libs
+    needs: lint
     timeout-minutes: 20
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download library artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: libs-universal
-          path: Libs/
-
-      - name: Verify downloaded artifacts
-        run: |
-          echo "Verifying downloaded library artifacts..."
-
-          if [ ! -f "Libs/libmariadb_universal.a" ]; then
-            echo "❌ ERROR: Required library artifact not found: Libs/libmariadb_universal.a"
-            echo "This means:"
-            echo "  - The prepare-libs job failed to create the library"
-            echo "  - The artifact upload failed"
-            echo "  - The artifact download was corrupted"
-            echo ""
-            echo "Contents of Libs directory:"
-            ls -la Libs/ || echo "Libs directory is empty or doesn't exist"
-            exit 1
-          fi
-
-          echo "✅ Universal library found"
-          lipo -info Libs/libmariadb_universal.a
-          ls -lh Libs/libmariadb_universal.a
 
       - name: Cache Homebrew downloads
         uses: actions/cache@v4
@@ -388,6 +92,36 @@ jobs:
           fi
 
           echo "✅ ARM64 dependencies installed"
+
+      - name: Prepare libmariadb
+        run: |
+          echo "📦 Copying libmariadb.a from Homebrew..."
+
+          MARIADB_PREFIX=$(brew --prefix mariadb-connector-c)
+
+          # Find the library file (may be in lib/ or lib/mariadb/)
+          MARIADB_LIB=""
+          for path in "$MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$MARIADB_PREFIX/lib/libmariadb.a"; do
+            if [ -f "$path" ]; then
+              MARIADB_LIB="$path"
+              break
+            fi
+          done
+
+          if [ -z "$MARIADB_LIB" ]; then
+            echo "❌ ERROR: libmariadb.a not found in Homebrew installation"
+            echo "Searched in:"
+            echo "  - $MARIADB_PREFIX/lib/mariadb/libmariadb.a"
+            echo "  - $MARIADB_PREFIX/lib/libmariadb.a"
+            exit 1
+          fi
+
+          mkdir -p Libs
+          cp "$MARIADB_LIB" Libs/libmariadb.a
+
+          echo "✅ libmariadb.a copied from $MARIADB_LIB"
+          lipo -info Libs/libmariadb.a
+          ls -lh Libs/libmariadb.a
 
       - name: Select Xcode version
         run: |
@@ -510,33 +244,12 @@ jobs:
   build-x86_64:
     name: Build x86_64
     runs-on: macos-26 # Updated to macOS 26 (Tahoe) runner
-    needs: prepare-libs
+    needs: lint
     timeout-minutes: 20
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Download library artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: libs-universal
-          path: Libs/
-
-      - name: Verify downloaded artifacts
-        run: |
-          echo "Verifying downloaded library artifacts..."
-
-          if [ ! -f "Libs/libmariadb_universal.a" ]; then
-            echo "❌ ERROR: Required library artifact not found: Libs/libmariadb_universal.a"
-            echo ""
-            echo "Contents of Libs directory:"
-            ls -la Libs/ || echo "Libs directory is empty or doesn't exist"
-            exit 1
-          fi
-
-          echo "✅ Universal library found"
-          lipo -info Libs/libmariadb_universal.a
 
       - name: Cache Homebrew downloads
         uses: actions/cache@v4
@@ -632,6 +345,36 @@ jobs:
           fi
 
           echo "✅ x86_64 dependencies installed"
+
+      - name: Prepare libmariadb
+        run: |
+          echo "📦 Copying libmariadb.a from x86_64 Homebrew..."
+
+          X86_MARIADB_PREFIX=$(arch -x86_64 /usr/local/bin/brew --prefix mariadb-connector-c)
+
+          # Find the library file (may be in lib/ or lib/mariadb/)
+          MARIADB_LIB=""
+          for path in "$X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$X86_MARIADB_PREFIX/lib/libmariadb.a"; do
+            if [ -f "$path" ]; then
+              MARIADB_LIB="$path"
+              break
+            fi
+          done
+
+          if [ -z "$MARIADB_LIB" ]; then
+            echo "❌ ERROR: libmariadb.a not found in x86_64 Homebrew installation"
+            echo "Searched in:"
+            echo "  - $X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a"
+            echo "  - $X86_MARIADB_PREFIX/lib/libmariadb.a"
+            exit 1
+          fi
+
+          mkdir -p Libs
+          cp "$MARIADB_LIB" Libs/libmariadb.a
+
+          echo "✅ libmariadb.a copied from $MARIADB_LIB"
+          lipo -info Libs/libmariadb.a
+          ls -lh Libs/libmariadb.a
 
       - name: Select Xcode version
         run: |
