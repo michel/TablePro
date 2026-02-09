@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix redo functionality in data grid (Cmd+Shift+Z now works correctly)
+- Fix redo stack not being cleared when new changes are made (standard undo/redo behavior)
+- Fix `canRedo()` always returning false in data grid coordinator
+- Wire undo/redo callbacks directly to data grid for proper responder chain validation
+
 ## [0.1.1] - 2026-02-09
 
 ### Added

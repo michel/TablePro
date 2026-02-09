@@ -266,6 +266,14 @@ struct MainEditorContentView: View {
             onCommit: onCommit,
             onRefresh: onRefresh,
             onCellEdit: onCellEdit,
+            onUndo: { [binding = _selectedRowIndices, coordinator] in
+                var indices = binding.wrappedValue
+                coordinator.undoLastChange(selectedRowIndices: &indices)
+                binding.wrappedValue = indices
+            },
+            onRedo: { [coordinator] in
+                coordinator.redoLastChange()
+            },
             onSort: onSort,
             onAddRow: onAddRow,
             onUndoInsert: onUndoInsert,

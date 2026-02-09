@@ -302,8 +302,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     /// Check if redo is available
     func canRedo() -> Bool {
-        // TODO: Implement redo tracking in change manager
-        false
+        changeManager.canRedo
     }
 
     weak var tableView: NSTableView?

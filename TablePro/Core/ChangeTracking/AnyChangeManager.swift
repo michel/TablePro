@@ -18,6 +18,7 @@ final class AnyChangeManager: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     private let _isRowDeleted: (Int) -> Bool
     private let _getChanges: () -> [Any]
+    private let _canRedo: () -> Bool
     private let _recordCellChange: ((Int, Int, String, String?, String?, [String?]) -> Void)?
     private let _undoRowDeletion: ((Int) -> Void)?
     private let _undoRowInsertion: ((Int) -> Void)?
@@ -32,6 +33,9 @@ final class AnyChangeManager: ObservableObject {
         }
         self._getChanges = {
             dataManager.changes
+        }
+        self._canRedo = {
+            dataManager.canRedo
         }
         self._recordCellChange = { rowIndex, columnIndex, columnName, oldValue, newValue, originalRow in
             dataManager.recordCellChange(
@@ -68,6 +72,9 @@ final class AnyChangeManager: ObservableObject {
         self._getChanges = {
             Array(structureManager.pendingChanges.values)
         }
+        self._canRedo = {
+            structureManager.canRedo
+        }
         self._recordCellChange = nil // Structure uses custom editing logic
         self._undoRowDeletion = nil
         self._undoRowInsertion = nil
@@ -85,6 +92,10 @@ final class AnyChangeManager: ObservableObject {
     }
 
     // MARK: - Public API
+
+    var canRedo: Bool {
+        _canRedo()
+    }
 
     func isRowDeleted(_ rowIndex: Int) -> Bool {
         _isRowDeleted(rowIndex)

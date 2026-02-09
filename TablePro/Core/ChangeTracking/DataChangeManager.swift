@@ -50,6 +50,9 @@ final class DataChangeManager: ObservableObject {
     /// Undo/redo manager
     private let undoManager = DataChangeUndoManager()
 
+    /// Flag to prevent clearing redo stack during redo operations
+    private var isRedoing = false
+
     // MARK: - Undo/Redo Properties
 
     var canUndo: Bool { undoManager.canUndo }
@@ -114,6 +117,9 @@ final class DataChangeManager: ObservableObject {
         originalRow: [String?]? = nil
     ) {
         guard oldValue != newValue else { return }
+
+        // New changes invalidate redo history (standard undo/redo behavior)
+        if !isRedoing { undoManager.clearRedo() }
 
         let cellChange = CellChange(
             rowIndex: rowIndex,
@@ -224,6 +230,9 @@ final class DataChangeManager: ObservableObject {
     }
 
     func recordRowDeletion(rowIndex: Int, originalRow: [String?]) {
+        // New changes invalidate redo history (standard undo/redo behavior)
+        if !isRedoing { undoManager.clearRedo() }
+
         changes.removeAll { $0.rowIndex == rowIndex && $0.type == .update }
         modifiedCells.removeValue(forKey: rowIndex)
 
@@ -237,6 +246,9 @@ final class DataChangeManager: ObservableObject {
     }
 
     func recordBatchRowDeletion(rows: [(rowIndex: Int, originalRow: [String?])]) {
+        // New changes invalidate redo history (never called from redo path)
+        undoManager.clearRedo()
+
         guard rows.count > 1 else {
             if let row = rows.first {
                 recordRowDeletion(rowIndex: row.rowIndex, originalRow: row.originalRow)
@@ -263,6 +275,9 @@ final class DataChangeManager: ObservableObject {
     }
 
     func recordRowInsertion(rowIndex: Int, values: [String?]) {
+        // New changes invalidate redo history (never called from redo path)
+        undoManager.clearRedo()
+
         insertedRowData[rowIndex] = values
         let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: [])
         changes.append(rowChange)
@@ -462,6 +477,9 @@ final class DataChangeManager: ObservableObject {
     /// Redo the last undone change
     func redoLastChange() -> (action: UndoAction, needsRowInsert: Bool, needsRowDelete: Bool)? {
         guard let action = undoManager.popRedo() else { return nil }
+
+        isRedoing = true
+        defer { isRedoing = false }
 
         undoManager.moveToUndo(action)
 
