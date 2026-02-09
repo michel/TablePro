@@ -194,8 +194,9 @@ struct CreateTableView: View {
             LoadTemplateSheet(
                 templates: savedTemplates,
                 onLoad: { name in loadTemplate(name); showLoadTemplate = false },
-                onDelete: deleteTemplate
-            )                   { showLoadTemplate = false }
+                onDelete: deleteTemplate,
+                onCancel: { showLoadTemplate = false }
+            )
         }
         .sheet(isPresented: $showImportDDL) {
             ImportDDLSheet(
