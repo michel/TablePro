@@ -124,19 +124,19 @@ No SSL/TLS configuration is visible in the connection form UI. Many production d
   - Persist SSL config in ConnectionStorage
   - Test with AWS RDS, Google Cloud SQL, DigitalOcean databases
 
-### 1.2 CSV/JSON Import
+### 1.2 CSV/JSON Import (Partially Done)
 **Priority: CRITICAL** | **Effort: Medium**
 
-Currently only SQL file import is supported. CSV is the most common data exchange format.
+CSV clipboard paste now works with proper RFC 4180 parsing. File-based CSV import needs additional UI.
 
-- **Files to modify:** `Views/Import/ImportDialog.swift`, `Core/Services/ImportService.swift`
+- **Files modified:** `Core/Services/RowParser.swift`, `Core/Services/RowOperationsManager.swift`
 - **Tasks:**
-  - Implement RFC 4180 CSV parser (handle quotes, escapes, multi-line values)
-  - Add CSV import dialog with column mapping, delimiter detection, encoding selection
-  - Add JSON import (array of objects format)
-  - Add preview of first N rows before import
-  - Support header row detection and column type inference
-  - Note: `RowParser.swift:98` has a TODO — CSV paste already falls back to TSV parser
+  - ~~Implement RFC 4180 CSV parser (handle quotes, escapes, multi-line values)~~ (DONE)
+  - ~~Auto-detect CSV vs TSV in clipboard paste~~ (DONE)
+  - ~~Header row detection~~ (DONE)
+  - Add CSV file import dialog with column mapping, delimiter detection, encoding selection (Future)
+  - Add JSON import (array of objects format) (Future)
+  - Add preview of first N rows before import (Future)
 
 ### 1.3 ~~Complete Redo Functionality~~ (DONE)
 **Status: COMPLETED**
@@ -457,7 +457,7 @@ No UI for managing database users, roles, or permissions.
 
 | # | File | Line | Description | Priority |
 |---|------|------|-------------|----------|
-| 1 | `Core/Services/RowParser.swift` | 98 | CSV parsing not implemented, falls back to TSV | Critical |
+| 1 | `Core/Services/RowParser.swift` | 98 | ~~CSV parsing not implemented, falls back to TSV~~ (FIXED) | ~~Critical~~ |
 | 2 | `Views/Results/DataGridView.swift` | 305 | ~~Redo tracking not implemented~~ (FIXED) | ~~Critical~~ |
 | 3 | `Views/Toolbar/ToolbarItemFactory.swift` | 285 | ~~Connection switcher opens welcome window instead of popover~~ (FIXED) | ~~High~~ |
 | 4 | `Core/SchemaTracking/SchemaStatementGenerator.swift` | 415 | PostgreSQL PK rename assumes `{table}_pkey` convention | Medium |
@@ -467,7 +467,7 @@ No UI for managing database users, roles, or permissions.
 
 ### Debug Code to Clean Up
 
-- **46 `print()` statements** across codebase (should migrate to `Logger` from `OSLog`)
+- ~~**46 `print()` statements** across codebase~~ (DONE — migrated to `Logger` from `OSLog`)
 - Notable files with debug prints:
   - `Views/Editor/CreateTableView.swift` (7 debug prints in duplicate table feature)
   - `Views/Sidebar/TableOperationDialog.swift` (3 debug prints)
@@ -487,7 +487,7 @@ No UI for managing database users, roles, or permissions.
 
 | Item | Description | Effort |
 |------|-------------|--------|
-| Replace `print()` with `Logger` | 46 print statements → OSLog Logger | Small |
+| ~~Replace `print()` with `Logger`~~ | ~~46 print statements → OSLog Logger~~ (DONE) | ~~Small~~ |
 | Audit `try?` usage | Review 100+ silent failures for appropriate error handling | Medium |
 | Unit tests | **No test files found** — TestPlan exists but 0 test cases | Large |
 | Localization | No `.strings` files, English only, no i18n infrastructure | Large |
@@ -586,7 +586,7 @@ For any developer continuing this project, start with these files:
 
 ### Phase 1: v0.2.0 — Essential Gaps (Next Release)
 1. SSL/TLS connection support
-2. CSV import (fix the existing TODO in RowParser)
+2. ~~CSV clipboard paste (RFC 4180 parser + auto-detection)~~ (DONE)
 3. ~~Complete redo functionality~~ (DONE)
 4. ~~Connection switcher popover~~ (DONE)
 5. ~~Replace `print()` with `Logger`~~ (DONE)

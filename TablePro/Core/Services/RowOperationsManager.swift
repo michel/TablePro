@@ -340,8 +340,8 @@ final class RowOperationsManager {
             primaryKeyColumn: primaryKeyColumn
         )
 
-        // Parse clipboard text
-        let rowParser = parser ?? TSVRowParser()
+        // Parse clipboard text (auto-detect CSV vs TSV)
+        let rowParser = parser ?? Self.detectParser(for: clipboardText)
         let parseResult = rowParser.parse(clipboardText, schema: schema)
 
         switch parseResult {
@@ -353,6 +353,27 @@ final class RowOperationsManager {
             Self.logger.warning("Paste failed: \(error.localizedDescription)")
             return []
         }
+    }
+
+    // MARK: - Parser Detection
+
+    /// Auto-detect whether clipboard text is CSV or TSV
+    /// Heuristic: if tabs appear in most lines, use TSV; otherwise CSV
+    static func detectParser(for text: String) -> RowDataParser {
+        let lines = text.components(separatedBy: .newlines)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard !lines.isEmpty else { return TSVRowParser() }
+
+        let tabCount = lines.filter { $0.contains("\t") }.count
+        let commaCount = lines.filter { $0.contains(",") }.count
+
+        // If majority of lines have tabs, use TSV; otherwise CSV
+        if tabCount > commaCount {
+            return TSVRowParser()
+        } else if commaCount > 0 {
+            return CSVRowParser()
+        }
+        return TSVRowParser()
     }
 
     // MARK: - Private Helpers
