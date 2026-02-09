@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 extension Notification.Name {
     static let sshTunnelDied = Notification.Name("sshTunnelDied")
@@ -51,6 +52,7 @@ struct SSHTunnel {
 /// Manages SSH tunnels for database connections using system ssh command
 actor SSHTunnelManager {
     static let shared = SSHTunnelManager()
+    private static let logger = Logger(subsystem: "com.TablePro", category: "SSHTunnelManager")
 
     private var tunnels: [UUID: SSHTunnel] = [:]
     private let portRangeStart = 60_000
@@ -81,7 +83,7 @@ actor SSHTunnelManager {
         for (connectionId, tunnel) in tunnels {
             // Check if process is still running
             if !tunnel.process.isRunning {
-                print("⚠️ SSH tunnel for \(connectionId) died, attempting reconnection...")
+                Self.logger.warning("SSH tunnel for \(connectionId) died, attempting reconnection...")
 
                 // Notify DatabaseManager to reconnect
                 await notifyTunnelDied(connectionId: connectionId)

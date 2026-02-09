@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 import SQLite3
 
 /// Date filter options for history queries
@@ -35,6 +36,7 @@ enum DateFilter {
 /// Thread-safe SQLite storage for query history
 final class QueryHistoryStorage {
     static let shared = QueryHistoryStorage()
+    private static let logger = Logger(subsystem: "com.TablePro", category: "QueryHistoryStorage")
 
     // Thread-safe queue for all database operations
     private let queue = DispatchQueue(label: "com.TablePro.queryhistory", qos: .utility)
@@ -77,7 +79,7 @@ final class QueryHistoryStorage {
 
         // Open database
         if sqlite3_open(dbPath, &db) != SQLITE_OK {
-            print("Error opening database")
+            Self.logger.error("Error opening database")
             return
         }
 

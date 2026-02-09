@@ -8,6 +8,7 @@
 
 import Combine
 import Foundation
+import os
 
 // MARK: - Export Error
 
@@ -55,6 +56,7 @@ private extension String {
 /// Service responsible for exporting table data to various formats
 @MainActor
 final class ExportService: ObservableObject {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
     // MARK: - Published State
 
     @Published var isExporting: Bool = false
@@ -187,11 +189,11 @@ final class ExportService: ObservableObject {
             } catch {
                 // Log the error but continue - progress will be less accurate
                 failedCount += 1
-                print("Warning: Failed to get row count for \(table.qualifiedName): \(error.localizedDescription)")
+                Self.logger.warning("Failed to get row count for \(table.qualifiedName): \(error.localizedDescription)")
             }
         }
         if failedCount > 0 {
-            print("Warning: \(failedCount) table(s) failed row count - progress indicator may be inaccurate")
+            Self.logger.warning("\(failedCount) table(s) failed row count - progress indicator may be inaccurate")
             // Update status message so user knows progress is estimated
             statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
         }
@@ -268,7 +270,7 @@ final class ExportService: ObservableObject {
 
         // Log when sanitization modifies the name
         if result != name {
-            print("Warning: Table name '\(name)' was sanitized to '\(result)' for SQL comment safety")
+            Self.logger.warning("Table name '\(name)' was sanitized to '\(result)' for SQL comment safety")
         }
 
         return result
@@ -291,7 +293,7 @@ final class ExportService: ObservableObject {
         do {
             try handle.close()
         } catch {
-            print("Warning: Failed to close export file handle: \(error.localizedDescription)")
+            Self.logger.warning("Failed to close export file handle: \(error.localizedDescription)")
         }
     }
 
@@ -728,7 +730,7 @@ final class ExportService: ObservableObject {
 
                         // Use sanitizedName (already defined above) for safe comment output
                         let ddlWarning = "Warning: failed to fetch DDL for table \(sanitizedName): \(error)"
-                        print(ddlWarning)
+                        Self.logger.warning("Failed to fetch DDL for table \(sanitizedName): \(error)")
                         try fileHandle.write(contentsOf: "-- \(sanitizeForSQLComment(ddlWarning))\n\n".toUTF8Data())
                     }
                 }

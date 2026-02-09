@@ -13,9 +13,11 @@
 //
 
 import Foundation
+import os
 
 /// SQL statement parser that handles comments, strings, and multi-line statements
 final class SQLFileParser: Sendable {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "SQLFileParser")
     // MARK: - Parser State
 
     private enum ParserState {
@@ -54,7 +56,7 @@ final class SQLFileParser: Sendable {
                         do {
                             try fileHandle.close()
                         } catch {
-                            print("WARNING: Failed to close file handle for \(url.path): \(error)")
+                            Self.logger.warning("Failed to close file handle for \(url.path): \(error)")
                         }
                     }
 
@@ -72,7 +74,7 @@ final class SQLFileParser: Sendable {
                         if data.isEmpty { break }
 
                         guard let chunk = String(data: data, encoding: encoding) else {
-                            print("ERROR: Failed to decode chunk with encoding \(encoding.description)")
+                            Self.logger.error("Failed to decode chunk with encoding \(encoding.description)")
                             continuation.finish()
                             return
                         }
@@ -217,8 +219,8 @@ final class SQLFileParser: Sendable {
 
                     continuation.finish()
                 } catch {
-                    print("ERROR: SQL file parsing failed: \(error.localizedDescription)")
-                    print("Error details: \(error)")
+                    Self.logger.error("SQL file parsing failed: \(error.localizedDescription)")
+                    Self.logger.error("Error details: \(error)")
                     continuation.finish()
                 }
             }

@@ -9,6 +9,7 @@
 import CodeEditSourceEditor
 import Combine
 import Foundation
+import os
 import SwiftUI
 
 /// Discard action types for unified alert handling
@@ -29,6 +30,8 @@ struct QuerySortCacheEntry {
 /// Coordinator managing MainContentView business logic
 @MainActor
 final class MainContentCoordinator: ObservableObject {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
+
     // MARK: - Dependencies
 
     let connection: DatabaseConnection
@@ -140,7 +143,7 @@ final class MainContentCoordinator: ObservableObject {
             let metadata = try await driver.fetchTableMetadata(tableName: tableName)
             self.tableMetadata = metadata
         } catch {
-            print("[MainContentCoordinator] Failed to load table metadata: \(error)")
+            Self.logger.error("Failed to load table metadata: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -929,7 +932,7 @@ final class MainContentCoordinator: ObservableObject {
                         do {
                             _ = try await driver.execute(query: statement)
                         } catch {
-                            print("Warning: Failed to re-enable foreign key checks with statement '\(statement)': \(error)")
+                            Self.logger.warning("Failed to re-enable foreign key checks with statement '\(statement, privacy: .public)': \(error.localizedDescription, privacy: .public)")
                         }
                     }
                 }

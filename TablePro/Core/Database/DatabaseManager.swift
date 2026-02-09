@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import os
 
 extension Notification.Name {
     static let databaseDidConnect = Notification.Name("databaseDidConnect")
@@ -16,6 +17,7 @@ extension Notification.Name {
 @MainActor
 final class DatabaseManager: ObservableObject {
     static let shared = DatabaseManager()
+    private static let logger = Logger(subsystem: "com.TablePro", category: "DatabaseManager")
 
     /// All active connection sessions
     @Published private(set) var activeSessions: [UUID: ConnectionSession] = [:]
@@ -295,7 +297,7 @@ final class DatabaseManager: ObservableObject {
     private func handleSSHTunnelDied(connectionId: UUID) async {
         guard let session = activeSessions[connectionId] else { return }
 
-        print("⚠️ SSH tunnel died for connection: \(session.connection.name)")
+        Self.logger.warning("SSH tunnel died for connection: \(session.connection.name)")
 
         // Mark connection as reconnecting
         updateSession(connectionId) { session in
@@ -308,9 +310,9 @@ final class DatabaseManager: ObservableObject {
         do {
             // Attempt to reconnect
             try await connectToSession(session.connection)
-            print("✅ Successfully reconnected SSH tunnel for: \(session.connection.name)")
+            Self.logger.info("Successfully reconnected SSH tunnel for: \(session.connection.name)")
         } catch {
-            print("❌ Failed to reconnect SSH tunnel: \(error.localizedDescription)")
+            Self.logger.error("Failed to reconnect SSH tunnel: \(error.localizedDescription)")
 
             // Mark as error
             updateSession(connectionId) { session in

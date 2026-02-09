@@ -6,6 +6,7 @@
 //
 
 import CodeEditSourceEditor
+import os
 import SwiftUI
 
 extension Notification.Name {
@@ -14,6 +15,8 @@ extension Notification.Name {
 
 /// SQL query editor view with execute button
 struct QueryEditorView: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
+
     @Binding var queryText: String
     @Binding var cursorPositions: [CursorPosition]
     var onExecute: () -> Void
@@ -114,7 +117,7 @@ struct QueryEditorView: View {
                 cursorPositions = [CursorPosition(range: NSRange(location: newCursor, length: 0))]
             }
         } catch {
-            print("SQL Formatting error: \(error.localizedDescription)")
+            Self.logger.error("SQL Formatting error: \(error.localizedDescription, privacy: .public)")
         }
     }
 }

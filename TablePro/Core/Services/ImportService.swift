@@ -8,12 +8,14 @@
 
 import Combine
 import Foundation
+import os
 
 // MARK: - Import Service
 
 /// Service responsible for importing SQL files
 @MainActor
 final class ImportService: ObservableObject {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ImportService")
     // MARK: - Published State
 
     @Published var isImporting: Bool = false
@@ -89,7 +91,7 @@ final class ImportService: ObservableObject {
                 do {
                     try FileManager.default.removeItem(at: fileURL)
                 } catch {
-                    print("WARNING: Failed to clean up temporary file at \(fileURL.path): \(error)")
+                    Self.logger.warning("Failed to clean up temporary file at \(fileURL.path): \(error)")
                 }
             }
         }
@@ -244,7 +246,7 @@ final class ImportService: ObservableObject {
                         // Store this as a warning that should be shown alongside the original error
                         let message = fkError.localizedDescription
                         fkReenableErrors.append(message)
-                        print("WARNING: Failed to re-enable FK checks: \(message)")
+                        Self.logger.warning("Failed to re-enable FK checks: \(message)")
                         // Note: We don't throw here to preserve the original import error
                         // but we should log this for the user to see
                     }

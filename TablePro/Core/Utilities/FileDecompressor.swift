@@ -6,9 +6,11 @@
 //
 
 import Foundation
+import os
 
 /// Utility for decompressing gzip-compressed files
 enum FileDecompressor {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "FileDecompressor")
     /// Decompress a .gz file to a temporary location
     /// - Parameters:
     ///   - url: URL to the .gz file
@@ -47,7 +49,7 @@ enum FileDecompressor {
                 do {
                     try outputFile.close()
                 } catch {
-                    print("WARNING: Failed to close decompressed output file handle at \(tempURL.path): \(error)")
+                    logger.warning("Failed to close decompressed output file handle at \(tempURL.path): \(error)")
                 }
             }
 

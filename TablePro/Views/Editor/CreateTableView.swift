@@ -6,10 +6,13 @@
 //  Features table-style column editor, side panel, and professional styling.
 //
 
+import os
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct CreateTableView: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "CreateTableView")
+
     @Binding var options: TableCreationOptions
     let databaseType: DatabaseType
     let onCancel: () -> Void
@@ -766,10 +769,10 @@ struct CreateTableView: View {
                     }
 
                     // Debug: Log what we got
-                    print("DEBUG: Duplicate table - Got \(result.rows.count) rows")
-                    print("DEBUG: Columns: \(result.columns)")
+                    Self.logger.debug("Duplicate table - Got \(result.rows.count, privacy: .public) rows")
+                    Self.logger.debug("Columns: \(result.columns.description, privacy: .public)")
                     if let firstRow = result.rows.first {
-                        print("DEBUG: First row: \(firstRow)")
+                        Self.logger.debug("First row: \(firstRow.description, privacy: .public)")
                     }
 
                     // Build arrays locally first (don't modify options until we're done)
@@ -858,9 +861,9 @@ struct CreateTableView: View {
                     }
 
                     // Debug: Log results
-                    print("DEBUG: Parsed \(parsedCount) columns out of \(result.rows.count) rows")
-                    print("DEBUG: newColumns.count = \(newColumns.count)")
-                    print("DEBUG: Primary keys = \(newPrimaryKeys)")
+                    Self.logger.debug("Parsed \(parsedCount, privacy: .public) columns out of \(result.rows.count, privacy: .public) rows")
+                    Self.logger.debug("newColumns.count = \(newColumns.count, privacy: .public)")
+                    Self.logger.debug("Primary keys = \(newPrimaryKeys.description, privacy: .public)")
 
                     guard !newColumns.isEmpty else {
                         validationError = "Failed to parse any columns from table '\(tableName)'. Check console for debug info."
@@ -889,7 +892,7 @@ struct CreateTableView: View {
                     selectedColumnId = options.columns.first?.id
                     validationError = nil
 
-                    print("DEBUG: Duplicate complete - \(options.columns.count) columns copied")
+                    Self.logger.debug("Duplicate complete - \(options.columns.count, privacy: .public) columns copied")
                 }
             } catch {
                 await MainActor.run {

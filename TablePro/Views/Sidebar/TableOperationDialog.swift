@@ -6,10 +6,13 @@
 //  Provides options for foreign key constraint handling and cascade operations.
 //
 
+import os
 import SwiftUI
 
 /// Confirmation dialog for table delete/truncate operations
 struct TableOperationDialog: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "TableOperationDialog")
+
     // MARK: - Properties
 
     @Binding var isPresented: Bool
@@ -186,6 +189,8 @@ struct TableOperationDialog: View {
 
 // MARK: - Preview
 
+private let previewLogger = Logger(subsystem: "com.TablePro", category: "TableOperationDialog")
+
 #Preview("Drop Table - MySQL") {
     TableOperationDialog(
         isPresented: .constant(true),
@@ -193,7 +198,7 @@ struct TableOperationDialog: View {
         operationType: .drop,
         databaseType: .mysql
     )        { options in
-        print("Options: \(options)")
+        previewLogger.debug("Options: \(String(describing: options), privacy: .public)")
     }
 }
 
@@ -204,7 +209,7 @@ struct TableOperationDialog: View {
         operationType: .truncate,
         databaseType: .postgresql
     )        { options in
-        print("Options: \(options)")
+        previewLogger.debug("Options: \(String(describing: options), privacy: .public)")
     }
 }
 
@@ -215,6 +220,6 @@ struct TableOperationDialog: View {
         operationType: .drop,
         databaseType: .sqlite
     )        { options in
-        print("Options: \(options)")
+        previewLogger.debug("Options: \(String(describing: options), privacy: .public)")
     }
 }

@@ -8,10 +8,12 @@
 
 import Combine
 import Foundation
+import os
 import SwiftUI
 
 @MainActor
 class DatabaseSwitcherViewModel: ObservableObject {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "DatabaseSwitcherViewModel")
     // MARK: - Published State
 
     @Published var databases: [DatabaseMetadata] = []
@@ -141,7 +143,7 @@ class DatabaseSwitcherViewModel: ObservableObject {
             return try await driver.fetchDatabaseMetadata(database)
         } catch {
             // If metadata fetch fails, return minimal metadata
-            print("Failed to fetch metadata for \(database): \(error)")
+            Self.logger.error("Failed to fetch metadata for \(database): \(error)")
             return DatabaseMetadata.minimal(name: database, isSystem: isSystemDatabase(database))
         }
     }

@@ -7,11 +7,13 @@
 //
 
 import AppKit
+import os
 import SwiftUI
 
 // MARK: - WelcomeWindowView
 
 struct WelcomeWindowView: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "WelcomeWindowView")
     private let storage = ConnectionStorage.shared
     @StateObject private var dbManager = DatabaseManager.shared
 
@@ -291,7 +293,7 @@ struct WelcomeWindowView: View {
                     )
                     openWindow(id: "welcome")
                 }
-                print("Failed to connect: \(error)")
+                Self.logger.error("Failed to connect: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

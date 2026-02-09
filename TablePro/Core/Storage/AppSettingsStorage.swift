@@ -7,10 +7,12 @@
 //
 
 import Foundation
+import os
 
 /// Persistent storage for app settings
 final class AppSettingsStorage {
     static let shared = AppSettingsStorage()
+    private static let logger = Logger(subsystem: "com.TablePro", category: "AppSettingsStorage")
 
     private let defaults = UserDefaults.standard
 
@@ -117,7 +119,7 @@ final class AppSettingsStorage {
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
-            print("Failed to decode settings for \(key): \(error)")
+            Self.logger.error("Failed to decode settings for \(key): \(error)")
             return defaultValue
         }
     }
@@ -127,7 +129,7 @@ final class AppSettingsStorage {
             let data = try JSONEncoder().encode(value)
             defaults.set(data, forKey: key)
         } catch {
-            print("Failed to encode settings for \(key): \(error)")
+            Self.logger.error("Failed to encode settings for \(key): \(error)")
         }
     }
 }

@@ -7,11 +7,13 @@
 
 import AppKit
 import Combine
+import os
 import SwiftUI
 import UniformTypeIdentifiers
 
 /// Main import dialog view
 struct ImportDialog: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ImportDialog")
     @Binding var isPresented: Bool
     let connection: DatabaseConnection
     let initialFileURL: URL?
@@ -299,7 +301,7 @@ struct ImportDialog: View {
             let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
             fileSize = attrs[.size] as? Int64 ?? 0
         } catch {
-            print("WARNING: Failed to get file attributes for \(url.path): \(error)")
+            Self.logger.warning("Failed to get file attributes for \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
             fileSize = 0
         }
 
@@ -323,7 +325,7 @@ struct ImportDialog: View {
                 do {
                     try handle.close()
                 } catch {
-                    print("WARNING: Failed to close file handle for preview: \(error)")
+                    Self.logger.warning("Failed to close file handle for preview: \(error.localizedDescription, privacy: .public)")
                 }
             }
 
@@ -409,8 +411,8 @@ struct ImportDialog: View {
             do {
                 try FileManager.default.removeItem(at: tempURL)
             } catch {
-                print(
-                    "ImportDialog.cleanupTempFiles: Failed to remove tempPreviewURL at \(tempURL.path): \(error.localizedDescription)"
+                Self.logger.error(
+                    "cleanupTempFiles: Failed to remove tempPreviewURL at \(tempURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
             }
             tempPreviewURL = nil
@@ -419,8 +421,8 @@ struct ImportDialog: View {
             do {
                 try FileManager.default.removeItem(at: tempURL)
             } catch {
-                print(
-                    "ImportDialog.cleanupTempFiles: Failed to remove tempCountURL at \(tempURL.path): \(error.localizedDescription)"
+                Self.logger.error(
+                    "cleanupTempFiles: Failed to remove tempCountURL at \(tempURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
             }
             tempCountURL = nil

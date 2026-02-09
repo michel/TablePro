@@ -9,12 +9,15 @@
 import AppKit
 import Combine
 import Foundation
+import os
 import SwiftUI
 import UniformTypeIdentifiers
 
 /// Handles all NotificationCenter subscriptions for MainContentView
 @MainActor
 final class MainContentNotificationHandler: ObservableObject {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentNotificationHandler")
+
     // MARK: - Dependencies
 
     private weak var coordinator: MainContentCoordinator?
@@ -584,8 +587,7 @@ final class MainContentNotificationHandler: ObservableObject {
                     do {
                         return try String(contentsOf: url, encoding: .utf8)
                     } catch {
-                        print("[MainContentNotificationHandler] Failed to read "
-                              + "\(url.lastPathComponent): \(error.localizedDescription)")
+                        Self.logger.error("Failed to read \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
                         return nil
                     }
                 }.value

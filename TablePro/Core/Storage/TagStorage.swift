@@ -6,10 +6,12 @@
 //
 
 import Foundation
+import os
 
 /// Service for persisting the global tag library
 final class TagStorage {
     static let shared = TagStorage()
+    private static let logger = Logger(subsystem: "com.TablePro", category: "TagStorage")
 
     private let tagsKey = "com.TablePro.tags"
     private let defaults = UserDefaults.standard
@@ -34,7 +36,7 @@ final class TagStorage {
             let tags = try decoder.decode([ConnectionTag].self, from: data)
             return tags
         } catch {
-            print("Failed to load tags: \(error)")
+            Self.logger.error("Failed to load tags: \(error)")
             return ConnectionTag.presets
         }
     }
@@ -46,7 +48,7 @@ final class TagStorage {
             let data = try encoder.encode(tags)
             defaults.set(data, forKey: tagsKey)
         } catch {
-            print("Failed to save tags: \(error)")
+            Self.logger.error("Failed to save tags: \(error)")
         }
     }
 

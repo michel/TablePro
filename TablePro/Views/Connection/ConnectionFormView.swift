@@ -5,11 +5,13 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import os
 import SwiftUI
 import UniformTypeIdentifiers
 
 /// Form for creating or editing a database connection
 struct ConnectionFormView: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ConnectionFormView")
     @Environment(\.openWindow) private var openWindow
 
     // Connection ID: nil = new connection, UUID = edit existing
@@ -554,7 +556,7 @@ struct ConnectionFormView: View {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
-                print("Failed to connect: \(error)")
+                Self.logger.error("Failed to connect: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

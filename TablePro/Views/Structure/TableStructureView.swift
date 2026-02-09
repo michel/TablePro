@@ -7,11 +7,13 @@
 //
 
 import AppKit
+import os
 import SwiftUI
 import UniformTypeIdentifiers
 
 /// View displaying table structure with DataGridView
 struct TableStructureView: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "TableStructureView")
     let tableName: String
     let connection: DatabaseConnection
 
@@ -503,7 +505,7 @@ struct TableStructureView: View {
                 indexes = try await driver.fetchIndexes(table: tableName)
                 foreignKeys = try await driver.fetchForeignKeys(table: tableName)
             } catch {
-                print("[TableStructureView] Failed to reload indexes/FKs: \(error)")
+                Self.logger.error("Failed to reload indexes/FKs: \(error.localizedDescription, privacy: .public)")
             }
 
             // Now load the complete schema into the change manager
@@ -672,7 +674,7 @@ struct TableStructureView: View {
             }
             loadedTabs.insert(tab)
         } catch {
-            print("[TableStructureView] Failed to load \(tab): \(error.localizedDescription)")
+            Self.logger.error("Failed to load \(tab.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -716,7 +718,7 @@ struct TableStructureView: View {
             do {
                 try ddlStatement.write(to: url, atomically: true, encoding: .utf8)
             } catch {
-                print("Failed to export: \(error)")
+                Self.logger.error("Failed to export: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -750,7 +752,7 @@ struct TableStructureView: View {
     private func onRefreshData(_ notification: Notification) {
         // Ignore refresh notifications while we're in the middle of our own save/reload
         guard !isReloadingAfterSave else {
-            print("[TableStructureView] Ignoring refresh notification - currently reloading after save")
+            Self.logger.debug("Ignoring refresh notification - currently reloading after save")
             return
         }
 

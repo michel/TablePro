@@ -8,10 +8,12 @@
 
 import AppKit
 import Foundation
+import os
 
 /// Manager for row operations in the data grid
 @MainActor
 final class RowOperationsManager {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "RowOperationsManager")
     // MARK: - Dependencies
 
     private let changeManager: DataChangeManager
@@ -348,7 +350,7 @@ final class RowOperationsManager {
 
         case .failure(let error):
             // Log error (in production, this could show a user-facing alert)
-            print("⚠️ Paste failed: \(error.localizedDescription)")
+            Self.logger.warning("Paste failed: \(error.localizedDescription)")
             return []
         }
     }

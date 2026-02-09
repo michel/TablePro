@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import os
 import SwiftUI
 
 /// AppDelegate handles window lifecycle events using proper AppKit patterns.
@@ -18,6 +19,7 @@ import SwiftUI
 /// 3. **Separation of concerns**: Window configuration is separate from SwiftUI views
 /// 4. **Future-proof**: Works reliably across macOS Ventura/Sonoma and future versions
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "AppDelegate")
     /// Track windows that have been configured to avoid re-applying styles (which causes flicker)
     private var configuredWindows = Set<ObjectIdentifier>()
 
@@ -98,7 +100,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     window.close()
                 }
             } catch {
-                print("[AppDelegate] Dock connection failed for '\(connection.name)': \(error.localizedDescription)")
+                Self.logger.error("Dock connection failed for '\(connection.name)': \(error.localizedDescription)")
 
                 // Connection failed - close main window, reopen welcome
                 for window in NSApp.windows where self.isMainWindow(window) {
@@ -284,7 +286,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                 } catch {
                     // Log the error for debugging
-                    print("[AppDelegate] Auto-reconnect failed for '\(connection.name)': \(error.localizedDescription)")
+                    Self.logger.error("Auto-reconnect failed for '\(connection.name)': \(error.localizedDescription)")
 
                     // Connection failed - close main window and show welcome
                     for window in NSApp.windows where self.isMainWindow(window) {

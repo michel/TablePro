@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 /// Protocol for virtualized data access with lazy loading support
 protocol RowProvider: AnyObject {
@@ -162,6 +163,7 @@ final class InMemoryRowProvider: RowProvider {
 
 /// Row provider that fetches data on-demand from database
 final class DatabaseRowProvider: RowProvider {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "RowProvider")
     private let driver: DatabaseDriver
     private let baseQuery: String
     private var cache: [Int: TableRowData] = [:]
@@ -223,7 +225,7 @@ final class DatabaseRowProvider: RowProvider {
                     cache[offset + i] = rowData
                 }
             } catch {
-                print("Prefetch error: \(error)")
+                Self.logger.error("Prefetch error: \(error)")
             }
         }
     }

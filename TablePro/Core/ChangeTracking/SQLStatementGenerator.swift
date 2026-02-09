@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import os
 
 /// A parameterized SQL statement with placeholders and bound values
 struct ParameterizedStatement {
@@ -16,6 +17,8 @@ struct ParameterizedStatement {
 
 /// Generates SQL statements from data changes
 struct SQLStatementGenerator {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "SQLStatementGenerator")
+
     let tableName: String
     let columns: [String]
     let primaryKeyColumn: String?
@@ -210,7 +213,7 @@ struct SQLStatementGenerator {
         // CRITICAL FIX: Require primary key for safe updates
         guard let pkColumn = primaryKeyColumn,
               let pkColumnIndex = columns.firstIndex(of: pkColumn) else {
-            print("⚠️ WARNING: Skipping UPDATE for table '\(tableName)' - no primary key defined")
+            Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - no primary key defined")
             return nil
         }
 
@@ -243,7 +246,7 @@ struct SQLStatementGenerator {
 
         // CRITICAL: Require valid PK value
         guard pkValue != nil else {
-            print("⚠️ WARNING: Skipping UPDATE for table '\(tableName)' - cannot determine primary key value for row")
+            Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - cannot determine primary key value for row")
             return nil
         }
 

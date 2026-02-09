@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 /// Default column selection for new filters
 enum FilterDefaultColumn: String, CaseIterable, Identifiable, Codable {
@@ -83,6 +84,7 @@ struct FilterSettings: Codable, Equatable {
 /// Persistent storage for filter settings and per-table last-used filters
 final class FilterSettingsStorage {
     static let shared = FilterSettingsStorage()
+    private static let logger = Logger(subsystem: "com.TablePro", category: "FilterSettingsStorage")
 
     private let settingsKey = "com.TablePro.filter.settings"
     private let lastFiltersKeyPrefix = "com.TablePro.filter.lastFilters."
@@ -101,7 +103,7 @@ final class FilterSettingsStorage {
         do {
             return try JSONDecoder().decode(FilterSettings.self, from: data)
         } catch {
-            print("Failed to decode filter settings: \(error)")
+            Self.logger.error("Failed to decode filter settings: \(error)")
             return FilterSettings()
         }
     }
@@ -112,7 +114,7 @@ final class FilterSettingsStorage {
             let data = try JSONEncoder().encode(settings)
             defaults.set(data, forKey: settingsKey)
         } catch {
-            print("Failed to encode filter settings: \(error)")
+            Self.logger.error("Failed to encode filter settings: \(error)")
         }
     }
 
@@ -129,7 +131,7 @@ final class FilterSettingsStorage {
         do {
             return try JSONDecoder().decode([TableFilter].self, from: data)
         } catch {
-            print("Failed to decode last filters for \(tableName): \(error)")
+            Self.logger.error("Failed to decode last filters for \(tableName): \(error)")
             return []
         }
     }
@@ -148,7 +150,7 @@ final class FilterSettingsStorage {
             let data = try JSONEncoder().encode(filters)
             defaults.set(data, forKey: key)
         } catch {
-            print("Failed to encode last filters for \(tableName): \(error)")
+            Self.logger.error("Failed to encode last filters for \(tableName): \(error)")
         }
     }
 

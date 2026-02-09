@@ -6,11 +6,13 @@
 //
 
 import Foundation
+import os
 import Security
 
 /// Service for persisting database connections
 final class ConnectionStorage {
     static let shared = ConnectionStorage()
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ConnectionStorage")
 
     private let connectionsKey = "com.TablePro.connections"
     private let defaults = UserDefaults.standard
@@ -36,7 +38,7 @@ final class ConnectionStorage {
                 return connection
             }
         } catch {
-            print("Failed to load connections: \(error)")
+            Self.logger.error("Failed to load connections: \(error)")
             return []
         }
     }
@@ -50,7 +52,7 @@ final class ConnectionStorage {
             let data = try encoder.encode(storedConnections)
             defaults.set(data, forKey: connectionsKey)
         } catch {
-            print("Failed to save connections: \(error)")
+            Self.logger.error("Failed to save connections: \(error)")
         }
     }
 
