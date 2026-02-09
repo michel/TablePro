@@ -5,6 +5,7 @@
 //  SQL query editor wrapper with toolbar
 //
 
+import CodeEditSourceEditor
 import SwiftUI
 
 extension Notification.Name {
@@ -14,9 +15,9 @@ extension Notification.Name {
 /// SQL query editor view with execute button
 struct QueryEditorView: View {
     @Binding var queryText: String
-    @Binding var cursorPosition: Int  // Track cursor for query-at-cursor execution
+    @Binding var cursorPositions: [CursorPosition]
     var onExecute: () -> Void
-    var schemaProvider: SQLSchemaProvider?  // Optional for autocomplete
+    var schemaProvider: SQLSchemaProvider?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -26,10 +27,14 @@ struct QueryEditorView: View {
 
             Divider()
 
-            // SQL Editor (AppKit-based with syntax highlighting and built-in line numbers)
-            SQLEditorView(text: $queryText, cursorPosition: $cursorPosition, onExecute: onExecute, schemaProvider: schemaProvider)
-                .frame(minHeight: 100)
-                .clipped()
+            // SQL Editor (CodeEditSourceEditor-based with tree-sitter highlighting)
+            SQLEditorView(
+                text: $queryText,
+                cursorPositions: $cursorPositions,
+                schemaProvider: schemaProvider
+            )
+            .frame(minHeight: 100)
+            .clipped()
         }
         .background(Color(nsColor: .textBackgroundColor))
         .onReceive(NotificationCenter.default.publisher(for: .formatQueryRequested)) { _ in
@@ -92,22 +97,23 @@ struct QueryEditorView: View {
         let formatter = SQLFormatterService()
         let options = SQLFormatterOptions.default
 
+        let cursorOffset = cursorPositions.first?.range.location ?? 0
+
         do {
             // Format SQL with cursor preservation
             let result = try formatter.format(
                 queryText,
                 dialect: dbType,
-                cursorOffset: cursorPosition,
+                cursorOffset: cursorOffset,
                 options: options
             )
 
             // Update text and cursor position
             queryText = result.formattedSQL
             if let newCursor = result.cursorOffset {
-                cursorPosition = newCursor
+                cursorPositions = [CursorPosition(range: NSRange(location: newCursor, length: 0))]
             }
         } catch {
-            // Show error to user (could enhance with an alert later)
             print("SQL Formatting error: \(error.localizedDescription)")
         }
     }
@@ -116,7 +122,7 @@ struct QueryEditorView: View {
 #Preview {
     QueryEditorView(
         queryText: .constant("SELECT * FROM users\nWHERE active = true\nORDER BY created_at DESC;"),
-        cursorPosition: .constant(0)
-    )        {}
+        cursorPositions: .constant([])
+    ) {}
     .frame(width: 600, height: 200)
 }

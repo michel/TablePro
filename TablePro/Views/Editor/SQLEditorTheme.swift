@@ -63,9 +63,6 @@ struct SQLEditorTheme {
         }
     }
 
-    /// Bracket matching highlight color
-    static let bracketMatchHighlight = NSColor.systemYellow.withAlphaComponent(0.35)
-
     /// Insertion point (cursor) color
     static let insertionPoint = NSColor.controlAccentColor
 
@@ -85,29 +82,4 @@ struct SQLEditorTheme {
 
     /// NULL, TRUE, FALSE
     static let null = NSColor.systemOrange
-
-    // MARK: - Sizes
-
-    /// Text container inset
-    static let textContainerInset = NSSize(width: 0, height: 5)
-
-    /// Line fragment padding (left/right margin inside text container)
-    static let lineFragmentPadding: CGFloat = 5
-
-    /// Line number ruler thickness (will be calculated based on digits)
-    static let lineNumberRulerMinThickness: CGFloat = 40
-
-    /// Corner radius for rounded highlights
-    static let highlightCornerRadius: CGFloat = 2
-
-    // MARK: - Line Number Ruler Colors
-
-    /// Line number text color
-    static let lineNumberText = NSColor.secondaryLabelColor
-
-    /// Line number ruler background
-    static let lineNumberBackground = NSColor.textBackgroundColor
-
-    /// Line number ruler border
-    static let lineNumberBorder = NSColor.separatorColor
 }

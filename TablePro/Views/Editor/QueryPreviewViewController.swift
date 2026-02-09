@@ -62,8 +62,6 @@ final class QueryPreviewViewController: NSViewController {
         return textView
     }()
 
-    private var syntaxHighlighter: SyntaxHighlighter?
-
     // Metadata footer
     private let metadataContainer: NSVisualEffectView = {
         let view = NSVisualEffectView()
@@ -177,7 +175,6 @@ final class QueryPreviewViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        setupSyntaxHighlighter()
         updateUI()
     }
 
@@ -262,11 +259,6 @@ final class QueryPreviewViewController: NSViewController {
         ])
     }
 
-    private func setupSyntaxHighlighter() {
-        guard let textStorage = queryTextView.textStorage else { return }
-        syntaxHighlighter = SyntaxHighlighter(textStorage: textStorage)
-    }
-
     // MARK: - Public API
 
     func showHistoryEntry(_ entry: QueryHistoryEntry) {
@@ -318,9 +310,6 @@ final class QueryPreviewViewController: NSViewController {
 
         // Set query text
         queryTextView.string = query
-
-        // Apply syntax highlighting
-        syntaxHighlighter?.highlightFullDocument()
 
         // Scroll to top
         queryTextView.scrollToBeginningOfDocument(nil)

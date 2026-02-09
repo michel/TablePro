@@ -24,6 +24,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// URLs queued for opening when no database connection is active yet
     private var queuedFileURLs: [URL] = []
 
+    /// True while handling a file-open event with an active connection.
+    /// Prevents SwiftUI from showing the welcome window as a side-effect.
+    private var isHandlingFileOpen = false
+
+    /// Counter tracking outstanding file-open suppressions.
+    /// Incremented when a file-open starts, decremented by each delayed
+    /// cleanup pass.  While > 0 the welcome window is suppressed.
+    private var fileOpenSuppressionCount = 0
+
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
 
@@ -100,20 +109,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // When the app already has visible windows (e.g. main connection window),
+        // return false to prevent SwiftUI from creating the default welcome window.
+        // The welcome window should only appear when explicitly requested
+        // (e.g. via dock menu or after closing the main window).
+        if flag {
+            // Bring the topmost relevant window to front instead
+            for window in NSApp.windows where isMainWindow(window) {
+                window.makeKeyAndOrderFront(nil)
+                return false
+            }
+        }
+        return true
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         let sqlURLs = urls.filter { $0.pathExtension.lowercased() == "sql" }
         guard !sqlURLs.isEmpty else { return }
 
         if DatabaseManager.shared.currentSession != nil {
+            // Suppress any welcome window that SwiftUI may create as a
+            // side-effect of the app being activated by the file-open event.
+            isHandlingFileOpen = true
+            fileOpenSuppressionCount += 1
+
             // Already connected — bring main window to front and open files
             for window in NSApp.windows where isMainWindow(window) {
                 window.makeKeyAndOrderFront(nil)
             }
-            // Close welcome window if it's open (user doesn't need it)
+            // Close welcome window if it's already open
             for window in NSApp.windows where isWelcomeWindow(window) {
                 window.close()
             }
             NotificationCenter.default.post(name: .openSQLFiles, object: sqlURLs)
+
+            // SwiftUI may asynchronously create a welcome window after this
+            // method returns (scene restoration on activation).  Schedule
+            // multiple cleanup passes so we catch windows that appear late.
+            scheduleWelcomeWindowSuppression()
         } else {
             // Not connected — queue and show welcome window
             queuedFileURLs.append(contentsOf: sqlURLs)
@@ -158,6 +192,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
+        // Observe window visibility changes to suppress the welcome
+        // window even when it becomes visible without becoming key
+        // (e.g. SwiftUI restores it in the background during file-open).
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowDidChangeOcclusionState(_:)),
+            name: NSWindow.didChangeOcclusionStateNotification,
+            object: nil
+        )
+
         // Observe database connection to flush queued .sql files
         NotificationCenter.default.addObserver(
             self,
@@ -165,6 +209,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: .databaseDidConnect,
             object: nil
         )
+    }
+
+    /// Schedule multiple delayed passes to close any welcome window that
+    /// SwiftUI creates as part of app activation for a file-open event.
+    /// Uses several staggered delays (0.1s, 0.3s, 0.6s, 1.0s) so we
+    /// reliably catch windows even when SwiftUI restores them late.
+    private func scheduleWelcomeWindowSuppression() {
+        let delays: [Double] = [0.1, 0.3, 0.6, 1.0]
+        for (index, delay) in delays.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self else { return }
+                self.closeWelcomeWindowIfMainExists()
+                // On the last pass, clear suppression state
+                if index == delays.count - 1 {
+                    self.fileOpenSuppressionCount = max(0, self.fileOpenSuppressionCount - 1)
+                    if self.fileOpenSuppressionCount == 0 {
+                        self.isHandlingFileOpen = false
+                    }
+                }
+            }
+        }
+    }
+
+    /// Close the welcome window if a connected main window is present.
+    private func closeWelcomeWindowIfMainExists() {
+        let hasMainWindow = NSApp.windows.contains { isMainWindow($0) && $0.isVisible }
+        guard hasMainWindow else { return }
+        for window in NSApp.windows where isWelcomeWindow(window) {
+            window.close()
+        }
     }
 
     @objc
@@ -228,6 +302,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
                 window.close()
+            }
+        }
+    }
+
+    @objc
+    private func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              isHandlingFileOpen else { return }
+
+        // When the welcome window becomes visible during a file-open
+        // event, close it so the user sees the main connection window.
+        if isWelcomeWindow(window),
+           window.occlusionState.contains(.visible),
+           NSApp.windows.contains(where: { isMainWindow($0) && $0.isVisible }) {
+            // Defer to next run-loop cycle so AppKit finishes ordering
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                if self.isWelcomeWindow(window), window.isVisible {
+                    window.close()
+                }
             }
         }
     }
@@ -311,6 +405,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func windowDidBecomeKey(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
         let windowId = ObjectIdentifier(window)
+
+        // If we're handling a file-open with an active connection, suppress
+        // any welcome window that SwiftUI creates as part of app activation.
+        if isWelcomeWindow(window) && isHandlingFileOpen {
+            window.close()
+            // Ensure the main window gets focus instead
+            for mainWin in NSApp.windows where isMainWindow(mainWin) {
+                mainWin.makeKeyAndOrderFront(nil)
+            }
+            return
+        }
 
         // Configure welcome window when it becomes key (only once)
         if isWelcomeWindow(window) && !configuredWindows.contains(windowId) {

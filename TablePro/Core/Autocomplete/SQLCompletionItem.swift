@@ -23,11 +23,11 @@ enum SQLCompletionKind: String, CaseIterable {
     var iconName: String {
         switch self {
         case .keyword: return "k.circle.fill"
-        case .table: return "tablecells"
-        case .view: return "eye"
+        case .table: return "t.circle.fill"
+        case .view: return "v.circle.fill"
         case .column: return "c.circle.fill"
         case .function: return "f.circle.fill"
-        case .schema: return "cylinder.split.1x2"
+        case .schema: return "s.circle.fill"
         case .alias: return "a.circle.fill"
         case .operator: return "equal.circle.fill"
         }
