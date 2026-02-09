@@ -7,6 +7,7 @@
 
 import CodeEditTextView
 import Combine
+import Sparkle
 import SwiftUI
 
 // MARK: - App State for Menu Commands
@@ -115,6 +116,7 @@ struct TableProApp: App {
     @StateObject private var appState = AppState.shared
     @StateObject private var dbManager = DatabaseManager.shared
     @StateObject private var settingsManager = AppSettingsManager.shared
+    @StateObject private var updaterBridge = UpdaterBridge()
 
     init() {
         // Perform startup cleanup of query history if auto-cleanup is enabled
@@ -165,6 +167,11 @@ struct TableProApp: App {
         }
 
         .commands {
+            // Check for Updates menu item (after "About TablePro")
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesView(updaterBridge: updaterBridge)
+            }
+
             // MARK: - Keyboard Shortcut Architecture
             //
             // This app uses a hybrid approach for keyboard shortcuts:
@@ -457,6 +464,20 @@ extension Notification.Name {
 
     // License notifications
     static let licenseStatusDidChange = Notification.Name("licenseStatusDidChange")
+}
+
+// MARK: - Check for Updates
+
+/// Menu bar button that triggers Sparkle update check
+struct CheckForUpdatesView: View {
+    @ObservedObject var updaterBridge: UpdaterBridge
+
+    var body: some View {
+        Button("Check for Updates...") {
+            updaterBridge.checkForUpdates()
+        }
+        .disabled(!updaterBridge.canCheckForUpdates)
+    }
 }
 
 // MARK: - Open Window Handler

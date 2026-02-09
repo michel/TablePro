@@ -10,10 +10,11 @@ import SwiftUI
 /// Main settings view with tab-based navigation (macOS Settings style)
 struct SettingsView: View {
     @StateObject private var settingsManager = AppSettingsManager.shared
+    @StateObject private var updaterBridge = UpdaterBridge()
 
     var body: some View {
         TabView {
-            GeneralSettingsView(settings: $settingsManager.general)
+            GeneralSettingsView(settings: $settingsManager.general, updaterBridge: updaterBridge)
                 .tabItem {
                     Label("General", systemImage: "gearshape")
                 }

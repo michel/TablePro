@@ -29,10 +29,23 @@ enum StartupBehavior: String, Codable, CaseIterable, Identifiable {
 /// General app settings
 struct GeneralSettings: Codable, Equatable {
     var startupBehavior: StartupBehavior
+    var automaticallyCheckForUpdates: Bool
 
     static let `default` = GeneralSettings(
-        startupBehavior: .showWelcome
+        startupBehavior: .showWelcome,
+        automaticallyCheckForUpdates: true
     )
+
+    init(startupBehavior: StartupBehavior = .showWelcome, automaticallyCheckForUpdates: Bool = true) {
+        self.startupBehavior = startupBehavior
+        self.automaticallyCheckForUpdates = automaticallyCheckForUpdates
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        startupBehavior = try container.decode(StartupBehavior.self, forKey: .startupBehavior)
+        automaticallyCheckForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyCheckForUpdates) ?? true
+    }
 }
 
 // MARK: - Appearance Settings
