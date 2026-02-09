@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 # Build script for creating architecture-specific releases
 # Usage: ./build-release.sh [arm64|x86_64|both]
