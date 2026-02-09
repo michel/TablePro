@@ -68,6 +68,96 @@ prepare_mariadb() {
     cd - > /dev/null || exit 1
 }
 
+# Bundle non-system dynamic libraries into the app bundle
+# so the app runs without Homebrew on end-user machines.
+bundle_dylibs() {
+    local app_path=$1
+    local binary="$app_path/Contents/MacOS/TablePro"
+    local frameworks_dir="$app_path/Contents/Frameworks"
+
+    echo "📦 Bundling dynamic libraries into app bundle..."
+    mkdir -p "$frameworks_dir"
+
+    # Iteratively discover and copy all non-system dylibs.
+    # Each pass scans the main binary + already-copied dylibs;
+    # repeat until no new dylibs are found (handles transitive deps).
+    local changed=1
+    while [ "$changed" -eq 1 ]; do
+        changed=0
+        for target in "$binary" "$frameworks_dir"/*.dylib; do
+            [ -f "$target" ] || continue
+
+            while IFS= read -r dep; do
+                # Keep only non-system, non-rewritten absolute paths
+                case "$dep" in
+                    /usr/lib/*|/System/*|@*|"") continue ;;
+                esac
+
+                local name
+                name=$(basename "$dep")
+
+                # Already bundled
+                [ -f "$frameworks_dir/$name" ] && continue
+
+                if [ -f "$dep" ]; then
+                    echo "   Copying $name"
+                    cp "$dep" "$frameworks_dir/$name"
+                    chmod 644 "$frameworks_dir/$name"
+                    changed=1
+                else
+                    echo "   ⚠️  WARNING: $dep not found on disk, skipping"
+                fi
+            done < <(otool -L "$target" 2>/dev/null | awk 'NR>1 {print $1}')
+        done
+    done
+
+    # Count bundled dylibs
+    local count
+    count=$(find "$frameworks_dir" -name '*.dylib' 2>/dev/null | wc -l | tr -d ' ')
+
+    if [ "$count" -eq 0 ]; then
+        echo "   No non-system dylibs to bundle"
+        return 0
+    fi
+
+    # Rewrite each dylib's own install name
+    for fw in "$frameworks_dir"/*.dylib; do
+        [ -f "$fw" ] || continue
+        local name
+        name=$(basename "$fw")
+        install_name_tool -id "@executable_path/../Frameworks/$name" "$fw"
+    done
+
+    # Rewrite all references in the main binary and every bundled dylib
+    for target in "$binary" "$frameworks_dir"/*.dylib; do
+        [ -f "$target" ] || continue
+
+        while IFS= read -r dep; do
+            case "$dep" in
+                /usr/lib/*|/System/*|@*|"") continue ;;
+            esac
+
+            local name
+            name=$(basename "$dep")
+
+            if [ -f "$frameworks_dir/$name" ]; then
+                install_name_tool -change "$dep" "@executable_path/../Frameworks/$name" "$target"
+            fi
+        done < <(otool -L "$target" 2>/dev/null | awk 'NR>1 {print $1}')
+    done
+
+    # Ad-hoc sign everything (required on Apple Silicon)
+    echo "   Signing bundled libraries..."
+    for fw in "$frameworks_dir"/*.dylib; do
+        [ -f "$fw" ] || continue
+        codesign -fs - "$fw" 2>/dev/null || true
+    done
+    codesign -fs - "$binary" 2>/dev/null || true
+
+    echo "✅ Bundled $count dynamic libraries into Frameworks/"
+    ls -lh "$frameworks_dir"/*.dylib 2>/dev/null
+}
+
 build_for_arch() {
     local arch=$1
     echo ""
@@ -165,6 +255,9 @@ build_for_arch() {
     else
         echo "   ⚠️  WARNING: Source icon not found at $SOURCE_ICON"
     fi
+
+    # Bundle non-system dynamic libraries (libpq, OpenSSL, etc.)
+    bundle_dylibs "$BUILD_DIR/$OUTPUT_NAME"
 
     # Verify binary exists inside the copied bundle
     BINARY_PATH="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS/TablePro"
