@@ -229,6 +229,54 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
+    /// Run EXPLAIN on the current query (database-type-aware prefix)
+    func runExplainQuery() {
+        guard let index = tabManager.selectedTabIndex else { return }
+        guard !tabManager.tabs[index].isExecuting else { return }
+
+        let fullQuery = tabManager.tabs[index].query
+
+        // Extract query the same way as runQuery()
+        let sql: String
+        if tabManager.tabs[index].tabType == .table {
+            sql = fullQuery
+        } else if let firstCursor = cursorPositions.first,
+                  firstCursor.range.length > 0 {
+            let nsQuery = fullQuery as NSString
+            let clampedRange = NSIntersectionRange(
+                firstCursor.range,
+                NSRange(location: 0, length: nsQuery.length)
+            )
+            sql = nsQuery.substring(with: clampedRange)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            sql = extractQueryAtCursor(
+                from: fullQuery,
+                at: cursorPositions.first?.range.location ?? 0
+            )
+        }
+
+        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        // Use first statement only (EXPLAIN on a single statement)
+        let statements = splitStatements(from: trimmed)
+        guard let stmt = statements.first else { return }
+
+        // Build database-specific EXPLAIN prefix
+        let explainSQL: String
+        switch connection.type {
+        case .sqlite:
+            explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
+        case .mysql, .mariadb, .postgresql:
+            explainSQL = "EXPLAIN \(stmt)"
+        }
+
+        Task { @MainActor in
+            executeQueryInternal(explainSQL)
+        }
+    }
+
     /// Internal query execution (called after any confirmations)
     private func executeQueryInternal(_ sql: String) {
         guard let index = tabManager.selectedTabIndex else { return }

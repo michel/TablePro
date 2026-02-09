@@ -74,6 +74,18 @@ struct QueryEditorView: View {
             Divider()
                 .frame(height: 16)
 
+            // Explain button
+            Button {
+                NotificationCenter.default.post(name: .explainQuery, object: nil)
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "chart.bar.doc.horizontal")
+                    Text("Explain")
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
             // Execute button
             Button(action: onExecute) {
                 HStack(spacing: 4) {

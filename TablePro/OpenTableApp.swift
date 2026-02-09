@@ -246,6 +246,12 @@ struct TableProApp: App {
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(!appState.isConnected)
 
+                Button("Explain Query") {
+                    NotificationCenter.default.post(name: .explainQuery, object: nil)
+                }
+                .keyboardShortcut("e", modifiers: [.command, .option])
+                .disabled(!appState.isConnected)
+
                 Divider()
 
                 Button("Export...") {
@@ -444,6 +450,9 @@ extension Notification.Name {
 
     // Table structure notifications
     static let showTableStructure = Notification.Name("showTableStructure")
+
+    // Query execution notifications
+    static let explainQuery = Notification.Name("explainQuery")
 
     // Export notifications
     static let exportTables = Notification.Name("exportTables")

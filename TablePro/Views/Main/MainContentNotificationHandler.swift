@@ -388,6 +388,13 @@ final class MainContentNotificationHandler: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: .explainQuery)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.coordinator?.runExplainQuery()
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: .exportTables)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in

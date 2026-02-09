@@ -143,17 +143,18 @@ Currently only SQL file import is supported. CSV is the most common data exchang
 
 Redo now works correctly. Fixed `canRedo()` to delegate to `DataChangeUndoManager`, wired undo/redo callbacks to DataGridView, and added proper redo stack clearing when new changes are made.
 
-### 1.4 Query Execution Plan (EXPLAIN)
+### 1.4 Query Execution Plan (EXPLAIN) ✅ DONE (Basic)
 **Priority: HIGH** | **Effort: Medium**
 
-Developers need to debug slow queries. No EXPLAIN visualization exists.
+Basic EXPLAIN support implemented. Results display in the standard data grid.
 
+- **Files modified:** `MainContentCoordinator.swift`, `QueryEditorView.swift`, `OpenTableApp.swift`, `MainContentNotificationHandler.swift`
 - **Tasks:**
-  - Add "Explain Query" button/shortcut (Cmd+E or similar)
-  - Run `EXPLAIN ANALYZE` for PostgreSQL, `EXPLAIN` for MySQL
-  - Display results in formatted tree view or table
-  - Highlight full table scans, missing indexes, expensive operations
-  - Optional: Visual execution plan diagram
+  - ~~Add "Explain Query" button/shortcut~~ (DONE — ⌥⌘E, toolbar button)
+  - ~~Run `EXPLAIN` for MySQL/PostgreSQL, `EXPLAIN QUERY PLAN` for SQLite~~ (DONE)
+  - ~~Display results in data grid~~ (DONE)
+  - Highlight full table scans, missing indexes, expensive operations (Future)
+  - Optional: Visual execution plan diagram (Future)
 
 ### 1.5 Connection Switcher UI ✅ DONE
 **Priority: HIGH** | **Effort: Small**
@@ -591,7 +592,7 @@ For any developer continuing this project, start with these files:
 5. ~~Replace `print()` with `Logger`~~ (DONE)
 
 ### Phase 2: v0.3.0 — Developer Productivity
-6. Query execution plan (EXPLAIN)
+6. ~~Query execution plan (EXPLAIN)~~ (DONE — basic)
 7. Foreign key lookup dropdown
 8. Date/time picker for date columns
 9. JSON column editor
