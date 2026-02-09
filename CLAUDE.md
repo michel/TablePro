@@ -10,7 +10,7 @@ TablePro is a native macOS database client built with SwiftUI and AppKit. It's d
 
 ```bash
 # Build for current architecture (development)
-xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build -skipPackagePluginValidation
 
 # Build for specific architecture (release)
 scripts/build-release.sh arm64       # Apple Silicon only
@@ -21,8 +21,11 @@ scripts/build-release.sh both        # Universal binary
 xcodebuild -project TablePro.xcodeproj -scheme TablePro clean
 
 # Build and run
-xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build && open build/Debug/TablePro.app
+xcodebuild -project TablePro.xcodeproj -scheme TablePro -configuration Debug build -skipPackagePluginValidation && open build/Debug/TablePro.app
 ```
+
+> **Note:** `-skipPackagePluginValidation` is required because the SwiftLint plugin
+> bundled with CodeEditSourceEditor needs explicit trust for CLI builds.
 
 ### Linting & Formatting
 
@@ -44,13 +47,13 @@ swiftformat --lint .
 
 ```bash
 # Run all tests
-xcodebuild -project TablePro.xcodeproj -scheme TablePro test
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test -skipPackagePluginValidation
 
 # Run specific test class
-xcodebuild -project TablePro.xcodeproj -scheme TablePro test -only-testing:TableProTests/TestClassName
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test -skipPackagePluginValidation -only-testing:TableProTests/TestClassName
 
 # Run specific test method
-xcodebuild -project TablePro.xcodeproj -scheme TablePro test -only-testing:TableProTests/TestClassName/testMethodName
+xcodebuild -project TablePro.xcodeproj -scheme TablePro test -skipPackagePluginValidation -only-testing:TableProTests/TestClassName/testMethodName
 ```
 
 ### Creating DMG
@@ -70,6 +73,17 @@ scripts/create-dmg.sh
 - **Immutability**: Use `let` by default; only use `var` when mutation is required
 - **Actor Isolation**: Use `@MainActor` for UI-bound types, custom actors for concurrent operations
 
+### SPM Dependencies
+
+Managed via Xcode's SPM integration (no standalone `Package.swift`):
+
+- **CodeEditSourceEditor** (0.15.2+) — tree-sitter-powered code editor component
+- **CodeEditLanguages** — SQL language grammar (transitive dependency)
+- **CodeEditTextView** — text view API, e.g. `replaceCharacters` (transitive dependency)
+
+> The SwiftLint plugin bundled with CodeEditSourceEditor requires
+> `-skipPackagePluginValidation` for CLI builds (see Build Commands above).
+
 ### File Structure
 
 - **Models**: `TablePro/Models/` - Data structures, domain entities (prefer `struct`, `enum`)
@@ -78,6 +92,31 @@ scripts/create-dmg.sh
 - **Core**: `TablePro/Core/` - Business logic, database drivers, services
 - **Extensions**: `TablePro/Extensions/` - Type extensions, protocol conformances
 - **Resources**: `TablePro/Resources/` - Assets, localized strings, asset catalogs
+
+Key subdirectories:
+
+```
+TablePro/Views/Editor/
+├── SQLEditorView.swift              # SwiftUI wrapper for CodeEditSourceEditor
+├── SQLEditorCoordinator.swift       # TextViewCoordinator (find panel workarounds)
+├── SQLEditorTheme.swift             # Source of truth for colors/fonts
+├── TableProEditorTheme.swift        # Adapter → CodeEdit's EditorTheme protocol
+├── SQLCompletionAdapter.swift       # Bridges CompletionEngine → CodeSuggestionDelegate
+├── EditorTabBar.swift               # Pure SwiftUI tab bar
+├── QueryEditorView.swift            # Query editor container
+├── QueryPreviewViewController.swift # Quick-look preview
+└── ...                              # Column editors, history panel, templates
+
+TablePro/Views/Main/
+├── MainContentCoordinator.swift
+└── Extensions/
+    ├── MainContentCoordinator+Alerts.swift
+    ├── MainContentCoordinator+Filtering.swift
+    ├── MainContentCoordinator+MultiStatement.swift
+    ├── MainContentCoordinator+Pagination.swift
+    ├── MainContentCoordinator+RowOperations.swift
+    └── MainContentView+Bindings.swift
+```
 
 ### Imports
 
@@ -99,7 +138,7 @@ struct ContentView: View {
 ### Formatting (Apple Style Guide)
 
 - **Indentation**: 4 spaces (never tabs except Makefile/pbxproj)
-- **Line length**: 120 characters (hard limit from Swift.org style guide)
+- **Line length**: Aim for 120 characters (SwiftFormat `--maxwidth 120`); SwiftLint warns at 180, errors at 300
 - **Braces**: K&R style - opening brace on same line, closing brace on new line
 - **Wrapping**: Break before first argument when wrapping function calls/declarations
 - **Semicolons**: Never use (not idiomatic Swift)
@@ -244,15 +283,17 @@ Extract logical sections into separate extension files:
 - Group related functionality (pagination, filtering, row operations, etc.)
 - Keep the main file focused on core type definition and primary responsibilities
 
-**Example structure:**
+**Current example (see File Structure above for full listing):**
 ```
 TablePro/Views/Main/
 ├── MainContentCoordinator.swift          # Core class definition
 └── Extensions/
-    ├── MainContentCoordinator+RowOperations.swift
-    ├── MainContentCoordinator+Pagination.swift
+    ├── MainContentCoordinator+Alerts.swift
     ├── MainContentCoordinator+Filtering.swift
-    └── MainContentCoordinator+Alerts.swift
+    ├── MainContentCoordinator+MultiStatement.swift
+    ├── MainContentCoordinator+Pagination.swift
+    ├── MainContentCoordinator+RowOperations.swift
+    └── MainContentView+Bindings.swift
 ```
 
 **Extension file template:**
@@ -320,16 +361,17 @@ private func fetchResults(from stmt: Statement) throws -> Result {
 
 ### Disabled SwiftLint Rules (Allowed)
 
-These are explicitly allowed in this codebase:
-
-- Trailing commas in collections
-- TODO/FIXME comments
-- Force try (`try!`) when appropriate
-- Static over final class
-- Multiple trailing closures
-- Opening brace on same line (enforced by SwiftFormat)
+See `.swiftlint.yml` for the full list. Key disabled rules: `trailing_comma`, `todo`, `opening_brace` (SwiftFormat handles it), `trailing_closure`, `force_try`, `static_over_final_class`.
 
 ## Common Patterns
+
+### Editor Architecture (CodeEditSourceEditor)
+
+- **`SQLEditorTheme`** is the single source of truth for editor colors and fonts
+- **`TableProEditorTheme`** adapts `SQLEditorTheme` to CodeEdit's `EditorTheme` protocol
+- **`CompletionEngine`** is framework-agnostic; **`SQLCompletionAdapter`** bridges it to CodeEdit's `CodeSuggestionDelegate`
+- **`EditorTabBar`** is pure SwiftUI — replaced the previous AppKit `NativeTabBarView` stack
+- Cursor model: `cursorPositions: [CursorPosition]` (multi-cursor support via CodeEditSourceEditor)
 
 ### Logger Usage
 
@@ -386,6 +428,7 @@ tablepro.app/docs/
 ├── index.mdx                    # Introduction
 ├── quickstart.mdx               # Getting started guide
 ├── installation.mdx             # Installation instructions
+├── changelog.mdx                # Release changelog
 ├── databases/                   # Database connection guides
 │   ├── overview.mdx
 │   ├── mysql.mdx
@@ -396,7 +439,11 @@ tablepro.app/docs/
 │   ├── sql-editor.mdx
 │   ├── data-grid.mdx
 │   ├── autocomplete.mdx
+│   ├── change-tracking.mdx
+│   ├── filtering.mdx
+│   ├── table-operations.mdx
 │   ├── table-structure.mdx
+│   ├── tabs.mdx
 │   ├── import-export.mdx
 │   ├── query-history.mdx
 │   └── keyboard-shortcuts.mdx
@@ -440,7 +487,7 @@ mint dev
 - Check .swiftformat and .swiftlint.yml for authoritative rules
 - Preserve existing architecture: SwiftUI + AppKit, native frameworks only
 - This is macOS-only; no iOS/watchOS/tvOS code needed
-- Keep line length under 120 characters when possible
+- Aim for 120-character lines (SwiftFormat target); SwiftLint warns at 180, errors at 300
 - All new view controllers should use SwiftUI unless AppKit is required
 - When refactoring for SwiftLint compliance:
   - Extract extensions before splitting classes
