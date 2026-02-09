@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2026-02-05
+## [0.1.1] - 2026-02-09
+
+### Added
+
+- Migrate SQL editor to CodeEditSourceEditor (tree-sitter powered)
+- Multi-statement SQL execution support
+- "Show Structure" context menu for sidebar tables
+- Improved filter panel UI/UX
+- SwiftUI EditorTabBar (replacing AppKit NativeTabBarView)
+
+### Fixed
+
+- Fix Delete key on data grid row from marking table as deleted
+- Code review fixes for multi-statement execution
+
+### Changed
+
+- Add SPM Package.resolved for CodeEditSourceEditor dependencies
+- Add Claude Code project settings
+- Update build/test commands with `-skipPackagePluginValidation`
+
+## [0.1.0] - 2026-02-05
 
 ### Initial Public Release
 
@@ -52,4 +73,6 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[1.0.0]: https://github.com/datlechin/tablepro/releases/tag/v1.0.0
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/datlechin/tablepro/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/datlechin/tablepro/releases/tag/v0.1.0
