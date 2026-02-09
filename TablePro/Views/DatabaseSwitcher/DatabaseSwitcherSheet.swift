@@ -85,18 +85,23 @@ struct DatabaseSwitcherSheet: View {
             // SwiftUI handles sheet priority automatically - no nested sheets take precedence
             dismiss()
         }
-        .onKeyPress(.return) {
-            openSelectedDatabase()
-            return .handled
-        }
-        .onKeyPress(.upArrow) {
-            moveSelection(up: true)
-            return .handled
-        }
-        .onKeyPress(.downArrow) {
-            moveSelection(up: false)
-            return .handled
-        }
+        .background(
+            KeyEventHandler { keyCode in
+                switch keyCode {
+                case .return:
+                    openSelectedDatabase()
+                    return true
+                case .upArrow:
+                    moveSelection(up: true)
+                    return true
+                case .downArrow:
+                    moveSelection(up: false)
+                    return true
+                default:
+                    return false
+                }
+            }
+        )
     }
 
     // MARK: - Toolbar
@@ -187,7 +192,7 @@ struct DatabaseSwitcherSheet: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
-            .onChange(of: viewModel.selectedDatabase) { _, newValue in
+            .onChange(of: viewModel.selectedDatabase) { newValue in
                 if let item = newValue {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         proxy.scrollTo(item, anchor: .center)

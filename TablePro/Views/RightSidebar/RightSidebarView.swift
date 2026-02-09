@@ -266,28 +266,29 @@ struct RightSidebarView: View {
 
 // MARK: - Preview
 
-#Preview {
-    @Previewable @StateObject var editState = MultiRowEditState()
-    return RightSidebarView(
-        tableName: "users",
-        tableMetadata: TableMetadata(
+struct RightSidebarView_Previews: PreviewProvider {
+    static var previews: some View {
+        RightSidebarView(
             tableName: "users",
-            dataSize: 16_384,
-            indexSize: 8_192,
-            totalSize: 24_576,
-            avgRowLength: 128,
-            rowCount: 1_250,
-            comment: "User accounts",
-            engine: "InnoDB",
-            collation: "utf8mb4_unicode_ci",
-            createTime: Date(),
-            updateTime: nil
-        ),
-        selectedRowData: nil,
-        isEditable: false,
-        isRowDeleted: false,
-        onSave: {},
-        editState: editState
-    )
-    .frame(width: 280, height: 400)
+            tableMetadata: TableMetadata(
+                tableName: "users",
+                dataSize: 16_384,
+                indexSize: 8_192,
+                totalSize: 24_576,
+                avgRowLength: 128,
+                rowCount: 1_250,
+                comment: "User accounts",
+                engine: "InnoDB",
+                collation: "utf8mb4_unicode_ci",
+                createTime: Date(),
+                updateTime: nil
+            ),
+            selectedRowData: nil,
+            isEditable: false,
+            isRowDeleted: false,
+            onSave: {},
+            editState: MultiRowEditState()
+        )
+        .frame(width: 280, height: 400)
+    }
 }

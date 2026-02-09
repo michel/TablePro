@@ -10,7 +10,6 @@ import UniformTypeIdentifiers
 
 /// Form for creating or editing a database connection
 struct ConnectionFormView: View {
-    @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.openWindow) private var openWindow
 
     // Connection ID: nil = new connection, UUID = edit existing
@@ -96,7 +95,7 @@ struct ConnectionFormView: View {
             loadConnectionData()
             loadSSHConfig()
         }
-        .onChange(of: type) { _, newType in
+        .onChange(of: type) { newType in
             port = String(newType.defaultPort)
         }
     }
@@ -265,7 +264,7 @@ struct ConnectionFormView: View {
                                 }
                                 .labelsHidden()
                                 .fixedSize()
-                                .onChange(of: selectedSSHConfigHost) { _, newValue in
+                                .onChange(of: selectedSSHConfigHost) { newValue in
                                     applySSHConfigEntry(newValue)
                                 }
 
@@ -386,7 +385,7 @@ struct ConnectionFormView: View {
 
                 // Cancel
                 Button("Cancel") {
-                    dismissWindow(id: "connection-form")
+                    NSApplication.shared.closeWindows(withId: "connection-form")
                 }
 
                 // Save
@@ -402,7 +401,7 @@ struct ConnectionFormView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onExitCommand {
-            dismissWindow(id: "connection-form")
+            NSApplication.shared.closeWindows(withId: "connection-form")
         }
     }
 
@@ -526,14 +525,14 @@ struct ConnectionFormView: View {
             savedConnections.append(connectionToSave)
             storage.saveConnections(savedConnections)
             // Close and connect to database
-            dismissWindow(id: "connection-form")
+            NSApplication.shared.closeWindows(withId: "connection-form")
             connectToDatabase(connectionToSave)
         } else {
             if let index = savedConnections.firstIndex(where: { $0.id == connectionToSave.id }) {
                 savedConnections[index] = connectionToSave
                 storage.saveConnections(savedConnections)
             }
-            dismissWindow(id: "connection-form")
+            NSApplication.shared.closeWindows(withId: "connection-form")
             NotificationCenter.default.post(name: .connectionUpdated, object: nil)
         }
     }
@@ -543,13 +542,13 @@ struct ConnectionFormView: View {
         var savedConnections = storage.loadConnections()
         savedConnections.removeAll { $0.id == id }
         storage.saveConnections(savedConnections)
-        dismissWindow(id: "connection-form")
+        NSApplication.shared.closeWindows(withId: "connection-form")
         NotificationCenter.default.post(name: .connectionUpdated, object: nil)
     }
 
     private func connectToDatabase(_ connection: DatabaseConnection) {
         openWindow(id: "main")
-        dismissWindow(id: "welcome")
+        NSApplication.shared.closeWindows(withId: "welcome")
 
         Task {
             do {

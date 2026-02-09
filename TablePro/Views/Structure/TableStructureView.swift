@@ -57,11 +57,11 @@ struct TableStructureView: View {
             contentArea
         }
         .task(loadInitialData)
-        .onChange(of: selectedTab, onSelectedTabChanged)
-        .onChange(of: columns, onColumnsChanged)
-        .onChange(of: indexes, onIndexesChanged)
-        .onChange(of: foreignKeys, onForeignKeysChanged)
-        .onChange(of: selectedRows) { _, newSelection in
+        .onChange(of: selectedTab) { newValue in onSelectedTabChanged(newValue) }
+        .onChange(of: columns) { _ in onColumnsChanged() }
+        .onChange(of: indexes) { _ in onIndexesChanged() }
+        .onChange(of: foreignKeys) { _ in onForeignKeysChanged() }
+        .onChange(of: selectedRows) { newSelection in
             AppState.shared.hasRowSelection = !newSelection.isEmpty
         }
         .onAppear {
@@ -723,7 +723,7 @@ struct TableStructureView: View {
 
     // MARK: - Lifecycle Callbacks
 
-    private func onSelectedTabChanged(_ old: StructureTab, _ new: StructureTab) {
+    private func onSelectedTabChanged(_ new: StructureTab) {
         // Update AppState when switching to/from DDL tab
         AppState.shared.isCurrentTabEditable = (new != .ddl)
 
@@ -732,17 +732,17 @@ struct TableStructureView: View {
         }
     }
 
-    private func onColumnsChanged(_ old: [ColumnInfo], _ new: [ColumnInfo]) {
+    private func onColumnsChanged() {
         guard !isReloadingAfterSave else { return }
         loadSchemaForEditing()
     }
 
-    private func onIndexesChanged(_ old: [IndexInfo], _ new: [IndexInfo]) {
+    private func onIndexesChanged() {
         guard !isReloadingAfterSave else { return }
         loadSchemaForEditing()
     }
 
-    private func onForeignKeysChanged(_ old: [ForeignKeyInfo], _ new: [ForeignKeyInfo]) {
+    private func onForeignKeysChanged() {
         guard !isReloadingAfterSave else { return }
         loadSchemaForEditing()
     }
