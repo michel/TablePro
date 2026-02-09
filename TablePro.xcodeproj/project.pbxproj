@@ -10,6 +10,7 @@
 		5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000002 /* CodeEditSourceEditor */; };
 		5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000003 /* CodeEditLanguages */; };
 		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
+		5ACE00012F4F00000000000A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000009 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,7 @@
 				5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */,
 				5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */,
 				5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */,
+				5ACE00012F4F00000000000A /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,6 +92,7 @@
 				5ACE00012F4F000000000002 /* CodeEditSourceEditor */,
 				5ACE00012F4F000000000003 /* CodeEditLanguages */,
 				5ACE00012F4F000000000007 /* CodeEditTextView */,
+				5ACE00012F4F000000000009 /* Sparkle */,
 			);
 			productName = TablePro;
 			productReference = 5A1091C72EF17EDC0055EA7C /* TablePro.app */;
@@ -121,6 +124,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */,
+				5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A1091C82EF17EDC0055EA7C /* Products */;
@@ -478,6 +482,14 @@
 				minimumVersion = 0.15.2;
 			};
 		};
+		5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -493,6 +505,11 @@
 		5ACE00012F4F000000000007 /* CodeEditTextView */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = CodeEditTextView;
+		};
+		5ACE00012F4F000000000009 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
