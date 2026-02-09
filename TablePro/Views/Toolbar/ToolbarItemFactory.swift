@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import SwiftUI
 
 /// Protocol for creating toolbar items
 @MainActor
@@ -79,7 +80,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         let button = NSButton(
             image: systemImage(named: ToolbarItemIdentifier.connectionSwitcher.iconName, description: "Connection"),
             target: ToolbarActionProxy.shared,
-            action: #selector(ToolbarActionProxy.connectionSwitcherAction)
+            action: #selector(ToolbarActionProxy.connectionSwitcherAction(_:))
         )
         button.bezelStyle = .texturedRounded
         button.isBordered = true
@@ -277,14 +278,32 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
 @objc final class ToolbarActionProxy: NSObject {
     static let shared = ToolbarActionProxy()
 
+    private var connectionPopover: NSPopover?
+
     override private init() {
         super.init()
     }
 
-    @objc func connectionSwitcherAction() {
-        // TODO: Implement connection switcher UI
-        // For now, just show welcome window
-        NotificationCenter.default.post(name: .openWelcomeWindow, object: nil)
+    @objc func connectionSwitcherAction(_ sender: Any) {
+        guard let button = sender as? NSView else { return }
+
+        // Toggle popover — close if already shown
+        if let popover = connectionPopover, popover.isShown {
+            popover.performClose(nil)
+            connectionPopover = nil
+            return
+        }
+
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentSize = NSSize(width: 280, height: 300)
+
+        let popoverView = ConnectionSwitcherPopover {
+            popover.performClose(nil)
+        }
+        popover.contentViewController = NSHostingController(rootView: popoverView)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        connectionPopover = popover
     }
 
     @objc func databaseSwitcherAction() {

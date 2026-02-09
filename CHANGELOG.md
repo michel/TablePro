@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Connection switcher popover for quick switching between active/saved connections from the toolbar
+
 ### Fixed
 
 - Fix redo functionality in data grid (Cmd+Shift+Z now works correctly)

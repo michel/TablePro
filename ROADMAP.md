@@ -155,17 +155,17 @@ Developers need to debug slow queries. No EXPLAIN visualization exists.
   - Highlight full table scans, missing indexes, expensive operations
   - Optional: Visual execution plan diagram
 
-### 1.5 Connection Switcher UI
+### 1.5 Connection Switcher UI ✅ DONE
 **Priority: HIGH** | **Effort: Small**
 
-`ToolbarItemFactory.swift:285` has a TODO — toolbar connection switcher opens welcome window instead of a quick-switch popover.
+~~`ToolbarItemFactory.swift:285` has a TODO — toolbar connection switcher opens welcome window instead of a quick-switch popover.~~
 
-- **Files to modify:** `Views/Toolbar/ToolbarItemFactory.swift`
+- **Files modified:** `Views/Toolbar/ToolbarItemFactory.swift`, `Views/Toolbar/ConnectionSwitcherPopover.swift` (new)
 - **Tasks:**
-  - Create connection switcher popover/dropdown
-  - Show active connections with status indicators
-  - Allow quick switching without closing current window
-  - Show recent connections for quick reconnect
+  - ~~Create connection switcher popover/dropdown~~ (DONE)
+  - ~~Show active connections with status indicators~~ (DONE)
+  - ~~Allow quick switching without closing current window~~ (DONE)
+  - ~~Show recent connections for quick reconnect~~ (DONE)
 
 ---
 
@@ -458,7 +458,7 @@ No UI for managing database users, roles, or permissions.
 |---|------|------|-------------|----------|
 | 1 | `Core/Services/RowParser.swift` | 98 | CSV parsing not implemented, falls back to TSV | Critical |
 | 2 | `Views/Results/DataGridView.swift` | 305 | ~~Redo tracking not implemented~~ (FIXED) | ~~Critical~~ |
-| 3 | `Views/Toolbar/ToolbarItemFactory.swift` | 285 | Connection switcher opens welcome window instead of popover | High |
+| 3 | `Views/Toolbar/ToolbarItemFactory.swift` | 285 | ~~Connection switcher opens welcome window instead of popover~~ (FIXED) | ~~High~~ |
 | 4 | `Core/SchemaTracking/SchemaStatementGenerator.swift` | 415 | PostgreSQL PK rename assumes `{table}_pkey` convention | Medium |
 | 5 | `Core/SchemaTracking/SchemaStatementGenerator.swift` | 427 | SQLite doesn't support PK modification (needs table recreation) | Medium |
 | 6 | `Views/Editor/SQLEditorCoordinator.swift` | 62 | Find panel z-order workaround for CodeEditSourceEditor | Low |
@@ -587,8 +587,8 @@ For any developer continuing this project, start with these files:
 1. SSL/TLS connection support
 2. CSV import (fix the existing TODO in RowParser)
 3. ~~Complete redo functionality~~ (DONE)
-4. Connection switcher popover
-5. Replace `print()` with `Logger`
+4. ~~Connection switcher popover~~ (DONE)
+5. ~~Replace `print()` with `Logger`~~ (DONE)
 
 ### Phase 2: v0.3.0 — Developer Productivity
 6. Query execution plan (EXPLAIN)
