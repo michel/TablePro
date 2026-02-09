@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `canRedo()` always returning false in data grid coordinator
 - Wire undo/redo callbacks directly to data grid for proper responder chain validation
 
+### Changed
+
+- Replace all `print()` statements with structured OSLog `Logger` across 25 files for better debugging via Console.app
+
 ## [0.1.1] - 2026-02-09
 
 ### Added
