@@ -1,0 +1,14 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>TablePro-x86_64</title>
+        <item>
+            <title>0.1.1</title>
+            <pubDate>Mon, 09 Feb 2026 15:01:37 +0000</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.1.1/TablePro-0.1.1-x86_64.zip" length="18019606" type="application/octet-stream" sparkle:edSignature="tfgCsZ9vFAHXhICVPI+u+tdEgvCvXosCQpSwwhduE1oWirtRn3nuJkYl10lSwt7CSfLiGrZt19Lb2Ioxm08QAg=="/>
+        </item>
+    </channel>
+</rss>
