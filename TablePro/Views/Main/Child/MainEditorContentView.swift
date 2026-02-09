@@ -6,6 +6,7 @@
 //  Extracted from MainContentView for better separation.
 //
 
+import CodeEditSourceEditor
 import SwiftUI
 
 /// Cache for sorted query result rows to avoid re-sorting on every SwiftUI body evaluation
@@ -67,7 +68,7 @@ struct MainEditorContentView: View {
         VStack(spacing: 0) {
             // Tab bar - only show when there are tabs
             if !tabManager.tabs.isEmpty {
-                NativeTabBar(tabManager: tabManager)
+                EditorTabBar(tabManager: tabManager)
                 Divider()
             }
 
@@ -118,10 +119,11 @@ struct MainEditorContentView: View {
             VStack(spacing: 0) {
                 QueryEditorView(
                     queryText: queryTextBinding(for: tab),
-                    cursorPosition: $coordinator.cursorPosition,
+                    cursorPositions: $coordinator.cursorPositions,
                     onExecute: { coordinator.runQuery() },
                     schemaProvider: coordinator.schemaProvider
                 )
+                .id(tab.id)
             }
             .frame(minHeight: 100, idealHeight: 200)
 

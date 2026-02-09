@@ -5,6 +5,7 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import CodeEditTextView
 import Combine
 import SwiftUI
 
@@ -257,8 +258,8 @@ struct TableProApp: App {
                 Button("Undo") {
                     // Check if first responder is a text view (SQL editor)
                     if let firstResponder = NSApp.keyWindow?.firstResponder,
-                       firstResponder is NSTextView {
-                        // Let native NSTextView undo handle it
+                       firstResponder is NSTextView || firstResponder is TextView {
+                        // Let native text view undo handle it
                         NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
                     } else {
                         // Data grid undo
@@ -270,8 +271,8 @@ struct TableProApp: App {
                 Button("Redo") {
                     // Check if first responder is a text view (SQL editor)
                     if let firstResponder = NSApp.keyWindow?.firstResponder,
-                       firstResponder is NSTextView {
-                        // Let native NSTextView redo handle it
+                       firstResponder is NSTextView || firstResponder is TextView {
+                        // Let native text view redo handle it
                         NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
                     } else {
                         // Data grid redo
@@ -406,9 +407,6 @@ extension Notification.Name {
     static let toggleTableBrowser = Notification.Name("toggleTableBrowser")
     static let showAllTables = Notification.Name("showAllTables")
     static let toggleRightSidebar = Notification.Name("toggleRightSidebar")
-    static let executeQuery = Notification.Name("executeQuery")
-    static let formatQuery = Notification.Name("formatQuery")
-    static let clearQuery = Notification.Name("clearQuery")
     static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
     static let addNewRow = Notification.Name("addNewRow")
     static let duplicateRow = Notification.Name("duplicateRow")

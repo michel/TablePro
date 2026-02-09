@@ -5,6 +5,7 @@
 //  Created by Ngo Quoc Dat on 24/12/25.
 //
 
+import CodeEditSourceEditor
 import SwiftUI
 
 /// Content view for query tabs (editor + results split)
@@ -14,7 +15,7 @@ struct QueryTabContentView: View {
     let changeManager: DataChangeManager
     let filterStateManager: FilterStateManager
     @Binding var queryText: String
-    @Binding var cursorPosition: Int
+    @Binding var cursorPositions: [CursorPosition]
     @Binding var selectedRowIndices: Set<Int>
     @Binding var editingCell: CellPosition?
 
@@ -53,7 +54,7 @@ struct QueryTabContentView: View {
             VStack(spacing: 0) {
                 QueryEditorView(
                     queryText: $queryText,
-                    cursorPosition: $cursorPosition,
+                    cursorPositions: $cursorPositions,
                     onExecute: onExecute,
                     schemaProvider: schemaProvider
                 )

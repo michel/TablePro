@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000002 /* CodeEditSourceEditor */; };
+		5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000003 /* CodeEditLanguages */; };
+		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		5A1091C72EF17EDC0055EA7C /* TablePro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TablePro.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -36,6 +42,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */,
+				5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */,
+				5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +87,9 @@
 			);
 			name = TablePro;
 			packageProductDependencies = (
+				5ACE00012F4F000000000002 /* CodeEditSourceEditor */,
+				5ACE00012F4F000000000003 /* CodeEditLanguages */,
+				5ACE00012F4F000000000007 /* CodeEditTextView */,
 			);
 			productName = TablePro;
 			productReference = 5A1091C72EF17EDC0055EA7C /* TablePro.app */;
@@ -108,6 +120,7 @@
 			mainGroup = 5A1091BE2EF17EDC0055EA7C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A1091C82EF17EDC0055EA7C /* Products */;
@@ -259,6 +272,7 @@
 		5A1091D32EF17EDD0055EA7C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -346,6 +360,7 @@
 		5A1091D42EF17EDD0055EA7C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -455,6 +470,33 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/CodeEditApp/CodeEditSourceEditor.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.15.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5ACE00012F4F000000000002 /* CodeEditSourceEditor */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */;
+			productName = CodeEditSourceEditor;
+		};
+		5ACE00012F4F000000000003 /* CodeEditLanguages */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CodeEditLanguages;
+		};
+		5ACE00012F4F000000000007 /* CodeEditTextView */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = CodeEditTextView;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 5A1091BF2EF17EDC0055EA7C /* Project object */;
 }

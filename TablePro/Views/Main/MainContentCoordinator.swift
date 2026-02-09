@@ -6,6 +6,7 @@
 //  Separates view logic from presentation for better maintainability.
 //
 
+import CodeEditSourceEditor
 import Combine
 import Foundation
 import SwiftUI
@@ -47,7 +48,7 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Published State
 
     @Published var schemaProvider = SQLSchemaProvider()
-    @Published var cursorPosition: Int = 0
+    @Published var cursorPositions: [CursorPosition] = []
     @Published var tableMetadata: TableMetadata?
     // Removed: showErrorAlert and errorAlertMessage - errors now display inline
     @Published var showDatabaseSwitcher = false
@@ -61,8 +62,8 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Internal State
 
-    private var queryGeneration: Int = 0
-    private var currentQueryTask: Task<Void, Never>?
+    internal var queryGeneration: Int = 0
+    internal var currentQueryTask: Task<Void, Never>?
     private var changeManagerUpdateTask: Task<Void, Never>?
     private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
@@ -181,22 +182,47 @@ final class MainContentCoordinator: ObservableObject {
         let sql: String
         if tabManager.tabs[index].tabType == .table {
             sql = fullQuery
+        } else if let firstCursor = cursorPositions.first,
+                  firstCursor.range.length > 0 {
+            // Execute selected text only
+            let nsQuery = fullQuery as NSString
+            let clampedRange = NSIntersectionRange(
+                firstCursor.range,
+                NSRange(location: 0, length: nsQuery.length)
+            )
+            sql = nsQuery.substring(with: clampedRange)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            sql = extractQueryAtCursor(from: fullQuery, at: cursorPosition)
+            sql = extractQueryAtCursor(
+                from: fullQuery,
+                at: cursorPositions.first?.range.location ?? 0
+            )
         }
 
         guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return
         }
 
-        // Check for dangerous queries and confirm if needed
-        Task { @MainActor in
-            guard await confirmDangerousQueryIfNeeded(sql) else {
-                return
-            }
+        // Split into individual statements for multi-statement support
+        let statements = splitStatements(from: sql)
+        guard !statements.isEmpty else { return }
 
-            // Execute the query directly
-            executeQueryInternal(sql)
+        if statements.count == 1 {
+            // Single statement — existing path (unchanged)
+            Task { @MainActor in
+                guard await confirmDangerousQueryIfNeeded(statements[0]) else {
+                    return
+                }
+                executeQueryInternal(statements[0])
+            }
+        } else {
+            // Multiple statements — check all for dangerous queries, then execute sequentially
+            Task { @MainActor in
+                for stmt in statements {
+                    guard await confirmDangerousQueryIfNeeded(stmt) else { return }
+                }
+                executeMultipleStatements(statements)
+            }
         }
     }
 
@@ -364,7 +390,7 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - SQL Parsing
 
-    private func extractTableName(from sql: String) -> String? {
+    func extractTableName(from sql: String) -> String? {
         let pattern = #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
               let match = regex.firstMatch(in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
@@ -387,19 +413,60 @@ final class MainContentCoordinator: ObservableObject {
 
         let singleQuote = UInt16(UnicodeScalar("'").value)
         let doubleQuote = UInt16(UnicodeScalar("\"").value)
+        let backtick = UInt16(UnicodeScalar("`").value)
         let semicolonChar = UInt16(UnicodeScalar(";").value)
+        let dash = UInt16(UnicodeScalar("-").value)
+        let slash = UInt16(UnicodeScalar("/").value)
+        let star = UInt16(UnicodeScalar("*").value)
+        let newline = UInt16(UnicodeScalar("\n").value)
 
         let safePosition = min(max(0, position), length)
         var currentStart = 0
         var inString = false
         var stringCharVal: UInt16 = 0
+        var inLineComment = false
+        var inBlockComment = false
+        var i = 0
 
         // Scan through characters, stopping as soon as we find the statement
-        // containing the cursor. Avoids scanning the entire 40MB file.
-        for i in 0..<length {
+        // containing the cursor. Avoids scanning the entire file.
+        while i < length {
             let ch = nsQuery.character(at: i)
 
-            if ch == singleQuote || ch == doubleQuote {
+            // Handle line comment end
+            if inLineComment {
+                if ch == newline { inLineComment = false }
+                i += 1
+                continue
+            }
+
+            // Handle block comment end
+            if inBlockComment {
+                if ch == star && i + 1 < length && nsQuery.character(at: i + 1) == slash {
+                    inBlockComment = false
+                    i += 2
+                    continue
+                }
+                i += 1
+                continue
+            }
+
+            // Detect line comment start (--)
+            if !inString && ch == dash && i + 1 < length && nsQuery.character(at: i + 1) == dash {
+                inLineComment = true
+                i += 2
+                continue
+            }
+
+            // Detect block comment start (/*)
+            if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
+                inBlockComment = true
+                i += 2
+                continue
+            }
+
+            // Track string/identifier literals
+            if ch == singleQuote || ch == doubleQuote || ch == backtick {
                 if !inString {
                     inString = true
                     stringCharVal = ch
@@ -408,9 +475,9 @@ final class MainContentCoordinator: ObservableObject {
                 }
             }
 
+            // Statement delimiter
             if ch == semicolonChar && !inString {
                 let stmtEnd = i + 1
-                // Check if cursor is within this statement
                 if safePosition >= currentStart && safePosition <= stmtEnd {
                     let stmtRange = NSRange(location: currentStart, length: i - currentStart)
                     return nsQuery.substring(with: stmtRange)
@@ -418,6 +485,8 @@ final class MainContentCoordinator: ObservableObject {
                 }
                 currentStart = stmtEnd
             }
+
+            i += 1
         }
 
         // Cursor is in the last statement (no trailing semicolon)

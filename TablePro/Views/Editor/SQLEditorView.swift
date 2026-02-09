@@ -2,158 +2,87 @@
 //  SQLEditorView.swift
 //  TablePro
 //
-//  Production-quality SQL editor using AppKit NSTextView
-//  Fully rewritten with clean architecture
+//  SwiftUI wrapper for CodeEditSourceEditor-based SQL editor
 //
 
 import AppKit
+import CodeEditLanguages
+import CodeEditSourceEditor
+import CodeEditTextView
 import SwiftUI
 
 // MARK: - SQLEditorView
 
-/// SwiftUI wrapper for the SQL editor
-struct SQLEditorView: NSViewRepresentable {
+/// SwiftUI SQL editor powered by CodeEditSourceEditor
+struct SQLEditorView: View {
     @Binding var text: String
-    @Binding var cursorPosition: Int
-    var onExecute: (() -> Void)?
+    @Binding var cursorPositions: [CursorPosition]
     var schemaProvider: SQLSchemaProvider?
 
-    func makeNSView(context: Context) -> NSView {
-        // Create container view to hold line numbers and scroll view
-        let containerView = NSView()
+    @State private var editorState = SourceEditorState()
+    @State private var completionAdapter: SQLCompletionAdapter?
+    @State private var coordinator = SQLEditorCoordinator()
+    @State private var editorConfiguration = makeConfiguration()
 
-        // Create scroll view
-        let scrollView = NSScrollView()
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.borderType = .noBorder
-        scrollView.drawsBackground = true
-        scrollView.backgroundColor = SQLEditorTheme.background
+    var body: some View {
+        SourceEditor(
+            $text,
+            language: .sql,
+            configuration: editorConfiguration,
+            state: $editorState,
+            coordinators: [coordinator],
+            completionDelegate: completionAdapter
+        )
+        .onChange(of: editorState.cursorPositions) { _, newValue in
+            guard let positions = newValue else { return }
+            // Skip cursor propagation when the editor doesn't have focus
+            // (e.g., find panel match highlighting). Propagating triggers
+            // a SwiftUI re-render that disrupts the find panel's focus.
+            guard coordinator.isEditorFirstResponder else { return }
+            cursorPositions = positions
+        }
+        // SourceEditor doesn't re-read the text binding in updateNSViewController,
+        // so programmatic changes on the SAME tab (clear, format) won't appear
+        // without this. Tab switches don't need it — .id(tab.id) recreates the
+        // entire SourceEditor with the correct text.
+        .onChange(of: text) { _, newValue in
+            if let controller = coordinator.controller,
+               controller.textView.string != newValue {
+                let fullRange = NSRange(location: 0, length: (controller.textView.string as NSString).length)
+                controller.textView.replaceCharacters(in: fullRange, with: newValue)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .editorSettingsDidChange)) { _ in
+            editorConfiguration = Self.makeConfiguration()
+        }
+        .onAppear {
+            if completionAdapter == nil {
+                completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider)
+            }
+        }
+    }
 
-        // Create text storage, layout manager, and text container
-        let textStorage = NSTextStorage()
-        let layoutManager = NSLayoutManager()
-        // Allow non-contiguous layout: lets the layout manager skip laying out offscreen
-        // regions. This is the single most important setting for large-document performance.
-        layoutManager.allowsNonContiguousLayout = true
-        textStorage.addLayoutManager(layoutManager)
+    // MARK: - Configuration
 
-        let textContainer = NSTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
-
-        // Word wrap configuration based on settings
-        let wordWrap = SQLEditorTheme.wordWrap
-        if wordWrap {
-            textContainer.widthTracksTextView = true
-        } else {
-            textContainer.widthTracksTextView = false
-            textContainer.containerSize = NSSize(
-                width: CGFloat.greatestFiniteMagnitude,
-                height: CGFloat.greatestFiniteMagnitude
+    private static func makeConfiguration() -> SourceEditorConfiguration {
+        SourceEditorConfiguration(
+            appearance: .init(
+                theme: TableProEditorTheme.make(),
+                font: SQLEditorTheme.font,
+                wrapLines: SQLEditorTheme.wordWrap,
+                tabWidth: SQLEditorTheme.tabWidth
+            ),
+            behavior: .init(
+                indentOption: .spaces(count: SQLEditorTheme.tabWidth)
+            ),
+            layout: .init(
+                contentInsets: NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+            ),
+            peripherals: .init(
+                showGutter: SQLEditorTheme.showLineNumbers,
+                showMinimap: false,
+                showFoldingRibbon: false
             )
-        }
-
-        textContainer.lineFragmentPadding = SQLEditorTheme.lineFragmentPadding
-        layoutManager.addTextContainer(textContainer)
-
-        // Create text view using EditorTextView with the text container
-        let textView = EditorTextView(frame: .zero, textContainer: textContainer)
-        textView.minSize = NSSize(width: 0, height: 0)
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = !wordWrap
-        textView.autoresizingMask = .width
-
-        textView.isRichText = false
-        textView.allowsUndo = true
-        textView.font = SQLEditorTheme.font
-        textView.textColor = SQLEditorTheme.text
-        textView.backgroundColor = SQLEditorTheme.background
-        textView.drawsBackground = true
-        textView.insertionPointColor = SQLEditorTheme.insertionPoint
-        textView.textContainerInset = SQLEditorTheme.textContainerInset
-
-        // Disable all automatic text features for SQL syntax integrity and performance
-        textView.isAutomaticQuoteSubstitutionEnabled = false
-        textView.isAutomaticDashSubstitutionEnabled = false
-        textView.isAutomaticSpellingCorrectionEnabled = false
-        textView.isAutomaticTextReplacementEnabled = false
-        textView.isContinuousSpellCheckingEnabled = false
-        textView.isGrammarCheckingEnabled = false
-        textView.isAutomaticTextCompletionEnabled = false
-        textView.isAutomaticLinkDetectionEnabled = false
-        textView.usesFontPanel = false
-        textView.usesFindBar = true
-
-        // Set initial text
-        textView.string = text
-
-        // MUST set documentView BEFORE coordinator setup so that
-        // textView.enclosingScrollView is non-nil when SyntaxHighlighter
-        // attaches its scroll observer for viewport-based highlighting.
-        scrollView.documentView = textView
-
-        // Set up coordinator (textStorage is now guaranteed to exist)
-        context.coordinator.setup(textView: textView, textStorage: textStorage)
-
-        // Create custom line number view (positioned left of scroll view)
-        let lineNumberView = LineNumberView(textView: textView, scrollView: scrollView)
-
-        // Add both views to container
-        containerView.addSubview(lineNumberView)
-        containerView.addSubview(scrollView)
-
-        // Disable autoresizing masks (use Auto Layout)
-        lineNumberView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-
-        // Store reference to line number view for visibility control
-        context.coordinator.lineNumberView = lineNumberView
-
-        // Apply initial line number visibility from settings
-        let showLineNumbers = SQLEditorTheme.showLineNumbers
-        lineNumberView.isHidden = !showLineNumbers
-
-        // Set up layout constraints
-        // Use width constraint for line number view that can be toggled
-        let lineNumberWidthConstraint = lineNumberView.widthAnchor.constraint(equalToConstant: showLineNumbers ? lineNumberView.intrinsicContentSize.width : 0)
-        lineNumberWidthConstraint.priority = .defaultHigh
-        context.coordinator.lineNumberWidthConstraint = lineNumberWidthConstraint
-
-        NSLayoutConstraint.activate([
-            // Line number view: left side, full height
-            lineNumberView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            lineNumberView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            lineNumberView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-
-            // Scroll view: right side, full height
-            scrollView.leadingAnchor.constraint(equalTo: lineNumberView.trailingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
-        ])
-
-        return containerView
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        // Extract scroll view from container view and update text if changed from SwiftUI side
-        if nsView.subviews.first(where: { $0 is NSScrollView }) is NSScrollView {
-            context.coordinator.updateTextViewIfNeeded(with: text)
-        }
-
-        // Update line number visibility based on settings
-        let showLineNumbers = SQLEditorTheme.showLineNumbers
-        if let lineNumberView = context.coordinator.lineNumberView {
-            lineNumberView.isHidden = !showLineNumbers
-        }
-    }
-
-    func makeCoordinator() -> EditorCoordinator {
-        EditorCoordinator(
-            text: $text,
-            cursorPosition: $cursorPosition,
-            onExecute: onExecute,
-            schemaProvider: schemaProvider
         )
     }
 }
@@ -163,7 +92,7 @@ struct SQLEditorView: NSViewRepresentable {
 #Preview {
     SQLEditorView(
         text: .constant("SELECT * FROM users\nWHERE active = true;"),
-        cursorPosition: .constant(0)
+        cursorPositions: .constant([])
     )
     .frame(width: 500, height: 200)
 }
