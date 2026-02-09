@@ -95,31 +95,9 @@ jobs:
 
       - name: Prepare libmariadb
         run: |
-          echo "📦 Copying libmariadb.a from Homebrew..."
-
-          MARIADB_PREFIX=$(brew --prefix mariadb-connector-c)
-
-          # Find the library file (may be in lib/ or lib/mariadb/)
-          MARIADB_LIB=""
-          for path in "$MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$MARIADB_PREFIX/lib/libmariadb.a"; do
-            if [ -f "$path" ]; then
-              MARIADB_LIB="$path"
-              break
-            fi
-          done
-
-          if [ -z "$MARIADB_LIB" ]; then
-            echo "❌ ERROR: libmariadb.a not found in Homebrew installation"
-            echo "Searched in:"
-            echo "  - $MARIADB_PREFIX/lib/mariadb/libmariadb.a"
-            echo "  - $MARIADB_PREFIX/lib/libmariadb.a"
-            exit 1
-          fi
-
-          mkdir -p Libs
-          cp "$MARIADB_LIB" Libs/libmariadb.a
-
-          echo "✅ libmariadb.a copied from $MARIADB_LIB"
+          echo "📦 Preparing libmariadb.a for arm64..."
+          cp Libs/libmariadb_arm64.a Libs/libmariadb.a
+          echo "✅ libmariadb.a ready"
           lipo -info Libs/libmariadb.a
           ls -lh Libs/libmariadb.a
 
@@ -348,31 +326,9 @@ jobs:
 
       - name: Prepare libmariadb
         run: |
-          echo "📦 Copying libmariadb.a from x86_64 Homebrew..."
-
-          X86_MARIADB_PREFIX=$(arch -x86_64 /usr/local/bin/brew --prefix mariadb-connector-c)
-
-          # Find the library file (may be in lib/ or lib/mariadb/)
-          MARIADB_LIB=""
-          for path in "$X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a" "$X86_MARIADB_PREFIX/lib/libmariadb.a"; do
-            if [ -f "$path" ]; then
-              MARIADB_LIB="$path"
-              break
-            fi
-          done
-
-          if [ -z "$MARIADB_LIB" ]; then
-            echo "❌ ERROR: libmariadb.a not found in x86_64 Homebrew installation"
-            echo "Searched in:"
-            echo "  - $X86_MARIADB_PREFIX/lib/mariadb/libmariadb.a"
-            echo "  - $X86_MARIADB_PREFIX/lib/libmariadb.a"
-            exit 1
-          fi
-
-          mkdir -p Libs
-          cp "$MARIADB_LIB" Libs/libmariadb.a
-
-          echo "✅ libmariadb.a copied from $MARIADB_LIB"
+          echo "📦 Preparing libmariadb.a for x86_64..."
+          cp Libs/libmariadb_x86_64.a Libs/libmariadb.a
+          echo "✅ libmariadb.a ready"
           lipo -info Libs/libmariadb.a
           ls -lh Libs/libmariadb.a
 
