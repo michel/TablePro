@@ -79,7 +79,12 @@ extension MainContentCoordinator {
                     inString = true
                     stringCharVal = ch
                 } else if ch == stringCharVal {
-                    inString = false
+                    // Handle doubled (escaped) quotes: '' "" ``
+                    if i + 1 < length && nsQuery.character(at: i + 1) == stringCharVal {
+                        i += 1 // Skip the escaped quote
+                    } else {
+                        inString = false
+                    }
                 }
             }
 
@@ -111,7 +116,8 @@ extension MainContentCoordinator {
 
     // MARK: - Multi-Statement Execution
 
-    /// Execute multiple SQL statements sequentially, stopping on first error.
+    /// Execute multiple SQL statements sequentially within a transaction,
+    /// stopping on first error with automatic rollback.
     /// Displays results from the last SELECT statement (if any).
     func executeMultipleStatements(_ statements: [String]) {
         guard let index = tabManager.selectedTabIndex else { return }
@@ -130,23 +136,43 @@ extension MainContentCoordinator {
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
+        let totalCount = statements.count
+        let dbType = connection.type
 
         currentQueryTask = Task {
             var cumulativeTime: TimeInterval = 0
             var lastSelectResult: QueryResult?
             var lastSelectSQL: String?
             var totalRowsAffected = 0
+            var executedCount = 0
+            var failedSQL: String?
 
             do {
                 guard let driver = DatabaseManager.shared.activeDriver else {
                     throw DatabaseError.notConnected
                 }
 
-                for sql in statements {
-                    guard !Task.isCancelled else { break }
-                    guard capturedGeneration == queryGeneration else { return }
+                // Wrap in a transaction for atomicity
+                let beginSQL: String
+                switch dbType {
+                case .mysql, .mariadb:
+                    beginSQL = "START TRANSACTION"
+                default:
+                    beginSQL = "BEGIN"
+                }
+                _ = try await driver.execute(query: beginSQL)
 
+                for (stmtIndex, sql) in statements.enumerated() {
+                    guard !Task.isCancelled else { break }
+                    guard capturedGeneration == queryGeneration else {
+                        _ = try? await driver.execute(query: "ROLLBACK")
+                        return
+                    }
+
+                    failedSQL = sql
                     let result = try await driver.execute(query: sql)
+                    failedSQL = nil
+                    executedCount = stmtIndex + 1
                     cumulativeTime += result.executionTime
                     totalRowsAffected += result.rowsAffected
 
@@ -169,6 +195,9 @@ extension MainContentCoordinator {
                         )
                     }
                 }
+
+                // Commit the transaction
+                _ = try await driver.execute(query: "COMMIT")
 
                 // All statements succeeded — update tab with results
                 await MainActor.run {
@@ -220,7 +249,16 @@ extension MainContentCoordinator {
                     changeManager.reloadVersion += 1
                 }
             } catch {
+                // Rollback on failure
+                if let driver = DatabaseManager.shared.activeDriver {
+                    _ = try? await driver.execute(query: "ROLLBACK")
+                }
+
                 guard capturedGeneration == queryGeneration else { return }
+
+                let failedStmtIndex = executedCount + 1
+                let contextMsg = "Statement \(failedStmtIndex)/\(totalCount) failed: "
+                    + error.localizedDescription
 
                 await MainActor.run {
                     currentQueryTask = nil
@@ -228,15 +266,16 @@ extension MainContentCoordinator {
 
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         var errTab = tabManager.tabs[idx]
-                        errTab.errorMessage = error.localizedDescription
+                        errTab.errorMessage = contextMsg
                         errTab.isExecuting = false
                         errTab.executionTime = cumulativeTime
                         tabManager.tabs[idx] = errTab
                     }
 
-                    // Record the failed multi-statement batch in history
+                    // Record only the failing statement in history
+                    let recordSQL = failedSQL ?? statements[min(executedCount, totalCount - 1)]
                     QueryHistoryManager.shared.recordQuery(
-                        query: statements.joined(separator: "; "),
+                        query: recordSQL,
                         connectionId: conn.id,
                         databaseName: conn.database,
                         executionTime: cumulativeTime,
@@ -247,7 +286,7 @@ extension MainContentCoordinator {
 
                     AlertHelper.showErrorSheet(
                         title: "Query Execution Failed",
-                        message: error.localizedDescription,
+                        message: contextMsg,
                         window: NSApp.keyWindow
                     )
                 }

@@ -471,7 +471,12 @@ final class MainContentCoordinator: ObservableObject {
                     inString = true
                     stringCharVal = ch
                 } else if ch == stringCharVal {
-                    inString = false
+                    // Handle doubled (escaped) quotes: '' "" ``
+                    if i + 1 < length && nsQuery.character(at: i + 1) == stringCharVal {
+                        i += 1 // Skip the escaped quote
+                    } else {
+                        inString = false
+                    }
                 }
             }
 
@@ -528,6 +533,7 @@ final class MainContentCoordinator: ObservableObject {
             if rows.count > 10_000 {
                 // Large dataset: sort on background thread to avoid UI freeze
                 activeSortTasks[tabId]?.cancel()
+                activeSortTasks.removeValue(forKey: tabId)
                 tabManager.tabs[tabIndex].isExecuting = true
                 toolbarState.isExecuting = true
                 querySortCache.removeValue(forKey: tabId)

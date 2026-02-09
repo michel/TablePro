@@ -39,6 +39,12 @@ struct SQLEditorView: View {
             // (e.g., find panel match highlighting). Propagating triggers
             // a SwiftUI re-render that disrupts the find panel's focus.
             guard coordinator.isEditorFirstResponder else { return }
+            // Guard against stale propagation during tab switch (.id() recreation):
+            // verify the editor's text still matches the binding before propagating.
+            if let controller = coordinator.controller,
+               controller.textView.string != text {
+                return
+            }
             cursorPositions = positions
         }
         // SourceEditor doesn't re-read the text binding in updateNSViewController,
