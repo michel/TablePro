@@ -362,7 +362,7 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
         let count = dataProvider.count
         let itemName = count == 1 ? "history entry" : "history entries"
 
-        guard count > 0 else { return }
+        guard !dataProvider.isEmpty else { return }
 
         Task { @MainActor in
             let confirmed = await AlertHelper.confirmDestructive(
