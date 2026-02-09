@@ -163,6 +163,7 @@ struct TableProApp: App {
         // Settings Window - opens with Cmd+,
         Settings {
             SettingsView()
+                .environmentObject(updaterBridge)
                 .tint(accentTint)
         }
 

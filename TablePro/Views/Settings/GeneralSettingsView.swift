@@ -34,6 +34,9 @@ struct GeneralSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .onAppear {
+            updaterBridge.updater.automaticallyChecksForUpdates = settings.automaticallyCheckForUpdates
+        }
     }
 }
 

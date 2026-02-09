@@ -10,7 +10,7 @@ import SwiftUI
 /// Main settings view with tab-based navigation (macOS Settings style)
 struct SettingsView: View {
     @StateObject private var settingsManager = AppSettingsManager.shared
-    @StateObject private var updaterBridge = UpdaterBridge()
+    @EnvironmentObject var updaterBridge: UpdaterBridge
 
     var body: some View {
         TabView {
@@ -50,4 +50,5 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
+        .environmentObject(UpdaterBridge())
 }
