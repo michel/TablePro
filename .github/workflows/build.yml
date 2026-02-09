@@ -516,17 +516,65 @@ jobs:
           brew install --cask sparkle
           SPARKLE_BIN="$(brew --caskroom)/sparkle/$(ls "$(brew --caskroom)/sparkle" | head -1)/bin"
 
-          # Sign ZIP files and generate appcast
+          ARM64_ZIP="artifacts/TablePro-${VERSION}-arm64.zip"
+          X86_64_ZIP="artifacts/TablePro-${VERSION}-x86_64.zip"
+
+          # Sign each ZIP with EdDSA using sign_update
+          KEY_FILE=$(mktemp)
+          echo "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
+          ARM64_SIG=$("$SPARKLE_BIN/sign_update" "$ARM64_ZIP" -f "$KEY_FILE")
+          X86_64_SIG=$("$SPARKLE_BIN/sign_update" "$X86_64_ZIP" -f "$KEY_FILE")
+          rm -f "$KEY_FILE"
+
+          # Parse signature and length from sign_update output
+          # Output format: sparkle:edSignature="..." length="..."
+          ARM64_ED_SIG=$(echo "$ARM64_SIG" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          ARM64_LENGTH=$(echo "$ARM64_SIG" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
+          X86_64_ED_SIG=$(echo "$X86_64_SIG" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          X86_64_LENGTH=$(echo "$X86_64_SIG" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
+
+          # Extract version info from the app's Info.plist inside the ZIP
+          TEMP_DIR=$(mktemp -d)
+          unzip -q "$ARM64_ZIP" "*/Contents/Info.plist" -d "$TEMP_DIR"
+          INFO_PLIST=$(find "$TEMP_DIR" -name "Info.plist" -path "*/Contents/Info.plist" | head -1)
+          BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST")
+          SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST")
+          MIN_OS=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$INFO_PLIST" 2>/dev/null || echo "13.5")
+          rm -rf "$TEMP_DIR"
+
+          # Build appcast.xml with architecture-specific items (Sparkle 2 convention)
+          # Each item has sparkle:architectures on the enclosure so the client
+          # automatically picks the matching architecture
+          DOWNLOAD_PREFIX="https://github.com/datlechin/TablePro/releases/download/v${VERSION}"
+          PUB_DATE=$(date -u '+%a, %d %b %Y %H:%M:%S +0000')
+
           mkdir -p appcast
-          cp artifacts/TablePro-${VERSION}-arm64.zip appcast/
-          cp artifacts/TablePro-${VERSION}-x86_64.zip appcast/
+          cat > appcast/appcast.xml << APPCAST_EOF
+          <?xml version="1.0" standalone="yes"?>
+          <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+              <channel>
+                  <title>TablePro</title>
+                  <item>
+                      <title>${SHORT_VERSION}</title>
+                      <pubDate>${PUB_DATE}</pubDate>
+                      <sparkle:version>${BUILD_NUMBER}</sparkle:version>
+                      <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
+                      <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
+                      <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-arm64.zip" length="${ARM64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${ARM64_ED_SIG}" sparkle:architectures="arm64"/>
+                  </item>
+                  <item>
+                      <title>${SHORT_VERSION}</title>
+                      <pubDate>${PUB_DATE}</pubDate>
+                      <sparkle:version>${BUILD_NUMBER}</sparkle:version>
+                      <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
+                      <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
+                      <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-x86_64.zip" length="${X86_64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${X86_64_ED_SIG}" sparkle:architectures="x86_64"/>
+                  </item>
+              </channel>
+          </rss>
+          APPCAST_EOF
 
-          # Generate appcast.xml with EdDSA signatures
-          echo "$SPARKLE_PRIVATE_KEY" | "$SPARKLE_BIN/generate_appcast" \
-            --ed-key-file /dev/stdin \
-            --download-url-prefix "https://github.com/datlechin/TablePro/releases/download/v${VERSION}/" \
-            appcast/
-
+          echo "✅ Appcast generated with architecture-specific items:"
           cat appcast/appcast.xml
 
       - name: Upload appcast artifact
