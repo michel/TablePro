@@ -533,13 +533,22 @@ jobs:
           X86_64_ED_SIG=$(echo "$X86_64_SIG" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
           X86_64_LENGTH=$(echo "$X86_64_SIG" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
 
-          # Extract version info from the app's Info.plist inside the ZIP
+          # Extract version info from the top-level app's Info.plist inside the ZIP
+          # Use -maxdepth 3 to avoid nested framework plists (e.g. Sparkle.framework)
           TEMP_DIR=$(mktemp -d)
-          unzip -q "$ARM64_ZIP" "*/Contents/Info.plist" -d "$TEMP_DIR"
-          INFO_PLIST=$(find "$TEMP_DIR" -name "Info.plist" -path "*/Contents/Info.plist" | head -1)
-          BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST")
-          SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST")
-          MIN_OS=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$INFO_PLIST" 2>/dev/null || echo "13.5")
+          unzip -q "$ARM64_ZIP" -d "$TEMP_DIR"
+          INFO_PLIST=$(find "$TEMP_DIR" -maxdepth 3 -path "*/Contents/Info.plist" | head -1)
+
+          if [ -n "$INFO_PLIST" ] && [ -f "$INFO_PLIST" ]; then
+            BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "1")
+            SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST" 2>/dev/null || echo "$VERSION")
+            MIN_OS=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$INFO_PLIST" 2>/dev/null || echo "13.5")
+          else
+            echo "⚠️  Could not find app Info.plist in ZIP, using defaults from tag"
+            BUILD_NUMBER="1"
+            SHORT_VERSION="$VERSION"
+            MIN_OS="13.5"
+          fi
           rm -rf "$TEMP_DIR"
 
           # Build appcast.xml with architecture-specific items (Sparkle 2 convention)
