@@ -80,6 +80,7 @@ Managed via Xcode's SPM integration (no standalone `Package.swift`):
 - **CodeEditSourceEditor** (0.15.2+) — tree-sitter-powered code editor component
 - **CodeEditLanguages** — SQL language grammar (transitive dependency)
 - **CodeEditTextView** — text view API, e.g. `replaceCharacters` (transitive dependency)
+- **Sparkle** (2.x) — auto-update framework with EdDSA signing
 
 > The SwiftLint plugin bundled with CodeEditSourceEditor requires
 > `-skipPackagePluginValidation` for CLI builds (see Build Commands above).
@@ -479,6 +480,7 @@ mint dev
 
 - **Never** use tabs for indentation (except Makefile/pbxproj)
 - **Always** run `swiftlint lint --strict` after making changes to verify compliance
+- **Always** update `CHANGELOG.md` when adding features, fixing bugs, or making notable changes. Add entries under the `[Unreleased]` section using the existing format (Added/Fixed/Changed subsections). This is **mandatory** — do not skip it.
 - **Always** update documentation when adding or changing features — this is a **mandatory** step, not optional. After implementing a feature, check the "When to Update Documentation" table above and update both English (`docs/`) and Vietnamese (`docs/vi/`) pages. Key docs to check:
   - New keyboard shortcuts → `features/keyboard-shortcuts.mdx`
   - Tab behavior changes → `features/tabs.mdx`
