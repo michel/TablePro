@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- SSL/TLS connection support for MySQL/MariaDB and PostgreSQL with configurable modes (Disabled, Preferred, Required, Verify CA, Verify Identity) and certificate file paths
 - RFC 4180-compliant CSV parser for clipboard paste with auto-detection of CSV vs TSV format
 - Explain Query button in SQL editor toolbar and menu item (⌥⌘E) for viewing execution plans
 - Connection switcher popover for quick switching between active/saved connections from the toolbar

@@ -339,6 +339,12 @@ private struct StoredConnection: Codable {
     let sshPrivateKeyPath: String
     let sshUseSSHConfig: Bool
 
+    // SSL Configuration
+    let sslMode: String
+    let sslCaCertificatePath: String
+    let sslClientCertificatePath: String
+    let sslClientKeyPath: String
+
     // Color and Tag
     let color: String
     let tagId: String?
@@ -360,6 +366,12 @@ private struct StoredConnection: Codable {
         self.sshAuthMethod = connection.sshConfig.authMethod.rawValue
         self.sshPrivateKeyPath = connection.sshConfig.privateKeyPath
         self.sshUseSSHConfig = connection.sshConfig.useSSHConfig
+
+        // SSL Configuration
+        self.sslMode = connection.sslConfig.mode.rawValue
+        self.sslCaCertificatePath = connection.sslConfig.caCertificatePath
+        self.sslClientCertificatePath = connection.sslConfig.clientCertificatePath
+        self.sslClientKeyPath = connection.sslConfig.clientKeyPath
 
         // Color and Tag
         self.color = connection.color.rawValue
@@ -386,6 +398,14 @@ private struct StoredConnection: Codable {
         sshPrivateKeyPath = try container.decode(String.self, forKey: .sshPrivateKeyPath)
         sshUseSSHConfig = try container.decode(Bool.self, forKey: .sshUseSSHConfig)
 
+        // SSL Configuration (migration: use defaults if missing)
+        sslMode = try container.decodeIfPresent(String.self, forKey: .sslMode) ?? SSLMode.disabled.rawValue
+        sslCaCertificatePath = try container.decodeIfPresent(String.self, forKey: .sslCaCertificatePath) ?? ""
+        sslClientCertificatePath = try container.decodeIfPresent(
+            String.self, forKey: .sslClientCertificatePath
+        ) ?? ""
+        sslClientKeyPath = try container.decodeIfPresent(String.self, forKey: .sslClientKeyPath) ?? ""
+
         // Migration: use defaults if fields are missing
         color = try container.decodeIfPresent(String.self, forKey: .color) ?? ConnectionColor.none.rawValue
         tagId = try container.decodeIfPresent(String.self, forKey: .tagId)
@@ -402,6 +422,13 @@ private struct StoredConnection: Codable {
             useSSHConfig: sshUseSSHConfig
         )
 
+        let sslConfig = SSLConfiguration(
+            mode: SSLMode(rawValue: sslMode) ?? .disabled,
+            caCertificatePath: sslCaCertificatePath,
+            clientCertificatePath: sslClientCertificatePath,
+            clientKeyPath: sslClientKeyPath
+        )
+
         let parsedColor = ConnectionColor(rawValue: color) ?? .none
         let parsedTagId = tagId.flatMap { UUID(uuidString: $0) }
 
@@ -414,6 +441,7 @@ private struct StoredConnection: Codable {
             username: username,
             type: DatabaseType(rawValue: type) ?? .mysql,
             sshConfig: sshConfig,
+            sslConfig: sslConfig,
             color: parsedColor,
             tagId: parsedTagId
         )

@@ -110,19 +110,19 @@ TablePro is a native macOS database client (SwiftUI + AppKit) supporting MySQL, 
 
 > These are features developers use every single day. Highest impact on adoption.
 
-### 1.1 SSL/TLS Connection Support
+### 1.1 SSL/TLS Connection Support ✅ DONE
 **Priority: CRITICAL** | **Effort: Medium**
 
-No SSL/TLS configuration is visible in the connection form UI. Many production databases require SSL connections.
+SSL/TLS connection support implemented for MySQL/MariaDB and PostgreSQL.
 
-- **Files to modify:** `Views/Connection/ConnectionFormView.swift`, `Models/DatabaseConnection.swift`, all drivers
+- **Files modified:** `Models/DatabaseConnection.swift`, `Views/Connection/ConnectionFormView.swift`, `Core/Database/MariaDBConnection.swift`, `Core/Database/LibPQConnection.swift`, `Core/Database/MySQLDriver.swift`, `Core/Database/PostgreSQLDriver.swift`, `Core/Storage/ConnectionStorage.swift`
 - **Tasks:**
-  - Add SSL toggle and certificate fields to ConnectionFormView
-  - Add `SSLConfiguration` struct to DatabaseConnection model
-  - Implement SSL parameters in PostgreSQLDriver (sslmode, sslcert, sslkey, sslrootcert)
-  - Implement SSL parameters in MySQLDriver (MYSQL_OPT_SSL_KEY, etc.)
-  - Persist SSL config in ConnectionStorage
-  - Test with AWS RDS, Google Cloud SQL, DigitalOcean databases
+  - ~~Add SSL toggle and certificate fields to ConnectionFormView~~ (DONE)
+  - ~~Add `SSLConfiguration` struct to DatabaseConnection model~~ (DONE)
+  - ~~Implement SSL parameters in PostgreSQLDriver~~ (DONE — sslmode, sslcert, sslkey, sslrootcert)
+  - ~~Implement SSL parameters in MySQLDriver~~ (DONE — MYSQL_OPT_SSL_ENFORCE, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, MYSQL_OPT_SSL_CA/CERT/KEY)
+  - ~~Persist SSL config in ConnectionStorage~~ (DONE — with backwards-compatible migration)
+  - Test with AWS RDS, Google Cloud SQL, DigitalOcean databases (Manual testing needed)
 
 ### 1.2 CSV/JSON Import (Partially Done)
 **Priority: CRITICAL** | **Effort: Medium**
@@ -585,7 +585,7 @@ For any developer continuing this project, start with these files:
 ## Implementation Priority Summary
 
 ### Phase 1: v0.2.0 — Essential Gaps (Next Release)
-1. SSL/TLS connection support
+1. ~~SSL/TLS connection support~~ (DONE)
 2. ~~CSV clipboard paste (RFC 4180 parser + auto-detection)~~ (DONE)
 3. ~~Complete redo functionality~~ (DONE)
 4. ~~Connection switcher popover~~ (DONE)

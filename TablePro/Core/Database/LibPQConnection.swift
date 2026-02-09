@@ -119,12 +119,22 @@ final class LibPQConnection: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    init(host: String, port: Int, user: String, password: String?, database: String) {
+    private let sslConfig: SSLConfiguration
+
+    init(
+        host: String,
+        port: Int,
+        user: String,
+        password: String?,
+        database: String,
+        sslConfig: SSLConfiguration = SSLConfiguration()
+    ) {
         self.host = host
         self.port = port
         self.user = user
         self.password = password
         self.database = database
+        self.sslConfig = sslConfig
     }
 
     deinit {
@@ -153,6 +163,30 @@ final class LibPQConnection: @unchecked Sendable {
 
                 if let password = password, !password.isEmpty {
                     connStr += " password='\(password)'"
+                }
+
+                // SSL/TLS configuration
+                switch self.sslConfig.mode {
+                case .disabled:
+                    connStr += " sslmode='disable'"
+                case .preferred:
+                    connStr += " sslmode='prefer'"
+                case .required:
+                    connStr += " sslmode='require'"
+                case .verifyCa:
+                    connStr += " sslmode='verify-ca'"
+                case .verifyIdentity:
+                    connStr += " sslmode='verify-full'"
+                }
+
+                if !self.sslConfig.caCertificatePath.isEmpty {
+                    connStr += " sslrootcert='\(self.sslConfig.caCertificatePath)'"
+                }
+                if !self.sslConfig.clientCertificatePath.isEmpty {
+                    connStr += " sslcert='\(self.sslConfig.clientCertificatePath)'"
+                }
+                if !self.sslConfig.clientKeyPath.isEmpty {
+                    connStr += " sslkey='\(self.sslConfig.clientKeyPath)'"
                 }
 
                 // Connect to PostgreSQL server

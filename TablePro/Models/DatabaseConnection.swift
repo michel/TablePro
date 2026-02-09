@@ -49,6 +49,43 @@ struct SSHConfiguration: Codable, Hashable {
     }
 }
 
+// MARK: - SSL Configuration
+
+/// SSL/TLS connection mode
+enum SSLMode: String, CaseIterable, Identifiable, Codable {
+    case disabled = "Disabled"
+    case preferred = "Preferred"
+    case required = "Required"
+    case verifyCa = "Verify CA"
+    case verifyIdentity = "Verify Identity"
+
+    var id: String { rawValue }
+
+    var description: String {
+        switch self {
+        case .disabled: return "No SSL encryption"
+        case .preferred: return "Use SSL if available"
+        case .required: return "Require SSL, skip verification"
+        case .verifyCa: return "Verify server certificate"
+        case .verifyIdentity: return "Verify certificate and hostname"
+        }
+    }
+}
+
+/// SSL/TLS configuration for database connections
+struct SSLConfiguration: Codable, Hashable {
+    var mode: SSLMode = .disabled
+    var caCertificatePath: String = ""
+    var clientCertificatePath: String = ""
+    var clientKeyPath: String = ""
+
+    /// Whether SSL is effectively enabled
+    var isEnabled: Bool { mode != .disabled }
+
+    /// Whether certificate verification is enabled
+    var verifiesCertificate: Bool { mode == .verifyCa || mode == .verifyIdentity }
+}
+
 // MARK: - Database Type
 
 /// Represents the type of database
@@ -151,6 +188,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var username: String
     var type: DatabaseType
     var sshConfig: SSHConfiguration
+    var sslConfig: SSLConfiguration
     var color: ConnectionColor
     var tagId: UUID?
 
@@ -163,6 +201,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         username: String = "root",
         type: DatabaseType = .mysql,
         sshConfig: SSHConfiguration = SSHConfiguration(),
+        sslConfig: SSLConfiguration = SSLConfiguration(),
         color: ConnectionColor = .none,
         tagId: UUID? = nil
     ) {
@@ -174,6 +213,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.username = username
         self.type = type
         self.sshConfig = sshConfig
+        self.sslConfig = sslConfig
         self.color = color
         self.tagId = tagId
     }

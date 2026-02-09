@@ -35,7 +35,8 @@ final class PostgreSQLDriver: DatabaseDriver {
             port: connection.port,
             user: connection.username,
             password: ConnectionStorage.shared.loadPassword(for: connection.id),
-            database: connection.database
+            database: connection.database,
+            sslConfig: connection.sslConfig
         )
 
         do {

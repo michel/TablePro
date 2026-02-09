@@ -48,7 +48,8 @@ final class MySQLDriver: DatabaseDriver {
             port: connection.port,
             user: connection.username,
             password: password,
-            database: connection.database
+            database: connection.database,
+            sslConfig: connection.sslConfig
         )
 
         do {

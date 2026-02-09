@@ -155,12 +155,22 @@ final class MariaDBConnection: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    init(host: String, port: Int, user: String, password: String?, database: String) {
+    private let sslConfig: SSLConfiguration
+
+    init(
+        host: String,
+        port: Int,
+        user: String,
+        password: String?,
+        database: String,
+        sslConfig: SSLConfiguration = SSLConfiguration()
+    ) {
         self.host = host
         self.port = UInt32(port)
         self.user = user
         self.password = password
         self.database = database
+        self.sslConfig = sslConfig
     }
 
     deinit {
@@ -209,13 +219,50 @@ final class MariaDBConnection: @unchecked Sendable {
                 var protocol_tcp = UInt32(MYSQL_PROTOCOL_TCP.rawValue)
                 mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol_tcp)
 
-                // Disable SSL requirement - allows connection to servers without SSL
-                var sslEnforce: my_bool = 0
-                mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                // SSL/TLS configuration
+                switch self.sslConfig.mode {
+                case .disabled:
+                    var sslEnforce: my_bool = 0
+                    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                    var sslVerify: my_bool = 0
+                    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
 
-                // Disable SSL certificate verification
-                var sslVerify: my_bool = 0
-                mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+                case .preferred:
+                    // Don't enforce, but allow SSL if server supports it
+                    var sslEnforce: my_bool = 0
+                    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                    var sslVerify: my_bool = 0
+                    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+
+                case .required:
+                    var sslEnforce: my_bool = 1
+                    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                    var sslVerify: my_bool = 0
+                    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+
+                case .verifyCa, .verifyIdentity:
+                    var sslEnforce: my_bool = 1
+                    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                    var sslVerify: my_bool = 1
+                    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+                }
+
+                // SSL certificate paths
+                if !self.sslConfig.caCertificatePath.isEmpty {
+                    self.sslConfig.caCertificatePath.withCString { path in
+                        mysql_options(mysql, MYSQL_OPT_SSL_CA, path)
+                    }
+                }
+                if !self.sslConfig.clientCertificatePath.isEmpty {
+                    self.sslConfig.clientCertificatePath.withCString { path in
+                        mysql_options(mysql, MYSQL_OPT_SSL_CERT, path)
+                    }
+                }
+                if !self.sslConfig.clientKeyPath.isEmpty {
+                    self.sslConfig.clientKeyPath.withCString { path in
+                        mysql_options(mysql, MYSQL_OPT_SSL_KEY, path)
+                    }
+                }
 
                 // Set character set to UTF-8
                 mysql_options(mysql, MYSQL_SET_CHARSET_NAME, "utf8mb4")

@@ -43,6 +43,12 @@ struct ConnectionFormView: View {
     @State private var sshConfigEntries: [SSHConfigEntry] = []
     @State private var selectedSSHConfigHost: String = ""
 
+    // SSL Configuration
+    @State private var sslMode: SSLMode = .disabled
+    @State private var sslCaCertPath: String = ""
+    @State private var sslClientCertPath: String = ""
+    @State private var sslClientKeyPath: String = ""
+
     // Color and Tag
     @State private var connectionColor: ConnectionColor = .none
     @State private var selectedTagId: UUID?
@@ -78,6 +84,7 @@ struct ConnectionFormView: View {
                     connectionSection
                     authSection
                     if type != .sqlite {
+                        sslSection
                         sshSection
                     }
                 }
@@ -236,6 +243,67 @@ struct ConnectionFormView: View {
     }
 
     // MARK: - SSH Section
+
+    private var sslSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("SSL/TLS")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Picker("", selection: $sslMode) {
+                    ForEach(SSLMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+
+            if sslMode != .disabled {
+                VStack(spacing: 12) {
+                    Text(sslMode.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if sslMode == .verifyCa || sslMode == .verifyIdentity {
+                        FormField(label: "CA Cert", icon: "lock.shield") {
+                            HStack {
+                                TextField("/path/to/ca-cert.pem", text: $sslCaCertPath)
+                                    .textFieldStyle(.plain)
+                                Button("Browse") { browseForCertificate(binding: $sslCaCertPath) }
+                                    .controlSize(.small)
+                            }
+                        }
+                    }
+
+                    FormField(label: "Client Cert", icon: "person.badge.key") {
+                        HStack {
+                            TextField("(optional)", text: $sslClientCertPath)
+                                .textFieldStyle(.plain)
+                            Button("Browse") { browseForCertificate(binding: $sslClientCertPath) }
+                                .controlSize(.small)
+                        }
+                    }
+
+                    FormField(label: "Client Key", icon: "key") {
+                        HStack {
+                            TextField("(optional)", text: $sslClientKeyPath)
+                                .textFieldStyle(.plain)
+                            Button("Browse") { browseForCertificate(binding: $sslClientKeyPath) }
+                                .controlSize(.small)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color(nsColor: .controlBackgroundColor))
+                .cornerRadius(8)
+            }
+        }
+    }
 
     private var sshSection: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -464,6 +532,12 @@ struct ConnectionFormView: View {
             sshAuthMethod = existing.sshConfig.authMethod
             sshPrivateKeyPath = existing.sshConfig.privateKeyPath
 
+            // Load SSL configuration
+            sslMode = existing.sslConfig.mode
+            sslCaCertPath = existing.sslConfig.caCertificatePath
+            sslClientCertPath = existing.sslConfig.clientCertificatePath
+            sslClientKeyPath = existing.sslConfig.clientKeyPath
+
             // Load color and tag
             connectionColor = existing.color
             selectedTagId = existing.tagId
@@ -492,6 +566,13 @@ struct ConnectionFormView: View {
             useSSHConfig: !selectedSSHConfigHost.isEmpty
         )
 
+        let sslConfig = SSLConfiguration(
+            mode: sslMode,
+            caCertificatePath: sslCaCertPath,
+            clientCertificatePath: sslClientCertPath,
+            clientKeyPath: sslClientKeyPath
+        )
+
         // Apply defaults: localhost for empty host, default port for empty/invalid port, root for empty username
         let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
         let finalPort = Int(port) ?? type.defaultPort
@@ -506,6 +587,7 @@ struct ConnectionFormView: View {
             username: finalUsername,
             type: type,
             sshConfig: sshConfig,
+            sslConfig: sslConfig,
             color: connectionColor,
             tagId: selectedTagId
         )
@@ -576,6 +658,13 @@ struct ConnectionFormView: View {
             useSSHConfig: !selectedSSHConfigHost.isEmpty
         )
 
+        let sslConfig = SSLConfiguration(
+            mode: sslMode,
+            caCertificatePath: sslCaCertPath,
+            clientCertificatePath: sslClientCertPath,
+            clientKeyPath: sslClientKeyPath
+        )
+
         // Apply defaults: localhost for empty host, default port for empty/invalid port, root for empty username
         let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
         let finalPort = Int(port) ?? type.defaultPort
@@ -590,6 +679,7 @@ struct ConnectionFormView: View {
             username: finalUsername,
             type: type,
             sshConfig: sshConfig,
+            sslConfig: sslConfig,
             color: connectionColor,
             tagId: selectedTagId
         )
@@ -642,6 +732,18 @@ struct ConnectionFormView: View {
 
         if panel.runModal() == .OK, let url = panel.url {
             sshPrivateKeyPath = url.path
+        }
+    }
+
+    private func browseForCertificate(binding: Binding<String>) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.data]
+        panel.showsHiddenFiles = true
+
+        if panel.runModal() == .OK, let url = panel.url {
+            binding.wrappedValue = url.path
         }
     }
 
