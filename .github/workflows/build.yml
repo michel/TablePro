@@ -153,6 +153,23 @@ jobs:
             exit 1
           fi
 
+          # Verify bundled dylibs
+          FRAMEWORKS_DIR="build/Release/TablePro-arm64.app/Contents/Frameworks"
+          if [ -d "$FRAMEWORKS_DIR" ]; then
+            echo "Bundled dynamic libraries:"
+            ls -lh "$FRAMEWORKS_DIR"/*.dylib 2>/dev/null || echo "  (none)"
+
+            # Verify no Homebrew paths remain in the binary
+            if otool -L "$BINARY_PATH" | grep -q '/opt/homebrew/\|/usr/local/opt/'; then
+              echo "❌ ERROR: Binary still references Homebrew paths:"
+              otool -L "$BINARY_PATH" | grep '/opt/homebrew/\|/usr/local/opt/'
+              exit 1
+            fi
+            echo "✅ No Homebrew path references in binary"
+          else
+            echo "⚠️  WARNING: No Frameworks directory found — dylibs may not be bundled"
+          fi
+
           # Display info
           echo "✅ Build verified successfully"
           echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
@@ -381,6 +398,23 @@ jobs:
           if [ ! -x "$BINARY_PATH" ]; then
             echo "❌ ERROR: Binary is not executable"
             exit 1
+          fi
+
+          # Verify bundled dylibs
+          FRAMEWORKS_DIR="build/Release/TablePro-x86_64.app/Contents/Frameworks"
+          if [ -d "$FRAMEWORKS_DIR" ]; then
+            echo "Bundled dynamic libraries:"
+            ls -lh "$FRAMEWORKS_DIR"/*.dylib 2>/dev/null || echo "  (none)"
+
+            # Verify no Homebrew paths remain in the binary
+            if otool -L "$BINARY_PATH" | grep -q '/opt/homebrew/\|/usr/local/opt/'; then
+              echo "❌ ERROR: Binary still references Homebrew paths:"
+              otool -L "$BINARY_PATH" | grep '/opt/homebrew/\|/usr/local/opt/'
+              exit 1
+            fi
+            echo "✅ No Homebrew path references in binary"
+          else
+            echo "⚠️  WARNING: No Frameworks directory found — dylibs may not be bundled"
           fi
 
           # Display info
