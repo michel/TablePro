@@ -220,6 +220,12 @@ final class MariaDBConnection: @unchecked Sendable {
                 // Set character set to UTF-8
                 mysql_options(mysql, MYSQL_SET_CHARSET_NAME, "utf8mb4")
 
+                // Use mysql_native_password auth plugin
+                // MariaDB Connector/C tries to load caching_sha2_password as an external .so plugin
+                // which doesn't exist in the distributed app bundle. mysql_native_password is built-in
+                // and supported by MySQL 5.7+, 8.x, and MariaDB.
+                mysql_options(mysql, MYSQL_DEFAULT_AUTH, "mysql_native_password")
+
                 // Connect to server
                 // mysql_real_connect returns the handle on success, NULL on failure
                 // IMPORTANT: All withCString closures must be nested so pointers remain valid
