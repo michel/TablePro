@@ -30,6 +30,9 @@ struct SidebarView: View {
     /// Prevents selection callback during programmatic updates (e.g., refresh)
     @State private var isRestoringSelection = false
 
+    /// Tracks previous selection for onChange diff
+    @State private var previousSelectedTables: Set<TableInfo> = []
+
     /// Whether the tables section is expanded
     @State private var isTablesExpanded = true
 
@@ -54,14 +57,15 @@ struct SidebarView: View {
             content
         }
         .frame(minWidth: 280)
-        .onChange(of: selectedTables) { oldTables, newTables in
+        .onChange(of: selectedTables) { newTables in
             guard !isRestoringSelection else { return }
-            let added = newTables.subtracting(oldTables)
+            let added = newTables.subtracting(previousSelectedTables)
             if let table = added.first {
                 Task { @MainActor in
                     onTablePro?(table.name)
                 }
             }
+            previousSelectedTables = newTables
         }
         .onReceive(NotificationCenter.default.publisher(for: .databaseDidConnect)) { _ in
             Task { @MainActor in
@@ -220,28 +224,43 @@ struct SidebarView: View {
 
     private var tableList: some View {
         List(selection: $selectedTables) {
-            Section(isExpanded: $isTablesExpanded) {
-                ForEach(filteredTables) { table in
-                    TableRow(
-                        table: table,
-                        isActive: activeTableName == table.name,
-                        isPendingTruncate: pendingTruncates.contains(table.name),
-                        isPendingDelete: pendingDeletes.contains(table.name)
-                    )
-                    .tag(table)
-                    .contextMenu {
-                        tableContextMenu(clickedTable: table)
+            Section {
+                if isTablesExpanded {
+                    ForEach(filteredTables) { table in
+                        TableRow(
+                            table: table,
+                            isActive: activeTableName == table.name,
+                            isPendingTruncate: pendingTruncates.contains(table.name),
+                            isPendingDelete: pendingDeletes.contains(table.name)
+                        )
+                        .tag(table)
+                        .contextMenu {
+                            tableContextMenu(clickedTable: table)
+                        }
                     }
                 }
             } header: {
-                Button(action: {
-                    onShowAllTables?()
-                }) {
-                    Text("Tables")
-                        .contentShape(Rectangle())
+                HStack {
+                    Button(action: {
+                        onShowAllTables?()
+                    }) {
+                        Text("Tables")
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Click to show all tables with metadata")
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .rotationEffect(.degrees(isTablesExpanded ? 90 : 0))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .padding(.trailing, 12)
+                        .onTapGesture {
+                            withAnimation { isTablesExpanded.toggle() }
+                        }
                 }
-                .buttonStyle(.plain)
-                .help("Click to show all tables with metadata")
             }
         }
         .listStyle(.sidebar)

@@ -88,7 +88,7 @@ struct MainEditorContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: appState.isHistoryPanelVisible)
-        .onChange(of: tabManager.tabs.count) {
+        .onChange(of: tabManager.tabs.count) { _ in
             // Clean up sort cache for closed tabs
             let openTabIds = Set(tabManager.tabs.map(\.id))
             sortCache = sortCache.filter { openTabIds.contains($0.key) }

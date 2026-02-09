@@ -34,6 +34,8 @@ struct MainContentView: View {
     // MARK: - Local State
 
     @State var selectedRowIndices: Set<Int> = []
+    @State private var previousSelectedTabId: UUID?
+    @State private var previousSelectedTables: Set<TableInfo> = []
     @State private var editingCell: CellPosition?
     @State private var notificationHandler: MainContentNotificationHandler?
     @StateObject private var sidebarEditState = MultiRowEditState()
@@ -89,37 +91,39 @@ struct MainContentView: View {
         mainContentView
             .openTableToolbar(state: toolbarState)
             .task { await initializeAndRestoreTabs() }
-            .onChange(of: tabManager.selectedTabId) { oldTabId, newTabId in
-                handleTabSelectionChange(from: oldTabId, to: newTabId)
+            .onChange(of: tabManager.selectedTabId) { newTabId in
+                handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
+                previousSelectedTabId = newTabId
             }
-            .onChange(of: tabManager.tabs) { _, newTabs in
+            .onChange(of: tabManager.tabs) { newTabs in
                 handleTabsChange(newTabs)
             }
-            .onChange(of: currentTab?.resultColumns) { _, newColumns in
+            .onChange(of: currentTab?.resultColumns) { newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
-            .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { _, isConnected in
+            .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { isConnected in
                 handleConnectionChange(isConnected)
             }
-            .onChange(of: DatabaseManager.shared.currentSession?.status) { _, newStatus in
+            .onChange(of: DatabaseManager.shared.currentSession?.status) { newStatus in
                 handleSessionStatusChange(newStatus)
             }
-            .onChange(of: currentTab?.isExecuting) { _, isExecuting in
+            .onChange(of: currentTab?.isExecuting) { isExecuting in
                 toolbarState.isExecuting = isExecuting ?? false
             }
-            .onChange(of: currentTab?.executionTime) { _, executionTime in
+            .onChange(of: currentTab?.executionTime) { executionTime in
                 if let time = executionTime {
                     toolbarState.lastQueryDuration = time
                 }
             }
-            .onChange(of: selectedTables) { oldTables, newTables in
-                handleTableSelectionChange(from: oldTables, to: newTables)
+            .onChange(of: selectedTables) { newTables in
+                handleTableSelectionChange(from: previousSelectedTables, to: newTables)
+                previousSelectedTables = newTables
             }
-            .onChange(of: selectedRowIndices) { _, newIndices in
+            .onChange(of: selectedRowIndices) { newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
                 updateSidebarEditState()
             }
-            .onChange(of: currentTab?.resultRows) { _, _ in
+            .onChange(of: currentTab?.resultRows) { _ in
                 updateSidebarEditState()
             }
             .onAppear { setupNotificationHandler() }

@@ -191,7 +191,7 @@ struct FilterPanelView: View {
                 .padding(.vertical, 4)
             }
             .frame(maxHeight: min(CGFloat(filterState.filters.count) * 40 + 8, 160))
-            .onChange(of: filterState.focusedFilterId) { _, newFocusedId in
+            .onChange(of: filterState.focusedFilterId) { newFocusedId in
                 if let focusedId = newFocusedId {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         proxy.scrollTo(focusedId, anchor: .bottom)

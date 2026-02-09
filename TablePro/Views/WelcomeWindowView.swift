@@ -26,7 +26,6 @@ struct WelcomeWindowView: View {
     @State private var selectedConnectionId: UUID?  // For keyboard navigation
 
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
 
     private var filteredConnections: [DatabaseConnection] {
         if searchText.isEmpty {
@@ -219,16 +218,17 @@ struct WelcomeWindowView: View {
         }
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
-        .alternatingRowBackgrounds(.disabled)
         .environment(\.defaultMinListRowHeight, 44)
-        .onKeyPress(.return) {
-            // Return key connects to selected row
-            if let id = selectedConnectionId,
-               let connection = connections.first(where: { $0.id == id }) {
-                connectToDatabase(connection)
+        .background(
+            KeyEventHandler { keyCode in
+                guard case .return = keyCode else { return false }
+                if let id = selectedConnectionId,
+                   let connection = connections.first(where: { $0.id == id }) {
+                    connectToDatabase(connection)
+                }
+                return true
             }
-            return .handled
-        }
+        )
     }
 
     // MARK: - Empty State
@@ -275,7 +275,7 @@ struct WelcomeWindowView: View {
     private func connectToDatabase(_ connection: DatabaseConnection) {
         // Open main window immediately - no delay
         openWindow(id: "main")
-        dismissWindow(id: "welcome")
+        NSApplication.shared.closeWindows(withId: "welcome")
 
         // Connect in background - main window shows loading state
         Task {

@@ -121,7 +121,7 @@ struct CreateDatabaseSheet: View {
                 dismiss()
             }
         }
-        .onChange(of: charset) { _, newCharset in
+        .onChange(of: charset) { newCharset in
             // Update collation when charset changes
             if let firstCollation = collations[newCharset]?.first {
                 collation = firstCollation

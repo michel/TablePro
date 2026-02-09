@@ -208,7 +208,7 @@ struct ImportDialog: View {
                     }
                     .pickerStyle(.menu)
                     .frame(width: 120)
-                    .onChange(of: selectedEncoding) { _, newEncoding in
+                    .onChange(of: selectedEncoding) { newEncoding in
                         config.encoding = newEncoding.encoding
                         // Cancel previous task to avoid race conditions
                         loadFileTask?.cancel()

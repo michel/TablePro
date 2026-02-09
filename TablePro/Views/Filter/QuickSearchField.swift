@@ -47,7 +47,7 @@ struct QuickSearchField: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(nsColor: .textBackgroundColor))
-        .onChange(of: shouldFocus) { _, newValue in
+        .onChange(of: shouldFocus) { newValue in
             if newValue {
                 isTextFieldFocused = true
                 shouldFocus = false

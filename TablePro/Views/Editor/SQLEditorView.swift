@@ -33,7 +33,7 @@ struct SQLEditorView: View {
             coordinators: [coordinator],
             completionDelegate: completionAdapter
         )
-        .onChange(of: editorState.cursorPositions) { _, newValue in
+        .onChange(of: editorState.cursorPositions) { newValue in
             guard let positions = newValue else { return }
             // Skip cursor propagation when the editor doesn't have focus
             // (e.g., find panel match highlighting). Propagating triggers
@@ -51,7 +51,7 @@ struct SQLEditorView: View {
         // so programmatic changes on the SAME tab (clear, format) won't appear
         // without this. Tab switches don't need it — .id(tab.id) recreates the
         // entire SourceEditor with the correct text.
-        .onChange(of: text) { _, newValue in
+        .onChange(of: text) { newValue in
             if let controller = coordinator.controller,
                controller.textView.string != newValue {
                 let fullRange = NSRange(location: 0, length: (controller.textView.string as NSString).length)

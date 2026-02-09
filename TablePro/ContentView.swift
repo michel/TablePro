@@ -25,8 +25,6 @@ struct ContentView: View {
 
     @Environment(\.openWindow)
     private var openWindow
-    @Environment(\.dismissWindow)
-    private var dismissWindow
     @EnvironmentObject private var appState: AppState
 
     private let storage = ConnectionStorage.shared
@@ -93,7 +91,7 @@ struct ContentView: View {
                 }
             }
             // Right sidebar toggle is handled by MainContentView (has the binding)
-            .onChange(of: dbManager.currentSessionId) { _, newSessionId in
+            .onChange(of: dbManager.currentSessionId) { newSessionId in
                 Task { @MainActor in
                     withAnimation {
                         columnVisibility = newSessionId == nil ? .detailOnly : .all
@@ -103,7 +101,7 @@ struct ContentView: View {
                     // When all sessions are closed, return to Welcome window
                     if newSessionId == nil {
                         openWindow(id: "welcome")
-                        dismissWindow(id: "main")
+                        NSApplication.shared.closeWindows(withId: "main")
                     }
                 }
             }
