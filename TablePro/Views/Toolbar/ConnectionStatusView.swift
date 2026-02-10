@@ -33,11 +33,6 @@ struct ConnectionStatusView: View {
             if !databaseName.isEmpty {
                 databaseNameSection
             }
-
-            // Read-only badge
-            if isReadOnly {
-                readOnlyBadge
-            }
         }
     }
 
@@ -60,6 +55,15 @@ struct ConnectionStatusView: View {
                 Image(systemName: "cylinder")
                     .font(.system(size: ToolbarDesignTokens.Spacing.iconSize))
                     .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
+                    .overlay(alignment: .bottomTrailing) {
+                        if isReadOnly {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 7, weight: .bold))
+                                .foregroundStyle(.orange)
+                                .offset(x: 3, y: 2)
+                                .help("Read-only connection")
+                        }
+                    }
 
                 Text(databaseName)
                     .font(ToolbarDesignTokens.Typography.databaseName)
@@ -67,23 +71,9 @@ struct ConnectionStatusView: View {
             }
         }
         .buttonStyle(.plain)
-        .help("Current database: \(databaseName) (⌘K to switch)")
-    }
-
-    /// Read-only connection badge
-    private var readOnlyBadge: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 9))
-            Text("READ-ONLY")
-                .font(.system(size: 10, weight: .semibold))
-        }
-        .foregroundStyle(.orange)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(.orange.opacity(0.15))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .help("This connection is in read-only mode. Write operations are disabled.")
+        .help(isReadOnly
+            ? "Current database: \(databaseName) (read-only, ⌘K to switch)"
+            : "Current database: \(databaseName) (⌘K to switch)")
     }
 
     // MARK: - Computed Properties
