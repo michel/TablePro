@@ -157,6 +157,7 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
     private var datePicker: DatePickerCellEditor?
     private var onCommit: ((String) -> Void)?
     private var hasUserEdited = false
+    private var originalWasNull = false
 
     func show(
         relativeTo bounds: NSRect,
@@ -170,6 +171,7 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
 
         self.onCommit = onCommit
         self.hasUserEdited = false
+        self.originalWasNull = (value == nil || value?.isEmpty == true)
 
         let picker = DatePickerCellEditor()
         picker.selectValue(value, columnType: columnType)
@@ -194,7 +196,7 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
         let pop = NSPopover()
         pop.contentViewController = viewController
         pop.contentSize = NSSize(width: contentWidth, height: contentHeight)
-        pop.behavior = .transient
+        pop.behavior = .semitransient
         pop.delegate = self
         pop.show(relativeTo: bounds, of: view, preferredEdge: .maxY)
 
@@ -202,7 +204,9 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
-        if hasUserEdited, let picker = datePicker {
+        // Always commit when original was NULL (any date is a change),
+        // otherwise only commit if user actually edited the picker
+        if (originalWasNull || hasUserEdited), let picker = datePicker {
             onCommit?(picker.formattedValue)
         }
         cleanup()
@@ -212,6 +216,7 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
         datePicker = nil
         onCommit = nil
         hasUserEdited = false
+        originalWasNull = false
         popover = nil
     }
 }
