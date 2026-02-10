@@ -349,6 +349,9 @@ private struct StoredConnection: Codable {
     let color: String
     let tagId: String?
 
+    // Read-only mode
+    let isReadOnly: Bool
+
     init(from connection: DatabaseConnection) {
         self.id = connection.id
         self.name = connection.name
@@ -376,6 +379,9 @@ private struct StoredConnection: Codable {
         // Color and Tag
         self.color = connection.color.rawValue
         self.tagId = connection.tagId?.uuidString
+
+        // Read-only mode
+        self.isReadOnly = connection.isReadOnly
     }
 
     // Custom decoder to handle migration from old format
@@ -409,6 +415,7 @@ private struct StoredConnection: Codable {
         // Migration: use defaults if fields are missing
         color = try container.decodeIfPresent(String.self, forKey: .color) ?? ConnectionColor.none.rawValue
         tagId = try container.decodeIfPresent(String.self, forKey: .tagId)
+        isReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
     }
 
     func toConnection() -> DatabaseConnection {
@@ -443,7 +450,8 @@ private struct StoredConnection: Codable {
             sshConfig: sshConfig,
             sslConfig: sslConfig,
             color: parsedColor,
-            tagId: parsedTagId
+            tagId: parsedTagId,
+            isReadOnly: isReadOnly
         )
     }
 }

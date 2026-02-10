@@ -38,7 +38,8 @@ struct ToolbarPrincipalContent: View {
                 connectionName: state.connectionName,
                 connectionState: state.connectionState,
                 displayColor: state.displayColor,
-                tagName: state.tagId.flatMap { TagStorage.shared.tag(for: $0)?.name }
+                tagName: state.tagId.flatMap { TagStorage.shared.tag(for: $0)?.name },
+                isReadOnly: state.isReadOnly
             )
 
             Divider()

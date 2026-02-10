@@ -262,7 +262,7 @@ struct MainEditorContentView: View {
                 columnTypes: tab.columnTypes
             ),
             changeManager: AnyChangeManager(dataManager: changeManager),
-            isEditable: tab.isEditable,
+            isEditable: tab.isEditable && !connection.isReadOnly,
             onCommit: onCommit,
             onRefresh: onRefresh,
             onCellEdit: onCellEdit,

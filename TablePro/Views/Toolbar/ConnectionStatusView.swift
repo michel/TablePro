@@ -17,6 +17,7 @@ struct ConnectionStatusView: View {
     let connectionState: ToolbarConnectionState
     let displayColor: Color
     let tagName: String?  // Tag name to avoid duplication
+    var isReadOnly: Bool = false
 
     var body: some View {
         HStack(spacing: ToolbarDesignTokens.Spacing.betweenSections) {
@@ -31,6 +32,11 @@ struct ConnectionStatusView: View {
             // Database name (clickable to switch databases)
             if !databaseName.isEmpty {
                 databaseNameSection
+            }
+
+            // Read-only badge
+            if isReadOnly {
+                readOnlyBadge
             }
         }
     }
@@ -62,6 +68,22 @@ struct ConnectionStatusView: View {
         }
         .buttonStyle(.plain)
         .help("Current database: \(databaseName) (⌘K to switch)")
+    }
+
+    /// Read-only connection badge
+    private var readOnlyBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 9))
+            Text("READ-ONLY")
+                .font(.system(size: 10, weight: .semibold))
+        }
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(.orange.opacity(0.15))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .help("This connection is in read-only mode. Write operations are disabled.")
     }
 
     // MARK: - Computed Properties

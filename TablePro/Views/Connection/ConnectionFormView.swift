@@ -53,6 +53,9 @@ struct ConnectionFormView: View {
     @State private var connectionColor: ConnectionColor = .none
     @State private var selectedTagId: UUID?
 
+    // Read-only mode
+    @State private var isReadOnly: Bool = false
+
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
 
@@ -157,6 +160,12 @@ struct ConnectionFormView: View {
 
                 FormField(label: "Tag", icon: "tag") {
                     ConnectionTagEditor(selectedTagId: $selectedTagId)
+                }
+
+                FormField(label: "Read-Only", icon: "lock") {
+                    Toggle("", isOn: $isReadOnly)
+                        .toggleStyle(.switch)
+                        .help("Prevent write operations (INSERT, UPDATE, DELETE, DROP, etc.)")
                 }
             }
             .padding(12)
@@ -541,6 +550,7 @@ struct ConnectionFormView: View {
             // Load color and tag
             connectionColor = existing.color
             selectedTagId = existing.tagId
+            isReadOnly = existing.isReadOnly
 
             // Load passwords from Keychain
             if let savedSSHPassword = storage.loadSSHPassword(for: existing.id) {
@@ -589,7 +599,8 @@ struct ConnectionFormView: View {
             sshConfig: sshConfig,
             sslConfig: sslConfig,
             color: connectionColor,
-            tagId: selectedTagId
+            tagId: selectedTagId,
+            isReadOnly: isReadOnly
         )
 
         // Save passwords to Keychain

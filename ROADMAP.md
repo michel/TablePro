@@ -99,7 +99,7 @@ TablePro is a native macOS database client (SwiftUI + AppKit) supporting MySQL, 
 | Multi-row Selection | Done | — |
 | Redo | Done | Undo/redo stacks with proper clearing on new changes |
 | Foreign Key Dropdown | Missing | — |
-| Date/Time Picker | Missing | Text input only |
+| Date/Time Picker | Done | Popover with NSDatePicker for date/datetime/time columns |
 | Enum Dropdown | Missing | — |
 | JSON Editor | Missing | Plain text only |
 | Image Preview (BLOB) | Missing | — |
@@ -186,17 +186,17 @@ When editing a FK column, show a dropdown of valid values from the referenced ta
   - Show as searchable dropdown in cell editor
   - Display both ID and a display column (e.g., `id - name`)
 
-### 2.2 Date/Time Picker for Date Columns
+### 2.2 Date/Time Picker for Date Columns ✅ DONE
 **Priority: HIGH** | **Effort: Small**
 
-Currently date columns are plain text fields.
+Date/time picker popover implemented for date columns in the data grid.
 
-- **Files to modify:** `Views/Results/DataGridCellFactory.swift`
+- **Files modified:** `Views/Results/DatePickerCellEditor.swift` (new), `Views/Results/DataGridView.swift`, `Views/Results/DataGridCellFactory.swift`
 - **Tasks:**
-  - Detect date/datetime/timestamp column types
-  - Show native macOS date picker popover
-  - Support common date formats
-  - Allow manual text input as fallback
+  - ~~Detect date/datetime/timestamp column types~~ (DONE)
+  - ~~Show native macOS date picker popover~~ (DONE — NSDatePicker with textFieldAndStepper style)
+  - ~~Support common date formats~~ (DONE — 6 format parsers, auto-detect column type)
+  - Manual text input available via standard cell editing for non-date columns
 
 ### 2.3 Stored Procedure/Function Browser
 **Priority: HIGH** | **Effort: Large**
@@ -594,7 +594,7 @@ For any developer continuing this project, start with these files:
 ### Phase 2: v0.3.0 — Developer Productivity
 6. ~~Query execution plan (EXPLAIN)~~ (DONE — basic)
 7. Foreign key lookup dropdown
-8. Date/time picker for date columns
+8. ~~Date/time picker for date columns~~ (DONE)
 9. JSON column editor
 10. Query execution timeout
 

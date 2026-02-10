@@ -191,6 +191,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var sslConfig: SSLConfiguration
     var color: ConnectionColor
     var tagId: UUID?
+    var isReadOnly: Bool
 
     init(
         id: UUID = UUID(),
@@ -203,7 +204,8 @@ struct DatabaseConnection: Identifiable, Hashable {
         sshConfig: SSHConfiguration = SSHConfiguration(),
         sslConfig: SSLConfiguration = SSLConfiguration(),
         color: ConnectionColor = .none,
-        tagId: UUID? = nil
+        tagId: UUID? = nil,
+        isReadOnly: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -216,6 +218,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.sslConfig = sslConfig
         self.color = color
         self.tagId = tagId
+        self.isReadOnly = isReadOnly
     }
 
     /// Returns the display color (custom color or database type color)

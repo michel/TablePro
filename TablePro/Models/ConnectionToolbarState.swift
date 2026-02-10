@@ -106,6 +106,7 @@ enum ToolbarConnectionState: Equatable {
 /// Observable state container for the connection toolbar.
 /// Uses ObservableObject for macOS 13+ compatibility.
 /// This is the single source of truth for all toolbar UI state.
+@MainActor
 final class ConnectionToolbarState: ObservableObject {
     // MARK: - Connection Info
 
@@ -205,6 +206,7 @@ final class ConnectionToolbarState: ObservableObject {
         databaseType = connection.type
         displayColor = connection.displayColor
         tagId = connection.tagId
+        isReadOnly = connection.isReadOnly
     }
 
     /// Update connection state from ConnectionStatus

@@ -651,6 +651,13 @@ final class MainContentCoordinator: ObservableObject {
         pendingDeletes: inout Set<String>,
         tableOperationOptions: inout [String: TableOperationOptions]
     ) {
+        guard !connection.isReadOnly else {
+            if let index = tabManager.selectedTabIndex {
+                tabManager.tabs[index].errorMessage = "Cannot save changes: connection is read-only"
+            }
+            return
+        }
+
         let hasEditedCells = changeManager.hasChanges
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explain Query button in SQL editor toolbar and menu item (⌥⌘E) for viewing execution plans
 - Connection switcher popover for quick switching between active/saved connections from the toolbar
 - Date/time picker popover for editing date, datetime, timestamp, and time columns in the data grid
+- Read-only connection mode with toggle in connection form, toolbar badge, and UI-level enforcement (disables editing, row operations, and save changes)
 
 ### Fixed
 
