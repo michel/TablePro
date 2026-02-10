@@ -21,10 +21,13 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
     private var allValues: [(id: String, display: String)] = []
     private var filteredValues: [(id: String, display: String)] = []
     private var currentValue: String?
+    private var keyMonitor: Any?
 
     private static let maxFetchRows = 1_000
-    private static let popoverWidth: CGFloat = 300
-    private static let popoverHeight: CGFloat = 280
+    private static let popoverWidth: CGFloat = 420
+    private static let popoverMaxHeight: CGFloat = 320
+    private static let searchAreaHeight: CGFloat = 44
+    private static let rowHeight: CGFloat = 24
 
     func show(
         relativeTo bounds: NSRect,
@@ -49,12 +52,26 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
 
         let pop = NSPopover()
         pop.contentViewController = viewController
-        pop.contentSize = NSSize(width: Self.popoverWidth, height: Self.popoverHeight)
-        pop.behavior = .transient
+        pop.contentSize = NSSize(width: Self.popoverWidth, height: Self.popoverMaxHeight)
+        pop.behavior = .semitransient
         pop.delegate = self
         pop.show(relativeTo: bounds, of: view, preferredEdge: .maxY)
 
         popover = pop
+
+        // Handle Enter key to commit selected row
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self = self, self.popover != nil else { return event }
+            if event.keyCode == 36 { // Return/Enter
+                self.commitSelectedRow()
+                return nil
+            }
+            if event.keyCode == 53 { // Escape
+                self.popover?.close()
+                return nil
+            }
+            return event
+        }
 
         // Fetch FK values asynchronously
         Task {
@@ -65,15 +82,16 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
     // MARK: - UI Building
 
     private func buildContentView() -> NSView {
+        let height = Self.popoverMaxHeight
         let container = NSView(frame: NSRect(
             x: 0, y: 0,
             width: Self.popoverWidth,
-            height: Self.popoverHeight
+            height: height
         ))
 
         // Search field
         let search = NSSearchField(frame: NSRect(
-            x: 8, y: Self.popoverHeight - 36,
+            x: 8, y: height - 36,
             width: Self.popoverWidth - 16, height: 28
         ))
         search.placeholderString = "Search..."
@@ -81,7 +99,7 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
         search.target = self
         search.action = #selector(searchChanged)
         search.sendsSearchStringImmediately = true
-        search.autoresizingMask = [.width]
+        search.autoresizingMask = [.width, .minYMargin]
         container.addSubview(search)
         self.searchField = search
 
@@ -89,7 +107,7 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
         let scrollView = NSScrollView(frame: NSRect(
             x: 0, y: 0,
             width: Self.popoverWidth,
-            height: Self.popoverHeight - 44
+            height: height - Self.searchAreaHeight
         ))
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
@@ -99,7 +117,7 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
         let table = NSTableView()
         table.style = .plain
         table.headerView = nil
-        table.rowHeight = 24
+        table.rowHeight = Self.rowHeight
         table.intercellSpacing = NSSize(width: 0, height: 0)
         table.usesAlternatingRowBackgroundColors = true
         table.delegate = self
@@ -109,8 +127,11 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
 
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("value"))
         column.title = ""
+        column.width = Self.popoverWidth
         column.resizingMask = .autoresizingMask
         table.addTableColumn(column)
+        table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        table.sizeLastColumnToFit()
 
         scrollView.documentView = table
         container.addSubview(scrollView)
@@ -172,6 +193,9 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
             self.filteredValues = values
             self.tableView?.reloadData()
 
+            // Resize popover to fit content
+            resizeToFit(rowCount: values.count)
+
             // Select current value if it exists
             if let current = currentValue,
                let index = values.firstIndex(where: { $0.id == current }) {
@@ -181,6 +205,12 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
         } catch {
             Self.logger.error("FK value fetch failed: \(error.localizedDescription)")
         }
+    }
+
+    private func resizeToFit(rowCount: Int) {
+        let contentHeight = CGFloat(rowCount) * Self.rowHeight
+        let totalHeight = min(Self.searchAreaHeight + contentHeight, Self.popoverMaxHeight)
+        popover?.contentSize = NSSize(width: Self.popoverWidth, height: totalHeight)
     }
 
     private func isTextLikeType(_ typeString: String) -> Bool {
@@ -201,8 +231,12 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
     }
 
     @objc private func rowDoubleClicked() {
+        commitSelectedRow()
+    }
+
+    private func commitSelectedRow() {
         guard let table = tableView else { return }
-        let row = table.clickedRow
+        let row = table.selectedRow
         guard row >= 0, row < filteredValues.count else { return }
 
         let selected = filteredValues[row].id
@@ -217,6 +251,10 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
     }
 
     private func cleanup() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
         tableView = nil
         searchField = nil
         onCommit = nil
@@ -275,13 +313,6 @@ extension ForeignKeyPopoverController: NSTableViewDataSource, NSTableViewDelegat
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
-        // Single-click selection commits the value
-        guard let table = tableView else { return }
-        let row = table.selectedRow
-        guard row >= 0, row < filteredValues.count else { return }
-
-        let selected = filteredValues[row].id
-        onCommit?(selected)
-        popover?.close()
+        // Single-click only highlights; double-click or Enter commits
     }
 }

@@ -10,6 +10,7 @@ import AppKit
 import Foundation
 
 /// Coordinator for structure table editing
+@MainActor
 final class StructureTableCoordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSTextFieldDelegate {
     // MARK: - Properties
 

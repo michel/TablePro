@@ -76,6 +76,8 @@ struct DataGridView: NSViewRepresentable {
 
         tableView.delegate = context.coordinator
         tableView.dataSource = context.coordinator
+        tableView.target = context.coordinator
+        tableView.doubleAction = #selector(TableViewCoordinator.handleDoubleClick(_:))
 
         // Add row number column
         let rowNumberColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("__rowNumber__"))
@@ -361,10 +363,10 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            guard let self = self, let tableView = self.tableView else { return }
+            guard let self else { return }
 
-            // Capture settings on main actor to avoid Sendable warning
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
+                guard let self, let tableView = self.tableView else { return }
                 let newRowHeight = CGFloat(AppSettingsManager.shared.dataGrid.rowHeight.rawValue)
 
                 // Only reload if row height changed (requires full reload)
@@ -589,6 +591,45 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         }
     }
 
+    // MARK: - Double-Click Popover Editors
+
+    @objc func handleDoubleClick(_ sender: NSTableView) {
+        guard isEditable else { return }
+
+        let row = sender.clickedRow
+        let column = sender.clickedColumn
+        guard row >= 0, column > 0 else { return }
+
+        let columnIndex = column - 1
+        guard !changeManager.isRowDeleted(row) else { return }
+
+        // FK columns use searchable dropdown popover
+        if columnIndex < rowProvider.columns.count {
+            let columnName = rowProvider.columns[columnIndex]
+            if let fkInfo = rowProvider.columnForeignKeys[columnName] {
+                showForeignKeyPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex, fkInfo: fkInfo)
+                return
+            }
+        }
+
+        // Date columns use date picker popover
+        if columnIndex < rowProvider.columnTypes.count,
+           rowProvider.columnTypes[columnIndex].isDateType {
+            showDatePickerPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
+            return
+        }
+
+        // JSON columns use JSON editor popover
+        if columnIndex < rowProvider.columnTypes.count,
+           rowProvider.columnTypes[columnIndex].isJsonType {
+            showJSONEditorPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
+            return
+        }
+
+        // Regular columns — start inline editing
+        sender.editColumn(column, row: row, with: nil, select: true)
+    }
+
     // MARK: - Editing
 
     func tableView(_ tableView: NSTableView, shouldEdit tableColumn: NSTableColumn?, row: Int) -> Bool {
@@ -599,32 +640,17 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         guard columnId != "__rowNumber__",
               !changeManager.isRowDeleted(row) else { return false }
 
-        // Extract column index for special editors
+        // Popover-editor columns (date/FK/JSON) are only editable via
+        // double-click (handleDoubleClick). Block inline editing for them.
         if columnId.hasPrefix("col_"),
            let columnIndex = Int(columnId.dropFirst(4)) {
-            let column = tableView.column(withIdentifier: tableColumn.identifier)
-
-            // FK columns use searchable dropdown popover
             if columnIndex < rowProvider.columns.count {
                 let columnName = rowProvider.columns[columnIndex]
-                if let fkInfo = rowProvider.columnForeignKeys[columnName] {
-                    showForeignKeyPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex, fkInfo: fkInfo)
-                    return false
-                }
+                if rowProvider.columnForeignKeys[columnName] != nil { return false }
             }
-
-            // Date columns use date picker popover
-            if columnIndex < rowProvider.columnTypes.count,
-               rowProvider.columnTypes[columnIndex].isDateType {
-                showDatePickerPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
-                return false
-            }
-
-            // JSON columns use JSON editor popover
-            if columnIndex < rowProvider.columnTypes.count,
-               rowProvider.columnTypes[columnIndex].isJsonType {
-                showJSONEditorPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
-                return false
+            if columnIndex < rowProvider.columnTypes.count {
+                let ct = rowProvider.columnTypes[columnIndex]
+                if ct.isDateType || ct.isJsonType { return false }
             }
         }
 

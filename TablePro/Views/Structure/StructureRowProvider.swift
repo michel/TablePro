@@ -9,6 +9,7 @@
 import Foundation
 
 /// Provides structure entities as rows for DataGridView
+@MainActor
 final class StructureRowProvider {
     private let changeManager: StructureChangeManager
     private let tab: StructureTab

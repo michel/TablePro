@@ -38,45 +38,16 @@ actor SQLSchemaProvider {
             // Fetch all tables
             tables = try await driver.fetchTables()
 
-            // Pre-load columns for ALL tables asynchronously
-            // Use TaskGroup with concurrency limit to avoid overwhelming the database
-            let maxConcurrentTasks = 20  // Limit parallel requests
-
-            await withTaskGroup(of: (String, [ColumnInfo]?).self) { group in
-                var index = 0
-
-                // Seed initial batch
-                for table in tables.prefix(maxConcurrentTasks) {
-                    group.addTask {
-                        do {
-                            let columns = try await driver.fetchColumns(table: table.name)
-                            return (table.name.lowercased(), columns)
-                        } catch {
-                            return (table.name.lowercased(), nil)
-                        }
-                    }
-                    index += 1
-                }
-
-                // Process results and spawn new tasks
-                for await (tableName, columns) in group {
-                    if let columns = columns {
-                        columnCache[tableName] = columns
-                    }
-
-                    // Add next task if available
-                    if index < tables.count {
-                        let table = tables[index]
-                        index += 1
-                        group.addTask {
-                            do {
-                                let columns = try await driver.fetchColumns(table: table.name)
-                                return (table.name.lowercased(), columns)
-                            } catch {
-                                return (table.name.lowercased(), nil)
-                            }
-                        }
-                    }
+            // Pre-load columns for ALL tables sequentially
+            // SQLite (and most drivers) share a single connection handle that
+            // is NOT safe for concurrent use — parallel fetches cause mutex
+            // misuse crashes.  Serial iteration is fast enough for schema loading.
+            for table in tables {
+                do {
+                    let columns = try await driver.fetchColumns(table: table.name)
+                    columnCache[table.name.lowercased()] = columns
+                } catch {
+                    // Skip tables whose columns can't be fetched
                 }
             }
 
@@ -183,7 +154,7 @@ actor SQLSchemaProvider {
 
         for ref in references {
             let columns = await getColumns(for: ref.tableName)
-            let refId = await ref.identifier
+            let refId = ref.identifier
             for column in columns {
                 // Include table/alias prefix for clarity when multiple tables
                 let label = references.count > 1 ? "\(refId).\(column.name)" : column.name

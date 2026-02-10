@@ -249,17 +249,17 @@ final class MariaDBConnection: @unchecked Sendable {
 
                 // SSL certificate paths
                 if !self.sslConfig.caCertificatePath.isEmpty {
-                    self.sslConfig.caCertificatePath.withCString { path in
+                    _ = self.sslConfig.caCertificatePath.withCString { path in
                         mysql_options(mysql, MYSQL_OPT_SSL_CA, path)
                     }
                 }
                 if !self.sslConfig.clientCertificatePath.isEmpty {
-                    self.sslConfig.clientCertificatePath.withCString { path in
+                    _ = self.sslConfig.clientCertificatePath.withCString { path in
                         mysql_options(mysql, MYSQL_OPT_SSL_CERT, path)
                     }
                 }
                 if !self.sslConfig.clientKeyPath.isEmpty {
-                    self.sslConfig.clientKeyPath.withCString { path in
+                    _ = self.sslConfig.clientKeyPath.withCString { path in
                         mysql_options(mysql, MYSQL_OPT_SSL_KEY, path)
                     }
                 }

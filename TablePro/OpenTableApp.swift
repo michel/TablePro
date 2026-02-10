@@ -20,6 +20,7 @@ final class AppState: ObservableObject {
     @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
     @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
     @Published var isHistoryPanelVisible: Bool = false  // Global history panel visibility
+    @Published var hasQueryText: Bool = false  // True when current editor has non-empty query
 }
 
 // MARK: - Pasteboard Commands
@@ -256,7 +257,7 @@ struct TableProApp: App {
                     NotificationCenter.default.post(name: .explainQuery, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: [.command, .option])
-                .disabled(!appState.isConnected)
+                .disabled(!appState.isConnected || !appState.hasQueryText)
 
                 Divider()
 
@@ -280,7 +281,7 @@ struct TableProApp: App {
                     if let firstResponder = NSApp.keyWindow?.firstResponder,
                        firstResponder is NSTextView || firstResponder is TextView {
                         // Let native text view undo handle it
-                        NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+                        NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
                     } else {
                         // Data grid undo
                         NotificationCenter.default.post(name: .undoChange, object: nil)
@@ -293,7 +294,7 @@ struct TableProApp: App {
                     if let firstResponder = NSApp.keyWindow?.firstResponder,
                        firstResponder is NSTextView || firstResponder is TextView {
                         // Let native text view redo handle it
-                        NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
+                        NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
                     } else {
                         // Data grid redo
                         NotificationCenter.default.post(name: .redoChange, object: nil)

@@ -104,19 +104,9 @@ final class KeyHandlingTableView: NSTableView {
             return
         }
 
-        // Update focus
+        // Update focus (edit mode is triggered by double-click, not single click)
         focusedRow = clickedRow
         focusedColumn = clickedColumn
-
-        // TablePlus-style: Always start editing on single click
-        // Use a slight delay to ensure selection has been processed
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            // Verify the row is now selected (after super.mouseDown processing)
-            if self.selectedRowIndexes.contains(clickedRow) {
-                self.editColumn(clickedColumn, row: clickedRow, with: nil, select: false)
-            }
-        }
     }
 
     // MARK: - Standard Edit Menu Actions

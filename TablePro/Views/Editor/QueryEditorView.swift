@@ -85,6 +85,7 @@ struct QueryEditorView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .disabled(queryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
             // Execute button
             Button(action: onExecute) {

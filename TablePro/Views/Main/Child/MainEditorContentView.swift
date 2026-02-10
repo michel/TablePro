@@ -94,6 +94,12 @@ struct MainEditorContentView: View {
             sortCache = sortCache.filter { openTabIds.contains($0.key) }
             coordinator.cleanupSortCache(openTabIds: openTabIds)
         }
+        .onChange(of: tabManager.selectedTabId) { _ in
+            updateHasQueryText()
+        }
+        .onAppear {
+            updateHasQueryText()
+        }
     }
 
     // MARK: - Tab Content
@@ -133,6 +139,14 @@ struct MainEditorContentView: View {
         }
     }
 
+    private func updateHasQueryText() {
+        if let tab = tabManager.selectedTab, tab.tabType == .query {
+            appState.hasQueryText = !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        } else {
+            appState.hasQueryText = false
+        }
+    }
+
     /// Maximum query size to persist (500KB). Queries larger than this are typically
     /// imported SQL dumps — serializing 40MB to JSON + writing to UserDefaults
     /// blocks the main thread for 10-30+ seconds, freezing the app.
@@ -151,6 +165,7 @@ struct MainEditorContentView: View {
                       index < tabManager.tabs.count else { return }
 
                 tabManager.tabs[index].query = newValue
+                AppState.shared.hasQueryText = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
                 // Skip persistence for very large queries (e.g., imported SQL dumps).
                 // JSON-encoding 40MB + writing to UserDefaults freezes the main thread.

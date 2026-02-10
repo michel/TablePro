@@ -18,7 +18,6 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
     private var textView: NSTextView?
     private var onCommit: ((String) -> Void)?
     private var originalValue: String?
-    private var validationLabel: NSTextField?
 
     private static let popoverWidth: CGFloat = 420
     private static let popoverHeight: CGFloat = 340
@@ -63,37 +62,6 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
             height: Self.popoverHeight
         ))
 
-        // Toolbar: Format + Validate buttons
-        let toolbarHeight: CGFloat = 32
-        let toolbar = NSView(frame: NSRect(
-            x: 0, y: Self.popoverHeight - toolbarHeight,
-            width: Self.popoverWidth, height: toolbarHeight
-        ))
-        toolbar.autoresizingMask = [.width]
-
-        let formatButton = NSButton(title: "Format", target: self, action: #selector(formatJSON))
-        formatButton.bezelStyle = .accessoryBarAction
-        formatButton.font = .systemFont(ofSize: 12)
-        formatButton.frame = NSRect(x: 8, y: 4, width: 70, height: 24)
-        toolbar.addSubview(formatButton)
-
-        let compactButton = NSButton(title: "Compact", target: self, action: #selector(compactJSON))
-        compactButton.bezelStyle = .accessoryBarAction
-        compactButton.font = .systemFont(ofSize: 12)
-        compactButton.frame = NSRect(x: 82, y: 4, width: 70, height: 24)
-        toolbar.addSubview(compactButton)
-
-        let validation = NSTextField(labelWithString: "")
-        validation.font = .systemFont(ofSize: 11)
-        validation.textColor = .secondaryLabelColor
-        validation.alignment = .right
-        validation.frame = NSRect(x: 160, y: 6, width: Self.popoverWidth - 168, height: 20)
-        validation.autoresizingMask = [.width]
-        toolbar.addSubview(validation)
-        self.validationLabel = validation
-
-        container.addSubview(toolbar)
-
         // Bottom bar: Cancel + Save buttons
         let bottomHeight: CGFloat = 36
         let bottomBar = NSView(frame: NSRect(
@@ -121,7 +89,7 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
 
         // Text view in scroll view
         let textAreaY = bottomHeight
-        let textAreaHeight = Self.popoverHeight - toolbarHeight - bottomHeight
+        let textAreaHeight = Self.popoverHeight - bottomHeight
 
         let scrollView = NSScrollView(frame: NSRect(
             x: 0, y: textAreaY,
@@ -155,7 +123,6 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true
-        textView.delegate = self
 
         // Set initial value (try to pretty-print)
         let displayValue = prettyPrint(value) ?? value ?? ""
@@ -164,9 +131,6 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
         scrollView.documentView = textView
         container.addSubview(scrollView)
         self.textView = textView
-
-        // Initial validation
-        validateJSON(displayValue)
 
         return container
     }
@@ -199,52 +163,7 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
         return compactString
     }
 
-    private func validateJSON(_ text: String) {
-        if text.isEmpty {
-            validationLabel?.stringValue = ""
-            validationLabel?.textColor = .secondaryLabelColor
-            return
-        }
-
-        guard let data = text.data(using: .utf8) else {
-            validationLabel?.stringValue = "Invalid encoding"
-            validationLabel?.textColor = .systemRed
-            return
-        }
-
-        do {
-            _ = try JSONSerialization.jsonObject(with: data)
-            validationLabel?.stringValue = "Valid JSON"
-            validationLabel?.textColor = .systemGreen
-        } catch {
-            let nsError = error as NSError
-            let description = nsError.localizedDescription
-            // Truncate long error messages
-            let shortDesc = description.count > 40
-                ? String(description.prefix(40)) + "..."
-                : description
-            validationLabel?.stringValue = shortDesc
-            validationLabel?.textColor = .systemRed
-        }
-    }
-
     // MARK: - Actions
-
-    @objc private func formatJSON() {
-        guard let tv = textView else { return }
-        if let formatted = prettyPrint(tv.string) {
-            tv.string = formatted
-            validateJSON(formatted)
-        }
-    }
-
-    @objc private func compactJSON() {
-        guard let tv = textView else { return }
-        if let compacted = compact(tv.string) {
-            tv.string = compacted
-            validateJSON(compacted)
-        }
-    }
 
     @objc private func saveJSON() {
         guard let tv = textView else { return }
@@ -296,18 +215,9 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
 
     private func cleanup() {
         textView = nil
-        validationLabel = nil
         onCommit = nil
         originalValue = nil
         popover = nil
     }
 }
 
-// MARK: - NSTextViewDelegate
-
-extension JSONEditorPopoverController: NSTextViewDelegate {
-    func textDidChange(_ notification: Notification) {
-        guard let tv = textView else { return }
-        validateJSON(tv.string)
-    }
-}

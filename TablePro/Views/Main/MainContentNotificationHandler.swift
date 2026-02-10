@@ -16,7 +16,7 @@ import UniformTypeIdentifiers
 /// Handles all NotificationCenter subscriptions for MainContentView
 @MainActor
 final class MainContentNotificationHandler: ObservableObject {
-    private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentNotificationHandler")
+    nonisolated private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentNotificationHandler")
 
     // MARK: - Dependencies
 

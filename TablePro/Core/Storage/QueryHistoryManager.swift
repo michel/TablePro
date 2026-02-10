@@ -33,14 +33,16 @@ final class QueryHistoryManager {
         settingsObserver = NotificationCenter.default.publisher(for: .historySettingsDidChange)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let self = self else { return }
+                guard let self else { return }
 
-                // Update settings cache
-                self.storage.updateSettingsCache()
+                MainActor.assumeIsolated {
+                    // Update settings cache
+                    self.storage.updateSettingsCache()
 
-                // Perform cleanup if auto-cleanup is enabled
-                if AppSettingsManager.shared.history.autoCleanup {
-                    self.storage.cleanup()
+                    // Perform cleanup if auto-cleanup is enabled
+                    if AppSettingsManager.shared.history.autoCleanup {
+                        self.storage.cleanup()
+                    }
                 }
             }
     }
