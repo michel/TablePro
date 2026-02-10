@@ -99,6 +99,7 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [
             .flexibleSpace,
+            ToolbarItemIdentifier.connectionSwitcher.nsIdentifier,
             ToolbarItemIdentifier.databaseSwitcher.nsIdentifier,
             ToolbarItemIdentifier.newQueryTab.nsIdentifier,
             ToolbarItemIdentifier.refresh.nsIdentifier,

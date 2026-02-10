@@ -12,6 +12,8 @@ import SwiftUI
 struct ConnectionSwitcherPopover: View {
     @State private var savedConnections: [DatabaseConnection] = []
     @State private var isConnecting: UUID?
+    @State private var selectedIndex: Int = 0
+    @State private var keyMonitor: Any?
 
     /// Callback when the popover should dismiss
     var onDismiss: (() -> Void)?
@@ -24,17 +26,38 @@ struct ConnectionSwitcherPopover: View {
         DatabaseManager.shared.currentSessionId
     }
 
+    /// All items in display order for keyboard navigation
+    private var allItems: [ConnectionItem] {
+        var items: [ConnectionItem] = []
+
+        let sorted = Array(activeSessions.values).sorted { $0.lastActiveAt > $1.lastActiveAt }
+        for session in sorted {
+            items.append(.session(session))
+        }
+
+        let inactive = savedConnections.filter { activeSessions[$0.id] == nil }
+        for connection in inactive {
+            items.append(.saved(connection))
+        }
+
+        return items
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            let sortedSessions = Array(activeSessions.values).sorted { $0.lastActiveAt > $1.lastActiveAt }
+            let inactiveSaved = savedConnections.filter { activeSessions[$0.id] == nil }
+
             // Active connections section
-            if !activeSessions.isEmpty {
+            if !sortedSessions.isEmpty {
                 sectionHeader("Active Connections")
 
-                ForEach(Array(activeSessions.values).sorted(by: { $0.lastActiveAt > $1.lastActiveAt })) { session in
+                ForEach(Array(sortedSessions.enumerated()), id: \.element.id) { index, session in
                     connectionRow(
                         connection: session.connection,
                         isActive: session.id == currentSessionId,
-                        isConnected: session.status.isConnected
+                        isConnected: session.status.isConnected,
+                        isHighlighted: index == selectedIndex
                     )
                     .onTapGesture {
                         switchToSession(session.id)
@@ -46,16 +69,17 @@ struct ConnectionSwitcherPopover: View {
             }
 
             // Saved connections (not currently active)
-            let inactiveSaved = savedConnections.filter { activeSessions[$0.id] == nil }
             if !inactiveSaved.isEmpty {
                 sectionHeader("Saved Connections")
 
-                ForEach(inactiveSaved) { connection in
+                ForEach(Array(inactiveSaved.enumerated()), id: \.element.id) { index, connection in
+                    let itemIndex = sortedSessions.count + index
                     connectionRow(
                         connection: connection,
                         isActive: false,
                         isConnected: false,
-                        isConnecting: isConnecting == connection.id
+                        isConnecting: isConnecting == connection.id,
+                        isHighlighted: itemIndex == selectedIndex
                     )
                     .onTapGesture {
                         connectToSaved(connection)
@@ -88,7 +112,65 @@ struct ConnectionSwitcherPopover: View {
         .frame(width: 280)
         .onAppear {
             savedConnections = ConnectionStorage.shared.loadConnections()
+            if let currentId = currentSessionId {
+                let sorted = Array(activeSessions.values).sorted { $0.lastActiveAt > $1.lastActiveAt }
+                if let idx = sorted.firstIndex(where: { $0.id == currentId }) {
+                    selectedIndex = idx
+                }
+            }
+            installKeyMonitor()
         }
+        .onDisappear {
+            removeKeyMonitor()
+        }
+    }
+
+    // MARK: - Keyboard Navigation
+
+    private func installKeyMonitor() {
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let items = allItems
+            switch event.keyCode {
+            case 126: // Up arrow
+                if selectedIndex > 0 {
+                    selectedIndex -= 1
+                }
+                return nil
+            case 125: // Down arrow
+                if selectedIndex < items.count - 1 {
+                    selectedIndex += 1
+                }
+                return nil
+            case 36: // Return
+                guard selectedIndex >= 0, selectedIndex < items.count else { return event }
+                switch items[selectedIndex] {
+                case .session(let session):
+                    switchToSession(session.id)
+                case .saved(let connection):
+                    connectToSaved(connection)
+                }
+                return nil
+            case 53: // Escape
+                onDismiss?()
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
+    private func removeKeyMonitor() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+    }
+
+    // MARK: - Item Type
+
+    private enum ConnectionItem {
+        case session(ConnectionSession)
+        case saved(DatabaseConnection)
     }
 
     // MARK: - Subviews
@@ -106,7 +188,8 @@ struct ConnectionSwitcherPopover: View {
         connection: DatabaseConnection,
         isActive: Bool,
         isConnected: Bool,
-        isConnecting: Bool = false
+        isConnecting: Bool = false,
+        isHighlighted: Bool = false
     ) -> some View {
         HStack(spacing: 8) {
             // Color indicator
@@ -157,9 +240,12 @@ struct ConnectionSwitcherPopover: View {
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .background(
-            isActive
-                ? RoundedRectangle(cornerRadius: 4).fill(Color.accentColor.opacity(0.1))
-                : nil
+            RoundedRectangle(cornerRadius: 4)
+                .fill(
+                    isHighlighted
+                        ? Color.accentColor.opacity(0.15)
+                        : (isActive ? Color.accentColor.opacity(0.08) : Color.clear)
+                )
         )
     }
 

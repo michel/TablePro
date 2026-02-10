@@ -64,6 +64,7 @@ struct ToolbarPrincipalContent: View {
 /// Apply this to a view to add the production toolbar
 struct TableProToolbar: ViewModifier {
     @ObservedObject var state: ConnectionToolbarState
+    @State private var showConnectionSwitcher = false
 
     func body(content: Content) -> some View {
         content
@@ -71,13 +72,18 @@ struct TableProToolbar: ViewModifier {
                 // MARK: - Navigation (Left)
                 ToolbarItem(placement: .navigation) {
                     HStack(spacing: 8) {
-                        // Connection switcher button (opens welcome window to select different connection)
+                        // Connection switcher button
                         Button {
-                            NotificationCenter.default.post(name: .openWelcomeWindow, object: nil)
+                            showConnectionSwitcher.toggle()
                         } label: {
                             Image(systemName: "network")
                         }
                         .help("Switch Connection")
+                        .popover(isPresented: $showConnectionSwitcher) {
+                            ConnectionSwitcherPopover {
+                                showConnectionSwitcher = false
+                            }
+                        }
 
                         Divider()
                             .frame(height: 20)

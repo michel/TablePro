@@ -115,28 +115,6 @@ struct ContentView: View {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 // MARK: - Sidebar (Left) - Table Browser
                 VStack(spacing: 0) {
-                    if !sessions.isEmpty {
-                        ConnectionSidebarHeader(
-                            sessions: sessions,
-                            currentSessionId: dbManager.currentSessionId,
-                            savedConnections: connections,
-                            onSelectSession: { sessionId in
-                                Task { @MainActor in
-                                    saveCurrentSessionState()
-                                    dbManager.switchToSession(sessionId)
-                                }
-                            },
-                            onOpenConnection: { connection in
-                                Task { @MainActor in
-                                    connectToDatabase(connection)
-                                }
-                            },
-                            onNewConnection: {
-                                openWindow(id: "connection-form", value: nil as UUID?)
-                            }
-                        )
-                    }
-
                     SidebarView(
                         tables: sessionTablesBinding,
                         selectedTables: sessionSelectedTablesBinding,
