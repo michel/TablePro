@@ -2,12 +2,12 @@
 //  ConnectionTagEditor.swift
 //  TablePro
 //
-//  Created by Claude on 20/12/25.
+//  Tag selector dropdown for connection form
 //
 
 import SwiftUI
 
-/// Tag selection for a connection (single tag only)
+/// Tag selection for a connection — single Menu dropdown
 struct ConnectionTagEditor: View {
     @Binding var selectedTagId: UUID?
     @State private var allTags: [ConnectionTag] = []
@@ -21,93 +21,80 @@ struct ConnectionTagEditor: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
-            // Selected tag or placeholder
-            if let tag = selectedTag {
-                TagChip(tag: tag, isSelected: true) {
-                    selectedTagId = nil
+        Menu {
+            // None option
+            Button {
+                selectedTagId = nil
+            } label: {
+                HStack {
+                    Text("None")
+                    if selectedTagId == nil {
+                        Spacer()
+                        Image(systemName: "checkmark")
+                    }
                 }
             }
 
-            // Tag picker menu
-            Menu {
-                // None option
+            Divider()
+
+            // Available tags
+            ForEach(allTags) { tag in
                 Button {
-                    selectedTagId = nil
+                    selectedTagId = tag.id
                 } label: {
                     HStack {
-                        Text("None")
-                        if selectedTagId == nil {
+                        Image(nsImage: colorDot(tag.color.color))
+                        Text(tag.name)
+                        if selectedTagId == tag.id {
                             Spacer()
                             Image(systemName: "checkmark")
                         }
                     }
                 }
+            }
 
-                Divider()
+            Divider()
 
-                // Available tags
-                ForEach(allTags) { tag in
-                    Button {
-                        selectedTagId = tag.id
-                    } label: {
-                        HStack {
-                            Text(tag.name)
-                            if tag.isPreset {
-                                Text("preset")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            if selectedTagId == tag.id {
-                                Spacer()
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                    }
-                }
-
-                Divider()
-
-                // Create new tag
-                Button {
-                    showingCreateSheet = true
-                } label: {
-                    Label("Create New Tag...", systemImage: "plus.circle")
-                }
-
-                // Manage tags (delete custom tags)
-                if allTags.contains(where: { !$0.isPreset }) {
-                    Divider()
-
-                    Menu("Manage Tags") {
-                        ForEach(allTags.filter { !$0.isPreset }) { tag in
-                            Button(role: .destructive) {
-                                deleteTag(tag)
-                            } label: {
-                                Label("Delete \"\(tag.name)\"", systemImage: "trash")
-                            }
-                        }
-                    }
-                }
+            // Create new tag
+            Button {
+                showingCreateSheet = true
             } label: {
-                if selectedTag == nil {
-                    Label("Select tag", systemImage: "tag")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Label("Create New Tag...", systemImage: "plus.circle")
+            }
+
+            // Manage tags (delete custom tags)
+            if allTags.contains(where: { !$0.isPreset }) {
+                Divider()
+
+                Menu("Manage Tags") {
+                    ForEach(allTags.filter { !$0.isPreset }) { tag in
+                        Button(role: .destructive) {
+                            deleteTag(tag)
+                        } label: {
+                            Label("Delete \"\(tag.name)\"", systemImage: "trash")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                if let tag = selectedTag {
+                    Circle()
+                        .fill(tag.color.color)
+                        .frame(width: 8, height: 8)
+                    Text(tag.name)
+                        .foregroundStyle(.primary)
                 } else {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: DesignConstants.FontSize.caption))
+                    Text("None")
                         .foregroundStyle(.secondary)
                 }
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-
-            Spacer()
         }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
         .onAppear { allTags = tagStorage.loadTags() }
         .sheet(isPresented: $showingCreateSheet) {
-            CreateTagSheet                { tagName, tagColor in
+            CreateTagSheet { tagName, tagColor in
                 let tag = ConnectionTag(name: tagName.lowercased(), isPreset: false, color: tagColor)
                 tagStorage.addTag(tag)
                 selectedTagId = tag.id
@@ -116,43 +103,24 @@ struct ConnectionTagEditor: View {
         }
     }
 
+    /// Create a colored circle NSImage for use in menu items
+    private func colorDot(_ color: Color) -> NSImage {
+        let size = NSSize(width: 10, height: 10)
+        let image = NSImage(size: size, flipped: false) { rect in
+            NSColor(color).setFill()
+            NSBezierPath(ovalIn: rect).fill()
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }
+
     private func deleteTag(_ tag: ConnectionTag) {
-        // Clear selection if deleting selected tag
         if selectedTagId == tag.id {
             selectedTagId = nil
         }
         tagStorage.deleteTag(tag)
         allTags = tagStorage.loadTags()
-    }
-}
-
-// MARK: - Tag Chip
-
-struct TagChip: View {
-    let tag: ConnectionTag
-    let isSelected: Bool
-    var onRemove: (() -> Void)?
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(tag.name)
-                .font(.caption)
-
-            if isSelected, let onRemove = onRemove {
-                Button(action: onRemove) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: DesignConstants.IconSize.statusDot, weight: .bold))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(
-            Capsule()
-                .fill(tag.color.color.opacity(0.2))
-        )
-        .foregroundStyle(tag.color.color)
     }
 }
 
@@ -221,7 +189,10 @@ private struct TagColorPicker: View {
                     .overlay(
                         Circle()
                             .stroke(Color.primary, lineWidth: selectedColor == color ? 2 : 0)
-                            .frame(width: DesignConstants.IconSize.large, height: DesignConstants.IconSize.large)
+                            .frame(
+                                width: DesignConstants.IconSize.large,
+                                height: DesignConstants.IconSize.large
+                            )
                     )
                     .onTapGesture {
                         selectedColor = color

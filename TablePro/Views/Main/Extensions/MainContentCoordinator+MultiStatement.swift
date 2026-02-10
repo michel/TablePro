@@ -227,7 +227,7 @@ extension MainContentCoordinator {
                         updatedTab.columnTypes = safeColumnTypes
                         updatedTab.resultRows = safeRows
                         updatedTab.tableName = tableName
-                        updatedTab.isEditable = tableName != nil
+                        updatedTab.isEditable = tableName != nil && updatedTab.isEditable
                     } else {
                         // No SELECT results — clear grid, show rowsAffected summary
                         updatedTab.resultColumns = []

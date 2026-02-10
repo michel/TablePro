@@ -97,10 +97,10 @@ private struct EditorTabItem: View {
                     .controlSize(.small)
                     .frame(width: 11, height: 11)
             } else {
-                Image(systemName: tab.tabType == .table ? "tablecells" : "doc.text")
+                Image(systemName: tab.isView ? "eye" : tab.tabType == .table ? "tablecells" : "doc.text")
                     .font(.system(size: 11))
                     .foregroundStyle(
-                        tab.tabType == .table ? Color.blue : Color.secondary
+                        tab.tabType == .table ? (tab.isView ? Color.purple : Color.blue) : Color.secondary
                     )
             }
 

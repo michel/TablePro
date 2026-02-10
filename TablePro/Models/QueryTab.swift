@@ -30,6 +30,7 @@ struct PersistedTab: Codable {
     let isPinned: Bool
     let tabType: TabType
     let tableName: String?
+    var isView: Bool = false
 }
 
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
@@ -227,6 +228,7 @@ struct QueryTab: Identifiable, Equatable {
     // Editing support
     var tableName: String?
     var isEditable: Bool
+    var isView: Bool  // True for database views (read-only)
     var showStructure: Bool  // Toggle to show structure view instead of data
 
     // Per-tab change tracking (preserves changes when switching tabs)
@@ -279,6 +281,7 @@ struct QueryTab: Identifiable, Equatable {
         self.isExecuting = false
         self.tableName = tableName
         self.isEditable = tabType == .table  // Table tabs are editable by default
+        self.isView = false
         self.showStructure = false
         self.pendingChanges = TabPendingChanges()
         self.selectedRowIndices = []
@@ -310,7 +313,8 @@ struct QueryTab: Identifiable, Equatable {
         self.rowsAffected = 0
         self.errorMessage = nil
         self.isExecuting = false
-        self.isEditable = persisted.tabType == .table
+        self.isEditable = persisted.tabType == .table && !persisted.isView
+        self.isView = persisted.isView
         self.showStructure = false
         self.pendingChanges = TabPendingChanges()
         self.selectedRowIndices = []
@@ -342,7 +346,8 @@ struct QueryTab: Identifiable, Equatable {
             query: persistedQuery,
             isPinned: isPinned,
             tabType: tabType,
-            tableName: tableName
+            tableName: tableName,
+            isView: isView
         )
     }
 
@@ -451,7 +456,8 @@ final class QueryTabManager: ObservableObject {
     /// - Returns: true if query needs to be executed (new/replaced tab), false if just switching
     @discardableResult
     func TableProTabSmart(
-        tableName: String, hasUnsavedChanges: Bool, databaseType: DatabaseType = .mysql
+        tableName: String, hasUnsavedChanges: Bool, databaseType: DatabaseType = .mysql,
+        isView: Bool = false
     ) -> Bool {
         // 1. If a tab for this table already exists, just switch to it
         if let existingTab = tabs.first(where: { $0.tabType == .table && $0.tableName == tableName }
@@ -486,6 +492,8 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].selectedRowIndices = []  // Reset selection
             tabs[selectedIndex].pendingChanges = TabPendingChanges()  // Reset changes
             tabs[selectedIndex].hasUserInteraction = false  // Reset interaction flag
+            tabs[selectedIndex].isView = isView
+            tabs[selectedIndex].isEditable = !isView  // Views are read-only
             tabs[selectedIndex].filterState = TabFilterState()  // Reset filter state
             tabs[selectedIndex].pagination = PaginationState(pageSize: pageSize)  // Reset with settings
             return true  // Need to run query for new table
@@ -498,6 +506,8 @@ final class QueryTabManager: ObservableObject {
             tabType: .table,
             tableName: tableName
         )
+        newTab.isView = isView
+        newTab.isEditable = !isView  // Views are read-only
         newTab.pagination = PaginationState(pageSize: pageSize)
         tabs.append(newTab)
         selectedTabId = newTab.id

@@ -807,7 +807,7 @@ struct FormField<Content: View>: View {
                 .foregroundStyle(.secondary)
 
             content()
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

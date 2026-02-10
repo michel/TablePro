@@ -32,6 +32,8 @@ extension MainContentCoordinator {
     func deleteSelectedRows(indices: Set<Int>, selectedRowIndices: inout Set<Int>) {
         guard !connection.isReadOnly,
               let tabIndex = tabManager.selectedTabIndex,
+              tabIndex < tabManager.tabs.count,
+              tabManager.tabs[tabIndex].isEditable,
               !indices.isEmpty else { return }
 
         let nextRow = rowOperationsManager.deleteSelectedRows(

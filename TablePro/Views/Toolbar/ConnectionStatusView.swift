@@ -46,34 +46,44 @@ struct ConnectionStatusView: View {
             .help("Database: \(formattedDatabaseInfo)")
     }
 
-    /// Database name (clickable to open database switcher)
+    /// Database name (clickable to open database switcher, plain label for SQLite)
+    @ViewBuilder
     private var databaseNameSection: some View {
-        Button {
-            NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "cylinder")
-                    .font(.system(size: ToolbarDesignTokens.Spacing.iconSize))
-                    .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
-                    .overlay(alignment: .bottomTrailing) {
-                        if isReadOnly {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 7, weight: .bold))
-                                .foregroundStyle(.orange)
-                                .offset(x: 3, y: 2)
-                                .help("Read-only connection")
-                        }
-                    }
-
-                Text(databaseName)
-                    .font(ToolbarDesignTokens.Typography.databaseName)
-                    .foregroundStyle(.primary)
+        if databaseType == .sqlite {
+            databaseNameLabel
+                .help("Database: \(databaseName)")
+        } else {
+            Button {
+                NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
+            } label: {
+                databaseNameLabel
             }
+            .buttonStyle(.plain)
+            .help(isReadOnly
+                ? "Current database: \(databaseName) (read-only, ⌘K to switch)"
+                : "Current database: \(databaseName) (⌘K to switch)")
         }
-        .buttonStyle(.plain)
-        .help(isReadOnly
-            ? "Current database: \(databaseName) (read-only, ⌘K to switch)"
-            : "Current database: \(databaseName) (⌘K to switch)")
+    }
+
+    private var databaseNameLabel: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "cylinder")
+                .font(.system(size: ToolbarDesignTokens.Spacing.iconSize))
+                .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
+                .overlay(alignment: .bottomTrailing) {
+                    if isReadOnly {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundStyle(.orange)
+                            .offset(x: 3, y: 2)
+                            .help("Read-only connection")
+                    }
+                }
+
+            Text(databaseName)
+                .font(ToolbarDesignTokens.Typography.databaseName)
+                .foregroundStyle(.primary)
+        }
     }
 
     // MARK: - Computed Properties

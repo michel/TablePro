@@ -202,7 +202,11 @@ final class ConnectionToolbarState: ObservableObject {
     /// Update state from a DatabaseConnection model
     func update(from connection: DatabaseConnection) {
         connectionName = connection.name
-        databaseName = connection.database
+        if connection.type == .sqlite {
+            databaseName = (connection.database as NSString).lastPathComponent
+        } else {
+            databaseName = connection.database
+        }
         databaseType = connection.type
         displayColor = connection.displayColor
         tagId = connection.tagId

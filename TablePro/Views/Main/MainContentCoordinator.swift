@@ -408,9 +408,11 @@ final class MainContentCoordinator: ObservableObject {
                         updatedTab.isExecuting = false
                         updatedTab.lastExecutedAt = Date()
                         updatedTab.tableName = safeTableName
-                        updatedTab.isEditable = isEditable
+                        updatedTab.isEditable = isEditable && updatedTab.isEditable
                         updatedTab.pagination.totalRowCount = safeTotalRowCount
                         tabManager.tabs[idx] = updatedTab
+                        AppState.shared.isCurrentTabEditable = updatedTab.isEditable
+                            && !updatedTab.isView && updatedTab.tableName != nil
 
                         // Clear change tracking when loading new data (e.g., from refresh)
                         // This ensures deleted rows don't retain red background after refresh
@@ -818,10 +820,15 @@ final class MainContentCoordinator: ObservableObject {
             statements.append(contentsOf: truncateStatements(tableName: tableName, quotedName: quotedName, options: tableOptions, dbType: dbType))
         }
 
+        let viewNames: Set<String> = {
+            guard let session = DatabaseManager.shared.currentSession else { return [] }
+            return Set(session.tables.filter { $0.type == .view }.map(\.name))
+        }()
+
         for tableName in sortedDeletes {
             let quotedName = dbType.quoteIdentifier(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
-            statements.append(dropTableStatement(quotedName: quotedName, options: tableOptions, dbType: dbType))
+            statements.append(dropTableStatement(quotedName: quotedName, isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType))
         }
 
         if needsTransaction {
@@ -888,13 +895,14 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
-    /// Generates DROP TABLE statement with optional CASCADE.
-    private func dropTableStatement(quotedName: String, options: TableOperationOptions, dbType: DatabaseType) -> String {
+    /// Generates DROP TABLE/VIEW statement with optional CASCADE.
+    private func dropTableStatement(quotedName: String, isView: Bool, options: TableOperationOptions, dbType: DatabaseType) -> String {
+        let keyword = isView ? "VIEW" : "TABLE"
         switch dbType {
         case .postgresql:
-            "DROP TABLE \(quotedName)\(options.cascade ? " CASCADE" : "")"
+            return "DROP \(keyword) \(quotedName)\(options.cascade ? " CASCADE" : "")"
         case .mysql, .mariadb, .sqlite:
-            "DROP TABLE \(quotedName)"
+            return "DROP \(keyword) \(quotedName)"
         }
     }
 
@@ -1273,7 +1281,7 @@ final class MainContentCoordinator: ObservableObject {
            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId }) {
             let newTab = tabManager.tabs[newIndex]
             selectedRowIndices = newTab.selectedRowIndices
-            AppState.shared.isCurrentTabEditable = newTab.isEditable && newTab.tableName != nil
+            AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil
 
             Task { @MainActor in
                 if newTab.pendingChanges.hasChanges {
@@ -1309,16 +1317,23 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Table Tab Opening
 
-    func openTableTab(_ tableName: String, showStructure: Bool = false) {
+    func openTableTab(_ tableName: String, showStructure: Bool = false, isView: Bool = false) {
         let needsQuery = tabManager.TableProTabSmart(
             tableName: tableName,
             hasUnsavedChanges: changeManager.hasChanges,
-            databaseType: connection.type
+            databaseType: connection.type,
+            isView: isView
         )
 
         // Initialize pagination for new table tab
         if needsQuery, let tabIndex = tabManager.selectedTabIndex {
             tabManager.tabs[tabIndex].pagination.reset()
+        }
+
+        // Update editable state for menu items (tab switch handler may not fire on reuse path)
+        if let tabIndex = tabManager.selectedTabIndex {
+            let tab = tabManager.tabs[tabIndex]
+            AppState.shared.isCurrentTabEditable = tab.isEditable && !tab.isView && tab.tableName != nil
         }
 
         // Toggle structure view if requested
@@ -1340,16 +1355,16 @@ final class MainContentCoordinator: ObservableObject {
             sql = """
             SELECT
                 schemaname as schema,
-                tablename as name,
+                relname as name,
                 'TABLE' as kind,
                 n_live_tup as estimated_rows,
-                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as total_size,
-                pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) as data_size,
-                pg_size_pretty(pg_indexes_size(schemaname||'.'||tablename)) as index_size,
-                obj_description((schemaname||'.'||tablename)::regclass) as comment
+                pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) as total_size,
+                pg_size_pretty(pg_relation_size(schemaname||'.'||relname)) as data_size,
+                pg_size_pretty(pg_indexes_size(schemaname||'.'||relname)) as index_size,
+                obj_description((schemaname||'.'||relname)::regclass) as comment
             FROM pg_stat_user_tables
             WHERE schemaname = 'public'
-            ORDER BY tablename
+            ORDER BY relname
             """
         case .mysql, .mariadb:
             sql = """

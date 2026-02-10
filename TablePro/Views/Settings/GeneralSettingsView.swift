@@ -21,16 +21,10 @@ struct GeneralSettingsView: View {
             }
 
             Section("Query Execution") {
-                HStack {
-                    Text("Query timeout:")
-                    Stepper(
-                        value: $settings.queryTimeoutSeconds,
-                        in: 0...600,
-                        step: 10
-                    ) {
-                        Text(settings.queryTimeoutSeconds == 0
-                            ? "No limit"
-                            : "\(settings.queryTimeoutSeconds) seconds")
+                Picker("Query timeout:", selection: $settings.queryTimeoutSeconds) {
+                    Text("No limit").tag(0)
+                    ForEach([10, 20, 30, 40, 50, 60, 90, 120, 180, 300, 600], id: \.self) { seconds in
+                        Text("\(seconds) seconds").tag(seconds)
                     }
                 }
                 .help("Maximum time to wait for a query to complete. Set to 0 for no limit. Applied to new connections.")

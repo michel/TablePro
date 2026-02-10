@@ -383,7 +383,7 @@ struct MainContentView: View {
         let added = newTables.subtracting(oldTables)
         if let table = added.first {
             selectedRowIndices = []
-            coordinator.openTableTab(table.name)
+            coordinator.openTableTab(table.name, isView: table.type == .view)
         }
         AppState.shared.hasTableSelection = !newTables.isEmpty
     }

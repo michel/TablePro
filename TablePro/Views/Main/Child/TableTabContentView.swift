@@ -73,7 +73,7 @@ struct TableTabContentView: View {
                         columnTypes: tab.columnTypes
                     ),
                     changeManager: AnyChangeManager(dataManager: changeManager),
-                    isEditable: tab.isEditable,
+                    isEditable: tab.isEditable && !tab.isView,
                     onCommit: onCommit,
                     onRefresh: onRefresh,
                     onCellEdit: onCellEdit,

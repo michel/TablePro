@@ -193,6 +193,11 @@ struct DataGridView: NSViewRepresentable {
                 tableView.addTableColumn(column)
             }
             tableView.sizeToFit()
+        } else {
+            // Always sync column editability (e.g., view tabs reusing table columns)
+            for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+                column.isEditable = isEditable
+            }
         }
 
         // Sync sort state

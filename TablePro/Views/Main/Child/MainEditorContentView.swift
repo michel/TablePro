@@ -278,7 +278,7 @@ struct MainEditorContentView: View {
                 columnForeignKeys: tab.columnForeignKeys
             ),
             changeManager: AnyChangeManager(dataManager: changeManager),
-            isEditable: tab.isEditable && !connection.isReadOnly,
+            isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
             onCommit: onCommit,
             onRefresh: onRefresh,
             onCellEdit: onCellEdit,
