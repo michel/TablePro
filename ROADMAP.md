@@ -98,10 +98,10 @@ TablePro is a native macOS database client (SwiftUI + AppKit) supporting MySQL, 
 | Pagination | Done | Configurable page size |
 | Multi-row Selection | Done | — |
 | Redo | Done | Undo/redo stacks with proper clearing on new changes |
-| Foreign Key Dropdown | Missing | — |
+| Foreign Key Dropdown | Done | Searchable popover with referenced table values |
 | Date/Time Picker | Done | Popover with NSDatePicker for date/datetime/time columns |
 | Enum Dropdown | Missing | — |
-| JSON Editor | Missing | Plain text only |
+| JSON Editor | Done | Popover editor with formatting and validation |
 | Image Preview (BLOB) | Missing | — |
 
 ---
@@ -174,17 +174,17 @@ Basic EXPLAIN support implemented. Results display in the standard data grid.
 
 > Features used frequently during development workflows.
 
-### 2.1 Foreign Key Lookup Dropdown
+### 2.1 Foreign Key Lookup Dropdown ✅ DONE
 **Priority: HIGH** | **Effort: Medium**
 
-When editing a FK column, show a dropdown of valid values from the referenced table.
+FK lookup dropdown implemented with searchable popover showing referenced table values.
 
-- **Files to modify:** `Views/Results/DataGridCellFactory.swift`, `DataGridView.swift`
+- **Files modified:** `Views/Results/ForeignKeyPopoverController.swift` (new), `Views/Results/DataGridView.swift`, `Models/QueryTab.swift`, `Models/RowProvider.swift`, `Views/Main/MainContentCoordinator.swift`, `Views/Main/Child/MainEditorContentView.swift`
 - **Tasks:**
-  - Detect FK columns from schema metadata
-  - Fetch referenced table values (with search/pagination)
-  - Show as searchable dropdown in cell editor
-  - Display both ID and a display column (e.g., `id - name`)
+  - ~~Detect FK columns from schema metadata~~ (DONE — fetched alongside column info)
+  - ~~Fetch referenced table values (with search/pagination)~~ (DONE — async fetch with display column detection)
+  - ~~Show as searchable dropdown in cell editor~~ (DONE — NSSearchField + NSTableView in popover)
+  - ~~Display both ID and a display column (e.g., `id — name`)~~ (DONE — auto-detects first text column)
 
 ### 2.2 Date/Time Picker for Date Columns ✅ DONE
 **Priority: HIGH** | **Effort: Small**
@@ -250,17 +250,18 @@ Only CSV/JSON/SQL export exists. Excel is the most requested format for non-deve
 
 > Features that improve productivity and polish.
 
-### 3.1 JSON Column Editor
+### 3.1 JSON Column Editor ✅ DONE
 **Priority: MEDIUM** | **Effort: Medium**
 
-JSON columns are displayed and edited as plain text.
+JSON column editor implemented with popover, formatting, and validation.
 
+- **Files modified:** `Views/Results/JSONEditorPopoverController.swift` (new), `Core/Services/ColumnType.swift`, `Views/Results/DataGridView.swift`
 - **Tasks:**
-  - Detect JSON/JSONB column types
-  - Show formatted JSON in popover/sheet with syntax highlighting
-  - Validate JSON before saving
-  - Support JSON path navigation
-  - Tree view for nested objects
+  - ~~Detect JSON/JSONB column types~~ (DONE — MySQL type 245, PostgreSQL OIDs 114/3802, SQLite JSON keyword)
+  - ~~Show formatted JSON in popover with syntax highlighting~~ (DONE — monospace NSTextView with pretty-print)
+  - ~~Validate JSON before saving~~ (DONE — real-time validation + save confirmation for invalid JSON)
+  - Support JSON path navigation (Future)
+  - Tree view for nested objects (Future)
 
 ### 3.2 Schema Compare / Diff
 **Priority: MEDIUM** | **Effort: Large**
@@ -594,9 +595,9 @@ For any developer continuing this project, start with these files:
 
 ### Phase 2: v0.3.0 — Developer Productivity
 6. ~~Query execution plan (EXPLAIN)~~ (DONE — basic)
-7. Foreign key lookup dropdown
+7. ~~Foreign key lookup dropdown~~ (DONE)
 8. ~~Date/time picker for date columns~~ (DONE)
-9. JSON column editor
+9. ~~JSON column editor~~ (DONE)
 10. ~~Query execution timeout~~ (DONE)
 
 ### Phase 3: v0.4.0 — Database Object Management
