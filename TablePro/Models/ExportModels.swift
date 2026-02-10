@@ -15,6 +15,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case csv = "CSV"
     case json = "JSON"
     case sql = "SQL"
+    case xlsx = "XLSX"
 
     var id: String { rawValue }
 
@@ -24,6 +25,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .csv: return "csv"
         case .json: return "json"
         case .sql: return "sql"
+        case .xlsx: return "xlsx"
         }
     }
 }
@@ -140,6 +142,14 @@ struct SQLExportOptions: Equatable {
     var batchSize: Int = 500
 }
 
+// MARK: - XLSX Options
+
+/// Options for Excel (.xlsx) export
+struct XLSXExportOptions: Equatable {
+    var includeHeaderRow: Bool = true
+    var convertNullToEmpty: Bool = true
+}
+
 // MARK: - Export Configuration
 
 /// Complete export configuration combining format, selection, and options
@@ -149,6 +159,7 @@ struct ExportConfiguration {
     var csvOptions = CSVExportOptions()
     var jsonOptions = JSONExportOptions()
     var sqlOptions = SQLExportOptions()
+    var xlsxOptions = XLSXExportOptions()
 
     /// Full file name including extension
     var fullFileName: String {

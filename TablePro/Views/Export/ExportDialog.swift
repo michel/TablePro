@@ -217,6 +217,8 @@ struct ExportDialog: View {
                         ExportJSONOptionsView(options: $config.jsonOptions)
                     case .sql:
                         ExportSQLOptionsView(options: $config.sqlOptions)
+                    case .xlsx:
+                        ExportXLSXOptionsView(options: $config.xlsxOptions)
                     }
                 }
                 .padding(.horizontal, 16)

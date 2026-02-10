@@ -164,6 +164,8 @@ final class ExportService: ObservableObject {
                 try await exportToJSON(tables: tables, config: config, to: url)
             case .sql:
                 try await exportToSQL(tables: tables, config: config, to: url)
+            case .xlsx:
+                try await exportToXLSX(tables: tables, config: config, to: url)
             }
         } catch {
             // Clean up partial file on cancellation or error
@@ -295,6 +297,62 @@ final class ExportService: ObservableObject {
         } catch {
             Self.logger.warning("Failed to close export file handle: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - XLSX Export
+
+    private func exportToXLSX(
+        tables: [ExportTableItem],
+        config: ExportConfiguration,
+        to url: URL
+    ) async throws {
+        let writer = XLSXWriter()
+        let options = config.xlsxOptions
+
+        for (index, table) in tables.enumerated() {
+            try checkCancellation()
+
+            currentTableIndex = index + 1
+            currentTable = table.qualifiedName
+
+            let tableRef = qualifiedTableRef(for: table)
+            let batchSize = 10_000
+            var offset = 0
+            var columns: [String] = []
+            var allRows: [[String?]] = []
+
+            while true {
+                try checkCancellation()
+
+                let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
+                let result = try await driver.execute(query: query)
+
+                if result.rows.isEmpty { break }
+
+                if columns.isEmpty {
+                    columns = result.columns
+                }
+
+                for row in result.rows {
+                    allRows.append(row)
+                    await incrementProgress()
+                }
+
+                offset += batchSize
+            }
+
+            writer.addSheet(
+                name: table.name,
+                columns: columns,
+                rows: allRows,
+                includeHeader: options.includeHeaderRow,
+                convertNullToEmpty: options.convertNullToEmpty
+            )
+
+            await finalizeTableProgress()
+        }
+
+        try writer.write(to: url)
     }
 
     // MARK: - CSV Export

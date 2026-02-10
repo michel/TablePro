@@ -233,16 +233,17 @@ Views are listed in sidebar (already detected) but can't be created/edited.
   - Support ALTER VIEW / CREATE OR REPLACE VIEW
   - Show view dependencies
 
-### 2.6 Excel Export (.xlsx)
+### 2.6 Excel Export (.xlsx) ✅ DONE
 **Priority: HIGH** | **Effort: Medium**
 
 Only CSV/JSON/SQL export exists. Excel is the most requested format for non-developers.
 
 - **Tasks:**
-  - Add .xlsx export option to ExportDialog
-  - Use a lightweight xlsx library or implement basic OOXML writing
-  - Support sheet naming, column width auto-fit
-  - Optional: multiple tables → multiple sheets
+  - ~~Add .xlsx export option to ExportDialog~~
+  - ~~Use a lightweight xlsx library or implement basic OOXML writing~~
+  - ~~Support sheet naming, column width auto-fit~~
+  - ~~Optional: multiple tables → multiple sheets~~
+- **Implemented:** Pure-Swift OOXML writer with shared strings deduplication, bold headers, numeric detection, multi-table→multi-sheet export, sheet name sanitization
 
 ---
 

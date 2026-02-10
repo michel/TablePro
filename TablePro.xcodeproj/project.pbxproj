@@ -351,7 +351,6 @@
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -441,7 +440,6 @@
 				SUPPORTED_PLATFORMS = macosx;
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -478,8 +476,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/CodeEditApp/CodeEditSourceEditor.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.15.2;
+				kind = revision;
+				revision = 1fa4d3c3ffba007482111466cb9721416f97ae00;
 			};
 		};
 		5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
