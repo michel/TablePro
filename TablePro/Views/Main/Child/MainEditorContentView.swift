@@ -259,7 +259,8 @@ struct MainEditorContentView: View {
                 rows: sortedRows(for: tab),
                 columns: tab.resultColumns,
                 columnDefaults: tab.columnDefaults,
-                columnTypes: tab.columnTypes
+                columnTypes: tab.columnTypes,
+                columnForeignKeys: tab.columnForeignKeys
             ),
             changeManager: AnyChangeManager(dataManager: changeManager),
             isEditable: tab.isEditable && !connection.isReadOnly,

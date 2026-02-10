@@ -599,14 +599,26 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         guard columnId != "__rowNumber__",
               !changeManager.isRowDeleted(row) else { return false }
 
-        // Date columns use popover picker instead of text editing
+        // Extract column index for special editors
         if columnId.hasPrefix("col_"),
-           let columnIndex = Int(columnId.dropFirst(4)),
-           columnIndex < rowProvider.columnTypes.count,
-           rowProvider.columnTypes[columnIndex].isDateType {
+           let columnIndex = Int(columnId.dropFirst(4)) {
             let column = tableView.column(withIdentifier: tableColumn.identifier)
-            showDatePickerPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
-            return false
+
+            // FK columns use searchable dropdown popover
+            if columnIndex < rowProvider.columns.count {
+                let columnName = rowProvider.columns[columnIndex]
+                if let fkInfo = rowProvider.columnForeignKeys[columnName] {
+                    showForeignKeyPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex, fkInfo: fkInfo)
+                    return false
+                }
+            }
+
+            // Date columns use date picker popover
+            if columnIndex < rowProvider.columnTypes.count,
+               rowProvider.columnTypes[columnIndex].isDateType {
+                showDatePickerPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
+                return false
+            }
         }
 
         return true
@@ -624,6 +636,42 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             of: cellView,
             value: currentValue,
             columnType: columnType
+        ) { [weak self] newValue in
+            guard let self = self else { return }
+            guard let rowData = self.rowProvider.row(at: row) else { return }
+            let oldValue = rowData.value(at: columnIndex)
+            guard oldValue != newValue else { return }
+
+            let columnName = self.rowProvider.columns[columnIndex]
+            self.changeManager.recordCellChange(
+                rowIndex: row,
+                columnIndex: columnIndex,
+                columnName: columnName,
+                oldValue: oldValue,
+                newValue: newValue,
+                originalRow: rowData.values
+            )
+
+            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
+            self.onCellEdit?(row, columnIndex, newValue)
+
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
+        }
+    }
+
+    private func showForeignKeyPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int, fkInfo: ForeignKeyInfo) {
+        guard let rowData = rowProvider.row(at: row) else { return }
+        let currentValue = rowData.value(at: columnIndex)
+
+        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+        guard let databaseType = DatabaseManager.shared.currentSession?.connection.type else { return }
+
+        ForeignKeyPopoverController.shared.show(
+            relativeTo: cellView.bounds,
+            of: cellView,
+            currentValue: currentValue,
+            fkInfo: fkInfo,
+            databaseType: databaseType
         ) { [weak self] newValue in
             guard let self = self else { return }
             guard let rowData = self.rowProvider.row(at: row) else { return }

@@ -305,19 +305,26 @@ final class MainContentCoordinator: ObservableObject {
                 let result = try await DatabaseManager.shared.execute(query: sql)
 
                 var columnDefaults: [String: String?] = [:]
+                var columnForeignKeys: [String: ForeignKeyInfo] = [:]
                 var totalRowCount: Int?
                 var primaryKeyColumn: String?
 
                 if isEditable, let tableName = tableName {
                     if let driver = DatabaseManager.shared.activeDriver {
                         async let columnInfoTask = driver.fetchColumns(table: tableName)
+                        async let fkInfoTask = driver.fetchForeignKeys(table: tableName)
                         let quotedTable = conn.type.quoteIdentifier(tableName)
                         async let countTask: QueryResult = try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
 
-                        let (columnInfo, countResult) = try await (columnInfoTask, countTask)
+                        let (columnInfo, fkInfo, countResult) = try await (columnInfoTask, fkInfoTask, countTask)
 
                         for col in columnInfo {
                             columnDefaults[col.name] = col.defaultValue
+                        }
+
+                        // Build FK lookup map (column name -> FK info)
+                        for fk in fkInfo {
+                            columnForeignKeys[fk.column] = fk
                         }
 
                         // Detect primary key column
@@ -339,6 +346,7 @@ final class MainContentCoordinator: ObservableObject {
                 }
                 let safeExecutionTime = result.executionTime
                 let safeColumnDefaults = columnDefaults.mapValues { $0.map { String($0) } }
+                let safeColumnForeignKeys = columnForeignKeys
                 let safeTableName = tableName.map { String($0) }
                 let safeTotalRowCount = totalRowCount
                 let safePrimaryKeyColumn = primaryKeyColumn.map { String($0) }
@@ -367,6 +375,7 @@ final class MainContentCoordinator: ObservableObject {
                         updatedTab.resultColumns = safeColumns
                         updatedTab.columnTypes = safeColumnTypes
                         updatedTab.columnDefaults = safeColumnDefaults
+                        updatedTab.columnForeignKeys = safeColumnForeignKeys
                         updatedTab.resultRows = safeRows
                         updatedTab.resultVersion += 1
                         updatedTab.executionTime = safeExecutionTime

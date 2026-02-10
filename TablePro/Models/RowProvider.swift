@@ -66,15 +66,23 @@ final class InMemoryRowProvider: RowProvider {
     private(set) var columns: [String]
     private(set) var columnDefaults: [String: String?]
     private(set) var columnTypes: [ColumnType]
+    private(set) var columnForeignKeys: [String: ForeignKeyInfo]
 
     var totalRowCount: Int {
         sourceRows.count
     }
 
-    init(rows: [QueryResultRow], columns: [String], columnDefaults: [String: String?] = [:], columnTypes: [ColumnType]? = nil) {
+    init(
+        rows: [QueryResultRow],
+        columns: [String],
+        columnDefaults: [String: String?] = [:],
+        columnTypes: [ColumnType]? = nil,
+        columnForeignKeys: [String: ForeignKeyInfo] = [:]
+    ) {
         self.columns = columns
         self.columnDefaults = columnDefaults
         self.columnTypes = columnTypes ?? Array(repeating: ColumnType.text(rawType: nil), count: columns.count)
+        self.columnForeignKeys = columnForeignKeys
         self.sourceRows = rows
     }
 
