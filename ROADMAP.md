@@ -315,30 +315,31 @@ All shortcuts are hardcoded. Power users expect customization.
   - Support conflict detection
   - Reset to defaults option
 
-### 3.6 Read-Only Connection Mode
+### 3.6 Read-Only Connection Mode ✅ DONE
 **Priority: MEDIUM** | **Effort: Small**
 
-No option to mark a connection as read-only (safety for production databases).
+Read-only connection mode implemented with UI toggle, toolbar badge, and enforcement.
 
-- **Files to modify:** `Models/DatabaseConnection.swift`, `Views/Connection/ConnectionFormView.swift`
+- **Files modified:** `Models/DatabaseConnection.swift`, `Core/Storage/ConnectionStorage.swift`, `Views/Connection/ConnectionFormView.swift`, `Models/ConnectionToolbarState.swift`, `Views/Toolbar/ConnectionStatusView.swift`, `Views/Toolbar/OpenTableToolbarView.swift`, `Views/Main/Child/MainEditorContentView.swift`, `Views/Main/MainContentCoordinator.swift`, `Views/Main/Extensions/MainContentCoordinator+RowOperations.swift`, `Views/Main/Extensions/MainContentView+Bindings.swift`
 - **Tasks:**
-  - Add `isReadOnly` flag to DatabaseConnection
-  - Disable write operations (INSERT, UPDATE, DELETE, DROP, etc.)
-  - Show read-only badge in tab bar and status bar
-  - Warn user if they attempt write operations
+  - ~~Add `isReadOnly` flag to DatabaseConnection~~ (DONE)
+  - ~~Disable write operations (INSERT, UPDATE, DELETE, DROP, etc.)~~ (DONE — grid editing, row ops, save changes all gated)
+  - ~~Show read-only badge in tab bar and status bar~~ (DONE — orange READ-ONLY badge in toolbar)
+  - ~~Warn user if they attempt write operations~~ (DONE — error message on save attempt)
 
-### 3.7 Query Execution Timeout
+### 3.7 Query Execution Timeout ✅ DONE
 **Priority: MEDIUM** | **Effort: Small**
 
-No configurable query timeout. Runaway queries can hang the app.
+Configurable query timeout implemented with per-driver enforcement.
 
+- **Files modified:** `Models/AppSettings.swift`, `Views/Settings/GeneralSettingsView.swift`, `Core/Database/DatabaseDriver.swift`, `Core/Database/DatabaseManager.swift`, `Core/Database/SQLiteDriver.swift`
 - **Tasks:**
-  - Add timeout setting to Settings > General
-  - Implement per-driver timeout:
-    - PostgreSQL: `statement_timeout` session variable
-    - MySQL: `max_execution_time` hint or `wait_timeout`
-    - SQLite: `sqlite3_busy_timeout`
-  - Show cancel button during long-running queries (partially exists)
+  - ~~Add timeout setting to Settings > General~~ (DONE — default 60s, 0 = no limit)
+  - ~~Implement per-driver timeout~~ (DONE):
+    - PostgreSQL: `SET statement_timeout = 'Xms'`
+    - MySQL: `SET SESSION max_execution_time = X`
+    - SQLite: `sqlite3_busy_timeout(db, ms)`
+  - Cancel button during long-running queries (partially exists — future enhancement)
 
 ### 3.8 User/Role Management
 **Priority: MEDIUM** | **Effort: Large**
@@ -596,7 +597,7 @@ For any developer continuing this project, start with these files:
 7. Foreign key lookup dropdown
 8. ~~Date/time picker for date columns~~ (DONE)
 9. JSON column editor
-10. Query execution timeout
+10. ~~Query execution timeout~~ (DONE)
 
 ### Phase 3: v0.4.0 — Database Object Management
 11. Stored procedure/function browser
@@ -609,7 +610,7 @@ For any developer continuing this project, start with these files:
 16. Excel export (.xlsx)
 17. JSON import
 18. Schema compare/diff
-19. Read-only connection mode
+19. ~~Read-only connection mode~~ (DONE)
 20. Keyboard shortcuts customization
 
 ### Phase 5: v1.0.0 — Feature Complete
