@@ -20,6 +20,22 @@ struct GeneralSettingsView: View {
                 }
             }
 
+            Section("Query Execution") {
+                HStack {
+                    Text("Query timeout:")
+                    Stepper(
+                        value: $settings.queryTimeoutSeconds,
+                        in: 0...600,
+                        step: 10
+                    ) {
+                        Text(settings.queryTimeoutSeconds == 0
+                            ? "No limit"
+                            : "\(settings.queryTimeoutSeconds) seconds")
+                    }
+                }
+                .help("Maximum time to wait for a query to complete. Set to 0 for no limit. Applied to new connections.")
+            }
+
             Section("Software Update") {
                 Toggle("Automatically check for updates", isOn: $settings.automaticallyCheckForUpdates)
                     .onChange(of: settings.automaticallyCheckForUpdates) { newValue in

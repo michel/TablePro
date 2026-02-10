@@ -119,6 +119,12 @@ final class DatabaseManager: ObservableObject {
         do {
             try await driver.connect()
 
+            // Apply query timeout from settings
+            let timeoutSeconds = AppSettingsManager.shared.general.queryTimeoutSeconds
+            if timeoutSeconds > 0 {
+                try await driver.applyQueryTimeout(timeoutSeconds)
+            }
+
             // Update session with successful connection
             session.driver = driver
             session.status = driver.status

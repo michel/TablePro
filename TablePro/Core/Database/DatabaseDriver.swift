@@ -32,6 +32,11 @@ protocol DatabaseDriver: AnyObject {
     /// Test the connection (connect and immediately disconnect)
     func testConnection() async throws -> Bool
 
+    // MARK: - Configuration
+
+    /// Apply query execution timeout (seconds, 0 = no limit)
+    func applyQueryTimeout(_ seconds: Int) async throws
+
     // MARK: - Query Execution
 
     /// Execute a SQL query and return results
@@ -101,6 +106,20 @@ extension DatabaseDriver {
         try await connect()
         disconnect()
         return true
+    }
+
+    /// Default timeout implementation using database-specific session variables
+    func applyQueryTimeout(_ seconds: Int) async throws {
+        guard seconds > 0 else { return }
+        let ms = seconds * 1000
+        switch connection.type {
+        case .mysql, .mariadb:
+            _ = try await execute(query: "SET SESSION max_execution_time = \(ms)")
+        case .postgresql:
+            _ = try await execute(query: "SET statement_timeout = '\(ms)'")
+        case .sqlite:
+            break  // SQLite busy_timeout handled by driver directly
+        }
     }
 
     // MARK: - Default Transaction Implementation

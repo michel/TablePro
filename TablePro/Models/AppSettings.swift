@@ -31,20 +31,30 @@ struct GeneralSettings: Codable, Equatable {
     var startupBehavior: StartupBehavior
     var automaticallyCheckForUpdates: Bool
 
+    /// Query execution timeout in seconds (0 = no limit)
+    var queryTimeoutSeconds: Int
+
     static let `default` = GeneralSettings(
         startupBehavior: .showWelcome,
-        automaticallyCheckForUpdates: true
+        automaticallyCheckForUpdates: true,
+        queryTimeoutSeconds: 60
     )
 
-    init(startupBehavior: StartupBehavior = .showWelcome, automaticallyCheckForUpdates: Bool = true) {
+    init(
+        startupBehavior: StartupBehavior = .showWelcome,
+        automaticallyCheckForUpdates: Bool = true,
+        queryTimeoutSeconds: Int = 60
+    ) {
         self.startupBehavior = startupBehavior
         self.automaticallyCheckForUpdates = automaticallyCheckForUpdates
+        self.queryTimeoutSeconds = queryTimeoutSeconds
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         startupBehavior = try container.decode(StartupBehavior.self, forKey: .startupBehavior)
         automaticallyCheckForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyCheckForUpdates) ?? true
+        queryTimeoutSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeoutSeconds) ?? 60
     }
 }
 

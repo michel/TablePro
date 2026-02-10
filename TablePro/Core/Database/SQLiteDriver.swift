@@ -55,6 +55,11 @@ final class SQLiteDriver: DatabaseDriver {
         status = .connected
     }
 
+    func applyQueryTimeout(_ seconds: Int) async throws {
+        guard seconds > 0, let db = db else { return }
+        sqlite3_busy_timeout(db, Int32(seconds * 1000))
+    }
+
     func disconnect() {
         if db != nil {
             sqlite3_close(db)
