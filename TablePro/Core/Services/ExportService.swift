@@ -352,7 +352,10 @@ final class ExportService: ObservableObject {
             await finalizeTableProgress()
         }
 
-        try writer.write(to: url)
+        // Write XLSX on background thread to avoid blocking UI
+        try await Task.detached(priority: .userInitiated) {
+            try writer.write(to: url)
+        }.value
     }
 
     // MARK: - CSV Export

@@ -16,6 +16,7 @@ import SwiftUI
 final class AppState: ObservableObject {
     static let shared = AppState()
     @Published var isConnected: Bool = false
+    @Published var isReadOnly: Bool = false  // True when current connection is read-only
     @Published var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
     @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
     @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
@@ -210,12 +211,12 @@ struct TableProApp: App {
                     NotificationCenter.default.post(name: .createTable, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
-                .disabled(!appState.isConnected)
+                .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("New View...") {
                     NotificationCenter.default.post(name: .createView, object: nil)
                 }
-                .disabled(!appState.isConnected)
+                .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("Open Database...") {
                     NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
@@ -229,7 +230,7 @@ struct TableProApp: App {
                     NotificationCenter.default.post(name: .saveChanges, object: nil)
                 }
                 .keyboardShortcut("s", modifiers: .command)
-                .disabled(!appState.isConnected)
+                .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("Close Tab") {
                     // Check if key window is the main window
@@ -271,7 +272,7 @@ struct TableProApp: App {
                     NotificationCenter.default.post(name: .importTables, object: nil)
                 }
                 .keyboardShortcut("i", modifiers: [.command, .shift])
-                .disabled(!appState.isConnected)
+                .disabled(!appState.isConnected || appState.isReadOnly)
             }
 
             // Edit menu - Undo/Redo (smart handling for both text editor and data grid)
@@ -314,13 +315,13 @@ struct TableProApp: App {
                     NotificationCenter.default.post(name: .addNewRow, object: nil)
                 }
                 .keyboardShortcut("i", modifiers: .command)
-                .disabled(!appState.isCurrentTabEditable)
+                .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
 
                 Button("Duplicate Row") {
                     NotificationCenter.default.post(name: .duplicateRow, object: nil)
                 }
                 .keyboardShortcut("d", modifiers: .command)
-                .disabled(!appState.isCurrentTabEditable)
+                .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
 
                 Divider()
 
@@ -329,7 +330,7 @@ struct TableProApp: App {
                     NotificationCenter.default.post(name: .truncateTables, object: nil)
                 }
                 .keyboardShortcut(.delete, modifiers: .option)
-                .disabled(!appState.hasTableSelection)
+                .disabled(!appState.hasTableSelection || appState.isReadOnly)
             }
 
             // View menu - using NotificationCenter for UI state broadcasts

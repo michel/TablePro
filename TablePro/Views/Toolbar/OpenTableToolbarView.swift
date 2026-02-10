@@ -161,7 +161,7 @@ struct TableProToolbar: ViewModifier {
                             Image(systemName: "square.and.arrow.down")
                         }
                         .help("Import Data (⌘⇧I)")
-                        .disabled(state.connectionState != .connected)
+                        .disabled(state.connectionState != .connected || state.isReadOnly)
 
                         Divider()
                             .frame(height: 20)

@@ -97,6 +97,7 @@ struct ContentView: View {
                         columnVisibility = newSessionId == nil ? .detailOnly : .all
                     }
                     AppState.shared.isConnected = newSessionId != nil
+                    AppState.shared.isReadOnly = dbManager.currentSession?.connection.isReadOnly ?? false
 
                     // When all sessions are closed, return to Welcome window
                     if newSessionId == nil {

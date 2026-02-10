@@ -147,6 +147,21 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Write Query Detection
+
+    /// Write-operation SQL prefixes blocked in read-only mode
+    private static let writeQueryPrefixes: [String] = [
+        "INSERT ", "UPDATE ", "DELETE ", "REPLACE ",
+        "DROP ", "TRUNCATE ", "ALTER ", "CREATE ",
+        "RENAME ", "GRANT ", "REVOKE ",
+    ]
+
+    /// Check if a SQL statement is a write operation (modifies data or schema)
+    func isWriteQuery(_ sql: String) -> Bool {
+        let uppercased = sql.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return Self.writeQueryPrefixes.contains { uppercased.hasPrefix($0) }
+    }
+
     // MARK: - Dangerous Query Detection
 
     /// Check if a query is potentially dangerous (DROP, TRUNCATE, DELETE without WHERE)
@@ -209,6 +224,16 @@ final class MainContentCoordinator: ObservableObject {
         // Split into individual statements for multi-statement support
         let statements = splitStatements(from: sql)
         guard !statements.isEmpty else { return }
+
+        // Block write queries in read-only mode
+        if connection.isReadOnly {
+            let writeStatements = statements.filter { isWriteQuery($0) }
+            if !writeStatements.isEmpty {
+                tabManager.tabs[index].errorMessage =
+                    "Cannot execute write queries: connection is read-only"
+                return
+            }
+        }
 
         if statements.count == 1 {
             // Single statement — existing path (unchanged)

@@ -268,7 +268,7 @@ final class MainContentNotificationHandler: ObservableObject {
     }
 
     private func handleCreateTable() {
-        guard let coordinator = coordinator else { return }
+        guard !connection.isReadOnly, let coordinator = coordinator else { return }
 
         // Get current database name from the connection
         let currentDatabase = connection.database
@@ -280,7 +280,7 @@ final class MainContentNotificationHandler: ObservableObject {
     }
 
     private func handleCreateView() {
-        guard let coordinator = coordinator else { return }
+        guard !connection.isReadOnly, let coordinator = coordinator else { return }
 
         let template: String
         switch connection.type {
@@ -529,6 +529,7 @@ final class MainContentNotificationHandler: ObservableObject {
     }
 
     private func handleImportTables() {
+        guard !connection.isReadOnly else { return }
         // Open file picker first, then show dialog with selected file
         let panel = NSOpenPanel()
         var contentTypes: [UTType] = []

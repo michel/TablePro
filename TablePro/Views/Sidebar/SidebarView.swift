@@ -278,15 +278,18 @@ struct SidebarView: View {
     private func tableContextMenu(clickedTable: TableInfo? = nil) -> some View {
         let hasSelection = !selectedTables.isEmpty || clickedTable != nil
         let isView = clickedTable?.type == .view
+        let isReadOnly = AppState.shared.isReadOnly
 
         Button("Create New Table...") {
             NotificationCenter.default.post(name: .createTable, object: nil)
         }
         .keyboardShortcut("n", modifiers: .command)
+        .disabled(isReadOnly)
 
         Button("Create New View...") {
             NotificationCenter.default.post(name: .createView, object: nil)
         }
+        .disabled(isReadOnly)
 
         Divider()
 
@@ -299,6 +302,7 @@ struct SidebarView: View {
                     )
                 }
             }
+            .disabled(isReadOnly)
         }
 
         Button("Show Structure") {
@@ -338,6 +342,7 @@ struct SidebarView: View {
                 NotificationCenter.default.post(name: .importTables, object: nil)
             }
             .keyboardShortcut("i", modifiers: .command)
+            .disabled(isReadOnly)
         }
 
         Divider()
@@ -349,7 +354,7 @@ struct SidebarView: View {
                 }
                 batchToggleTruncate()
             }
-            .disabled(!hasSelection)
+            .disabled(!hasSelection || isReadOnly)
         }
 
         Button(isView ? "Drop View" : "Delete", role: .destructive) {
@@ -359,7 +364,7 @@ struct SidebarView: View {
             batchToggleDelete()
         }
         .keyboardShortcut(.delete, modifiers: .command)
-        .disabled(!hasSelection)
+        .disabled(!hasSelection || isReadOnly)
     }
 
     /// Batch toggle truncate for all selected tables
