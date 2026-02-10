@@ -275,6 +275,7 @@ struct DataGridView: NSViewRepresentable {
 // MARK: - Coordinator
 
 /// Coordinator handling NSTableView delegate and data source
+@MainActor
 final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource,
                                   NSControlTextEditingDelegate, NSTextFieldDelegate, NSMenuDelegate
 {
@@ -592,10 +593,58 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     func tableView(_ tableView: NSTableView, shouldEdit tableColumn: NSTableColumn?, row: Int) -> Bool {
         guard isEditable,
-              let columnId = tableColumn?.identifier.rawValue,
-              columnId != "__rowNumber__",
+              let tableColumn = tableColumn else { return false }
+
+        let columnId = tableColumn.identifier.rawValue
+        guard columnId != "__rowNumber__",
               !changeManager.isRowDeleted(row) else { return false }
+
+        // Date columns use popover picker instead of text editing
+        if columnId.hasPrefix("col_"),
+           let columnIndex = Int(columnId.dropFirst(4)),
+           columnIndex < rowProvider.columnTypes.count,
+           rowProvider.columnTypes[columnIndex].isDateType {
+            let column = tableView.column(withIdentifier: tableColumn.identifier)
+            showDatePickerPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
+            return false
+        }
+
         return true
+    }
+
+    private func showDatePickerPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
+        guard let rowData = rowProvider.row(at: row) else { return }
+        let currentValue = rowData.value(at: columnIndex)
+        let columnType = rowProvider.columnTypes[columnIndex]
+
+        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+
+        DatePickerPopoverController.shared.show(
+            relativeTo: cellView.bounds,
+            of: cellView,
+            value: currentValue,
+            columnType: columnType
+        ) { [weak self] newValue in
+            guard let self = self else { return }
+            guard let rowData = self.rowProvider.row(at: row) else { return }
+            let oldValue = rowData.value(at: columnIndex)
+            guard oldValue != newValue else { return }
+
+            let columnName = self.rowProvider.columns[columnIndex]
+            self.changeManager.recordCellChange(
+                rowIndex: row,
+                columnIndex: columnIndex,
+                columnName: columnName,
+                oldValue: oldValue,
+                newValue: newValue,
+                originalRow: rowData.values
+            )
+
+            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
+            self.onCellEdit?(row, columnIndex, newValue)
+
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
+        }
     }
 
     func control(_ control: NSControl, textShouldEndEditing fieldEditor: NSText) -> Bool {

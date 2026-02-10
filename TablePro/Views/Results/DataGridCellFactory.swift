@@ -10,6 +10,7 @@ import AppKit
 import QuartzCore
 
 /// Factory for creating data grid cell views
+@MainActor
 final class DataGridCellFactory {
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     private let rowNumberCellIdentifier = NSUserInterfaceItemIdentifier("RowNumberCell")

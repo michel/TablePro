@@ -13,9 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RFC 4180-compliant CSV parser for clipboard paste with auto-detection of CSV vs TSV format
 - Explain Query button in SQL editor toolbar and menu item (⌥⌘E) for viewing execution plans
 - Connection switcher popover for quick switching between active/saved connections from the toolbar
+- Date/time picker popover for editing date, datetime, timestamp, and time columns in the data grid
 
 ### Fixed
 
+- Fixed crash on launch on macOS 13 (Ventura) caused by missing Swift runtime symbol
 - Fix redo functionality in data grid (Cmd+Shift+Z now works correctly)
 - Fix redo stack not being cleared when new changes are made (standard undo/redo behavior)
 - Fix `canRedo()` always returning false in data grid coordinator
