@@ -372,6 +372,26 @@ final class PostgreSQLDriver: DatabaseDriver {
         return ddl
     }
 
+    func fetchViewDefinition(view: String) async throws -> String {
+        let escapedView = view.replacingOccurrences(of: "'", with: "''")
+        let query = """
+            SELECT 'CREATE OR REPLACE VIEW ' || quote_ident(schemaname) || '.' || quote_ident(viewname) || ' AS ' || E'\\n' || definition AS ddl
+            FROM pg_views
+            WHERE viewname = '\(escapedView)'
+              AND schemaname = 'public'
+            """
+
+        let result = try await execute(query: query)
+
+        guard let firstRow = result.rows.first,
+              let ddl = firstRow[0]
+        else {
+            throw DatabaseError.queryFailed("Failed to fetch definition for view '\(view)'")
+        }
+
+        return ddl
+    }
+
     // MARK: - Paginated Query Support
 
     func fetchRowCount(query: String) async throws -> Int {

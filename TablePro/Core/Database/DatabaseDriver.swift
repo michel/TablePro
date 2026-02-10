@@ -72,6 +72,9 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch the DDL (CREATE TABLE statement) for a specific table
     func fetchTableDDL(table: String) async throws -> String
 
+    /// Fetch the view definition (SELECT statement) for a specific view
+    func fetchViewDefinition(view: String) async throws -> String
+
     /// Fetch table metadata (size, comment, engine, etc.)
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata
 

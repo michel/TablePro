@@ -408,6 +408,28 @@ final class SQLiteDriver: DatabaseDriver {
         return formatDDL(ddl)
     }
 
+    func fetchViewDefinition(view: String) async throws -> String {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+
+        let escapedView = view.replacingOccurrences(of: "'", with: "''")
+        let query = """
+            SELECT sql FROM sqlite_master
+            WHERE type = 'view' AND name = '\(escapedView)'
+            """
+
+        let result = try await execute(query: query)
+
+        guard let firstRow = result.rows.first,
+              let ddl = firstRow[0]
+        else {
+            throw DatabaseError.queryFailed("Failed to fetch definition for view '\(view)'")
+        }
+
+        return ddl
+    }
+
     // MARK: - DDL Formatting
 
     private func formatDDL(_ ddl: String) -> String {

@@ -222,16 +222,17 @@ No trigger management in structure view or sidebar.
   - Support CREATE/ALTER/DROP TRIGGER
   - SQLite trigger support via `sqlite_master`
 
-### 2.5 View Management
+### 2.5 View Management ✅ DONE
 **Priority: HIGH** | **Effort: Medium**
 
 Views are listed in sidebar (already detected) but can't be created/edited.
 
 - **Tasks:**
-  - Add "Create View" option to sidebar context menu
-  - Open view definition in SQL editor tab
-  - Support ALTER VIEW / CREATE OR REPLACE VIEW
+  - ~~Add "Create View" option to sidebar context menu~~
+  - ~~Open view definition in SQL editor tab~~
+  - ~~Support ALTER VIEW / CREATE OR REPLACE VIEW~~
   - Show view dependencies
+- **Implemented:** Create View (SQL template), Edit View Definition (fetches from driver), Drop View, context-aware sidebar menu (hides Truncate/Import for views), New View menu item, `fetchViewDefinition()` for all 3 drivers
 
 ### 2.6 Excel Export (.xlsx) ✅ DONE
 **Priority: HIGH** | **Effort: Medium**

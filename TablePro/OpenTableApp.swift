@@ -12,6 +12,7 @@ import SwiftUI
 
 // MARK: - App State for Menu Commands
 
+@MainActor
 final class AppState: ObservableObject {
     static let shared = AppState()
     @Published var isConnected: Bool = false
@@ -208,6 +209,11 @@ struct TableProApp: App {
                     NotificationCenter.default.post(name: .createTable, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(!appState.isConnected)
+
+                Button("New View...") {
+                    NotificationCenter.default.post(name: .createView, object: nil)
+                }
                 .disabled(!appState.isConnected)
 
                 Button("Open Database...") {
@@ -447,6 +453,10 @@ extension Notification.Name {
 
     // Table creation notifications
     static let createTable = Notification.Name("createTable")
+
+    // View management notifications
+    static let createView = Notification.Name("createView")
+    static let editViewDefinition = Notification.Name("editViewDefinition")
 
     // Table structure notifications
     static let showTableStructure = Notification.Name("showTableStructure")

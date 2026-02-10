@@ -277,13 +277,29 @@ struct SidebarView: View {
     @ViewBuilder
     private func tableContextMenu(clickedTable: TableInfo? = nil) -> some View {
         let hasSelection = !selectedTables.isEmpty || clickedTable != nil
+        let isView = clickedTable?.type == .view
 
         Button("Create New Table...") {
             NotificationCenter.default.post(name: .createTable, object: nil)
         }
         .keyboardShortcut("n", modifiers: .command)
 
+        Button("Create New View...") {
+            NotificationCenter.default.post(name: .createView, object: nil)
+        }
+
         Divider()
+
+        if isView {
+            Button("Edit View Definition") {
+                if let viewName = clickedTable?.name {
+                    NotificationCenter.default.post(
+                        name: .editViewDefinition,
+                        object: viewName
+                    )
+                }
+            }
+        }
 
         Button("Show Structure") {
             if let tableName = clickedTable?.name {
@@ -317,22 +333,26 @@ struct SidebarView: View {
         .keyboardShortcut("e", modifiers: .command)
         .disabled(!hasSelection)
 
-        Button("Import...") {
-            NotificationCenter.default.post(name: .importTables, object: nil)
+        if !isView {
+            Button("Import...") {
+                NotificationCenter.default.post(name: .importTables, object: nil)
+            }
+            .keyboardShortcut("i", modifiers: .command)
         }
-        .keyboardShortcut("i", modifiers: .command)
 
         Divider()
 
-        Button("Truncate") {
-            if selectedTables.isEmpty, let table = clickedTable {
-                selectedTables.insert(table)
+        if !isView {
+            Button("Truncate") {
+                if selectedTables.isEmpty, let table = clickedTable {
+                    selectedTables.insert(table)
+                }
+                batchToggleTruncate()
             }
-            batchToggleTruncate()
+            .disabled(!hasSelection)
         }
-        .disabled(!hasSelection)
 
-        Button("Delete", role: .destructive) {
+        Button(isView ? "Drop View" : "Delete", role: .destructive) {
             if selectedTables.isEmpty, let table = clickedTable {
                 selectedTables.insert(table)
             }

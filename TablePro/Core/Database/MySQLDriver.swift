@@ -351,6 +351,21 @@ final class MySQLDriver: DatabaseDriver {
         return ddl
     }
 
+    func fetchViewDefinition(view: String) async throws -> String {
+        let query = "SHOW CREATE VIEW \(view)"
+        let result = try await execute(query: query)
+
+        // SHOW CREATE VIEW returns columns: View, Create View, character_set_client, collation_connection
+        guard let firstRow = result.rows.first,
+              firstRow.count >= 2,
+              let ddl = firstRow[1]
+        else {
+            throw DatabaseError.queryFailed("Failed to fetch definition for view '\(view)'")
+        }
+
+        return ddl
+    }
+
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
         let escapedTableName = tableName.replacingOccurrences(of: "'", with: "''")
         // NOTE: `SHOW TABLE STATUS LIKE` expects a pattern string literal, not an
