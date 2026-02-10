@@ -619,6 +619,13 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 showDatePickerPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
                 return false
             }
+
+            // JSON columns use JSON editor popover
+            if columnIndex < rowProvider.columnTypes.count,
+               rowProvider.columnTypes[columnIndex].isJsonType {
+                showJSONEditorPopover(tableView: tableView, row: row, column: column, columnIndex: columnIndex)
+                return false
+            }
         }
 
         return true
@@ -672,6 +679,39 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             currentValue: currentValue,
             fkInfo: fkInfo,
             databaseType: databaseType
+        ) { [weak self] newValue in
+            guard let self = self else { return }
+            guard let rowData = self.rowProvider.row(at: row) else { return }
+            let oldValue = rowData.value(at: columnIndex)
+            guard oldValue != newValue else { return }
+
+            let columnName = self.rowProvider.columns[columnIndex]
+            self.changeManager.recordCellChange(
+                rowIndex: row,
+                columnIndex: columnIndex,
+                columnName: columnName,
+                oldValue: oldValue,
+                newValue: newValue,
+                originalRow: rowData.values
+            )
+
+            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
+            self.onCellEdit?(row, columnIndex, newValue)
+
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
+        }
+    }
+
+    private func showJSONEditorPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
+        guard let rowData = rowProvider.row(at: row) else { return }
+        let currentValue = rowData.value(at: columnIndex)
+
+        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+
+        JSONEditorPopoverController.shared.show(
+            relativeTo: cellView.bounds,
+            of: cellView,
+            value: currentValue
         ) { [weak self] newValue in
             guard let self = self else { return }
             guard let rowData = self.rowProvider.row(at: row) else { return }

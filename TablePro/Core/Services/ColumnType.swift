@@ -18,13 +18,14 @@ enum ColumnType: Equatable {
     case datetime(rawType: String?)
     case boolean(rawType: String?)
     case blob(rawType: String?)
+    case json(rawType: String?)
 
     /// Raw database type name (e.g., "LONGTEXT", "VARCHAR(255)", "CLOB")
     var rawType: String? {
         switch self {
         case .text(let raw), .integer(let raw), .decimal(let raw),
              .date(let raw), .timestamp(let raw), .datetime(let raw),
-             .boolean(let raw), .blob(let raw):
+             .boolean(let raw), .blob(let raw), .json(let raw):
             return raw
         }
     }
@@ -56,6 +57,10 @@ enum ColumnType: Equatable {
         // Boolean (TINYINT(1))
         // Note: MySQL doesn't have a dedicated boolean type
         // We detect TINYINT(1) in the driver itself
+
+        // JSON type
+        case 245:  // JSON
+            self = .json(rawType: rawType)
 
         // Binary/blob types
         case 249, 250, 251, 252:  // TINY_BLOB, MEDIUM_BLOB, LONG_BLOB, BLOB
@@ -103,6 +108,10 @@ enum ColumnType: Equatable {
         case 1_114, 1_184:  // TIMESTAMP, TIMESTAMPTZ
             self = .timestamp(rawType: rawType)
 
+        // JSON types
+        case 114, 3_802:  // JSON, JSONB
+            self = .json(rawType: rawType)
+
         // Binary types
         case 17:  // BYTEA
             self = .blob(rawType: rawType)
@@ -138,6 +147,8 @@ enum ColumnType: Equatable {
             self = .timestamp(rawType: declaredType)
         } else if type.contains("BOOL") {
             self = .boolean(rawType: declaredType)
+        } else if type.contains("JSON") {
+            self = .json(rawType: declaredType)
         } else {
             // Numeric affinity (catch-all for numeric types)
             self = .text(rawType: declaredType)
@@ -157,6 +168,17 @@ enum ColumnType: Equatable {
         case .datetime: return "DateTime"
         case .boolean: return "Boolean"
         case .blob: return "Binary"
+        case .json: return "JSON"
+        }
+    }
+
+    /// Whether this type represents a JSON value that should use JSON editor
+    var isJsonType: Bool {
+        switch self {
+        case .json:
+            return true
+        default:
+            return false
         }
     }
 
