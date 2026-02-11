@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 /// Protocol defining database driver operations
 protocol DatabaseDriver: AnyObject {
@@ -115,13 +116,20 @@ extension DatabaseDriver {
     func applyQueryTimeout(_ seconds: Int) async throws {
         guard seconds > 0 else { return }
         let ms = seconds * 1_000
-        switch connection.type {
-        case .mysql, .mariadb:
-            _ = try await execute(query: "SET SESSION max_execution_time = \(ms)")
-        case .postgresql:
-            _ = try await execute(query: "SET statement_timeout = '\(ms)'")
-        case .sqlite:
-            break  // SQLite busy_timeout handled by driver directly
+        do {
+            switch connection.type {
+            case .mysql:
+                _ = try await execute(query: "SET SESSION max_execution_time = \(ms)")
+            case .mariadb:
+                _ = try await execute(query: "SET SESSION max_statement_time = \(seconds)")
+            case .postgresql:
+                _ = try await execute(query: "SET statement_timeout = '\(ms)'")
+            case .sqlite:
+                break  // SQLite busy_timeout handled by driver directly
+            }
+        } catch {
+            Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
+                .warning("Failed to set query timeout: \(error.localizedDescription)")
         }
     }
 
