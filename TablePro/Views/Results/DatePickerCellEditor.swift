@@ -206,7 +206,7 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) {
         // Always commit when original was NULL (any date is a change),
         // otherwise only commit if user actually edited the picker
-        if (originalWasNull || hasUserEdited), let picker = datePicker {
+        if originalWasNull || hasUserEdited, let picker = datePicker {
             onCommit?(picker.formattedValue)
         }
         cleanup()

@@ -114,7 +114,7 @@ extension DatabaseDriver {
     /// Default timeout implementation using database-specific session variables
     func applyQueryTimeout(_ seconds: Int) async throws {
         guard seconds > 0 else { return }
-        let ms = seconds * 1000
+        let ms = seconds * 1_000
         switch connection.type {
         case .mysql, .mariadb:
             _ = try await execute(query: "SET SESSION max_execution_time = \(ms)")

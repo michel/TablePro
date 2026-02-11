@@ -220,4 +220,3 @@ final class JSONEditorPopoverController: NSObject, NSPopoverDelegate {
         popover = nil
     }
 }
-

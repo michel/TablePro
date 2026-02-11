@@ -51,7 +51,7 @@ final class XLSXWriter {
                     return .empty
                 }
                 // Try to detect numeric values
-                if let _ = Double(val), !val.hasPrefix("0") || val == "0" || val.contains(".") {
+                if Double(val) != nil, !val.hasPrefix("0") || val == "0" || val.contains(".") {
                     return .number(val)
                 }
                 return .string(val)
@@ -134,7 +134,7 @@ final class XLSXWriter {
         if !sharedStrings.isEmpty {
             d.appendUTF8("<Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/>")
         }
-        for (index, _) in sheets.enumerated() {
+        for index in sheets.indices {
             d.appendUTF8("<Override PartName=\"/xl/worksheets/sheet\(index + 1).xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>")
         }
         d.appendUTF8("</Types>")
@@ -168,7 +168,7 @@ final class XLSXWriter {
         var d = Data()
         d.appendUTF8("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n")
         d.appendUTF8("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">")
-        for (index, _) in sheets.enumerated() {
+        for index in sheets.indices {
             d.appendUTF8("<Relationship Id=\"rId\(index + 1)\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet\(index + 1).xml\"/>")
         }
         let nextId = sheets.count + 1
@@ -257,7 +257,9 @@ final class XLSXWriter {
         var result = ""
         var n = index
         repeat {
-            result = String(UnicodeScalar(65 + (n % 26))!) + result
+            if let scalar = UnicodeScalar(65 + (n % 26)) {
+                result = String(scalar) + result
+            }
             n = n / 26 - 1
         } while n >= 0
         return result
@@ -283,7 +285,9 @@ private extension Data {
     /// Append a UTF-8 string directly to Data (O(1) amortized, no intermediate String copies)
     mutating func appendUTF8(_ string: String) {
         string.utf8.withContiguousStorageIfAvailable { buffer in
-            self.append(buffer.baseAddress!, count: buffer.count)
+            if let baseAddress = buffer.baseAddress {
+                self.append(baseAddress, count: buffer.count)
+            }
         } ?? self.append(contentsOf: string.utf8)
     }
 
@@ -368,7 +372,7 @@ private enum ZipBuilder {
             centralDirectory.appendUInt16(0)
             centralDirectory.appendUInt16(0)
             centralDirectory.appendUInt32(0)
-            centralDirectory.appendUInt32(offsets.last!)
+            centralDirectory.appendUInt32(offsets.last ?? 0)
             centralDirectory.append(pathData)
         }
 
