@@ -632,6 +632,7 @@ jobs:
 
       - name: Commit appcast.xml to repo
         if: env.SPARKLE_PRIVATE_KEY != ''
+        continue-on-error: true
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
@@ -643,10 +644,12 @@ jobs:
           cp appcast/appcast.xml appcast.xml
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
           git add appcast.xml
           git diff --cached --quiet && echo "No changes to appcast.xml" && exit 0
           git commit -m "Update appcast.xml for v${GITHUB_REF#refs/tags/v}"
-          git push origin HEAD:main
+          git push origin main
 
       - name: Extract release notes from CHANGELOG.md
         run: |
