@@ -19,6 +19,8 @@ enum ColumnType: Equatable {
     case boolean(rawType: String?)
     case blob(rawType: String?)
     case json(rawType: String?)
+    case enumType(rawType: String?, values: [String]?)
+    case set(rawType: String?, values: [String]?)
 
     /// Raw database type name (e.g., "LONGTEXT", "VARCHAR(255)", "CLOB")
     var rawType: String? {
@@ -26,6 +28,8 @@ enum ColumnType: Equatable {
         case .text(let raw), .integer(let raw), .decimal(let raw),
              .date(let raw), .timestamp(let raw), .datetime(let raw),
              .boolean(let raw), .blob(let raw), .json(let raw):
+            return raw
+        case .enumType(let raw, _), .set(let raw, _):
             return raw
         }
     }
@@ -65,6 +69,12 @@ enum ColumnType: Equatable {
         // Binary/blob types
         case 249, 250, 251, 252:  // TINY_BLOB, MEDIUM_BLOB, LONG_BLOB, BLOB
             self = .blob(rawType: rawType)
+
+        // Enum/Set types
+        case 247:  // ENUM
+            self = .enumType(rawType: rawType, values: nil)
+        case 248:  // SET
+            self = .set(rawType: rawType, values: nil)
 
         // Text types (default)
         default:
@@ -118,7 +128,12 @@ enum ColumnType: Equatable {
 
         // Text types (default)
         default:
-            self = .text(rawType: rawType)
+            // Check for user-defined enum types (rawType formatted as "ENUM(typename)")
+            if let raw = rawType?.uppercased(), raw.hasPrefix("ENUM(") {
+                self = .enumType(rawType: rawType, values: nil)
+            } else {
+                self = .text(rawType: rawType)
+            }
         }
     }
 
@@ -133,7 +148,9 @@ enum ColumnType: Equatable {
         }
 
         // SQLite type affinity rules
-        if type.contains("INT") {
+        if type.hasPrefix("ENUM(") {
+            self = .enumType(rawType: declaredType, values: nil)
+        } else if type.contains("INT") {
             self = .integer(rawType: declaredType)
         } else if type.contains("CHAR") || type.contains("CLOB") || type.contains("TEXT") {
             self = .text(rawType: declaredType)
@@ -169,6 +186,8 @@ enum ColumnType: Equatable {
         case .boolean: return "Boolean"
         case .blob: return "Binary"
         case .json: return "JSON"
+        case .enumType: return "Enum"
+        case .set: return "Set"
         }
     }
 
@@ -210,5 +229,83 @@ enum ColumnType: Equatable {
         }
 
         return false
+    }
+
+    /// Whether this type is an enum column
+    var isEnumType: Bool {
+        switch self {
+        case .enumType:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Whether this type is a SET column
+    var isSetType: Bool {
+        switch self {
+        case .set:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// The allowed enum/set values, if known
+    var enumValues: [String]? {
+        switch self {
+        case .enumType(_, let values), .set(_, let values):
+            return values
+        default:
+            return nil
+        }
+    }
+
+    // MARK: - Enum Value Parsing
+
+    /// Parse enum/set values from a type string like "ENUM('a','b','c')" or "SET('x','y')"
+    static func parseEnumValues(from typeString: String) -> [String]? {
+        let upper = typeString.uppercased()
+        guard upper.hasPrefix("ENUM(") || upper.hasPrefix("SET(") else {
+            return nil
+        }
+
+        // Find the opening paren and closing paren
+        guard let openParen = typeString.firstIndex(of: "("),
+              let closeParen = typeString.lastIndex(of: ")") else {
+            return nil
+        }
+
+        let inner = typeString[typeString.index(after: openParen)..<closeParen]
+
+        // Parse comma-separated quoted values: 'val1','val2','val3'
+        var values: [String] = []
+        var current = ""
+        var inQuote = false
+        var escaped = false
+
+        for char in inner {
+            if escaped {
+                current.append(char)
+                escaped = false
+            } else if char == "\\" {
+                escaped = true
+            } else if char == "'" {
+                inQuote.toggle()
+            } else if char == "," && !inQuote {
+                values.append(current)
+                current = ""
+            } else {
+                current.append(char)
+            }
+        }
+        if !current.isEmpty {
+            values.append(current)
+        }
+
+        // Trim whitespace from values
+        values = values.map { $0.trimmingCharacters(in: .whitespaces) }
+
+        return values.isEmpty ? nil : values
     }
 }

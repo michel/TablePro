@@ -219,6 +219,7 @@ struct QueryTab: Identifiable, Equatable {
     var columnTypes: [ColumnType]  // Column type metadata for formatting
     var columnDefaults: [String: String?]  // Column name -> default value from schema
     var columnForeignKeys: [String: ForeignKeyInfo]  // Column name -> FK info (for FK lookup)
+    var columnEnumValues: [String: [String]]  // Column name -> allowed enum/set values
     var resultRows: [QueryResultRow]
     var executionTime: TimeInterval?
     var rowsAffected: Int  // Number of rows affected by non-SELECT queries
@@ -274,6 +275,7 @@ struct QueryTab: Identifiable, Equatable {
         self.columnTypes = []
         self.columnDefaults = [:]
         self.columnForeignKeys = [:]
+        self.columnEnumValues = [:]
         self.resultRows = []
         self.executionTime = nil
         self.rowsAffected = 0
@@ -308,6 +310,7 @@ struct QueryTab: Identifiable, Equatable {
         self.columnTypes = []
         self.columnDefaults = [:]
         self.columnForeignKeys = [:]
+        self.columnEnumValues = [:]
         self.resultRows = []
         self.executionTime = nil
         self.rowsAffected = 0
@@ -567,6 +570,7 @@ final class QueryTabManager: ObservableObject {
         newTab.resultColumns = tab.resultColumns
         newTab.columnTypes = tab.columnTypes
         newTab.columnForeignKeys = tab.columnForeignKeys
+        newTab.columnEnumValues = tab.columnEnumValues
         newTab.resultRows = tab.resultRows
 
         if let index = tabs.firstIndex(of: tab) {

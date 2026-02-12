@@ -608,6 +608,28 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let columnIndex = column - 1
         guard !changeManager.isRowDeleted(row) else { return }
 
+        // ENUM columns use searchable dropdown popover
+        if columnIndex < rowProvider.columnTypes.count,
+           rowProvider.columnTypes[columnIndex].isEnumType,
+           columnIndex < rowProvider.columns.count {
+            let columnName = rowProvider.columns[columnIndex]
+            if let values = rowProvider.columnEnumValues[columnName], !values.isEmpty {
+                showEnumPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
+                return
+            }
+        }
+
+        // SET columns use checkbox popover
+        if columnIndex < rowProvider.columnTypes.count,
+           rowProvider.columnTypes[columnIndex].isSetType,
+           columnIndex < rowProvider.columns.count {
+            let columnName = rowProvider.columns[columnIndex]
+            if let values = rowProvider.columnEnumValues[columnName], !values.isEmpty {
+                showSetPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
+                return
+            }
+        }
+
         // FK columns use searchable dropdown popover
         if columnIndex < rowProvider.columns.count {
             let columnName = rowProvider.columns[columnIndex]
@@ -655,7 +677,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             }
             if columnIndex < rowProvider.columnTypes.count {
                 let ct = rowProvider.columnTypes[columnIndex]
-                if ct.isDateType || ct.isJsonType { return false }
+                if ct.isDateType || ct.isJsonType || ct.isEnumType || ct.isSetType { return false }
             }
         }
 
@@ -743,6 +765,83 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             relativeTo: cellView.bounds,
             of: cellView,
             value: currentValue
+        ) { [weak self] newValue in
+            guard let self = self else { return }
+            guard let rowData = self.rowProvider.row(at: row) else { return }
+            let oldValue = rowData.value(at: columnIndex)
+            guard oldValue != newValue else { return }
+
+            let columnName = self.rowProvider.columns[columnIndex]
+            self.changeManager.recordCellChange(
+                rowIndex: row,
+                columnIndex: columnIndex,
+                columnName: columnName,
+                oldValue: oldValue,
+                newValue: newValue,
+                originalRow: rowData.values
+            )
+
+            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
+            self.onCellEdit?(row, columnIndex, newValue)
+
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
+        }
+    }
+
+    private func showEnumPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
+        guard let rowData = rowProvider.row(at: row) else { return }
+        let currentValue = rowData.value(at: columnIndex)
+        let columnName = rowProvider.columns[columnIndex]
+
+        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+        guard let allowedValues = rowProvider.columnEnumValues[columnName] else { return }
+
+        // Determine nullable from column info
+        let columnType = rowProvider.columnTypes[columnIndex]
+        let isNullable = currentValue == nil || columnType.rawType?.uppercased().contains("NOT NULL") != true
+
+        EnumPopoverController.shared.show(
+            relativeTo: cellView.bounds,
+            of: cellView,
+            currentValue: currentValue,
+            allowedValues: allowedValues,
+            isNullable: isNullable
+        ) { [weak self] newValue in
+            guard let self = self else { return }
+            guard let rowData = self.rowProvider.row(at: row) else { return }
+            let oldValue = rowData.value(at: columnIndex)
+            guard oldValue != newValue else { return }
+
+            let columnName = self.rowProvider.columns[columnIndex]
+            self.changeManager.recordCellChange(
+                rowIndex: row,
+                columnIndex: columnIndex,
+                columnName: columnName,
+                oldValue: oldValue,
+                newValue: newValue,
+                originalRow: rowData.values
+            )
+
+            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
+            self.onCellEdit?(row, columnIndex, newValue)
+
+            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
+        }
+    }
+
+    private func showSetPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
+        guard let rowData = rowProvider.row(at: row) else { return }
+        let currentValue = rowData.value(at: columnIndex)
+        let columnName = rowProvider.columns[columnIndex]
+
+        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+        guard let allowedValues = rowProvider.columnEnumValues[columnName] else { return }
+
+        SetPopoverController.shared.show(
+            relativeTo: cellView.bounds,
+            of: cellView,
+            currentValue: currentValue,
+            allowedValues: allowedValues
         ) { [weak self] newValue in
             guard let self = self else { return }
             guard let rowData = self.rowProvider.row(at: row) else { return }

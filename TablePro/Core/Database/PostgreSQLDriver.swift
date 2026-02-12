@@ -195,7 +195,8 @@ final class PostgreSQLDriver: DatabaseDriver {
                     c.is_nullable,
                     c.column_default,
                     c.collation_name,
-                    pgd.description
+                    pgd.description,
+                    c.udt_name
                 FROM information_schema.columns c
                 LEFT JOIN pg_catalog.pg_statio_all_tables st
                     ON st.schemaname = c.table_schema
@@ -212,9 +213,19 @@ final class PostgreSQLDriver: DatabaseDriver {
         return result.rows.compactMap { row in
             guard row.count >= 4,
                   let name = row[0],
-                  let dataType = row[1]
+                  let rawDataType = row[1]
             else {
                 return nil
+            }
+
+            let udtName = row.count > 6 ? row[6] : nil
+
+            // Format user-defined enum types for downstream parsing
+            let dataType: String
+            if rawDataType.uppercased() == "USER-DEFINED", let udt = udtName {
+                dataType = "ENUM(\(udt))"
+            } else {
+                dataType = rawDataType.uppercased()
             }
 
             let isNullable = row[2] == "YES"
@@ -235,7 +246,7 @@ final class PostgreSQLDriver: DatabaseDriver {
 
             return ColumnInfo(
                 name: name,
-                dataType: dataType.uppercased(),
+                dataType: dataType,
                 isNullable: isNullable,
                 isPrimaryKey: false,
                 defaultValue: defaultValue,
@@ -245,6 +256,19 @@ final class PostgreSQLDriver: DatabaseDriver {
                 comment: comment?.isEmpty == false ? comment : nil
             )
         }
+    }
+
+    /// Fetch allowed values for a PostgreSQL user-defined enum type
+    func fetchEnumValues(typeName: String) async throws -> [String] {
+        let query = """
+            SELECT e.enumlabel
+            FROM pg_enum e
+            JOIN pg_type t ON e.enumtypid = t.oid
+            WHERE t.typname = '\(typeName)'
+            ORDER BY e.enumsortorder
+        """
+        let result = try await execute(query: query)
+        return result.rows.compactMap { $0.first ?? nil }
     }
 
     func fetchIndexes(table: String) async throws -> [IndexInfo] {

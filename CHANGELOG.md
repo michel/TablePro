@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ENUM/SET column editor: double-click ENUM columns to select from a searchable dropdown popover, SET columns show a multi-select checkbox popover with OK/Cancel buttons
+- PostgreSQL user-defined enum type support via `pg_enum` catalog lookup
+- SQLite CHECK constraint pseudo-enum detection (e.g., `CHECK(col IN ('a','b','c'))`)
+
 ### Changed
 
 - Migrate `Libs/*.a` static libraries to Git LFS tracking to reduce repository clone size

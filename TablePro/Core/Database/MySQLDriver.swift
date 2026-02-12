@@ -225,9 +225,14 @@ final class MySQLDriver: DatabaseDriver {
                 return coll.components(separatedBy: "_").first
             }()
 
+            // Preserve original casing for ENUM/SET values (e.g., enum('Active','Inactive'))
+            let upperType = dataType.uppercased()
+            let normalizedType = (upperType.hasPrefix("ENUM(") || upperType.hasPrefix("SET("))
+                ? dataType : upperType
+
             return ColumnInfo(
                 name: name,
-                dataType: dataType.uppercased(),
+                dataType: normalizedType,
                 isNullable: isNullable,
                 isPrimaryKey: isPrimaryKey,
                 defaultValue: defaultValue,
