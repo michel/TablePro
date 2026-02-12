@@ -339,10 +339,19 @@ final class DatabaseManager: ObservableObject {
             throw DatabaseError.notConnected
         }
 
+        // For PostgreSQL PK modification, query the actual constraint name
+        let pkConstraintName = await fetchPrimaryKeyConstraintName(
+            tableName: tableName,
+            databaseType: databaseType,
+            changes: changes,
+            driver: driver
+        )
+
         // Generate SQL statements
         let generator = SchemaStatementGenerator(
             tableName: tableName,
-            databaseType: databaseType
+            databaseType: databaseType,
+            primaryKeyConstraintName: pkConstraintName
         )
         let statements = try generator.generate(changes: changes)
 
@@ -363,5 +372,49 @@ final class DatabaseManager: ObservableObject {
             try? await driver.rollbackTransaction()
             throw DatabaseError.queryFailed("Schema change failed: \(error.localizedDescription)")
         }
+    }
+
+    /// Query the actual primary key constraint name for PostgreSQL.
+    /// Returns nil if the database is not PostgreSQL, no PK modification is pending,
+    /// or the query fails (caller falls back to `{table}_pkey` convention).
+    private func fetchPrimaryKeyConstraintName(
+        tableName: String,
+        databaseType: DatabaseType,
+        changes: [SchemaChange],
+        driver: DatabaseDriver
+    ) async -> String? {
+        // Only needed for PostgreSQL PK modifications
+        guard databaseType == .postgresql else { return nil }
+        guard changes.contains(where: {
+            if case .modifyPrimaryKey = $0 { return true }
+            return false
+        }) else {
+            return nil
+        }
+
+        // Query the actual constraint name from pg_constraint
+        let escapedTable = tableName.replacingOccurrences(of: "'", with: "''")
+        let query = """
+            SELECT con.conname
+            FROM pg_constraint con
+            JOIN pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+            WHERE rel.relname = '\(escapedTable)'
+              AND nsp.nspname = 'public'
+              AND con.contype = 'p'
+            LIMIT 1
+            """
+
+        do {
+            let result = try await driver.execute(query: query)
+            if let row = result.rows.first, let name = row[0], !name.isEmpty {
+                return name
+            }
+        } catch {
+            // Query failed - fall back to convention in SchemaStatementGenerator
+            Self.logger.warning("Failed to query PK constraint name for '\(tableName)': \(error.localizedDescription)")
+        }
+
+        return nil
     }
 }

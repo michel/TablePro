@@ -476,6 +476,13 @@ mint dev
 # Open http://localhost:3000
 ```
 
+## Agent Execution Strategy
+
+- **Always use subagents** for implementation work. Delegate coding tasks to Task subagents instead of doing them in the main context. This preserves main context tokens and prevents context exhaustion on long sessions.
+- **Always parallelize** independent tasks. When multiple tasks are requested (e.g., "implement W1, W3, W5"), launch all subagents in a single message with multiple Task tool calls.
+- **Main context = orchestrator only.** The main context should: read files for context, launch subagents, summarize results, and update tracking files. Never do heavy implementation (multi-file edits, large refactors) directly in the main context.
+- **Subagent prompts must be self-contained.** Include file paths, the specific problem, and clear instructions so the subagent can work autonomously without needing the main conversation history.
+
 ## Notes for AI Agents
 
 - **Never** use tabs for indentation (except Makefile/pbxproj)

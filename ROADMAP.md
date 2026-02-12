@@ -64,7 +64,7 @@ TablePro is a native macOS database client (SwiftUI + AppKit) supporting MySQL, 
 |----------|--------|------|--------|-----|---------------|-------------|
 | MySQL | MariaDB Connector/C | Full | Full | Yes | Full | — |
 | MariaDB | MariaDB Connector/C | Full | Full | Yes | Full | — |
-| PostgreSQL | libpq | Full | Full | Yes | Full | PK rename assumes `_pkey` convention |
+| PostgreSQL | libpq | Full | Full | Yes | Full | — |
 | SQLite | Built-in | Full | Partial | N/A | Full | No ALTER COLUMN, requires table recreation |
 
 ### Editor Features
@@ -464,7 +464,7 @@ No UI for managing database users, roles, or permissions.
 | 1 | `Core/Services/RowParser.swift` | 98 | ~~CSV parsing not implemented, falls back to TSV~~ (FIXED) | ~~Critical~~ |
 | 2 | `Views/Results/DataGridView.swift` | 305 | ~~Redo tracking not implemented~~ (FIXED) | ~~Critical~~ |
 | 3 | `Views/Toolbar/ToolbarItemFactory.swift` | 285 | ~~Connection switcher opens welcome window instead of popover~~ (FIXED) | ~~High~~ |
-| 4 | `Core/SchemaTracking/SchemaStatementGenerator.swift` | 415 | PostgreSQL PK rename assumes `{table}_pkey` convention | Medium |
+| 4 | `Core/SchemaTracking/SchemaStatementGenerator.swift` | 415 | ~~PostgreSQL PK rename assumes `{table}_pkey` convention~~ (FIXED) | ~~Medium~~ |
 | 5 | `Core/SchemaTracking/SchemaStatementGenerator.swift` | 427 | SQLite doesn't support PK modification (needs table recreation) | Medium |
 | 6 | `Views/Editor/SQLEditorCoordinator.swift` | 62 | Find panel z-order workaround for CodeEditSourceEditor | Low |
 | 7 | `Core/Database/SQLiteDriver.swift` | 565 | SQLite doesn't support DROP CONSTRAINT for foreign keys | Medium |

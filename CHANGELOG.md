@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Migrate `Libs/*.a` static libraries to Git LFS tracking to reduce repository clone size
+- Remove stale `.gitignore` entries for architecture-specific MariaDB libraries
+
+### Fixed
+
+- PostgreSQL primary key modification now queries the actual constraint name from `pg_constraint` instead of assuming the `{table}_pkey` naming convention, supporting tables with custom constraint names
+- Align Xcode `SWIFT_VERSION` build setting from 5.0 to 5.9 to match `.swiftformat` target version
+
 ## [0.2.0] - 2026-02-11
 
 ### Added

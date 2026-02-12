@@ -12,8 +12,8 @@
 | Code Quality (SwiftLint) | 10/10 | Zero violations |
 | Architecture | 9/10 | Clean separation of concerns |
 | Test Coverage | 0/10 | **No tests exist** |
-| API Backend Security | 7/10 | Rate limiting added; still missing RBAC |
-| Documentation | 9/10 | Comprehensive, v0.2.0 changelog added |
+| API Backend Security | 8/10 | Rate limiting, input validation, atomic locking added; still missing RBAC |
+| Documentation | 8/10 | Comprehensive, missing v0.2.0 changelog |
 | Accessibility | 2/10 | Only 2 a11y labels |
 | Localization | 0/10 | English only, no i18n |
 | Performance | 9/10 | Sophisticated optimizations |
@@ -69,39 +69,34 @@
 
 ## WARNING Issues
 
-### W1. API: License Key Input Validation Too Weak
+### ~~W1. API: License Key Input Validation Too Weak~~ DONE
 - **Files:** `api/app/Http/Requests/Api/V1/*.php`
-- **Issues:**
-  - `license_key` has no max length (should be `max:29`)
-  - `license_key` has no format pattern (should match `XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`)
-  - `machine_id` accepts any 64 chars (should validate hex: `regex:/^[a-f0-9]{64}$/i`)
+- **Resolution:** Added `max:29` + regex format validation for `license_key` (`XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`) and hex regex for `machine_id` (`/^[a-f0-9]{64}$/i`) across all 3 request files; updated tests accordingly
 
 ### W2. API: Private Key in Webroot-Accessible Location
 - **File:** `api/.env` → `LICENSE_PRIVATE_KEY_PATH=keys/license_private.pem`
 - **Fix:** Move to system-protected location outside webroot (e.g., `/etc/tablepro/`)
 
-### W3. API: Non-Atomic Activation Limit Check
-- **File:** `api/app/Http/Controllers/Api/V1/LicenseController.php:61-65`
-- **Issue:** Race condition — concurrent requests could exceed activation limit
-- **Fix:** Use pessimistic locking or database constraints
+### ~~W3. API: Non-Atomic Activation Limit Check~~ DONE
+- **File:** `api/app/Http/Controllers/Api/V1/LicenseController.php`
+- **Resolution:** Wrapped activation logic in `DB::transaction()` with `lockForUpdate()` on the license row — serializes concurrent requests to prevent exceeding the activation limit
 
 ### W4. 41 Missing Screenshot Images in Documentation
 - **Affected pages:** Settings, filtering, import/export, history, appearance, installation
 - **Examples:** `filter-panel-dark.png`, `settings-general.png`, `import-dialog.png`, etc.
 - **Fix:** Generate and commit missing image files
 
-### W5. Xcode SWIFT_VERSION Mismatch
-- **Issue:** `project.pbxproj` sets `SWIFT_VERSION = 5.0` but `.swiftformat` targets 5.9
-- **Fix:** Update pbxproj to `SWIFT_VERSION = 5.9`
+### ~~W5. Xcode SWIFT_VERSION Mismatch~~ DONE
+- **Resolution:** Updated both Debug and Release `SWIFT_VERSION` from `5.0` to `5.9` in `project.pbxproj` to match `.swiftformat` target
 
-### W6. PostgreSQL Constraint Name Assumption
+### ~~W6. PostgreSQL Constraint Name Assumption~~ DONE
 - **File:** `TablePro/Core/SchemaTracking/SchemaStatementGenerator.swift:415-420`
 - **Issue:** Assumes PK constraint name follows `{table}_pkey` convention
-- **Fix:** Enhance DatabaseDriver protocol to query actual constraint names
+- **Resolution:** `DatabaseManager.fetchPrimaryKeyConstraintName()` queries the actual name from `pg_constraint` before generating SQL; `SchemaStatementGenerator` accepts an optional `primaryKeyConstraintName` parameter and falls back to `{table}_pkey` convention only as a last resort
 
-### W7. Static Libraries Committed to Git
+### ~~W7. Static Libraries Committed to Git~~ DONE
 - **Files:** `Libs/libmariadb*.a` (540KB - 1.1MB each)
-- **Fix:** Consider building from source in CI instead of committing binaries
+- **Resolution:** Migrated to Git LFS tracking (`Libs/*.a` rule in `.gitattributes`); removed stale `.gitignore` entries
 
 ### W8. Large Untracked Directories
 - `api/` (143MB) and `tablepro.app/` (465MB) are untracked in the main repo

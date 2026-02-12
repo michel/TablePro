@@ -20,9 +20,15 @@ struct SchemaStatementGenerator {
     private let databaseType: DatabaseType
     private let tableName: String
 
-    init(tableName: String, databaseType: DatabaseType) {
+    /// Actual primary key constraint name (queried from database).
+    /// Used by PostgreSQL which requires the constraint name for DROP CONSTRAINT.
+    /// Falls back to `{table}_pkey` convention if nil.
+    private let primaryKeyConstraintName: String?
+
+    init(tableName: String, databaseType: DatabaseType, primaryKeyConstraintName: String? = nil) {
         self.tableName = tableName
         self.databaseType = databaseType
+        self.primaryKeyConstraintName = primaryKeyConstraintName
     }
 
     /// Generate all SQL statements from schema changes
@@ -401,22 +407,9 @@ struct SchemaStatementGenerator {
             """
 
         case .postgresql:
-            // PostgreSQL requires knowing the constraint name
-            // Query the actual constraint name from information_schema
-            // Note: This SQL will be executed as part of the transaction
-            let pkNameQuery = """
-            SELECT constraint_name
-            FROM information_schema.table_constraints
-            WHERE table_name = '\(tableName)' AND constraint_type = 'PRIMARY KEY'
-            """
-
-            // The actual implementation would need to query this first
-            // For now, use the common convention as fallback
-            // TODO: Enhance DatabaseDriver protocol to support querying constraint names
-            let pkName = "\(tableName)_pkey"  // Common PostgreSQL convention
+            // Use actual constraint name if available, otherwise fall back to convention
+            let pkName = primaryKeyConstraintName ?? "\(tableName)_pkey"
             sql = """
-            -- WARNING: Assumes PK constraint name is '\(pkName)'
-            -- Query actual name with: \(pkNameQuery)
             ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(databaseType.quoteIdentifier(pkName));
             ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted))
             """
