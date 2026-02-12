@@ -20,12 +20,12 @@ enum LicenseStatus: String, Codable {
 
     var displayName: String {
         switch self {
-        case .unlicensed: return "Unlicensed"
-        case .active: return "Active"
-        case .expired: return "Expired"
-        case .suspended: return "Suspended"
-        case .deactivated: return "Deactivated"
-        case .validationFailed: return "Validation Failed"
+        case .unlicensed: return String(localized: "Unlicensed")
+        case .active: return String(localized: "Active")
+        case .expired: return String(localized: "Expired")
+        case .suspended: return String(localized: "Suspended")
+        case .deactivated: return String(localized: "Deactivated")
+        case .validationFailed: return String(localized: "Validation Failed")
         }
     }
 

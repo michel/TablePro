@@ -25,8 +25,8 @@ final class AlertHelper {
     static func confirmDestructive(
         title: String,
         message: String,
-        confirmButton: String = "OK",
-        cancelButton: String = "Cancel",
+        confirmButton: String = String(localized: "OK"),
+        cancelButton: String = String(localized: "Cancel"),
         window: NSWindow? = nil
     ) async -> Bool {
         let alert = NSAlert()
@@ -65,8 +65,8 @@ final class AlertHelper {
     static func confirmCritical(
         title: String,
         message: String,
-        confirmButton: String = "Execute",
-        cancelButton: String = "Cancel",
+        confirmButton: String = String(localized: "Execute"),
+        cancelButton: String = String(localized: "Cancel"),
         window: NSWindow? = nil
     ) async -> Bool {
         let alert = NSAlert()
@@ -160,7 +160,7 @@ final class AlertHelper {
         alert.messageText = title
         alert.informativeText = message
         alert.alertStyle = .critical
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: String(localized: "OK"))
 
         if let window = window {
             alert.beginSheetModal(for: window) { _ in
@@ -188,7 +188,7 @@ final class AlertHelper {
         alert.messageText = title
         alert.informativeText = message
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: String(localized: "OK"))
 
         if let window = window {
             alert.beginSheetModal(for: window) { _ in

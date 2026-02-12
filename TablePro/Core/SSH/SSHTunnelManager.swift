@@ -24,17 +24,17 @@ enum SSHTunnelError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .tunnelCreationFailed(let message):
-            return "SSH tunnel creation failed: \(message)"
+            return String(localized: "SSH tunnel creation failed: \(message)")
         case .tunnelAlreadyExists(let id):
-            return "SSH tunnel already exists for connection: \(id)"
+            return String(localized: "SSH tunnel already exists for connection: \(id.uuidString)")
         case .noAvailablePort:
-            return "No available local port for SSH tunnel"
+            return String(localized: "No available local port for SSH tunnel")
         case .sshCommandNotFound:
-            return "SSH command not found. Please ensure OpenSSH is installed."
+            return String(localized: "SSH command not found. Please ensure OpenSSH is installed.")
         case .authenticationFailed:
-            return "SSH authentication failed. Check your credentials or private key."
+            return String(localized: "SSH authentication failed. Check your credentials or private key.")
         case .connectionTimeout:
-            return "SSH connection timed out"
+            return String(localized: "SSH connection timed out")
         }
     }
 }

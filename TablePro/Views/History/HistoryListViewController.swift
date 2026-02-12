@@ -366,11 +366,11 @@ final class HistoryListViewController: NSViewController, NSMenuItemValidation {
 
         Task { @MainActor in
             let confirmed = await AlertHelper.confirmDestructive(
-                title: "Clear All History?",
+                title: String(localized: "Clear All History?"),
                 message:
-                    "This will permanently delete \(count) \(itemName). This action cannot be undone.",
-                confirmButton: "Clear All",
-                cancelButton: "Cancel"
+                    String(localized: "This will permanently delete \(count) \(itemName). This action cannot be undone."),
+                confirmButton: String(localized: "Clear All"),
+                cancelButton: String(localized: "Cancel")
             )
 
             if confirmed {

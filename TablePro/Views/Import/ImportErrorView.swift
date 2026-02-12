@@ -50,7 +50,7 @@ struct ImportErrorView: View {
                     .background(Color(nsColor: .textBackgroundColor))
                     .cornerRadius(4)
                 } else {
-                    Text(error?.localizedDescription ?? "Unknown error")
+                    Text(error?.localizedDescription ?? String(localized: "Unknown error"))
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

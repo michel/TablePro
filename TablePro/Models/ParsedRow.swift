@@ -36,13 +36,13 @@ enum RowParseError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyClipboard:
-            return "Clipboard is empty or contains no text data."
+            return String(localized: "Clipboard is empty or contains no text data.")
         case .noValidRows:
-            return "No valid rows found in clipboard data."
+            return String(localized: "No valid rows found in clipboard data.")
         case .columnCountMismatch(let expected, let actual, let line):
-            return "Column count mismatch on line \(line): expected \(expected) columns, found \(actual)."
+            return String(localized: "Column count mismatch on line \(line): expected \(expected) columns, found \(actual).")
         case .invalidFormat(let reason):
-            return "Invalid data format: \(reason)"
+            return String(localized: "Invalid data format: \(reason)")
         }
     }
 }

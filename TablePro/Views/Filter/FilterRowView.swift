@@ -23,9 +23,9 @@ struct FilterRowView: View {
     /// Display name for the column (handles raw SQL and empty)
     private var displayColumnName: String {
         if filter.columnName == TableFilter.rawSQLColumn {
-            return "Raw SQL"
+            return String(localized: "Raw SQL")
         } else if filter.columnName.isEmpty {
-            return "Column"
+            return String(localized: "Column")
         } else {
             return filter.columnName
         }

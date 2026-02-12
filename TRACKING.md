@@ -15,9 +15,9 @@
 | API Backend Security | 8/10 | Rate limiting, input validation, atomic locking added; still missing RBAC |
 | Documentation | 8/10 | Comprehensive, missing v0.2.0 changelog |
 | Accessibility | 2/10 | Only 2 a11y labels |
-| Localization | 0/10 | English only, no i18n |
+| Localization | 7/10 | English + Vietnamese (637 strings), language setting in General preferences |
 | Performance | 9/10 | Sophisticated optimizations |
-| Dependencies | 9/10 | Minimal, well-maintained |
+| Dependencies | 9/10 | Minimal, well-maintained; CodeEditSourceEditor tracks `main` branch (pending 0.16.0 release) |
 
 ---
 
@@ -64,6 +64,11 @@
 ### ~~C5. Documentation Changelog Missing v0.2.0~~ DONE
 - **File:** `tablepro.app/docs/changelog.mdx` + `tablepro.app/docs/vi/changelog.mdx`
 - **Resolution:** Added v0.2.0 entry to both English and Vietnamese changelog pages (11 features, 7 fixes, 1 improvement)
+
+### ~~C6. macOS 13 Launch Crash (asyncAndWait symbol missing)~~ DONE
+- **Impact:** App crashes at launch on macOS 13 with `Symbol not found: _$sSo17OS_dispatch_queueC8DispatchE12asyncAndWait`
+- **Root cause:** CodeEditSourceEditor 0.15.2 calls `DispatchQueue.main.asyncAndWait(execute:)` which requires macOS 14+; app targets macOS 13.5
+- **Resolution:** Updated CodeEditSourceEditor SPM dependency from version `0.15.2` to tracking `main` branch (commit `1fa4d3c`), which replaces `asyncAndWait` with `sync`
 
 ---
 
@@ -260,11 +265,12 @@ The following v0.2.0 features are documented on feature pages but missing from c
 
 ## Technical Debt
 
-### No Localization (i18n)
-- No `.strings` files or String Catalogs
-- All UI text hardcoded in English
-- Competitors support 10-20+ languages
-- Effort: Large (~2000+ strings to extract)
+### ~~No Localization (i18n)~~ DONE
+- String Catalog (`Localizable.xcstrings`) with 637 strings
+- Full Vietnamese translation (100% coverage)
+- Language setting in General preferences (System, English, Vietnamese)
+- Requires app restart for language change to take effect
+- Remaining: Add more languages (competitors support 10-20+)
 
 ### Minimal Accessibility
 - Only 2 `accessibilityLabel` instances in entire codebase
@@ -300,7 +306,7 @@ The following v0.2.0 features are documented on feature pages but missing from c
 | Custom Themes | System only | Full | **Partial** |
 | SSH Tunneling | Full | Full | — |
 | Read-only Mode | v0.2.0 | Yes | — |
-| Localization | English only | 10+ langs | **Missing** |
+| Localization | English + Vietnamese | 10+ langs | **Partial** |
 | Cost | Free (GPL v3) | $99 | **Win** |
 
 ### TablePro Advantages
@@ -333,7 +339,7 @@ The following v0.2.0 features are documented on feature pages but missing from c
 - [ ] ER diagram visualization
 - [ ] Keyboard shortcut customization
 - [ ] Connection health monitoring + auto-reconnect
-- [ ] Localization infrastructure
+- [x] Localization infrastructure
 
 ### Immediate Actions (This Week)
 1. Update docs changelog with v0.2.0

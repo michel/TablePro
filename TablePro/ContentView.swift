@@ -65,10 +65,10 @@ struct ContentView: View {
                     // Always confirm before disconnecting
                     Task { @MainActor in
                         let confirmed = await AlertHelper.confirmDestructive(
-                            title: "Disconnect",
-                            message: "Are you sure you want to disconnect from this database?",
-                            confirmButton: "Disconnect",
-                            cancelButton: "Cancel"
+                            title: String(localized: "Disconnect"),
+                            message: String(localized: "Are you sure you want to disconnect from this database?"),
+                            confirmButton: String(localized: "Disconnect"),
+                            cancelButton: String(localized: "Cancel")
                         )
 
                         if confirmed {

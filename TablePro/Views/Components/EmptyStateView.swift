@@ -77,9 +77,9 @@ extension EmptyStateView {
     static func foreignKeys(onAdd: @escaping () -> Void) -> EmptyStateView {
         EmptyStateView(
             icon: "link",
-            title: "No Foreign Keys Yet",
-            description: "Click + to add a relationship between this table and another",
-            actionTitle: "Add Foreign Key",
+            title: String(localized: "No Foreign Keys Yet"),
+            description: String(localized: "Click + to add a relationship between this table and another"),
+            actionTitle: String(localized: "Add Foreign Key"),
             action: onAdd
         )
     }
@@ -88,9 +88,9 @@ extension EmptyStateView {
     static func indexes(onAdd: @escaping () -> Void) -> EmptyStateView {
         EmptyStateView(
             icon: "list.bullet.indent",
-            title: "No Indexes Defined",
-            description: "Add indexes to improve query performance on frequently searched columns",
-            actionTitle: "Add Index",
+            title: String(localized: "No Indexes Defined"),
+            description: String(localized: "Add indexes to improve query performance on frequently searched columns"),
+            actionTitle: String(localized: "Add Index"),
             action: onAdd
         )
     }
@@ -99,9 +99,9 @@ extension EmptyStateView {
     static func checkConstraints(onAdd: @escaping () -> Void) -> EmptyStateView {
         EmptyStateView(
             icon: "checkmark.shield",
-            title: "No Check Constraints",
-            description: "Add validation rules to ensure data integrity",
-            actionTitle: "Add Check Constraint",
+            title: String(localized: "No Check Constraints"),
+            description: String(localized: "Add validation rules to ensure data integrity"),
+            actionTitle: String(localized: "Add Check Constraint"),
             action: onAdd
         )
     }
@@ -110,9 +110,9 @@ extension EmptyStateView {
     static func columns(onAdd: @escaping () -> Void) -> EmptyStateView {
         EmptyStateView(
             icon: "tablecells",
-            title: "No Columns Defined",
-            description: "Every table needs at least one column. Click + to get started",
-            actionTitle: "Add Column",
+            title: String(localized: "No Columns Defined"),
+            description: String(localized: "Every table needs at least one column. Click + to get started"),
+            actionTitle: String(localized: "Add Column"),
             action: onAdd
         )
     }

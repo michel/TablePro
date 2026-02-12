@@ -648,7 +648,7 @@ struct CreateTableView: View {
             try TableTemplateStorage.shared.saveTemplate(name: templateName, options: options)
             templateName = ""
         } catch {
-            validationError = "Failed to save template: \(error.localizedDescription)"
+            validationError = String(localized: "Failed to save template: \(error.localizedDescription)")
         }
     }
 
@@ -663,7 +663,7 @@ struct CreateTableView: View {
                 selectedColumnId = options.columns.first?.id
             }
         } catch {
-            validationError = "Failed to load template: \(error.localizedDescription)"
+            validationError = String(localized: "Failed to load template: \(error.localizedDescription)")
         }
     }
 
@@ -672,7 +672,7 @@ struct CreateTableView: View {
             try TableTemplateStorage.shared.deleteTemplate(name: name)
             savedTemplates = TableTemplateStorage.shared.getTemplateNames()
         } catch {
-            validationError = "Failed to delete template: \(error.localizedDescription)"
+            validationError = String(localized: "Failed to delete template: \(error.localizedDescription)")
         }
     }
 
@@ -685,7 +685,7 @@ struct CreateTableView: View {
             selectedColumnId = options.columns.first?.id
             ddlText = ""
         } catch {
-            validationError = "Failed to import DDL: \(error.localizedDescription)"
+            validationError = String(localized: "Failed to import DDL: \(error.localizedDescription)")
         }
     }
 
@@ -704,7 +704,7 @@ struct CreateTableView: View {
                 }
             } catch {
                 await MainActor.run {
-                    validationError = "Failed to load tables: \(error.localizedDescription)"
+                    validationError = String(localized: "Failed to load tables: \(error.localizedDescription)")
                 }
             }
         }
@@ -715,7 +715,7 @@ struct CreateTableView: View {
             do {
                 guard let driver = DatabaseManager.shared.activeDriver else {
                     await MainActor.run {
-                        validationError = "No database connection"
+                        validationError = String(localized: "No database connection")
                     }
                     return
                 }
@@ -764,7 +764,7 @@ struct CreateTableView: View {
 
                 await MainActor.run {
                     guard !result.rows.isEmpty else {
-                        validationError = "Table '\(tableName)' has no columns or does not exist"
+                        validationError = String(localized: "Table '\(tableName)' has no columns or does not exist")
                         return
                     }
 
@@ -866,7 +866,7 @@ struct CreateTableView: View {
                     Self.logger.debug("Primary keys = \(newPrimaryKeys.description, privacy: .public)")
 
                     guard !newColumns.isEmpty else {
-                        validationError = "Failed to parse any columns from table '\(tableName)'. Check console for debug info."
+                        validationError = String(localized: "Failed to parse any columns from table '\(tableName)'. Check console for debug info.")
                         return
                     }
 
@@ -896,7 +896,7 @@ struct CreateTableView: View {
                 }
             } catch {
                 await MainActor.run {
-                    validationError = "Failed to fetch table structure: \(error.localizedDescription)"
+                    validationError = String(localized: "Failed to fetch table structure: \(error.localizedDescription)")
                 }
             }
         }

@@ -105,9 +105,9 @@ struct MainStatusBarView: View {
         if selectedCount > 0 {
             // Selection mode: "5 of 200 rows selected"
             if selectedCount == loadedCount {
-                return "All \(loadedCount) rows selected"
+                return String(localized: "All \(loadedCount) rows selected")
             } else {
-                return "\(selectedCount) of \(loadedCount) rows selected"
+                return String(localized: "\(selectedCount) of \(loadedCount) rows selected")
             }
         } else if tab.tabType == .table, let total = total, total > 0 {
             // Pagination mode (table tabs only): "201-400 of 5,000 rows"
@@ -115,14 +115,14 @@ struct MainStatusBarView: View {
             formatter.numberStyle = .decimal
             let formattedTotal = formatter.string(from: NSNumber(value: total)) ?? "\(total)"
 
-            return "\(pagination.rangeStart)-\(pagination.rangeEnd) of \(formattedTotal) rows"
+            return String(localized: "\(pagination.rangeStart)-\(pagination.rangeEnd) of \(formattedTotal) rows")
         } else if loadedCount > 0 {
             let formatter = NumberFormatter()
             formatter.numberStyle = .decimal
             let formattedCount = formatter.string(from: NSNumber(value: loadedCount)) ?? "\(loadedCount)"
-            return "\(formattedCount) rows"
+            return String(localized: "\(formattedCount) rows")
         } else {
-            return "No rows"
+            return String(localized: "No rows")
         }
     }
 }

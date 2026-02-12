@@ -381,8 +381,8 @@ struct ExportDialog: View {
         guard let driver = DatabaseManager.shared.activeDriver else {
             isLoading = false
             AlertHelper.showErrorSheet(
-                title: "Export Error",
-                message: "Not connected to database",
+                title: String(localized: "Export Error"),
+                message: String(localized: "Not connected to database"),
                 window: nil
             )
             return
@@ -480,8 +480,8 @@ struct ExportDialog: View {
         } catch {
             isLoading = false
             AlertHelper.showErrorSheet(
-                title: "Export Error",
-                message: "Failed to load databases: \(error.localizedDescription)",
+                title: String(localized: "Export Error"),
+                message: String(localized: "Failed to load databases: \(error.localizedDescription)"),
                 window: nil
             )
         }
@@ -575,8 +575,8 @@ struct ExportDialog: View {
     private func startExport(to url: URL) async {
         guard let driver = DatabaseManager.shared.activeDriver else {
             AlertHelper.showErrorSheet(
-                title: "Export Error",
-                message: "Not connected to database",
+                title: String(localized: "Export Error"),
+                message: String(localized: "Not connected to database"),
                 window: nil
             )
             return
@@ -615,7 +615,7 @@ struct ExportDialog: View {
             showProgressDialog = false
             isExporting = false
             AlertHelper.showErrorSheet(
-                title: "Export Error",
+                title: String(localized: "Export Error"),
                 message: error.localizedDescription,
                 window: nil
             )

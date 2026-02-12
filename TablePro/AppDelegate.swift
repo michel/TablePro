@@ -39,7 +39,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         let welcomeItem = NSMenuItem(
-            title: "Show Welcome Window",
+            title: String(localized: "Show Welcome Window"),
             action: #selector(showWelcomeFromDock),
             keyEquivalent: ""
         )
@@ -49,7 +49,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Add connections submenu
         let connections = ConnectionStorage.shared.loadConnections()
         if !connections.isEmpty {
-            let connectionsItem = NSMenuItem(title: "Open Connection", action: nil, keyEquivalent: "")
+            let connectionsItem = NSMenuItem(title: String(localized: "Open Connection"), action: nil, keyEquivalent: "")
             let submenu = NSMenu()
 
             for connection in connections {

@@ -20,8 +20,33 @@ enum StartupBehavior: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .showWelcome: return "Show Welcome Screen"
-        case .reopenLast: return "Reopen Last Session"
+        case .showWelcome: return String(localized: "Show Welcome Screen")
+        case .reopenLast: return String(localized: "Reopen Last Session")
+        }
+    }
+}
+
+/// App language options
+enum AppLanguage: String, Codable, CaseIterable, Identifiable {
+    case system = "system"
+    case english = "en"
+    case vietnamese = "vi"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .system: return String(localized: "System")
+        case .english: return "English"
+        case .vietnamese: return "Tiếng Việt"
+        }
+    }
+
+    func apply() {
+        if self == .system {
+            UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+        } else {
+            UserDefaults.standard.set([rawValue], forKey: "AppleLanguages")
         }
     }
 }
@@ -29,6 +54,7 @@ enum StartupBehavior: String, Codable, CaseIterable, Identifiable {
 /// General app settings
 struct GeneralSettings: Codable, Equatable {
     var startupBehavior: StartupBehavior
+    var language: AppLanguage
     var automaticallyCheckForUpdates: Bool
 
     /// Query execution timeout in seconds (0 = no limit)
@@ -36,16 +62,19 @@ struct GeneralSettings: Codable, Equatable {
 
     static let `default` = GeneralSettings(
         startupBehavior: .showWelcome,
+        language: .system,
         automaticallyCheckForUpdates: true,
         queryTimeoutSeconds: 60
     )
 
     init(
         startupBehavior: StartupBehavior = .showWelcome,
+        language: AppLanguage = .system,
         automaticallyCheckForUpdates: Bool = true,
         queryTimeoutSeconds: Int = 60
     ) {
         self.startupBehavior = startupBehavior
+        self.language = language
         self.automaticallyCheckForUpdates = automaticallyCheckForUpdates
         self.queryTimeoutSeconds = queryTimeoutSeconds
     }
@@ -53,6 +82,7 @@ struct GeneralSettings: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         startupBehavior = try container.decode(StartupBehavior.self, forKey: .startupBehavior)
+        language = try container.decodeIfPresent(AppLanguage.self, forKey: .language) ?? .system
         automaticallyCheckForUpdates = try container.decodeIfPresent(Bool.self, forKey: .automaticallyCheckForUpdates) ?? true
         queryTimeoutSeconds = try container.decodeIfPresent(Int.self, forKey: .queryTimeoutSeconds) ?? 60
     }
@@ -70,9 +100,9 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .system: return "System"
-        case .light: return "Light"
-        case .dark: return "Dark"
+        case .system: return String(localized: "System")
+        case .light: return String(localized: "Light")
+        case .dark: return String(localized: "Dark")
         }
     }
 
@@ -105,8 +135,15 @@ enum AccentColorOption: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .system: return "System"
-        default: return rawValue.capitalized
+        case .system: return String(localized: "System")
+        case .blue: return String(localized: "Blue")
+        case .purple: return String(localized: "Purple")
+        case .pink: return String(localized: "Pink")
+        case .red: return String(localized: "Red")
+        case .orange: return String(localized: "Orange")
+        case .yellow: return String(localized: "Yellow")
+        case .green: return String(localized: "Green")
+        case .graphite: return String(localized: "Graphite")
         }
     }
 
@@ -238,10 +275,10 @@ enum DataGridRowHeight: Int, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .compact: return "Compact"
-        case .normal: return "Normal"
-        case .comfortable: return "Comfortable"
-        case .spacious: return "Spacious"
+        case .compact: return String(localized: "Compact")
+        case .normal: return String(localized: "Normal")
+        case .comfortable: return String(localized: "Comfortable")
+        case .spacious: return String(localized: "Spacious")
         }
     }
 }
@@ -259,12 +296,12 @@ enum DateFormatOption: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .iso8601: return "ISO 8601 (2024-12-31 23:59:59)"
-        case .iso8601Date: return "ISO Date (2024-12-31)"
-        case .usLong: return "US Long (12/31/2024 11:59:59 PM)"
-        case .usShort: return "US Short (12/31/2024)"
-        case .euLong: return "EU Long (31/12/2024 23:59:59)"
-        case .euShort: return "EU Short (31/12/2024)"
+        case .iso8601: return String(localized: "ISO 8601 (2024-12-31 23:59:59)")
+        case .iso8601Date: return String(localized: "ISO Date (2024-12-31)")
+        case .usLong: return String(localized: "US Long (12/31/2024 11:59:59 PM)")
+        case .usShort: return String(localized: "US Short (12/31/2024)")
+        case .euLong: return String(localized: "EU Long (31/12/2024 23:59:59)")
+        case .euShort: return String(localized: "EU Short (31/12/2024)")
         }
     }
 
@@ -314,11 +351,11 @@ struct DataGridSettings: Codable, Equatable {
         let maxLength = SettingsValidationRules.nullDisplayMaxLength
 
         if sanitized.isEmpty {
-            return "NULL display cannot be empty"
+            return String(localized: "NULL display cannot be empty")
         } else if sanitized.count > maxLength {
-            return "NULL display must be \(maxLength) characters or less"
+            return String(localized: "NULL display must be \(maxLength) characters or less")
         } else if nullDisplay != sanitized {
-            return "NULL display contains invalid characters (newlines/tabs)"
+            return String(localized: "NULL display contains invalid characters (newlines/tabs)")
         }
         return nil
     }
@@ -327,7 +364,7 @@ struct DataGridSettings: Codable, Equatable {
     var defaultPageSizeValidationError: String? {
         let range = SettingsValidationRules.defaultPageSizeRange
         if defaultPageSize < range.lowerBound || defaultPageSize > range.upperBound {
-            return "Page size must be between \(range.lowerBound.formatted()) and \(range.upperBound.formatted())"
+            return String(localized: "Page size must be between \(range.lowerBound.formatted()) and \(range.upperBound.formatted())")
         }
         return nil
     }
@@ -362,7 +399,7 @@ struct HistorySettings: Codable, Equatable {
     /// Validation error for maxEntries
     var maxEntriesValidationError: String? {
         if maxEntries < 0 {
-            return "Maximum entries cannot be negative"
+            return String(localized: "Maximum entries cannot be negative")
         }
         return nil
     }
@@ -370,7 +407,7 @@ struct HistorySettings: Codable, Equatable {
     /// Validation error for maxDays
     var maxDaysValidationError: String? {
         if maxDays < 0 {
-            return "Maximum days cannot be negative"
+            return String(localized: "Maximum days cannot be negative")
         }
         return nil
     }

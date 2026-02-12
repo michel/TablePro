@@ -41,15 +41,17 @@ struct ExecutionIndicatorView: View {
     /// Format duration for display
     private func formattedDuration(_ duration: TimeInterval) -> String {
         if duration < 0.001 {
-            return "<1ms"
+            return String(localized: "<1ms")
         } else if duration < 1.0 {
-            return String(format: "%.0fms", duration * 1_000)
+            let ms = String(format: "%.0f", duration * 1_000)
+            return String(localized: "\(ms)ms")
         } else if duration < 60.0 {
-            return String(format: "%.2fs", duration)
+            let secs = String(format: "%.2f", duration)
+            return String(localized: "\(secs)s")
         } else {
             let minutes = Int(duration) / 60
             let seconds = Int(duration) % 60
-            return "\(minutes)m \(seconds)s"
+            return String(localized: "\(minutes)m \(seconds)s")
         }
     }
 }

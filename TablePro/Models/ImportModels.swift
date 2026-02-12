@@ -58,23 +58,23 @@ enum ImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .fileNotFound:
-            return "File not found"
+            return String(localized: "File not found")
         case .fileReadFailed(let message):
-            return "Failed to read file: \(message)"
+            return String(localized: "Failed to read file: \(message)")
         case .decompressFailed:
-            return "Failed to decompress .gz file"
+            return String(localized: "Failed to decompress .gz file")
         case .parseStatementFailed(let line, let reason):
-            return "Failed to parse statement at line \(line): \(reason)"
+            return String(localized: "Failed to parse statement at line \(line): \(reason)")
         case .importFailed(_, let line, let error):
-            return "Import failed at line \(line): \(error)"
+            return String(localized: "Import failed at line \(line): \(error)")
         case .cancelled:
-            return "Import cancelled by user"
+            return String(localized: "Import cancelled by user")
         case .invalidEncoding:
-            return "Invalid file encoding. Try a different encoding option."
+            return String(localized: "Invalid file encoding. Try a different encoding option.")
         case .rollbackFailed(let message):
-            return "CRITICAL: Transaction rollback failed - database may be in inconsistent state: \(message)"
+            return String(localized: "CRITICAL: Transaction rollback failed - database may be in inconsistent state: \(message)")
         case .foreignKeyCleanupFailed(let message):
-            return "WARNING: Failed to re-enable foreign key checks: \(message). Please manually verify FK constraints are enabled."
+            return String(localized: "WARNING: Failed to re-enable foreign key checks: \(message). Please manually verify FK constraints are enabled.")
         }
     }
 }

@@ -22,9 +22,9 @@ struct RightSidebarView: View {
 
     private var mode: String {
         if selectedRowData != nil {
-            return isEditable ? "Edit Row" : "Row Details"
+            return isEditable ? String(localized: "Edit Row") : String(localized: "Row Details")
         }
-        return "Table Info"
+        return String(localized: "Table Info")
     }
 
     var body: some View {
@@ -121,36 +121,36 @@ struct RightSidebarView: View {
 
     @ViewBuilder
     private func tableInfoContent(_ metadata: TableMetadata) -> some View {
-        sectionHeader("SIZE")
-        propertyRow("Data Size", TableMetadata.formatSize(metadata.dataSize))
-        propertyRow("Index Size", TableMetadata.formatSize(metadata.indexSize))
-        propertyRow("Total Size", TableMetadata.formatSize(metadata.totalSize))
+        sectionHeader(String(localized: "SIZE"))
+        propertyRow(String(localized: "Data Size"), TableMetadata.formatSize(metadata.dataSize))
+        propertyRow(String(localized: "Index Size"), TableMetadata.formatSize(metadata.indexSize))
+        propertyRow(String(localized: "Total Size"), TableMetadata.formatSize(metadata.totalSize))
 
-        sectionHeader("STATISTICS")
+        sectionHeader(String(localized: "STATISTICS"))
         if let rows = metadata.rowCount {
-            propertyRow("Rows", "\(rows)")
+            propertyRow(String(localized: "Rows"), "\(rows)")
         }
         if let avgLen = metadata.avgRowLength {
-            propertyRow("Avg Row", "\(avgLen) B")
+            propertyRow(String(localized: "Avg Row"), "\(avgLen) B")
         }
 
         if metadata.engine != nil || metadata.collation != nil {
-            sectionHeader("METADATA")
+            sectionHeader(String(localized: "METADATA"))
             if let engine = metadata.engine {
-                propertyRow("Engine", engine)
+                propertyRow(String(localized: "Engine"), engine)
             }
             if let collation = metadata.collation {
-                propertyRow("Collation", collation)
+                propertyRow(String(localized: "Collation"), collation)
             }
         }
 
         if metadata.createTime != nil || metadata.updateTime != nil {
-            sectionHeader("TIMESTAMPS")
+            sectionHeader(String(localized: "TIMESTAMPS"))
             if let create = metadata.createTime {
-                propertyRow("Created", formatDate(create))
+                propertyRow(String(localized: "Created"), formatDate(create))
             }
             if let update = metadata.updateTime {
-                propertyRow("Updated", formatDate(update))
+                propertyRow(String(localized: "Updated"), formatDate(update))
             }
         }
     }
@@ -175,7 +175,7 @@ struct RightSidebarView: View {
                 ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
 
-        sectionHeader("FIELDS (\(filtered.count))")
+        sectionHeader(String(localized: "FIELDS (\(filtered.count))"))
 
         ForEach(filtered, id: \.columnName) { field in
             if isEditable && !isRowDeleted {

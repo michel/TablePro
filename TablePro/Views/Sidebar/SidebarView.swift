@@ -115,7 +115,7 @@ struct SidebarView: View {
                 let tables = pendingOperationTables
                 if let firstTable = tables.first {
                     let tableName = tables.count > 1
-                        ? "\(tables.count) tables"
+                        ? String(localized: "\(tables.count) tables")
                         : firstTable
                     TableOperationDialog(
                         isPresented: $showOperationDialog,
@@ -362,7 +362,7 @@ struct SidebarView: View {
             .disabled(!hasSelection || isReadOnly)
         }
 
-        Button(isView ? "Drop View" : "Delete", role: .destructive) {
+        Button(isView ? String(localized: "Drop View") : String(localized: "Delete"), role: .destructive) {
             if selectedTables.isEmpty, let table = clickedTable {
                 selectedTables.insert(table)
             }

@@ -17,6 +17,13 @@ enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
+    var displayName: String {
+        switch self {
+        case .password: return String(localized: "Password")
+        case .privateKey: return String(localized: "Private Key")
+        }
+    }
+
     var iconName: String {
         switch self {
         case .password: return "key.fill"
@@ -63,11 +70,11 @@ enum SSLMode: String, CaseIterable, Identifiable, Codable {
 
     var description: String {
         switch self {
-        case .disabled: return "No SSL encryption"
-        case .preferred: return "Use SSL if available"
-        case .required: return "Require SSL, skip verification"
-        case .verifyCa: return "Verify server certificate"
-        case .verifyIdentity: return "Verify certificate and hostname"
+        case .disabled: return String(localized: "No SSL encryption")
+        case .preferred: return String(localized: "Use SSL if available")
+        case .required: return String(localized: "Require SSL, skip verification")
+        case .verifyCa: return String(localized: "Verify server certificate")
+        case .verifyIdentity: return String(localized: "Verify certificate and hostname")
         }
     }
 }
@@ -156,6 +163,20 @@ enum ConnectionColor: String, CaseIterable, Identifiable, Codable {
     case gray = "Gray"
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .none: return String(localized: "None")
+        case .red: return String(localized: "Red")
+        case .orange: return String(localized: "Orange")
+        case .yellow: return String(localized: "Yellow")
+        case .green: return String(localized: "Green")
+        case .blue: return String(localized: "Blue")
+        case .purple: return String(localized: "Purple")
+        case .pink: return String(localized: "Pink")
+        case .gray: return String(localized: "Gray")
+        }
+    }
 
     /// SwiftUI Color for display
     var color: Color {

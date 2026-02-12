@@ -120,7 +120,7 @@ struct ImportDialog: View {
     // MARK: - View Components
 
     private var fileSelectionView: some View {
-        Button(fileURL == nil ? "Select SQL File..." : "Change File") {
+        Button(fileURL == nil ? String(localized: "Select SQL File...") : String(localized: "Change File")) {
             selectFile()
         }
         .buttonStyle(.borderedProminent)
@@ -290,7 +290,7 @@ struct ImportDialog: View {
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
             !isDirectory.boolValue
         else {
-            filePreview = "Error: Selected path is not a regular file"
+            filePreview = String(localized: "Error: Selected path is not a regular file")
             return
         }
 
@@ -314,7 +314,7 @@ struct ImportDialog: View {
                 tempPreviewURL = urlToRead
             }
         } catch {
-            filePreview = "Failed to decompress file: \(error.localizedDescription)"
+            filePreview = String(localized: "Failed to decompress file: \(error.localizedDescription)")
             return
         }
 
@@ -337,13 +337,10 @@ struct ImportDialog: View {
                 filePreview = preview
             } else {
                 let encodingDescription = String(describing: config.encoding)
-                filePreview = """
-                    Failed to load preview using encoding: \(encodingDescription).
-                    Try selecting a different text encoding from the encoding picker and reload the preview.
-                    """
+                filePreview = String(localized: "Failed to load preview using encoding: \(encodingDescription). Try selecting a different text encoding from the encoding picker and reload the preview.")
             }
         } catch {
-            filePreview = "Failed to load preview: \(error.localizedDescription)"
+            filePreview = String(localized: "Failed to load preview: \(error.localizedDescription)")
         }
 
         // Count statements asynchronously

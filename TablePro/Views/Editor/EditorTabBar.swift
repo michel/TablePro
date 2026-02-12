@@ -47,23 +47,23 @@ struct EditorTabBar: View {
 
     @ViewBuilder
     private func tabContextMenu(for tab: QueryTab) -> some View {
-        Button("Duplicate Tab") {
+        Button(String(localized: "Duplicate Tab")) {
             tabManager.duplicateTab(tab)
         }
 
-        Button(tab.isPinned ? "Unpin Tab" : "Pin Tab") {
+        Button(tab.isPinned ? String(localized: "Unpin Tab") : String(localized: "Pin Tab")) {
             tabManager.togglePin(tab)
         }
 
         Divider()
 
         if !tab.isPinned {
-            Button("Close Tab") {
+            Button(String(localized: "Close Tab")) {
                 tabManager.closeTab(tab)
             }
         }
 
-        Button("Close Other Tabs") {
+        Button(String(localized: "Close Other Tabs")) {
             let kept = tabManager.tabs.filter { $0.id == tab.id || $0.isPinned }
             tabManager.tabs = kept.isEmpty ? [] : kept
             tabManager.selectedTabId = tab.id

@@ -492,12 +492,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let column = tableView.tableColumns[columnIndex]
         if column.identifier.rawValue == "__rowNumber__" { return }
 
-        let copyItem = NSMenuItem(title: "Copy Column Name", action: #selector(copyColumnName(_:)), keyEquivalent: "")
+        let copyItem = NSMenuItem(title: String(localized: "Copy Column Name"), action: #selector(copyColumnName(_:)), keyEquivalent: "")
         copyItem.representedObject = column.title
         copyItem.target = self
         menu.addItem(copyItem)
 
-        let filterItem = NSMenuItem(title: "Filter with column", action: #selector(filterWithColumn(_:)), keyEquivalent: "")
+        let filterItem = NSMenuItem(title: String(localized: "Filter with column"), action: #selector(filterWithColumn(_:)), keyEquivalent: "")
         filterItem.representedObject = column.title
         filterItem.target = self
         menu.addItem(filterItem)

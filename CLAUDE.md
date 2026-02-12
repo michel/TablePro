@@ -487,6 +487,7 @@ mint dev
 
 - **Never** use tabs for indentation (except Makefile/pbxproj)
 - **Always** run `swiftlint lint --strict` after making changes to verify compliance
+- **Always** use `String(localized:)` for new user-facing strings instead of hardcoding English text. The project uses Xcode String Catalogs (`Localizable.xcstrings`) for localization. SwiftUI view literals (`Text("literal")`, `Button("literal")`, etc.) auto-localize, but computed `String` properties, AppKit code (`NSMenuItem`, `.title`), alert messages, and error descriptions must use `String(localized: "text")`. Do NOT localize technical terms (font names, database types, SQL keywords, encoding names, format patterns).
 - **Always** update `CHANGELOG.md` when adding features, fixing bugs, or making notable changes. Add entries under the `[Unreleased]` section using the existing format (Added/Fixed/Changed subsections). This is **mandatory** — do not skip it.
 - **Always** update documentation when adding or changing features — this is a **mandatory** step, not optional. After implementing a feature, check the "When to Update Documentation" table above and update both English (`docs/`) and Vietnamese (`docs/vi/`) pages. Key docs to check:
   - New keyboard shortcuts → `features/keyboard-shortcuts.mdx`

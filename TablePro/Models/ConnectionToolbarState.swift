@@ -73,22 +73,22 @@ enum ToolbarConnectionState: Equatable {
     /// Human-readable description
     var description: String {
         switch self {
-        case .disconnected: return "Disconnected"
-        case .connecting: return "Connecting..."
-        case .connected: return "Connected"
-        case .executing: return "Executing..."
-        case .error(let message): return "Error: \(message)"
+        case .disconnected: return String(localized: "Disconnected")
+        case .connecting: return String(localized: "Connecting...")
+        case .connected: return String(localized: "Connected")
+        case .executing: return String(localized: "Executing...")
+        case .error(let message): return String(localized: "Error: \(message)")
         }
     }
 
     /// Short label for toolbar display
     var label: String {
         switch self {
-        case .disconnected: return "Disconnected"
-        case .connecting: return "Connecting"
-        case .connected: return "Connected"
-        case .executing: return "Executing"
-        case .error: return "Error"
+        case .disconnected: return String(localized: "Disconnected")
+        case .connecting: return String(localized: "Connecting")
+        case .connected: return String(localized: "Connected")
+        case .executing: return String(localized: "Executing")
+        case .error: return String(localized: "Error")
         }
     }
 
@@ -174,15 +174,15 @@ final class ConnectionToolbarState: ObservableObject {
         var parts: [String] = [connectionState.description]
 
         if let latency = latencyMs {
-            parts.append("Latency: \(latency)ms")
+            parts.append(String(localized: "Latency: \(latency)ms"))
         }
 
         if let lag = replicationLagSeconds {
-            parts.append("Replication lag: \(lag)s")
+            parts.append(String(localized: "Replication lag: \(lag)s"))
         }
 
         if isReadOnly {
-            parts.append("Read-only")
+            parts.append(String(localized: "Read-only"))
         }
 
         return parts.joined(separator: " • ")

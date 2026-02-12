@@ -46,10 +46,10 @@ struct LicenseSettingsView: View {
                 Button("Deactivate...") {
                     Task { @MainActor in
                         let confirmed = await AlertHelper.confirmDestructive(
-                            title: "Deactivate License?",
-                            message: "This will remove the license from this machine. You can reactivate later.",
-                            confirmButton: "Deactivate",
-                            cancelButton: "Cancel"
+                            title: String(localized: "Deactivate License?"),
+                            message: String(localized: "This will remove the license from this machine. You can reactivate later."),
+                            confirmButton: String(localized: "Deactivate"),
+                            cancelButton: String(localized: "Cancel")
                         )
 
                         if confirmed {
@@ -107,7 +107,7 @@ struct LicenseSettingsView: View {
             licenseKeyInput = ""
         } catch {
             AlertHelper.showErrorSheet(
-                title: "Activation Failed",
+                title: String(localized: "Activation Failed"),
                 message: error.localizedDescription,
                 window: NSApp.keyWindow
             )
@@ -119,7 +119,7 @@ struct LicenseSettingsView: View {
             try await licenseManager.deactivate()
         } catch {
             AlertHelper.showErrorSheet(
-                title: "Deactivation Failed",
+                title: String(localized: "Deactivation Failed"),
                 message: error.localizedDescription,
                 window: NSApp.keyWindow
             )

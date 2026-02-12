@@ -18,6 +18,7 @@ final class AppSettingsManager: ObservableObject {
 
     @Published var general: GeneralSettings {
         didSet {
+            general.language.apply()
             storage.saveGeneral(general)
             notifyChange(domain: "general", notification: .generalSettingsDidChange)
         }
@@ -82,6 +83,7 @@ final class AppSettingsManager: ObservableObject {
 
         // Apply appearance settings immediately
         appearance.theme.apply()
+        general.language.apply()
 
         // Load editor theme settings into cache (pass settings directly to avoid circular dependency)
         SQLEditorTheme.reloadFromSettings(editor)

@@ -71,13 +71,13 @@ enum DatabaseError: Error, LocalizedError {
         case .queryFailed(let message):
             return message
         case .invalidCredentials:
-            return "Invalid username or password"
+            return String(localized: "Invalid username or password")
         case .fileNotFound(let path):
-            return "Database file not found: \(path)"
+            return String(localized: "Database file not found: \(path)")
         case .notConnected:
-            return "Not connected to database"
+            return String(localized: "Not connected to database")
         case .unsupportedOperation:
-            return "This operation is not supported"
+            return String(localized: "This operation is not supported")
         }
     }
 }

@@ -98,7 +98,7 @@ struct ExportTableOutlineView: NSViewRepresentable {
             // SQL format: Name + 3 option columns
             // Total: 165 + 142 = 307px (prioritizes readability, allows scrolling)
             let nameColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
-            nameColumn.title = "Name"
+            nameColumn.title = String(localized: "Name")
             nameColumn.width = 165
             nameColumn.minWidth = 165
             nameColumn.maxWidth = 165
@@ -106,21 +106,21 @@ struct ExportTableOutlineView: NSViewRepresentable {
             outlineView.outlineTableColumn = nameColumn
 
             let structureColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("structure"))
-            structureColumn.title = "Structure"
+            structureColumn.title = String(localized: "Structure")
             structureColumn.width = 54
             structureColumn.minWidth = 54
             structureColumn.maxWidth = 54
             outlineView.addTableColumn(structureColumn)
 
             let dropColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("drop"))
-            dropColumn.title = "Drop"
+            dropColumn.title = String(localized: "Drop")
             dropColumn.width = 44
             dropColumn.minWidth = 44
             dropColumn.maxWidth = 44
             outlineView.addTableColumn(dropColumn)
 
             let dataColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("data"))
-            dataColumn.title = "Data"
+            dataColumn.title = String(localized: "Data")
             dataColumn.width = 44
             dataColumn.minWidth = 44
             dataColumn.maxWidth = 44
@@ -128,7 +128,7 @@ struct ExportTableOutlineView: NSViewRepresentable {
         } else {
             // CSV/JSON format: Single name column, truncates long names
             let nameColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("name"))
-            nameColumn.title = "Name"
+            nameColumn.title = String(localized: "Name")
             nameColumn.width = 200
             nameColumn.minWidth = 200
             nameColumn.maxWidth = 200

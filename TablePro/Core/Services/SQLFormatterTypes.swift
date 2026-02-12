@@ -50,13 +50,13 @@ enum SQLFormatterError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyInput:
-            return "Cannot format empty SQL"
+            return String(localized: "Cannot format empty SQL")
         case .dialectUnsupported(let type):
-            return "Formatting not supported for \(type.rawValue)"
+            return String(localized: "Formatting not supported for \(type.rawValue)")
         case .invalidCursorPosition(let pos, let max):
-            return "Cursor position \(pos) exceeds SQL length (\(max))"
+            return String(localized: "Cursor position \(pos) exceeds SQL length (\(max))")
         case .internalError(let message):
-            return "Formatter error: \(message)"
+            return String(localized: "Formatter error: \(message)")
         }
     }
 }
