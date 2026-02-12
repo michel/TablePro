@@ -120,7 +120,7 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
         item.toolTip = ToolbarItemIdentifier.newQueryTab.toolTip
 
         let button = NSButton(
-            title: "SQL",
+            title: String(localized: "SQL"),
             target: ToolbarActionProxy.shared,
             action: #selector(ToolbarActionProxy.newQueryTabAction)
         )

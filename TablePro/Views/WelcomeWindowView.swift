@@ -287,7 +287,7 @@ struct WelcomeWindowView: View {
                 // Show error to user and re-open welcome window
                 await MainActor.run {
                     AlertHelper.showErrorSheet(
-                        title: "Connection Failed",
+                        title: String(localized: "Connection Failed"),
                         message: error.localizedDescription,
                         window: nil
                     )

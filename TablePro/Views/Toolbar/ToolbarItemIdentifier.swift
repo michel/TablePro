@@ -59,32 +59,32 @@ enum ToolbarItemIdentifier: String, CaseIterable {
     /// Note: connectionStatus label is set dynamically based on connection name
     var label: String {
         switch self {
-        case .connectionSwitcher: return "Connection"
-        case .databaseSwitcher: return "Database"
-        case .newQueryTab: return "SQL"
-        case .refresh: return "Refresh"
+        case .connectionSwitcher: return String(localized: "Connection")
+        case .databaseSwitcher: return String(localized: "Database")
+        case .newQueryTab: return String(localized: "SQL")
+        case .refresh: return String(localized: "Refresh")
         case .connectionStatus: return "" // Set dynamically in ToolbarItemFactory
-        case .filterToggle: return "Filters"
-        case .historyToggle: return "History"
-        case .export: return "Export"
-        case .import: return "Import"
-        case .inspector: return "Inspector"
+        case .filterToggle: return String(localized: "Filters")
+        case .historyToggle: return String(localized: "History")
+        case .export: return String(localized: "Export")
+        case .import: return String(localized: "Import")
+        case .inspector: return String(localized: "Inspector")
         }
     }
 
     /// Label shown in customization palette
     var paletteLabel: String {
         switch self {
-        case .connectionSwitcher: return "Connection Switcher"
-        case .databaseSwitcher: return "Database Switcher"
-        case .newQueryTab: return "New Query Tab"
-        case .refresh: return "Refresh"
-        case .connectionStatus: return "Connection Status"
-        case .filterToggle: return "Toggle Filters"
-        case .historyToggle: return "Toggle History"
-        case .export: return "Export Data"
-        case .import: return "Import Data"
-        case .inspector: return "Toggle Inspector"
+        case .connectionSwitcher: return String(localized: "Connection Switcher")
+        case .databaseSwitcher: return String(localized: "Database Switcher")
+        case .newQueryTab: return String(localized: "New Query Tab")
+        case .refresh: return String(localized: "Refresh")
+        case .connectionStatus: return String(localized: "Connection Status")
+        case .filterToggle: return String(localized: "Toggle Filters")
+        case .historyToggle: return String(localized: "Toggle History")
+        case .export: return String(localized: "Export Data")
+        case .import: return String(localized: "Import Data")
+        case .inspector: return String(localized: "Toggle Inspector")
         }
     }
 
@@ -92,25 +92,25 @@ enum ToolbarItemIdentifier: String, CaseIterable {
     var toolTip: String {
         switch self {
         case .connectionSwitcher:
-            return "Switch Connection"
+            return String(localized: "Switch Connection")
         case .databaseSwitcher:
-            return "Switch Database (⌘K)"
+            return String(localized: "Switch Database (⌘K)")
         case .newQueryTab:
-            return "New Query Tab (⌘T)"
+            return String(localized: "New Query Tab (⌘T)")
         case .refresh:
-            return "Refresh (⌘R)"
+            return String(localized: "Refresh (⌘R)")
         case .connectionStatus:
-            return "Connection Status"
+            return String(localized: "Connection Status")
         case .filterToggle:
-            return "Toggle Filters (⌘F)"
+            return String(localized: "Toggle Filters (⌘F)")
         case .historyToggle:
-            return "Toggle Query History (⌘⇧H)"
+            return String(localized: "Toggle Query History (⌘⇧H)")
         case .export:
-            return "Export Data (⌘⇧E)"
+            return String(localized: "Export Data (⌘⇧E)")
         case .import:
-            return "Import Data (⌘⇧I)"
+            return String(localized: "Import Data (⌘⇧I)")
         case .inspector:
-            return "Toggle Inspector (⌘⌥B)"
+            return String(localized: "Toggle Inspector (⌘⌥B)")
         }
     }
 

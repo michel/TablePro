@@ -35,7 +35,7 @@ struct ExportCSVOptionsView: View {
 
             // Dropdowns section
             VStack(alignment: .leading, spacing: 10) {
-                optionRow("Delimiter") {
+                optionRow(String(localized: "Delimiter")) {
                     Picker("", selection: $options.delimiter) {
                         ForEach(CSVDelimiter.allCases) { delimiter in
                             Text(delimiter.displayName).tag(delimiter)
@@ -46,7 +46,7 @@ struct ExportCSVOptionsView: View {
                     .frame(width: 140, alignment: .trailing)
                 }
 
-                optionRow("Quote") {
+                optionRow(String(localized: "Quote")) {
                     Picker("", selection: $options.quoteHandling) {
                         ForEach(CSVQuoteHandling.allCases) { handling in
                             Text(handling.rawValue).tag(handling)
@@ -57,7 +57,7 @@ struct ExportCSVOptionsView: View {
                     .frame(width: 140, alignment: .trailing)
                 }
 
-                optionRow("Line break") {
+                optionRow(String(localized: "Line break")) {
                     Picker("", selection: $options.lineBreak) {
                         ForEach(CSVLineBreak.allCases) { lineBreak in
                             Text(lineBreak.rawValue).tag(lineBreak)
@@ -68,7 +68,7 @@ struct ExportCSVOptionsView: View {
                     .frame(width: 140, alignment: .trailing)
                 }
 
-                optionRow("Decimal") {
+                optionRow(String(localized: "Decimal")) {
                     Picker("", selection: $options.decimalFormat) {
                         ForEach(CSVDecimalFormat.allCases) { format in
                             Text(format.rawValue).tag(format)

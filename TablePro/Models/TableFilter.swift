@@ -48,24 +48,24 @@ enum FilterOperator: String, CaseIterable, Identifiable, Codable {
     /// Display name for UI
     var displayName: String {
         switch self {
-        case .equal: return "equals"
-        case .notEqual: return "not equals"
-        case .contains: return "contains"
-        case .notContains: return "not contains"
-        case .startsWith: return "starts with"
-        case .endsWith: return "ends with"
-        case .greaterThan: return "greater than"
-        case .greaterOrEqual: return "greater or equal"
-        case .lessThan: return "less than"
-        case .lessOrEqual: return "less or equal"
-        case .isNull: return "is NULL"
-        case .isNotNull: return "is not NULL"
-        case .isEmpty: return "is empty"
-        case .isNotEmpty: return "is not empty"
-        case .inList: return "in list"
-        case .notInList: return "not in list"
-        case .between: return "between"
-        case .regex: return "matches regex"
+        case .equal: return String(localized: "equals")
+        case .notEqual: return String(localized: "not equals")
+        case .contains: return String(localized: "contains")
+        case .notContains: return String(localized: "not contains")
+        case .startsWith: return String(localized: "starts with")
+        case .endsWith: return String(localized: "ends with")
+        case .greaterThan: return String(localized: "greater than")
+        case .greaterOrEqual: return String(localized: "greater or equal")
+        case .lessThan: return String(localized: "less than")
+        case .lessOrEqual: return String(localized: "less or equal")
+        case .isNull: return String(localized: "is NULL")
+        case .isNotNull: return String(localized: "is not NULL")
+        case .isEmpty: return String(localized: "is empty")
+        case .isNotEmpty: return String(localized: "is not empty")
+        case .inList: return String(localized: "in list")
+        case .notInList: return String(localized: "not in list")
+        case .between: return String(localized: "between")
+        case .regex: return String(localized: "matches regex")
         }
     }
 }
@@ -128,21 +128,21 @@ struct TableFilter: Identifiable, Equatable, Codable {
     var validationError: String? {
         if columnName == Self.rawSQLColumn {
             if rawSQL?.isEmpty ?? true {
-                return "Raw SQL cannot be empty"
+                return String(localized: "Raw SQL cannot be empty")
             }
             return nil
         }
 
         if columnName.isEmpty {
-            return "Please select a column"
+            return String(localized: "Please select a column")
         }
 
         if filterOperator.requiresValue {
             if value.isEmpty {
-                return "Value is required"
+                return String(localized: "Value is required")
             }
             if filterOperator.requiresSecondValue && (secondValue?.isEmpty ?? true) {
-                return "Second value is required for BETWEEN"
+                return String(localized: "Second value is required for BETWEEN")
             }
         }
 

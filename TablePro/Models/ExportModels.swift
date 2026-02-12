@@ -63,6 +63,14 @@ enum CSVQuoteHandling: String, CaseIterable, Identifiable {
     case never = "Never"
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .always: return String(localized: "Always")
+        case .asNeeded: return String(localized: "Quote if needed")
+        case .never: return String(localized: "Never")
+        }
+    }
 }
 
 /// Line break format for CSV export

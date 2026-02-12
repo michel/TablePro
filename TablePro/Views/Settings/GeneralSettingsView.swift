@@ -11,9 +11,33 @@ import SwiftUI
 struct GeneralSettingsView: View {
     @Binding var settings: GeneralSettings
     @ObservedObject var updaterBridge: UpdaterBridge
+    @State private var initialLanguage: AppLanguage?
+
+    private static let standardTimeouts = [10, 20, 30, 40, 50, 60, 90, 120, 180, 300, 600]
+
+    /// Timeout options including the current value if it's non-standard
+    private var queryTimeoutOptions: [Int] {
+        let current = settings.queryTimeoutSeconds
+        if current > 0, !Self.standardTimeouts.contains(current) {
+            return (Self.standardTimeouts + [current]).sorted()
+        }
+        return Self.standardTimeouts
+    }
 
     var body: some View {
         Form {
+            Picker("Language:", selection: $settings.language) {
+                ForEach(AppLanguage.allCases) { lang in
+                    Text(lang.displayName).tag(lang)
+                }
+            }
+
+            if let initial = initialLanguage, settings.language != initial {
+                Text("Restart TablePro for the language change to take full effect.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Picker("When TablePro starts:", selection: $settings.startupBehavior) {
                 ForEach(StartupBehavior.allCases) { behavior in
                     Text(behavior.displayName).tag(behavior)
@@ -23,7 +47,7 @@ struct GeneralSettingsView: View {
             Section("Query Execution") {
                 Picker("Query timeout:", selection: $settings.queryTimeoutSeconds) {
                     Text("No limit").tag(0)
-                    ForEach([10, 20, 30, 40, 50, 60, 90, 120, 180, 300, 600], id: \.self) { seconds in
+                    ForEach(queryTimeoutOptions, id: \.self) { seconds in
                         Text("\(seconds) seconds").tag(seconds)
                     }
                 }
@@ -45,6 +69,9 @@ struct GeneralSettingsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .onAppear {
+            if initialLanguage == nil {
+                initialLanguage = settings.language
+            }
             updaterBridge.updater.automaticallyChecksForUpdates = settings.automaticallyCheckForUpdates
         }
     }

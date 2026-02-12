@@ -94,7 +94,7 @@ final class ForeignKeyPopoverController: NSObject, NSPopoverDelegate {
             x: 8, y: height - 36,
             width: Self.popoverWidth - 16, height: 28
         ))
-        search.placeholderString = "Search..."
+        search.placeholderString = String(localized: "Search...")
         search.font = .systemFont(ofSize: 13)
         search.target = self
         search.action = #selector(searchChanged)

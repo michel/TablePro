@@ -20,10 +20,10 @@ extension MainContentCoordinator {
 
         let message = dangerousQueryMessage(for: sql)
         return await AlertHelper.confirmCritical(
-            title: "Potentially Dangerous Query",
+            title: String(localized: "Potentially Dangerous Query"),
             message: message,
-            confirmButton: "Execute",
-            cancelButton: "Cancel"
+            confirmButton: String(localized: "Execute"),
+            cancelButton: String(localized: "Cancel")
         )
     }
 
@@ -32,14 +32,14 @@ extension MainContentCoordinator {
         let uppercased = sql.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
         if uppercased.hasPrefix("DROP ") {
-            return "This DROP query will permanently remove database objects. This action cannot be undone."
+            return String(localized: "This DROP query will permanently remove database objects. This action cannot be undone.")
         } else if uppercased.hasPrefix("TRUNCATE ") {
-            return "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone."
+            return String(localized: "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone.")
         } else if uppercased.hasPrefix("DELETE ") {
-            return "This DELETE query has no WHERE clause and will delete ALL rows in the table. This action cannot be undone."
+            return String(localized: "This DELETE query has no WHERE clause and will delete ALL rows in the table. This action cannot be undone.")
         }
 
-        return "This query may permanently modify or delete data."
+        return String(localized: "This query may permanently modify or delete data.")
     }
 
     // MARK: - Discard Changes Confirmation
@@ -50,10 +50,10 @@ extension MainContentCoordinator {
     func confirmDiscardChanges(action: DiscardAction) async -> Bool {
         let message = discardMessage(for: action)
         return await AlertHelper.confirmDestructive(
-            title: "Discard Unsaved Changes?",
+            title: String(localized: "Discard Unsaved Changes?"),
             message: message,
-            confirmButton: "Discard",
-            cancelButton: "Cancel"
+            confirmButton: String(localized: "Discard"),
+            cancelButton: String(localized: "Cancel")
         )
     }
 
@@ -61,9 +61,9 @@ extension MainContentCoordinator {
     private func discardMessage(for action: DiscardAction) -> String {
         switch action {
         case .refresh, .refreshAll:
-            return "Refreshing will discard all unsaved changes."
+            return String(localized: "Refreshing will discard all unsaved changes.")
         case .closeTab:
-            return "Closing this tab will discard all unsaved changes."
+            return String(localized: "Closing this tab will discard all unsaved changes.")
         }
     }
 
@@ -75,7 +75,7 @@ extension MainContentCoordinator {
     ///   - window: Parent window (optional)
     func showQueryError(_ error: Error, window: NSWindow?) {
         AlertHelper.showErrorSheet(
-            title: "Query Execution Failed",
+            title: String(localized: "Query Execution Failed"),
             message: error.localizedDescription,
             window: window
         )
@@ -87,7 +87,7 @@ extension MainContentCoordinator {
     ///   - window: Parent window (optional)
     func showSaveError(_ error: Error, window: NSWindow?) {
         AlertHelper.showErrorSheet(
-            title: "Failed to Save Changes",
+            title: String(localized: "Failed to Save Changes"),
             message: error.localizedDescription,
             window: window
         )

@@ -21,7 +21,9 @@ struct ExportProgressView: View {
     var body: some View {
         VStack(spacing: 20) {
             // Title
-            Text(totalTables > 1 ? "Export multiple tables" : "Export table")
+            Text(totalTables > 1
+                ? String(localized: "Export multiple tables")
+                : String(localized: "Export table"))
                 .font(.system(size: 15, weight: .semibold))
 
             // Table info and row count

@@ -51,11 +51,14 @@ struct QuerySuccessView: View {
 
     private func formatExecutionTime(_ time: TimeInterval) -> String {
         if time < 0.001 {
-            return String(format: "%.3f ms", time * 1_000)
+            let ms = String(format: "%.3f", time * 1_000)
+            return String(localized: "\(ms) ms")
         } else if time < 1 {
-            return String(format: "%.2f ms", time * 1_000)
+            let ms = String(format: "%.2f", time * 1_000)
+            return String(localized: "\(ms) ms")
         } else {
-            return String(format: "%.2f s", time)
+            let secs = String(format: "%.2f", time)
+            return String(localized: "\(secs) s")
         }
     }
 }

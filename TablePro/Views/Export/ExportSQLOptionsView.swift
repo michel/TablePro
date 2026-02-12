@@ -36,7 +36,7 @@ struct ExportSQLOptionsView: View {
 
                 Picker("", selection: $options.batchSize) {
                     ForEach(Self.batchSizeOptions, id: \.self) { size in
-                        Text(size == 1 ? "1 (no batching)" : "\(size)")
+                        Text(size == 1 ? String(localized: "1 (no batching)") : "\(size)")
                             .tag(size)
                     }
                 }

@@ -29,7 +29,7 @@ final class TableRowViewWithMenu: NSTableRowView {
 
         if coordinator.changeManager.isRowDeleted(rowIndex) {
             menu.addItem(
-                withTitle: "Undo Delete", action: #selector(undoDeleteRow), keyEquivalent: ""
+                withTitle: String(localized: "Undo Delete"), action: #selector(undoDeleteRow), keyEquivalent: ""
             ).target = self
         }
 
@@ -40,24 +40,24 @@ final class TableRowViewWithMenu: NSTableRowView {
                 let setValueMenu = NSMenu()
 
                 let emptyItem = NSMenuItem(
-                    title: "Empty", action: #selector(setEmptyValue(_:)), keyEquivalent: "")
+                    title: String(localized: "Empty"), action: #selector(setEmptyValue(_:)), keyEquivalent: "")
                 emptyItem.representedObject = dataColumnIndex
                 emptyItem.target = self
                 setValueMenu.addItem(emptyItem)
 
                 let nullItem = NSMenuItem(
-                    title: "NULL", action: #selector(setNullValue(_:)), keyEquivalent: "")
+                    title: String(localized: "NULL"), action: #selector(setNullValue(_:)), keyEquivalent: "")
                 nullItem.representedObject = dataColumnIndex
                 nullItem.target = self
                 setValueMenu.addItem(nullItem)
 
                 let defaultItem = NSMenuItem(
-                    title: "Default", action: #selector(setDefaultValue(_:)), keyEquivalent: "")
+                    title: String(localized: "Default"), action: #selector(setDefaultValue(_:)), keyEquivalent: "")
                 defaultItem.representedObject = dataColumnIndex
                 defaultItem.target = self
                 setValueMenu.addItem(defaultItem)
 
-                let setValueItem = NSMenuItem(title: "Set Value", action: nil, keyEquivalent: "")
+                let setValueItem = NSMenuItem(title: String(localized: "Set Value"), action: nil, keyEquivalent: "")
                 setValueItem.submenu = setValueMenu
                 menu.addItem(setValueItem)
 
@@ -67,7 +67,7 @@ final class TableRowViewWithMenu: NSTableRowView {
             // Copy actions
             if dataColumnIndex >= 0 {
                 let copyCellItem = NSMenuItem(
-                    title: "Copy Cell Value", action: #selector(copyCellValue(_:)),
+                    title: String(localized: "Copy Cell Value"), action: #selector(copyCellValue(_:)),
                     keyEquivalent: "")
                 copyCellItem.representedObject = dataColumnIndex
                 copyCellItem.target = self
@@ -75,14 +75,14 @@ final class TableRowViewWithMenu: NSTableRowView {
             }
 
             let copyItem = NSMenuItem(
-                title: "Copy", action: #selector(copySelectedOrCurrentRow), keyEquivalent: "c")
+                title: String(localized: "Copy"), action: #selector(copySelectedOrCurrentRow), keyEquivalent: "c")
             copyItem.keyEquivalentModifierMask = .command
             copyItem.target = self
             menu.addItem(copyItem)
 
             if coordinator.isEditable {
                 let pasteItem = NSMenuItem(
-                    title: "Paste", action: #selector(pasteRows), keyEquivalent: "v")
+                    title: String(localized: "Paste"), action: #selector(pasteRows), keyEquivalent: "v")
                 pasteItem.keyEquivalentModifierMask = .command
                 pasteItem.target = self
                 menu.addItem(pasteItem)
@@ -90,13 +90,13 @@ final class TableRowViewWithMenu: NSTableRowView {
                 menu.addItem(NSMenuItem.separator())
 
                 let duplicateItem = NSMenuItem(
-                    title: "Duplicate", action: #selector(duplicateRow), keyEquivalent: "d")
+                    title: String(localized: "Duplicate"), action: #selector(duplicateRow), keyEquivalent: "d")
                 duplicateItem.keyEquivalentModifierMask = .command
                 duplicateItem.target = self
                 menu.addItem(duplicateItem)
 
                 let deleteItem = NSMenuItem(
-                    title: "Delete",
+                    title: String(localized: "Delete"),
                     action: #selector(deleteRow),
                     keyEquivalent: String(UnicodeScalar(NSBackspaceCharacter).map { Character($0) } ?? "\u{8}")
                 )

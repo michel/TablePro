@@ -482,7 +482,7 @@ final class MainContentCoordinator: ObservableObject {
 
                     // Show error alert to user
                     AlertHelper.showErrorSheet(
-                        title: "Query Execution Failed",
+                        title: String(localized: "Query Execution Failed"),
                         message: error.localizedDescription,
                         window: NSApp.keyWindow
                     )
@@ -1116,7 +1116,7 @@ final class MainContentCoordinator: ObservableObject {
 
                     // Show error alert to user
                     AlertHelper.showErrorSheet(
-                        title: "Save Failed",
+                        title: String(localized: "Save Failed"),
                         message: error.localizedDescription,
                         window: NSApplication.shared.keyWindow
                     )

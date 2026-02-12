@@ -444,7 +444,7 @@ struct MainContentView: View {
 
                 // Show error alert to user
                 AlertHelper.showErrorSheet(
-                    title: "Save Failed",
+                    title: String(localized: "Save Failed"),
                     message: error.localizedDescription,
                     window: NSApplication.shared.keyWindow
                 )
@@ -543,7 +543,7 @@ struct MainContentView: View {
         } catch {
             // Show error using macOS alert
             AlertHelper.showErrorSheet(
-                title: "Failed to Save Changes",
+                title: String(localized: "Failed to Save Changes"),
                 message: error.localizedDescription,
                 window: nil
             )

@@ -72,7 +72,7 @@ struct ConnectionFormView: View {
             // Header
             HStack {
                 Spacer()
-                Text(isNew ? "New Connection" : "Edit Connection")
+                Text(isNew ? String(localized: "New Connection") : String(localized: "Edit Connection"))
                     .font(.headline)
                 Spacer()
             }
@@ -197,7 +197,7 @@ struct ConnectionFormView: View {
                 }
 
                 FormField(
-                    label: type == .sqlite ? "File Path" : "Database",
+                    label: type == .sqlite ? String(localized: "File Path") : String(localized: "Database"),
                     icon: type == .sqlite ? "doc" : "cylinder"
                 ) {
                     HStack {
@@ -468,7 +468,7 @@ struct ConnectionFormView: View {
                 }
 
                 // Save
-                Button(isNew ? "Create" : "Save") {
+                Button(isNew ? String(localized: "Create") : String(localized: "Save")) {
                     saveConnection()
                 }
                 .keyboardShortcut(.return)
@@ -712,7 +712,7 @@ struct ConnectionFormView: View {
                     testConn, sshPassword: sshPassword)
                 await MainActor.run {
                     isTesting = false
-                    testResult = success ? .success : .failure("Connection test failed")
+                    testResult = success ? .success : .failure(String(localized: "Connection test failed"))
                 }
             } catch {
                 await MainActor.run {

@@ -105,7 +105,7 @@ struct CreateDatabaseSheet: View {
 
                 Spacer()
 
-                Button(isCreating ? "Creating..." : "Create") {
+                Button(isCreating ? String(localized: "Creating...") : String(localized: "Create")) {
                     createDatabase()
                 }
                 .buttonStyle(.borderedProminent)

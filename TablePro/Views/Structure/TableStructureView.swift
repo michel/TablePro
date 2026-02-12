@@ -522,7 +522,7 @@ struct TableStructureView: View {
         } catch {
             isReloadingAfterSave = false  // Clear flag on error
             AlertHelper.showErrorSheet(
-                title: "Error Applying Changes",
+                title: String(localized: "Error Applying Changes"),
                 message: error.localizedDescription,
                 window: nil
             )
@@ -764,10 +764,10 @@ struct TableStructureView: View {
             // Show confirmation dialog
             Task { @MainActor in
                 let confirmed = await AlertHelper.confirmDestructive(
-                    title: "Discard Changes?",
-                    message: "You have unsaved changes to the table structure. Refreshing will discard these changes.",
-                    confirmButton: "Discard",
-                    cancelButton: "Cancel"
+                    title: String(localized: "Discard Changes?"),
+                    message: String(localized: "You have unsaved changes to the table structure. Refreshing will discard these changes."),
+                    confirmButton: String(localized: "Discard"),
+                    cancelButton: String(localized: "Cancel")
                 )
 
                 if confirmed {

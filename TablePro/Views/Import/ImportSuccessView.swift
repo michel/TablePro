@@ -26,7 +26,8 @@ struct ImportSuccessView: View {
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
 
-                    Text(String(format: "%.2f seconds", result.executionTime))
+                    let formattedTime = String(format: "%.2f", result.executionTime)
+                    Text(String(localized: "\(formattedTime) seconds"))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                 }
