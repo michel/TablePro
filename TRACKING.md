@@ -125,18 +125,13 @@
 | `Core/Autocomplete/SQLContextAnalyzer.swift` | 177, 185, 193, 201 | `try!` on fallback regex — guarded by `assertionFailure` + `try?` primary |
 | `Core/Services/LicenseAPIClient.swift` | 18 | Hardcoded URL — always valid, SwiftLint disabled |
 
-### Print Statements (3 remaining)
+### ~~Print Statements (3 remaining)~~ DONE
 
-| File | Line | Context |
-|------|------|---------|
-| `Core/KeyboardHandling/ResponderChainActions.swift` | 174 | In documentation comment example |
-| `Views/DatabaseSwitcher/DatabaseSwitcherSheet.swift` | 437, 446 | In `#Preview` blocks only |
+- **Resolution:** Replaced `print()` with `logger.debug()` in documentation example (ResponderChainActions.swift); removed `print()` from `#Preview` blocks (DatabaseSwitcherSheet.swift)
 
-### Anti-Patterns
+### ~~Anti-Patterns~~ DONE
 
-| File | Issue | Fix |
-|------|-------|-----|
-| `Core/KeyboardHandling/ResponderChainActions.swift:187` | `.count > 0` instead of `!isEmpty` | Replace with `!selectedRowIndexes.isEmpty` |
+- **Resolution:** Replaced `.count > 0` with `!.isEmpty` in documentation example; replaced 12 `filter { }.count` patterns with `count(where:)` across 7 files (DataChangeManager, RowOperationsManager, FilterState, QueryTab, ExportModels)
 
 ### Large Files Approaching Limits
 
@@ -158,8 +153,8 @@
 |---------|----------|--------|-------|
 | Stored Procedure/Function Browser | HIGH | Large | No sidebar section, no `information_schema.routines` query |
 | Trigger Management | HIGH | Medium | No triggers tab in TableStructureView |
-| Enum Column Editor | HIGH | Small | Enum type recognized (MySQL code 247) but no dropdown UI |
-| File-based CSV/JSON Import | HIGH | Medium | Clipboard CSV paste works, no file picker dialog |
+| ~~Enum Column Editor~~ | ~~HIGH~~ | ~~Small~~ | **DONE** — Searchable dropdown for ENUM, multi-select checkbox for SET, with PostgreSQL `pg_enum` + SQLite CHECK constraint support |
+| File-based CSV/JSON Import | HIGH | Medium | SQL file import exists (`ImportDialog`), but no CSV/JSON file import yet (clipboard CSV paste works) |
 
 ### Tier 2 — High-Priority Gaps (Weekly Developer Use)
 
@@ -245,7 +240,7 @@
 |---|-------|----------|---------|
 | 1 | Changelog missing v0.2.0 | CRITICAL | `docs/changelog.mdx` only has v0.1.1 |
 | 2 | 41 screenshot images missing | WARNING | Referenced in docs but files don't exist |
-| 3 | README.md is Mintlify boilerplate | INFO | Template text, not project-specific |
+| ~~3~~ | ~~README.md is Mintlify boilerplate~~ | ~~INFO~~ | **DONE** — Replaced with project-specific content |
 
 ### Missing v0.2.0 Features from Docs Changelog
 The following v0.2.0 features are documented on feature pages but missing from changelog:
@@ -322,7 +317,7 @@ The following v0.2.0 features are documented on feature pages but missing from c
 ### v0.3.0 — Database Object Management (3-4 weeks)
 - [ ] Stored procedure/function browser
 - [ ] Trigger management UI
-- [ ] Enum column editor dropdown
+- [x] Enum column editor dropdown
 - [ ] File-based CSV import dialog
 - [ ] Fix SQLite ALTER TABLE limitations
 
@@ -345,7 +340,7 @@ The following v0.2.0 features are documented on feature pages but missing from c
 2. Add rate limiting to API endpoints
 3. Fix admin panel authorization (`canAccessPanel`)
 4. Replace `fatalError` calls with proper error handling
-5. Fix `.count > 0` anti-pattern in ResponderChainActions
+5. ~~Fix `.count > 0` anti-pattern in ResponderChainActions~~ DONE
 6. Clean up git (remove build log, update .gitignore)
 
 ---
