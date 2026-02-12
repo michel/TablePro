@@ -485,8 +485,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/CodeEditApp/CodeEditSourceEditor.git";
 			requirement = {
-				kind = upToNextMinorVersion;
-				minimumVersion = 0.15.2;
+				branch = main;
+				kind = branch;
 			};
 		};
 		5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
