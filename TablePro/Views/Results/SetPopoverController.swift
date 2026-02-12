@@ -6,6 +6,77 @@
 //
 
 import AppKit
+import Combine
+import SwiftUI
+
+// MARK: - SwiftUI State
+
+private final class SetPopoverState: ObservableObject {
+    @Published var selections: [String: Bool]
+    let allowedValues: [String]
+    var onCommit: ((String?) -> Void)?
+    var dismiss: (() -> Void)?
+
+    init(allowedValues: [String], selections: [String: Bool]) {
+        self.allowedValues = allowedValues
+        self.selections = selections
+    }
+}
+
+// MARK: - SwiftUI Content View
+
+private struct SetPopoverContentView: View {
+    @ObservedObject var state: SetPopoverState
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(state.allowedValues, id: \.self) { value in
+                        Toggle(
+                            value,
+                            isOn: Binding(
+                                get: { state.selections[value] ?? false },
+                                set: { state.selections[value] = $0 }
+                            )
+                        )
+                        .toggleStyle(.checkbox)
+                        .font(.system(size: 12, design: .monospaced))
+                    }
+                }
+                .padding(12)
+            }
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    state.dismiss?()
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Button("OK") {
+                    commitAndDismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+        .frame(width: 260)
+        .frame(maxHeight: 360)
+    }
+
+    private func commitAndDismiss() {
+        let selected = state.allowedValues.filter { state.selections[$0] == true }
+        let result = selected.isEmpty ? nil : selected.joined(separator: ",")
+        state.onCommit?(result)
+        state.dismiss?()
+    }
+}
+
+// MARK: - Controller
 
 /// Manages showing a checkbox popover for editing SET cells (multi-select)
 @MainActor
@@ -13,15 +84,8 @@ final class SetPopoverController: NSObject, NSPopoverDelegate {
     static let shared = SetPopoverController()
 
     private var popover: NSPopover?
-    private var checkboxes: [NSButton] = []
-    private var onCommit: ((String?) -> Void)?
+    private var state: SetPopoverState?
     private var keyMonitor: Any?
-
-    private static let popoverWidth: CGFloat = 260
-    private static let popoverMaxHeight: CGFloat = 360
-    private static let checkboxHeight: CGFloat = 22
-    private static let buttonAreaHeight: CGFloat = 44
-    private static let padding: CGFloat = 12
 
     func show(
         relativeTo bounds: NSRect,
@@ -32,36 +96,42 @@ final class SetPopoverController: NSObject, NSPopoverDelegate {
     ) {
         popover?.close()
 
-        self.onCommit = onCommit
-
         // Parse current value to determine checked state
         let currentSet: Set<String>
         if let value = currentValue {
-            currentSet = Set(value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+            currentSet = Set(
+                value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            )
         } else {
             currentSet = []
         }
 
-        // Build UI
-        let contentView = buildContentView(allowedValues: allowedValues, currentSet: currentSet)
+        var selections: [String: Bool] = [:]
+        for value in allowedValues {
+            selections[value] = currentSet.contains(value)
+        }
 
-        let viewController = NSViewController()
-        viewController.view = contentView
-
-        // Calculate height
-        let checkboxesHeight = CGFloat(allowedValues.count) * Self.checkboxHeight
-        let totalHeight = min(
-            Self.padding + checkboxesHeight + Self.buttonAreaHeight,
-            Self.popoverMaxHeight
+        // Create SwiftUI state and view
+        let popoverState = SetPopoverState(
+            allowedValues: allowedValues,
+            selections: selections
         )
+        popoverState.onCommit = onCommit
+        self.state = popoverState
+
+        let contentView = SetPopoverContentView(state: popoverState)
+        let hostingController = NSHostingController(rootView: contentView)
 
         let pop = NSPopover()
-        pop.contentViewController = viewController
-        pop.contentSize = NSSize(width: Self.popoverWidth, height: totalHeight)
+        pop.contentViewController = hostingController
         pop.behavior = .semitransient
         pop.delegate = self
         pop.show(relativeTo: bounds, of: view, preferredEdge: .maxY)
         popover = pop
+
+        popoverState.dismiss = { [weak self] in
+            self?.popover?.close()
+        }
 
         // Keyboard monitor
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -78,123 +148,16 @@ final class SetPopoverController: NSObject, NSPopoverDelegate {
         }
     }
 
-    // MARK: - UI Building
-
-    private func buildContentView(allowedValues: [String], currentSet: Set<String>) -> NSView {
-        let checkboxesHeight = CGFloat(allowedValues.count) * Self.checkboxHeight
-        let totalHeight = min(
-            Self.padding + checkboxesHeight + Self.buttonAreaHeight,
-            Self.popoverMaxHeight
-        )
-
-        let container = NSView(frame: NSRect(
-            x: 0, y: 0,
-            width: Self.popoverWidth,
-            height: totalHeight
-        ))
-
-        // Scroll view for checkboxes
-        let scrollViewHeight = totalHeight - Self.buttonAreaHeight
-        let scrollView = NSScrollView(frame: NSRect(
-            x: 0, y: Self.buttonAreaHeight,
-            width: Self.popoverWidth,
-            height: scrollViewHeight
-        ))
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.borderType = .noBorder
-        scrollView.autoresizingMask = [.width, .height]
-
-        // Document view for checkboxes
-        let documentHeight = max(checkboxesHeight + Self.padding, scrollViewHeight)
-        let documentView = NSView(frame: NSRect(
-            x: 0, y: 0,
-            width: Self.popoverWidth,
-            height: documentHeight
-        ))
-
-        // Create checkboxes
-        checkboxes = []
-        for (index, value) in allowedValues.enumerated() {
-            let yPosition = documentHeight - Self.padding - CGFloat(index + 1) * Self.checkboxHeight
-            let checkbox = NSButton(checkboxWithTitle: value, target: nil, action: nil)
-            checkbox.frame = NSRect(
-                x: Self.padding,
-                y: yPosition,
-                width: Self.popoverWidth - Self.padding * 2,
-                height: Self.checkboxHeight
-            )
-            checkbox.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-            checkbox.state = currentSet.contains(value) ? .on : .off
-            documentView.addSubview(checkbox)
-            checkboxes.append(checkbox)
-        }
-
-        scrollView.documentView = documentView
-        container.addSubview(scrollView)
-
-        // Button area (OK / Cancel)
-        let buttonAreaView = NSView(frame: NSRect(
-            x: 0, y: 0,
-            width: Self.popoverWidth,
-            height: Self.buttonAreaHeight
-        ))
-
-        // Separator line
-        let separator = NSBox(frame: NSRect(
-            x: 0, y: Self.buttonAreaHeight - 1,
-            width: Self.popoverWidth, height: 1
-        ))
-        separator.boxType = .separator
-        separator.autoresizingMask = [.width, .minYMargin]
-        buttonAreaView.addSubview(separator)
-
-        // OK button
-        let okButton = NSButton(title: "OK", target: self, action: #selector(okClicked))
-        okButton.bezelStyle = .rounded
-        okButton.keyEquivalent = "\r"
-        okButton.frame = NSRect(
-            x: Self.popoverWidth - 80 - Self.padding,
-            y: 8,
-            width: 80,
-            height: 28
-        )
-        buttonAreaView.addSubview(okButton)
-
-        // Cancel button
-        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(cancelClicked))
-        cancelButton.bezelStyle = .rounded
-        cancelButton.keyEquivalent = "\u{1b}" // Escape
-        cancelButton.frame = NSRect(
-            x: Self.popoverWidth - 80 - Self.padding - 84,
-            y: 8,
-            width: 80,
-            height: 28
-        )
-        buttonAreaView.addSubview(cancelButton)
-
-        container.addSubview(buttonAreaView)
-
-        return container
-    }
-
     // MARK: - Actions
 
-    @objc private func okClicked() {
-        commitSelection()
-    }
-
-    @objc private func cancelClicked() {
-        popover?.close()
-    }
-
     private func commitSelection() {
-        let selectedValues = checkboxes
-            .filter { $0.state == .on }
-            .map { $0.title }
-
-        let result = selectedValues.isEmpty ? nil : selectedValues.joined(separator: ",")
-        onCommit?(result)
+        guard let state = state else {
+            popover?.close()
+            return
+        }
+        let selected = state.allowedValues.filter { state.selections[$0] == true }
+        let result = selected.isEmpty ? nil : selected.joined(separator: ",")
+        state.onCommit?(result)
         popover?.close()
     }
 
@@ -209,8 +172,7 @@ final class SetPopoverController: NSObject, NSPopoverDelegate {
             NSEvent.removeMonitor(monitor)
             keyMonitor = nil
         }
-        checkboxes = []
-        onCommit = nil
+        state = nil
         popover = nil
     }
 }
