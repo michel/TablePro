@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Migrate `Libs/*.a` static libraries to Git LFS tracking to reduce repository clone size
 - Remove stale `.gitignore` entries for architecture-specific MariaDB libraries
+- Replace `filter { }.count` with `count(where:)` across 7 files for more efficient collection counting
+- Replace `print()` with `Logger` in documentation examples and remove from `#Preview` blocks
+- Replace `.count > 0` with `!.isEmpty` in documentation example
 
 ### Fixed
 
