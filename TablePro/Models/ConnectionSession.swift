@@ -11,6 +11,8 @@ import Foundation
 struct ConnectionSession: Identifiable {
     let id: UUID  // Same as connection.id
     var connection: DatabaseConnection  // Made var to allow database switching
+    /// The connection used to create the driver (may differ from `connection` for SSH tunneled connections)
+    var effectiveConnection: DatabaseConnection?
     var driver: DatabaseDriver?
     var status: ConnectionStatus = .disconnected
     var lastError: String?

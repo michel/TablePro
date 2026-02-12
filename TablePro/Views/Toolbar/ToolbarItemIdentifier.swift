@@ -24,6 +24,9 @@ enum ToolbarItemIdentifier: String, CaseIterable {
     /// Refresh current view/query
     case refresh = "com.TablePro.toolbar.refresh"
 
+    /// Reconnect to database when connection is lost
+    case reconnect = "com.TablePro.toolbar.reconnect"
+
     // MARK: - Center Section (Principal)
 
     /// Connection status display (tag + connection info + execution indicator)
@@ -63,6 +66,7 @@ enum ToolbarItemIdentifier: String, CaseIterable {
         case .databaseSwitcher: return String(localized: "Database")
         case .newQueryTab: return String(localized: "SQL")
         case .refresh: return String(localized: "Refresh")
+        case .reconnect: return String(localized: "Reconnect")
         case .connectionStatus: return "" // Set dynamically in ToolbarItemFactory
         case .filterToggle: return String(localized: "Filters")
         case .historyToggle: return String(localized: "History")
@@ -79,6 +83,7 @@ enum ToolbarItemIdentifier: String, CaseIterable {
         case .databaseSwitcher: return String(localized: "Database Switcher")
         case .newQueryTab: return String(localized: "New Query Tab")
         case .refresh: return String(localized: "Refresh")
+        case .reconnect: return String(localized: "Reconnect to Database")
         case .connectionStatus: return String(localized: "Connection Status")
         case .filterToggle: return String(localized: "Toggle Filters")
         case .historyToggle: return String(localized: "Toggle History")
@@ -99,6 +104,8 @@ enum ToolbarItemIdentifier: String, CaseIterable {
             return String(localized: "New Query Tab (⌘T)")
         case .refresh:
             return String(localized: "Refresh (⌘R)")
+        case .reconnect:
+            return String(localized: "Reconnect to Database")
         case .connectionStatus:
             return String(localized: "Connection Status")
         case .filterToggle:
@@ -125,6 +132,8 @@ enum ToolbarItemIdentifier: String, CaseIterable {
             return "doc.text"
         case .refresh:
             return "arrow.clockwise"
+        case .reconnect:
+            return "arrow.triangle.2.circlepath"
         case .connectionStatus:
             return "info.circle"  // Not used (custom view)
         case .filterToggle:

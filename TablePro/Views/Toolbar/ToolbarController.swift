@@ -103,6 +103,7 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
             ToolbarItemIdentifier.databaseSwitcher.nsIdentifier,
             ToolbarItemIdentifier.newQueryTab.nsIdentifier,
             ToolbarItemIdentifier.refresh.nsIdentifier,
+            ToolbarItemIdentifier.reconnect.nsIdentifier,
             .flexibleSpace,
             ToolbarItemIdentifier.connectionStatus.nsIdentifier,
             .flexibleSpace,
@@ -157,6 +158,15 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
         case .refresh:
             // Only enabled when connected
             return state.connectionState == .connected
+
+        case .reconnect:
+            // Only enabled when in error or disconnected state
+            switch state.connectionState {
+            case .error, .disconnected:
+                return true
+            default:
+                return false
+            }
 
         case .connectionStatus:
             // Always visible (shows status even when disconnected)

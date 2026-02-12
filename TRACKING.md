@@ -170,7 +170,7 @@
 | User/Role Management | MEDIUM | Large | No sidebar section for Users/Roles |
 | SQLite Table Recreation for ALTER | MEDIUM | Medium | Throws `unsupportedOperation` for most ALTER TABLE |
 | Keyboard Shortcut Customization | MEDIUM | Medium | All shortcuts hardcoded |
-| Connection Health Monitoring | MEDIUM | Medium | No ping/keepalive or auto-reconnect |
+| ~~Connection Health Monitoring~~ | ~~MEDIUM~~ | ~~Medium~~ | **DONE** — 30s periodic ping (SELECT 1) for MySQL/PostgreSQL, 3-retry exponential backoff (2s/4s/8s), toolbar Reconnect button |
 
 ### Tier 3 — Nice-to-Have
 
@@ -338,7 +338,7 @@ The following v0.2.0 features are documented on feature pages but missing from c
 - [ ] Schema compare/diff
 - [ ] ER diagram visualization
 - [ ] Keyboard shortcut customization
-- [ ] Connection health monitoring + auto-reconnect
+- [x] Connection health monitoring + auto-reconnect
 - [x] Localization infrastructure
 
 ### Immediate Actions (This Week)

@@ -79,6 +79,7 @@ final class MainContentNotificationHandler: ObservableObject {
         setupUndoRedoObservers()
         setupWindowObservers()
         setupFileOpenObservers()
+        setupReconnectObservers()
     }
 
     // MARK: - Row Operations
@@ -694,5 +695,22 @@ final class MainContentNotificationHandler: ObservableObject {
                 )
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - Reconnect Operations
+
+    private func setupReconnectObservers() {
+        NotificationCenter.default.publisher(for: .reconnectDatabase)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleReconnect()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleReconnect() {
+        Task {
+            await DatabaseManager.shared.reconnectCurrentSession()
+        }
     }
 }

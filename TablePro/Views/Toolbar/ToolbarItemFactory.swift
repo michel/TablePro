@@ -54,6 +54,8 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
             return makeNewQueryTabItem()
         case .refresh:
             return makeRefreshItem(state: state)
+        case .reconnect:
+            return makeReconnectItem(state: state)
         case .connectionStatus:
             return makeConnectionStatusItem(state: state)
         case .filterToggle:
@@ -149,6 +151,33 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
 
         item.view = button
         item.isEnabled = (state.connectionState == .connected)
+
+        return item
+    }
+
+    private func makeReconnectItem(state: ConnectionToolbarState) -> NSToolbarItem {
+        let item = NSToolbarItem(itemIdentifier: ToolbarItemIdentifier.reconnect.nsIdentifier)
+        item.label = ToolbarItemIdentifier.reconnect.label
+        item.paletteLabel = ToolbarItemIdentifier.reconnect.paletteLabel
+        item.toolTip = ToolbarItemIdentifier.reconnect.toolTip
+
+        let button = NSButton(
+            image: systemImage(named: ToolbarItemIdentifier.reconnect.iconName, description: "Reconnect"),
+            target: ToolbarActionProxy.shared,
+            action: #selector(ToolbarActionProxy.reconnectAction)
+        )
+        button.bezelStyle = .texturedRounded
+        button.isBordered = true
+
+        item.view = button
+
+        // Enable only when in error or disconnected state (and session exists)
+        switch state.connectionState {
+        case .error, .disconnected:
+            item.isEnabled = true
+        default:
+            item.isEnabled = false
+        }
 
         return item
     }
@@ -316,6 +345,10 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
 
     @objc func refreshAction() {
         NotificationCenter.default.post(name: .refreshData, object: nil)
+    }
+
+    @objc func reconnectAction() {
+        NotificationCenter.default.post(name: .reconnectDatabase, object: nil)
     }
 
     @objc func filterToggleAction() {
