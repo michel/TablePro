@@ -77,6 +77,11 @@ struct MariaDBColumnInfo {
 /// - Returns: A string containing the normalized MySQL type name
 ///            (for example, `"INT"`, `"VARCHAR"`, `"TEXT"`, `"BLOB"`).
 private func mysqlTypeToString(_ type: UInt32, length: UInt, flags: UInt) -> String {
+    // ENUM/SET fields may be reported as STRING (254) or VAR_STRING (253)
+    // in result sets — check flags first
+    if (flags & 256) != 0 { return "ENUM" }   // ENUM_FLAG = 0x100
+    if (flags & 2_048) != 0 { return "SET" }   // SET_FLAG = 0x800
+
     // Check if this is a text-based field (not binary)
     let isBinary = (flags & 128) != 0  // BINARY_FLAG = 128
 
@@ -468,13 +473,17 @@ final class MariaDBConnection: @unchecked Sendable {
                 } else {
                     columns.append("column_\(i)")
                 }
-                // Extract column type (NEW)
-                columnTypes.append(field.type.rawValue)
-                // Extract raw type name (NEW)
+                // Extract column type — correct ENUM/SET codes from flags
+                let fieldFlags = UInt(field.flags)
+                var fieldType = field.type.rawValue
+                if (fieldFlags & 256) != 0 { fieldType = 247 }   // ENUM_FLAG
+                if (fieldFlags & 2_048) != 0 { fieldType = 248 }  // SET_FLAG
+                columnTypes.append(fieldType)
+                // Extract raw type name
                 columnTypeNames.append(mysqlTypeToString(
-                    field.type.rawValue,
+                    fieldType,
                     length: field.length,
-                    flags: UInt(field.flags)
+                    flags: fieldFlags
                 ))
             }
         }
@@ -749,11 +758,15 @@ final class MariaDBConnection: @unchecked Sendable {
                 } else {
                     columns.append("column_\(i)")
                 }
-                columnTypes.append(field.type.rawValue)
+                let fieldFlags = UInt(field.flags)
+                var fieldType = field.type.rawValue
+                if (fieldFlags & 256) != 0 { fieldType = 247 }   // ENUM_FLAG
+                if (fieldFlags & 2_048) != 0 { fieldType = 248 }  // SET_FLAG
+                columnTypes.append(fieldType)
                 columnTypeNames.append(mysqlTypeToString(
-                    field.type.rawValue,
+                    fieldType,
                     length: field.length,
-                    flags: UInt(field.flags)
+                    flags: fieldFlags
                 ))
             }
         }

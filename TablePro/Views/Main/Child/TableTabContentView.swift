@@ -70,7 +70,8 @@ struct TableTabContentView: View {
                         rows: sortedRows,
                         columns: tab.resultColumns,
                         columnDefaults: tab.columnDefaults,
-                        columnTypes: tab.columnTypes
+                        columnTypes: tab.columnTypes,
+                        columnEnumValues: tab.columnEnumValues
                     ),
                     changeManager: AnyChangeManager(dataManager: changeManager),
                     isEditable: tab.isEditable && !tab.isView,

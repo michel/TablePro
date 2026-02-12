@@ -334,6 +334,8 @@ final class MainContentCoordinator: ObservableObject {
                 var totalRowCount: Int?
                 var primaryKeyColumn: String?
 
+                var columnEnumValues: [String: [String]] = [:]
+
                 if isEditable, let tableName = tableName {
                     if let driver = DatabaseManager.shared.activeDriver {
                         async let columnInfoTask = driver.fetchColumns(table: tableName)
@@ -360,6 +362,14 @@ final class MainContentCoordinator: ObservableObject {
                            let count = Int(countStr) {
                             totalRowCount = count
                         }
+
+                        // Build enum/set value lookup map
+                        columnEnumValues = await fetchEnumValues(
+                            columnInfo: columnInfo,
+                            tableName: tableName,
+                            driver: driver,
+                            connectionType: conn.type
+                        )
                     }
                 }
 
@@ -372,6 +382,7 @@ final class MainContentCoordinator: ObservableObject {
                 let safeExecutionTime = result.executionTime
                 let safeColumnDefaults = columnDefaults.mapValues { $0.map { String($0) } }
                 let safeColumnForeignKeys = columnForeignKeys
+                let safeColumnEnumValues = columnEnumValues
                 let safeTableName = tableName.map { String($0) }
                 let safeTotalRowCount = totalRowCount
                 let safePrimaryKeyColumn = primaryKeyColumn.map { String($0) }
@@ -401,6 +412,7 @@ final class MainContentCoordinator: ObservableObject {
                         updatedTab.columnTypes = safeColumnTypes
                         updatedTab.columnDefaults = safeColumnDefaults
                         updatedTab.columnForeignKeys = safeColumnForeignKeys
+                        updatedTab.columnEnumValues = safeColumnEnumValues
                         updatedTab.resultRows = safeRows
                         updatedTab.resultVersion += 1
                         updatedTab.executionTime = safeExecutionTime
@@ -473,6 +485,54 @@ final class MainContentCoordinator: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Fetch enum/set values for columns from database-specific sources
+    private func fetchEnumValues(
+        columnInfo: [ColumnInfo],
+        tableName: String,
+        driver: DatabaseDriver,
+        connectionType: DatabaseType
+    ) async -> [String: [String]] {
+        var result: [String: [String]] = [:]
+
+        // Build enum/set value lookup map from column types (MySQL/MariaDB)
+        for col in columnInfo {
+            if let values = ColumnType.parseEnumValues(from: col.dataType) {
+                result[col.name] = values
+            }
+        }
+
+        // For PostgreSQL: fetch actual enum values from pg_enum catalog
+        if connectionType == .postgresql {
+            if let pgDriver = driver as? PostgreSQLDriver {
+                for col in columnInfo where col.dataType.uppercased().hasPrefix("ENUM(") {
+                    // Extract type name from "ENUM(typename)"
+                    let raw = col.dataType
+                    if let openParen = raw.firstIndex(of: "("),
+                       let closeParen = raw.lastIndex(of: ")") {
+                        let typeName = String(raw[raw.index(after: openParen)..<closeParen])
+                        if let values = try? await pgDriver.fetchEnumValues(typeName: typeName) {
+                            result[col.name] = values
+                        }
+                    }
+                }
+            }
+        }
+
+        // For SQLite: fetch CHECK constraint pseudo-enum values
+        if connectionType == .sqlite {
+            if let sqliteDriver = driver as? SQLiteDriver {
+                let checkEnumValues = try? await sqliteDriver.fetchCheckConstraintEnumValues(table: tableName)
+                if let checkValues = checkEnumValues {
+                    for (colName, values) in checkValues {
+                        result[colName] = values
+                    }
+                }
+            }
+        }
+
+        return result
     }
 
     // MARK: - SQL Parsing

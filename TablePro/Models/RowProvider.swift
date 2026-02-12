@@ -67,6 +67,7 @@ final class InMemoryRowProvider: RowProvider {
     private(set) var columnDefaults: [String: String?]
     private(set) var columnTypes: [ColumnType]
     private(set) var columnForeignKeys: [String: ForeignKeyInfo]
+    private(set) var columnEnumValues: [String: [String]]
 
     var totalRowCount: Int {
         sourceRows.count
@@ -77,12 +78,14 @@ final class InMemoryRowProvider: RowProvider {
         columns: [String],
         columnDefaults: [String: String?] = [:],
         columnTypes: [ColumnType]? = nil,
-        columnForeignKeys: [String: ForeignKeyInfo] = [:]
+        columnForeignKeys: [String: ForeignKeyInfo] = [:],
+        columnEnumValues: [String: [String]] = [:]
     ) {
         self.columns = columns
         self.columnDefaults = columnDefaults
         self.columnTypes = columnTypes ?? Array(repeating: ColumnType.text(rawType: nil), count: columns.count)
         self.columnForeignKeys = columnForeignKeys
+        self.columnEnumValues = columnEnumValues
         self.sourceRows = rows
     }
 

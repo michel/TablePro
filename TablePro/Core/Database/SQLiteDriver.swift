@@ -403,6 +403,78 @@ final class SQLiteDriver: DatabaseDriver {
         }
     }
 
+    /// Fetch enum-like values from CHECK constraints for a table
+    func fetchCheckConstraintEnumValues(table: String) async throws -> [String: [String]] {
+        guard let createSQL = try await fetchCreateTableSQL(table: table) else {
+            return [:]
+        }
+
+        // Get column names first
+        let columns = try await fetchColumns(table: table)
+        var result: [String: [String]] = [:]
+
+        for col in columns {
+            if let values = parseCheckConstraintValues(createSQL: createSQL, columnName: col.name) {
+                result[col.name] = values
+            }
+        }
+
+        return result
+    }
+
+    /// Fetch the CREATE TABLE SQL from sqlite_master
+    private func fetchCreateTableSQL(table: String) async throws -> String? {
+        let query = "SELECT sql FROM sqlite_master WHERE type='table' AND name='\(table)'"
+        let result = try await execute(query: query)
+        return result.rows.first?.first ?? nil
+    }
+
+    /// Parse CHECK constraint values for a column from CREATE TABLE SQL
+    /// Looks for patterns like: CHECK(column IN ('val1','val2','val3'))
+    /// or CHECK("column" IN ('val1','val2','val3'))
+    private func parseCheckConstraintValues(createSQL: String, columnName: String) -> [String]? {
+        // Build regex pattern: CHECK\s*\(\s*"?columnName"?\s+IN\s*\(([^)]+)\)\s*\)
+        let escapedName = NSRegularExpression.escapedPattern(for: columnName)
+        let pattern = "CHECK\\s*\\(\\s*\"?\(escapedName)\"?\\s+IN\\s*\\(([^)]+)\\)\\s*\\)"
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            return nil
+        }
+
+        let nsString = createSQL as NSString
+        guard let match = regex.firstMatch(
+            in: createSQL,
+            range: NSRange(location: 0, length: nsString.length)
+        ) else {
+            return nil
+        }
+
+        guard match.numberOfRanges > 1 else { return nil }
+        let valuesRange = match.range(at: 1)
+        let valuesString = nsString.substring(with: valuesRange)
+
+        // Parse 'val1','val2','val3'
+        var values: [String] = []
+        var current = ""
+        var inQuote = false
+
+        for char in valuesString {
+            if char == "'" {
+                inQuote.toggle()
+            } else if char == "," && !inQuote {
+                values.append(current.trimmingCharacters(in: .whitespaces))
+                current = ""
+            } else if inQuote {
+                current.append(char)
+            }
+        }
+        if !current.isEmpty {
+            values.append(current.trimmingCharacters(in: .whitespaces))
+        }
+
+        return values.isEmpty ? nil : values
+    }
+
     func fetchTableDDL(table: String) async throws -> String {
         guard status == .connected else {
             throw DatabaseError.notConnected
