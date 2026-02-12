@@ -25,6 +25,9 @@ final class DatabaseManager: ObservableObject {
     /// Currently selected session ID (displayed in UI)
     @Published private(set) var currentSessionId: UUID?
 
+    /// Health monitors for active connections (MySQL/PostgreSQL only)
+    private var healthMonitors: [UUID: ConnectionHealthMonitor] = [:]
+
     /// Current session (computed from currentSessionId)
     var currentSession: ConnectionSession? {
         guard let sessionId = currentSessionId else { return nil }
@@ -128,6 +131,7 @@ final class DatabaseManager: ObservableObject {
             // Update session with successful connection
             session.driver = driver
             session.status = driver.status
+            session.effectiveConnection = effectiveConnection
             activeSessions[connection.id] = session
 
             // Restore tab state if it exists
@@ -142,6 +146,11 @@ final class DatabaseManager: ObservableObject {
 
             // Post notification for reliable delivery
             NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+
+            // Start health monitoring for network databases (skip SQLite)
+            if connection.type != .sqlite {
+                await startHealthMonitor(for: connection.id)
+            }
         } catch {
             // Close tunnel if connection failed
             if connection.sshConfig.enabled {
@@ -186,6 +195,9 @@ final class DatabaseManager: ObservableObject {
             try? await SSHTunnelManager.shared.closeTunnel(connectionId: session.connection.id)
         }
 
+        // Stop health monitoring
+        await stopHealthMonitor(for: sessionId)
+
         session.driver?.disconnect()
         activeSessions.removeValue(forKey: sessionId)
 
@@ -203,6 +215,11 @@ final class DatabaseManager: ObservableObject {
 
     /// Disconnect all sessions
     func disconnectAll() async {
+        // Stop all health monitors
+        for sessionId in healthMonitors.keys {
+            await stopHealthMonitor(for: sessionId)
+        }
+
         for sessionId in activeSessions.keys {
             await disconnectSession(sessionId)
         }
@@ -297,7 +314,181 @@ final class DatabaseManager: ObservableObject {
         return try await driver.testConnection()
     }
 
-    // MARK: - Schema Changes
+    // MARK: - Health Monitoring
+
+    /// Start health monitoring for a connection
+    private func startHealthMonitor(for connectionId: UUID) async {
+        // Stop any existing monitor
+        await stopHealthMonitor(for: connectionId)
+
+        let monitor = ConnectionHealthMonitor(
+            connectionId: connectionId,
+            pingHandler: { [weak self] in
+                guard let self else { return false }
+                guard let session = await self.activeSessions[connectionId],
+                      let driver = session.driver else { return false }
+                do {
+                    _ = try await driver.execute(query: "SELECT 1")
+                    return true
+                } catch {
+                    return false
+                }
+            },
+            reconnectHandler: { [weak self] in
+                guard let self else { return false }
+                guard let session = await self.activeSessions[connectionId] else { return false }
+                do {
+                    let driver = try await self.reconnectDriver(for: session)
+                    await self.updateSession(connectionId) { session in
+                        session.driver = driver
+                        session.status = .connected
+                    }
+                    return true
+                } catch {
+                    return false
+                }
+            },
+            onStateChanged: { [weak self] id, state in
+                guard let self else { return }
+                await MainActor.run {
+                    switch state {
+                    case .healthy:
+                        self.updateSession(id) { session in
+                            session.status = .connected
+                        }
+                    case .reconnecting(let attempt):
+                        Self.logger.info("Reconnecting session \(id) (attempt \(attempt)/3)")
+                        self.updateSession(id) { session in
+                            session.status = .connecting
+                        }
+                    case .failed:
+                        Self.logger.error("Health monitoring failed for session \(id) after 3 retries")
+                        self.updateSession(id) { session in
+                            session.status = .error(String(localized: "Connection lost"))
+                        }
+                    case .checking:
+                        break // No UI update needed
+                    }
+                }
+            }
+        )
+
+        healthMonitors[connectionId] = monitor
+        await monitor.startMonitoring()
+    }
+
+    /// Creates a fresh driver, connects, and applies timeout for the given session.
+    /// Uses the session's effective connection (SSH-tunneled if applicable).
+    private func reconnectDriver(for session: ConnectionSession) async throws -> DatabaseDriver {
+        // Disconnect existing driver
+        session.driver?.disconnect()
+
+        // Use effective connection (tunneled) if available, otherwise original
+        let connectionForDriver = session.effectiveConnection ?? session.connection
+        let driver = DatabaseDriverFactory.createDriver(for: connectionForDriver)
+        try await driver.connect()
+
+        // Apply timeout
+        let timeoutSeconds = AppSettingsManager.shared.general.queryTimeoutSeconds
+        if timeoutSeconds > 0 {
+            try await driver.applyQueryTimeout(timeoutSeconds)
+        }
+
+        return driver
+    }
+
+    /// Stop health monitoring for a connection
+    private func stopHealthMonitor(for connectionId: UUID) async {
+        if let monitor = healthMonitors.removeValue(forKey: connectionId) {
+            await monitor.stopMonitoring()
+        }
+    }
+
+    /// Reconnect the current session (called from toolbar Reconnect button)
+    func reconnectCurrentSession() async {
+        guard let sessionId = currentSessionId,
+              let session = activeSessions[sessionId] else { return }
+
+        Self.logger.info("Manual reconnect requested for: \(session.connection.name)")
+
+        // Update status to connecting
+        updateSession(sessionId) { session in
+            session.status = .connecting
+        }
+
+        // Stop existing health monitor
+        await stopHealthMonitor(for: sessionId)
+
+        do {
+            // Disconnect existing driver
+            session.driver?.disconnect()
+
+            // Recreate SSH tunnel if needed
+            var effectiveConnection = session.connection
+            if session.connection.sshConfig.enabled {
+                let sshPassword = ConnectionStorage.shared.loadSSHPassword(for: session.connection.id)
+                let keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: session.connection.id)
+
+                let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
+                    connectionId: session.connection.id,
+                    sshHost: session.connection.sshConfig.host,
+                    sshPort: session.connection.sshConfig.port,
+                    sshUsername: session.connection.sshConfig.username,
+                    authMethod: session.connection.sshConfig.authMethod,
+                    privateKeyPath: session.connection.sshConfig.privateKeyPath,
+                    keyPassphrase: keyPassphrase,
+                    sshPassword: sshPassword,
+                    remoteHost: session.connection.host,
+                    remotePort: session.connection.port
+                )
+
+                effectiveConnection = DatabaseConnection(
+                    id: session.connection.id,
+                    name: session.connection.name,
+                    host: "127.0.0.1",
+                    port: tunnelPort,
+                    database: session.connection.database,
+                    username: session.connection.username,
+                    type: session.connection.type,
+                    sshConfig: SSHConfiguration()
+                )
+            }
+
+            // Create new driver and connect
+            let driver = DatabaseDriverFactory.createDriver(for: effectiveConnection)
+            try await driver.connect()
+
+            // Apply timeout
+            let timeoutSeconds = AppSettingsManager.shared.general.queryTimeoutSeconds
+            if timeoutSeconds > 0 {
+                try await driver.applyQueryTimeout(timeoutSeconds)
+            }
+
+            // Update session
+            updateSession(sessionId) { session in
+                session.driver = driver
+                session.status = .connected
+                session.effectiveConnection = effectiveConnection
+            }
+
+            // Restart health monitoring
+            if session.connection.type != .sqlite {
+                await startHealthMonitor(for: sessionId)
+            }
+
+            // Post connection notification for schema reload
+            NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+
+            Self.logger.info("Manual reconnect succeeded for: \(session.connection.name)")
+        } catch {
+            Self.logger.error("Manual reconnect failed: \(error.localizedDescription)")
+            updateSession(sessionId) { session in
+                session.status = .error(String(localized: "Reconnect failed: \(error.localizedDescription)"))
+            }
+        }
+    }
+
+    // MARK: - SSH Tunnel Recovery
 
     /// Handle SSH tunnel death by attempting reconnection
     private func handleSSHTunnelDied(connectionId: UUID) async {

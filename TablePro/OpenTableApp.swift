@@ -453,6 +453,9 @@ extension Notification.Name {
     // Database switcher notifications
     static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
 
+    // Reconnect notifications
+    static let reconnectDatabase = Notification.Name("reconnectDatabase")
+
     // Table creation notifications
     static let createTable = Notification.Name("createTable")
 

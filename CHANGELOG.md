@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PostgreSQL user-defined enum type support via `pg_enum` catalog lookup
 - SQLite CHECK constraint pseudo-enum detection (e.g., `CHECK(col IN ('a','b','c'))`)
 - Language setting in General preferences (System, English, Vietnamese) with full Vietnamese localization (637 strings)
+- Connection health monitoring with automatic reconnection for MySQL/MariaDB and PostgreSQL — pings every 30 seconds, retries 3 times with exponential backoff (2s/4s/8s) on failure
+- Manual "Reconnect" toolbar button appears when connection is lost or in error state
 
 ### Changed
 
