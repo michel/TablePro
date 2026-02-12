@@ -1,0 +1,358 @@
+# TablePro Project Tracking
+
+**Generated:** February 12, 2026 | **Version:** 0.2.0 | **Codebase:** 206 files, ~47,600 LOC
+
+---
+
+## Overall Health Scorecard
+
+| Area | Score | Status |
+|------|-------|--------|
+| Core Functionality | 9/10 | Excellent |
+| Code Quality (SwiftLint) | 10/10 | Zero violations |
+| Architecture | 9/10 | Clean separation of concerns |
+| Test Coverage | 0/10 | **No tests exist** |
+| API Backend Security | 7/10 | Rate limiting added; still missing RBAC |
+| Documentation | 9/10 | Comprehensive, v0.2.0 changelog added |
+| Accessibility | 2/10 | Only 2 a11y labels |
+| Localization | 0/10 | English only, no i18n |
+| Performance | 9/10 | Sophisticated optimizations |
+| Dependencies | 9/10 | Minimal, well-maintained |
+
+---
+
+## Table of Contents
+
+- [CRITICAL Issues](#critical-issues)
+- [WARNING Issues](#warning-issues)
+- [Code Quality Issues](#code-quality-issues)
+- [Missing Features](#missing-features)
+- [API Backend Issues](#api-backend-issues)
+- [Documentation Issues](#documentation-issues)
+- [Technical Debt](#technical-debt)
+- [Feature Comparison vs Competitors](#feature-comparison-vs-competitors)
+- [Recommended Roadmap](#recommended-roadmap)
+
+---
+
+## CRITICAL Issues
+
+### C1. No Unit Tests
+- **Impact:** No regression prevention, high refactoring risk
+- **Details:** Zero XCTest target exists. 206 files, ~47,600 LOC completely untested
+- **Priority areas:** Database drivers, SQLContextAnalyzer, DataChangeManager, ExportService
+- **Action:** Create test target + add critical path tests
+
+### C2. API: Unrestricted Admin Panel Access
+- **File:** `api/app/Models/User.php:40-42`
+- **Code:** `canAccessPanel()` returns `true` for ALL authenticated users
+- **Impact:** Any user with an account can manage all licenses, create/suspend licenses
+- **Fix:** Implement role-based access control
+
+### ~~C3. API: No Rate Limiting on License Endpoints~~ DONE
+- **File:** `api/routes/api.php`
+- **Impact:** Brute force attacks possible on license key space (125-bit entropy, but still)
+- **Resolution:** Added `middleware('throttle:60,1')` to API route group (60 req/min per IP)
+
+### ~~C4. App Crashes: fatalError on Missing Resources~~ DONE
+- **Files:**
+  - `TablePro/Core/Services/LicenseSignatureVerifier.swift` — now optional key + Logger error + throws LicenseError
+  - `TablePro/Core/Storage/QueryHistoryStorage.swift` — now logs error + returns early (graceful nil db)
+  - `TablePro/Core/Storage/TableTemplateStorage.swift` — now optional URL + throws StorageError.directoryUnavailable
+- **Resolution:** Replaced all 3 fatalError calls with graceful error handling
+
+### ~~C5. Documentation Changelog Missing v0.2.0~~ DONE
+- **File:** `tablepro.app/docs/changelog.mdx` + `tablepro.app/docs/vi/changelog.mdx`
+- **Resolution:** Added v0.2.0 entry to both English and Vietnamese changelog pages (11 features, 7 fixes, 1 improvement)
+
+---
+
+## WARNING Issues
+
+### W1. API: License Key Input Validation Too Weak
+- **Files:** `api/app/Http/Requests/Api/V1/*.php`
+- **Issues:**
+  - `license_key` has no max length (should be `max:29`)
+  - `license_key` has no format pattern (should match `XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`)
+  - `machine_id` accepts any 64 chars (should validate hex: `regex:/^[a-f0-9]{64}$/i`)
+
+### W2. API: Private Key in Webroot-Accessible Location
+- **File:** `api/.env` → `LICENSE_PRIVATE_KEY_PATH=keys/license_private.pem`
+- **Fix:** Move to system-protected location outside webroot (e.g., `/etc/tablepro/`)
+
+### W3. API: Non-Atomic Activation Limit Check
+- **File:** `api/app/Http/Controllers/Api/V1/LicenseController.php:61-65`
+- **Issue:** Race condition — concurrent requests could exceed activation limit
+- **Fix:** Use pessimistic locking or database constraints
+
+### W4. 41 Missing Screenshot Images in Documentation
+- **Affected pages:** Settings, filtering, import/export, history, appearance, installation
+- **Examples:** `filter-panel-dark.png`, `settings-general.png`, `import-dialog.png`, etc.
+- **Fix:** Generate and commit missing image files
+
+### W5. Xcode SWIFT_VERSION Mismatch
+- **Issue:** `project.pbxproj` sets `SWIFT_VERSION = 5.0` but `.swiftformat` targets 5.9
+- **Fix:** Update pbxproj to `SWIFT_VERSION = 5.9`
+
+### W6. PostgreSQL Constraint Name Assumption
+- **File:** `TablePro/Core/SchemaTracking/SchemaStatementGenerator.swift:415-420`
+- **Issue:** Assumes PK constraint name follows `{table}_pkey` convention
+- **Fix:** Enhance DatabaseDriver protocol to query actual constraint names
+
+### W7. Static Libraries Committed to Git
+- **Files:** `Libs/libmariadb*.a` (540KB - 1.1MB each)
+- **Fix:** Consider building from source in CI instead of committing binaries
+
+### W8. Large Untracked Directories
+- `api/` (143MB) and `tablepro.app/` (465MB) are untracked in the main repo
+- `api/vendor/` (133MB) and `tablepro.app/node_modules/` (388MB) should be .gitignore'd
+- **Fix:** Add to `.gitignore` or move to separate repos
+
+### W9. Build Log Committed
+- **File:** `build-arm64.log` (1.1MB) with disk I/O errors
+- **Fix:** Remove and add `*.log` to `.gitignore`
+
+---
+
+## Code Quality Issues
+
+### TODOs in Code (2 items)
+
+| File | Description | Priority |
+|------|-------------|----------|
+| `Views/Editor/SQLEditorCoordinator.swift:62` | Remove find panel z-order workaround when CodeEditSourceEditor fixes upstream | Low |
+| `Core/SchemaTracking/SchemaStatementGenerator.swift:415` | Enhance DatabaseDriver protocol for constraint name queries | Medium |
+
+### Force Unwraps (Safe but Notable)
+
+| File | Lines | Context |
+|------|-------|---------|
+| `Core/Autocomplete/SQLContextAnalyzer.swift` | 177, 185, 193, 201 | `try!` on fallback regex — guarded by `assertionFailure` + `try?` primary |
+| `Core/Services/LicenseAPIClient.swift` | 18 | Hardcoded URL — always valid, SwiftLint disabled |
+
+### Print Statements (3 remaining)
+
+| File | Line | Context |
+|------|------|---------|
+| `Core/KeyboardHandling/ResponderChainActions.swift` | 174 | In documentation comment example |
+| `Views/DatabaseSwitcher/DatabaseSwitcherSheet.swift` | 437, 446 | In `#Preview` blocks only |
+
+### Anti-Patterns
+
+| File | Issue | Fix |
+|------|-------|-----|
+| `Core/KeyboardHandling/ResponderChainActions.swift:187` | `.count > 0` instead of `!isEmpty` | Replace with `!selectedRowIndexes.isEmpty` |
+
+### Large Files Approaching Limits
+
+| File | Lines | Limit (warn/error) |
+|------|-------|---------------------|
+| `Views/Main/MainContentCoordinator.swift` | 1387 | 1200/1800 (already split into 6 extensions) |
+| `Core/Services/ExportService.swift` | 990 | 1200/1800 |
+| `Core/Database/MariaDBConnection.swift` | 987 | 1200/1800 |
+| `Views/Results/DataGridView.swift` | 972 | 1200/1800 |
+| `Views/Editor/CreateTableView.swift` | 910 | 1200/1800 |
+
+---
+
+## Missing Features
+
+### Tier 1 — Critical Gaps (Daily Developer Use)
+
+| Feature | Priority | Effort | Notes |
+|---------|----------|--------|-------|
+| Stored Procedure/Function Browser | HIGH | Large | No sidebar section, no `information_schema.routines` query |
+| Trigger Management | HIGH | Medium | No triggers tab in TableStructureView |
+| Enum Column Editor | HIGH | Small | Enum type recognized (MySQL code 247) but no dropdown UI |
+| File-based CSV/JSON Import | HIGH | Medium | Clipboard CSV paste works, no file picker dialog |
+
+### Tier 2 — High-Priority Gaps (Weekly Developer Use)
+
+| Feature | Priority | Effort | Notes |
+|---------|----------|--------|-------|
+| Schema Compare/Diff | MEDIUM | Large | No UI for comparing schemas |
+| ER Diagram | MEDIUM | Large | No visual entity-relationship diagram |
+| User/Role Management | MEDIUM | Large | No sidebar section for Users/Roles |
+| SQLite Table Recreation for ALTER | MEDIUM | Medium | Throws `unsupportedOperation` for most ALTER TABLE |
+| Keyboard Shortcut Customization | MEDIUM | Medium | All shortcuts hardcoded |
+| Connection Health Monitoring | MEDIUM | Medium | No ping/keepalive or auto-reconnect |
+
+### Tier 3 — Nice-to-Have
+
+| Feature | Status |
+|---------|--------|
+| Custom Editor Themes | System light/dark only |
+| Code Folding | CodeEditSourceEditor limitation |
+| Regex Find/Replace | Not implemented |
+| Split Editor View | Not implemented |
+| Visual Query Builder | Not implemented |
+| Column Statistics | Not implemented |
+| Data Generator/Faker | Not implemented |
+| Cloud Sync (iCloud) | Not implemented |
+| Plugin/Extension System | Not implemented |
+
+---
+
+## API Backend Issues
+
+### Architecture Summary
+- **Framework:** Laravel 12.50 (PHP 8.2+)
+- **Admin Panel:** Filament 5.2
+- **Database:** SQLite (dev), supports MySQL/PostgreSQL (prod)
+- **Tests:** 11 Pest tests covering core flows
+
+### Security Issues
+
+| # | Issue | Severity | File |
+|---|-------|----------|------|
+| 1 | Admin panel: no role-based access | CRITICAL | `app/Models/User.php:40-42` |
+| 2 | No rate limiting on API | WARNING | `routes/api.php` |
+| 3 | Private key in webroot | WARNING | `storage/keys/` |
+| 4 | Debug mode enabled | WARNING | `.env` (APP_DEBUG=true for prod) |
+| 5 | License key format not validated | WARNING | `Http/Requests/Api/V1/*.php` |
+| 6 | Machine ID not hex-validated | WARNING | `Http/Requests/Api/V1/*.php` |
+| 7 | Non-atomic activation limit | WARNING | `LicenseController.php:61-65` |
+
+### Missing API Features
+
+| Feature | Priority |
+|---------|----------|
+| Rate limit response headers (X-RateLimit-*) | HIGH |
+| OpenAPI/Swagger documentation | HIGH |
+| Email notifications for expiring licenses | MEDIUM |
+| Audit trail for admin actions | MEDIUM |
+| Key rotation mechanism | MEDIUM |
+| Offline license validation | LOW |
+| License transfer between machines | LOW |
+| Usage analytics dashboard | LOW |
+
+### Missing Tests
+
+| Test Case | Priority |
+|-----------|----------|
+| Expired license validation | HIGH |
+| Concurrent activation attempts | HIGH |
+| Admin panel authorization | HIGH |
+| Rate limiting behavior | MEDIUM |
+
+---
+
+## Documentation Issues
+
+### Summary
+- **Total pages:** 54 (27 EN + 27 VI)
+- **Translation coverage:** 100% parity
+- **SEO/Meta:** All pages have proper front matter
+
+### Issues Found
+
+| # | Issue | Severity | Details |
+|---|-------|----------|---------|
+| 1 | Changelog missing v0.2.0 | CRITICAL | `docs/changelog.mdx` only has v0.1.1 |
+| 2 | 41 screenshot images missing | WARNING | Referenced in docs but files don't exist |
+| 3 | README.md is Mintlify boilerplate | INFO | Template text, not project-specific |
+
+### Missing v0.2.0 Features from Docs Changelog
+The following v0.2.0 features are documented on feature pages but missing from changelog:
+- SSL/TLS connection support
+- CSV clipboard paste
+- Explain Query (EXPLAIN)
+- Connection switcher popover
+- Date/time picker
+- Read-only connection mode
+- Query execution timeout
+- Foreign key lookup dropdown
+- JSON column editor
+- Excel (.xlsx) export
+- View management (Create/Edit/Drop)
+
+---
+
+## Technical Debt
+
+### No Localization (i18n)
+- No `.strings` files or String Catalogs
+- All UI text hardcoded in English
+- Competitors support 10-20+ languages
+- Effort: Large (~2000+ strings to extract)
+
+### Minimal Accessibility
+- Only 2 `accessibilityLabel` instances in entire codebase
+- No VoiceOver support for data grid or SQL editor
+- Fails WCAG 2.1 AA standards
+- Effort: Medium (systematic audit needed)
+
+### No App Notarization in CI
+- Users get "unverified developer" warning on download
+- Workaround: `xattr -d com.apple.quarantine TablePro.app`
+- Fix: Implement notarization in CI workflow
+
+### App Sandbox Disabled
+- Required for SSH tunneling and database access
+- `com.apple.security.app-sandbox: false`
+- `com.apple.security.cs.disable-library-validation: true`
+- Acceptable trade-off but reduces security isolation
+
+---
+
+## Feature Comparison vs Competitors
+
+### vs TablePlus ($99)
+
+| Feature | TablePro | TablePlus | Gap |
+|---------|----------|-----------|-----|
+| SQL Highlighting | Tree-sitter | Proprietary | — |
+| Autocomplete | Context-aware | Similar | — |
+| Stored Procedures | No UI | Yes | **Missing** |
+| ER Diagram | No | Yes | **Missing** |
+| Triggers | No | Yes | **Missing** |
+| Code Folding | No | Yes | **Missing** |
+| Custom Themes | System only | Full | **Partial** |
+| SSH Tunneling | Full | Full | — |
+| Read-only Mode | v0.2.0 | Yes | — |
+| Localization | English only | 10+ langs | **Missing** |
+| Cost | Free (GPL v3) | $99 | **Win** |
+
+### TablePro Advantages
+1. **Native macOS UI** (SwiftUI + AppKit) — faster than Electron/Java alternatives
+2. **Free and open-source** (GPL v3)
+3. **Universal Binary** (Apple Silicon + Intel)
+4. **Lightweight** memory footprint
+5. **Zero violations** in SwiftLint across 47K LOC
+
+---
+
+## Recommended Roadmap
+
+### v0.3.0 — Database Object Management (3-4 weeks)
+- [ ] Stored procedure/function browser
+- [ ] Trigger management UI
+- [ ] Enum column editor dropdown
+- [ ] File-based CSV import dialog
+- [ ] Fix SQLite ALTER TABLE limitations
+
+### v0.4.0 — Quality & Testing (4-6 weeks)
+- [ ] Create XCTest target + critical path tests
+- [ ] Accessibility audit + VoiceOver for data grid
+- [ ] Code signing + notarization in CI
+- [ ] API: Add rate limiting + RBAC for admin panel
+- [ ] API: Fix input validation
+
+### v0.5.0 — Advanced Features (4-5 weeks)
+- [ ] Schema compare/diff
+- [ ] ER diagram visualization
+- [ ] Keyboard shortcut customization
+- [ ] Connection health monitoring + auto-reconnect
+- [ ] Localization infrastructure
+
+### Immediate Actions (This Week)
+1. Update docs changelog with v0.2.0
+2. Add rate limiting to API endpoints
+3. Fix admin panel authorization (`canAccessPanel`)
+4. Replace `fatalError` calls with proper error handling
+5. Fix `.count > 0` anti-pattern in ResponderChainActions
+6. Clean up git (remove build log, update .gitignore)
+
+---
+
+*This tracking file was auto-generated by analyzing the full project including Xcode project, API backend, and documentation site.*

@@ -7,6 +7,17 @@
 
 import Foundation
 
+enum StorageError: LocalizedError {
+    case directoryUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .directoryUnavailable:
+            return "Unable to access application support directory"
+        }
+    }
+}
+
 /// Manages saving and loading table creation templates
 final class TableTemplateStorage {
     static let shared = TableTemplateStorage()
@@ -18,9 +29,9 @@ final class TableTemplateStorage {
 
     // MARK: - Storage Location
 
-    private var templatesURL: URL {
+    private var templatesURL: URL? {
         guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            fatalError("Unable to access application support directory")
+            return nil
         }
         let appFolder = appSupport.appendingPathComponent("TablePro", isDirectory: true)
 
@@ -42,16 +53,17 @@ final class TableTemplateStorage {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         let data = try encoder.encode(templates)
-        try data.write(to: templatesURL)
+        guard let url = templatesURL else { throw StorageError.directoryUnavailable }
+        try data.write(to: url)
     }
 
     /// Load all templates
     func loadTemplates() throws -> [String: TableCreationOptions] {
-        guard fileManager.fileExists(atPath: templatesURL.path) else {
+        guard let url = templatesURL, fileManager.fileExists(atPath: url.path) else {
             return [:]
         }
 
-        let data = try Data(contentsOf: templatesURL)
+        let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         return try decoder.decode([String: TableCreationOptions].self, from: data)
     }
@@ -64,7 +76,8 @@ final class TableTemplateStorage {
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted
         let data = try encoder.encode(templates)
-        try data.write(to: templatesURL)
+        guard let url = templatesURL else { throw StorageError.directoryUnavailable }
+        try data.write(to: url)
     }
 
     /// Get template names

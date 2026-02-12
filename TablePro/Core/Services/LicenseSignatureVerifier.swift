@@ -6,19 +6,21 @@
 //
 
 import Foundation
+import os
 import Security
 
 /// Verifies RSA-SHA256 signatures on license payloads using the embedded public key
 final class LicenseSignatureVerifier {
     static let shared = LicenseSignatureVerifier()
 
-    private let publicKey: SecKey
+    private let publicKey: SecKey?
 
     private init() {
-        guard let key = Self.loadPublicKey() else {
-            fatalError("Failed to load license public key from app bundle")
+        self.publicKey = Self.loadPublicKey()
+        if publicKey == nil {
+            Logger(subsystem: "com.TablePro", category: "LicenseSignatureVerifier")
+                .error("Failed to load license public key from app bundle")
         }
-        self.publicKey = key
     }
 
     // MARK: - Public API
@@ -26,6 +28,10 @@ final class LicenseSignatureVerifier {
     /// Verify a signed license payload and return the decoded data if valid.
     /// Throws `LicenseError.signatureInvalid` if the signature doesn't match.
     func verify(payload: SignedLicensePayload) throws -> LicensePayloadData {
+        guard let publicKey = publicKey else {
+            throw LicenseError.signatureInvalid
+        }
+
         // Encode the data portion as canonical JSON (same as server)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]

@@ -68,7 +68,8 @@ final class QueryHistoryStorage {
                 for: .applicationSupportDirectory, in: .userDomainMask
             ).first
         else {
-            fatalError("Unable to access application support directory")
+            Self.logger.error("Unable to access application support directory")
+            return
         }
         let TableProDir = appSupport.appendingPathComponent("TablePro")
 
