@@ -264,7 +264,16 @@ struct MainContentView: View {
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 await coordinator.tabPersistence.waitForConnectionAndExecute {
-                    coordinator.runQuery()
+                    // Switch to the tab's database if it differs from the connection's default
+                    if !selectedTab.databaseName.isEmpty,
+                       selectedTab.databaseName != coordinator.connection.database
+                    {
+                        Task {
+                            await coordinator.switchDatabase(to: selectedTab.databaseName)
+                        }
+                    } else {
+                        coordinator.runQuery()
+                    }
                 }
             }
         }

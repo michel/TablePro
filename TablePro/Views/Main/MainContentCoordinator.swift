@@ -1362,6 +1362,24 @@ final class MainContentCoordinator: ObservableObject {
                 let shouldSkipLazyLoad = tabPersistence.justRestoredTab
                 tabPersistence.clearJustRestoredFlag()
 
+                // Switch database if the new tab belongs to a different database
+                if !newTab.databaseName.isEmpty {
+                    let currentDatabase: String
+                    if let sessionId = DatabaseManager.shared.currentSessionId,
+                       let session = DatabaseManager.shared.activeSessions[sessionId] {
+                        currentDatabase = session.connection.database
+                    } else {
+                        currentDatabase = connection.database
+                    }
+
+                    if newTab.databaseName != currentDatabase {
+                        Task { @MainActor in
+                            await switchDatabase(to: newTab.databaseName)
+                        }
+                        return  // switchDatabase will re-execute the query
+                    }
+                }
+
                 if !shouldSkipLazyLoad &&
                     newTab.tabType == .table &&
                     newTab.resultRows.isEmpty &&

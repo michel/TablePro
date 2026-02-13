@@ -31,6 +31,7 @@ struct PersistedTab: Codable {
     let tabType: TabType
     let tableName: String?
     var isView: Bool = false
+    var databaseName: String = ""  // Database context for this tab (for multi-database restore)
 }
 
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
@@ -231,6 +232,7 @@ struct QueryTab: Identifiable, Equatable {
     var tableName: String?
     var isEditable: Bool
     var isView: Bool  // True for database views (read-only)
+    var databaseName: String  // Database this tab was opened in (for multi-database restore)
     var showStructure: Bool  // Toggle to show structure view instead of data
 
     // Per-tab change tracking (preserves changes when switching tabs)
@@ -286,6 +288,7 @@ struct QueryTab: Identifiable, Equatable {
         self.tableName = tableName
         self.isEditable = tabType == .table  // Table tabs are editable by default
         self.isView = false
+        self.databaseName = ""
         self.showStructure = false
         self.pendingChanges = TabPendingChanges()
         self.selectedRowIndices = []
@@ -321,6 +324,7 @@ struct QueryTab: Identifiable, Equatable {
         self.isExecuting = false
         self.isEditable = persisted.tabType == .table && !persisted.isView
         self.isView = persisted.isView
+        self.databaseName = persisted.databaseName
         self.showStructure = false
         self.pendingChanges = TabPendingChanges()
         self.selectedRowIndices = []
@@ -353,7 +357,8 @@ struct QueryTab: Identifiable, Equatable {
             isPinned: isPinned,
             tabType: tabType,
             tableName: tableName,
-            isView: isView
+            isView: isView,
+            databaseName: databaseName
         )
     }
 
@@ -386,7 +391,7 @@ final class QueryTabManager: ObservableObject {
 
     // MARK: - Tab Management
 
-    func addTab(initialQuery: String? = nil, title: String? = nil) {
+    func addTab(initialQuery: String? = nil, title: String? = nil, databaseName: String = "") {
         let queryCount = tabs.count(where: { $0.tabType == .query })
         let tabTitle = title ?? "Query \(queryCount + 1)"
         var newTab = QueryTab(title: tabTitle, tabType: .query)
@@ -397,14 +402,16 @@ final class QueryTabManager: ObservableObject {
             newTab.hasUserInteraction = true  // Mark as having content
         }
 
+        newTab.databaseName = databaseName
         tabs.append(newTab)
         selectedTabId = newTab.id
     }
 
-    func addTableTab(tableName: String, databaseType: DatabaseType = .mysql) {
-        // Check if table tab already exists
-        if let existingTab = tabs.first(where: { $0.tabType == .table && $0.tableName == tableName }
-        ) {
+    func addTableTab(tableName: String, databaseType: DatabaseType = .mysql, databaseName: String = "") {
+        // Check if table tab already exists (match on databaseName)
+        if let existingTab = tabs.first(where: {
+            $0.tabType == .table && $0.tableName == tableName && $0.databaseName == databaseName
+        }) {
             selectedTabId = existingTab.id
             return
         }
@@ -418,6 +425,7 @@ final class QueryTabManager: ObservableObject {
             tableName: tableName
         )
         newTab.pagination = PaginationState(pageSize: pageSize)
+        newTab.databaseName = databaseName
         tabs.append(newTab)
         selectedTabId = newTab.id
     }
@@ -463,11 +471,12 @@ final class QueryTabManager: ObservableObject {
     @discardableResult
     func TableProTabSmart(
         tableName: String, hasUnsavedChanges: Bool, databaseType: DatabaseType = .mysql,
-        isView: Bool = false
+        isView: Bool = false, databaseName: String = ""
     ) -> Bool {
         // 1. If a tab for this table already exists, just switch to it
-        if let existingTab = tabs.first(where: { $0.tabType == .table && $0.tableName == tableName }
-        ) {
+        if let existingTab = tabs.first(where: {
+            $0.tabType == .table && $0.tableName == tableName && $0.databaseName == databaseName
+        }) {
             selectedTabId = existingTab.id
             return false  // No need to run query, data already loaded
         }
@@ -502,6 +511,7 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].isEditable = !isView  // Views are read-only
             tabs[selectedIndex].filterState = TabFilterState()  // Reset filter state
             tabs[selectedIndex].pagination = PaginationState(pageSize: pageSize)  // Reset with settings
+            tabs[selectedIndex].databaseName = databaseName
             return true  // Need to run query for new table
         }
 
@@ -515,6 +525,7 @@ final class QueryTabManager: ObservableObject {
         newTab.isView = isView
         newTab.isEditable = !isView  // Views are read-only
         newTab.pagination = PaginationState(pageSize: pageSize)
+        newTab.databaseName = databaseName
         tabs.append(newTab)
         selectedTabId = newTab.id
         return true  // Need to run query for new tab

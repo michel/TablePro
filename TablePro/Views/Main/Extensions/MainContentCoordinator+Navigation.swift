@@ -11,11 +11,21 @@ extension MainContentCoordinator {
     // MARK: - Table Tab Opening
 
     func openTableTab(_ tableName: String, showStructure: Bool = false, isView: Bool = false) {
+        // Get current database name from active session (may differ from connection default after Cmd+K switch)
+        let currentDatabase: String
+        if let sessionId = DatabaseManager.shared.currentSessionId,
+           let session = DatabaseManager.shared.activeSessions[sessionId] {
+            currentDatabase = session.connection.database
+        } else {
+            currentDatabase = connection.database
+        }
+
         let needsQuery = tabManager.TableProTabSmart(
             tableName: tableName,
             hasUnsavedChanges: changeManager.hasChanges,
             databaseType: connection.type,
-            isView: isView
+            isView: isView,
+            databaseName: currentDatabase
         )
 
         // Initialize pagination for new table tab
@@ -143,7 +153,7 @@ extension MainContentCoordinator {
                 // Update toolbar state
                 toolbarState.databaseName = database
 
-                // Clear tab results but keep tabs open
+                // Clear tab results but keep tabs open, update databaseName to new database
                 tabManager.tabs = tabManager.tabs.map { tab in
                     var updatedTab = tab
                     updatedTab.resultColumns = []
@@ -151,6 +161,7 @@ extension MainContentCoordinator {
                     updatedTab.resultVersion += 1
                     updatedTab.errorMessage = nil
                     updatedTab.executionTime = nil
+                    updatedTab.databaseName = database
                     return updatedTab
                 }
 
