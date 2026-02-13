@@ -331,8 +331,8 @@ jobs:
           fi
 
           # Link packages with --force (needed for keg-only formulas)
-          arch -x86_64 /usr/local/bin/brew link --force mariadb-connector-c
-          arch -x86_64 /usr/local/bin/brew link --force libpq
+          arch -x86_64 /usr/local/bin/brew link --force --overwrite mariadb-connector-c
+          arch -x86_64 /usr/local/bin/brew link --force --overwrite libpq
 
           # Verify installations
           if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c >/dev/null 2>&1; then
