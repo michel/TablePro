@@ -97,6 +97,11 @@ jobs:
           xcode-select -p
           xcodebuild -version
 
+      - name: Create Secrets.xcconfig
+        env:
+          ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
+        run: echo "ANALYTICS_HMAC_SECRET = ${ANALYTICS_HMAC_SECRET}" > Secrets.xcconfig
+
       - name: Build ARM64
         env:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
@@ -345,6 +350,11 @@ jobs:
           echo "Active Xcode:"
           xcode-select -p
           xcodebuild -version
+
+      - name: Create Secrets.xcconfig
+        env:
+          ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
+        run: echo "ANALYTICS_HMAC_SECRET = ${ANALYTICS_HMAC_SECRET}" > Secrets.xcconfig
 
       - name: Build x86_64
         env:
