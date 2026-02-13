@@ -188,7 +188,7 @@ build_for_arch() {
         CODE_SIGNING_ALLOWED=NO \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
-        clean build 2>&1 | tee "build-${arch}.log"; then
+        build 2>&1 | tee "build-${arch}.log"; then
         echo "❌ FATAL: xcodebuild failed for $arch"
         echo "Check build-${arch}.log for details"
         exit 1
