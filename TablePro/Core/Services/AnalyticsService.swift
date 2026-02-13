@@ -25,8 +25,15 @@ final class AnalyticsService {
     /// Initial delay before first heartbeat (let connections establish)
     private let initialDelay: TimeInterval = 10
 
-    /// HMAC-SHA256 shared secret for analytics request signing (injected via Info.plist at build time)
-    private let hmacSecret: String? = Bundle.main.object(forInfoDictionaryKey: "AnalyticsHMACSecret") as? String
+    /// HMAC-SHA256 shared secret for analytics request signing (injected via Info.plist build setting)
+    private let hmacSecret: String? = {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "AnalyticsHMACSecret") as? String,
+              !value.isEmpty,
+              !value.hasPrefix("$(") else {
+            return nil
+        }
+        return value
+    }()
 
     private var heartbeatTimer: Timer?
 
