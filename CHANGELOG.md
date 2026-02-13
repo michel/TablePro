@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Split editor panes: Cmd+\ (horizontal) and Cmd+Shift+\ (vertical) to split the editor into independent panes
+- Each pane has independent tabs with shared database connection
+- Focus-based sidebar routing — clicked tables open in the active pane
+- Split layout and per-pane tabs persist across app restarts
+
+## [0.3.0] - 2026-02-13
+
+### Added
+
 - Anonymous usage analytics with opt-out toggle in Settings > General > Privacy — sends lightweight heartbeat (OS version, architecture, locale, database types) every 24 hours to help improve TablePro; no personal data or queries are collected
 - ENUM/SET column editor: double-click ENUM columns to select from a searchable dropdown popover, SET columns show a multi-select checkbox popover with OK/Cancel buttons
 - PostgreSQL user-defined enum type support via `pg_enum` catalog lookup
@@ -139,7 +148,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/datlechin/tablepro/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/datlechin/tablepro/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/datlechin/tablepro/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/datlechin/tablepro/releases/tag/v0.1.0
