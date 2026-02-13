@@ -25,8 +25,8 @@ final class AnalyticsService {
     /// Initial delay before first heartbeat (let connections establish)
     private let initialDelay: TimeInterval = 10
 
-    /// HMAC-SHA256 shared secret for analytics request signing
-    private let hmacSecret = "tp_analytics_8f3k2m9x4v7b1n6j5h0w"
+    /// HMAC-SHA256 shared secret for analytics request signing (injected via Info.plist at build time)
+    private let hmacSecret: String? = Bundle.main.object(forInfoDictionaryKey: "AnalyticsHMACSecret") as? String
 
     private var heartbeatTimer: Timer?
 
@@ -85,9 +85,10 @@ final class AnalyticsService {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try encoder.encode(payload)
 
-            // Sign request body with HMAC-SHA256
-            if let body = request.httpBody {
-                let key = SymmetricKey(data: Data(hmacSecret.utf8))
+            // Sign request body with HMAC-SHA256 (secret injected at build time)
+            if let body = request.httpBody,
+               let secret = hmacSecret, !secret.isEmpty {
+                let key = SymmetricKey(data: Data(secret.utf8))
                 let signature = HMAC<SHA256>.authenticationCode(for: body, using: key)
                 let signatureHex = signature.map { String(format: "%02x", $0) }.joined()
                 request.setValue(signatureHex, forHTTPHeaderField: "X-Signature")
