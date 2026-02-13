@@ -45,6 +45,9 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      - name: Install Git LFS
+        run: brew install git-lfs && git lfs install
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -247,6 +250,9 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      - name: Install Git LFS
+        run: brew install git-lfs && git lfs install
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
