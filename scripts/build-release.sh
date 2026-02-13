@@ -175,6 +175,10 @@ build_for_arch() {
         rm -rf "TablePro/AppIcon.icon"
     fi
 
+    # Persistent SPM package cache (speeds up CI on self-hosted runners)
+    SPM_CACHE_DIR="${HOME}/.spm-cache"
+    mkdir -p "$SPM_CACHE_DIR"
+
     # Build with xcodebuild
     echo "Running xcodebuild..."
     if ! xcodebuild \
@@ -188,7 +192,7 @@ build_for_arch() {
         CODE_SIGNING_ALLOWED=NO \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
-        -disableAutomaticPackageResolution \
+        -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
         build 2>&1 | tee "build-${arch}.log"; then
         echo "❌ FATAL: xcodebuild failed for $arch"
         echo "Check build-${arch}.log for details"
