@@ -38,12 +38,15 @@ jobs:
 
     steps:
       - name: Install Git LFS
-        run: brew install git-lfs && git lfs install
+        run: brew install git-lfs || true && git lfs install
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Pull LFS files
+        run: git lfs pull
 
       - name: Install ARM64 dependencies
         run: |
@@ -234,12 +237,15 @@ jobs:
 
     steps:
       - name: Install Git LFS
-        run: brew install git-lfs && git lfs install
+        run: brew install git-lfs || true && git lfs install
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           lfs: true
+
+      - name: Pull LFS files
+        run: git lfs pull
 
       - name: Install Rosetta 2
         run: |
