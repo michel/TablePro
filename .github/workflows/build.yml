@@ -24,14 +24,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache SwiftLint
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Caches/Homebrew/swiftlint*
-          key: swiftlint-${{ runner.os }}-${{ hashFiles('.swiftlint.yml') }}
-          restore-keys: |
-            swiftlint-${{ runner.os }}-
-
       - name: Install SwiftLint
         run: brew install swiftlint
 
@@ -52,15 +44,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true
-
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/Library/Caches/Homebrew
-          key: brew-arm64-downloads-${{ runner.os }}-${{ hashFiles('**/scripts/build-release.sh') }}
-          restore-keys: |
-            brew-arm64-downloads-${{ runner.os }}-
 
       - name: Install ARM64 dependencies
         run: |
@@ -257,15 +240,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true
-
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
-        continue-on-error: true
-        with:
-          path: ~/Library/Caches/Homebrew
-          key: brew-x86_64-downloads-${{ runner.os }}-${{ hashFiles('**/scripts/build-release.sh') }}
-          restore-keys: |
-            brew-x86_64-downloads-${{ runner.os }}-
 
       - name: Install Rosetta 2
         run: |
