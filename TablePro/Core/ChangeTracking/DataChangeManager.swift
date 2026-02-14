@@ -285,6 +285,7 @@ final class DataChangeManager: ObservableObject {
         changedRowIndices.insert(rowIndex)  // Track for granular reload
         pushUndo(.rowInsertion(rowIndex: rowIndex))
         hasChanges = true
+        reloadVersion += 1
     }
 
     // MARK: - Undo Operations
