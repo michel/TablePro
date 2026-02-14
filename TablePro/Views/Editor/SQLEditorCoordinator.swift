@@ -40,6 +40,21 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         }
     }
 
+    func textViewDidChangeText(controller: TextViewController) {
+        // After text changes (especially paste), the highlighter's visible
+        // range may be stale because layout hasn't processed the new text yet.
+        // Deferring a frame-change notification to the next run loop ensures
+        // the layout manager has updated, so the visible range is accurate
+        // and the highlighter re-evaluates any unhighlighted ranges.
+        DispatchQueue.main.async { [weak controller] in
+            guard let textView = controller?.textView else { return }
+            NotificationCenter.default.post(
+                name: NSView.frameDidChangeNotification,
+                object: textView
+            )
+        }
+    }
+
     func destroy() {}
 
     // MARK: - CodeEditSourceEditor Workarounds
