@@ -4,6 +4,22 @@
 
 TablePro is a native macOS database client built with SwiftUI and AppKit. It's designed as a fast, lightweight alternative to TablePlus, prioritizing Apple-native frameworks and modern Swift idioms for optimal performance and maintainability.
 
+- **Current version:** 0.3.1
+- **Minimum macOS:** 13.5 (Ventura)
+- **Swift version:** 5.9
+- **Architecture:** Universal Binary (arm64 + x86_64)
+- **License:** GPL v3
+- **Codebase:** ~210 Swift files, ~49,000 LOC
+
+### Related Documentation Files
+
+| File | Purpose |
+|------|---------|
+| `CHANGELOG.md` | Version history (Keep a Changelog format) — **mandatory** to update |
+| `TRACKING.md` | Project health scorecard, issues, architecture reference |
+| `ROADMAP.md` | Feature roadmap, tier-based priorities, technical debt |
+| `AGENTS.md` | Simplified agent guide (CLAUDE.md is authoritative) |
+
 ## Build & Development Commands
 
 ### Building
@@ -77,46 +93,186 @@ scripts/create-dmg.sh
 
 Managed via Xcode's SPM integration (no standalone `Package.swift`):
 
-- **CodeEditSourceEditor** (0.15.2+) — tree-sitter-powered code editor component
-- **CodeEditLanguages** — SQL language grammar (transitive dependency)
-- **CodeEditTextView** — text view API, e.g. `replaceCharacters` (transitive dependency)
-- **Sparkle** (2.x) — auto-update framework with EdDSA signing
+**Direct dependencies:**
+
+- **CodeEditSourceEditor** (`main` branch) — tree-sitter-powered code editor component
+- **Sparkle** (2.8.1) — auto-update framework with EdDSA signing
+
+**Transitive dependencies (via CodeEditSourceEditor):**
+
+- **CodeEditLanguages** (0.1.20) — SQL language grammar
+- **CodeEditTextView** (0.12.1) — text view API, e.g. `replaceCharacters`
+- **CodeEditSymbols** (0.2.3) — symbol definitions
+- **SwiftTreeSitter** (0.25.0) — tree-sitter Swift bindings
+- **tree-sitter** (0.25.10) — tree-sitter core parser
+- **SwiftCollections** (1.3.0) — Apple collection types
+- **TextFormation** (0.9.0) / **TextStory** (0.9.1) — text utilities
+- **Rearrange** (2.0.0) — code rearrangement
+- **SwiftLintPlugin** (0.63.1) — code linting plugin
+
+> **Note:** CodeEditSourceEditor tracks `main` branch (not a tagged release) because
+> version 0.15.2 crashes on macOS 13 due to `asyncAndWait` requiring macOS 14+.
+> The `main` branch uses `sync` instead. Pin to a tagged release once 0.16.0 ships.
 
 > The SwiftLint plugin bundled with CodeEditSourceEditor requires
 > `-skipPackagePluginValidation` for CLI builds (see Build Commands above).
 
+### Native C Libraries
+
+The project bundles C database client libraries via bridging headers:
+
+- **CMariaDB** (`TablePro/Core/Database/CMariaDB/`) — C bridge for MariaDB/MySQL connector
+- **CLibPQ** (`TablePro/Core/Database/CLibPQ/`) — C bridge for PostgreSQL libpq
+- **Static libraries** (`Libs/`) — pre-built `libmariadb*.a` for arm64/x86_64/universal (Git LFS tracked)
+
 ### File Structure
 
-- **Models**: `TablePro/Models/` - Data structures, domain entities (prefer `struct`, `enum`)
-- **Views**: `TablePro/Views/` - SwiftUI views only, no business logic
-- **ViewModels**: `TablePro/ViewModels/` - `@Observable` classes (Swift 5.9+) or `ObservableObject`
-- **Core**: `TablePro/Core/` - Business logic, database drivers, services
-- **Extensions**: `TablePro/Extensions/` - Type extensions, protocol conformances
-- **Resources**: `TablePro/Resources/` - Assets, localized strings, asset catalogs
+Top-level layout:
 
-Key subdirectories:
+- **`TablePro/`** — Main source code
+  - **`Core/`** — Business logic, database drivers, services
+  - **`Views/`** — SwiftUI + AppKit UI components (no business logic)
+  - **`Models/`** — Data structures, domain entities (prefer `struct`, `enum`)
+  - **`ViewModels/`** — `@Observable` classes (Swift 5.9+) or `ObservableObject`
+  - **`Extensions/`** — Type extensions, protocol conformances
+  - **`Theme/`** — Design tokens, constants, toolbar tokens
+  - **`Resources/`** — Localization (`Localizable.xcstrings`), assets
+  - **`Assets.xcassets/`** — Image catalog (app icon, database icons, accent color)
+  - **`AppDelegate.swift`** — App lifecycle (AppKit)
+  - **`OpenTableApp.swift`** — Main app entry point (`@main`)
+  - **`ContentView.swift`** — Root SwiftUI view
+- **`Libs/`** — Pre-built static libraries (Git LFS)
+- **`scripts/`** — Build automation (`build-release.sh`, `create-dmg.sh`)
+- **`.github/workflows/`** — CI/CD (GitHub Actions)
+
+#### Core Directory (63 files)
 
 ```
-TablePro/Views/Editor/
-├── SQLEditorView.swift              # SwiftUI wrapper for CodeEditSourceEditor
-├── SQLEditorCoordinator.swift       # TextViewCoordinator (find panel workarounds)
-├── SQLEditorTheme.swift             # Source of truth for colors/fonts
-├── TableProEditorTheme.swift        # Adapter → CodeEdit's EditorTheme protocol
-├── SQLCompletionAdapter.swift       # Bridges CompletionEngine → CodeSuggestionDelegate
-├── EditorTabBar.swift               # Pure SwiftUI tab bar
-├── QueryEditorView.swift            # Query editor container
-├── QueryPreviewViewController.swift # Quick-look preview
-└── ...                              # Column editors, history panel, templates
+TablePro/Core/
+├── Autocomplete/             # SQL autocompletion engine
+│   ├── CompletionEngine.swift        # Core completion logic (framework-agnostic)
+│   ├── SQLCompletionProvider.swift   # SQL-specific provider
+│   ├── SQLContextAnalyzer.swift      # Query context analysis
+│   ├── SQLSchemaProvider.swift       # Schema metadata provider
+│   └── SQLKeywords.swift             # SQL keyword definitions
+├── ChangeTracking/           # Data modification tracking
+│   ├── DataChangeManager.swift       # Change lifecycle management
+│   ├── DataChangeModels.swift        # Change data structures
+│   ├── DataChangeUndoManager.swift   # Undo/redo support
+│   └── SQLStatementGenerator.swift   # Generate INSERT/UPDATE/DELETE
+├── Database/                 # Database connectivity
+│   ├── DatabaseDriver.swift          # Driver protocol & factory
+│   ├── DatabaseManager.swift         # Connection pool & lifecycle
+│   ├── MySQLDriver.swift             # MySQL implementation
+│   ├── PostgreSQLDriver.swift        # PostgreSQL implementation
+│   ├── SQLiteDriver.swift            # SQLite implementation
+│   ├── MariaDBConnection.swift       # MariaDB C connector wrapper
+│   ├── LibPQConnection.swift         # libpq wrapper (PostgreSQL)
+│   ├── ConnectionHealthMonitor.swift # 30s ping + auto-reconnect
+│   ├── FilterSQLGenerator.swift      # Dynamic WHERE clause builder
+│   ├── SQLEscaping.swift             # SQL injection prevention
+│   ├── CMariaDB/                     # C bridge (module.modulemap)
+│   └── CLibPQ/                       # C bridge (module.modulemap)
+├── KeyboardHandling/         # Keyboard input processing
+├── SSH/                      # SSH tunneling support
+│   ├── SSHTunnelManager.swift        # Tunnel lifecycle
+│   └── SSHConfigParser.swift         # ~/.ssh/config parser
+├── SchemaTracking/           # Table structure modifications
+│   ├── StructureChangeManager.swift  # Schema change tracking
+│   ├── StructureUndoManager.swift    # Schema undo/redo
+│   └── SchemaStatementGenerator.swift # Generate ALTER TABLE
+├── Services/                 # Utility services
+│   ├── AnalyticsService.swift        # Anonymous usage analytics
+│   ├── ExportService.swift           # CSV/JSON/SQL/XLSX export
+│   ├── ImportService.swift           # Data import handling
+│   ├── LicenseManager.swift          # License validation
+│   ├── SQLFormatterService.swift     # SQL formatting
+│   ├── TabPersistenceService.swift   # Tab state persistence
+│   ├── XLSXWriter.swift              # Excel export (pure Swift)
+│   └── ...                           # Clipboard, dates, DDL, etc.
+├── Storage/                  # Persistent data storage
+│   ├── AppSettingsManager.swift      # Settings management
+│   ├── ConnectionStorage.swift       # Keychain persistence
+│   ├── QueryHistoryStorage.swift     # FTS5 search database
+│   └── ...                           # Filters, tabs, templates, tags
+├── Utilities/                # Helpers (alerts, decompression, SQL parsing)
+└── Validation/               # Settings validation
+```
 
-TablePro/Views/Main/
-├── MainContentCoordinator.swift
-└── Extensions/
-    ├── MainContentCoordinator+Alerts.swift
-    ├── MainContentCoordinator+Filtering.swift
-    ├── MainContentCoordinator+MultiStatement.swift
-    ├── MainContentCoordinator+Pagination.swift
-    ├── MainContentCoordinator+RowOperations.swift
-    └── MainContentView+Bindings.swift
+#### Views Directory (106 files)
+
+```
+TablePro/Views/
+├── Components/               # Reusable UI (empty states, pagination, key events)
+├── Connection/               # Connection form, color picker, tags
+├── DatabaseSwitcher/         # Database switching UI
+├── Editor/                   # SQL editor & query UI
+│   ├── SQLEditorView.swift              # SwiftUI wrapper for CodeEditSourceEditor
+│   ├── SQLEditorCoordinator.swift       # TextViewCoordinator (find panel workarounds)
+│   ├── SQLEditorTheme.swift             # Source of truth for colors/fonts
+│   ├── TableProEditorTheme.swift        # Adapter → CodeEdit's EditorTheme protocol
+│   ├── SQLCompletionAdapter.swift       # Bridges CompletionEngine → CodeSuggestionDelegate
+│   ├── EditorTabBar.swift               # Pure SwiftUI tab bar
+│   ├── QueryEditorView.swift            # Query editor container
+│   ├── CreateTableView.swift            # Table creation wizard
+│   ├── HistoryPanelController.swift     # Query history panel (AppKit)
+│   └── ...                              # Column editors, templates, preview
+├── Export/                   # Export dialog, format-specific options (CSV/JSON/SQL/XLSX)
+├── Filter/                   # Filter builder panel, quick search, SQL preview
+├── History/                  # Query history list, data provider
+├── Import/                   # Import dialog, progress, error display
+├── Main/                     # Main content coordinator
+│   ├── MainContentCoordinator.swift     # Core coordinator class
+│   ├── MainContentNotificationHandler.swift # Notification handling
+│   ├── Child/                           # Child views
+│   │   ├── MainEditorContentView.swift
+│   │   ├── MainStatusBarView.swift
+│   │   ├── QueryTabContentView.swift
+│   │   └── TableTabContentView.swift
+│   └── Extensions/                      # Coordinator extensions
+│       ├── MainContentCoordinator+Alerts.swift
+│       ├── MainContentCoordinator+Filtering.swift
+│       ├── MainContentCoordinator+MultiStatement.swift
+│       ├── MainContentCoordinator+Navigation.swift
+│       ├── MainContentCoordinator+Pagination.swift
+│       ├── MainContentCoordinator+RowOperations.swift
+│       └── MainContentView+Bindings.swift
+├── Results/                  # Data grid (NSTableView), cell editors
+│   ├── DataGridView.swift               # Main data grid
+│   ├── CellTextField.swift              # Text input cell
+│   ├── BooleanCellEditor.swift          # Boolean toggle
+│   ├── DatePickerCellEditor.swift       # Date/time picker popover
+│   ├── EnumPopoverController.swift      # ENUM dropdown selector
+│   ├── SetPopoverController.swift       # SET multi-select popover
+│   ├── ForeignKeyPopoverController.swift # FK lookup dropdown
+│   ├── JSONEditorPopoverController.swift # JSON/JSONB editor
+│   └── ...                              # Key handling, context menus
+├── RightSidebar/             # Right sidebar panel
+├── Settings/                 # Settings views (General, Appearance, Editor, etc.)
+├── Sidebar/                  # Left sidebar, table operations
+├── Structure/                # Table structure editor, DDL view
+└── Toolbar/                  # Toolbar (connection status, switcher, execution)
+```
+
+#### Models Directory (28 files)
+
+```
+TablePro/Models/
+├── DatabaseConnection.swift   # Connection configuration
+├── QueryResult.swift          # Query result set
+├── QueryTab.swift             # Tab state (sort, pagination, filters)
+├── AppSettings.swift          # App settings model
+├── License.swift              # License model
+├── FilterState.swift          # Current filter state
+├── ExportModels.swift         # Export options/state
+├── ImportModels.swift         # Import options/state
+├── Schema/                    # Schema modification models
+│   ├── ColumnDefinition.swift
+│   ├── ForeignKeyDefinition.swift
+│   ├── IndexDefinition.swift
+│   ├── SchemaChange.swift
+│   └── ...
+└── ...                        # Sessions, tags, metadata, templates
 ```
 
 ### Imports
@@ -292,6 +448,7 @@ TablePro/Views/Main/
     ├── MainContentCoordinator+Alerts.swift
     ├── MainContentCoordinator+Filtering.swift
     ├── MainContentCoordinator+MultiStatement.swift
+    ├── MainContentCoordinator+Navigation.swift
     ├── MainContentCoordinator+Pagination.swift
     ├── MainContentCoordinator+RowOperations.swift
     └── MainContentView+Bindings.swift
@@ -374,9 +531,36 @@ See `.swiftlint.yml` for the full list. Key disabled rules: `trailing_comma`, `t
 - **`EditorTabBar`** is pure SwiftUI — replaced the previous AppKit `NativeTabBarView` stack
 - Cursor model: `cursorPositions: [CursorPosition]` (multi-cursor support via CodeEditSourceEditor)
 
+### Database Driver Architecture
+
+All database operations go through the `DatabaseDriver` protocol (`Core/Database/DatabaseDriver.swift`):
+
+- **`MySQLDriver`** — Uses `MariaDBConnection` (C connector via CMariaDB bridge)
+- **`PostgreSQLDriver`** — Uses `LibPQConnection` (C connector via CLibPQ bridge)
+- **`SQLiteDriver`** — Uses Foundation's `sqlite3` directly
+- **`DatabaseManager`** — Connection pool, lifecycle, and the primary interface for views/coordinators
+- **`ConnectionHealthMonitor`** — Periodic ping (30s), auto-reconnect with exponential backoff
+
+When adding a new driver method, add it to the `DatabaseDriver` protocol, then implement in all three drivers.
+
+### Change Tracking Flow
+
+1. User edits cell → `DataChangeManager` records change
+2. User clicks Save → `SQLStatementGenerator` produces INSERT/UPDATE/DELETE
+3. `DataChangeUndoManager` provides undo/redo support
+4. `AnyChangeManager` abstracts over the concrete manager for protocol-based usage
+
+### Storage Patterns
+
+- **Secrets** (connection passwords): Keychain via `ConnectionStorage`
+- **User preferences**: `UserDefaults` via `AppSettingsStorage` / `AppSettingsManager`
+- **Query history**: SQLite FTS5 database via `QueryHistoryStorage`
+- **Tab state**: JSON persistence via `TabPersistenceService` / `TabStateStorage`
+- **Filter presets**: `FilterSettingsStorage`
+
 ### Logger Usage
 
-Use OSLog for debugging:
+Use OSLog for debugging (never `print()`):
 
 ```swift
 import os
@@ -394,13 +578,43 @@ logger.error("Failed to connect: \(error.localizedDescription)")
 @Published var items: [Item] = []
 ```
 
-### Database Connections
-
-Follow existing driver patterns in `TablePro/Core/Database/`
-
 ### Error Propagation
 
 Prefer throwing errors over returning optionals for failure cases
+
+### Localization
+
+The project uses Xcode String Catalogs (`Localizable.xcstrings`) with English + Vietnamese (637 strings):
+
+- SwiftUI view literals (`Text("literal")`, `Button("literal")`) auto-localize
+- Computed strings, AppKit code, alerts, error descriptions → use `String(localized: "text")`
+- Do NOT localize technical terms (font names, database types, SQL keywords, encoding names)
+- Language setting available in Settings > General (System, English, Vietnamese)
+
+## CI/CD
+
+GitHub Actions workflow at `.github/workflows/build.yml`:
+
+- **Trigger:** Git tags matching `v*`
+- **Jobs:**
+  1. `lint` — SwiftLint strict mode
+  2. `build-arm64` — ARM64 binary with mariadb-connector-c and libpq
+  3. `build-x86_64` — Intel binary (installs Rosetta 2 + x86_64 Homebrew)
+  4. `release` — Creates GitHub release with DMG/ZIP artifacts + Sparkle EdDSA signatures
+- **Artifacts:** DMG installer, ZIP archive, architecture-specific appcast.xml
+- **Release notes:** Extracted automatically from `CHANGELOG.md`
+
+## Large Files Approaching SwiftLint Limits
+
+Keep these files in mind when adding code — they may need extraction into extensions:
+
+| File | ~Lines | Limit (warn/error) |
+|------|--------|---------------------|
+| `Views/Main/MainContentCoordinator.swift` | 1387 | 1200/1800 (already split into 7 extensions) |
+| `Core/Services/ExportService.swift` | 990 | 1200/1800 |
+| `Core/Database/MariaDBConnection.swift` | 987 | 1200/1800 |
+| `Views/Results/DataGridView.swift` | 972 | 1200/1800 |
+| `Views/Editor/CreateTableView.swift` | 910 | 1200/1800 |
 
 ## Documentation
 
