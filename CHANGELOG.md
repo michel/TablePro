@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Split editor panes: Cmd+\ (horizontal) and Cmd+Shift+\ (vertical) to split the editor into independent panes
-- Each pane has independent tabs with shared database connection
-- Focus-based sidebar routing — clicked tables open in the active pane
-- Split layout and per-pane tabs persist across app restarts
-
 ## [0.3.0] - 2026-02-13
 
 ### Added
