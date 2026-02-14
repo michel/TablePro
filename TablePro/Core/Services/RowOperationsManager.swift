@@ -293,11 +293,23 @@ final class RowOperationsManager {
     /// - Parameters:
     ///   - selectedIndices: Indices of rows to copy
     ///   - resultRows: Current rows
-    func copySelectedRowsToClipboard(selectedIndices: Set<Int>, resultRows: [QueryResultRow]) {
+    ///   - columns: Column names (used when includeHeaders is true)
+    ///   - includeHeaders: Whether to prepend column headers as the first TSV line
+    func copySelectedRowsToClipboard(
+        selectedIndices: Set<Int>,
+        resultRows: [QueryResultRow],
+        columns: [String] = [],
+        includeHeaders: Bool = false
+    ) {
         guard !selectedIndices.isEmpty else { return }
 
         let sortedIndices = selectedIndices.sorted()
         var lines: [String] = []
+
+        // Add header row if requested
+        if includeHeaders, !columns.isEmpty {
+            lines.append(columns.joined(separator: "\t"))
+        }
 
         for rowIndex in sortedIndices {
             guard rowIndex < resultRows.count else { continue }

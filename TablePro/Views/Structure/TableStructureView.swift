@@ -36,6 +36,7 @@ struct TableStructureView: View {
     @State private var selectedRows: Set<Int> = []
     @State private var sortState = SortState()
     @State private var editingCell: CellPosition?
+    @State private var structureColumnLayout = ColumnLayoutState()
 
     // Preview dialog
     @State private var showPreview = false
@@ -164,7 +165,8 @@ struct TableStructureView: View {
             dropdownColumns: provider.dropdownColumns,
             selectedRowIndices: $selectedRows,
             sortState: $sortState,
-            editingCell: $editingCell
+            editingCell: $editingCell,
+            columnLayout: $structureColumnLayout
         )
     }
 

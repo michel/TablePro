@@ -20,7 +20,7 @@ struct TableTabContentView: View {
     let onCommit: (String) -> Void
     let onRefresh: () -> Void
     let onCellEdit: (Int, Int, String?) -> Void
-    let onSort: (Int, Bool) -> Void
+    let onSort: (Int, Bool, Bool) -> Void
     let onAddRow: () -> Void
     let onUndoInsert: (Int) -> Void
     let onFilterColumn: (String) -> Void
@@ -41,6 +41,7 @@ struct TableTabContentView: View {
 
     @Binding var sortState: SortState
     @Binding var showStructure: Bool
+    @Binding var columnLayout: ColumnLayoutState
 
     var body: some View {
         VStack(spacing: 0) {
@@ -85,7 +86,8 @@ struct TableTabContentView: View {
                     onFilterColumn: onFilterColumn,
                     selectedRowIndices: $selectedRowIndices,
                     sortState: $sortState,
-                    editingCell: $editingCell
+                    editingCell: $editingCell,
+                    columnLayout: $columnLayout
                 )
                 .frame(maxHeight: .infinity, alignment: .top)
             }

@@ -657,17 +657,35 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Sorting
 
-    func handleSort(columnIndex: Int, ascending: Bool, selectedRowIndices: inout Set<Int>) {
+    func handleSort(columnIndex: Int, ascending: Bool, isMultiSort: Bool = false, selectedRowIndices: inout Set<Int>) {
         guard let tabIndex = tabManager.selectedTabIndex,
               tabIndex < tabManager.tabs.count else { return }
 
         let tab = tabManager.tabs[tabIndex]
         guard columnIndex >= 0 && columnIndex < tab.resultColumns.count else { return }
 
-        let columnName = String(tab.resultColumns[columnIndex])
-        var currentSort = SortState()
-        currentSort.columnIndex = columnIndex
-        currentSort.direction = ascending ? .ascending : .descending
+        var currentSort = tab.sortState
+        let newDirection: SortDirection = ascending ? .ascending : .descending
+
+        if isMultiSort {
+            // Multi-sort: toggle existing or append new column
+            if let existingIndex = currentSort.columns.firstIndex(where: { $0.columnIndex == columnIndex }) {
+                if currentSort.columns[existingIndex].direction == newDirection {
+                    // Same direction clicked again — remove from sort
+                    currentSort.columns.remove(at: existingIndex)
+                } else {
+                    // Toggle direction
+                    currentSort.columns[existingIndex].direction = newDirection
+                }
+            } else {
+                // Add new column to sort list
+                currentSort.columns.append(SortColumn(columnIndex: columnIndex, direction: newDirection))
+            }
+        } else {
+            // Single sort: replace all with single column
+            currentSort = SortState()
+            currentSort.columns = [SortColumn(columnIndex: columnIndex, direction: newDirection)]
+        }
 
         tabManager.tabs[tabIndex].sortState = currentSort
         tabManager.tabs[tabIndex].hasUserInteraction = true
@@ -679,7 +697,7 @@ final class MainContentCoordinator: ObservableObject {
             let rows = tab.resultRows
             let tabId = tab.id
             let resultVersion = tab.resultVersion
-            let sortAscending = ascending
+            let sortColumns = currentSort.columns
 
             if rows.count > 10_000 {
                 // Large dataset: sort on background thread to avoid UI freeze
@@ -691,30 +709,20 @@ final class MainContentCoordinator: ObservableObject {
 
                 let sortStartTime = Date()
                 let task = Task.detached { [weak self] in
-                    let sorted = rows.sorted { row1, row2 in
-                        let val1 = row1.values[columnIndex] ?? ""
-                        let val2 = row2.values[columnIndex] ?? ""
-                        if sortAscending {
-                            return val1.localizedStandardCompare(val2) == .orderedAscending
-                        } else {
-                            return val1.localizedStandardCompare(val2) == .orderedDescending
-                        }
-                    }
+                    let sorted = Self.multiColumnSort(rows: rows, sortColumns: sortColumns)
                     let sortDuration = Date().timeIntervalSince(sortStartTime)
 
                     await MainActor.run { [weak self] in
-                        let expectedDirection: SortDirection = sortAscending ? .ascending : .descending
                         guard let self else { return }
                         // Guard against stale completion: verify tab still expects this sort
                         guard let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }),
-                              self.tabManager.tabs[idx].sortState.columnIndex == columnIndex,
-                              self.tabManager.tabs[idx].sortState.direction == expectedDirection else {
+                              self.tabManager.tabs[idx].sortState == currentSort else {
                             return
                         }
                         self.querySortCache[tabId] = QuerySortCacheEntry(
                             rows: sorted,
-                            columnIndex: columnIndex,
-                            direction: expectedDirection,
+                            columnIndex: sortColumns.first?.columnIndex ?? 0,
+                            direction: sortColumns.first?.direction ?? .ascending,
                             resultVersion: resultVersion
                         )
                         var sortedTab = self.tabManager.tabs[idx]
@@ -735,13 +743,35 @@ final class MainContentCoordinator: ObservableObject {
             return
         }
 
-        let newQuery = queryBuilder.buildSortedQuery(
+        // Table tabs: rebuild query with ORDER BY and re-execute
+        let newQuery = queryBuilder.buildMultiSortQuery(
             baseQuery: tab.query,
-            columnName: columnName,
-            ascending: ascending
+            sortState: currentSort,
+            columns: tab.resultColumns
         )
         tabManager.tabs[tabIndex].query = newQuery
         runQuery()
+    }
+
+    /// Multi-column sort comparison (nonisolated for background thread)
+    nonisolated private static func multiColumnSort(
+        rows: [QueryResultRow],
+        sortColumns: [SortColumn]
+    ) -> [QueryResultRow] {
+        rows.sorted { row1, row2 in
+            for sortCol in sortColumns {
+                let val1 = sortCol.columnIndex < row1.values.count
+                    ? (row1.values[sortCol.columnIndex] ?? "") : ""
+                let val2 = sortCol.columnIndex < row2.values.count
+                    ? (row2.values[sortCol.columnIndex] ?? "") : ""
+                let result = val1.localizedStandardCompare(val2)
+                if result == .orderedSame { continue }
+                return sortCol.direction == .ascending
+                    ? result == .orderedAscending
+                    : result == .orderedDescending
+            }
+            return false
+        }
     }
 
     // MARK: - Save Changes

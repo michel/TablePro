@@ -56,6 +56,12 @@ struct PasteboardCommands: Commands {
             }
             .keyboardShortcut("c", modifiers: .command)
 
+            Button("Copy with Headers") {
+                NotificationCenter.default.post(name: .copySelectedRowsWithHeaders, object: nil)
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .disabled(!appState.hasRowSelection)
+
             Button("Paste") {
                 // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
                 if let firstResponder = NSApp.keyWindow?.firstResponder,
@@ -435,6 +441,7 @@ extension Notification.Name {
     static let copyTableNames = Notification.Name("copyTableNames")
     static let truncateTables = Notification.Name("truncateTables")
     static let copySelectedRows = Notification.Name("copySelectedRows")
+    static let copySelectedRowsWithHeaders = Notification.Name("copySelectedRowsWithHeaders")
     static let pasteRows = Notification.Name("pasteRows")
     static let clearSelection = Notification.Name("clearSelection")
     static let undoChange = Notification.Name("undoChange")

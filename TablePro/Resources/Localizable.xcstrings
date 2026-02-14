@@ -1687,6 +1687,9 @@
         }
       }
     },
+    "Copy with Headers" : {
+
+    },
     "Counting..." : {
       "localizations" : {
         "vi" : {
@@ -4731,16 +4734,6 @@
         }
       }
     },
-    "Privacy" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quyền riêng tư"
-          }
-        }
-      }
-    },
     "Preview" : {
       "localizations" : {
         "vi" : {
@@ -4777,6 +4770,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tab trước"
+          }
+        }
+      }
+    },
+    "Privacy" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quyền riêng tư"
           }
         }
       }

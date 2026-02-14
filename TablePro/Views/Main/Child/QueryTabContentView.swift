@@ -26,7 +26,7 @@ struct QueryTabContentView: View {
     let onCommit: (String) -> Void
     let onRefresh: () -> Void
     let onCellEdit: (Int, Int, String?) -> Void
-    let onSort: (Int, Bool) -> Void
+    let onSort: (Int, Bool, Bool) -> Void
     let onAddRow: () -> Void
     let onUndoInsert: (Int) -> Void
     let onFilterColumn: (String) -> Void
@@ -47,6 +47,7 @@ struct QueryTabContentView: View {
 
     @Binding var sortState: SortState
     @Binding var showStructure: Bool
+    @Binding var columnLayout: ColumnLayoutState
 
     var body: some View {
         VSplitView {
@@ -89,7 +90,8 @@ struct QueryTabContentView: View {
                 onPaginationGo: onPaginationGo,
                 onDismissError: onDismissError,
                 sortState: $sortState,
-                showStructure: $showStructure
+                showStructure: $showStructure,
+                columnLayout: $columnLayout
             )
             .frame(minHeight: 150)
         }

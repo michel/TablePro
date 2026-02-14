@@ -76,19 +76,23 @@ enum SortDirection: Equatable {
     }
 }
 
-/// Tracks sorting state for a table
-struct SortState: Equatable {
-    var columnIndex: Int?
+/// A single column in a multi-column sort
+struct SortColumn: Equatable {
+    var columnIndex: Int
     var direction: SortDirection
+}
 
-    init() {
-        self.columnIndex = nil
-        self.direction = .ascending
-    }
+/// Tracks sorting state for a table (supports multi-column sort)
+struct SortState: Equatable {
+    var columns: [SortColumn] = []
 
-    var isSorting: Bool {
-        columnIndex != nil
-    }
+    init() {}
+
+    var isSorting: Bool { !columns.isEmpty }
+
+    // Backward-compatible computed properties for single-column access
+    var columnIndex: Int? { columns.first?.columnIndex }
+    var direction: SortDirection { columns.first?.direction ?? .ascending }
 }
 
 /// Tracks pagination state for navigating large datasets
@@ -206,6 +210,12 @@ struct PaginationState: Equatable {
     }
 }
 
+/// Stores column layout (widths and order) within a tab session
+struct ColumnLayoutState: Equatable {
+    var columnWidths: [String: CGFloat] = [:]
+    var columnOrder: [String]?
+}
+
 /// Represents a single tab (query or table)
 struct QueryTab: Identifiable, Equatable {
     let id: UUID
@@ -254,6 +264,9 @@ struct QueryTab: Identifiable, Equatable {
     // Per-tab filter state (preserves filters when switching tabs)
     var filterState: TabFilterState
 
+    // Per-tab column layout (widths/order persist across reloads within tab session)
+    var columnLayout: ColumnLayoutState
+
     // Version counter incremented when resultRows changes (used for sort caching)
     var resultVersion: Int
 
@@ -296,6 +309,7 @@ struct QueryTab: Identifiable, Equatable {
         self.hasUserInteraction = false
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
+        self.columnLayout = ColumnLayoutState()
         self.resultVersion = 0
         self.tableCreationOptions = nil
     }
@@ -332,6 +346,7 @@ struct QueryTab: Identifiable, Equatable {
         self.hasUserInteraction = false
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
+        self.columnLayout = ColumnLayoutState()
         self.resultVersion = 0
         self.tableCreationOptions = nil
     }
@@ -510,6 +525,7 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].isView = isView
             tabs[selectedIndex].isEditable = !isView  // Views are read-only
             tabs[selectedIndex].filterState = TabFilterState()  // Reset filter state
+            tabs[selectedIndex].columnLayout = ColumnLayoutState()  // Reset column layout
             tabs[selectedIndex].pagination = PaginationState(pageSize: pageSize)  // Reset with settings
             tabs[selectedIndex].databaseName = databaseName
             return true  // Need to run query for new table

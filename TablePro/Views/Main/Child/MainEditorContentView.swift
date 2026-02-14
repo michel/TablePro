@@ -35,7 +35,7 @@ struct MainEditorContentView: View {
     // MARK: - Callbacks
 
     let onCellEdit: (Int, Int, String?) -> Void
-    let onSort: (Int, Bool) -> Void
+    let onSort: (Int, Bool, Bool) -> Void
     let onAddRow: () -> Void
     let onUndoInsert: (Int) -> Void
     let onFilterColumn: (String) -> Void
@@ -298,7 +298,8 @@ struct MainEditorContentView: View {
             onFilterColumn: onFilterColumn,
             selectedRowIndices: $selectedRowIndices,
             sortState: sortStateBinding(for: tab),
-            editingCell: $editingCell
+            editingCell: $editingCell,
+            columnLayout: columnLayoutBinding(for: tab)
         )
         .frame(maxHeight: .infinity, alignment: .top)
     }
@@ -310,14 +311,13 @@ struct MainEditorContentView: View {
         }
 
         // Query tabs: Apply client-side sorting
-        guard let columnIndex = tab.sortState.columnIndex,
-              columnIndex < tab.resultColumns.count else {
+        guard tab.sortState.isSorting else {
             return tab.resultRows
         }
 
         // Check coordinator's async sort cache (for large datasets sorted on background thread)
         if let cached = coordinator.querySortCache[tab.id],
-           cached.columnIndex == columnIndex,
+           cached.columnIndex == (tab.sortState.columnIndex ?? -1),
            cached.direction == tab.sortState.direction,
            cached.resultVersion == tab.resultVersion {
             return cached.rows
@@ -330,27 +330,32 @@ struct MainEditorContentView: View {
 
         // Small dataset: sort synchronously with view-level cache
         if let cached = sortCache[tab.id],
-           cached.columnIndex == columnIndex,
+           cached.columnIndex == (tab.sortState.columnIndex ?? -1),
            cached.direction == tab.sortState.direction,
            cached.resultVersion == tab.resultVersion {
             return cached.rows
         }
 
+        let sortColumns = tab.sortState.columns
         let sorted = tab.resultRows.sorted { row1, row2 in
-            let val1 = row1.values[columnIndex] ?? ""
-            let val2 = row2.values[columnIndex] ?? ""
-
-            if tab.sortState.direction == .ascending {
-                return val1.localizedStandardCompare(val2) == .orderedAscending
-            } else {
-                return val1.localizedStandardCompare(val2) == .orderedDescending
+            for sortCol in sortColumns {
+                let val1 = sortCol.columnIndex < row1.values.count
+                    ? (row1.values[sortCol.columnIndex] ?? "") : ""
+                let val2 = sortCol.columnIndex < row2.values.count
+                    ? (row2.values[sortCol.columnIndex] ?? "") : ""
+                let result = val1.localizedStandardCompare(val2)
+                if result == .orderedSame { continue }
+                return sortCol.direction == .ascending
+                    ? result == .orderedAscending
+                    : result == .orderedDescending
             }
+            return false
         }
 
         // Cache the result
         sortCache[tab.id] = SortedRowsCache(
             rows: sorted,
-            columnIndex: columnIndex,
+            columnIndex: tab.sortState.columnIndex ?? -1,
             direction: tab.sortState.direction,
             resultVersion: tab.resultVersion
         )
@@ -364,6 +369,17 @@ struct MainEditorContentView: View {
             set: { newValue in
                 if let index = tabManager.selectedTabIndex {
                     tabManager.tabs[index].sortState = newValue
+                }
+            }
+        )
+    }
+
+    private func columnLayoutBinding(for tab: QueryTab) -> Binding<ColumnLayoutState> {
+        Binding(
+            get: { tab.columnLayout },
+            set: { newValue in
+                if let index = tabManager.selectedTabIndex {
+                    tabManager.tabs[index].columnLayout = newValue
                 }
             }
         )

@@ -80,6 +80,14 @@ final class TableRowViewWithMenu: NSTableRowView {
             copyItem.target = self
             menu.addItem(copyItem)
 
+            let copyWithHeadersItem = NSMenuItem(
+                title: String(localized: "Copy with Headers"),
+                action: #selector(copySelectedOrCurrentRowWithHeaders),
+                keyEquivalent: "c")
+            copyWithHeadersItem.keyEquivalentModifierMask = [.command, .shift]
+            copyWithHeadersItem.target = self
+            menu.addItem(copyWithHeadersItem)
+
             if coordinator.isEditable {
                 let pasteItem = NSMenuItem(
                     title: String(localized: "Paste"), action: #selector(pasteRows), keyEquivalent: "v")
@@ -141,6 +149,14 @@ final class TableRowViewWithMenu: NSTableRowView {
     @objc private func copySelectedRows() {
         guard let selectedIndices = coordinator?.selectedRowIndices else { return }
         coordinator?.copyRows(at: selectedIndices)
+    }
+
+    @objc private func copySelectedOrCurrentRowWithHeaders() {
+        guard let coordinator = coordinator else { return }
+        let indices: Set<Int> = !coordinator.selectedRowIndices.isEmpty
+            ? coordinator.selectedRowIndices
+            : [rowIndex]
+        coordinator.copyRowsWithHeaders(at: indices)
     }
 
     @objc private func copySelectedOrCurrentRow() {

@@ -118,6 +118,19 @@ extension MainContentCoordinator {
         )
     }
 
+    func copySelectedRowsWithHeaders(indices: Set<Int>) {
+        guard let index = tabManager.selectedTabIndex,
+              !indices.isEmpty else { return }
+
+        let tab = tabManager.tabs[index]
+        rowOperationsManager.copySelectedRowsToClipboard(
+            selectedIndices: indices,
+            resultRows: tab.resultRows,
+            columns: tab.resultColumns,
+            includeHeaders: true
+        )
+    }
+
     func pasteRows(selectedRowIndices: inout Set<Int>, editingCell: inout CellPosition?) {
         guard !connection.isReadOnly,
               let index = tabManager.selectedTabIndex else { return }

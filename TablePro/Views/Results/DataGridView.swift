@@ -37,7 +37,7 @@ struct DataGridView: NSViewRepresentable {
     var onPasteRows: (() -> Void)?
     var onUndo: (() -> Void)?
     var onRedo: (() -> Void)?
-    var onSort: ((Int, Bool) -> Void)?
+    var onSort: ((Int, Bool, Bool) -> Void)?
     var onAddRow: (() -> Void)?
     var onUndoInsert: ((Int) -> Void)?
     var onFilterColumn: ((String) -> Void)?
@@ -47,6 +47,7 @@ struct DataGridView: NSViewRepresentable {
     @Binding var selectedRowIndices: Set<Int>
     @Binding var sortState: SortState
     @Binding var editingCell: CellPosition?
+    @Binding var columnLayout: ColumnLayoutState
 
     private let cellFactory = DataGridCellFactory()
 
@@ -106,6 +107,20 @@ struct DataGridView: NSViewRepresentable {
             tableView.addTableColumn(column)
         }
 
+        // Apply saved column widths
+        if !columnLayout.columnWidths.isEmpty {
+            for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+                if let savedWidth = columnLayout.columnWidths[column.title] {
+                    column.width = savedWidth
+                }
+            }
+        }
+
+        // Apply saved column order
+        if let savedOrder = columnLayout.columnOrder {
+            DataGridView.applyColumnOrder(savedOrder, to: tableView)
+        }
+
         if let headerView = tableView.headerView {
             let headerMenu = NSMenu()
             headerMenu.delegate = context.coordinator
@@ -162,6 +177,24 @@ struct DataGridView: NSViewRepresentable {
 
         coordinator.rebuildVisualStateCache()
 
+        // Capture current column layout before any rebuilds
+        if tableView.tableColumns.count > 1 {
+            var currentWidths: [String: CGFloat] = [:]
+            var currentOrder: [String] = []
+            for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+                currentWidths[column.title] = column.width
+                currentOrder.append(column.title)
+            }
+            if !currentWidths.isEmpty && currentWidths != columnLayout.columnWidths {
+                DispatchQueue.main.async {
+                    self.columnLayout.columnWidths.merge(currentWidths) { _, new in new }
+                    if !currentOrder.isEmpty {
+                        self.columnLayout.columnOrder = currentOrder
+                    }
+                }
+            }
+        }
+
         // Check if columns changed (by name or structure)
         let currentDataColumns = tableView.tableColumns.dropFirst()
         let currentColumnNames = currentDataColumns.map { $0.title }
@@ -193,6 +226,20 @@ struct DataGridView: NSViewRepresentable {
                 tableView.addTableColumn(column)
             }
             tableView.sizeToFit()
+
+            // Restore saved column widths after rebuild
+            if !columnLayout.columnWidths.isEmpty {
+                for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+                    if let savedWidth = columnLayout.columnWidths[column.title] {
+                        column.width = savedWidth
+                    }
+                }
+            }
+
+            // Restore saved column order after rebuild
+            if let savedOrder = columnLayout.columnOrder {
+                DataGridView.applyColumnOrder(savedOrder, to: tableView)
+            }
         } else {
             // Always sync column editability (e.g., view tabs reusing table columns)
             for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
@@ -208,15 +255,19 @@ struct DataGridView: NSViewRepresentable {
             if !tableView.sortDescriptors.isEmpty {
                 tableView.sortDescriptors = []
             }
-        } else if let columnIndex = sortState.columnIndex,
-                  columnIndex >= 0 && columnIndex < rowProvider.columns.count {
-            let key = "col_\(columnIndex)"
-            let ascending = sortState.direction == .ascending
+        } else if let firstSort = sortState.columns.first,
+                  firstSort.columnIndex >= 0 && firstSort.columnIndex < rowProvider.columns.count {
+            // Sync with first sort column for NSTableView's built-in sort indicators
+            let key = "col_\(firstSort.columnIndex)"
+            let ascending = firstSort.direction == .ascending
             let currentDescriptor = tableView.sortDescriptors.first
             if currentDescriptor?.key != key || currentDescriptor?.ascending != ascending {
                 tableView.sortDescriptors = [NSSortDescriptor(key: key, ascending: ascending)]
             }
         }
+
+        // Update column header titles for multi-sort indicators
+        Self.updateSortIndicators(tableView: tableView, sortState: sortState, columns: rowProvider.columns)
 
         if needsFullReload {
             tableView.reloadData()
@@ -261,6 +312,47 @@ struct DataGridView: NSViewRepresentable {
         }
     }
 
+    // MARK: - Column Layout Helpers
+
+    private static func applyColumnOrder(_ order: [String], to tableView: NSTableView) {
+        let dataColumns = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
+        for (targetIndex, columnName) in order.enumerated() {
+            guard let sourceColumn = dataColumns.first(where: { $0.title == columnName }),
+                  let currentIndex = tableView.tableColumns.firstIndex(of: sourceColumn) else { continue }
+            let targetTableIndex = targetIndex + 1  // +1 for row number column
+            if currentIndex != targetTableIndex && targetTableIndex < tableView.numberOfColumns {
+                tableView.moveColumn(currentIndex, toColumn: targetTableIndex)
+            }
+        }
+    }
+
+    // MARK: - Sort Indicator Helpers
+
+    /// Update column header titles to show multi-sort priority indicators (e.g., "name 1▲", "age 2▼")
+    private static func updateSortIndicators(tableView: NSTableView, sortState: SortState, columns: [String]) {
+        for column in tableView.tableColumns where column.identifier.rawValue.hasPrefix("col_") {
+            let idString = column.identifier.rawValue
+            guard let colIndex = Int(idString.dropFirst(4)),
+                  colIndex < columns.count else { continue }
+
+            let baseName = columns[colIndex]
+
+            if let sortIndex = sortState.columns.firstIndex(where: { $0.columnIndex == colIndex }) {
+                let sortCol = sortState.columns[sortIndex]
+                if sortState.columns.count > 1 {
+                    let indicator = " \(sortIndex + 1)\(sortCol.direction.indicator)"
+                    column.title = "\(baseName)\(indicator)"
+                } else {
+                    // Single sort: NSTableView shows its own indicator, keep base name
+                    column.title = baseName
+                }
+            } else {
+                // Not sorted: restore base name
+                column.title = baseName
+            }
+        }
+    }
+
     func makeCoordinator() -> TableViewCoordinator {
         TableViewCoordinator(
             rowProvider: rowProvider,
@@ -297,7 +389,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var onPasteRows: (() -> Void)?
     var onUndo: (() -> Void)?
     var onRedo: (() -> Void)?
-    var onSort: ((Int, Bool) -> Void)?
+    var onSort: ((Int, Bool, Bool) -> Void)?
     var onAddRow: (() -> Void)?
     var onUndoInsert: ((Int) -> Void)?
     var onFilterColumn: ((String) -> Void)?
@@ -471,7 +563,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             return
         }
 
-        onSort?(columnIndex, sortDescriptor.ascending)
+        let isMultiSort = NSApp.currentEvent?.modifierFlags.contains(.shift) ?? false
+        onSort?(columnIndex, sortDescriptor.ascending, isMultiSort)
     }
 
     // MARK: - NSMenuDelegate (Header Context Menu)
@@ -986,6 +1079,24 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         NSPasteboard.general.setString(text, forType: .string)
     }
 
+    func copyRowsWithHeaders(at indices: Set<Int>) {
+        let sortedIndices = indices.sorted()
+        var lines: [String] = []
+
+        // Add header row
+        lines.append(rowProvider.columns.joined(separator: "\t"))
+
+        for index in sortedIndices {
+            guard let rowData = rowProvider.row(at: index) else { continue }
+            let line = rowData.values.map { $0 ?? "NULL" }.joined(separator: "\t")
+            lines.append(line)
+        }
+
+        let text = lines.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
     @MainActor
     func setCellValue(_ value: String?, at rowIndex: Int) {
         guard let tableView = tableView else { return }
@@ -1047,7 +1158,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         isEditable: true,
         selectedRowIndices: .constant([]),
         sortState: .constant(SortState()),
-        editingCell: .constant(nil as CellPosition?)
+        editingCell: .constant(nil as CellPosition?),
+        columnLayout: .constant(ColumnLayoutState())
     )
     .frame(width: 600, height: 400)
 }

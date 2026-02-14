@@ -169,9 +169,10 @@ struct MainContentView: View {
                     coordinator.updateCellInTab(
                         rowIndex: rowIndex, columnIndex: colIndex, value: value)
                 },
-                onSort: { columnIndex, ascending in
+                onSort: { columnIndex, ascending, isMultiSort in
                     coordinator.handleSort(
                         columnIndex: columnIndex, ascending: ascending,
+                        isMultiSort: isMultiSort,
                         selectedRowIndices: &selectedRowIndices)
                 },
                 onAddRow: {

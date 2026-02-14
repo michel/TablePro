@@ -113,6 +113,13 @@ final class MainContentNotificationHandler: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: .copySelectedRowsWithHeaders)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleCopySelectedRowsWithHeaders()
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: .pasteRows)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -174,6 +181,11 @@ final class MainContentNotificationHandler: ObservableObject {
     private func handleCopySelectedRows() {
         let indices = selectedRowIndices.wrappedValue
         coordinator?.copySelectedRowsToClipboard(indices: indices)
+    }
+
+    private func handleCopySelectedRowsWithHeaders() {
+        let indices = selectedRowIndices.wrappedValue
+        coordinator?.copySelectedRowsWithHeaders(indices: indices)
     }
 
     private func handlePasteRows() {

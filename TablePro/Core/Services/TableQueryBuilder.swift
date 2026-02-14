@@ -160,20 +160,54 @@ struct TableQueryBuilder {
         return query
     }
 
-    // MARK: - Private Helpers
+    /// Build a sorted query with multi-column sort support
+    /// - Parameters:
+    ///   - baseQuery: The original query (ORDER BY will be removed and replaced)
+    ///   - sortState: Multi-column sort state
+    ///   - columns: Available column names for index validation
+    /// - Returns: Modified query with new ORDER BY clause
+    func buildMultiSortQuery(
+        baseQuery: String,
+        sortState: SortState,
+        columns: [String]
+    ) -> String {
+        var query = removeOrderBy(from: baseQuery)
 
-    /// Build ORDER BY clause from sort state
-    private func buildOrderByClause(sortState: SortState?, columns: [String]) -> String? {
-        guard let state = sortState,
-              let columnIndex = state.columnIndex,
-              columnIndex < columns.count else {
-            return nil
+        if let orderBy = buildOrderByClause(sortState: sortState, columns: columns) {
+            // Insert ORDER BY before LIMIT if exists
+            if let limitRange = query.range(of: "LIMIT", options: .caseInsensitive) {
+                let beforeLimit = query[..<limitRange.lowerBound].trimmingCharacters(in: .whitespaces)
+                let limitClause = query[limitRange.lowerBound...]
+                query = "\(beforeLimit) \(orderBy) \(limitClause)"
+            } else {
+                let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.hasSuffix(";") {
+                    query = String(trimmed.dropLast()) + " \(orderBy);"
+                } else {
+                    query = "\(trimmed) \(orderBy)"
+                }
+            }
         }
 
-        let columnName = columns[columnIndex]
-        let direction = state.direction == .ascending ? "ASC" : "DESC"
-        let quotedColumn = databaseType.quoteIdentifier(columnName)
-        return "ORDER BY \(quotedColumn) \(direction)"
+        return query
+    }
+
+    // MARK: - Private Helpers
+
+    /// Build ORDER BY clause from sort state (supports multi-column)
+    private func buildOrderByClause(sortState: SortState?, columns: [String]) -> String? {
+        guard let state = sortState, state.isSorting else { return nil }
+
+        let parts = state.columns.compactMap { sortCol -> String? in
+            guard sortCol.columnIndex >= 0, sortCol.columnIndex < columns.count else { return nil }
+            let columnName = columns[sortCol.columnIndex]
+            let direction = sortCol.direction == .ascending ? "ASC" : "DESC"
+            let quotedColumn = databaseType.quoteIdentifier(columnName)
+            return "\(quotedColumn) \(direction)"
+        }
+
+        guard !parts.isEmpty else { return nil }
+        return "ORDER BY " + parts.joined(separator: ", ")
     }
 
     /// Remove existing ORDER BY clause from a query
