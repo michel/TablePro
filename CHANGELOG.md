@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-02-14
+
+### Fixed
+
+- Fix syntax highlighting not applying after paste in SQL editor — defer frame-change notification so the visible range recalculates after layout processes the new text
+- Fix data grid not refreshing after inserting a new row by incrementing `reloadVersion` on row insertion
+
 ## [0.3.0] - 2026-02-13
 
 ### Added
@@ -141,7 +148,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/datlechin/tablepro/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/datlechin/tablepro/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/datlechin/tablepro/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/datlechin/tablepro/compare/v0.1.0...v0.1.1
