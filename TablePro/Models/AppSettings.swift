@@ -115,13 +115,14 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable {
 
     /// Apply this theme to the app
     func apply() {
+        guard let app = NSApp else { return }
         switch self {
         case .system:
-            NSApp.appearance = nil
+            app.appearance = nil
         case .light:
-            NSApp.appearance = NSAppearance(named: .aqua)
+            app.appearance = NSAppearance(named: .aqua)
         case .dark:
-            NSApp.appearance = NSAppearance(named: .darkAqua)
+            app.appearance = NSAppearance(named: .darkAqua)
         }
     }
 }
