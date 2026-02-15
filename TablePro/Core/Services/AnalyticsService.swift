@@ -41,6 +41,7 @@ final class AnalyticsService {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 30
+        config.waitsForConnectivity = true
         return URLSession(configuration: config)
     }()
 
