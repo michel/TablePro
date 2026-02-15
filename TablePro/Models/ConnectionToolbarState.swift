@@ -104,7 +104,7 @@ enum ToolbarConnectionState: Equatable {
 // MARK: - Toolbar State
 
 /// Observable state container for the connection toolbar.
-/// Uses ObservableObject for macOS 13+ compatibility.
+/// Uses ObservableObject (could migrate to @Observable since macOS 14 is now the minimum).
 /// This is the single source of truth for all toolbar UI state.
 @MainActor
 final class ConnectionToolbarState: ObservableObject {

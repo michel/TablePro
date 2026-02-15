@@ -5,7 +5,7 @@
 TablePro is a native macOS database client built with SwiftUI and AppKit. It's designed as a fast, lightweight alternative to TablePlus, prioritizing Apple-native frameworks and modern Swift idioms for optimal performance and maintainability.
 
 - **Current version:** 0.3.1
-- **Minimum macOS:** 13.5 (Ventura)
+- **Minimum macOS:** 14.0 (Sonoma)
 - **Swift version:** 5.9
 - **Architecture:** Universal Binary (arm64 + x86_64)
 - **License:** GPL v3
@@ -110,9 +110,8 @@ Managed via Xcode's SPM integration (no standalone `Package.swift`):
 - **Rearrange** (2.0.0) — code rearrangement
 - **SwiftLintPlugin** (0.63.1) — code linting plugin
 
-> **Note:** CodeEditSourceEditor tracks `main` branch (not a tagged release) because
-> version 0.15.2 crashes on macOS 13 due to `asyncAndWait` requiring macOS 14+.
-> The `main` branch uses `sync` instead. Pin to a tagged release once 0.16.0 ships.
+> **Note:** CodeEditSourceEditor tracks `main` branch (not a tagged release).
+> Pin to a tagged release once 0.16.0 ships.
 
 > The SwiftLint plugin bundled with CodeEditSourceEditor requires
 > `-skipPackagePluginValidation` for CLI builds (see Build Commands above).

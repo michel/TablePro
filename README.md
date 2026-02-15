@@ -43,7 +43,7 @@ TablePro is a lightweight alternative to TablePlus, built entirely with Apple-na
 
 ## Requirements
 
-- macOS 13.5 (Ventura) or later
+- macOS 14.0 (Sonoma) or later
 
 ## Building from Source
 

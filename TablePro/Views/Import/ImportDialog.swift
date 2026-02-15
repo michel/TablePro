@@ -426,13 +426,9 @@ struct ImportDialog: View {
         }
     }
 
-    /// Returns filesystem path for URL, using appropriate API for macOS version
+    /// Returns filesystem path for URL.
     private func fileSystemPath(for url: URL) -> String {
-        if #available(macOS 13.0, *) {
-            return url.path()
-        } else {
-            return url.path
-        }
+        url.path()
     }
 
     /// Decompress .gz file if needed, returns URL to read

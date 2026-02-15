@@ -2,8 +2,9 @@
 //  KeyEventHandler.swift
 //  TablePro
 //
-//  macOS 13-compatible replacement for SwiftUI's onKeyPress (macOS 14+).
-//  Uses NSViewRepresentable with a local event monitor.
+//  Key event handler using NSViewRepresentable with a local event monitor.
+//  Originally written as a macOS 13 workaround. Now that macOS 14+ is the minimum,
+//  SwiftUI's onKeyPress is available and this could be migrated in a future refactor.
 //
 
 import AppKit
@@ -17,7 +18,8 @@ enum KeyEventCode {
     case other(UInt16)
 }
 
-/// macOS 13-compatible key event handler using a local NSEvent monitor.
+/// Key event handler using a local NSEvent monitor.
+/// Legacy approach from macOS 13 era; SwiftUI's onKeyPress (macOS 14+) is now available.
 /// Usage: `.background(KeyEventHandler { keyCode in ... })`
 struct KeyEventHandler: NSViewRepresentable {
     let handler: (KeyEventCode) -> Bool

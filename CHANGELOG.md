@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Copy with Headers" feature (Shift+Cmd+C) to copy selected rows with column headers as the first TSV line, also available via context menu in the data grid
 - Column width persistence within tab session: resized columns retain their width across pagination, sorting, and filtering reloads
 
+### Changed
+
+- Raise minimum macOS version from 13.5 (Ventura) to 14.0 (Sonoma)
+
 ## [0.3.2] - 2026-02-14
 
 ### Fixed
