@@ -707,6 +707,7 @@ mint dev
   - Tab behavior changes → `features/tabs.mdx`
   - UI changes → relevant feature page + screenshot placeholder
   - New features → add to relevant page or create new page
+- **Test-first correctness**: When automated tests fail, fix the **source code** to produce the correct behavior — never adjust tests to match incorrect code output. Tests define expected behavior; if code produces wrong results, the code has the bug.
 - Check .swiftformat and .swiftlint.yml for authoritative rules
 - Preserve existing architecture: SwiftUI + AppKit, native frameworks only
 - This is macOS-only; no iOS/watchOS/tvOS code needed

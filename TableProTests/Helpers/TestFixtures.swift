@@ -1,0 +1,155 @@
+//
+//  TestFixtures.swift
+//  TableProTests
+//
+//  Shared test data and factory methods for creating test objects
+//
+
+import Foundation
+import Testing
+@testable import TablePro
+
+enum TestFixtures {
+    // MARK: - Database Types
+
+    static let allDatabaseTypes: [DatabaseType] = [.mysql, .mariadb, .postgresql, .sqlite]
+
+    // MARK: - Factory Methods
+
+    static func makeTableFilter(
+        column: String = "id",
+        op: FilterOperator = .equal,
+        value: String = "1",
+        secondValue: String? = nil,
+        rawSQL: String? = nil
+    ) -> TableFilter {
+        return TableFilter(
+            id: UUID(),
+            columnName: column,
+            filterOperator: op,
+            value: value,
+            secondValue: secondValue,
+            isSelected: true,
+            isEnabled: true,
+            rawSQL: rawSQL
+        )
+    }
+
+    static func makeCellChange(
+        row: Int = 0,
+        col: Int = 0,
+        colName: String = "column",
+        old: String? = nil,
+        new: String? = "value"
+    ) -> CellChange {
+        return CellChange(
+            rowIndex: row,
+            columnIndex: col,
+            columnName: colName,
+            oldValue: old,
+            newValue: new
+        )
+    }
+
+    static func makeRowChange(
+        row: Int = 0,
+        type: ChangeType = .update,
+        cells: [CellChange] = [],
+        originalRow: [String?]? = nil
+    ) -> RowChange {
+        return RowChange(
+            rowIndex: row,
+            type: type,
+            cellChanges: cells,
+            originalRow: originalRow
+        )
+    }
+
+    static func makeColumnInfo(
+        name: String = "id",
+        dataType: String = "INT",
+        isNullable: Bool = false,
+        isPrimaryKey: Bool = true
+    ) -> ColumnInfo {
+        return ColumnInfo(
+            name: name,
+            dataType: dataType,
+            isNullable: isNullable,
+            isPrimaryKey: isPrimaryKey,
+            defaultValue: nil,
+            extra: nil,
+            charset: nil,
+            collation: nil,
+            comment: nil
+        )
+    }
+
+    static func makeTableInfo(
+        name: String = "test_table",
+        type: TableInfo.TableType = .table
+    ) -> TableInfo {
+        return TableInfo(
+            name: name,
+            type: type,
+            rowCount: 0
+        )
+    }
+
+    static func makeEditableColumn(
+        name: String = "id",
+        dataType: String = "INT",
+        isNullable: Bool = false,
+        autoIncrement: Bool = false,
+        isPrimaryKey: Bool = false
+    ) -> EditableColumnDefinition {
+        return EditableColumnDefinition(
+            id: UUID(),
+            name: name,
+            dataType: dataType,
+            isNullable: isNullable,
+            defaultValue: nil,
+            autoIncrement: autoIncrement,
+            unsigned: false,
+            comment: nil,
+            collation: nil,
+            onUpdate: nil,
+            charset: nil,
+            extra: nil,
+            isPrimaryKey: isPrimaryKey
+        )
+    }
+
+    static func makeEditableIndex(
+        name: String = "idx_test",
+        columns: [String] = ["id"],
+        isUnique: Bool = false,
+        isPrimary: Bool = false
+    ) -> EditableIndexDefinition {
+        return EditableIndexDefinition(
+            id: UUID(),
+            name: name,
+            columns: columns,
+            type: .btree,
+            isUnique: isUnique,
+            isPrimary: isPrimary,
+            comment: nil
+        )
+    }
+
+    static func makeEditableForeignKey(
+        name: String = "fk_test",
+        columns: [String] = ["id"],
+        refTable: String = "ref_table",
+        refColumns: [String] = ["id"]
+    ) -> EditableForeignKeyDefinition {
+        return EditableForeignKeyDefinition(
+            id: UUID(),
+            name: name,
+            columns: columns,
+            referencedTable: refTable,
+            referencedColumns: refColumns,
+            onDelete: .noAction,
+            onUpdate: .noAction
+        )
+    }
+}
