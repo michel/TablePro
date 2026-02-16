@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix undo/redo (Cmd+Z / Cmd+Shift+Z) not working in SQL editor due to selector mismatch — `undo` vs `undo:` in responder chain routing
 - Fix block comment detection incorrectly treating `--` inside `/* */` as line comment in SQL autocomplete
 - Fix schema-qualified name edge cases in autocomplete (e.g., `schema.table.column`)
 - Fix SQL autocomplete not showing database-specific type keywords (e.g., PostgreSQL `JSONB`, MySQL `ENUM`) by threading `databaseType` through the completion pipeline
