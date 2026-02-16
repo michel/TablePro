@@ -7,14 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- SQL Preview button (eye icon) in toolbar to review all pending SQL statements before committing changes (⌘⇧P)
-
 ## [0.4.0] - 2026-02-16
 
 ### Added
 
+- SQL Preview button (eye icon) in toolbar to review all pending SQL statements before committing changes (⌘⇧P)
 - Multi-column sorting: Shift+click column headers to add columns to the sort list; regular click replaces with single sort. Sort priority indicators (1▲, 2▼) are shown in column headers when multiple columns are sorted
 - "Copy with Headers" feature (Shift+Cmd+C) to copy selected rows with column headers as the first TSV line, also available via context menu in the data grid
 - Column width persistence within tab session: resized columns retain their width across pagination, sorting, and filtering reloads
