@@ -5200,6 +5200,9 @@
         }
       }
     },
+    "Reuse clean table tab" : {
+
+    },
     "root" : {
       "localizations" : {
         "vi" : {
@@ -5936,6 +5939,9 @@
         }
       }
     },
+    "Tab Behavior" : {
+
+    },
     "Tab width:" : {
       "localizations" : {
         "vi" : {
@@ -6015,6 +6021,9 @@
           }
         }
       }
+    },
+    "Tabs" : {
+
     },
     "Tag name" : {
       "localizations" : {
@@ -6561,6 +6570,12 @@
           }
         }
       }
+    },
+    "When enabled, clicking a new table replaces the current clean table tab instead of opening a new tab" : {
+
+    },
+    "When enabled, clicking a table in the sidebar will replace the current tab if it has no unsaved changes and you haven't interacted with it (sorted, filtered, etc.)." : {
+
     },
     "When TablePro starts:" : {
       "localizations" : {

@@ -34,6 +34,11 @@ struct SettingsView: View {
                     Label("Data Grid", systemImage: "tablecells")
                 }
 
+            TabSettingsView(settings: $settingsManager.tabs)
+                .tabItem {
+                    Label("Tabs", systemImage: "rectangle.on.rectangle")
+                }
+
             HistorySettingsView(settings: $settingsManager.history)
                 .tabItem {
                     Label("History", systemImage: "clock")

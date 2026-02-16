@@ -69,6 +69,13 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
+    @Published var tabs: TabSettings {
+        didSet {
+            storage.saveTabs(tabs)
+            notifyChange(domain: "tabs", notification: .tabSettingsDidChange)
+        }
+    }
+
     private let storage = AppSettingsStorage.shared
 
     // MARK: - Initialization
@@ -80,6 +87,7 @@ final class AppSettingsManager: ObservableObject {
         self.editor = storage.loadEditor()
         self.dataGrid = storage.loadDataGrid()
         self.history = storage.loadHistory()
+        self.tabs = storage.loadTabs()
 
         // Apply appearance settings immediately
         appearance.theme.apply()
@@ -130,6 +138,7 @@ final class AppSettingsManager: ObservableObject {
         editor = .default
         dataGrid = .default
         history = .default
+        tabs = .default
         storage.resetToDefaults()
     }
 }

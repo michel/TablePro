@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tab reuse setting — opt-in option in Settings > Tabs to reuse clean table tabs when clicking a new table in the sidebar (off by default)
+
+### Fixed
+
+- Fix column flashing/swapping when sorting by using stable column identifiers instead of mutable titles for layout persistence
+- Fix "Copy Column Name" and "Filter with column" context menu actions copying sort indicators (e.g., "name 1▲") instead of base column name
+
 ## [0.4.0] - 2026-02-16
 
 ### Added

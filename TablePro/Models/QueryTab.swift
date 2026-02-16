@@ -499,13 +499,14 @@ final class QueryTabManager: ObservableObject {
         let quotedName = databaseType.quoteIdentifier(tableName)
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
 
-        // 2. Try to reuse the current tab if it's a clean table tab (no changes, no user interaction)
-        if let selectedId = selectedTabId,
+        // 2. Try to reuse the current tab if it's a clean table tab (opt-in via Settings > Tabs)
+        if AppSettingsManager.shared.tabs.reuseCleanTableTab,
+           let selectedId = selectedTabId,
            let selectedIndex = tabs.firstIndex(where: { $0.id == selectedId }),
            tabs[selectedIndex].tabType == .table,
            !tabs[selectedIndex].isPinned,
            !hasUnsavedChanges,
-           !tabs[selectedIndex].hasUserInteraction  // Don't replace if user has interacted
+           !tabs[selectedIndex].hasUserInteraction
         {
             // Replace the current table tab instead of creating a new one
             tabs[selectedIndex].title = tableName
@@ -518,15 +519,15 @@ final class QueryTabManager: ObservableObject {
             tabs[selectedIndex].errorMessage = nil
             tabs[selectedIndex].lastExecutedAt = nil
             tabs[selectedIndex].showStructure = false
-            tabs[selectedIndex].sortState = SortState()  // Reset sort state
-            tabs[selectedIndex].selectedRowIndices = []  // Reset selection
-            tabs[selectedIndex].pendingChanges = TabPendingChanges()  // Reset changes
-            tabs[selectedIndex].hasUserInteraction = false  // Reset interaction flag
+            tabs[selectedIndex].sortState = SortState()
+            tabs[selectedIndex].selectedRowIndices = []
+            tabs[selectedIndex].pendingChanges = TabPendingChanges()
+            tabs[selectedIndex].hasUserInteraction = false
             tabs[selectedIndex].isView = isView
-            tabs[selectedIndex].isEditable = !isView  // Views are read-only
-            tabs[selectedIndex].filterState = TabFilterState()  // Reset filter state
-            tabs[selectedIndex].columnLayout = ColumnLayoutState()  // Reset column layout
-            tabs[selectedIndex].pagination = PaginationState(pageSize: pageSize)  // Reset with settings
+            tabs[selectedIndex].isEditable = !isView
+            tabs[selectedIndex].filterState = TabFilterState()
+            tabs[selectedIndex].columnLayout = ColumnLayoutState()
+            tabs[selectedIndex].pagination = PaginationState(pageSize: pageSize)
             tabs[selectedIndex].databaseName = databaseName
             return true  // Need to run query for new table
         }
@@ -539,7 +540,7 @@ final class QueryTabManager: ObservableObject {
             tableName: tableName
         )
         newTab.isView = isView
-        newTab.isEditable = !isView  // Views are read-only
+        newTab.isEditable = !isView
         newTab.pagination = PaginationState(pageSize: pageSize)
         newTab.databaseName = databaseName
         tabs.append(newTab)

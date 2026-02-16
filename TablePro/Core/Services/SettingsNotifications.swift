@@ -28,6 +28,9 @@ extension Notification.Name {
     /// Posted when general settings change (startup behavior, confirmations)
     static let generalSettingsDidChange = Notification.Name("generalSettingsDidChange")
 
+    /// Posted when tab settings change (reuse behavior, etc.)
+    static let tabSettingsDidChange = Notification.Name("tabSettingsDidChange")
+
     // MARK: - Generic Notification
 
     /// Posted for any settings change (in addition to domain-specific notification)
