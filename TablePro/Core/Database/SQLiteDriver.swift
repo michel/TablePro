@@ -477,7 +477,8 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
         }
 
-        return formatDDL(ddl)
+        let formatted = formatDDL(ddl)
+        return formatted.hasSuffix(";") ? formatted : formatted + ";"
     }
 
     func fetchViewDefinition(view: String) async throws -> String {

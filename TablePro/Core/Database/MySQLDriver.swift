@@ -353,7 +353,7 @@ final class MySQLDriver: DatabaseDriver {
             throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
         }
 
-        return ddl
+        return ddl.hasSuffix(";") ? ddl : ddl + ";"
     }
 
     func fetchViewDefinition(view: String) async throws -> String {

@@ -21,7 +21,7 @@ struct SQLReviewPopover: View {
 
     /// All statements joined for display
     private var combinedSQL: String {
-        statements.joined(separator: ";\n\n")
+        statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
     }
 
     /// Calculate popover height based on content lines
@@ -39,7 +39,7 @@ struct SQLReviewPopover: View {
             let statementsLineCount = statements.reduce(0) { total, stmt in
                 total + stmt.components(separatedBy: "\n").count
             }
-            // Add separator lines: each separator ";\n\n" adds 2 newlines between statements
+            // Add separator lines: each separator "\n\n" adds 2 newlines between statements
             let separatorLines = (statements.count - 1) * 2
             return statementsLineCount + separatorLines
         }()
@@ -171,7 +171,7 @@ struct SQLReviewPopover: View {
     // MARK: - Clipboard
 
     private func copyAllToClipboard() {
-        let joined = statements.joined(separator: ";\n\n")
+        let joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(joined, forType: .string)
         copied = true

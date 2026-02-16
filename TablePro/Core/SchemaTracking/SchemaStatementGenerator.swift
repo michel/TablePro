@@ -40,7 +40,9 @@ struct SchemaStatementGenerator {
 
         for change in sortedChanges {
             let stmt = try generateStatement(for: change)
-            statements.append(stmt)
+            // Ensure every statement ends with a semicolon
+            let sql = stmt.sql.hasSuffix(";") ? stmt.sql : stmt.sql + ";"
+            statements.append(SchemaStatement(sql: sql, description: stmt.description, isDestructive: stmt.isDestructive))
         }
 
         return statements
@@ -179,7 +181,7 @@ struct SchemaStatementGenerator {
                 }
             }
 
-            let sql = statements.joined(separator: ";\n")
+            let sql = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n")
             return SchemaStatement(
                 sql: sql,
                 description: "Modify column '\(old.name)' to '\(new.name)'",
@@ -301,7 +303,7 @@ struct SchemaStatementGenerator {
         let dropStmt = generateDeleteIndex(old)
         let addStmt = try generateAddIndex(new)
 
-        let sql = "\(dropStmt.sql);\n\(addStmt.sql)"
+        let sql = "\(dropStmt.sql);\n\(addStmt.sql);"
         return SchemaStatement(
             sql: sql,
             description: "Modify index '\(old.name)' to '\(new.name)'",
@@ -359,7 +361,7 @@ struct SchemaStatementGenerator {
         let dropStmt = generateDeleteForeignKey(old)
         let addStmt = try generateAddForeignKey(new)
 
-        let sql = "\(dropStmt.sql);\n\(addStmt.sql)"
+        let sql = "\(dropStmt.sql);\n\(addStmt.sql);"
         return SchemaStatement(
             sql: sql,
             description: "Modify foreign key '\(old.name)' to '\(new.name)'",
@@ -403,7 +405,7 @@ struct SchemaStatementGenerator {
         case .mysql, .mariadb:
             sql = """
             ALTER TABLE \(tableQuoted) DROP PRIMARY KEY;
-            ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted))
+            ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted));
             """
 
         case .postgresql:
@@ -411,7 +413,7 @@ struct SchemaStatementGenerator {
             let pkName = primaryKeyConstraintName ?? "\(tableName)_pkey"
             sql = """
             ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(databaseType.quoteIdentifier(pkName));
-            ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted))
+            ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted));
             """
 
         case .sqlite:

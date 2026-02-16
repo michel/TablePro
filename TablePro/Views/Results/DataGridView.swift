@@ -110,7 +110,10 @@ struct DataGridView: NSViewRepresentable {
         // Apply saved column widths
         if !columnLayout.columnWidths.isEmpty {
             for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
-                if let savedWidth = columnLayout.columnWidths[column.title] {
+                guard let colIndex = Self.columnIndex(from: column.identifier),
+                      colIndex < rowProvider.columns.count else { continue }
+                let baseName = rowProvider.columns[colIndex]
+                if let savedWidth = columnLayout.columnWidths[baseName] {
                     column.width = savedWidth
                 }
             }
@@ -118,7 +121,7 @@ struct DataGridView: NSViewRepresentable {
 
         // Apply saved column order
         if let savedOrder = columnLayout.columnOrder {
-            DataGridView.applyColumnOrder(savedOrder, to: tableView)
+            DataGridView.applyColumnOrder(savedOrder, to: tableView, columns: rowProvider.columns)
         }
 
         if let headerView = tableView.headerView {
@@ -180,8 +183,9 @@ struct DataGridView: NSViewRepresentable {
         // Capture current column layout before any rebuilds (only if not about to rebuild)
         // Check if columns changed (by name or structure)
         let currentDataColumns = tableView.tableColumns.dropFirst()
-        let currentColumnNames = currentDataColumns.map { $0.title }
-        let columnsChanged = !rowProvider.columns.isEmpty && (currentColumnNames != rowProvider.columns)
+        let currentColumnIds = currentDataColumns.map { $0.identifier.rawValue }
+        let expectedColumnIds = rowProvider.columns.indices.map { "col_\($0)" }
+        let columnsChanged = !rowProvider.columns.isEmpty && (currentColumnIds != expectedColumnIds)
 
         // Also rebuild columns when structure changes (e.g., 0 rows → data loaded)
         // This ensures column widths are recalculated based on actual cell content
@@ -213,7 +217,10 @@ struct DataGridView: NSViewRepresentable {
             // Restore saved column widths after rebuild
             if !columnLayout.columnWidths.isEmpty {
                 for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
-                    if let savedWidth = columnLayout.columnWidths[column.title] {
+                    guard let colIndex = Self.columnIndex(from: column.identifier),
+                          colIndex < rowProvider.columns.count else { continue }
+                    let baseName = rowProvider.columns[colIndex]
+                    if let savedWidth = columnLayout.columnWidths[baseName] {
                         column.width = savedWidth
                     }
                 }
@@ -221,7 +228,7 @@ struct DataGridView: NSViewRepresentable {
 
             // Restore saved column order after rebuild
             if let savedOrder = columnLayout.columnOrder {
-                DataGridView.applyColumnOrder(savedOrder, to: tableView)
+                DataGridView.applyColumnOrder(savedOrder, to: tableView, columns: rowProvider.columns)
             }
         } else {
             // Always sync column editability (e.g., view tabs reusing table columns)
@@ -235,8 +242,11 @@ struct DataGridView: NSViewRepresentable {
                 var currentWidths: [String: CGFloat] = [:]
                 var currentOrder: [String] = []
                 for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
-                    currentWidths[column.title] = column.width
-                    currentOrder.append(column.title)
+                    guard let colIndex = Self.columnIndex(from: column.identifier),
+                          colIndex < rowProvider.columns.count else { continue }
+                    let baseName = rowProvider.columns[colIndex]
+                    currentWidths[baseName] = column.width
+                    currentOrder.append(baseName)
                 }
                 let widthsChanged = !currentWidths.isEmpty && currentWidths != columnLayout.columnWidths
                 let orderChanged = !currentOrder.isEmpty && columnLayout.columnOrder != currentOrder
@@ -320,10 +330,20 @@ struct DataGridView: NSViewRepresentable {
 
     // MARK: - Column Layout Helpers
 
-    private static func applyColumnOrder(_ order: [String], to tableView: NSTableView) {
+    /// Extract column index from a stable identifier like "col_3"
+    static func columnIndex(from identifier: NSUserInterfaceItemIdentifier) -> Int? {
+        let raw = identifier.rawValue
+        guard raw.hasPrefix("col_") else { return nil }
+        return Int(raw.dropFirst(4))
+    }
+
+    private static func applyColumnOrder(_ order: [String], to tableView: NSTableView, columns: [String]) {
         let dataColumns = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
         for (targetIndex, columnName) in order.enumerated() {
-            guard let sourceColumn = dataColumns.first(where: { $0.title == columnName }),
+            guard let sourceColumn = dataColumns.first(where: { col in
+                guard let idx = columnIndex(from: col.identifier), idx < columns.count else { return false }
+                return columns[idx] == columnName
+            }),
                   let currentIndex = tableView.tableColumns.firstIndex(of: sourceColumn) else { continue }
             let targetTableIndex = targetIndex + 1  // +1 for row number column
             if currentIndex != targetTableIndex && targetTableIndex < tableView.numberOfColumns {
@@ -591,13 +611,22 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let column = tableView.tableColumns[columnIndex]
         if column.identifier.rawValue == "__rowNumber__" { return }
 
+        // Derive base column name from stable identifier (avoids sort indicator in title)
+        let baseName: String = {
+            if let idx = DataGridView.columnIndex(from: column.identifier),
+               idx < rowProvider.columns.count {
+                return rowProvider.columns[idx]
+            }
+            return column.title
+        }()
+
         let copyItem = NSMenuItem(title: String(localized: "Copy Column Name"), action: #selector(copyColumnName(_:)), keyEquivalent: "")
-        copyItem.representedObject = column.title
+        copyItem.representedObject = baseName
         copyItem.target = self
         menu.addItem(copyItem)
 
         let filterItem = NSMenuItem(title: String(localized: "Filter with column"), action: #selector(filterWithColumn(_:)), keyEquivalent: "")
-        filterItem.representedObject = column.title
+        filterItem.representedObject = baseName
         filterItem.target = self
         menu.addItem(filterItem)
     }
