@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix column flashing/swapping when sorting by using stable column identifiers instead of mutable titles for layout persistence
 - Fix "Copy Column Name" and "Filter with column" context menu actions copying sort indicators (e.g., "name 1▲") instead of base column name
+- Fix generated SQL statements (ALTER TABLE, DDL, SQL Preview) not consistently ending with a semicolon
 
 ## [0.4.0] - 2026-02-16
 
@@ -32,12 +33,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Raise minimum macOS version from 13.5 (Ventura) to 14.0 (Sonoma)
+- Change Export/Import keyboard shortcuts from ⌘E/⌘I to ⇧⌘E/⇧⌘I to avoid conflicts with standard text editing shortcuts
 - Configure URLSession to wait for network connectivity in analytics and license services
 - Improve SQL statement parser to handle backslash escapes within string literals, preventing false positives in dangerous query detection
 
 ### Fixed
 
 - Fix SQL editor not updating colors when switching between light and dark mode
+- Fix sidebar retaining stale table selections and pending operations for tables that no longer exist after a database refresh
 
 ## [0.3.2] - 2026-02-14
 
