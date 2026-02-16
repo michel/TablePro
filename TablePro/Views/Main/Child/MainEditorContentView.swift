@@ -233,7 +233,7 @@ struct MainEditorContentView: View {
     private func resultsSection(tab: QueryTab) -> some View {
         VStack(spacing: 0) {
             if tab.showStructure, let tableName = tab.tableName {
-                TableStructureView(tableName: tableName, connection: connection)
+                TableStructureView(tableName: tableName, connection: connection, toolbarState: coordinator.toolbarState)
                     .id(tableName)
                     .frame(maxHeight: .infinity)
             } else if tab.resultColumns.isEmpty && tab.errorMessage == nil && tab.lastExecutedAt != nil && !tab.isExecuting {

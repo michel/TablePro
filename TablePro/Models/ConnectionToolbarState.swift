@@ -153,6 +153,15 @@ final class ConnectionToolbarState: ObservableObject {
     /// Whether the connection is read-only
     @Published var isReadOnly: Bool = false
 
+    /// Whether there are pending changes to preview
+    @Published var hasPendingChanges: Bool = false
+
+    /// Whether the SQL review popover is showing
+    @Published var showSQLReviewPopover: Bool = false
+
+    /// SQL statements to display in the review popover
+    @Published var previewStatements: [String] = []
+
     /// Network latency in milliseconds (for SSH connections)
     @Published var latencyMs: Int?
 

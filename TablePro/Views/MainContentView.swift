@@ -126,7 +126,22 @@ struct MainContentView: View {
             .onChange(of: currentTab?.resultRows) { _ in
                 updateSidebarEditState()
             }
-            .onAppear { setupNotificationHandler() }
+            .onAppear {
+                setupNotificationHandler()
+                updateToolbarPendingState()
+            }
+            .onChange(of: changeManager.hasChanges) { _ in
+                updateToolbarPendingState()
+            }
+            .onChange(of: pendingTruncates) { _ in
+                updateToolbarPendingState()
+            }
+            .onChange(of: pendingDeletes) { _ in
+                updateToolbarPendingState()
+            }
+            .onChange(of: appState.hasStructureChanges) { _ in
+                updateToolbarPendingState()
+            }
             .sheet(isPresented: $coordinator.showDatabaseSwitcher) {
                 DatabaseSwitcherSheet(
                     isPresented: $coordinator.showDatabaseSwitcher,
@@ -281,6 +296,13 @@ struct MainContentView: View {
     }
 
     // MARK: - Notification Handler Setup
+
+    private func updateToolbarPendingState() {
+        toolbarState.hasPendingChanges = changeManager.hasChanges
+            || !pendingTruncates.isEmpty
+            || !pendingDeletes.isEmpty
+            || AppState.shared.hasStructureChanges
+    }
 
     private func setupNotificationHandler() {
         notificationHandler = MainContentNotificationHandler(

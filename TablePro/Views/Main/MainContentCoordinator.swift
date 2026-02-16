@@ -801,64 +801,18 @@ final class MainContentCoordinator: ObservableObject {
 
         guard hasEditedCells || hasPendingTableOps else { return }
 
-        var allStatements: [ParameterizedStatement] = []
-        let dbType = connection.type
-
-        // Check if any table operation needs FK disabled (must be outside transaction)
-        let needsDisableFK = dbType != .postgresql && pendingTruncates.union(pendingDeletes).contains { tableName in
-            tableOperationOptions[tableName]?.ignoreForeignKeys == true
-        }
-
-        // FK disable must be FIRST, before any transaction begins
-        if needsDisableFK {
-            allStatements.append(contentsOf: fkDisableStatements(for: dbType).map {
-                ParameterizedStatement(sql: $0, parameters: [])
-            })
-        }
-
-        // Wrap all operations in a single transaction when we have multiple operations
-        let needsTransaction = hasEditedCells && hasPendingTableOps
-        if needsTransaction {
-            allStatements.append(ParameterizedStatement(sql: "BEGIN", parameters: []))
-        }
-
-        if hasEditedCells {
-            // changeManager.generateSQL() returns parameterized statements
-            do {
-                let editStatements = try changeManager.generateSQL()
-                allStatements.append(contentsOf: editStatements)
-            } catch {
-                // Show error to user and abort save
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage = error.localizedDescription
-                }
-                return
-            }
-        }
-
-        if hasPendingTableOps {
-            // Generate table operation SQL WITHOUT FK handling (already done above)
-            let tableOpStatements = generateTableOperationSQL(
-                truncates: pendingTruncates,
-                deletes: pendingDeletes,
-                options: tableOperationOptions,
-                wrapInTransaction: !needsTransaction,
-                includeFKHandling: false  // FK handling done at this level
+        let allStatements: [ParameterizedStatement]
+        do {
+            allStatements = try assemblePendingStatements(
+                pendingTruncates: pendingTruncates,
+                pendingDeletes: pendingDeletes,
+                tableOperationOptions: tableOperationOptions
             )
-            allStatements.append(contentsOf: tableOpStatements.map {
-                ParameterizedStatement(sql: $0, parameters: [])
-            })
-        }
-
-        if needsTransaction {
-            allStatements.append(ParameterizedStatement(sql: "COMMIT", parameters: []))
-        }
-
-        // FK re-enable must be LAST, after transaction commits
-        if needsDisableFK {
-            allStatements.append(contentsOf: fkEnableStatements(for: dbType).map {
-                ParameterizedStatement(sql: $0, parameters: [])
-            })
+        } catch {
+            if let index = tabManager.selectedTabIndex {
+                tabManager.tabs[index].errorMessage = error.localizedDescription
+            }
+            return
         }
 
         guard !allStatements.isEmpty else {
@@ -886,7 +840,7 @@ final class MainContentCoordinator: ObservableObject {
     ///   - wrapInTransaction: Whether to wrap statements in BEGIN/COMMIT
     ///   - includeFKHandling: Whether to include FK disable/enable statements (set false when caller handles FK)
     /// - Returns: Array of SQL statements to execute
-    private func generateTableOperationSQL(
+    internal func generateTableOperationSQL(
         truncates: Set<String>,
         deletes: Set<String>,
         options: [String: TableOperationOptions],
@@ -947,7 +901,7 @@ final class MainContentCoordinator: ObservableObject {
 
     /// Returns SQL statements to disable foreign key checks for the database type.
     /// - Note: PostgreSQL doesn't support globally disabling FK checks; use CASCADE instead.
-    private func fkDisableStatements(for dbType: DatabaseType) -> [String] {
+    internal func fkDisableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=0"]
@@ -961,7 +915,7 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     /// Returns SQL statements to re-enable foreign key checks for the database type.
-    private func fkEnableStatements(for dbType: DatabaseType) -> [String] {
+    internal func fkEnableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]

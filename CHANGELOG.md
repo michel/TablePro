@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- SQL Preview button (eye icon) in toolbar to review all pending SQL statements before committing changes (⌘⇧P)
+
 ## [0.4.0] - 2026-02-16
 
 ### Added

@@ -16,6 +16,7 @@ struct TableStructureView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "TableStructureView")
     let tableName: String
     let connection: DatabaseConnection
+    let toolbarState: ConnectionToolbarState
 
     @State private var selectedTab: StructureTab = .columns
     @State private var columns: [ColumnInfo] = []
@@ -38,14 +39,10 @@ struct TableStructureView: View {
     @State private var editingCell: CellPosition?
     @State private var structureColumnLayout = ColumnLayoutState()
 
-    // Preview dialog
-    @State private var showPreview = false
-    @State private var previewStatements: [String] = []
-    @AppStorage("skipSchemaPreview") private var skipPreview = false
-
-    init(tableName: String, connection: DatabaseConnection) {
+    init(tableName: String, connection: DatabaseConnection, toolbarState: ConnectionToolbarState) {
         self.tableName = tableName
         self.connection = connection
+        self.toolbarState = toolbarState
 
         // Initialize wrappedChangeManager using the StateObject's wrappedValue
         let manager = StructureChangeManager()
@@ -70,10 +67,15 @@ struct TableStructureView: View {
         .onAppear {
             AppState.shared.isCurrentTabEditable = (selectedTab != .ddl)
             AppState.shared.hasRowSelection = !selectedRows.isEmpty
+            AppState.shared.hasStructureChanges = structureChangeManager.hasChanges
         }
         .onDisappear {
             AppState.shared.isCurrentTabEditable = false
             AppState.shared.hasRowSelection = false
+            AppState.shared.hasStructureChanges = false
+        }
+        .onChange(of: structureChangeManager.hasChanges) { newValue in
+            AppState.shared.hasStructureChanges = newValue
         }
         .onReceive(NotificationCenter.default.publisher(for: .refreshData), perform: onRefreshData)
         .onReceive(NotificationCenter.default.publisher(for: .saveStructureChanges)) { _ in
@@ -82,6 +84,9 @@ struct TableStructureView: View {
                     await executeSchemaChanges()
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .previewStructureSQL)) { _ in
+            generateStructurePreviewSQL()
         }
         .onReceive(NotificationCenter.default.publisher(for: .copySelectedRows)) { _ in
             handleCopyRows(selectedRows)
@@ -477,6 +482,26 @@ struct TableStructureView: View {
 
     // MARK: - Schema Operations
 
+    private func generateStructurePreviewSQL() {
+        let changes = structureChangeManager.getChangesArray()
+        guard !changes.isEmpty else {
+            return
+        }
+
+        let generator = SchemaStatementGenerator(
+            tableName: tableName,
+            databaseType: getDatabaseType()
+        )
+
+        do {
+            let schemaStatements = try generator.generate(changes: changes)
+            toolbarState.previewStatements = schemaStatements.map(\.sql)
+        } catch {
+            toolbarState.previewStatements = ["-- Error generating SQL: \(error.localizedDescription)"]
+        }
+        toolbarState.showSQLReviewPopover = true
+    }
+
     private func executeSchemaChanges() async {
         let changes = structureChangeManager.getChangesArray()
         guard !changes.isEmpty else { return }
@@ -800,7 +825,8 @@ struct TableStructureView: View {
             database: "test",
             username: "root",
             type: .mysql
-        )
+        ),
+        toolbarState: ConnectionToolbarState()
     )
     .frame(width: 800, height: 600)
 }

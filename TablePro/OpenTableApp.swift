@@ -22,6 +22,7 @@ final class AppState: ObservableObject {
     @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
     @Published var isHistoryPanelVisible: Bool = false  // Global history panel visibility
     @Published var hasQueryText: Bool = false  // True when current editor has non-empty query
+    @Published var hasStructureChanges: Bool = false  // True when structure view has pending schema changes
 }
 
 // MARK: - Pasteboard Commands
@@ -237,6 +238,12 @@ struct TableProApp: App {
                 }
                 .keyboardShortcut("s", modifiers: .command)
                 .disabled(!appState.isConnected || appState.isReadOnly)
+
+                Button("Preview SQL") {
+                    NotificationCenter.default.post(name: .previewSQL, object: nil)
+                }
+                .keyboardShortcut("p", modifiers: [.command, .shift])
+                .disabled(!appState.isConnected)
 
                 Button("Close Tab") {
                     // Check if key window is the main window
@@ -475,6 +482,8 @@ extension Notification.Name {
 
     // Query execution notifications
     static let explainQuery = Notification.Name("explainQuery")
+    static let previewSQL = Notification.Name("previewSQL")
+    static let previewStructureSQL = Notification.Name("previewStructureSQL")
 
     // Export notifications
     static let exportTables = Notification.Name("exportTables")
