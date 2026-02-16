@@ -294,8 +294,9 @@ struct TableProApp: App {
                     // Check if first responder is a text view (SQL editor)
                     if let firstResponder = NSApp.keyWindow?.firstResponder,
                        firstResponder is NSTextView || firstResponder is TextView {
-                        // Let native text view undo handle it
-                        NSApp.sendAction(#selector(UndoManager.undo), to: nil, from: nil)
+                        // Send undo: (with colon) through responder chain —
+                        // CodeEditTextView.TextView responds to undo: via @objc func undo(_:)
+                        NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
                     } else {
                         // Data grid undo
                         NotificationCenter.default.post(name: .undoChange, object: nil)
@@ -307,8 +308,8 @@ struct TableProApp: App {
                     // Check if first responder is a text view (SQL editor)
                     if let firstResponder = NSApp.keyWindow?.firstResponder,
                        firstResponder is NSTextView || firstResponder is TextView {
-                        // Let native text view redo handle it
-                        NSApp.sendAction(#selector(UndoManager.redo), to: nil, from: nil)
+                        // Send redo: (with colon) through responder chain
+                        NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
                     } else {
                         // Data grid redo
                         NotificationCenter.default.post(name: .redoChange, object: nil)
