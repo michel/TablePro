@@ -206,13 +206,35 @@ extension SQLCompletionItem {
     }
 
     /// Create a column completion item
-    static func column(_ name: String, dataType: String?, tableName: String? = nil) -> SQLCompletionItem {
-        SQLCompletionItem(
+    static func column(
+        _ name: String,
+        dataType: String?,
+        tableName: String? = nil,
+        isPrimaryKey: Bool = false,
+        isNullable: Bool = true,
+        defaultValue: String? = nil,
+        comment: String? = nil
+    ) -> SQLCompletionItem {
+        // Build detail string: "PK · NOT NULL · INT"
+        var detailParts: [String] = []
+        if isPrimaryKey { detailParts.append("PK") }
+        if !isNullable { detailParts.append("NOT NULL") }
+        if let dataType { detailParts.append(dataType) }
+        let detail = detailParts.isEmpty ? nil : detailParts.joined(separator: " · ")
+
+        // Build documentation
+        var docParts: [String] = []
+        if let tableName { docParts.append("Column from \(tableName)") }
+        if let defaultValue { docParts.append("Default: \(defaultValue)") }
+        if let comment { docParts.append(comment) }
+        let documentation = docParts.isEmpty ? nil : docParts.joined(separator: "\n")
+
+        return SQLCompletionItem(
             label: name,
             kind: .column,
             insertText: name,
-            detail: dataType,
-            documentation: tableName.map { "Column from \($0)" }
+            detail: detail,
+            documentation: documentation
         )
     }
 

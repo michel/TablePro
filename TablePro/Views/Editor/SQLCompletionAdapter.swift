@@ -18,6 +18,8 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
     private var completionEngine: CompletionEngine?
     private var suppressNextCompletion = false
     private var currentCompletionContext: CompletionContext?
+    private var debounceGeneration: UInt64 = 0
+    private let debounceNanoseconds: UInt64 = 50_000_000  // 50ms
 
     // MARK: - Initialization
 
@@ -48,6 +50,12 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
             suppressNextCompletion = false
             return nil
         }
+
+        // Debounce: wait briefly and check if a newer request arrived
+        debounceGeneration &+= 1
+        let myGeneration = debounceGeneration
+        try? await Task.sleep(nanoseconds: debounceNanoseconds)
+        guard myGeneration == debounceGeneration else { return nil }
 
         let text = textView.text
         let offset = cursorPosition.range.location

@@ -850,4 +850,45 @@ struct SQLCompletionProviderTests {
         #expect(whereItem != nil)
         #expect(whereItem?.documentation != nil, "WHERE should have documentation")
     }
+
+    // MARK: - P2: MP-7 - Column Metadata in Suggestions
+
+    @Test("Column with primary key shows PK in detail")
+    func testColumnPKInDetail() {
+        let item = SQLCompletionItem.column("id", dataType: "INT", tableName: "users", isPrimaryKey: true)
+        #expect(item.detail?.contains("PK") == true)
+    }
+
+    @Test("Column with NOT NULL shows NOT NULL in detail")
+    func testColumnNotNullInDetail() {
+        let item = SQLCompletionItem.column("name", dataType: "VARCHAR(255)", tableName: "users", isNullable: false)
+        #expect(item.detail?.contains("NOT NULL") == true)
+    }
+
+    @Test("Column with default value shows default in documentation")
+    func testColumnDefaultInDocs() {
+        let item = SQLCompletionItem.column("status", dataType: "INT", tableName: "users", defaultValue: "0")
+        #expect(item.documentation?.contains("Default: 0") == true)
+    }
+
+    @Test("Column with comment shows comment in documentation")
+    func testColumnCommentInDocs() {
+        let item = SQLCompletionItem.column("email", dataType: "VARCHAR(255)", tableName: "users", comment: "User email address")
+        #expect(item.documentation?.contains("User email address") == true)
+    }
+
+    @Test("Column detail combines PK, NOT NULL, and data type")
+    func testColumnDetailCombined() {
+        let item = SQLCompletionItem.column("id", dataType: "INT", tableName: "users", isPrimaryKey: true, isNullable: false)
+        let detail = item.detail ?? ""
+        #expect(detail.contains("PK"))
+        #expect(detail.contains("NOT NULL"))
+        #expect(detail.contains("INT"))
+    }
+
+    @Test("Nullable column does not show NOT NULL")
+    func testNullableColumnNoNotNull() {
+        let item = SQLCompletionItem.column("notes", dataType: "TEXT", tableName: "users", isNullable: true)
+        #expect(item.detail?.contains("NOT NULL") != true)
+    }
 }

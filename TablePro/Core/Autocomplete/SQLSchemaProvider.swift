@@ -140,17 +140,27 @@ actor SQLSchemaProvider {
     /// Get completion items for columns of a specific table
     func columnCompletionItems(for tableName: String) async -> [SQLCompletionItem] {
         let columns = await getColumns(for: tableName)
-        let columnData = columns.map { (name: $0.name, type: $0.dataType) }
+        let columnData = columns.map { col in
+            (name: col.name, type: col.dataType, isPK: col.isPrimaryKey,
+             isNullable: col.isNullable, defaultValue: col.defaultValue, comment: col.comment)
+        }
         return await MainActor.run {
             columnData.map {
-                SQLCompletionItem.column($0.name, dataType: $0.type, tableName: tableName)
+                SQLCompletionItem.column(
+                    $0.name, dataType: $0.type, tableName: tableName,
+                    isPrimaryKey: $0.isPK, isNullable: $0.isNullable,
+                    defaultValue: $0.defaultValue, comment: $0.comment
+                )
             }
         }
     }
 
     /// Get completion items for all columns of tables in scope
     func allColumnsInScope(for references: [TableReference]) async -> [SQLCompletionItem] {
-        var itemDataBuilder: [(label: String, insertText: String, type: String, table: String)] = []
+        var itemDataBuilder: [(
+            label: String, insertText: String, type: String, table: String,
+            isPK: Bool, isNullable: Bool, defaultValue: String?, comment: String?
+        )] = []
 
         for ref in references {
             let columns = await getColumns(for: ref.tableName)
@@ -163,7 +173,9 @@ actor SQLSchemaProvider {
                 itemDataBuilder.append(
                     (
                         label: label, insertText: insertText, type: column.dataType,
-                        table: ref.tableName
+                        table: ref.tableName, isPK: column.isPrimaryKey,
+                        isNullable: column.isNullable, defaultValue: column.defaultValue,
+                        comment: column.comment
                     ))
             }
         }
@@ -173,12 +185,10 @@ actor SQLSchemaProvider {
 
         return await MainActor.run {
             itemData.map {
-                SQLCompletionItem(
-                    label: $0.label,
-                    kind: .column,
-                    insertText: $0.insertText,
-                    detail: $0.type,
-                    documentation: "Column from \($0.table)"
+                SQLCompletionItem.column(
+                    $0.label, dataType: $0.type, tableName: $0.table,
+                    isPrimaryKey: $0.isPK, isNullable: $0.isNullable,
+                    defaultValue: $0.defaultValue, comment: $0.comment
                 )
             }
         }
