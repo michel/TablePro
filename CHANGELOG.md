@@ -16,9 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQL autocomplete: `table.*` suggestions in SELECT when multiple tables in scope
 - SQL autocomplete: `IS NULL`, `IS NOT NULL`, `NULLS FIRST`, `NULLS LAST` as single completion items
 - SQL autocomplete: `ON CONFLICT`, `ON DUPLICATE KEY UPDATE`, `RETURNING` suggestions after VALUES
+- SQL autocomplete: richer column metadata in suggestions (PK, NOT NULL, default value, comment)
+- SQL autocomplete: documentation for common SQL keywords in completion popover
+- SQL autocomplete: missing SQL keywords — window functions, PostgreSQL, MySQL, transaction, DCL, utility
+- SQL autocomplete: missing SQL functions — aggregate, datetime, string, numeric, JSON categories
+- SQL autocomplete: ALTER TABLE ADD CONSTRAINT suggestions
+- SQL autocomplete: INSERT INTO VALUES/SELECT suggestions
+- SQL autocomplete: CREATE TABLE improvements — IF NOT EXISTS, REFERENCES, FK actions, ENGINE
+- SQL autocomplete: 50ms debounce for completion triggers to reduce unnecessary work
 
 ### Fixed
 
+- Fix block comment detection incorrectly treating `--` inside `/* */` as line comment in SQL autocomplete
+- Fix schema-qualified name edge cases in autocomplete (e.g., `schema.table.column`)
 - Fix SQL autocomplete not showing database-specific type keywords (e.g., PostgreSQL `JSONB`, MySQL `ENUM`) by threading `databaseType` through the completion pipeline
 - Fix schema autocomplete disappearing after CREATE TABLE by reloading schema after cache invalidation
 - Add `*` (all columns) as top suggestion in SELECT clause autocomplete
