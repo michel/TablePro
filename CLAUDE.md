@@ -4,7 +4,7 @@
 
 TablePro is a native macOS database client built with SwiftUI and AppKit. It's designed as a fast, lightweight alternative to TablePlus, prioritizing Apple-native frameworks and modern Swift idioms for optimal performance and maintainability.
 
-- **Current version:** 0.3.1
+- **Current version:** 0.4.0
 - **Minimum macOS:** 14.0 (Sonoma)
 - **Swift version:** 5.9
 - **Architecture:** Universal Binary (arm64 + x86_64)

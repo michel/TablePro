@@ -7,15 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-16
+
 ### Added
 
 - Multi-column sorting: Shift+click column headers to add columns to the sort list; regular click replaces with single sort. Sort priority indicators (1▲, 2▼) are shown in column headers when multiple columns are sorted
 - "Copy with Headers" feature (Shift+Cmd+C) to copy selected rows with column headers as the first TSV line, also available via context menu in the data grid
 - Column width persistence within tab session: resized columns retain their width across pagination, sorting, and filtering reloads
+- Dangerous query confirmation dialog for `DELETE`/`UPDATE` statements without a `WHERE` clause — summarizes affected queries before execution
+- SQL editor horizontal scrolling for long lines without word wrapping
+- Scroll-to-match navigation in SQL editor find panel
+- GitHub Sponsors funding configuration
 
 ### Changed
 
 - Raise minimum macOS version from 13.5 (Ventura) to 14.0 (Sonoma)
+- Configure URLSession to wait for network connectivity in analytics and license services
+- Improve SQL statement parser to handle backslash escapes within string literals, preventing false positives in dangerous query detection
+
+### Fixed
+
+- Fix SQL editor not updating colors when switching between light and dark mode
 
 ## [0.3.2] - 2026-02-14
 
@@ -164,7 +176,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/datlechin/tablepro/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/datlechin/tablepro/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/datlechin/tablepro/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/datlechin/tablepro/compare/v0.2.0...v0.3.0
