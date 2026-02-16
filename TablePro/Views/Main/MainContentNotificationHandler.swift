@@ -492,6 +492,13 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.handleImportTables()
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .previewSQL)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handlePreviewSQL()
+            }
+            .store(in: &cancellables)
     }
 
     private func handleRefreshData() {
@@ -513,6 +520,14 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.pendingTruncates.wrappedValue.removeAll()
                 self?.pendingDeletes.wrappedValue.removeAll()
             }
+        )
+    }
+
+    private func handlePreviewSQL() {
+        coordinator?.handlePreviewSQL(
+            pendingTruncates: pendingTruncates.wrappedValue,
+            pendingDeletes: pendingDeletes.wrappedValue,
+            tableOperationOptions: tableOperationOptions.wrappedValue
         )
     }
 

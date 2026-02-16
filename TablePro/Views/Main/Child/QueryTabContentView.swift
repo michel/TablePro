@@ -14,6 +14,7 @@ struct QueryTabContentView: View {
     let connection: DatabaseConnection
     let changeManager: DataChangeManager
     let filterStateManager: FilterStateManager
+    let toolbarState: ConnectionToolbarState
     @Binding var queryText: String
     @Binding var cursorPositions: [CursorPosition]
     @Binding var selectedRowIndices: Set<Int>
@@ -68,6 +69,7 @@ struct QueryTabContentView: View {
                 connection: connection,
                 changeManager: changeManager,
                 filterStateManager: filterStateManager,
+                toolbarState: toolbarState,
                 selectedRowIndices: $selectedRowIndices,
                 editingCell: $editingCell,
                 onCommit: onCommit,

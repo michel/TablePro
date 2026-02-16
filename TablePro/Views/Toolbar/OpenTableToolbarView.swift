@@ -113,6 +113,18 @@ struct TableProToolbar: ViewModifier {
                         }
                         .help("Refresh (⌘R)")
                         .disabled(state.connectionState != .connected)
+
+                        // SQL Preview button
+                        Button {
+                            NotificationCenter.default.post(name: .previewSQL, object: nil)
+                        } label: {
+                            Image(systemName: "eye")
+                        }
+                        .help("Preview SQL (⌘⇧P)")
+                        .disabled(!state.hasPendingChanges || state.connectionState != .connected)
+                        .popover(isPresented: $state.showSQLReviewPopover) {
+                            SQLReviewPopover(statements: state.previewStatements)
+                        }
                     }
                 }
 

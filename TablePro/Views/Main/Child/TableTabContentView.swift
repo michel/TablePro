@@ -13,6 +13,7 @@ struct TableTabContentView: View {
     let connection: DatabaseConnection
     let changeManager: DataChangeManager
     let filterStateManager: FilterStateManager
+    let toolbarState: ConnectionToolbarState
     @Binding var selectedRowIndices: Set<Int>
     @Binding var editingCell: CellPosition?
 
@@ -47,7 +48,7 @@ struct TableTabContentView: View {
         VStack(spacing: 0) {
             // Show structure view or data view based on toggle
             if showStructure, let tableName = tab.tableName {
-                TableStructureView(tableName: tableName, connection: connection)
+                TableStructureView(tableName: tableName, connection: connection, toolbarState: toolbarState)
                     .id(tableName)
                     .frame(maxHeight: .infinity)
             } else {

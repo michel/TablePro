@@ -61,6 +61,16 @@
         }
       }
     },
+    "(%lld %@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "(%1$lld %2$@)"
+          }
+        }
+      }
+    },
     "(%lld active)" : {
       "localizations" : {
         "vi" : {
@@ -1636,6 +1646,9 @@
           }
         }
       }
+    },
+    "Copy All" : {
+
     },
     "Copy Cell Value" : {
       "localizations" : {
@@ -4211,6 +4224,9 @@
         }
       }
     },
+    "No pending changes" : {
+
+    },
     "No primary key selected (not recommended)" : {
       "localizations" : {
         "vi" : {
@@ -4759,6 +4775,12 @@
           }
         }
       }
+    },
+    "Preview SQL" : {
+
+    },
+    "Preview SQL (⌘⇧P)" : {
+
     },
     "Previous Page (⌘[)" : {
       "localizations" : {
@@ -5620,6 +5642,9 @@
         }
       }
     },
+    "SQL Preview" : {
+
+    },
     "SQLite is file-based" : {
       "localizations" : {
         "vi" : {
@@ -5720,6 +5745,9 @@
         }
       }
     },
+    "statement" : {
+
+    },
     "Statement %lld" : {
       "localizations" : {
         "vi" : {
@@ -5755,6 +5783,9 @@
           }
         }
       }
+    },
+    "statements" : {
+
     },
     "STATISTICS" : {
       "localizations" : {
