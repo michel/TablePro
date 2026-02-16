@@ -127,6 +127,7 @@ final class SQLContextAnalyzer {
              .alterTableColumn),
             ("\\b(?:AFTER|BEFORE)(?:\\s+\\w*)?$", .alterTableColumn),
             ("\\bFIRST\\s*$", .alterTable),
+            ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+ADD\\s+CONSTRAINT\\s+\\w*$", .alterTable),
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+ADD\\s+\\w*$", .alterTable),
             (
                 "\\b(?:ADD|MODIFY|CHANGE)\\s+(?:COLUMN\\s+)?[`\"']?\\w+[`\"']?\\s+\\w+(?:\\([^)]*\\))?" +
@@ -139,6 +140,8 @@ final class SQLContextAnalyzer {
              "\\s+(?:COLUMN\\s+)?[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
             ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
+            ("\\bCREATE\\s+(?:TEMPORARY\\s+)?TABLE\\s+[^;]*\\([^)]*\\)\\s*\\w*$", .createTable),
+            ("\\bCREATE\\s+(?:TEMPORARY\\s+)?TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?\\w*$", .createTable),
             // DROP object patterns
             ("\\bDROP\\s+(?:TABLE|VIEW|INDEX)\\s+(?:IF\\s+EXISTS\\s+)?\\w*$", .dropObject),
             // CREATE INDEX pattern
@@ -165,6 +168,7 @@ final class SQLContextAnalyzer {
             ("\\bVALUES\\s*(?:\\([^)]*\\)\\s*,?\\s*)+\\w*$", .values),
             ("\\bVALUES\\s*\\([^)]*$", .values),
             ("\\bINSERT\\s+INTO\\s+\\w+\\s*\\([^)]*$", .insertColumns),
+            ("\\bINSERT\\s+INTO\\s+[`\"']?\\w+[`\"']?\\s*$", .into),
             ("\\bINTO\\s+\\w*$", .into),
             ("\\bSET\\s+[^;]*$", .set),
             ("\\bHAVING\\s+[^;]*$", .having),
@@ -180,6 +184,7 @@ final class SQLContextAnalyzer {
             // FROM patterns
             ("\\bFROM\\s+[`\"']?\\w+[`\"']?(?:\\s+(?:AS\\s+)?\\w+)?\\s*$", .from),
             ("\\bFROM\\s+\\w*$", .from),
+            ("\\bFROM\\s*$", .from),
             // SELECT is most general
             ("\\bSELECT\\s+[^;]*$", .select),
         ]
@@ -630,40 +635,7 @@ final class SQLContextAnalyzer {
         let length = ns.length
         guard length > 0 else { return false }
 
-        // Find last newline position using NSString range search
-        let lastNewlineRange = ns.range(
-            of: "\n", options: .backwards, range: NSRange(location: 0, length: length)
-        )
-
-        if lastNewlineRange.location != NSNotFound {
-            let lineStart = lastNewlineRange.location + 1
-            if lineStart < length {
-                let currentLineRange = NSRange(
-                    location: lineStart, length: length - lineStart
-                )
-                let currentLine = ns.substring(with: currentLineRange)
-                let nsLine = currentLine as NSString
-                let dashRange = nsLine.range(of: "--")
-                if dashRange.location != NSNotFound {
-                    let beforeDash = nsLine.substring(to: dashRange.location)
-                    if beforeDash.trimmingCharacters(in: .whitespaces).isEmpty ||
-                        !beforeDash.contains("'") {
-                        return true
-                    }
-                }
-            }
-        } else {
-            // First line — check for line comment
-            let dashRange = ns.range(of: "--")
-            if dashRange.location != NSNotFound {
-                let before = ns.substring(to: dashRange.location)
-                if !isInsideString(before) {
-                    return true
-                }
-            }
-        }
-
-        // Check for block comment: count /* and */ occurrences
+        // 1. Check block comments first: count /* and */ occurrences
         var openCount = 0
         var closeCount = 0
         var searchStart = 0
@@ -688,7 +660,59 @@ final class SQLContextAnalyzer {
             searchStart = closeRange.location + 2
         }
 
-        return openCount > closeCount
+        if openCount > closeCount {
+            return true
+        }
+
+        // 2. Strip completed block comments before checking for line comments,
+        //    so that "--" inside a block comment is not treated as a line comment.
+        let strippedText: String
+        if openCount > 0 {
+            strippedText = Self.blockCommentRegex.stringByReplacingMatches(
+                in: text,
+                range: NSRange(location: 0, length: length),
+                withTemplate: ""
+            )
+        } else {
+            strippedText = text
+        }
+        let nsStripped = strippedText as NSString
+        let strippedLength = nsStripped.length
+
+        // 3. Check for line comment (--) on the current line of the stripped text
+        let lastNewlineRange = nsStripped.range(
+            of: "\n", options: .backwards, range: NSRange(location: 0, length: strippedLength)
+        )
+
+        if lastNewlineRange.location != NSNotFound {
+            let lineStart = lastNewlineRange.location + 1
+            if lineStart < strippedLength {
+                let currentLineRange = NSRange(
+                    location: lineStart, length: strippedLength - lineStart
+                )
+                let currentLine = nsStripped.substring(with: currentLineRange)
+                let nsLine = currentLine as NSString
+                let dashRange = nsLine.range(of: "--")
+                if dashRange.location != NSNotFound {
+                    let beforeDash = nsLine.substring(to: dashRange.location)
+                    if beforeDash.trimmingCharacters(in: .whitespaces).isEmpty ||
+                        !beforeDash.contains("'") {
+                        return true
+                    }
+                }
+            }
+        } else {
+            // First line — check for line comment
+            let dashRange = nsStripped.range(of: "--")
+            if dashRange.location != NSNotFound {
+                let before = nsStripped.substring(to: dashRange.location)
+                if !isInsideString(before) {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     /// Extract the current word prefix and any dot prefix (table.column).

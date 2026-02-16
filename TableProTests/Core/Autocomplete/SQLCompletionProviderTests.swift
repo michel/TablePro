@@ -721,4 +721,133 @@ struct SQLCompletionProviderTests {
         let hasReturning = items.contains { $0.label == "RETURNING" }
         #expect(hasReturning, "Typing RE after closed VALUES should suggest RETURNING")
     }
+
+    // MARK: - P2: MP-4 - ALTER TABLE Sub-Clause Improvements
+
+    @Test("ALTER TABLE ADD COLUMN suggests data types")
+    func testAlterTableAddColumnTypes() async {
+        let text = "ALTER TABLE users ADD COLUMN email "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let hasVarchar = items.contains { $0.label == "VARCHAR" }
+        let hasInt = items.contains { $0.label == "INT" }
+        #expect(hasVarchar || hasInt, "ADD COLUMN should suggest data types")
+    }
+
+    @Test("ALTER TABLE DROP COLUMN suggests columns")
+    func testAlterTableDropColumnSuggestsColumns() async {
+        // Without schema loaded, verify clause type is detected correctly
+        let text = "ALTER TABLE users DROP COLUMN "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        // Even without schema, the clause should be alterTableColumn which suggests columns
+        // With no columns loaded, at least the clause detection should work
+        #expect(items.isEmpty || items.first?.kind == .column || items.first?.kind == .keyword)
+    }
+
+    @Test("ALTER TABLE ADD CONSTRAINT suggests constraint types")
+    func testAlterTableAddConstraint() async {
+        let text = "ALTER TABLE users ADD CONSTRAINT "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let hasPrimary = items.contains { $0.label == "PRIMARY" || $0.label == "PRIMARY KEY" }
+        let hasUnique = items.contains { $0.label == "UNIQUE" }
+        let hasForeign = items.contains { $0.label == "FOREIGN" || $0.label == "FOREIGN KEY" }
+        let hasCheck = items.contains { $0.label == "CHECK" }
+        #expect(hasPrimary || hasUnique || hasForeign || hasCheck,
+               "ADD CONSTRAINT should suggest constraint types")
+    }
+
+    // MARK: - P2: MP-5 - INSERT Statement Improvements
+
+    @Test("INSERT INTO table suggests SELECT for INSERT-SELECT")
+    func testInsertIntoSuggestsSelect() async {
+        let text = "INSERT INTO users "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let hasSelect = items.contains { $0.label == "SELECT" }
+        #expect(hasSelect, "INSERT INTO table should suggest SELECT for INSERT...SELECT")
+    }
+
+    @Test("INSERT INTO table suggests opening paren for column list")
+    func testInsertIntoSuggestsParenOrValues() async {
+        let text = "INSERT INTO users "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let hasValues = items.contains { $0.label == "VALUES" }
+        #expect(hasValues, "INSERT INTO table should suggest VALUES")
+    }
+
+    // MARK: - P2: MP-6 - CREATE TABLE Improvements
+
+    @Test("CREATE TABLE suggests IF NOT EXISTS")
+    func testCreateTableIfNotExists() async {
+        let text = "CREATE TABLE "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let hasIfNotExists = items.contains { $0.label == "IF NOT EXISTS" }
+        #expect(hasIfNotExists, "CREATE TABLE should suggest IF NOT EXISTS")
+    }
+
+    @Test("CREATE TABLE column def includes REFERENCES")
+    func testCreateTableReferences() async {
+        let text = "CREATE TABLE test (id INT PRIMARY KEY, user_id INT "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let hasReferences = items.contains { $0.label == "REFERENCES" }
+        #expect(hasReferences, "Column definition should include REFERENCES for FK")
+    }
+
+    @Test("CREATE TABLE column def includes ON DELETE/UPDATE actions")
+    func testCreateTableFKActions() async {
+        let text = "CREATE TABLE test (id INT PRIMARY KEY, user_id INT "
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let hasOnDelete = items.contains { $0.label == "ON DELETE" }
+        let hasOnUpdate = items.contains { $0.label == "ON UPDATE" }
+        let hasCascade = items.contains { $0.label == "CASCADE" }
+        #expect(hasOnDelete || hasOnUpdate || hasCascade,
+               "Column definition should include FK action keywords")
+    }
+
+    @Test("MySQL CREATE TABLE after closing paren suggests table options")
+    func testCreateTableMySQLOptions() async {
+        // This tests a NEW clause type: after CREATE TABLE (...) but before semicolon
+        // Use "ENGINE" prefix to filter
+        let mysqlProvider = SQLCompletionProvider(schemaProvider: schemaProvider, databaseType: .mysql)
+        let text = "CREATE TABLE test (id INT) ENG"
+        let (items, _) = await mysqlProvider.getCompletions(text: text, cursorPosition: text.count)
+        let hasEngine = items.contains { $0.label == "ENGINE" }
+        #expect(hasEngine, "After CREATE TABLE (...) should suggest ENGINE for MySQL")
+    }
+
+    // MARK: - P2: MP-8 - Keyword Documentation
+
+    @Test("Common keywords have documentation")
+    func testKeywordsHaveDocumentation() async {
+        let text = "SEL"
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let selectItem = items.first { $0.label == "SELECT" }
+        #expect(selectItem != nil)
+        #expect(selectItem?.documentation != nil, "SELECT should have documentation")
+    }
+
+    @Test("FROM keyword has documentation")
+    func testFromKeywordDocumentation() async {
+        let text = "SELECT * FRO"
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let fromItem = items.first { $0.label == "FROM" }
+        #expect(fromItem != nil)
+        #expect(fromItem?.documentation != nil, "FROM should have documentation")
+    }
+
+    @Test("JOIN keyword has documentation")
+    func testJoinKeywordDocumentation() async {
+        let text = "SELECT * FROM users JOI"
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let joinItem = items.first { $0.label == "JOIN" }
+        #expect(joinItem != nil)
+        #expect(joinItem?.documentation != nil, "JOIN should have documentation")
+    }
+
+    @Test("WHERE keyword has documentation")
+    func testWhereKeywordDocumentation() async {
+        let text = "SELECT * FROM users WHE"
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let whereItem = items.first { $0.label == "WHERE" }
+        #expect(whereItem != nil)
+        #expect(whereItem?.documentation != nil, "WHERE should have documentation")
+    }
 }

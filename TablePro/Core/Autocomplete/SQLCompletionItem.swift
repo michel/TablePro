@@ -107,13 +107,91 @@ struct SQLCompletionItem: Identifiable, Hashable {
 // MARK: - Factory Methods
 
 extension SQLCompletionItem {
+    /// Documentation for common SQL keywords
+    private static let keywordDocs: [String: String] = [
+        "SELECT": "Retrieve data from one or more tables",
+        "FROM": "Specify tables to query data from",
+        "WHERE": "Filter rows based on conditions",
+        "JOIN": "Combine rows from two or more tables",
+        "LEFT JOIN": "Return all rows from left table with matching rows from right",
+        "RIGHT JOIN": "Return all rows from right table with matching rows from left",
+        "INNER JOIN": "Return rows with matches in both tables",
+        "FULL JOIN": "Return all rows when there is a match in either table",
+        "CROSS JOIN": "Return Cartesian product of both tables",
+        "INSERT": "Add new rows to a table",
+        "UPDATE": "Modify existing rows in a table",
+        "DELETE": "Remove rows from a table",
+        "CREATE": "Create database objects (tables, views, indexes)",
+        "ALTER": "Modify database object structure",
+        "DROP": "Remove database objects",
+        "GROUP BY": "Group rows by column values",
+        "ORDER BY": "Sort result set by columns",
+        "HAVING": "Filter groups based on conditions",
+        "LIMIT": "Restrict number of returned rows",
+        "OFFSET": "Skip a number of rows before returning results",
+        "DISTINCT": "Return only unique rows",
+        "UNION": "Combine results of multiple SELECT statements",
+        "INTERSECT": "Return rows common to multiple SELECT statements",
+        "EXCEPT": "Return rows from first SELECT not in second",
+        "AND": "Combine conditions (all must be true)",
+        "OR": "Combine conditions (any must be true)",
+        "NOT": "Negate a condition",
+        "AS": "Create an alias for a table or column",
+        "IN": "Match against a list of values",
+        "BETWEEN": "Match values within a range",
+        "LIKE": "Pattern matching with wildcards",
+        "ILIKE": "Case-insensitive pattern matching (PostgreSQL)",
+        "IS NULL": "Check for null values",
+        "IS NOT NULL": "Check for non-null values",
+        "EXISTS": "Check if subquery returns rows",
+        "NOT EXISTS": "Check if subquery returns no rows",
+        "CASE": "Conditional expression",
+        "WHEN": "Specify condition in CASE expression",
+        "THEN": "Specify result for CASE condition",
+        "ELSE": "Default result in CASE expression",
+        "END": "End CASE expression",
+        "RETURNING": "Return affected rows (PostgreSQL)",
+        "WITH": "Define common table expressions (CTEs)",
+        "VALUES": "Specify row data for INSERT",
+        "SET": "Assign values to columns in UPDATE",
+        "ON": "Specify join condition",
+        "USING": "Specify join columns with matching names",
+        "ASC": "Sort in ascending order",
+        "DESC": "Sort in descending order",
+        "NULL": "Represents a missing or unknown value",
+        "DEFAULT": "Use column default value",
+        "TRUE": "Boolean true value",
+        "FALSE": "Boolean false value",
+        "PRIMARY KEY": "Uniquely identifies each row in a table",
+        "FOREIGN KEY": "References a primary key in another table",
+        "REFERENCES": "Define foreign key reference to another table",
+        "UNIQUE": "Ensure all values in a column are distinct",
+        "CHECK": "Ensure values satisfy a condition",
+        "CONSTRAINT": "Define a named table constraint",
+        "INDEX": "Create an index for faster lookups",
+        "CASCADE": "Propagate action to dependent rows",
+        "RESTRICT": "Prevent action if dependent rows exist",
+        "IF NOT EXISTS": "Only execute if object does not already exist",
+        "IF EXISTS": "Only execute if object exists",
+        "ON DELETE": "Action when referenced row is deleted",
+        "ON UPDATE": "Action when referenced row is updated",
+        "ENGINE": "Specify storage engine (MySQL)",
+        "AUTO_INCREMENT": "Auto-generate sequential values",
+        "PARTITION BY": "Divide window into partitions",
+        "NULLS FIRST": "Sort null values before non-null values",
+        "NULLS LAST": "Sort null values after non-null values",
+        "ON CONFLICT": "Handle unique constraint violations (PostgreSQL)",
+        "ON DUPLICATE KEY UPDATE": "Handle duplicate key on insert (MySQL)",
+    ]
+
     /// Create a keyword completion item
     static func keyword(_ keyword: String, documentation: String? = nil) -> SQLCompletionItem {
-        SQLCompletionItem(
+        let doc = documentation ?? keywordDocs[keyword.uppercased()]
+        return SQLCompletionItem(
             label: keyword.uppercased(),
             kind: .keyword,
             insertText: keyword.uppercased(),
-            documentation: documentation
+            documentation: doc
         )
     }
 

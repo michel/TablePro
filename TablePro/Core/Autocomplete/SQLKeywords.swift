@@ -65,6 +65,22 @@ enum SQLKeywords {
 
         // Transactions
         "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "TRANSACTION",
+        "ISOLATION", "LEVEL", "READ", "COMMITTED", "REPEATABLE", "SERIALIZABLE",
+
+        // Window clause
+        "OVER", "PARTITION", "UNBOUNDED", "PRECEDING", "FOLLOWING", "CURRENT ROW",
+
+        // PostgreSQL
+        "RETURNING", "LATERAL", "CONCURRENTLY", "CONFLICT", "EXCLUDED",
+
+        // MySQL
+        "STRAIGHT_JOIN", "FORCE INDEX", "USE INDEX",
+
+        // DCL
+        "GRANT", "REVOKE", "PRIVILEGES", "USAGE",
+
+        // Utility
+        "DEALLOCATE", "PREPARE", "EXECUTE",
 
         // Other
         "WITH", "RECURSIVE", "TEMPORARY", "TEMP", "IF",
@@ -84,6 +100,12 @@ enum SQLKeywords {
         ("GROUP_CONCAT", "GROUP_CONCAT(expr)", "Concatenate grouped values"),
         ("STRING_AGG", "STRING_AGG(expr, sep)", "PostgreSQL string aggregation"),
         ("ARRAY_AGG", "ARRAY_AGG(expr)", "Aggregate into array"),
+        ("STDDEV", "STDDEV(expr)", "Population standard deviation"),
+        ("VARIANCE", "VARIANCE(expr)", "Population variance"),
+        ("BIT_AND", "BIT_AND(expr)", "Bitwise AND aggregate"),
+        ("BIT_OR", "BIT_OR(expr)", "Bitwise OR aggregate"),
+        ("JSON_OBJECTAGG", "JSON_OBJECTAGG(key, value)", "Aggregate into JSON object"),
+        ("JSON_ARRAYAGG", "JSON_ARRAYAGG(expr)", "Aggregate into JSON array"),
     ]
 
     /// Date/Time functions
@@ -119,6 +141,13 @@ enum SQLKeywords {
         ("STR_TO_DATE", "STR_TO_DATE(str, format)", "Parse string to date"),
         ("UNIX_TIMESTAMP", "UNIX_TIMESTAMP(date)", "Unix timestamp"),
         ("FROM_UNIXTIME", "FROM_UNIXTIME(ts)", "Date from Unix timestamp"),
+        ("EXTRACT", "EXTRACT(field FROM source)", "Extract date/time field"),
+        ("DATE_TRUNC", "DATE_TRUNC(field, source)", "Truncate to precision (PostgreSQL)"),
+        ("AGE", "AGE(timestamp1, timestamp2)", "Interval between timestamps (PostgreSQL)"),
+        ("TO_TIMESTAMP", "TO_TIMESTAMP(str, format)", "Parse string to timestamp"),
+        ("LAST_DAY", "LAST_DAY(date)", "Last day of month"),
+        ("MAKEDATE", "MAKEDATE(year, dayofyear)", "Create date from year and day"),
+        ("MAKETIME", "MAKETIME(hour, minute, second)", "Create time value"),
     ]
 
     /// String functions
@@ -151,6 +180,11 @@ enum SQLKeywords {
         ("MD5", "MD5(str)", "MD5 hash"),
         ("SHA1", "SHA1(str)", "SHA1 hash"),
         ("SHA2", "SHA2(str, bits)", "SHA2 hash"),
+        ("REGEXP_REPLACE", "REGEXP_REPLACE(str, pattern, replacement)", "Replace using regex"),
+        ("REGEXP_SUBSTR", "REGEXP_SUBSTR(str, pattern)", "Extract regex match"),
+        ("SPLIT_PART", "SPLIT_PART(str, delimiter, n)", "Split and return nth part (PostgreSQL)"),
+        ("INITCAP", "INITCAP(str)", "Capitalize first letter of each word"),
+        ("TRANSLATE", "TRANSLATE(str, from, to)", "Replace characters"),
     ]
 
     /// Numeric functions
@@ -173,6 +207,15 @@ enum SQLKeywords {
         ("RAND", "RAND()", "Random number 0-1"),
         ("GREATEST", "GREATEST(v1, v2, ...)", "Greatest value"),
         ("LEAST", "LEAST(v1, v2, ...)", "Least value"),
+        ("SIN", "SIN(n)", "Sine"),
+        ("COS", "COS(n)", "Cosine"),
+        ("TAN", "TAN(n)", "Tangent"),
+        ("ASIN", "ASIN(n)", "Arc sine"),
+        ("ACOS", "ACOS(n)", "Arc cosine"),
+        ("ATAN", "ATAN(n)", "Arc tangent"),
+        ("DEGREES", "DEGREES(n)", "Radians to degrees"),
+        ("RADIANS", "RADIANS(n)", "Degrees to radians"),
+        ("PI", "PI()", "Pi constant"),
     ]
 
     /// Null handling functions
@@ -221,6 +264,13 @@ enum SQLKeywords {
         ("JSON_REPLACE", "JSON_REPLACE(json, path, val)", "Replace in JSON"),
         ("JSON_REMOVE", "JSON_REMOVE(json, path)", "Remove from JSON"),
         ("JSON_UNQUOTE", "JSON_UNQUOTE(json)", "Unquote JSON string"),
+        ("JSON_BUILD_OBJECT", "JSON_BUILD_OBJECT(key, value, ...)", "Build JSON object (PostgreSQL)"),
+        ("JSON_BUILD_ARRAY", "JSON_BUILD_ARRAY(val1, val2, ...)", "Build JSON array (PostgreSQL)"),
+        ("JSONB_SET", "JSONB_SET(target, path, new_value)", "Set value in JSONB (PostgreSQL)"),
+        ("JSON_EACH", "JSON_EACH(json)", "Expand JSON to key-value pairs (PostgreSQL)"),
+        ("ROW_TO_JSON", "ROW_TO_JSON(record)", "Convert row to JSON (PostgreSQL)"),
+        ("JSON_AGG", "JSON_AGG(expr)", "Aggregate to JSON array (PostgreSQL)"),
+        ("JSONB_AGG", "JSONB_AGG(expr)", "Aggregate to JSONB array (PostgreSQL)"),
     ]
 
     /// All functions combined

@@ -722,4 +722,70 @@ struct SQLContextAnalyzerTests {
         let context = analyzer.analyze(query: query, cursorPosition: query.count)
         #expect(context.tableReferences.contains { $0.tableName == "users" })
     }
+
+    // MARK: - P2: MP-3 - Schema-Qualified Names
+
+    @Test("Double dot extracts schema and table prefix")
+    func testDoubleDotSchemaPrefix() {
+        let context = analyzer.analyze(query: "SELECT public.users.na", cursorPosition: 22)
+        // After implementation, dotPrefix should contain the table reference
+        // The prefix should be the column part being typed
+        #expect(context.prefix == "na")
+        #expect(context.dotPrefix != nil)
+    }
+
+    @Test("Schema.table. with empty column prefix")
+    func testSchemaTableDotEmptyPrefix() {
+        let context = analyzer.analyze(query: "SELECT public.users.", cursorPosition: 20)
+        #expect(context.prefix == "")
+        #expect(context.dotPrefix != nil)
+    }
+
+    @Test("Backtick-quoted schema.table.column")
+    func testBacktickSchemaQualified() {
+        let context = analyzer.analyze(query: "SELECT `mydb`.`users`.n", cursorPosition: 23)
+        #expect(context.prefix == "n")
+        #expect(context.dotPrefix != nil)
+    }
+
+    // MARK: - P2: MP-10 - Block Comment Edge Cases
+
+    @Test("Nested block comments handled correctly")
+    func testNestedBlockComments() {
+        // MySQL supports nested comments differently
+        let context = analyzer.analyze(query: "/* outer /* inner */ still comment */SELECT ", cursorPosition: 43)
+        #expect(context.isInsideComment == false)
+    }
+
+    @Test("Block comment at end of query")
+    func testBlockCommentAtEnd() {
+        let context = analyzer.analyze(query: "SELECT * FROM users /*", cursorPosition: 22)
+        #expect(context.isInsideComment == true)
+    }
+
+    @Test("Multiple block comments with code between")
+    func testMultipleBlockComments() {
+        let context = analyzer.analyze(query: "/* c1 */ SELECT /* c2 */ * FROM ", cursorPosition: 31)
+        #expect(context.isInsideComment == false)
+        #expect(context.clauseType == .from)
+    }
+
+    @Test("Empty block comment does not affect analysis")
+    func testEmptyBlockComment() {
+        let context = analyzer.analyze(query: "/**/ SELECT ", cursorPosition: 12)
+        #expect(context.isInsideComment == false)
+        #expect(context.clauseType == .select)
+    }
+
+    @Test("Line comment inside block comment")
+    func testLineCommentInsideBlock() {
+        let context = analyzer.analyze(query: "/* -- not a line comment */SELECT ", cursorPosition: 33)
+        #expect(context.isInsideComment == false)
+    }
+
+    @Test("Block comment detection with star in query")
+    func testStarNotConfusedWithComment() {
+        let context = analyzer.analyze(query: "SELECT * FROM users", cursorPosition: 19)
+        #expect(context.isInsideComment == false)
+    }
 }

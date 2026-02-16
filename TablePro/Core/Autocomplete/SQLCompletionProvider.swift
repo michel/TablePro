@@ -82,10 +82,22 @@ final class SQLCompletionProvider {
 
         // Add items based on clause type
         switch context.clauseType {
-        case .from, .join, .into:
+        case .from, .join:
             // Tables + JOIN/clause transition keywords
             items = await schemaProvider.tableCompletionItems()
             items += filterKeywords([
+                "INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN",
+                "LEFT OUTER JOIN", "RIGHT OUTER JOIN", "FULL OUTER JOIN",
+                "CROSS JOIN", "NATURAL JOIN", "JOIN",
+                "ON", "USING", "WHERE", "ORDER BY", "GROUP BY", "HAVING", "LIMIT",
+                "UNION", "INTERSECT", "EXCEPT"
+            ])
+
+        case .into:
+            // Tables + INSERT continuation keywords
+            items = await schemaProvider.tableCompletionItems()
+            items += filterKeywords([
+                "VALUES", "SELECT", "SET",
                 "INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN",
                 "LEFT OUTER JOIN", "RIGHT OUTER JOIN", "FULL OUTER JOIN",
                 "CROSS JOIN", "NATURAL JOIN", "JOIN",
@@ -223,12 +235,13 @@ final class SQLCompletionProvider {
             items += filterKeywords(["OFFSET", "FETCH", "NEXT", "ROWS", "ONLY"])
 
         case .alterTable:
-            // After ALTER TABLE tablename - suggest DDL operations
+            // After ALTER TABLE tablename - suggest DDL operations and constraint types
             items = filterKeywords([
                 "ADD", "DROP", "MODIFY", "CHANGE", "RENAME",
                 "COLUMN", "INDEX", "PRIMARY", "FOREIGN", "KEY",
                 "CONSTRAINT", "ENGINE", "CHARSET", "COLLATE", "AUTO_INCREMENT",
-                "COMMENT", "DEFAULT", "CHARACTER SET"
+                "COMMENT", "DEFAULT", "CHARACTER SET",
+                "PRIMARY KEY", "FOREIGN KEY", "UNIQUE", "CHECK",
             ])
 
         case .alterTableColumn:
@@ -238,13 +251,44 @@ final class SQLCompletionProvider {
             }
 
         case .createTable:
-            // Inside CREATE TABLE (...) - suggest constraints and data types
-            items = filterKeywords([
-                "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE",
-                "NOT", "NULL", "DEFAULT", "AUTO_INCREMENT", "SERIAL",
-                "CHECK", "CONSTRAINT", "INDEX"
-            ])
-            items += dataTypeKeywords()
+            if context.nestingLevel >= 1 {
+                // Inside CREATE TABLE (...) — column definitions
+                // Boost FK-related keywords so they appear within the 20-item limit
+                items = boostedKeywords([
+                    "REFERENCES", "ON DELETE", "ON UPDATE",
+                    "CASCADE", "RESTRICT", "SET NULL", "NO ACTION",
+                ], priority: 300)
+                items += filterKeywords([
+                    "PRIMARY", "KEY", "FOREIGN", "UNIQUE",
+                    "NOT", "NULL", "DEFAULT",
+                    "AUTO_INCREMENT", "SERIAL",
+                    "CHECK", "CONSTRAINT", "INDEX",
+                ])
+                items += dataTypeKeywords()
+            } else {
+                // Pre-paren (CREATE TABLE ...) or post-paren (CREATE TABLE (...) ...)
+                items = filterKeywords([
+                    "IF NOT EXISTS",
+                ])
+                // Database-specific table options (for post-paren context)
+                switch databaseType {
+                case .mysql, .mariadb:
+                    items += filterKeywords([
+                        "ENGINE", "CHARSET", "COLLATE", "COMMENT",
+                        "AUTO_INCREMENT", "ROW_FORMAT", "DEFAULT CHARSET",
+                    ])
+                case .postgresql:
+                    items += filterKeywords([
+                        "TABLESPACE", "INHERITS", "PARTITION BY",
+                        "WITH", "WITHOUT OIDS",
+                    ])
+                default:
+                    items += filterKeywords([
+                        "ENGINE", "CHARSET", "COLLATE", "COMMENT",
+                        "TABLESPACE",
+                    ])
+                }
+            }
 
         case .columnDef:
             // Typing column data type (after ADD COLUMN name)
@@ -324,7 +368,8 @@ final class SQLCompletionProvider {
         return items
     }
 
-    /// SQL data type keywords (database-aware)
+    /// SQL data type keywords (database-aware), with a slight priority boost
+    /// so they sort before generic constraint keywords in CREATE TABLE context
     private func dataTypeKeywords() -> [SQLCompletionItem] {
         var types: [String] = [
             // Common numeric types (all databases)
@@ -382,12 +427,25 @@ final class SQLCompletionProvider {
             ]
         }
 
-        return filterKeywords(types)
+        return types.map { typeName in
+            var item = SQLCompletionItem.keyword(typeName)
+            item.sortPriority = 380
+            return item
+        }
     }
 
     /// Filter to specific keywords
     private func filterKeywords(_ keywords: [String]) -> [SQLCompletionItem] {
         keywords.map { SQLCompletionItem.keyword($0) }
+    }
+
+    /// Create keyword items with boosted (lower) sort priority
+    private func boostedKeywords(_ keywords: [String], priority: Int) -> [SQLCompletionItem] {
+        keywords.map { kw in
+            var item = SQLCompletionItem.keyword(kw)
+            item.sortPriority = priority
+            return item
+        }
     }
 
     // MARK: - Filtering
