@@ -9,7 +9,6 @@
 import Foundation
 
 struct SQLParameterInliner {
-
     // MARK: - Public API
 
     /// Inlines parameter values into a parameterized SQL string for display purposes.
@@ -102,7 +101,7 @@ struct SQLParameterInliner {
                     inString = true
                     previousWasQuote = false
                 }
-                result.append(Character(UnicodeScalar(ch)!))
+                result += nsSQL.substring(with: NSRange(location: i, length: 1))
                 i += 1
             } else {
                 if previousWasQuote {
@@ -129,11 +128,11 @@ struct SQLParameterInliner {
                         result += formatValue(parameters[paramNumber - 1])
                         i = numEnd
                     } else {
-                        result.append(Character(UnicodeScalar(ch)!))
+                        result += nsSQL.substring(with: NSRange(location: i, length: 1))
                         i += 1
                     }
                 } else {
-                    result.append(Character(UnicodeScalar(ch)!))
+                    result += nsSQL.substring(with: NSRange(location: i, length: 1))
                     i += 1
                 }
             }

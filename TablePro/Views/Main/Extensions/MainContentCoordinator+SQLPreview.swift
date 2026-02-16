@@ -8,7 +8,6 @@
 import Foundation
 
 extension MainContentCoordinator {
-
     // MARK: - SQL Preview
 
     /// Routes SQL preview request to the appropriate handler based on current tab mode
