@@ -901,7 +901,7 @@ final class MainContentCoordinator: ObservableObject {
 
     /// Returns SQL statements to disable foreign key checks for the database type.
     /// - Note: PostgreSQL doesn't support globally disabling FK checks; use CASCADE instead.
-    func fkDisableStatements(for dbType: DatabaseType) -> [String] {
+    internal func fkDisableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=0"]
@@ -915,7 +915,7 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     /// Returns SQL statements to re-enable foreign key checks for the database type.
-    func fkEnableStatements(for dbType: DatabaseType) -> [String] {
+    internal func fkEnableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]

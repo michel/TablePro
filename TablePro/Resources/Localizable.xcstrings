@@ -1648,7 +1648,14 @@
       }
     },
     "Copy All" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sao chép tất cả"
+          }
+        }
+      }
     },
     "Copy Cell Value" : {
       "localizations" : {
@@ -4225,7 +4232,14 @@
       }
     },
     "No pending changes" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có thay đổi nào"
+          }
+        }
+      }
     },
     "No primary key selected (not recommended)" : {
       "localizations" : {
@@ -4777,10 +4791,24 @@
       }
     },
     "Preview SQL" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem trước SQL"
+          }
+        }
+      }
     },
     "Preview SQL (⌘⇧P)" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem trước SQL (⌘⇧P)"
+          }
+        }
+      }
     },
     "Previous Page (⌘[)" : {
       "localizations" : {
@@ -5643,7 +5671,14 @@
       }
     },
     "SQL Preview" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem trước SQL"
+          }
+        }
+      }
     },
     "SQLite is file-based" : {
       "localizations" : {
@@ -5746,7 +5781,14 @@
       }
     },
     "statement" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "câu lệnh"
+          }
+        }
+      }
     },
     "Statement %lld" : {
       "localizations" : {
@@ -5785,7 +5827,14 @@
       }
     },
     "statements" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "câu lệnh"
+          }
+        }
+      }
     },
     "STATISTICS" : {
       "localizations" : {

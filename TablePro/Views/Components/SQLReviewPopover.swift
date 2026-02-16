@@ -31,7 +31,18 @@ struct SQLReviewPopover: View {
         let padding: CGFloat = DesignConstants.Spacing.md * 2 + DesignConstants.Spacing.sm
         let editorInsets: CGFloat = 16 // top + bottom content insets
 
-        let lineCount = combinedSQL.components(separatedBy: "\n").count
+        // Count lines directly from statements to avoid recomputing combinedSQL.
+        // Each statement contributes its own line count, plus 2 separator lines (";\n\n")
+        // between consecutive statements.
+        let lineCount: Int = {
+            guard !statements.isEmpty else { return 1 }
+            let statementsLineCount = statements.reduce(0) { total, stmt in
+                total + stmt.components(separatedBy: "\n").count
+            }
+            // Add separator lines: each separator ";\n\n" adds 2 newlines between statements
+            let separatorLines = (statements.count - 1) * 2
+            return statementsLineCount + separatorLines
+        }()
         let editorHeight = CGFloat(lineCount) * lineHeight + editorInsets
         let totalHeight = headerHeight + editorHeight + padding
 

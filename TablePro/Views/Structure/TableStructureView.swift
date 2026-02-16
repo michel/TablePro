@@ -485,8 +485,6 @@ struct TableStructureView: View {
     private func generateStructurePreviewSQL() {
         let changes = structureChangeManager.getChangesArray()
         guard !changes.isEmpty else {
-            toolbarState.previewStatements = []
-            toolbarState.showSQLReviewPopover = true
             return
         }
 

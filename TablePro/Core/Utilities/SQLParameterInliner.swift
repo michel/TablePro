@@ -73,15 +73,70 @@ struct SQLParameterInliner {
     }
 
     /// Replaces `$1`, `$2`, ... placeholders with formatted parameter values.
-    /// Processes from highest index to lowest to avoid `$1` matching inside `$10`.
+    /// Skips `$N` sequences inside single-quoted SQL string literals.
     private static func inlineDollarPlaceholders(_ sql: String, parameters: [Any?]) -> String {
-        var result = sql
+        var result = ""
+        var inString = false
+        var previousWasQuote = false
+        let nsSQL = sql as NSString
+        let length = nsSQL.length
+        var i = 0
 
-        // Replace from highest index to lowest so $10 is replaced before $1
-        for index in stride(from: parameters.count, through: 1, by: -1) {
-            let placeholder = "$\(index)"
-            let value = formatValue(parameters[index - 1])
-            result = result.replacingOccurrences(of: placeholder, with: value)
+        let dollarChar = UInt16(UnicodeScalar("$").value)
+        let singleQuote = UInt16(UnicodeScalar("'").value)
+
+        while i < length {
+            let ch = nsSQL.character(at: i)
+
+            if ch == singleQuote {
+                if inString {
+                    if previousWasQuote {
+                        // Second quote of an escaped '' pair — still inside string
+                        previousWasQuote = false
+                    } else {
+                        // Could be end of string or start of escaped ''
+                        previousWasQuote = true
+                    }
+                } else {
+                    // Start of string literal
+                    inString = true
+                    previousWasQuote = false
+                }
+                result.append(Character(UnicodeScalar(ch)!))
+                i += 1
+            } else {
+                if previousWasQuote {
+                    // Previous quote was the closing quote (not an escape)
+                    inString = false
+                    previousWasQuote = false
+                }
+
+                if ch == dollarChar && !inString {
+                    // Try to parse a number after $
+                    var numEnd = i + 1
+                    while numEnd < length {
+                        let digit = nsSQL.character(at: numEnd)
+                        if digit >= UInt16(UnicodeScalar("0").value) && digit <= UInt16(UnicodeScalar("9").value) {
+                            numEnd += 1
+                        } else {
+                            break
+                        }
+                    }
+
+                    if numEnd > i + 1,
+                       let paramNumber = Int(nsSQL.substring(with: NSRange(location: i + 1, length: numEnd - i - 1))),
+                       paramNumber >= 1 && paramNumber <= parameters.count {
+                        result += formatValue(parameters[paramNumber - 1])
+                        i = numEnd
+                    } else {
+                        result.append(Character(UnicodeScalar(ch)!))
+                        i += 1
+                    }
+                } else {
+                    result.append(Character(UnicodeScalar(ch)!))
+                    i += 1
+                }
+            }
         }
 
         return result
