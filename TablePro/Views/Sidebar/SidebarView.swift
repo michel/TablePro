@@ -339,14 +339,14 @@ struct SidebarView: View {
             }
             NotificationCenter.default.post(name: .exportTables, object: nil)
         }
-        .keyboardShortcut("e", modifiers: .command)
+        .keyboardShortcut("e", modifiers: [.command, .shift])
         .disabled(!hasSelection)
 
         if !isView {
             Button("Import...") {
                 NotificationCenter.default.post(name: .importTables, object: nil)
             }
-            .keyboardShortcut("i", modifiers: .command)
+            .keyboardShortcut("i", modifiers: [.command, .shift])
             .disabled(isReadOnly)
         }
 
