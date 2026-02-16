@@ -83,43 +83,107 @@ final class SQLCompletionProvider {
         // Add items based on clause type
         switch context.clauseType {
         case .from, .join, .into:
-            // Tables + JOIN keywords (for typing after table name)
+            // Tables + JOIN/clause transition keywords
             items = await schemaProvider.tableCompletionItems()
             items += filterKeywords([
                 "INNER JOIN", "LEFT JOIN", "RIGHT JOIN", "FULL JOIN",
                 "LEFT OUTER JOIN", "RIGHT OUTER JOIN", "FULL OUTER JOIN",
-                "CROSS JOIN", "JOIN", "ON", "WHERE", "ORDER BY", "GROUP BY", "LIMIT"
+                "CROSS JOIN", "NATURAL JOIN", "JOIN",
+                "ON", "USING", "WHERE", "ORDER BY", "GROUP BY", "HAVING", "LIMIT",
+                "UNION", "INTERSECT", "EXCEPT"
             ])
 
         case .select:
-            // Columns, functions, keywords (SELECT, DISTINCT, etc.)
+            // Star wildcard — most common SELECT pattern
+            items.append(SQLCompletionItem(
+                label: "*",
+                kind: .keyword,
+                insertText: "*",
+                detail: "All columns",
+                sortPriority: 50
+            ))
+            // table.* suggestions when multiple tables in scope (HP-5)
+            for ref in context.tableReferences {
+                let qualifier = ref.alias ?? ref.tableName
+                items.append(SQLCompletionItem(
+                    label: "\(qualifier).*",
+                    kind: .keyword,
+                    insertText: "\(qualifier).*",
+                    detail: "All columns from \(ref.tableName)",
+                    sortPriority: 60
+                ))
+            }
+            // Columns, functions, keywords
             items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
             items += SQLKeywords.functionItems()
-            items += filterKeywords(["DISTINCT", "ALL", "AS", "FROM", "CASE", "WHEN"])
+            items += filterKeywords([
+                "DISTINCT", "ALL", "AS", "FROM", "CASE", "WHEN",
+                "INTO", "UNION", "INTERSECT", "EXCEPT"
+            ])
 
-        case .where_, .and, .on, .having:
-            // Columns, operators, logical keywords
+        case .on:
+            // HP-3: ON clause — prioritize columns from joined tables
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            // Add qualified column suggestions (table.column) for join conditions
+            for ref in context.tableReferences {
+                let qualifier = ref.alias ?? ref.tableName
+                let cols = await schemaProvider.columnCompletionItems(for: ref.tableName)
+                for col in cols {
+                    items.append(SQLCompletionItem(
+                        label: "\(qualifier).\(col.label)",
+                        kind: .column,
+                        insertText: "\(qualifier).\(col.label)",
+                        detail: col.detail,
+                        documentation: "Column from \(ref.tableName)",
+                        sortPriority: 80
+                    ))
+                }
+            }
+            items += SQLKeywords.operatorItems()
+            items += filterKeywords([
+                "AND", "OR", "NOT", "IS", "NULL", "TRUE", "FALSE"
+            ])
+
+        case .where_, .and, .having:
+            // HP-8: Columns, operators, logical keywords + clause transitions
             items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
             items += SQLKeywords.operatorItems()
             items += filterKeywords([
                 "AND", "OR", "NOT", "IN", "LIKE", "ILIKE", "BETWEEN", "IS",
                 "NULL", "NOT NULL", "TRUE", "FALSE", "EXISTS", "NOT EXISTS",
-                "ANY", "ALL", "SOME", "REGEXP", "RLIKE", "SIMILAR TO"
+                "ANY", "ALL", "SOME", "REGEXP", "RLIKE", "SIMILAR TO",
+                "IS NULL", "IS NOT NULL"
             ])
             items += SQLKeywords.functionItems()
+            // Clause transitions after WHERE conditions
+            items += filterKeywords([
+                "ORDER BY", "GROUP BY", "HAVING", "LIMIT",
+                "UNION", "INTERSECT", "EXCEPT"
+            ])
 
-        case .groupBy, .orderBy:
-            // Columns only
+        case .groupBy:
+            // Columns + clause transitions
             items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
-            if context.clauseType == .orderBy {
-                items += filterKeywords(["ASC", "DESC", "NULLS", "FIRST", "LAST"])
-            }
+            items += filterKeywords([
+                "HAVING", "ORDER BY", "LIMIT",
+                "UNION", "INTERSECT", "EXCEPT"
+            ])
+
+        case .orderBy:
+            // Columns + sort direction + clause transitions
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += filterKeywords([
+                "ASC", "DESC", "NULLS FIRST", "NULLS LAST",
+                "LIMIT", "OFFSET",
+                "UNION", "INTERSECT", "EXCEPT"
+            ])
 
         case .set:
-            // Columns for UPDATE SET clause
+            // Columns for UPDATE SET clause + transition keywords
             if let firstTable = context.tableReferences.first {
                 items = await schemaProvider.columnCompletionItems(for: firstTable.tableName)
             }
+            items += filterKeywords(["WHERE", "RETURNING"])
 
         case .insertColumns:
             // Columns for INSERT column list
@@ -128,9 +192,12 @@ final class SQLCompletionProvider {
             }
 
         case .values:
-            // Functions and keywords for VALUES
+            // Functions and keywords for VALUES + post-values transitions
             items = SQLKeywords.functionItems()
-            items += filterKeywords(["NULL", "DEFAULT", "TRUE", "FALSE"])
+            items += filterKeywords([
+                "NULL", "DEFAULT", "TRUE", "FALSE",
+                "ON CONFLICT", "ON DUPLICATE KEY UPDATE", "RETURNING"
+            ])
 
         case .functionArg:
             // Inside function arguments - suggest columns and other functions
@@ -189,6 +256,49 @@ final class SQLCompletionProvider {
                 "COLLATE", "CHARACTER SET", "ON UPDATE", "ON DELETE",
                 "CASCADE", "RESTRICT", "SET NULL", "NO ACTION"
             ])
+
+        case .returning:
+            // After RETURNING (PostgreSQL) - suggest columns
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += filterKeywords(["*"])
+
+        case .union:
+            // After UNION/INTERSECT/EXCEPT - suggest SELECT
+            items = filterKeywords(["SELECT", "ALL"])
+
+        case .using:
+            // After USING in JOIN - suggest columns
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+
+        case .window:
+            // After OVER/PARTITION BY - suggest columns and window keywords
+            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+            items += filterKeywords([
+                "PARTITION BY", "ORDER BY", "ASC", "DESC",
+                "ROWS", "RANGE", "GROUPS", "BETWEEN", "UNBOUNDED",
+                "PRECEDING", "FOLLOWING", "CURRENT ROW"
+            ])
+
+        case .dropObject:
+            // After DROP TABLE/INDEX/VIEW - suggest tables
+            items = await schemaProvider.tableCompletionItems()
+            items += filterKeywords(["IF EXISTS", "CASCADE", "RESTRICT"])
+
+        case .createIndex:
+            if context.tableReferences.isEmpty {
+                // Before ON tablename — suggest tables and ON keyword
+                items = await schemaProvider.tableCompletionItems()
+                items += filterKeywords(["ON"])
+            } else {
+                // After ON tablename (inside parens) — suggest columns
+                items = await schemaProvider.allColumnsInScope(for: context.tableReferences)
+                items += filterKeywords(["USING", "BTREE", "HASH", "GIN", "GIST"])
+            }
+
+        case .createView:
+            // After CREATE VIEW - suggest SELECT
+            items = filterKeywords(["SELECT", "AS"])
+            items += await schemaProvider.tableCompletionItems()
 
         case .unknown:
             // Start of query - suggest statement keywords and tables
@@ -346,22 +456,32 @@ final class SQLCompletionProvider {
             score -= 1_000
         }
 
-        // Context-appropriate bonuses
-        switch context.clauseType {
-        case .from, .join, .into:
-            if item.kind == .table || item.kind == .view {
-                score -= 200
-            }
-        case .select, .where_, .and, .on, .having, .groupBy, .orderBy:
-            if item.kind == .column {
-                score -= 200
-            }
-        case .set, .insertColumns:
-            if item.kind == .column {
+        // When prefix is empty and tables are in scope, user is at a clause
+        // transition point (e.g., "FROM users |" or "WHERE id > 1 |").
+        // Boost keywords so they appear alongside context-specific items.
+        if prefix.isEmpty && !context.tableReferences.isEmpty && !context.isAfterComma {
+            if item.kind == .keyword {
                 score -= 300
             }
-        default:
-            break
+        } else {
+            // Context-appropriate bonuses when actively typing
+            switch context.clauseType {
+            case .from, .join, .into, .dropObject, .createIndex:
+                if item.kind == .table || item.kind == .view {
+                    score -= 200
+                }
+            case .select, .where_, .and, .on, .having, .groupBy, .orderBy,
+                 .returning, .using, .window:
+                if item.kind == .column {
+                    score -= 200
+                }
+            case .set, .insertColumns:
+                if item.kind == .column {
+                    score -= 300
+                }
+            default:
+                break
+            }
         }
 
         // Shorter names slightly preferred

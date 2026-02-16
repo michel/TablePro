@@ -127,7 +127,8 @@ struct MainEditorContentView: View {
                     queryText: queryTextBinding(for: tab),
                     cursorPositions: $coordinator.cursorPositions,
                     onExecute: { coordinator.runQuery() },
-                    schemaProvider: coordinator.schemaProvider
+                    schemaProvider: coordinator.schemaProvider,
+                    databaseType: coordinator.connection.type
                 )
                 .id(tab.id)
             }

@@ -10,12 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Tab reuse setting — opt-in option in Settings > Tabs to reuse clean table tabs when clicking a new table in the sidebar (off by default)
+- SQL autocomplete: new clause types — RETURNING, UNION/INTERSECT/EXCEPT, OVER/PARTITION BY, USING, DROP/CREATE INDEX/VIEW
+- SQL autocomplete: clause transition suggestions — after FROM suggest WHERE/JOIN, after GROUP BY suggest HAVING, after ORDER BY suggest LIMIT, etc.
+- SQL autocomplete: qualified column suggestions (`table.column`) in JOIN ON clauses
+- SQL autocomplete: `table.*` suggestions in SELECT when multiple tables in scope
+- SQL autocomplete: `IS NULL`, `IS NOT NULL`, `NULLS FIRST`, `NULLS LAST` as single completion items
+- SQL autocomplete: `ON CONFLICT`, `ON DUPLICATE KEY UPDATE`, `RETURNING` suggestions after VALUES
 
 ### Fixed
 
+- Fix SQL autocomplete not showing database-specific type keywords (e.g., PostgreSQL `JSONB`, MySQL `ENUM`) by threading `databaseType` through the completion pipeline
+- Fix schema autocomplete disappearing after CREATE TABLE by reloading schema after cache invalidation
+- Add `*` (all columns) as top suggestion in SELECT clause autocomplete
+- Fix function autocomplete inserting `COUNT(` instead of `COUNT()` — cursor now lands between the parentheses
 - Fix column flashing/swapping when sorting by using stable column identifiers instead of mutable titles for layout persistence
 - Fix "Copy Column Name" and "Filter with column" context menu actions copying sort indicators (e.g., "name 1▲") instead of base column name
 - Fix generated SQL statements (ALTER TABLE, DDL, SQL Preview) not consistently ending with a semicolon
+- Fix RETURNING autocomplete not suggesting columns after `INSERT INTO table ... RETURNING` by adding INSERT INTO to table reference extraction
+- Fix RETURNING not appearing as suggestion when typing after closed `VALUES (...)` parentheses
+- Fix `CREATE INDEX ... ON table (` autocomplete showing table names instead of columns from the referenced table
+- Fix SQL autocomplete transition keywords (WHERE, JOIN, ORDER BY, AND) buried under columns/tables when cursor is at clause boundary with empty prefix
 
 ## [0.4.0] - 2026-02-16
 

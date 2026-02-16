@@ -18,6 +18,7 @@ struct SQLEditorView: View {
     @Binding var text: String
     @Binding var cursorPositions: [CursorPosition]
     var schemaProvider: SQLSchemaProvider?
+    var databaseType: DatabaseType?
 
     @State private var editorState = SourceEditorState()
     @State private var completionAdapter: SQLCompletionAdapter?
@@ -67,7 +68,7 @@ struct SQLEditorView: View {
         }
         .onAppear {
             if completionAdapter == nil {
-                completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider)
+                completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)
             }
         }
     }
@@ -102,7 +103,8 @@ struct SQLEditorView: View {
 #Preview {
     SQLEditorView(
         text: .constant("SELECT * FROM users\nWHERE active = true;"),
-        cursorPositions: .constant([])
+        cursorPositions: .constant([]),
+        databaseType: .mysql
     )
     .frame(width: 500, height: 200)
 }

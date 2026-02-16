@@ -21,6 +21,7 @@ struct QueryEditorView: View {
     @Binding var cursorPositions: [CursorPosition]
     var onExecute: () -> Void
     var schemaProvider: SQLSchemaProvider?
+    var databaseType: DatabaseType?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -34,7 +35,8 @@ struct QueryEditorView: View {
             SQLEditorView(
                 text: $queryText,
                 cursorPositions: $cursorPositions,
-                schemaProvider: schemaProvider
+                schemaProvider: schemaProvider,
+                databaseType: databaseType
             )
             .frame(minHeight: 100)
             .clipped()
@@ -138,7 +140,9 @@ struct QueryEditorView: View {
 #Preview {
     QueryEditorView(
         queryText: .constant("SELECT * FROM users\nWHERE active = true\nORDER BY created_at DESC;"),
-        cursorPositions: .constant([])
-    ) {}
+        cursorPositions: .constant([]),
+        onExecute: {},
+        databaseType: .mysql
+    )
     .frame(width: 600, height: 200)
 }

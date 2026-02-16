@@ -140,7 +140,7 @@ extension SQLCompletionItem {
 
     /// Create a function completion item
     static func function(_ name: String, signature: String? = nil, documentation: String? = nil) -> SQLCompletionItem {
-        let insertText = signature != nil ? "\(name)(" : name
+        let insertText = signature != nil ? "\(name)()" : name
         return SQLCompletionItem(
             label: name,
             kind: .function,

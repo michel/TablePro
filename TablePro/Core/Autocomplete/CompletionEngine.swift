@@ -29,8 +29,8 @@ final class CompletionEngine {
 
     // MARK: - Initialization
 
-    init(schemaProvider: SQLSchemaProvider) {
-        self.provider = SQLCompletionProvider(schemaProvider: schemaProvider)
+    init(schemaProvider: SQLSchemaProvider, databaseType: DatabaseType? = nil) {
+        self.provider = SQLCompletionProvider(schemaProvider: schemaProvider, databaseType: databaseType)
     }
 
     // MARK: - Public API

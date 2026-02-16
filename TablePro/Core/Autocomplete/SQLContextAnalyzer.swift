@@ -27,9 +27,16 @@ enum SQLClauseType {
     case inList         // Inside IN (...) list
     case limit          // After LIMIT/OFFSET
     case alterTable       // After ALTER TABLE tablename
-    case alterTableColumn // After DROP/MODIFY/CHANGE/RENAME COLUMN - need column names
+    case alterTableColumn // After DROP/MODIFY/CHANGE/RENAME COLUMN
     case createTable      // Inside CREATE TABLE definition
-    case columnDef        // Typing column data type (after column name)
+    case columnDef        // Typing column data type
+    case returning        // After RETURNING (PostgreSQL)
+    case union            // After UNION/INTERSECT/EXCEPT
+    case using            // After USING (JOIN ... USING)
+    case window           // After OVER/PARTITION BY/window clause
+    case dropObject       // After DROP TABLE/INDEX/VIEW
+    case createIndex      // After CREATE INDEX
+    case createView       // After CREATE VIEW
     case unknown          // Unknown or start of query
 }
 
@@ -132,11 +139,30 @@ final class SQLContextAnalyzer {
              "\\s+(?:COLUMN\\s+)?[`\"']?\\w*[`\"']?\\s*$", .alterTableColumn),
             ("\\bALTER\\s+TABLE\\s+[`\"']?\\w+[`\"']?\\s+\\w*$", .alterTable),
             ("\\bCREATE\\s+TABLE\\s+[^(]*\\([^)]*$", .createTable),
+            // DROP object patterns
+            ("\\bDROP\\s+(?:TABLE|VIEW|INDEX)\\s+(?:IF\\s+EXISTS\\s+)?\\w*$", .dropObject),
+            // CREATE INDEX pattern
+            ("\\bCREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+\\w+\\s+ON\\s+\\w+\\s*\\([^)]*$", .createIndex),
+            ("\\bCREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+\\w*$", .createIndex),
+            // CREATE VIEW pattern
+            ("\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:MATERIALIZED\\s+)?VIEW\\s+\\w+\\s+AS\\s+[^;]*$",
+             .createView),
+            ("\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:MATERIALIZED\\s+)?VIEW\\s+\\w*$", .createView),
+            // RETURNING clause (PostgreSQL)
+            ("\\bRETURNING\\s+[^;]*$", .returning),
+            // UNION/INTERSECT/EXCEPT
+            ("\\b(?:UNION|INTERSECT|EXCEPT)\\s+(?:ALL\\s+)?\\w*$", .union),
+            // USING clause in JOIN
+            ("\\bUSING\\s*\\([^)]*$", .using),
+            // Window function OVER clause
+            ("\\bOVER\\s*\\([^)]*$", .window),
+            ("\\bPARTITION\\s+BY\\s+[^)]*$", .window),
             // Enhanced context patterns
             ("\\bIN\\s*\\([^)]*$", .inList),
             ("\\bCASE\\s+(?:WHEN\\s+[^;]*)?$", .caseExpression),
             ("\\b(LIMIT|OFFSET)\\s+\\d*$", .limit),
             // Standard clause patterns
+            ("\\bVALUES\\s*(?:\\([^)]*\\)\\s*,?\\s*)+\\w*$", .values),
             ("\\bVALUES\\s*\\([^)]*$", .values),
             ("\\bINSERT\\s+INTO\\s+\\w+\\s*\\([^)]*$", .insertColumns),
             ("\\bINTO\\s+\\w*$", .into),
@@ -199,6 +225,41 @@ final class SQLContextAnalyzer {
         }
         assertionFailure("Failed to compile lineCommentRegex - invalid pattern")
         return try! NSRegularExpression(pattern: "(?!)")
+    }()
+
+
+    private static let cteFirstRegex: NSRegularExpression = {
+        if let regex = try? NSRegularExpression(
+            pattern: "(?i)\\bWITH\\s+(?:RECURSIVE\\s+)?([\\w]+)\\s+AS\\s*\\("
+        ) {
+            return regex
+        }
+        assertionFailure("Failed to compile cteFirstRegex")
+        return try! NSRegularExpression(pattern: "(?!)")
+    }()
+
+    private static let cteCommaRegex: NSRegularExpression = {
+        if let regex = try? NSRegularExpression(
+            pattern: "(?i),\\s*([\\w]+)\\s+AS\\s*\\("
+        ) {
+            return regex
+        }
+        assertionFailure("Failed to compile cteCommaRegex")
+        return try! NSRegularExpression(pattern: "(?!)")
+    }()
+
+    private static let tableRefRegexes: [NSRegularExpression] = {
+        let patterns = [
+            "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?" +
+            "(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
+            "(?i)(?:LEFT|RIGHT|INNER|OUTER|CROSS|FULL)?\\s*(?:OUTER)?\\s*JOIN\\s+" +
+            "[`\"']?([\\w]+)[`\"']?(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
+            "(?i)\\bUPDATE\\s+[`\"']?([\\w]+)[`\"']?" +
+            "(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
+            "(?i)\\bINSERT\\s+INTO\\s+[`\"']?([\\w]+)[`\"']?",
+            "(?i)\\bCREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+\\w+\\s+ON\\s+[`\"']?([\\w]+)[`\"']?"
+        ]
+        return patterns.compactMap { try? NSRegularExpression(pattern: $0) }
     }()
 
     // MARK: - UTF-16 Helpers
@@ -394,33 +455,22 @@ final class SQLContextAnalyzer {
     /// Extract CTE (Common Table Expression) names from the query
     private func extractCTENames(from query: String) -> [String] {
         var cteNames: [String] = []
-
-        // Pattern: WITH name AS (...), name2 AS (...)
-        let pattern = "(?i)\\bWITH\\s+(?:RECURSIVE\\s+)?([\\w]+)\\s+AS\\s*\\("
-        let commaPattern = "(?i),\\s*([\\w]+)\\s+AS\\s*\\("
-
         let nsRange = NSRange(location: 0, length: (query as NSString).length)
 
-        // Find first CTE
-        if let regex = try? NSRegularExpression(pattern: pattern) {
-            if let match = regex.firstMatch(in: query, range: nsRange) {
-                let nameNSRange = match.range(at: 1)
-                if nameNSRange.location != NSNotFound {
-                    cteNames.append((query as NSString).substring(with: nameNSRange))
-                }
+        // Find first CTE (uses pre-compiled static regex)
+        if let match = Self.cteFirstRegex.firstMatch(in: query, range: nsRange) {
+            let nameNSRange = match.range(at: 1)
+            if nameNSRange.location != NSNotFound {
+                cteNames.append((query as NSString).substring(with: nameNSRange))
             }
         }
 
-        // Find additional CTEs (comma-separated)
-        if let regex = try? NSRegularExpression(pattern: commaPattern) {
-            regex.enumerateMatches(in: query, range: nsRange) { match, _, _ in
-                if let match = match {
-                    let nameNSRange = match.range(at: 1)
-                    if nameNSRange.location != NSNotFound {
-                        cteNames.append(
-                            (query as NSString).substring(with: nameNSRange)
-                        )
-                    }
+        // Find additional CTEs (comma-separated, uses pre-compiled static regex)
+        Self.cteCommaRegex.enumerateMatches(in: query, range: nsRange) { match, _, _ in
+            if let match = match {
+                let nameNSRange = match.range(at: 1)
+                if nameNSRange.location != NSNotFound {
+                    cteNames.append((query as NSString).substring(with: nameNSRange))
                 }
             }
         }
@@ -668,7 +718,7 @@ final class SQLContextAnalyzer {
                 continue
             }
 
-            if Self.isIdentifierChar(ch) || ch == Self.backtick {
+            if Self.isIdentifierChar(ch) || ch == Self.backtick || ch == Self.doubleQuote {
                 prefixStart = i
             } else {
                 break
@@ -689,7 +739,7 @@ final class SQLContextAnalyzer {
             let afterDot = ns.substring(with: afterDotRange)
 
             let cleanDotPrefix = beforeDot.trimmingCharacters(
-                in: CharacterSet(charactersIn: "`")
+                in: CharacterSet(charactersIn: "`\"")
             )
             return (afterDot, dotPosition + 1, cleanDotPrefix)
         } else {
@@ -712,36 +762,19 @@ final class SQLContextAnalyzer {
             "JOIN", "ON", "AND", "OR", "WHERE", "SELECT", "FROM", "AS"
         ]
 
-        let patterns = [
-            "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?" +
-            "(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
-            "(?i)(?:LEFT|RIGHT|INNER|OUTER|CROSS|FULL)?\\s*(?:OUTER)?\\s*JOIN\\s+" +
-            "[`\"']?([\\w]+)[`\"']?(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?",
-            "(?i)\\bUPDATE\\s+[`\"']?([\\w]+)[`\"']?" +
-            "(?:\\s+(?:AS\\s+)?[`\"']?([\\w]+)[`\"']?)?"
-        ]
-
         let nsRange = NSRange(location: 0, length: (query as NSString).length)
 
-        for pattern in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern) else {
-                continue
-            }
-
-            regex.enumerateMatches(
-                in: query, range: nsRange
-            ) { match, _, _ in
+        // Uses pre-compiled static regexes for performance
+        for regex in Self.tableRefRegexes {
+            regex.enumerateMatches(in: query, range: nsRange) { match, _, _ in
                 guard let match = match else { return }
 
                 let tableNSRange = match.range(at: 1)
                 guard tableNSRange.location != NSNotFound else { return }
 
                 let tableName = (query as NSString).substring(with: tableNSRange)
-
-                // Skip SQL keywords
                 guard !sqlKeywords.contains(tableName.uppercased()) else { return }
 
-                // Group 2: alias (optional)
                 var alias: String?
                 if match.numberOfRanges > 2 {
                     let aliasNSRange = match.range(at: 2)
@@ -755,7 +788,6 @@ final class SQLContextAnalyzer {
                     }
                 }
 
-                // Don't add duplicates
                 let ref = TableReference(tableName: tableName, alias: alias)
                 if !references.contains(ref) {
                     references.append(ref)
@@ -798,22 +830,26 @@ final class SQLContextAnalyzer {
             return .select // Column context
         }
 
-        // If inside a function, return function arg context
-        if currentFunction != nil {
-            return .functionArg
-        }
-
         let upper = textBeforeCursor.uppercased()
 
         // Remove string literals and comments for analysis
         let cleaned = removeStringsAndComments(from: upper)
 
-        // Use pre-compiled regex patterns for performance
+        // Run regex-based clause detection FIRST — DDL contexts (CREATE TABLE,
+        // ALTER TABLE, etc.) must take priority over function-arg detection,
+        // because `CREATE TABLE test (id ` looks like a function call `test(`
+        // to detectFunctionContext but is actually a column definition.
         let range = NSRange(location: 0, length: (cleaned as NSString).length)
         for (regex, clause) in Self.clauseRegexes {
             if regex.firstMatch(in: cleaned, range: range) != nil {
                 return clause
             }
+        }
+
+        // If inside a function call and no stronger clause matched, return
+        // function arg context
+        if currentFunction != nil {
+            return .functionArg
         }
 
         return .unknown

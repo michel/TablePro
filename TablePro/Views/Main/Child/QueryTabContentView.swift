@@ -21,6 +21,7 @@ struct QueryTabContentView: View {
     @Binding var editingCell: CellPosition?
 
     let schemaProvider: SQLSchemaProvider
+    var databaseType: DatabaseType?
     let onExecute: () -> Void
 
     // Callbacks
@@ -58,7 +59,8 @@ struct QueryTabContentView: View {
                     queryText: $queryText,
                     cursorPositions: $cursorPositions,
                     onExecute: onExecute,
-                    schemaProvider: schemaProvider
+                    schemaProvider: schemaProvider,
+                    databaseType: databaseType
                 )
             }
             .frame(minHeight: 100, idealHeight: 200)

@@ -21,15 +21,15 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
 
     // MARK: - Initialization
 
-    init(schemaProvider: SQLSchemaProvider?) {
+    init(schemaProvider: SQLSchemaProvider?, databaseType: DatabaseType? = nil) {
         if let provider = schemaProvider {
-            self.completionEngine = CompletionEngine(schemaProvider: provider)
+            self.completionEngine = CompletionEngine(schemaProvider: provider, databaseType: databaseType)
         }
     }
 
     /// Update the schema provider (e.g. when connection changes)
-    func updateSchemaProvider(_ provider: SQLSchemaProvider) {
-        self.completionEngine = CompletionEngine(schemaProvider: provider)
+    func updateSchemaProvider(_ provider: SQLSchemaProvider, databaseType: DatabaseType? = nil) {
+        self.completionEngine = CompletionEngine(schemaProvider: provider, databaseType: databaseType)
     }
 
     // MARK: - CodeSuggestionDelegate
@@ -106,7 +106,11 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
         guard !currentPrefix.isEmpty else { return nil }
 
         let filtered = context.items.filter { item in
-            item.filterText.lowercased().hasPrefix(currentPrefix)
+            let filterText = item.filterText.lowercased()
+            // 3-tier matching: prefix > contains > fuzzy (consistent with initial trigger)
+            if filterText.hasPrefix(currentPrefix) { return true }
+            if filterText.contains(currentPrefix) { return true }
+            return Self.fuzzyMatch(pattern: currentPrefix, target: filterText)
         }
 
         return filtered.isEmpty ? nil : filtered.map { SQLSuggestionEntry(item: $0) }
@@ -135,9 +139,32 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
             with: insertText
         )
 
-        // Move cursor to end of inserted text
-        let newPosition = replaceRange.location + (insertText as NSString).length
+        // Move cursor: for function completions ending with "()", place cursor between parens
+        let insertLength = (insertText as NSString).length
+        let newPosition: Int
+        if insertText.hasSuffix("()") {
+            newPosition = replaceRange.location + insertLength - 1
+        } else {
+            newPosition = replaceRange.location + insertLength
+        }
         textView.setCursorPositions([CursorPosition(range: NSRange(location: newPosition, length: 0))])
+    }
+
+    // MARK: - Fuzzy Matching
+
+    /// Fuzzy matching: checks if all pattern characters appear in target in order
+    private static func fuzzyMatch(pattern: String, target: String) -> Bool {
+        var patternIndex = pattern.startIndex
+        var targetIndex = target.startIndex
+
+        while patternIndex < pattern.endIndex && targetIndex < target.endIndex {
+            if pattern[patternIndex] == target[targetIndex] {
+                patternIndex = pattern.index(after: patternIndex)
+            }
+            targetIndex = target.index(after: targetIndex)
+        }
+
+        return patternIndex == pattern.endIndex
     }
 }
 

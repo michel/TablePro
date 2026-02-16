@@ -1219,6 +1219,7 @@ final class MainContentCoordinator: ObservableObject {
 
                 // Refresh schema to show new table (outside MainActor)
                 await schemaProvider.invalidateCache()
+                await loadSchema()
 
                 let needsQuery = await MainActor.run { () -> Bool in
                     // Close the create table tab
