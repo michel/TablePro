@@ -39,6 +39,11 @@ struct SettingsView: View {
                     Label("Tabs", systemImage: "rectangle.on.rectangle")
                 }
 
+            KeyboardSettingsView(settings: $settingsManager.keyboard)
+                .tabItem {
+                    Label("Keyboard", systemImage: "keyboard")
+                }
+
             HistorySettingsView(settings: $settingsManager.history)
                 .tabItem {
                     Label("History", systemImage: "clock")
@@ -49,7 +54,7 @@ struct SettingsView: View {
                     Label("License", systemImage: "key")
                 }
         }
-        .frame(width: 500, height: 400)
+        .frame(width: 500, height: 500)
     }
 }
 
