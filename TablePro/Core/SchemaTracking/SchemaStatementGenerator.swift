@@ -116,7 +116,7 @@ struct SchemaStatementGenerator {
         case .modifyForeignKey(let old, let new):
             return try generateModifyForeignKey(old: old, new: new)
         case .deleteForeignKey(let fk):
-            return generateDeleteForeignKey(fk)
+            return try generateDeleteForeignKey(fk)
         case .modifyPrimaryKey(let old, let new):
             return try generateModifyPrimaryKey(old: old, new: new)
         }
@@ -358,7 +358,7 @@ struct SchemaStatementGenerator {
 
     private func generateModifyForeignKey(old: EditableForeignKeyDefinition, new: EditableForeignKeyDefinition) throws -> SchemaStatement {
         // Modifying FK requires drop + recreate
-        let dropStmt = generateDeleteForeignKey(old)
+        let dropStmt = try generateDeleteForeignKey(old)
         let addStmt = try generateAddForeignKey(new)
 
         let sql = "\(dropStmt.sql);\n\(addStmt.sql);"
@@ -369,7 +369,7 @@ struct SchemaStatementGenerator {
         )
     }
 
-    private func generateDeleteForeignKey(_ fk: EditableForeignKeyDefinition) -> SchemaStatement {
+    private func generateDeleteForeignKey(_ fk: EditableForeignKeyDefinition) throws -> SchemaStatement {
         let tableQuoted = databaseType.quoteIdentifier(tableName)
         let fkQuoted = databaseType.quoteIdentifier(fk.name)
 
@@ -380,13 +380,9 @@ struct SchemaStatementGenerator {
 
         case .postgresql:
             sql = "ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(fkQuoted)"
-
         case .sqlite:
-            // SQLite doesn't support dropping foreign keys - would require table recreation
-            // Throw error for consistency with other unsupported operations
-            sql = "-- ERROR: SQLite does not support dropping foreign keys"
+            throw DatabaseError.unsupportedOperation
         }
-
         return SchemaStatement(
             sql: sql,
             description: "Drop foreign key '\(fk.name)'",

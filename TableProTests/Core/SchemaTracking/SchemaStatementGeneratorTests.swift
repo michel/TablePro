@@ -504,6 +504,53 @@ struct SchemaStatementGeneratorTests {
         #expect(statements[0].isDestructive == false)
     }
 
+    // MARK: - S-02: SQLite FK Delete Must Throw
+
+    @Test("Delete foreign key SQLite throws unsupported operation")
+    func deleteForeignKeySQLiteThrows() throws {
+        let generator = makeGenerator(dbType: .sqlite)
+        let fk = makeFK(name: "fk_role")
+        let changes: [SchemaChange] = [.deleteForeignKey(fk)]
+
+        #expect(throws: DatabaseError.self) {
+            try generator.generate(changes: changes)
+        }
+    }
+
+    @Test("Modify foreign key SQLite throws unsupported operation (contains drop)")
+    func modifyForeignKeySQLiteThrows() throws {
+        let generator = makeGenerator(dbType: .sqlite)
+        let oldFK = makeFK(name: "fk_role", columns: ["role_id"], refTable: "roles", refColumns: ["id"])
+        let newFK = makeFK(name: "fk_role", columns: ["role_id"], refTable: "roles", refColumns: ["role_id"])
+        let changes: [SchemaChange] = [.modifyForeignKey(old: oldFK, new: newFK)]
+
+        #expect(throws: DatabaseError.self) {
+            try generator.generate(changes: changes)
+        }
+    }
+
+    @Test("Delete foreign key MySQL still works (not affected by SQLite fix)")
+    func deleteForeignKeyMySQLStillWorks() throws {
+        let generator = makeGenerator(dbType: .mysql)
+        let fk = makeFK(name: "fk_role")
+        let changes: [SchemaChange] = [.deleteForeignKey(fk)]
+
+        let statements = try generator.generate(changes: changes)
+        #expect(statements.count == 1)
+        #expect(statements[0].sql.contains("DROP FOREIGN KEY"))
+    }
+
+    @Test("Delete foreign key PostgreSQL still works (not affected by SQLite fix)")
+    func deleteForeignKeyPostgreSQLStillWorks() throws {
+        let generator = makeGenerator(dbType: .postgresql)
+        let fk = makeFK(name: "fk_role")
+        let changes: [SchemaChange] = [.deleteForeignKey(fk)]
+
+        let statements = try generator.generate(changes: changes)
+        #expect(statements.count == 1)
+        #expect(statements[0].sql.contains("DROP CONSTRAINT"))
+    }
+
     @Test("Complex schema change ordering")
     func complexSchemaChangeOrdering() throws {
         let generator = makeGenerator()

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Structure view: undo deleting existing columns/indexes/FKs no longer duplicates the row
+- Structure view: undo after multiple edits now visually refreshes correctly on each Cmd+Z
+- Structure view: deleting a new (unsaved) column then undoing now correctly re-adds it
+
 ### Added
 
 - Tab reuse setting — opt-in option in Settings > Tabs to reuse clean table tabs when clicking a new table in the sidebar (off by default)

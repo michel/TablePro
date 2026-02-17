@@ -299,9 +299,9 @@ struct DataGridView: NSViewRepresentable {
                 let rowIndexSet = IndexSet(changedRows)
                 let columnIndexSet = IndexSet(integersIn: 0..<tableView.numberOfColumns)
                 tableView.reloadData(forRowIndexes: rowIndexSet, columnIndexes: columnIndexSet)
-            } else if !changeManager.hasChanges {
-                // Version changed but no changed rows → likely cleared changes (refresh)
-                // Do full reload to clear visual states
+            } else {
+                // Version changed but no specific rows tracked → full reload
+                // Covers: undo/redo operations, cleared changes (refresh), etc.
                 tableView.reloadData()
             }
         }

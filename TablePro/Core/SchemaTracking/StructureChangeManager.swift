@@ -65,6 +65,13 @@ final class StructureChangeManager: ObservableObject {
 
         // Convert to definitions
         self.currentColumns = columns.map { EditableColumnDefinition.from($0) }
+
+        // Merge primary key info into columns (handles PostgreSQL where isPrimaryKey is always false)
+        if !primaryKey.isEmpty {
+            for i in currentColumns.indices {
+                currentColumns[i].isPrimaryKey = primaryKey.contains(currentColumns[i].name)
+            }
+        }
         self.currentIndexes = indexes.map { EditableIndexDefinition.from($0) }
         self.currentForeignKeys = foreignKeys.map { EditableForeignKeyDefinition.from($0) }
         self.currentPrimaryKey = primaryKey
@@ -97,6 +104,7 @@ final class StructureChangeManager: ObservableObject {
         // Mark as pending change so hasChanges = true (even though placeholder is invalid)
         // This allows Cmd+R to show warning and Cmd+S to trigger validation
         pendingChanges[.column(placeholder.id)] = .addColumn(placeholder)
+        undoManager.push(.columnAdd(column: placeholder))
         validate()
         hasChanges = true
         reloadVersion += 1
@@ -107,6 +115,7 @@ final class StructureChangeManager: ObservableObject {
         let placeholder = EditableIndexDefinition.placeholder()
         workingIndexes.append(placeholder)
         pendingChanges[.index(placeholder.id)] = .addIndex(placeholder)
+        undoManager.push(.indexAdd(index: placeholder))
         validate()
         hasChanges = true
         reloadVersion += 1
@@ -117,6 +126,7 @@ final class StructureChangeManager: ObservableObject {
         let placeholder = EditableForeignKeyDefinition.placeholder()
         workingForeignKeys.append(placeholder)
         pendingChanges[.foreignKey(placeholder.id)] = .addForeignKey(placeholder)
+        undoManager.push(.foreignKeyAdd(fk: placeholder))
         validate()
         hasChanges = true
         reloadVersion += 1
@@ -128,6 +138,7 @@ final class StructureChangeManager: ObservableObject {
     func addColumn(_ column: EditableColumnDefinition) {
         workingColumns.append(column)
         pendingChanges[.column(column.id)] = .addColumn(column)
+        undoManager.push(.columnAdd(column: column))
         hasChanges = true
         reloadVersion += 1
         rebuildVisualStateCache()
@@ -136,6 +147,7 @@ final class StructureChangeManager: ObservableObject {
     func addIndex(_ index: EditableIndexDefinition) {
         workingIndexes.append(index)
         pendingChanges[.index(index.id)] = .addIndex(index)
+        undoManager.push(.indexAdd(index: index))
         hasChanges = true
         reloadVersion += 1
         rebuildVisualStateCache()
@@ -144,6 +156,7 @@ final class StructureChangeManager: ObservableObject {
     func addForeignKey(_ foreignKey: EditableForeignKeyDefinition) {
         workingForeignKeys.append(foreignKey)
         pendingChanges[.foreignKey(foreignKey.id)] = .addForeignKey(foreignKey)
+        undoManager.push(.foreignKeyAdd(fk: foreignKey))
         hasChanges = true
         reloadVersion += 1
         rebuildVisualStateCache()
@@ -152,6 +165,14 @@ final class StructureChangeManager: ObservableObject {
     // MARK: - Column Operations
 
     func updateColumn(id: UUID, with newColumn: EditableColumnDefinition) {
+        // Capture old working state for undo BEFORE modifying
+        if let workingIndex = workingColumns.firstIndex(where: { $0.id == id }) {
+            let oldWorking = workingColumns[workingIndex]
+            if oldWorking != newColumn {
+                undoManager.push(.columnEdit(id: id, old: oldWorking, new: newColumn))
+            }
+        }
+
         // Find if it's existing or new
         if let index = currentColumns.firstIndex(where: { $0.id == id }) {
             let oldColumn = currentColumns[index]
@@ -180,13 +201,17 @@ final class StructureChangeManager: ObservableObject {
         // Check if it's an existing column (from database) or a new column (not yet saved)
         if let column = currentColumns.first(where: { $0.id == id }) {
             // Existing column - mark as deleted (keep in workingColumns for visual feedback)
+            undoManager.push(.columnDelete(column: column))
             pendingChanges[.column(id)] = .deleteColumn(column)
             // Track changed row for reload
             if let rowIndex = workingColumns.firstIndex(where: { $0.id == id }) {
                 changedRowIndices.insert(rowIndex)
             }
         } else {
-            // New column that hasn't been saved yet - undo the addition (remove from list)
+            // New column that hasn't been saved yet - remove from list
+            if let column = workingColumns.first(where: { $0.id == id }) {
+                undoManager.push(.columnDelete(column: column))
+            }
             if let rowIndex = workingColumns.firstIndex(where: { $0.id == id }) {
                 // Track ALL rows from this index onwards for reload (indices shift down)
                 for i in rowIndex..<workingColumns.count {
@@ -206,6 +231,14 @@ final class StructureChangeManager: ObservableObject {
     // MARK: - Index Operations
 
     func updateIndex(id: UUID, with newIndex: EditableIndexDefinition) {
+        // Capture old working state for undo BEFORE modifying
+        if let workingIdx = workingIndexes.firstIndex(where: { $0.id == id }) {
+            let oldWorking = workingIndexes[workingIdx]
+            if oldWorking != newIndex {
+                undoManager.push(.indexEdit(id: id, old: oldWorking, new: newIndex))
+            }
+        }
+
         if let index = currentIndexes.firstIndex(where: { $0.id == id }) {
             let oldIndex = currentIndexes[index]
             if oldIndex != newIndex {
@@ -232,13 +265,17 @@ final class StructureChangeManager: ObservableObject {
         // Check if it's an existing index or a new index
         if let index = currentIndexes.first(where: { $0.id == id }) {
             // Existing index - mark as deleted (keep in workingIndexes for visual feedback)
+            undoManager.push(.indexDelete(index: index))
             pendingChanges[.index(id)] = .deleteIndex(index)
             // Track changed row for reload
             if let rowIndex = workingIndexes.firstIndex(where: { $0.id == id }) {
                 changedRowIndices.insert(rowIndex)
             }
         } else {
-            // New index that hasn't been saved yet - undo the addition (remove from list)
+            // New index that hasn't been saved yet - remove from list
+            if let index = workingIndexes.first(where: { $0.id == id }) {
+                undoManager.push(.indexDelete(index: index))
+            }
             if let rowIndex = workingIndexes.firstIndex(where: { $0.id == id }) {
                 // Track ALL rows from this index onwards for reload (indices shift down)
                 for i in rowIndex..<workingIndexes.count {
@@ -258,6 +295,14 @@ final class StructureChangeManager: ObservableObject {
     // MARK: - Foreign Key Operations
 
     func updateForeignKey(id: UUID, with newFK: EditableForeignKeyDefinition) {
+        // Capture old working state for undo BEFORE modifying
+        if let workingIdx = workingForeignKeys.firstIndex(where: { $0.id == id }) {
+            let oldWorking = workingForeignKeys[workingIdx]
+            if oldWorking != newFK {
+                undoManager.push(.foreignKeyEdit(id: id, old: oldWorking, new: newFK))
+            }
+        }
+
         if let index = currentForeignKeys.firstIndex(where: { $0.id == id }) {
             let oldFK = currentForeignKeys[index]
             if oldFK != newFK {
@@ -284,13 +329,17 @@ final class StructureChangeManager: ObservableObject {
         // Check if it's an existing foreign key or a new foreign key
         if let fk = currentForeignKeys.first(where: { $0.id == id }) {
             // Existing FK - mark as deleted (keep in workingForeignKeys for visual feedback)
+            undoManager.push(.foreignKeyDelete(fk: fk))
             pendingChanges[.foreignKey(id)] = .deleteForeignKey(fk)
             // Track changed row for reload
             if let rowIndex = workingForeignKeys.firstIndex(where: { $0.id == id }) {
                 changedRowIndices.insert(rowIndex)
             }
         } else {
-            // New FK that hasn't been saved yet - undo the addition (remove from list)
+            // New FK that hasn't been saved yet - remove from list
+            if let fk = workingForeignKeys.first(where: { $0.id == id }) {
+                undoManager.push(.foreignKeyDelete(fk: fk))
+            }
             if let rowIndex = workingForeignKeys.firstIndex(where: { $0.id == id }) {
                 // Track ALL rows from this index onwards for reload (indices shift down)
                 for i in rowIndex..<workingForeignKeys.count {
@@ -310,6 +359,11 @@ final class StructureChangeManager: ObservableObject {
     // MARK: - Primary Key Operations
 
     func updatePrimaryKey(_ columns: [String]) {
+        // Push undo action before modifying
+        if columns != workingPrimaryKey {
+            undoManager.push(.primaryKeyChange(old: workingPrimaryKey, new: columns))
+        }
+
         if columns != currentPrimaryKey {
             pendingChanges[.primaryKey] = .modifyPrimaryKey(old: currentPrimaryKey, new: columns)
         } else {
@@ -411,6 +465,7 @@ final class StructureChangeManager: ObservableObject {
         resetWorkingState()
         reloadVersion += 1
         rebuildVisualStateCache()
+        undoManager.clearAll()
     }
 
     func getChangesArray() -> [SchemaChange] {
@@ -456,11 +511,22 @@ final class StructureChangeManager: ObservableObject {
 
         case .columnDelete(let column):
             if isRedo {
-                workingColumns.removeAll { $0.id == column.id }
-                pendingChanges[.column(column.id)] = .deleteColumn(column)
+                // For existing columns, keep in workingColumns for strikethrough; for new columns, remove
+                if currentColumns.contains(where: { $0.id == column.id }) {
+                    pendingChanges[.column(column.id)] = .deleteColumn(column)
+                } else {
+                    workingColumns.removeAll { $0.id == column.id }
+                    pendingChanges.removeValue(forKey: .column(column.id))
+                }
             } else {
-                workingColumns.append(column)
-                pendingChanges.removeValue(forKey: .column(column.id))
+                // Undo delete: if column is still in workingColumns (existing, kept for strikethrough),
+                // just clear pending change. If physically removed (new column), re-add it.
+                if workingColumns.contains(where: { $0.id == column.id }) {
+                    pendingChanges.removeValue(forKey: .column(column.id))
+                } else {
+                    workingColumns.append(column)
+                    pendingChanges[.column(column.id)] = .addColumn(column)
+                }
             }
 
         case .indexEdit(let id, let old, let new):
@@ -488,11 +554,22 @@ final class StructureChangeManager: ObservableObject {
 
         case .indexDelete(let index):
             if isRedo {
-                workingIndexes.removeAll { $0.id == index.id }
-                pendingChanges[.index(index.id)] = .deleteIndex(index)
+                // For existing indexes, keep in workingIndexes for strikethrough; for new indexes, remove
+                if currentIndexes.contains(where: { $0.id == index.id }) {
+                    pendingChanges[.index(index.id)] = .deleteIndex(index)
+                } else {
+                    workingIndexes.removeAll { $0.id == index.id }
+                    pendingChanges.removeValue(forKey: .index(index.id))
+                }
             } else {
-                workingIndexes.append(index)
-                pendingChanges.removeValue(forKey: .index(index.id))
+                // Undo delete: if index is still in workingIndexes (existing, kept for strikethrough),
+                // just clear pending change. If physically removed (new index), re-add it.
+                if workingIndexes.contains(where: { $0.id == index.id }) {
+                    pendingChanges.removeValue(forKey: .index(index.id))
+                } else {
+                    workingIndexes.append(index)
+                    pendingChanges[.index(index.id)] = .addIndex(index)
+                }
             }
 
         case .foreignKeyEdit(let id, let old, let new):
@@ -520,11 +597,22 @@ final class StructureChangeManager: ObservableObject {
 
         case .foreignKeyDelete(let fk):
             if isRedo {
-                workingForeignKeys.removeAll { $0.id == fk.id }
-                pendingChanges[.foreignKey(fk.id)] = .deleteForeignKey(fk)
+                // For existing FKs, keep in workingForeignKeys for strikethrough; for new FKs, remove
+                if currentForeignKeys.contains(where: { $0.id == fk.id }) {
+                    pendingChanges[.foreignKey(fk.id)] = .deleteForeignKey(fk)
+                } else {
+                    workingForeignKeys.removeAll { $0.id == fk.id }
+                    pendingChanges.removeValue(forKey: .foreignKey(fk.id))
+                }
             } else {
-                workingForeignKeys.append(fk)
-                pendingChanges.removeValue(forKey: .foreignKey(fk.id))
+                // Undo delete: if FK is still in workingForeignKeys (existing, kept for strikethrough),
+                // just clear pending change. If physically removed (new FK), re-add it.
+                if workingForeignKeys.contains(where: { $0.id == fk.id }) {
+                    pendingChanges.removeValue(forKey: .foreignKey(fk.id))
+                } else {
+                    workingForeignKeys.append(fk)
+                    pendingChanges[.foreignKey(fk.id)] = .addForeignKey(fk)
+                }
             }
 
         case .primaryKeyChange(let old, let new):
