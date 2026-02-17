@@ -401,7 +401,9 @@ final class StructureChangeManager: ObservableObject {
         }
 
         // Validate column names are unique
-        let columnNames = workingColumns.filter { $0.isValid }.map { $0.name }
+        let columnNames = workingColumns.filter { column in
+            column.isValid && !isColumnPendingDeletion(column.id)
+        }.map { $0.name }
         let duplicateColumns = Dictionary(grouping: columnNames, by: { $0 })
             .filter { $0.value.count > 1 }
             .map { $0.key }
@@ -462,6 +464,13 @@ final class StructureChangeManager: ObservableObject {
                 validationErrors[.primaryKey] = "Primary key references non-existent column: \(columnName)"
             }
         }
+    }
+
+    private func isColumnPendingDeletion(_ id: UUID) -> Bool {
+        if case .deleteColumn = pendingChanges[.column(id)] {
+            return true
+        }
+        return false
     }
 
     // MARK: - State Management

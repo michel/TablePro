@@ -56,11 +56,30 @@ final class StructureRowProvider {
     var columns: [String] {
         switch tab {
         case .columns:
-            return ["Name", "Type", "Nullable", "Default", "Auto Inc", "Comment"]
+            return [
+                String(localized: "Name"),
+                String(localized: "Type"),
+                String(localized: "Nullable"),
+                String(localized: "Default"),
+                String(localized: "Auto Inc"),
+                String(localized: "Comment")
+            ]
         case .indexes:
-            return ["Name", "Columns", "Type", "Unique"]
+            return [
+                String(localized: "Name"),
+                String(localized: "Columns"),
+                String(localized: "Type"),
+                String(localized: "Unique")
+            ]
         case .foreignKeys:
-            return ["Name", "Columns", "Ref Table", "Ref Columns", "On Delete", "On Update"]
+            return [
+                String(localized: "Name"),
+                String(localized: "Columns"),
+                String(localized: "Ref Table"),
+                String(localized: "Ref Columns"),
+                String(localized: "On Delete"),
+                String(localized: "On Update")
+            ]
         case .ddl:
             return []
         }

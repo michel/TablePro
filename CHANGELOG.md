@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structure view: undo deleting existing columns/indexes/FKs no longer duplicates the row
 - Structure view: undo after multiple edits now visually refreshes correctly on each Cmd+Z
 - Structure view: deleting a new (unsaved) column then undoing now correctly re-adds it
+- Structure view: index/FK/PK validation now correctly rejects references to columns pending deletion
+- Structure view: localize column headers in structure grid (`String(localized:)` for all 16 headers)
+- Structure view: localize `"No DDL available"` and `"Not connected"` strings passed to helper views
 
 ### Removed
 

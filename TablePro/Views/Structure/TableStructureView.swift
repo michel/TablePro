@@ -631,7 +631,7 @@ struct TableStructureView: View {
             Divider()
 
             if ddlStatement.isEmpty {
-                emptyState("No DDL available")
+                emptyState(String(localized: "No DDL available"))
             } else {
                 DDLTextView(ddl: ddlStatement, fontSize: $ddlFontSize)
             }
@@ -674,7 +674,7 @@ struct TableStructureView: View {
         errorMessage = nil
 
         guard let driver = DatabaseManager.shared.activeDriver else {
-            errorMessage = "Not connected"
+            errorMessage = String(localized: "Not connected")
             isLoading = false
             return
         }
