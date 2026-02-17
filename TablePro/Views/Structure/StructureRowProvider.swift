@@ -104,6 +104,16 @@ final class StructureRowProvider {
         }
     }
 
+    /// Column indices that should use the type picker popover
+    var typePickerColumns: Set<Int> {
+        switch tab {
+        case .columns:
+            return [1] // Type (index 1)
+        case .indexes, .foreignKeys, .ddl:
+            return []
+        }
+    }
+
     var totalRowCount: Int {
         rows.count
     }
