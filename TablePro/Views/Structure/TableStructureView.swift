@@ -169,6 +169,8 @@ struct TableStructureView: View {
                 structureChangeManager.getVisualState(for: row, tab: selectedTab)
             },
             dropdownColumns: provider.dropdownColumns,
+            typePickerColumns: provider.typePickerColumns,
+            databaseType: getDatabaseType(),
             selectedRowIndices: $selectedRows,
             sortState: $sortState,
             editingCell: $editingCell,

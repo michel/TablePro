@@ -43,6 +43,8 @@ struct DataGridView: NSViewRepresentable {
     var onFilterColumn: ((String) -> Void)?
     var getVisualState: ((Int) -> RowVisualState)?
     var dropdownColumns: Set<Int>? // Column indices that should use YES/NO dropdowns
+    var typePickerColumns: Set<Int>?
+    var databaseType: DatabaseType?
 
     @Binding var selectedRowIndices: Set<Int>
     @Binding var sortState: SortState
@@ -182,6 +184,8 @@ struct DataGridView: NSViewRepresentable {
         coordinator.onFilterColumn = onFilterColumn
         coordinator.getVisualState = getVisualState
         coordinator.dropdownColumns = dropdownColumns
+        coordinator.typePickerColumns = typePickerColumns
+        coordinator.databaseType = databaseType
 
         coordinator.rebuildVisualStateCache()
 
@@ -430,6 +434,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var onFilterColumn: ((String) -> Void)?
     var getVisualState: ((Int) -> RowVisualState)?
     var dropdownColumns: Set<Int>?
+    var typePickerColumns: Set<Int>?
+    var databaseType: DatabaseType?
 
     /// Check if undo is available
     func canUndo() -> Bool {
@@ -698,6 +704,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         }()
 
         let isDropdown = dropdownColumns?.contains(columnIndex) == true
+        let isTypePicker = typePickerColumns?.contains(columnIndex) == true
 
         return cellFactory?.makeDataCell(
             tableView: tableView,
@@ -709,7 +716,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             isEditable: isEditable && !state.isDeleted,
             isLargeDataset: isLargeDataset,
             isFocused: isFocused,
-            isDropdown: isDropdown,
+            isDropdown: isDropdown || isTypePicker,
             delegate: self
         )
     }
@@ -777,6 +784,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         // Dropdown columns already handled by single click
         if let dropdownCols = dropdownColumns, dropdownCols.contains(columnIndex) {
+            return
+        }
+
+        // Type picker columns use database-specific type popover
+        if let typePickerCols = typePickerColumns, typePickerCols.contains(columnIndex) {
+            showTypePickerPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
             return
         }
 
@@ -852,6 +865,9 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 if ct.isDateType || ct.isJsonType || ct.isEnumType || ct.isSetType { return false }
             }
             if let dropdownCols = dropdownColumns, dropdownCols.contains(columnIndex) {
+                return false
+            }
+            if let typePickerCols = typePickerColumns, typePickerCols.contains(columnIndex) {
                 return false
             }
         }
