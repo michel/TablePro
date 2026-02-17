@@ -157,6 +157,16 @@
         }
       }
     },
+    "%@ is already assigned to \"%@\". Reassigning will remove it from that action." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ is already assigned to \"%2$@\". Reassigning will remove it from that action."
+          }
+        }
+      }
+    },
     "%@ ms" : {
       "localizations" : {
         "vi" : {
@@ -3087,6 +3097,9 @@
         }
       }
     },
+    "File" : {
+
+    },
     "File name" : {
       "localizations" : {
         "vi" : {
@@ -3643,6 +3656,9 @@
         }
       }
     },
+    "Keyboard" : {
+
+    },
     "Language:" : {
       "localizations" : {
         "vi" : {
@@ -4063,6 +4079,9 @@
         }
       }
     },
+    "New Table" : {
+
+    },
     "New Table..." : {
       "localizations" : {
         "vi" : {
@@ -4102,6 +4121,9 @@
           }
         }
       }
+    },
+    "Next Tab (Alt)" : {
+
     },
     "No available local port for SSH tunnel" : {
       "localizations" : {
@@ -4857,6 +4879,9 @@
         }
       }
     },
+    "Previous Tab (Alt)" : {
+
+    },
     "Privacy" : {
       "localizations" : {
         "vi" : {
@@ -5027,6 +5052,9 @@
         }
       }
     },
+    "Reassign" : {
+
+    },
     "RECENT" : {
       "localizations" : {
         "vi" : {
@@ -5066,6 +5094,9 @@
           }
         }
       }
+    },
+    "Recording shortcut" : {
+
     },
     "Red" : {
       "localizations" : {
@@ -5202,6 +5233,9 @@
           }
         }
       }
+    },
+    "Reset to Defaults" : {
+
     },
     "Restart TablePro for the language change to take full effect." : {
       "localizations" : {
@@ -5459,6 +5493,9 @@
     "Search or type..." : {
 
     },
+    "Search shortcuts..." : {
+
+    },
     "Search..." : {
       "localizations" : {
         "vi" : {
@@ -5578,6 +5615,12 @@
           }
         }
       }
+    },
+    "Shortcut Conflict" : {
+
+    },
+    "Shortcut recorder" : {
+
     },
     "Show alternate row backgrounds" : {
       "localizations" : {
@@ -5975,6 +6018,9 @@
         }
       }
     },
+    "System Reserved Shortcut" : {
+
+    },
     "Tab Behavior" : {
 
     },
@@ -6181,6 +6227,9 @@
         }
       }
     },
+    "This shortcut is reserved by macOS and cannot be assigned." : {
+
+    },
     "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone." : {
       "localizations" : {
         "vi" : {
@@ -6368,6 +6417,9 @@
       }
     },
     "Type" : {
+
+    },
+    "Type shortcut..." : {
 
     },
     "Undo" : {
@@ -6589,6 +6641,9 @@
           }
         }
       }
+    },
+    "View" : {
+
     },
     "WARNING: Failed to re-enable foreign key checks: %@. Please manually verify FK constraints are enabled." : {
       "localizations" : {

@@ -25,6 +25,7 @@ final class AppSettingsStorage {
         static let dataGrid = "com.TablePro.settings.dataGrid"
         static let history = "com.TablePro.settings.history"
         static let tabs = "com.TablePro.settings.tabs"
+        static let keyboard = "com.TablePro.settings.keyboard"
         static let lastConnectionId = "com.TablePro.settings.lastConnectionId"
     }
 
@@ -91,6 +92,16 @@ final class AppSettingsStorage {
         save(settings, key: Keys.tabs)
     }
 
+    // MARK: - Keyboard Settings
+
+    func loadKeyboard() -> KeyboardSettings {
+        load(key: Keys.keyboard, default: .default)
+    }
+
+    func saveKeyboard(_ settings: KeyboardSettings) {
+        save(settings, key: Keys.keyboard)
+    }
+
     // MARK: - Last Connection (for Reopen Last Session)
 
     /// Load the last used connection ID
@@ -120,6 +131,7 @@ final class AppSettingsStorage {
         saveDataGrid(.default)
         saveHistory(.default)
         saveTabs(.default)
+        saveKeyboard(.default)
     }
 
     // MARK: - Helpers

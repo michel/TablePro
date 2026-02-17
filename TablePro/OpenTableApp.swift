@@ -30,13 +30,19 @@ final class AppState: ObservableObject {
 /// Custom Commands struct for pasteboard operations
 struct PasteboardCommands: Commands {
     @ObservedObject var appState: AppState
+    @ObservedObject var settingsManager: AppSettingsManager
+
+    /// Build a SwiftUI KeyboardShortcut from keyboard settings
+    private func shortcut(for action: ShortcutAction) -> KeyboardShortcut? {
+        settingsManager.keyboard.keyboardShortcut(for: action)
+    }
 
     var body: some Commands {
         CommandGroup(replacing: .pasteboard) {
             Button("Cut") {
                 NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
             }
-            .keyboardShortcut("x", modifiers: .command)
+            .optionalKeyboardShortcut(shortcut(for: .cut))
 
             Button("Copy") {
                 // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
@@ -55,12 +61,12 @@ struct PasteboardCommands: Commands {
                     NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
                 }
             }
-            .keyboardShortcut("c", modifiers: .command)
+            .optionalKeyboardShortcut(shortcut(for: .copy))
 
             Button("Copy with Headers") {
                 NotificationCenter.default.post(name: .copySelectedRowsWithHeaders, object: nil)
             }
-            .keyboardShortcut("c", modifiers: [.command, .shift])
+            .optionalKeyboardShortcut(shortcut(for: .copyWithHeaders))
             .disabled(!appState.hasRowSelection)
 
             Button("Paste") {
@@ -77,7 +83,7 @@ struct PasteboardCommands: Commands {
                     NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
                 }
             }
-            .keyboardShortcut("v", modifiers: .command)
+            .optionalKeyboardShortcut(shortcut(for: .paste))
 
             Button("Delete") {
                 // Check if first responder is the history panel's table view
@@ -96,7 +102,7 @@ struct PasteboardCommands: Commands {
                 // For data grid and other views, use notification for batched undo
                 NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
             }
-            .keyboardShortcut(.delete, modifiers: .command)
+            .optionalKeyboardShortcut(shortcut(for: .delete))
             .disabled(!appState.isCurrentTabEditable && !appState.hasTableSelection)
 
             Divider()
@@ -104,13 +110,13 @@ struct PasteboardCommands: Commands {
             Button("Select All") {
                 NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
             }
-            .keyboardShortcut("a", modifiers: .command)
+            .optionalKeyboardShortcut(shortcut(for: .selectAll))
 
             Button("Clear Selection") {
                 // Use responder chain - cancelOperation is the standard ESC action
                 NSApp.sendAction(#selector(NSResponder.cancelOperation(_:)), to: nil, from: nil)
             }
-            .keyboardShortcut(.escape, modifiers: [])
+            .optionalKeyboardShortcut(shortcut(for: .clearSelection))
         }
     }
 }
@@ -138,6 +144,11 @@ struct TableProApp: App {
     /// Get tint color from settings (nil for system default)
     private var accentTint: Color? {
         settingsManager.appearance.accentColor.tintColor
+    }
+
+    /// Build a SwiftUI KeyboardShortcut from the user's keyboard settings for the given action.
+    private func shortcut(for action: ShortcutAction) -> KeyboardShortcut? {
+        settingsManager.keyboard.keyboardShortcut(for: action)
     }
 
     var body: some Scene {
@@ -204,20 +215,20 @@ struct TableProApp: App {
                 Button("New Connection...") {
                     NotificationCenter.default.post(name: .newConnection, object: nil)
                 }
-                .keyboardShortcut("n", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .newConnection))
             }
 
             CommandGroup(after: .newItem) {
                 Button("New Tab") {
                     NotificationCenter.default.post(name: .newTab, object: nil)
                 }
-                .keyboardShortcut("t", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .newTab))
                 .disabled(!appState.isConnected)
 
                 Button("New Table...") {
                     NotificationCenter.default.post(name: .createTable, object: nil)
                 }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .newTable))
                 .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("New View...") {
@@ -228,7 +239,7 @@ struct TableProApp: App {
                 Button("Open Database...") {
                     NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
                 }
-                .keyboardShortcut("k", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .openDatabase))
                 .disabled(!appState.isConnected)
 
                 Divider()
@@ -236,13 +247,13 @@ struct TableProApp: App {
                 Button("Save Changes") {
                     NotificationCenter.default.post(name: .saveChanges, object: nil)
                 }
-                .keyboardShortcut("s", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .saveChanges))
                 .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("Preview SQL") {
                     NotificationCenter.default.post(name: .previewSQL, object: nil)
                 }
-                .keyboardShortcut("p", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .previewSQL))
                 .disabled(!appState.isConnected)
 
                 Button("Close Tab") {
@@ -257,20 +268,20 @@ struct TableProApp: App {
                         keyWindow?.close()
                     }
                 }
-                .keyboardShortcut("w", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .closeTab))
 
                 Divider()
 
                 Button("Refresh") {
                     NotificationCenter.default.post(name: .refreshData, object: nil)
                 }
-                .keyboardShortcut("r", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .refresh))
                 .disabled(!appState.isConnected)
 
                 Button("Explain Query") {
                     NotificationCenter.default.post(name: .explainQuery, object: nil)
                 }
-                .keyboardShortcut("e", modifiers: [.command, .option])
+                .optionalKeyboardShortcut(shortcut(for: .explainQuery))
                 .disabled(!appState.isConnected || !appState.hasQueryText)
 
                 Divider()
@@ -278,13 +289,13 @@ struct TableProApp: App {
                 Button("Export...") {
                     NotificationCenter.default.post(name: .exportTables, object: nil)
                 }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .export))
                 .disabled(!appState.isConnected)
 
                 Button("Import...") {
                     NotificationCenter.default.post(name: .importTables, object: nil)
                 }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .importData))
                 .disabled(!appState.isConnected || appState.isReadOnly)
             }
 
@@ -302,7 +313,7 @@ struct TableProApp: App {
                         NotificationCenter.default.post(name: .undoChange, object: nil)
                     }
                 }
-                .keyboardShortcut("z", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .undo))
 
                 Button("Redo") {
                     // Check if first responder is a text view (SQL editor)
@@ -315,11 +326,11 @@ struct TableProApp: App {
                         NotificationCenter.default.post(name: .redoChange, object: nil)
                     }
                 }
-                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .redo))
             }
 
             // Edit menu - pasteboard commands with FocusedValue support
-            PasteboardCommands(appState: appState)
+            PasteboardCommands(appState: appState, settingsManager: settingsManager)
 
             // Edit menu - row operations (after pasteboard)
             CommandGroup(after: .pasteboard) {
@@ -328,13 +339,13 @@ struct TableProApp: App {
                 Button("Add Row") {
                     NotificationCenter.default.post(name: .addNewRow, object: nil)
                 }
-                .keyboardShortcut("i", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .addRow))
                 .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
 
                 Button("Duplicate Row") {
                     NotificationCenter.default.post(name: .duplicateRow, object: nil)
                 }
-                .keyboardShortcut("d", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .duplicateRow))
                 .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
 
                 Divider()
@@ -343,7 +354,7 @@ struct TableProApp: App {
                 Button("Truncate Table") {
                     NotificationCenter.default.post(name: .truncateTables, object: nil)
                 }
-                .keyboardShortcut(.delete, modifiers: .option)
+                .optionalKeyboardShortcut(shortcut(for: .truncateTable))
                 .disabled(!appState.hasTableSelection || appState.isReadOnly)
             }
 
@@ -354,13 +365,13 @@ struct TableProApp: App {
                 Button("Toggle Table Browser") {
                     NotificationCenter.default.post(name: .toggleTableBrowser, object: nil)
                 }
-                .keyboardShortcut("b", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .toggleTableBrowser))
                 .disabled(!appState.isConnected)
 
                 Button("Toggle Inspector") {
                     NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
                 }
-                .keyboardShortcut("b", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .toggleInspector))
                 .disabled(!appState.isConnected)
 
                 Divider()
@@ -368,13 +379,13 @@ struct TableProApp: App {
                 Button("Toggle Filters") {
                     NotificationCenter.default.post(name: .toggleFilterPanel, object: nil)
                 }
-                .keyboardShortcut("f", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .toggleFilters))
                 .disabled(!appState.isConnected)
 
                 Button("Toggle History") {
                     NotificationCenter.default.post(name: .toggleHistoryPanel, object: nil)
                 }
-                .keyboardShortcut("y", modifiers: .command)
+                .optionalKeyboardShortcut(shortcut(for: .toggleHistory))
                 .disabled(!appState.isConnected)
             }
 
@@ -401,28 +412,28 @@ struct TableProApp: App {
                 Button("Show Previous Tab") {
                     NotificationCenter.default.post(name: .previousTab, object: nil)
                 }
-                .keyboardShortcut("[", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .showPreviousTabBrackets))
                 .disabled(!appState.isConnected)
 
                 // Next tab (Cmd+Shift+])
                 Button("Show Next Tab") {
                     NotificationCenter.default.post(name: .nextTab, object: nil)
                 }
-                .keyboardShortcut("]", modifiers: [.command, .shift])
+                .optionalKeyboardShortcut(shortcut(for: .showNextTabBrackets))
                 .disabled(!appState.isConnected)
 
                 // Previous tab (Cmd+Option+Left)
                 Button("Previous Tab") {
                     NotificationCenter.default.post(name: .previousTab, object: nil)
                 }
-                .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
+                .optionalKeyboardShortcut(shortcut(for: .previousTabArrows))
                 .disabled(!appState.isConnected)
 
                 // Next tab (Cmd+Option+Right)
                 Button("Next Tab") {
                     NotificationCenter.default.post(name: .nextTab, object: nil)
                 }
-                .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
+                .optionalKeyboardShortcut(shortcut(for: .nextTabArrows))
                 .disabled(!appState.isConnected)
             }
         }

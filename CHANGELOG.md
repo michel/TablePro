@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tab reuse setting — opt-in option in Settings > Tabs to reuse clean table tabs when clicking a new table in the sidebar (off by default)
 - Structure view: full undo/redo support (⌘Z / ⇧⌘Z) for all column, index, and foreign key operations
+- Structure view: database-specific type picker popover for the Type column — searchable, grouped by category (Numeric, String, Date & Time, Binary, Other), supports freeform input for parametric types like `VARCHAR(255)`
 - Structure view: YES/NO dropdown menu for Nullable, Auto Inc, and Unique columns (replaces freeform text input)
 - Structure view: "Don't show again" toggle in SQL preview sheet now correctly skips the review step on future saves
 - SQL autocomplete: new clause types — RETURNING, UNION/INTERSECT/EXCEPT, OVER/PARTITION BY, USING, DROP/CREATE INDEX/VIEW
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQL autocomplete: expanded keyword and function coverage — window functions, PostgreSQL/MySQL-specific, transaction, DCL, aggregate, datetime, string, numeric, JSON
 - SQL autocomplete: context-aware suggestions for ALTER TABLE, INSERT INTO, CREATE TABLE, and COUNT(*)
 - SQL autocomplete: improved fuzzy match scoring — prefix and contains matches rank above fuzzy-only matches
+- Keyboard shortcut customization in Settings > Keyboard — rebind any menu shortcut via press-to-record UI, with conflict detection and "Reset to Defaults" support
 
 ### Changed
 

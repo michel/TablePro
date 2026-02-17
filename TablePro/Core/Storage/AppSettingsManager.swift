@@ -76,6 +76,13 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
+    @Published var keyboard: KeyboardSettings {
+        didSet {
+            storage.saveKeyboard(keyboard)
+            notifyChange(domain: "keyboard", notification: .keyboardSettingsDidChange)
+        }
+    }
+
     private let storage = AppSettingsStorage.shared
 
     // MARK: - Initialization
@@ -88,6 +95,7 @@ final class AppSettingsManager: ObservableObject {
         self.dataGrid = storage.loadDataGrid()
         self.history = storage.loadHistory()
         self.tabs = storage.loadTabs()
+        self.keyboard = storage.loadKeyboard()
 
         // Apply appearance settings immediately
         appearance.theme.apply()
@@ -139,6 +147,7 @@ final class AppSettingsManager: ObservableObject {
         dataGrid = .default
         history = .default
         tabs = .default
+        keyboard = .default
         storage.resetToDefaults()
     }
 }

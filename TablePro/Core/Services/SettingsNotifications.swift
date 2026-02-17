@@ -31,6 +31,9 @@ extension Notification.Name {
     /// Posted when tab settings change (reuse behavior, etc.)
     static let tabSettingsDidChange = Notification.Name("tabSettingsDidChange")
 
+    /// Posted when keyboard shortcut settings change
+    static let keyboardSettingsDidChange = Notification.Name("keyboardSettingsDidChange")
+
     // MARK: - Generic Notification
 
     /// Posted for any settings change (in addition to domain-specific notification)
