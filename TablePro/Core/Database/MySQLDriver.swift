@@ -199,7 +199,8 @@ final class MySQLDriver: DatabaseDriver {
     }
 
     func fetchColumns(table: String) async throws -> [ColumnInfo] {
-        let query = "SHOW FULL COLUMNS FROM `\(table)`"
+        let safeTable = table.replacingOccurrences(of: "`", with: "``")
+        let query = "SHOW FULL COLUMNS FROM `\(safeTable)`"
         let result = try await execute(query: query)
 
         return result.rows.compactMap { row in
@@ -245,7 +246,8 @@ final class MySQLDriver: DatabaseDriver {
     }
 
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
-        let query = "SHOW INDEX FROM `\(table)`"
+        let safeTable = table.replacingOccurrences(of: "`", with: "``")
+        let query = "SHOW INDEX FROM `\(safeTable)`"
         let result = try await execute(query: query)
 
         // Group by index name (Key_name is column index 2)
@@ -303,8 +305,8 @@ final class MySQLDriver: DatabaseDriver {
             JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
                 ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
                 AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
-            WHERE kcu.TABLE_SCHEMA = '\(dbName)'
-                AND kcu.TABLE_NAME = '\(table)'
+            WHERE kcu.TABLE_SCHEMA = '\(SQLEscaping.escapeStringLiteral(dbName))'
+                AND kcu.TABLE_NAME = '\(SQLEscaping.escapeStringLiteral(table))'
                 AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
             ORDER BY kcu.CONSTRAINT_NAME
             """
@@ -372,13 +374,12 @@ final class MySQLDriver: DatabaseDriver {
     }
 
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
-        let escapedTableName = tableName.replacingOccurrences(of: "'", with: "''")
         // NOTE: `SHOW TABLE STATUS LIKE` expects a pattern string literal, not an
         // identifier. For that reason we must use single-quoted string syntax here
         // instead of the backtick identifier quoting used in other schema queries
         // (e.g. `SHOW CREATE TABLE \`table\``). The table name is safely embedded
-        // by escaping single quotes above.
-        let query = "SHOW TABLE STATUS WHERE Name = '\(escapedTableName)'"
+        // using SQLEscaping.escapeStringLiteral.
+        let query = "SHOW TABLE STATUS WHERE Name = '\(SQLEscaping.escapeStringLiteral(tableName))'"
         let result = try await execute(query: query)
 
         guard let row = result.rows.first else {
@@ -486,7 +487,8 @@ final class MySQLDriver: DatabaseDriver {
 
     /// Fetch column names using DESCRIBE
     private func fetchColumnNames(for tableName: String) async throws -> [String] {
-        let result = try await execute(query: "DESCRIBE `\(tableName)`")
+        let safeName = tableName.replacingOccurrences(of: "`", with: "``")
+        let result = try await execute(query: "DESCRIBE `\(safeName)`")
 
         var columns: [String] = []
         for row in result.rows {
@@ -524,20 +526,10 @@ final class MySQLDriver: DatabaseDriver {
         return result.rows.compactMap { row in row.first.flatMap { $0 } }
     }
 
-    /// Escape a value for safe use in a single-quoted SQL string literal.
-    ///
-    /// This helper is intended *only* for contexts where the value will be placed
-    /// inside single quotes (e.g. `WHERE TABLE_SCHEMA = '...'`) and should not be
-    /// used for identifiers (such as database, table, or column names).
-    private func escapeForSQLStringLiteral(_ value: String) -> String {
-        // Escape single quotes by doubling them, per SQL standard.
-        value.replacingOccurrences(of: "'", with: "''")
-    }
-
     /// Fetch metadata for a specific database
     func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata {
         // Escape database name for use as a SQL string literal in information_schema queries
-        let escapedDbLiteral = escapeForSQLStringLiteral(database)
+        let escapedDbLiteral = SQLEscaping.escapeStringLiteral(database)
 
         // Query for table count
         let countQuery = """

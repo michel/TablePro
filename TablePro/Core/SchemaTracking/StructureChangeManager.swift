@@ -73,7 +73,20 @@ final class StructureChangeManager: ObservableObject {
             }
         }
         self.currentIndexes = indexes.map { EditableIndexDefinition.from($0) }
-        self.currentForeignKeys = foreignKeys.map { EditableForeignKeyDefinition.from($0) }
+        // Group foreign keys by name to merge multi-column FKs into single definitions
+        let groupedFKs = Dictionary(grouping: foreignKeys, by: { $0.name })
+        self.currentForeignKeys = groupedFKs.keys.sorted().compactMap { name -> EditableForeignKeyDefinition? in
+            guard let fkInfos = groupedFKs[name], let first = fkInfos.first else { return nil }
+            return EditableForeignKeyDefinition(
+                id: first.id,
+                name: first.name,
+                columns: fkInfos.map { $0.column },
+                referencedTable: first.referencedTable,
+                referencedColumns: fkInfos.map { $0.referencedColumn },
+                onDelete: EditableForeignKeyDefinition.ReferentialAction(rawValue: first.onDelete.uppercased()) ?? .noAction,
+                onUpdate: EditableForeignKeyDefinition.ReferentialAction(rawValue: first.onUpdate.uppercased()) ?? .noAction
+            )
+        }
         self.currentPrimaryKey = primaryKey
 
         // Reset working state
@@ -454,7 +467,7 @@ final class StructureChangeManager: ObservableObject {
     // MARK: - State Management
 
     var canCommit: Bool {
-        hasChanges  // Allow saving even with validation errors - let DB handle validation
+        hasChanges && validationErrors.isEmpty
     }
 
     func discardChanges() {
@@ -633,7 +646,14 @@ final class StructureChangeManager: ObservableObject {
 
     func getVisualState(for row: Int, tab: StructureTab) -> RowVisualState {
         // Check cache first
-        let cacheKey = row * 10 + tab.rawValue.hashValue
+        let tabIndex: Int
+        switch tab {
+        case .columns: tabIndex = 0
+        case .indexes: tabIndex = 1
+        case .foreignKeys: tabIndex = 2
+        case .ddl: tabIndex = 3
+        }
+        let cacheKey = tabIndex * 10000 + row
         if let cached = visualStateCache[cacheKey] {
             return cached
         }

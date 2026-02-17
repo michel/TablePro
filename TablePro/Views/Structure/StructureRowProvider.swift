@@ -102,7 +102,7 @@ final class StructureRowProvider {
     }
 
     func updateValue(_ newValue: String?, at rowIndex: Int, columnIndex: Int) {
-        // Updates are handled by StructureTableCoordinator
+        // Updates are handled by the onCellEdit callback in TableStructureView
         // This method is called by DataGridView but we intercept edits earlier
     }
 

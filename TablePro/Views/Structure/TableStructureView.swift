@@ -30,6 +30,7 @@ struct TableStructureView: View {
     @State private var loadedTabs: Set<StructureTab> = []
     @State private var isReloadingAfterSave = false  // Prevent onChange loops during save reload
     @State private var lastSaveTime: Date?  // Track when we last saved
+    @AppStorage("skipSchemaPreview") private var skipSchemaPreview = false
 
     // DataGridView state
     @StateObject private var structureChangeManager = StructureChangeManager()
@@ -488,6 +489,14 @@ struct TableStructureView: View {
             return
         }
 
+        // If user chose to skip preview, apply changes directly
+        if skipSchemaPreview {
+            Task {
+                await executeSchemaChanges()
+            }
+            return
+        }
+
         let generator = SchemaStatementGenerator(
             tableName: tableName,
             databaseType: getDatabaseType()
@@ -517,7 +526,6 @@ struct TableStructureView: View {
             )
 
             // Success - reload schema
-            structureChangeManager.discardChanges()
             loadedTabs.removeAll()
 
             // Reload all structure data before calling loadSchemaForEditing
@@ -659,7 +667,6 @@ struct TableStructureView: View {
     @Sendable
     private func loadInitialData() async {
         await loadColumns()
-        loadSchemaForEditing()
     }
 
     private func loadColumns() async {

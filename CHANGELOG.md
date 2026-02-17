@@ -9,9 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Security: escape table and database names in all driver schema queries (MySQLDriver, PostgreSQLDriver, SQLiteDriver) using `SQLEscaping.escapeStringLiteral()` to prevent SQL injection from names containing single quotes or special characters
+- PostgreSQL DDL: `fetchTableDDL` now includes PRIMARY KEY, UNIQUE, CHECK, and FOREIGN KEY constraints plus standalone indexes (previously only generated column definitions)
+- Structure view: visual state cache key collision risk from non-deterministic `hashValue` replaced with stable index-based keys
+- Structure view: multi-column foreign keys are now correctly merged into a single entry instead of being silently split into separate single-column entries
+- Structure view: "Don't show again" toggle in schema preview sheet now correctly skips the SQL review popover and applies changes directly
 - Structure view: undo deleting existing columns/indexes/FKs no longer duplicates the row
 - Structure view: undo after multiple edits now visually refreshes correctly on each Cmd+Z
 - Structure view: deleting a new (unsaved) column then undoing now correctly re-adds it
+
+### Removed
+
+- Deleted dead code `StructureTableCoordinator.swift` (~275 lines of unused NSTableView delegate/datasource)
 
 ### Added
 

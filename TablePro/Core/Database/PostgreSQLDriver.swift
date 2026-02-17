@@ -204,7 +204,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 LEFT JOIN pg_catalog.pg_description pgd
                     ON pgd.objoid = st.relid
                     AND pgd.objsubid = c.ordinal_position
-                WHERE c.table_schema = 'public' AND c.table_name = '\(table)'
+                WHERE c.table_schema = 'public' AND c.table_name = '\(SQLEscaping.escapeStringLiteral(table))'
                 ORDER BY c.ordinal_position
             """
 
@@ -260,12 +260,11 @@ final class PostgreSQLDriver: DatabaseDriver {
 
     /// Fetch allowed values for a PostgreSQL user-defined enum type
     func fetchEnumValues(typeName: String) async throws -> [String] {
-        let safeTypeName = typeName.replacingOccurrences(of: "'", with: "''")
         let query = """
             SELECT e.enumlabel
             FROM pg_enum e
             JOIN pg_type t ON e.enumtypid = t.oid
-            WHERE t.typname = '\(safeTypeName)'
+            WHERE t.typname = '\(SQLEscaping.escapeStringLiteral(typeName))'
             ORDER BY e.enumsortorder
         """
         let result = try await execute(query: query)
@@ -285,7 +284,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             JOIN pg_class t ON t.oid = ix.indrelid
             JOIN pg_am am ON am.oid = i.relam
             JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
-            WHERE t.relname = '\(table)'
+            WHERE t.relname = '\(SQLEscaping.escapeStringLiteral(table))'
             GROUP BY i.relname, ix.indisunique, ix.indisprimary, am.amname
             ORDER BY ix.indisprimary DESC, i.relname
             """
@@ -332,7 +331,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 ON tc.constraint_name = rc.constraint_name
             JOIN information_schema.constraint_column_usage ccu
                 ON rc.unique_constraint_name = ccu.constraint_name
-            WHERE tc.table_name = '\(table)'
+            WHERE tc.table_name = '\(SQLEscaping.escapeStringLiteral(table))'
                 AND tc.constraint_type = 'FOREIGN KEY'
             ORDER BY tc.constraint_name
             """
@@ -362,47 +361,87 @@ final class PostgreSQLDriver: DatabaseDriver {
 
     func fetchTableDDL(table: String) async throws -> String {
         // PostgreSQL doesn't have a direct equivalent to SHOW CREATE TABLE
-        // We need to reconstruct it from system catalogs
-        let query = """
+        // We need to reconstruct it from system catalogs in multiple queries
+        let safeTable = SQLEscaping.escapeStringLiteral(table)
+        let quotedTable = "\"\(table.replacingOccurrences(of: "\"", with: "\"\""))\""
+
+        // 1. Get column definitions
+        let columnsQuery = """
             SELECT
-                'CREATE TABLE ' || quote_ident(pg_namespace.nspname) || '.' || quote_ident(pg_class.relname) || ' (' ||
-                E'\\n  ' ||
-                string_agg(
-                    quote_ident(pg_attribute.attname) || ' ' || format_type(pg_attribute.atttypid, pg_attribute.atttypmod) ||
-                    CASE WHEN pg_attribute.attnotnull THEN ' NOT NULL' ELSE '' END ||
-                    CASE WHEN pg_attribute.atthasdef THEN ' DEFAULT ' || pg_get_expr(pg_attrdef.adbin, pg_attrdef.adrelid) ELSE '' END,
-                    E',\\n  '
-                    ORDER BY pg_attribute.attnum
-                ) ||
-                E'\\n);' AS ddl
-            FROM pg_attribute
-            JOIN pg_class ON pg_class.oid = pg_attribute.attrelid
-            JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
-            LEFT JOIN pg_attrdef ON pg_attrdef.adrelid = pg_class.oid AND pg_attrdef.adnum = pg_attribute.attnum
-            WHERE pg_class.relname = '\(table)'
-              AND pg_namespace.nspname = 'public'
-              AND pg_attribute.attnum > 0
-              AND NOT pg_attribute.attisdropped
-            GROUP BY pg_namespace.nspname, pg_class.relname
+                quote_ident(a.attname) || ' ' || format_type(a.atttypid, a.atttypmod) ||
+                CASE WHEN a.attnotnull THEN ' NOT NULL' ELSE '' END ||
+                CASE WHEN a.atthasdef THEN ' DEFAULT ' || pg_get_expr(d.adbin, d.adrelid) ELSE '' END
+            FROM pg_attribute a
+            JOIN pg_class c ON c.oid = a.attrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+            WHERE c.relname = '\(safeTable)'
+              AND n.nspname = 'public'
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+            ORDER BY a.attnum
             """
+        let columnsResult = try await execute(query: columnsQuery)
+        let columnDefs = columnsResult.rows.compactMap { $0[0] }
 
-        let result = try await execute(query: query)
-
-        guard let firstRow = result.rows.first,
-              let ddl = firstRow[0]
-        else {
+        guard !columnDefs.isEmpty else {
             throw DatabaseError.queryFailed("Failed to fetch DDL for table '\(table)'")
         }
 
-        return ddl
+        // 2. Get table constraints (PRIMARY KEY, UNIQUE, CHECK, FOREIGN KEY)
+        let constraintsQuery = """
+            SELECT
+                pg_get_constraintdef(con.oid, true)
+            FROM pg_constraint con
+            JOIN pg_class c ON c.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname = '\(safeTable)'
+              AND n.nspname = 'public'
+              AND con.contype IN ('p', 'u', 'c', 'f')
+            ORDER BY
+              CASE con.contype WHEN 'p' THEN 0 WHEN 'u' THEN 1 WHEN 'c' THEN 2 WHEN 'f' THEN 3 END
+            """
+        let constraintsResult = try await execute(query: constraintsQuery)
+        let constraints = constraintsResult.rows.compactMap { $0[0] }
+
+        // 3. Build CREATE TABLE statement
+        var parts = columnDefs
+        parts.append(contentsOf: constraints)
+
+        let ddl = "CREATE TABLE public.\(quotedTable) (\n  " +
+            parts.joined(separator: ",\n  ") +
+            "\n);"
+
+        // 4. Get indexes (excluding those backing constraints)
+        let indexesQuery = """
+            SELECT indexdef
+            FROM pg_indexes
+            WHERE tablename = '\(safeTable)'
+              AND schemaname = 'public'
+              AND indexname NOT IN (
+                SELECT conname FROM pg_constraint
+                JOIN pg_class ON pg_class.oid = conrelid
+                JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+                WHERE pg_class.relname = '\(safeTable)'
+                  AND pg_namespace.nspname = 'public'
+              )
+            ORDER BY indexname
+            """
+        let indexesResult = try await execute(query: indexesQuery)
+        let indexDefs = indexesResult.rows.compactMap { $0[0] }
+
+        if indexDefs.isEmpty {
+            return ddl
+        }
+
+        return ddl + "\n\n" + indexDefs.joined(separator: ";\n") + ";"
     }
 
     func fetchViewDefinition(view: String) async throws -> String {
-        let escapedView = view.replacingOccurrences(of: "'", with: "''")
         let query = """
             SELECT 'CREATE OR REPLACE VIEW ' || quote_ident(schemaname) || '.' || quote_ident(viewname) || ' AS ' || E'\\n' || definition AS ddl
             FROM pg_views
-            WHERE viewname = '\(escapedView)'
+            WHERE viewname = '\(SQLEscaping.escapeStringLiteral(view))'
               AND schemaname = 'public'
             """
 
@@ -435,9 +474,6 @@ final class PostgreSQLDriver: DatabaseDriver {
     }
 
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
-        // Escape single quotes to prevent SQL injection (string literal context)
-        let safeTableName = tableName.replacingOccurrences(of: "'", with: "''")
-
         let query = """
             SELECT
                 pg_total_relation_size(c.oid) AS total_size,
@@ -448,7 +484,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 obj_description(c.oid, 'pg_class') AS comment
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relname = '\(safeTableName)'
+            WHERE c.relname = '\(SQLEscaping.escapeStringLiteral(tableName))'
               AND n.nspname = 'public'
             """
 
@@ -518,8 +554,8 @@ final class PostgreSQLDriver: DatabaseDriver {
 
     /// Fetch metadata for a specific database
     func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata {
-        // Escape single quotes for SQL string literals
-        let escapedDbLiteral = database.replacingOccurrences(of: "'", with: "''")
+        // Escape database name for use as a SQL string literal
+        let escapedDbLiteral = SQLEscaping.escapeStringLiteral(database)
 
         // Query for table count
         let countQuery = """

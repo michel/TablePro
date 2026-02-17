@@ -308,7 +308,7 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.notConnected
         }
 
-        let query = "PRAGMA table_info('\(table)')"
+        let query = "PRAGMA table_info('\(SQLEscaping.escapeStringLiteral(table))')"
         let result = try await execute(query: query)
 
         return result.rows.compactMap { row in
@@ -342,7 +342,7 @@ final class SQLiteDriver: DatabaseDriver {
         }
 
         // Get list of indexes for this table
-        let indexListQuery = "PRAGMA index_list('\(table)')"
+        let indexListQuery = "PRAGMA index_list('\(SQLEscaping.escapeStringLiteral(table))')"
         let indexListResult = try await execute(query: indexListQuery)
 
         var indexes: [IndexInfo] = []
@@ -355,7 +355,7 @@ final class SQLiteDriver: DatabaseDriver {
             let origin = row.count >= 4 ? (row[3] ?? "c") : "c"  // c=CREATE INDEX, pk=PRIMARY KEY
 
             // Get columns for this index
-            let indexInfoQuery = "PRAGMA index_info('\(indexName)')"
+            let indexInfoQuery = "PRAGMA index_info('\(SQLEscaping.escapeStringLiteral(indexName))')"
             let indexInfoResult = try await execute(query: indexInfoQuery)
 
             let columns = indexInfoResult.rows.compactMap { $0.count >= 3 ? $0[2] : nil }
@@ -377,7 +377,7 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.notConnected
         }
 
-        let query = "PRAGMA foreign_key_list('\(table)')"
+        let query = "PRAGMA foreign_key_list('\(SQLEscaping.escapeStringLiteral(table))')"
         let result = try await execute(query: query)
 
         return result.rows.compactMap { row in
@@ -424,8 +424,7 @@ final class SQLiteDriver: DatabaseDriver {
 
     /// Fetch the CREATE TABLE SQL from sqlite_master
     private func fetchCreateTableSQL(table: String) async throws -> String? {
-        let safeTable = table.replacingOccurrences(of: "'", with: "''")
-        let query = "SELECT sql FROM sqlite_master WHERE type='table' AND name='\(safeTable)'"
+        let query = "SELECT sql FROM sqlite_master WHERE type='table' AND name='\(SQLEscaping.escapeStringLiteral(table))'"
         let result = try await execute(query: query)
         return result.rows.first?.first ?? nil
     }
@@ -466,7 +465,7 @@ final class SQLiteDriver: DatabaseDriver {
         // SQLite stores the original CREATE TABLE statement in sqlite_master
         let query = """
             SELECT sql FROM sqlite_master
-            WHERE type = 'table' AND name = '\(table)'
+            WHERE type = 'table' AND name = '\(SQLEscaping.escapeStringLiteral(table))'
             """
 
         let result = try await execute(query: query)
@@ -486,10 +485,9 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.notConnected
         }
 
-        let escapedView = view.replacingOccurrences(of: "'", with: "''")
         let query = """
             SELECT sql FROM sqlite_master
-            WHERE type = 'view' AND name = '\(escapedView)'
+            WHERE type = 'view' AND name = '\(SQLEscaping.escapeStringLiteral(view))'
             """
 
         let result = try await execute(query: query)
