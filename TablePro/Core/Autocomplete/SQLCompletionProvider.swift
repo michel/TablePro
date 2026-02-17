@@ -106,32 +106,58 @@ final class SQLCompletionProvider {
             ])
 
         case .select:
-            // Star wildcard — most common SELECT pattern
-            items.append(SQLCompletionItem(
-                label: "*",
-                kind: .keyword,
-                insertText: "*",
-                detail: "All columns",
-                sortPriority: 50
-            ))
-            // table.* suggestions when multiple tables in scope (HP-5)
-            for ref in context.tableReferences {
-                let qualifier = ref.alias ?? ref.tableName
+            if let funcName = context.currentFunction {
+                // Inside function arguments within SELECT context
+                let upperFunc = funcName.uppercased()
+                if upperFunc == "COUNT" {
+                    // COUNT() special: suggest * and DISTINCT as top items
+                    var starItem = SQLCompletionItem(
+                        label: "*",
+                        kind: .keyword,
+                        insertText: "*",
+                        detail: String(localized: "All columns"),
+                        documentation: String(localized: "Count all rows")
+                    )
+                    starItem.sortPriority = 10
+                    items.append(starItem)
+                    var distinctItem = SQLCompletionItem.keyword("DISTINCT")
+                    distinctItem.sortPriority = 20
+                    items.append(distinctItem)
+                }
+                // Function-arg items: columns, functions, value keywords
+                items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+                items += SQLKeywords.functionItems()
+                items += filterKeywords(["NULL", "TRUE", "FALSE"])
+                if funcName.uppercased() != "COUNT" {
+                    items += filterKeywords(["DISTINCT"])
+                }
+            } else {
+                // Normal SELECT list: star wildcard + columns + functions + keywords
                 items.append(SQLCompletionItem(
-                    label: "\(qualifier).*",
+                    label: "*",
                     kind: .keyword,
-                    insertText: "\(qualifier).*",
-                    detail: "All columns from \(ref.tableName)",
-                    sortPriority: 60
+                    insertText: "*",
+                    detail: "All columns",
+                    sortPriority: 50
                 ))
+                // table.* suggestions when multiple tables in scope (HP-5)
+                for ref in context.tableReferences {
+                    let qualifier = ref.alias ?? ref.tableName
+                    items.append(SQLCompletionItem(
+                        label: "\(qualifier).*",
+                        kind: .keyword,
+                        insertText: "\(qualifier).*",
+                        detail: "All columns from \(ref.tableName)",
+                        sortPriority: 60
+                    ))
+                }
+                items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
+                items += SQLKeywords.functionItems()
+                items += filterKeywords([
+                    "DISTINCT", "ALL", "AS", "FROM", "CASE", "WHEN",
+                    "INTO", "UNION", "INTERSECT", "EXCEPT"
+                ])
             }
-            // Columns, functions, keywords
-            items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
-            items += SQLKeywords.functionItems()
-            items += filterKeywords([
-                "DISTINCT", "ALL", "AS", "FROM", "CASE", "WHEN",
-                "INTO", "UNION", "INTERSECT", "EXCEPT"
-            ])
 
         case .on:
             // HP-3: ON clause — prioritize columns from joined tables
@@ -213,9 +239,31 @@ final class SQLCompletionProvider {
 
         case .functionArg:
             // Inside function arguments - suggest columns and other functions
+            let isCountFunction = context.currentFunction?.uppercased() == "COUNT"
+            if isCountFunction {
+                // COUNT() special: suggest * as top item
+                var starItem = SQLCompletionItem(
+                    label: "*",
+                    kind: .keyword,
+                    insertText: "*",
+                    detail: String(localized: "All columns"),
+                    documentation: String(localized: "Count all rows")
+                )
+                starItem.sortPriority = 10  // Highest priority
+                items.append(starItem)
+                // Boost DISTINCT for COUNT(DISTINCT ...)
+                var distinctItem = SQLCompletionItem.keyword("DISTINCT")
+                distinctItem.sortPriority = 20
+                items.append(distinctItem)
+            }
             items += await schemaProvider.allColumnsInScope(for: context.tableReferences)
             items += SQLKeywords.functionItems()
-            items += filterKeywords(["NULL", "TRUE", "FALSE", "DISTINCT"])
+            if isCountFunction {
+                // DISTINCT already added above with boosted priority
+                items += filterKeywords(["NULL", "TRUE", "FALSE"])
+            } else {
+                items += filterKeywords(["NULL", "TRUE", "FALSE", "DISTINCT"])
+            }
 
         case .caseExpression:
             // Inside CASE expression
@@ -472,19 +520,56 @@ final class SQLCompletionProvider {
         }
     }
 
-    /// Fuzzy matching: checks if all pattern characters appear in target in order
-    private func fuzzyMatch(pattern: String, target: String) -> Bool {
-        var patternIndex = pattern.startIndex
-        var targetIndex = target.startIndex
+    /// Fuzzy matching with scoring: returns penalty score (higher = worse),
+    /// nil = no match. Uses NSString character-at-index for O(1) random
+    /// access instead of Swift String indexing (LP-9).
+    private func fuzzyMatchScore(pattern: String, target: String) -> Int? {
+        let nsPattern = pattern as NSString
+        let nsTarget = target as NSString
+        let patternLen = nsPattern.length
+        let targetLen = nsTarget.length
 
-        while patternIndex < pattern.endIndex && targetIndex < target.endIndex {
-            if pattern[patternIndex] == target[targetIndex] {
-                patternIndex = pattern.index(after: patternIndex)
+        guard patternLen > 0, targetLen > 0 else { return nil }
+
+        var patternIdx = 0
+        var targetIdx = 0
+        var gaps = 0
+        var consecutiveMatches = 0
+        var maxConsecutive = 0
+        var lastMatchIdx = -1
+
+        while patternIdx < patternLen && targetIdx < targetLen {
+            let pChar = nsPattern.character(at: patternIdx)
+            let tChar = nsTarget.character(at: targetIdx)
+
+            if pChar == tChar {
+                if lastMatchIdx == targetIdx - 1 {
+                    consecutiveMatches += 1
+                    maxConsecutive = max(maxConsecutive, consecutiveMatches)
+                } else {
+                    if lastMatchIdx >= 0 {
+                        gaps += targetIdx - lastMatchIdx - 1
+                    }
+                    consecutiveMatches = 1
+                }
+                lastMatchIdx = targetIdx
+                patternIdx += 1
             }
-            targetIndex = target.index(after: targetIndex)
+            targetIdx += 1
         }
 
-        return patternIndex == pattern.endIndex
+        guard patternIdx == patternLen else { return nil }
+
+        // Score: base penalty + gap penalty - consecutive bonus
+        let basePenalty = 50
+        let gapPenalty = gaps * 10
+        let consecutiveBonus = maxConsecutive * 15
+        return max(0, basePenalty + gapPenalty - consecutiveBonus)
+    }
+
+    /// Backward-compatible fuzzy matching (Bool) for filterByPrefix
+    private func fuzzyMatch(pattern: String, target: String) -> Bool {
+        fuzzyMatchScore(pattern: pattern, target: target) != nil
     }
 
     // MARK: - Ranking
@@ -544,6 +629,17 @@ final class SQLCompletionProvider {
 
         // Shorter names slightly preferred
         score += item.label.count
+
+        // Fuzzy match penalty — items matched only by fuzzy get demoted
+        if !prefix.isEmpty {
+            let filterText = item.filterText
+            if !filterText.hasPrefix(prefix) && !filterText.contains(prefix) {
+                // This is a fuzzy-only match — apply penalty
+                if let fuzzyPenalty = fuzzyMatchScore(pattern: prefix, target: filterText) {
+                    score += fuzzyPenalty
+                }
+            }
+        }
 
         return score
     }

@@ -788,4 +788,62 @@ struct SQLContextAnalyzerTests {
         let context = analyzer.analyze(query: "SELECT * FROM users", cursorPosition: 19)
         #expect(context.isInsideComment == false)
     }
+
+    // MARK: - P3: LP-6 - Subquery Context Detection
+
+    @Test("Subquery in WHERE IN - clause type is select inside subquery")
+    func testSubqueryInWhereIn() {
+        let query = "SELECT * FROM users WHERE id IN (SELECT "
+        let context = analyzer.analyze(query: query, cursorPosition: query.count)
+        #expect(context.clauseType == .select)
+        #expect(context.nestingLevel > 0)
+    }
+
+    @Test("Subquery in WHERE IN - WHERE inside subquery detected")
+    func testSubqueryWhereClause() {
+        let query = "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders WHERE "
+        let context = analyzer.analyze(query: query, cursorPosition: query.count)
+        #expect(context.clauseType == .where_)
+        #expect(context.nestingLevel > 0)
+    }
+
+    @Test("Subquery in FROM - detected as select")
+    func testSubqueryInFrom() {
+        let query = "SELECT * FROM (SELECT "
+        let context = analyzer.analyze(query: query, cursorPosition: query.count)
+        #expect(context.clauseType == .select)
+        #expect(context.nestingLevel > 0)
+    }
+
+    @Test("Nested subquery increases nesting level")
+    func testNestedSubqueryLevel() {
+        let query = "SELECT * FROM (SELECT * FROM (SELECT "
+        let context = analyzer.analyze(query: query, cursorPosition: query.count)
+        #expect(context.nestingLevel >= 2)
+    }
+
+    @Test("Subquery table references include outer query tables")
+    func testSubqueryIncludesOuterTableRefs() {
+        let query = "SELECT * FROM users u WHERE id IN (SELECT user_id FROM orders WHERE "
+        let context = analyzer.analyze(query: query, cursorPosition: query.count)
+        // Should find both inner and outer table references
+        #expect(context.tableReferences.contains { $0.tableName == "orders" })
+        #expect(context.tableReferences.contains { $0.tableName == "users" })
+    }
+
+    @Test("Closed subquery returns to outer context")
+    func testClosedSubqueryReturnsToOuter() {
+        let query = "SELECT * FROM users WHERE id IN (SELECT 1) AND "
+        let context = analyzer.analyze(query: query, cursorPosition: query.count)
+        #expect(context.clauseType == .and)
+        #expect(context.nestingLevel == 0)
+    }
+
+    @Test("EXISTS subquery detected")
+    func testExistsSubquery() {
+        let query = "SELECT * FROM users WHERE EXISTS (SELECT "
+        let context = analyzer.analyze(query: query, cursorPosition: query.count)
+        #expect(context.clauseType == .select)
+        #expect(context.nestingLevel > 0)
+    }
 }

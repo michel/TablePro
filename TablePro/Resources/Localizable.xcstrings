@@ -861,6 +861,9 @@
         }
       }
     },
+    "All columns" : {
+
+    },
     "ALL DATABASES" : {
       "localizations" : {
         "vi" : {
@@ -1708,6 +1711,9 @@
       }
     },
     "Copy with Headers" : {
+
+    },
+    "Count all rows" : {
 
     },
     "Counting..." : {

@@ -891,4 +891,62 @@ struct SQLCompletionProviderTests {
         let item = SQLCompletionItem.column("notes", dataType: "TEXT", tableName: "users", isNullable: true)
         #expect(item.detail?.contains("NOT NULL") != true)
     }
+
+    // MARK: - P3: LP-3 - COUNT(*) Special Suggestion
+
+    @Test("COUNT function suggests star as top item")
+    func testCountFunctionSuggestsStar() async {
+        let text = "SELECT COUNT("
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let starItem = items.first { $0.label == "*" }
+        #expect(starItem != nil, "COUNT( should suggest *")
+        // Star should be near the top
+        if let starIdx = items.firstIndex(where: { $0.label == "*" }) {
+            #expect(starIdx < 3, "* should be in top 3 for COUNT(")
+        }
+    }
+
+    @Test("SUM function does not suggest star")
+    func testSumFunctionNoStar() async {
+        let text = "SELECT SUM("
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let starItem = items.first { $0.label == "*" }
+        #expect(starItem == nil, "SUM( should not suggest *")
+    }
+
+    @Test("COUNT function suggests DISTINCT")
+    func testCountFunctionSuggestsDistinct() async {
+        let text = "SELECT COUNT("
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let distinctItem = items.first { $0.label == "DISTINCT" }
+        #expect(distinctItem != nil, "COUNT( should suggest DISTINCT")
+    }
+
+    // MARK: - P3: LP-4 - Fuzzy Match Scoring
+
+    @Test("Prefix match scores higher than fuzzy match")
+    func testPrefixBeatsFuzzy() async {
+        let text = "SELECT * FROM users WHERE sel"
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        // "SELECT" should score higher than items that only fuzzy match "sel"
+        if let selectIdx = items.firstIndex(where: { $0.label == "SELECT" }) {
+            // SELECT should be in the results (prefix match on "sel")
+            #expect(selectIdx < 5, "SELECT should rank high for prefix 'sel'")
+        }
+    }
+
+    @Test("Contains match scores higher than fuzzy match")
+    func testContainsBeatsFuzzy() async {
+        // "ER" prefix: "WHERE" contains "er", should rank above pure fuzzy matches
+        let text = "SELECT * FROM users ER"
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        // Items with "er" as substring should appear
+        let containsItems = items.filter { $0.filterText.contains("er") }
+        let fuzzyOnlyItems = items.filter { !$0.filterText.contains("er") }
+        if let firstContains = containsItems.first, let firstFuzzy = fuzzyOnlyItems.first {
+            let containsIdx = items.firstIndex(of: firstContains) ?? Int.max
+            let fuzzyIdx = items.firstIndex(of: firstFuzzy) ?? Int.max
+            #expect(containsIdx < fuzzyIdx, "Contains matches should rank above fuzzy-only matches")
+        }
+    }
 }

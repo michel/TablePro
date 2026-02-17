@@ -90,7 +90,8 @@ struct DataGridView: NSViewRepresentable {
         rowNumberColumn.resizingMask = []
         tableView.addTableColumn(rowNumberColumn)
 
-        // Add data columns
+        // Add data columns (suppress resize notifications during setup)
+        context.coordinator.isRebuildingColumns = true
         for (index, columnName) in rowProvider.columns.enumerated() {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
             column.title = columnName
@@ -107,7 +108,7 @@ struct DataGridView: NSViewRepresentable {
             tableView.addTableColumn(column)
         }
 
-        // Apply saved column widths
+        // Apply saved column widths (from user resizing)
         if !columnLayout.columnWidths.isEmpty {
             for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
                 guard let colIndex = Self.columnIndex(from: column.identifier),
@@ -117,12 +118,14 @@ struct DataGridView: NSViewRepresentable {
                     column.width = savedWidth
                 }
             }
+            context.coordinator.hasUserResizedColumns = true
         }
 
         // Apply saved column order
         if let savedOrder = columnLayout.columnOrder {
             DataGridView.applyColumnOrder(savedOrder, to: tableView, columns: rowProvider.columns)
         }
+        context.coordinator.isRebuildingColumns = false
 
         if let headerView = tableView.headerView {
             let headerMenu = NSMenu()
@@ -192,6 +195,9 @@ struct DataGridView: NSViewRepresentable {
         let shouldRebuildColumns = columnsChanged || (structureChanged && !rowProvider.columns.isEmpty)
 
         if shouldRebuildColumns {
+            coordinator.isRebuildingColumns = true
+            defer { coordinator.isRebuildingColumns = false }
+
             let columnsToRemove = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
             for column in columnsToRemove {
                 tableView.removeTableColumn(column)
@@ -212,10 +218,8 @@ struct DataGridView: NSViewRepresentable {
                 column.sortDescriptorPrototype = NSSortDescriptor(key: "col_\(index)", ascending: true)
                 tableView.addTableColumn(column)
             }
-            tableView.sizeToFit()
-
-            // Restore saved column widths after rebuild
-            if !columnLayout.columnWidths.isEmpty {
+            // Restore user-resized column widths after rebuild (only if user explicitly resized)
+            if coordinator.hasUserResizedColumns, !columnLayout.columnWidths.isEmpty {
                 for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
                     guard let colIndex = Self.columnIndex(from: column.identifier),
                           colIndex < rowProvider.columns.count else { continue }
@@ -226,8 +230,8 @@ struct DataGridView: NSViewRepresentable {
                 }
             }
 
-            // Restore saved column order after rebuild
-            if let savedOrder = columnLayout.columnOrder {
+            // Restore saved column order after rebuild (only if user explicitly reordered)
+            if coordinator.hasUserResizedColumns, let savedOrder = columnLayout.columnOrder {
                 DataGridView.applyColumnOrder(savedOrder, to: tableView, columns: rowProvider.columns)
             }
         } else {
@@ -338,6 +342,9 @@ struct DataGridView: NSViewRepresentable {
     }
 
     private static func applyColumnOrder(_ order: [String], to tableView: NSTableView, columns: [String]) {
+        // Only apply if saved order is a permutation of current columns
+        guard Set(order) == Set(columns) else { return }
+
         let dataColumns = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
         for (targetIndex, columnName) in order.enumerated() {
             guard let sourceColumn = dataColumns.first(where: { col in
@@ -443,6 +450,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     private(set) var cachedRowCount: Int = 0
     private(set) var cachedColumnCount: Int = 0
     var isSyncingSortDescriptors: Bool = false
+    var isRebuildingColumns: Bool = false
+    var hasUserResizedColumns: Bool = false
 
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     private var rowVisualStateCache: [Int: RowVisualState] = [:]
@@ -705,6 +714,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     }
 
     // MARK: - Selection
+
+    func tableViewColumnDidResize(_ notification: Notification) {
+        // Only track user-initiated resizes, not programmatic ones during column rebuilds
+        guard !isRebuildingColumns else { return }
+        hasUserResizedColumns = true
+    }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard let tableView = notification.object as? NSTableView else { return }

@@ -361,9 +361,18 @@ final class SQLContextAnalyzer {
         // Check if immediately after comma
         let isAfterComma = checkIfAfterComma(textBeforeCursor)
 
+        // For subquery context, extract text from the innermost subquery
+        // so clause detection works on the subquery's SQL, not the outer query
+        let clauseText: String
+        if nestingLevel > 0 {
+            clauseText = extractInnermostSubqueryText(from: textBeforeCursor)
+        } else {
+            clauseText = textBeforeCursor
+        }
+
         // Determine clause type
         let clauseType = determineClauseType(
-            textBeforeCursor: textBeforeCursor,
+            textBeforeCursor: clauseText,
             dotPrefix: dotPrefix,
             currentFunction: currentFunction
         )
@@ -512,6 +521,69 @@ final class SQLContextAnalyzer {
         }
 
         return level
+    }
+
+    /// SQL DML keywords that indicate the start of a subquery
+    private static let subqueryStartKeywords: Set<String> = [
+        "SELECT", "INSERT", "UPDATE", "DELETE"
+    ]
+
+    /// Pre-compiled regex to detect a SQL statement keyword after opening paren
+    private static let subqueryDetectRegex: NSRegularExpression? = {
+        try? NSRegularExpression(
+            pattern: "^\\s*(?:SELECT|INSERT|UPDATE|DELETE)\\b",
+            options: .caseInsensitive
+        )
+    }()
+
+    /// Extract text from the innermost subquery's opening parenthesis.
+    /// Only extracts if the text after the paren starts with a SQL statement keyword
+    /// (SELECT, INSERT, UPDATE, DELETE), distinguishing subqueries from plain
+    /// parenthesized expressions like INSERT INTO t (col1, col2) or USING (col).
+    /// Uses NSString character-at-index for O(1) access per character.
+    private func extractInnermostSubqueryText(from textBeforeCursor: String) -> String {
+        let ns = textBeforeCursor as NSString
+        let length = ns.length
+        var parenStack: [Int] = []
+        var inString = false
+        var prevChar: UInt16 = 0
+
+        for i in 0..<length {
+            let ch = ns.character(at: i)
+            if ch == Self.singleQuote && prevChar != Self.backslash {
+                inString.toggle()
+            }
+
+            if !inString {
+                if ch == Self.openParen {
+                    parenStack.append(i)
+                } else if ch == Self.closeParen {
+                    if !parenStack.isEmpty {
+                        parenStack.removeLast()
+                    }
+                }
+            }
+
+            prevChar = ch
+        }
+
+        // Walk the paren stack from innermost to outermost, looking for a subquery
+        guard let regex = Self.subqueryDetectRegex else { return textBeforeCursor }
+
+        for idx in parenStack.indices.reversed() {
+            let openPos = parenStack[idx]
+            let start = openPos + 1
+            if start < length {
+                let subText = ns.substring(from: start)
+                let subNS = subText as NSString
+                let matchRange = NSRange(location: 0, length: subNS.length)
+                if regex.firstMatch(in: subText, range: matchRange) != nil {
+                    return subText
+                }
+            }
+        }
+
+        return textBeforeCursor
     }
 
     // MARK: - Function Context
