@@ -294,37 +294,50 @@ enum DataTypeCategory: String, CaseIterable {
     func types(for dbType: DatabaseType) -> [String] {
         switch self {
         case .numeric:
-            var types = ["INT", "BIGINT", "SMALLINT", "DECIMAL", "FLOAT", "DOUBLE"]
-            if dbType == .mysql || dbType == .mariadb {
-                types.append(contentsOf: ["TINYINT", "MEDIUMINT"])
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "BIT"]
+            case .postgresql:
+                return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
+            case .sqlite:
+                return ["INTEGER", "REAL", "NUMERIC"]
             }
-            if dbType == .postgresql {
-                types.append(contentsOf: ["SERIAL", "BIGSERIAL"])
-            }
-            return types
         case .string:
-            var types = ["VARCHAR", "CHAR", "TEXT"]
-            if dbType == .mysql || dbType == .mariadb {
-                types.append(contentsOf: ["MEDIUMTEXT", "LONGTEXT", "TINYTEXT"])
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"]
+            case .postgresql:
+                return ["CHAR", "VARCHAR", "TEXT"]
+            case .sqlite:
+                return ["TEXT"]
             }
-            return types
         case .dateTime:
-            var types = ["DATE", "TIME", "DATETIME", "TIMESTAMP"]
-            if dbType == .mysql || dbType == .mariadb {
-                types.append("YEAR")
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"]
+            case .postgresql:
+                return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
+            case .sqlite:
+                return ["DATE", "DATETIME"]
             }
-            return types
         case .binary:
-            return ["BLOB", "BINARY", "VARBINARY"]
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"]
+            case .postgresql:
+                return ["BYTEA"]
+            case .sqlite:
+                return ["BLOB"]
+            }
         case .other:
-            var types = ["BOOLEAN", "JSON"]
-            if dbType == .postgresql {
-                types.append(contentsOf: ["JSONB", "UUID"])
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["BOOLEAN", "ENUM", "SET", "JSON"]
+            case .postgresql:
+                return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
+            case .sqlite:
+                return ["BOOLEAN"]
             }
-            if dbType == .mysql || dbType == .mariadb {
-                types.append(contentsOf: ["ENUM", "SET"])
-            }
-            return types
         }
     }
 }
