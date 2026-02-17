@@ -24,9 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQL autocomplete: INSERT INTO VALUES/SELECT suggestions
 - SQL autocomplete: CREATE TABLE improvements — IF NOT EXISTS, REFERENCES, FK actions, ENGINE
 - SQL autocomplete: 50ms debounce for completion triggers to reduce unnecessary work
+- SQL autocomplete: COUNT(*) special suggestion — `*` and `DISTINCT` as top items inside `COUNT(`
+- SQL autocomplete: fuzzy match scoring — prefix and contains matches now rank above fuzzy-only matches
+
+### Changed
+
+- Structure tab grid columns now auto-size to fit content correctly on data load
+- SQL autocomplete: rewrite `fuzzyMatch()` to use NSString character-at-index for O(1) random access instead of Swift String indexing
 
 ### Fixed
 
+- Fix SQL autocomplete clause detection inside subqueries — `WHERE id IN (SELECT ` now correctly detects `.select` instead of `.inList` by extracting innermost subquery text for clause analysis
 - Fix undo/redo (Cmd+Z / Cmd+Shift+Z) not working in SQL editor due to selector mismatch — `undo` vs `undo:` in responder chain routing
 - Fix block comment detection incorrectly treating `--` inside `/* */` as line comment in SQL autocomplete
 - Fix schema-qualified name edge cases in autocomplete (e.g., `schema.table.column`)
