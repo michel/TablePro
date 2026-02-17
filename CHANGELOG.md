@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Structure view: redundant double `discardChanges()` call after save removed
+- Structure view: eliminated wasteful double `loadSchemaForEditing()` on initial load (onChange loop)
+- Structure view: `canCommit` now checks validation errors — prevents saving invalid placeholders
 - Security: escape table and database names in all driver schema queries (MySQLDriver, PostgreSQLDriver, SQLiteDriver) using `SQLEscaping.escapeStringLiteral()` to prevent SQL injection from names containing single quotes or special characters
 - PostgreSQL DDL: `fetchTableDDL` now includes PRIMARY KEY, UNIQUE, CHECK, and FOREIGN KEY constraints plus standalone indexes (previously only generated column definitions)
 - Structure view: visual state cache key collision risk from non-deterministic `hashValue` replaced with stable index-based keys
