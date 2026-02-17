@@ -188,6 +188,31 @@ final class ShortcutRecorderNSView: NSView {
         return parts.joined()
     }
 
+    // MARK: - Accessibility
+
+    override func isAccessibilityElement() -> Bool { true }
+
+    override func accessibilityRole() -> NSAccessibility.Role? { .button }
+
+    override func accessibilityLabel() -> String? {
+        String(localized: "Shortcut recorder")
+    }
+
+    override func accessibilityValue() -> Any? {
+        if isRecording {
+            return String(localized: "Recording shortcut")
+        }
+        if let combo = currentCombo, !combo.isCleared {
+            return combo.displayString
+        }
+        return String(localized: "None")
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        window?.makeFirstResponder(self)
+        return true
+    }
+
     // MARK: - Intrinsic Size
 
     override var intrinsicContentSize: NSSize {

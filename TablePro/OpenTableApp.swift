@@ -34,11 +34,7 @@ struct PasteboardCommands: Commands {
 
     /// Build a SwiftUI KeyboardShortcut from keyboard settings
     private func shortcut(for action: ShortcutAction) -> KeyboardShortcut? {
-        guard let combo = settingsManager.keyboard.shortcut(for: action),
-              !combo.isCleared else {
-            return nil
-        }
-        return KeyboardShortcut(combo.keyEquivalent, modifiers: combo.eventModifiers)
+        settingsManager.keyboard.keyboardShortcut(for: action)
     }
 
     var body: some Commands {
@@ -151,13 +147,8 @@ struct TableProApp: App {
     }
 
     /// Build a SwiftUI KeyboardShortcut from the user's keyboard settings for the given action.
-    /// Returns nil if the user has cleared (unassigned) the shortcut.
     private func shortcut(for action: ShortcutAction) -> KeyboardShortcut? {
-        guard let combo = settingsManager.keyboard.shortcut(for: action),
-              !combo.isCleared else {
-            return nil
-        }
-        return KeyboardShortcut(combo.keyEquivalent, modifiers: combo.eventModifiers)
+        settingsManager.keyboard.keyboardShortcut(for: action)
     }
 
     var body: some Scene {

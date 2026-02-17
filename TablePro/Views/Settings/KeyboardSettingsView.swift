@@ -52,20 +52,18 @@ struct KeyboardSettingsView: View {
                         }
                     }
                 }
+
+                Section {
+                    HStack {
+                        Spacer()
+                        Button(String(localized: "Reset to Defaults")) {
+                            settings = .default
+                        }
+                        .disabled(settings.shortcuts.isEmpty)
+                    }
+                }
             }
             .formStyle(.grouped)
-
-            // Reset button
-            HStack {
-                Spacer()
-                Button(String(localized: "Reset to Defaults")) {
-                    settings = .default
-                }
-                .disabled(settings.shortcuts.isEmpty)
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-            .padding(.top, 4)
         }
         .alert(
             String(localized: "Shortcut Conflict"),

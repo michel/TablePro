@@ -54,7 +54,7 @@ struct SettingsView: View {
                     Label("License", systemImage: "key")
                 }
         }
-        .frame(width: 500, height: 500)
+        .frame(width: 500, height: 400)
     }
 }
 

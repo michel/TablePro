@@ -218,6 +218,7 @@ struct KeyCombo: Codable, Equatable, Hashable {
             case "end": return .end
             case "pageUp": return .pageUp
             case "pageDown": return .pageDown
+            // NSDeleteFunctionKey (0xF728) is always a valid Unicode scalar
             case "forwardDelete": return KeyEquivalent(Character(UnicodeScalar(NSDeleteFunctionKey)!))
             default: return KeyEquivalent(Character(key))
             }
@@ -315,10 +316,21 @@ struct KeyCombo: Codable, Equatable, Hashable {
 /// Only stores overrides — empty dictionary means all defaults
 struct KeyboardSettings: Codable, Equatable {
     /// User-customized shortcuts (action rawValue → KeyCombo)
-    /// Only contains overrides; missing entries use defaults
+    /// Only contains overrides; missing entries use defaults.
+    /// Keys are ShortcutAction raw values — if a raw value is renamed in a future version,
+    /// the old stored key becomes a harmless no-op (never matched by any action).
     var shortcuts: [String: KeyCombo]
 
     static let `default` = KeyboardSettings(shortcuts: [:])
+
+    init(shortcuts: [String: KeyCombo] = [:]) {
+        self.shortcuts = shortcuts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        shortcuts = try container.decodeIfPresent([String: KeyCombo].self, forKey: .shortcuts) ?? [:]
+    }
 
     /// Get the effective shortcut for an action (user override or default)
     /// Returns nil if user explicitly cleared the shortcut
@@ -344,18 +356,9 @@ struct KeyboardSettings: Codable, Equatable {
         return nil
     }
 
-    /// Set a shortcut for an action (stores as override)
-    mutating func setShortcut(_ combo: KeyCombo?, for action: ShortcutAction) {
-        if let combo = combo {
-            shortcuts[action.rawValue] = combo
-        } else {
-            // Store a sentinel to indicate "explicitly cleared"
-            // We use the presence in the dictionary with a special marker
-            // Actually, to keep it simple: nil means cleared, remove means use default
-            // We need a way to distinguish "use default" from "cleared"
-            // Solution: use a separate set for cleared actions
-            shortcuts.removeValue(forKey: action.rawValue)
-        }
+    /// Set a shortcut override for an action
+    mutating func setShortcut(_ combo: KeyCombo, for action: ShortcutAction) {
+        shortcuts[action.rawValue] = combo
     }
 
     /// Clear a shortcut (remove it, action will have no shortcut)
@@ -367,6 +370,15 @@ struct KeyboardSettings: Codable, Equatable {
     /// Reset a specific action to its default shortcut
     mutating func resetToDefault(for action: ShortcutAction) {
         shortcuts.removeValue(forKey: action.rawValue)
+    }
+
+    /// Build a SwiftUI KeyboardShortcut for the given action.
+    /// Returns nil if the user has cleared (unassigned) the shortcut.
+    func keyboardShortcut(for action: ShortcutAction) -> KeyboardShortcut? {
+        guard let combo = shortcut(for: action), !combo.isCleared else {
+            return nil
+        }
+        return KeyboardShortcut(combo.keyEquivalent, modifiers: combo.eventModifiers)
     }
 
     // MARK: - Default Shortcuts

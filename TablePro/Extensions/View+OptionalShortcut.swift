@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-extension View {
+internal extension View {
     /// Apply a keyboard shortcut only if one is provided.
     /// When `shortcut` is nil, no keyboard shortcut modifier is applied.
     @ViewBuilder
