@@ -476,7 +476,14 @@ final class LibPQConnection: @unchecked Sendable {
                     }
 
                     if let str = String(bytes: byteArray, encoding: .utf8) {
-                        row.append(String(str.unicodeScalars.map { Character($0) }))
+                        var value = String(str.unicodeScalars.map { Character($0) })
+
+                        // Boolean OID (16): convert "t"/"f" to "true"/"false"
+                        if columnOids[colIndex] == 16 {
+                            value = value == "t" ? "true" : "false"
+                        }
+
+                        row.append(value)
                     } else {
                         // Fallback: create string from byte array as Latin1
                         let latin1Str = String(bytes: byteArray, encoding: .isoLatin1) ?? ""
