@@ -430,6 +430,7 @@ final class MainContentCoordinator: ObservableObject {
                         tabManager.tabs[idx] = updatedTab
                         AppState.shared.isCurrentTabEditable = updatedTab.isEditable
                             && !updatedTab.isView && updatedTab.tableName != nil
+                        toolbarState.isTableTab = updatedTab.tabType == .table
 
                         // Clear change tracking when loading new data (e.g., from refresh)
                         // This ensures deleted rows don't retain red background after refresh
@@ -1339,6 +1340,7 @@ final class MainContentCoordinator: ObservableObject {
             let newTab = tabManager.tabs[newIndex]
             selectedRowIndices = newTab.selectedRowIndices
             AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil
+            toolbarState.isTableTab = newTab.tabType == .table
 
             Task { @MainActor in
                 if newTab.pendingChanges.hasChanges {
@@ -1387,6 +1389,7 @@ final class MainContentCoordinator: ObservableObject {
             }
         } else {
             AppState.shared.isCurrentTabEditable = false
+            toolbarState.isTableTab = false
         }
     }
 }

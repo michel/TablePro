@@ -153,6 +153,9 @@ final class ConnectionToolbarState: ObservableObject {
     /// Whether the connection is read-only
     @Published var isReadOnly: Bool = false
 
+    /// Whether the current tab is a table tab (enables filter/sort actions)
+    @Published var isTableTab: Bool = false
+
     /// Whether there are pending changes to preview
     @Published var hasPendingChanges: Bool = false
 
@@ -248,6 +251,7 @@ final class ConnectionToolbarState: ObservableObject {
         isExecuting = false
         lastQueryDuration = nil
         isReadOnly = false
+        isTableTab = false
         latencyMs = nil
         replicationLagSeconds = nil
     }

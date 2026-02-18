@@ -37,6 +37,7 @@ extension MainContentCoordinator {
         if let tabIndex = tabManager.selectedTabIndex {
             let tab = tabManager.tabs[tabIndex]
             AppState.shared.isCurrentTabEditable = tab.isEditable && !tab.isView && tab.tableName != nil
+            toolbarState.isTableTab = tab.tabType == .table
         }
 
         // Toggle structure view if requested

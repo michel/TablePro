@@ -145,6 +145,7 @@ struct TableProToolbar: ViewModifier {
                             Image(systemName: "line.3.horizontal.decrease.circle")
                         }
                         .help("Toggle Filters (⌘F)")
+                        .disabled(state.connectionState != .connected || !state.isTableTab)
 
                         // History toggle
                         Button {
@@ -152,7 +153,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "clock")
                         }
-                        .help("Toggle Query History (⌘⇧H)")
+                        .help("Toggle Query History (⌘Y)")
 
                         Divider()
                             .frame(height: 20)
