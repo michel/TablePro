@@ -83,6 +83,13 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
+    @Published var ai: AISettings {
+        didSet {
+            storage.saveAI(ai)
+            notifyChange(domain: "ai", notification: .aiSettingsDidChange)
+        }
+    }
+
     private let storage = AppSettingsStorage.shared
 
     // MARK: - Initialization
@@ -96,6 +103,7 @@ final class AppSettingsManager: ObservableObject {
         self.history = storage.loadHistory()
         self.tabs = storage.loadTabs()
         self.keyboard = storage.loadKeyboard()
+        self.ai = storage.loadAI()
 
         // Apply appearance settings immediately
         appearance.theme.apply()
@@ -148,6 +156,7 @@ final class AppSettingsManager: ObservableObject {
         history = .default
         tabs = .default
         keyboard = .default
+        ai = .default
         storage.resetToDefaults()
     }
 }

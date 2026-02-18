@@ -34,6 +34,9 @@ extension Notification.Name {
     /// Posted when keyboard shortcut settings change
     static let keyboardSettingsDidChange = Notification.Name("keyboardSettingsDidChange")
 
+    /// Posted when AI settings change (providers, routing, context options)
+    static let aiSettingsDidChange = Notification.Name("aiSettingsDidChange")
+
     // MARK: - Generic Notification
 
     /// Posted for any settings change (in addition to domain-specific notification)

@@ -16,6 +16,7 @@ enum ShortcutCategory: String, Codable, CaseIterable, Identifiable {
     case edit
     case view
     case tabs
+    case ai
 
     var id: String { rawValue }
 
@@ -25,6 +26,7 @@ enum ShortcutCategory: String, Codable, CaseIterable, Identifiable {
         case .edit: return String(localized: "Edit")
         case .view: return String(localized: "View")
         case .tabs: return String(localized: "Tabs")
+        case .ai: return String(localized: "AI")
         }
     }
 }
@@ -73,6 +75,11 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case previousTabArrows
     case nextTabArrows
 
+    // AI
+    case toggleAIChat
+    case aiExplainQuery
+    case aiOptimizeQuery
+
     var id: String { rawValue }
 
     var category: ShortcutCategory {
@@ -90,6 +97,8 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .showPreviousTabBrackets, .showNextTabBrackets,
              .previousTabArrows, .nextTabArrows:
             return .tabs
+        case .toggleAIChat, .aiExplainQuery, .aiOptimizeQuery:
+            return .ai
         }
     }
 
@@ -127,6 +136,9 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .showNextTabBrackets: return String(localized: "Show Next Tab")
         case .previousTabArrows: return String(localized: "Previous Tab (Alt)")
         case .nextTabArrows: return String(localized: "Next Tab (Alt)")
+        case .toggleAIChat: return String(localized: "Toggle AI Chat")
+        case .aiExplainQuery: return String(localized: "Explain with AI")
+        case .aiOptimizeQuery: return String(localized: "Optimize with AI")
         }
     }
 }
@@ -426,6 +438,11 @@ struct KeyboardSettings: Codable, Equatable {
         .showNextTabBrackets: KeyCombo(key: "]", command: true, shift: true),
         .previousTabArrows: KeyCombo(key: "leftArrow", command: true, option: true, isSpecialKey: true),
         .nextTabArrows: KeyCombo(key: "rightArrow", command: true, option: true, isSpecialKey: true),
+
+        // AI
+        .toggleAIChat: KeyCombo(key: "l", command: true, shift: true),
+        .aiExplainQuery: KeyCombo(key: "l", command: true),
+        .aiOptimizeQuery: KeyCombo(key: "l", command: true, option: true),
     ]
 }
 

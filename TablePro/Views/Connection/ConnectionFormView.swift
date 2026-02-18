@@ -56,6 +56,9 @@ struct ConnectionFormView: View {
     // Read-only mode
     @State private var isReadOnly: Bool = false
 
+    // AI policy
+    @State private var aiPolicy: AIConnectionPolicy?
+
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
 
@@ -90,6 +93,7 @@ struct ConnectionFormView: View {
                         sslSection
                         sshSection
                     }
+                    aiSection
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
@@ -419,6 +423,34 @@ struct ConnectionFormView: View {
         }
     }
 
+    // MARK: - AI Section
+
+    private var aiSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("AI")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 12) {
+                FormField(label: "AI Policy", icon: "sparkles") {
+                    Picker("", selection: $aiPolicy) {
+                        Text(String(localized: "Use Default"))
+                            .tag(AIConnectionPolicy?.none as AIConnectionPolicy?)
+                        ForEach(AIConnectionPolicy.allCases) { policy in
+                            Text(policy.displayName)
+                                .tag(AIConnectionPolicy?.some(policy) as AIConnectionPolicy?)
+                        }
+                    }
+                    .labelsHidden()
+                }
+            }
+            .padding(12)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
     // MARK: - Footer
 
     private var footer: some View {
@@ -551,6 +583,7 @@ struct ConnectionFormView: View {
             connectionColor = existing.color
             selectedTagId = existing.tagId
             isReadOnly = existing.isReadOnly
+            aiPolicy = existing.aiPolicy
 
             // Load passwords from Keychain
             if let savedSSHPassword = storage.loadSSHPassword(for: existing.id) {
@@ -600,7 +633,8 @@ struct ConnectionFormView: View {
             sslConfig: sslConfig,
             color: connectionColor,
             tagId: selectedTagId,
-            isReadOnly: isReadOnly
+            isReadOnly: isReadOnly,
+            aiPolicy: aiPolicy
         )
 
         // Save passwords to Keychain

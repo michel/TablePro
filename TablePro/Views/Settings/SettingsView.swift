@@ -49,12 +49,17 @@ struct SettingsView: View {
                     Label("History", systemImage: "clock")
                 }
 
+            AISettingsView(settings: $settingsManager.ai)
+                .tabItem {
+                    Label("AI", systemImage: "sparkles")
+                }
+
             LicenseSettingsView()
                 .tabItem {
                     Label("License", systemImage: "key")
                 }
         }
-        .frame(width: 500, height: 400)
+        .frame(width: 620, height: 450)
     }
 }
 

@@ -49,6 +49,9 @@ enum ToolbarItemIdentifier: String, CaseIterable {
     /// Toggle right sidebar (inspector)
     case inspector = "com.TablePro.toolbar.inspector"
 
+    /// Toggle AI chat panel
+    case aiChat = "com.TablePro.toolbar.aiChat"
+
     // MARK: - Conversion
 
     /// Convert to NSToolbarItem.Identifier
@@ -73,6 +76,7 @@ enum ToolbarItemIdentifier: String, CaseIterable {
         case .export: return String(localized: "Export")
         case .import: return String(localized: "Import")
         case .inspector: return String(localized: "Inspector")
+        case .aiChat: return "AI"
         }
     }
 
@@ -90,6 +94,7 @@ enum ToolbarItemIdentifier: String, CaseIterable {
         case .export: return String(localized: "Export Data")
         case .import: return String(localized: "Import Data")
         case .inspector: return String(localized: "Toggle Inspector")
+        case .aiChat: return String(localized: "Toggle AI Chat")
         }
     }
 
@@ -118,6 +123,8 @@ enum ToolbarItemIdentifier: String, CaseIterable {
             return String(localized: "Import Data (⌘⇧I)")
         case .inspector:
             return String(localized: "Toggle Inspector (⌘⌥B)")
+        case .aiChat:
+            return String(localized: "Toggle AI Chat (⌘⇧L)")
         }
     }
 
@@ -146,6 +153,8 @@ enum ToolbarItemIdentifier: String, CaseIterable {
             return "square.and.arrow.down"
         case .inspector:
             return "sidebar.trailing"
+        case .aiChat:
+            return "sparkles"
         }
     }
 }

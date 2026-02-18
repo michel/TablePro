@@ -26,6 +26,7 @@ final class AppSettingsStorage {
         static let history = "com.TablePro.settings.history"
         static let tabs = "com.TablePro.settings.tabs"
         static let keyboard = "com.TablePro.settings.keyboard"
+        static let ai = "com.TablePro.settings.ai"
         static let lastConnectionId = "com.TablePro.settings.lastConnectionId"
     }
 
@@ -102,6 +103,16 @@ final class AppSettingsStorage {
         save(settings, key: Keys.keyboard)
     }
 
+    // MARK: - AI Settings
+
+    func loadAI() -> AISettings {
+        load(key: Keys.ai, default: .default)
+    }
+
+    func saveAI(_ settings: AISettings) {
+        save(settings, key: Keys.ai)
+    }
+
     // MARK: - Last Connection (for Reopen Last Session)
 
     /// Load the last used connection ID
@@ -132,6 +143,7 @@ final class AppSettingsStorage {
         saveHistory(.default)
         saveTabs(.default)
         saveKeyboard(.default)
+        saveAI(.default)
     }
 
     // MARK: - Helpers

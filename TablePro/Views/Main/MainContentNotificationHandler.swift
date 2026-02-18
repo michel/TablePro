@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import CodeEditTextView
 import Combine
 import Foundation
 import os
@@ -32,6 +33,7 @@ final class MainContentNotificationHandler: ObservableObject {
     private let pendingDeletes: Binding<Set<String>>
     private let tableOperationOptions: Binding<[String: TableOperationOptions]>
     private let isInspectorPresented: Binding<Bool>
+    private let isAIChatPresented: Binding<Bool>
     private let editingCell: Binding<CellPosition?>
 
     // MARK: - State
@@ -50,6 +52,7 @@ final class MainContentNotificationHandler: ObservableObject {
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
         isInspectorPresented: Binding<Bool>,
+        isAIChatPresented: Binding<Bool>,
         editingCell: Binding<CellPosition?>
     ) {
         self.coordinator = coordinator
@@ -61,6 +64,7 @@ final class MainContentNotificationHandler: ObservableObject {
         self.pendingDeletes = pendingDeletes
         self.tableOperationOptions = tableOperationOptions
         self.isInspectorPresented = isInspectorPresented
+        self.isAIChatPresented = isAIChatPresented
         self.editingCell = editingCell
 
         setupObservers()
@@ -80,6 +84,7 @@ final class MainContentNotificationHandler: ObservableObject {
         setupWindowObservers()
         setupFileOpenObservers()
         setupReconnectObservers()
+        setupAIOperationObservers()
     }
 
     // MARK: - Row Operations
@@ -220,6 +225,13 @@ final class MainContentNotificationHandler: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: .insertQueryFromAI)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                self?.handleInsertQueryFromAI(notification)
+            }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: .tableTabClosed)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
@@ -272,6 +284,28 @@ final class MainContentNotificationHandler: ObservableObject {
 
         coordinator.tabManager.tabs[tabIndex].query = query
         coordinator.tabManager.tabs[tabIndex].hasUserInteraction = true
+    }
+
+    private func handleInsertQueryFromAI(_ notification: Notification) {
+        guard let query = notification.object as? String,
+              let coordinator = coordinator else { return }
+
+        // Find or create a query tab
+        if let tabIndex = coordinator.tabManager.selectedTabIndex,
+           tabIndex < coordinator.tabManager.tabs.count,
+           coordinator.tabManager.tabs[tabIndex].tabType == .query {
+            // Append to existing query tab with separator
+            let existingQuery = coordinator.tabManager.tabs[tabIndex].query
+            if existingQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                coordinator.tabManager.tabs[tabIndex].query = query
+            } else {
+                coordinator.tabManager.tabs[tabIndex].query = existingQuery + "\n\n" + query
+            }
+            coordinator.tabManager.tabs[tabIndex].hasUserInteraction = true
+        } else {
+            // No query tab selected — create a new one
+            coordinator.tabManager.addTab(initialQuery: query)
+        }
     }
 
     private func handleTableTabClosed(_ notification: Notification) {
@@ -605,6 +639,13 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.handleToggleRightSidebar()
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .toggleAIChatPanel)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.isAIChatPresented.wrappedValue.toggle()
+            }
+            .store(in: &cancellables)
     }
 
     private func handleClearSelection() {
@@ -738,6 +779,83 @@ final class MainContentNotificationHandler: ObservableObject {
     private func handleReconnect() {
         Task {
             await DatabaseManager.shared.reconnectCurrentSession()
+        }
+    }
+
+    // MARK: - AI Operations
+
+    private func setupAIOperationObservers() {
+        NotificationCenter.default.publisher(for: .aiExplainSelection)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleAIExplainSelection()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .aiOptimizeSelection)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.handleAIOptimizeSelection()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .aiFixError)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                self?.handleAIFixError(notification)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleAIExplainSelection() {
+        guard let query = getSelectedOrCurrentQuery() else { return }
+        let prompt = AIPromptTemplates.explainQuery(query)
+        openAIPanelWithPrompt(prompt, feature: .explainQuery)
+    }
+
+    private func handleAIOptimizeSelection() {
+        guard let query = getSelectedOrCurrentQuery() else { return }
+        let prompt = AIPromptTemplates.optimizeQuery(query)
+        openAIPanelWithPrompt(prompt, feature: .optimizeQuery)
+    }
+
+    private func handleAIFixError(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let query = userInfo["query"] as? String,
+              let error = userInfo["error"] as? String else { return }
+        let prompt = AIPromptTemplates.fixError(query: query, error: error)
+        openAIPanelWithPrompt(prompt, feature: .fixError)
+    }
+
+    private func getSelectedOrCurrentQuery() -> String? {
+        // Check if the first responder is a CodeEditTextView TextView with a selection
+        if let textView = NSApp.keyWindow?.firstResponder as? TextView {
+            let positions = textView.selectionManager.textSelections
+            if let selection = positions.first, selection.range.length > 0 {
+                let nsString = textView.textStorage.string as NSString
+                let range = selection.range
+                if range.location + range.length <= nsString.length {
+                    return nsString.substring(with: range)
+                }
+            }
+        }
+        // Fall back to current tab's query
+        return coordinator?.tabManager.selectedTab?.query
+    }
+
+    private func openAIPanelWithPrompt(_ prompt: String, feature: AIFeature) {
+        let wasAlreadyOpen = isAIChatPresented.wrappedValue
+        if !wasAlreadyOpen {
+            isAIChatPresented.wrappedValue = true
+        }
+
+        let delay: TimeInterval = wasAlreadyOpen ? 0 : 0.1
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            NotificationCenter.default.post(
+                name: .sendAIPrompt,
+                object: nil,
+                userInfo: ["prompt": prompt, "feature": feature.rawValue]
+            )
         }
     }
 }

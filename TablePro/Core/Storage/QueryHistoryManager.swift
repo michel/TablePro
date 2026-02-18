@@ -13,6 +13,7 @@ import Foundation
 extension Notification.Name {
     static let queryHistoryDidUpdate = Notification.Name("queryHistoryDidUpdate")
     static let loadQueryIntoEditor = Notification.Name("loadQueryIntoEditor")
+    static let insertQueryFromAI = Notification.Name("insertQueryFromAI")
 }
 
 /// Thread-safe manager for query history

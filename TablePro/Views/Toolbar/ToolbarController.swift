@@ -113,7 +113,8 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
             ToolbarItemIdentifier.export.nsIdentifier,
             ToolbarItemIdentifier.import.nsIdentifier,
             .space,
-            ToolbarItemIdentifier.inspector.nsIdentifier
+            ToolbarItemIdentifier.inspector.nsIdentifier,
+            ToolbarItemIdentifier.aiChat.nsIdentifier
         ]
     }
 
@@ -181,6 +182,10 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
             return state.connectionState == .connected
 
         case .inspector:
+            // Always enabled
+            return true
+
+        case .aiChat:
             // Always enabled
             return true
         }

@@ -8,7 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
+- AI token usage display — after each AI response, shows input/output token counts below the assistant message bubble
+- AI conversation persistence — chat conversations are automatically saved to disk and restored on relaunch, with conversation history menu, new chat button, and switch between past conversations
+- Ollama auto-detection — on app launch, automatically detects local Ollama server and registers it as an AI provider with the first available model
+- Dynamic model picker in AI settings — click "Fetch" to retrieve available models from any provider, select from dropdown menu or type a custom model name
+- AI retry/regenerate — when AI generation fails, an inline "Retry" button appears; successful responses show a "Regenerate" button to re-stream
+- AI rich schema context — AI chat now receives full column definitions and foreign key relationships (not just table names) for more accurate SQL generation
+- AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
+- AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
+- AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
+- AI schema context — automatically includes database schema, current query, and query results in AI conversations for context-aware assistance
+- AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
+- Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
+- Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
+- AI editor integration — "Explain with AI" (`⌘L`) and "Optimize with AI" (`⌘⌥L`) actions available from the View menu, SQL editor context menu, and customizable keyboard shortcuts
+- AI prompt templates — centralized prompt formatting for Explain, Optimize, and Fix Error AI features
+- AI context menu in SQL editor — right-click selected SQL to explain or optimize with AI
+- "Ask AI to Fix" button in query error dialogs — when a query fails, click to send the query and error to AI for suggested fixes
+- AI keyboard shortcuts in Settings > Keyboard — new "AI" category with customizable shortcuts for Toggle AI Chat, Explain with AI, and Optimize with AI
 - Tab reuse setting — opt-in option in Settings > Tabs to reuse clean table tabs when clicking a new table in the sidebar (off by default)
 - Structure view: full undo/redo support (⌘Z / ⇧⌘Z) for all column, index, and foreign key operations
 - Structure view: database-specific type picker popover for the Type column — searchable, grouped by category (Numeric, String, Date & Time, Binary, Other), supports freeform input for parametric types like `VARCHAR(255)`
@@ -35,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **AI Chat:** fixed race condition where switching conversations during streaming could crash with index-out-of-bounds — now uses message UUID lookup instead of captured array index
+- **AI Chat:** retry logic no longer silently fails when messages end in an unexpected state — now verifies last message is from the user before re-streaming
+- **AI Chat:** per-connection AI policy is now checked from the connection's `aiPolicy` field (previously only checked global default)
+- **AI Chat:** auto-scroll during streaming no longer forces the view to bottom when the user has scrolled up to read previous messages
+- **AI Chat:** SQL syntax highlighting in code blocks no longer recreates regex objects on every render — now uses pre-compiled static patterns
+- **AI Chat:** inline markdown rendering now caches `AttributedString` results to avoid redundant parsing
 - **Structure view:** undo/redo (⌘Z / ⇧⌘Z) now works for all schema editing operations — previously non-functional
 - **Structure view:** undo-delete no longer duplicates existing rows in the grid
 - **Structure view:** deleting a new (unsaved) item then undoing correctly re-adds it
