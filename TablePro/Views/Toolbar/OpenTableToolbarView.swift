@@ -78,7 +78,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "network")
                         }
-                        .help("Switch Connection")
+                        .help("Switch Connection (⌘⌥C)")
                         .popover(isPresented: $showConnectionSwitcher) {
                             ConnectionSwitcherPopover {
                                 showConnectionSwitcher = false
@@ -187,6 +187,9 @@ struct TableProToolbar: ViewModifier {
                         .help("Toggle Inspector (⌘⌥B)")
                     }
                 }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openConnectionSwitcher)) { _ in
+                showConnectionSwitcher = true
             }
     }
 }

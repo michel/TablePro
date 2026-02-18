@@ -68,6 +68,12 @@
             "state" : "new",
             "value" : "(%1$lld %2$@)"
           }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(%1$lld %2$@)"
+          }
         }
       }
     },
@@ -163,6 +169,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@ is already assigned to \"%2$@\". Reassigning will remove it from that action."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ đã được gán cho \"%2$@\". Gán lại sẽ xóa phím tắt khỏi hành động đó."
           }
         }
       }
@@ -872,7 +884,14 @@
       }
     },
     "All columns" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tất cả cột"
+          }
+        }
+      }
     },
     "ALL DATABASES" : {
       "localizations" : {
@@ -1015,7 +1034,14 @@
       }
     },
     "Auto Inc" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tự tăng"
+          }
+        }
+      }
     },
     "Auto Increment" : {
       "localizations" : {
@@ -1434,7 +1460,14 @@
       }
     },
     "Columns" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cột"
+          }
+        }
+      }
     },
     "Columns (comma-separated)" : {
       "localizations" : {
@@ -1727,10 +1760,24 @@
       }
     },
     "Copy with Headers" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sao chép kèm tiêu đề"
+          }
+        }
+      }
     },
     "Count all rows" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đếm tất cả hàng"
+          }
+        }
+      }
     },
     "Counting..." : {
       "localizations" : {
@@ -2739,7 +2786,14 @@
       }
     },
     "Execute All" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thực thi tất cả"
+          }
+        }
+      }
     },
     "Execute all statements in a single transaction. If any statement fails, all changes are rolled back." : {
       "localizations" : {
@@ -3098,7 +3152,14 @@
       }
     },
     "File" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tệp"
+          }
+        }
+      }
     },
     "File name" : {
       "localizations" : {
@@ -3657,7 +3718,14 @@
       }
     },
     "Keyboard" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bàn phím"
+          }
+        }
+      }
     },
     "Language:" : {
       "localizations" : {
@@ -4080,7 +4148,14 @@
       }
     },
     "New Table" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bảng mới"
+          }
+        }
+      }
     },
     "New Table..." : {
       "localizations" : {
@@ -4123,7 +4198,14 @@
       }
     },
     "Next Tab (Alt)" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab tiếp theo (Alt)"
+          }
+        }
+      }
     },
     "No available local port for SSH tunnel" : {
       "localizations" : {
@@ -4206,7 +4288,14 @@
       }
     },
     "No DDL available" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có DDL"
+          }
+        }
+      }
     },
     "No Foreign Keys Yet" : {
       "localizations" : {
@@ -4379,7 +4468,14 @@
       }
     },
     "Not connected" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa kết nối"
+          }
+        }
+      }
     },
     "Not connected to database" : {
       "localizations" : {
@@ -4492,7 +4588,14 @@
       }
     },
     "Nullable" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cho phép NULL"
+          }
+        }
+      }
     },
     "Offset" : {
       "localizations" : {
@@ -4515,10 +4618,24 @@
       }
     },
     "On Delete" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khi xóa"
+          }
+        }
+      }
     },
     "On Update" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khi cập nhật"
+          }
+        }
+      }
     },
     "Open" : {
       "localizations" : {
@@ -4737,7 +4854,14 @@
       }
     },
     "Potentially Dangerous Queries" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Truy vấn có thể nguy hiểm"
+          }
+        }
+      }
     },
     "Potentially Dangerous Query" : {
       "localizations" : {
@@ -4880,7 +5004,14 @@
       }
     },
     "Previous Tab (Alt)" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab trước (Alt)"
+          }
+        }
+      }
     },
     "Privacy" : {
       "localizations" : {
@@ -5053,7 +5184,14 @@
       }
     },
     "Reassign" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gán lại"
+          }
+        }
+      }
     },
     "RECENT" : {
       "localizations" : {
@@ -5096,7 +5234,14 @@
       }
     },
     "Recording shortcut" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang ghi phím tắt"
+          }
+        }
+      }
     },
     "Red" : {
       "localizations" : {
@@ -5119,10 +5264,24 @@
       }
     },
     "Ref Columns" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cột tham chiếu"
+          }
+        }
+      }
     },
     "Ref Table" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bảng tham chiếu"
+          }
+        }
+      }
     },
     "Referenced columns (comma-separated)" : {
       "localizations" : {
@@ -5235,7 +5394,14 @@
       }
     },
     "Reset to Defaults" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khôi phục mặc định"
+          }
+        }
+      }
     },
     "Restart TablePro for the language change to take full effect." : {
       "localizations" : {
@@ -5268,7 +5434,14 @@
       }
     },
     "Reuse clean table tab" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tái sử dụng tab bảng trống"
+          }
+        }
+      }
     },
     "root" : {
       "localizations" : {
@@ -5491,10 +5664,24 @@
       }
     },
     "Search or type..." : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tìm kiếm hoặc nhập..."
+          }
+        }
+      }
     },
     "Search shortcuts..." : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tìm phím tắt..."
+          }
+        }
+      }
     },
     "Search..." : {
       "localizations" : {
@@ -5617,10 +5804,24 @@
       }
     },
     "Shortcut Conflict" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xung đột phím tắt"
+          }
+        }
+      }
     },
     "Shortcut recorder" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ghi phím tắt"
+          }
+        }
+      }
     },
     "Show alternate row backgrounds" : {
       "localizations" : {
@@ -5988,6 +6189,12 @@
         }
       }
     },
+    "Switch Connection (⌘⌥C)" : {
+
+    },
+    "Switch Connection..." : {
+
+    },
     "Switch Database" : {
       "localizations" : {
         "vi" : {
@@ -6019,10 +6226,24 @@
       }
     },
     "System Reserved Shortcut" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phím tắt hệ thống"
+          }
+        }
+      }
     },
     "Tab Behavior" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hành vi tab"
+          }
+        }
+      }
     },
     "Tab width:" : {
       "localizations" : {
@@ -6105,7 +6326,14 @@
       }
     },
     "Tabs" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tab"
+          }
+        }
+      }
     },
     "Tag name" : {
       "localizations" : {
@@ -6174,6 +6402,12 @@
             "state" : "new",
             "value" : "The following %1$lld queries may permanently modify or delete data. This action cannot be undone.\n\n%2$@"
           }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld truy vấn sau có thể thay đổi hoặc xóa dữ liệu vĩnh viễn. Hành động này không thể hoàn tác.\n\n%2$@"
+          }
         }
       }
     },
@@ -6228,7 +6462,14 @@
       }
     },
     "This shortcut is reserved by macOS and cannot be assigned." : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phím tắt này được macOS dành riêng và không thể gán."
+          }
+        }
+      }
     },
     "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone." : {
       "localizations" : {
@@ -6417,10 +6658,24 @@
       }
     },
     "Type" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểu"
+          }
+        }
+      }
     },
     "Type shortcut..." : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhập phím tắt..."
+          }
+        }
+      }
     },
     "Undo" : {
       "localizations" : {
@@ -6643,7 +6898,14 @@
       }
     },
     "View" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xem"
+          }
+        }
+      }
     },
     "WARNING: Failed to re-enable foreign key checks: %@. Please manually verify FK constraints are enabled." : {
       "localizations" : {
@@ -6666,10 +6928,24 @@
       }
     },
     "When enabled, clicking a new table replaces the current clean table tab instead of opening a new tab" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khi bật, nhấp vào bảng mới sẽ thay thế tab bảng trống hiện tại thay vì mở tab mới"
+          }
+        }
+      }
     },
     "When enabled, clicking a table in the sidebar will replace the current tab if it has no unsaved changes and you haven't interacted with it (sorted, filtered, etc.)." : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khi bật, nhấp vào bảng trong thanh bên sẽ thay thế tab hiện tại nếu không có thay đổi chưa lưu và bạn chưa tương tác với nó (sắp xếp, lọc, v.v.)."
+          }
+        }
+      }
     },
     "When TablePro starts:" : {
       "localizations" : {

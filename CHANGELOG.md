@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQL autocomplete: context-aware suggestions for ALTER TABLE, INSERT INTO, CREATE TABLE, and COUNT(*)
 - SQL autocomplete: improved fuzzy match scoring — prefix and contains matches rank above fuzzy-only matches
 - Keyboard shortcut customization in Settings > Keyboard — rebind any menu shortcut via press-to-record UI, with conflict detection and "Reset to Defaults" support
+- Keyboard shortcut for Switch Connection (`⌘⌥C`) — quickly open the connection switcher popover from the menu or keyboard
 
 ### Changed
 

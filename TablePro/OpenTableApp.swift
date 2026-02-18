@@ -242,6 +242,12 @@ struct TableProApp: App {
                 .optionalKeyboardShortcut(shortcut(for: .openDatabase))
                 .disabled(!appState.isConnected)
 
+                Button("Switch Connection...") {
+                    NotificationCenter.default.post(name: .openConnectionSwitcher, object: nil)
+                }
+                .optionalKeyboardShortcut(shortcut(for: .switchConnection))
+                .disabled(!appState.isConnected)
+
                 Divider()
 
                 Button("Save Changes") {
@@ -478,6 +484,9 @@ extension Notification.Name {
 
     // Database switcher notifications
     static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
+
+    // Connection switcher notifications
+    static let openConnectionSwitcher = Notification.Name("openConnectionSwitcher")
 
     // Reconnect notifications
     static let reconnectDatabase = Notification.Name("reconnectDatabase")

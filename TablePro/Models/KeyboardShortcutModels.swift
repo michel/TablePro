@@ -38,6 +38,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case newTab
     case newTable
     case openDatabase
+    case switchConnection
     case saveChanges
     case previewSQL
     case closeTab
@@ -76,7 +77,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
 
     var category: ShortcutCategory {
         switch self {
-        case .newConnection, .newTab, .newTable, .openDatabase,
+        case .newConnection, .newTab, .newTable, .openDatabase, .switchConnection,
              .saveChanges, .previewSQL, .closeTab, .refresh,
              .explainQuery, .export, .importData:
             return .file
@@ -98,6 +99,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .newTab: return String(localized: "New Tab")
         case .newTable: return String(localized: "New Table")
         case .openDatabase: return String(localized: "Open Database")
+        case .switchConnection: return String(localized: "Switch Connection")
         case .saveChanges: return String(localized: "Save Changes")
         case .previewSQL: return String(localized: "Preview SQL")
         case .closeTab: return String(localized: "Close Tab")
@@ -390,6 +392,7 @@ struct KeyboardSettings: Codable, Equatable {
         .newTab: KeyCombo(key: "t", command: true),
         .newTable: KeyCombo(key: "n", command: true, shift: true),
         .openDatabase: KeyCombo(key: "k", command: true),
+        .switchConnection: KeyCombo(key: "c", command: true, option: true),
         .saveChanges: KeyCombo(key: "s", command: true),
         .previewSQL: KeyCombo(key: "p", command: true, shift: true),
         .closeTab: KeyCombo(key: "w", command: true),
