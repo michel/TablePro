@@ -18,6 +18,7 @@ struct AISettingsView: View {
     @State private var fetchedModels: [UUID: [String]] = [:]
     @State private var isFetchingModels: [UUID: Bool] = [:]
     @State private var modelFetchError: String?
+    @State private var apiKeyFetchTask: Task<Void, Never>?
 
     private enum TestResult {
         case success
@@ -113,6 +114,8 @@ struct AISettingsView: View {
                 if currentEndpoint.isEmpty || allDefaults.contains(currentEndpoint) {
                     settings.providers[index].endpoint = newType.defaultEndpoint
                 }
+                fetchedModels[settings.providers[index].id] = nil
+                fetchModels(at: index)
             }
 
             if settings.providers[index].type.requiresAPIKey {
@@ -120,11 +123,23 @@ struct AISettingsView: View {
                     .textFieldStyle(.roundedBorder)
                     .onChange(of: editingAPIKey) { newValue in
                         AIKeyStorage.shared.saveAPIKey(newValue, for: settings.providers[index].id)
+                        let providerID = settings.providers[index].id
+                        apiKeyFetchTask?.cancel()
+                        apiKeyFetchTask = Task {
+                            try? await Task.sleep(nanoseconds: 800_000_000)
+                            guard !Task.isCancelled else { return }
+                            fetchedModels[providerID] = nil
+                            fetchModels(at: index)
+                        }
                     }
             }
 
             TextField("Endpoint", text: $settings.providers[index].endpoint)
                 .textFieldStyle(.roundedBorder)
+                .onChange(of: settings.providers[index].endpoint) { _ in
+                    fetchedModels[settings.providers[index].id] = nil
+                    fetchModels(at: index)
+                }
 
             modelField(index: index)
 

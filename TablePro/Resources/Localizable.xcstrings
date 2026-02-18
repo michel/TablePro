@@ -251,6 +251,16 @@
         }
       }
     },
+    "%@." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@."
+          }
+        }
+      }
+    },
     "%@/%@ rows" : {
       "localizations" : {
         "en" : {
@@ -293,6 +303,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld"
+          }
+        }
+      }
+    },
+    "%lld in / %lld out tokens" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld in / %2$lld out tokens"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld vào / %2$lld ra token"
           }
         }
       }
@@ -853,6 +879,16 @@
         }
       }
     },
+    "Add Provider" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thêm nhà cung cấp"
+          }
+        }
+      }
+    },
     "Add Row" : {
       "localizations" : {
         "vi" : {
@@ -869,6 +905,36 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Thêm quy tắc xác thực để đảm bảo tính toàn vẹn dữ liệu"
+          }
+        }
+      }
+    },
+    "AI" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI"
+          }
+        }
+      }
+    },
+    "AI Chat" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI Chat"
+          }
+        }
+      }
+    },
+    "AI is disabled for this connection." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI bị tắt cho kết nối này."
           }
         }
       }
@@ -913,6 +979,16 @@
         }
       }
     },
+    "Always Allow" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Luôn cho phép"
+          }
+        }
+      }
+    },
     "and" : {
       "localizations" : {
         "vi" : {
@@ -929,6 +1005,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "AND"
+          }
+        }
+      }
+    },
+    "API Key" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key"
           }
         }
       }
@@ -1003,12 +1089,72 @@
         }
       }
     },
+    "Ask about your database..." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hỏi về cơ sở dữ liệu của bạn..."
+          }
+        }
+      }
+    },
+    "Ask AI about your database" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hỏi AI về cơ sở dữ liệu của bạn"
+          }
+        }
+      }
+    },
+    "Ask AI to Fix" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhờ AI sửa lỗi"
+          }
+        }
+      }
+    },
+    "Ask Each Time" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hỏi mỗi lần"
+          }
+        }
+      }
+    },
     "Authentication" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Xác thực"
+          }
+        }
+      }
+    },
+    "Authentication failed: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xác thực thất bại: %@"
+          }
+        }
+      }
+    },
+    "Authentication failed. Check your API key." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xác thực thất bại. Kiểm tra API key của bạn."
           }
         }
       }
@@ -1193,6 +1339,16 @@
         }
       }
     },
+    "Chat" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat"
+          }
+        }
+      }
+    },
     "Check for Updates..." : {
       "localizations" : {
         "vi" : {
@@ -1239,6 +1395,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Xóa toàn bộ lịch sử truy vấn"
+          }
+        }
+      }
+    },
+    "Clear Conversation" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xóa hội thoại"
           }
         }
       }
@@ -1309,6 +1475,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhấn vào một bảng"
+          }
+        }
+      }
+    },
+    "Click to load models" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhấp để tải danh sách model"
           }
         }
       }
@@ -1649,6 +1825,26 @@
         }
       }
     },
+    "Context" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ngữ cảnh"
+          }
+        }
+      }
+    },
+    "Conversation History" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lịch sử hội thoại"
+          }
+        }
+      }
+    },
     "Convert line break to space" : {
       "localizations" : {
         "vi" : {
@@ -1675,6 +1871,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chuyển NULL thành RỖNG"
+          }
+        }
+      }
+    },
+    "Copied" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã sao chép"
           }
         }
       }
@@ -1995,6 +2201,16 @@
         }
       }
     },
+    "Custom" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tùy chỉnh"
+          }
+        }
+      }
+    },
     "Cut" : {
       "localizations" : {
         "vi" : {
@@ -2215,6 +2431,16 @@
         }
       }
     },
+    "Default connection policy" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chính sách kết nối mặc định"
+          }
+        }
+      }
+    },
     "Default Operator" : {
       "localizations" : {
         "vi" : {
@@ -2371,6 +2597,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tắt kiểm tra khóa ngoại"
+          }
+        }
+      }
+    },
+    "Disabled" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã tắt"
           }
         }
       }
@@ -2625,12 +2861,32 @@
         }
       }
     },
+    "Enabled" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã bật"
+          }
+        }
+      }
+    },
     "Encoding:" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mã hóa:"
+          }
+        }
+      }
+    },
+    "Endpoint" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endpoint"
           }
         }
       }
@@ -2851,6 +3107,27 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Giải thích truy vấn"
+          }
+        }
+      }
+    },
+    "Explain this SQL query:\n\n```sql\n%@\n```" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giải thích chi tiết câu truy vấn SQL sau:\n\n```sql\n%@\n```"
+          }
+        }
+      }
+    },
+    "Explain with AI" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giải thích với AI"
           }
         }
       }
@@ -3141,6 +3418,16 @@
         }
       }
     },
+    "Feature Routing" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Định tuyến tính năng"
+          }
+        }
+      }
+    },
     "FIELDS (%lld)" : {
       "localizations" : {
         "vi" : {
@@ -3231,6 +3518,16 @@
         }
       }
     },
+    "Fix Error" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sửa lỗi"
+          }
+        }
+      }
+    },
     "Font" : {
       "localizations" : {
         "vi" : {
@@ -3307,6 +3604,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mệnh đề WHERE đã tạo"
+          }
+        }
+      }
+    },
+    "Generation failed." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo phản hồi thất bại."
+          }
+        }
+      }
+    },
+    "Get help writing queries, explaining schemas, or fixing errors." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhận trợ giúp viết truy vấn, giải thích schema hoặc sửa lỗi."
           }
         }
       }
@@ -3547,12 +3864,42 @@
         }
       }
     },
+    "Include current query" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bao gồm truy vấn hiện tại"
+          }
+        }
+      }
+    },
+    "Include database schema" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bao gồm schema cơ sở dữ liệu"
+          }
+        }
+      }
+    },
     "Include NULL values" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bao gồm giá trị NULL"
+          }
+        }
+      }
+    },
+    "Include query results" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bao gồm kết quả truy vấn"
           }
         }
       }
@@ -3587,6 +3934,26 @@
         }
       }
     },
+    "Inline Suggestions" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gợi ý nội tuyến"
+          }
+        }
+      }
+    },
+    "Insert" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chèn"
+          }
+        }
+      }
+    },
     "Inspector" : {
       "localizations" : {
         "vi" : {
@@ -3603,6 +3970,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Định dạng dữ liệu không hợp lệ: %@"
+          }
+        }
+      }
+    },
+    "Invalid endpoint: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endpoint không hợp lệ: %@"
           }
         }
       }
@@ -3977,6 +4354,16 @@
         }
       }
     },
+    "Max schema tables: %lld" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Số bảng tối đa: %lld"
+          }
+        }
+      }
+    },
     "Maximum days cannot be negative" : {
       "localizations" : {
         "vi" : {
@@ -4023,6 +4410,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SIÊU DỮ LIỆU"
+          }
+        }
+      }
+    },
+    "Model" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model"
+          }
+        }
+      }
+    },
+    "Model not found: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không tìm thấy model: %@"
           }
         }
       }
@@ -4077,6 +4484,16 @@
         }
       }
     },
+    "Network error: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lỗi mạng: %@"
+          }
+        }
+      }
+    },
     "Never" : {
       "localizations" : {
         "vi" : {
@@ -4113,6 +4530,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kết nối mới..."
+          }
+        }
+      }
+    },
+    "New Conversation" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hội thoại mới"
           }
         }
       }
@@ -4203,6 +4630,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tab tiếp theo (Alt)"
+          }
+        }
+      }
+    },
+    "No AI provider configured. Go to Settings > AI to add one." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa cấu hình nhà cung cấp AI. Vào Cài đặt > AI để thêm."
           }
         }
       }
@@ -4353,6 +4790,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không có bảng nào khớp"
+          }
+        }
+      }
+    },
+    "No model selected" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa chọn model"
           }
         }
       }
@@ -4707,6 +5154,37 @@
         }
       }
     },
+    "Optimize Query" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tối ưu truy vấn"
+          }
+        }
+      }
+    },
+    "Optimize this SQL query for better performance:\n\n```sql\n%@\n```" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đề xuất tối ưu hóa cho câu truy vấn SQL sau:\n\n```sql\n%@\n```"
+          }
+        }
+      }
+    },
+    "Optimize with AI" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tối ưu với AI"
+          }
+        }
+      }
+    },
     "Optional description" : {
       "localizations" : {
         "vi" : {
@@ -5033,6 +5511,16 @@
         }
       }
     },
+    "Providers" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhà cung cấp"
+          }
+        }
+      }
+    },
     "Purple" : {
       "localizations" : {
         "vi" : {
@@ -5139,6 +5627,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đặt trong ngoặc kép nếu cần"
+          }
+        }
+      }
+    },
+    "Rate limited. Please try again later." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã vượt giới hạn tốc độ. Vui lòng thử lại sau."
           }
         }
       }
@@ -5339,6 +5837,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Làm mới sẽ hủy tất cả thay đổi chưa lưu."
+          }
+        }
+      }
+    },
+    "Regenerate" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo lại"
           }
         }
       }
@@ -5753,6 +6261,32 @@
         }
       }
     },
+    "Send Message" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gửi tin nhắn"
+          }
+        }
+      }
+    },
+    "Server error (%lld): %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Server error (%1$lld): %2$@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lỗi máy chủ (%1$lld): %2$@"
+          }
+        }
+      }
+    },
     "Set DEFAULT" : {
       "localizations" : {
         "vi" : {
@@ -6139,6 +6673,26 @@
         }
       }
     },
+    "Stop Generating" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dừng tạo phản hồi"
+          }
+        }
+      }
+    },
+    "Streaming failed: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phát trực tuyến thất bại: %@"
+          }
+        }
+      }
+    },
     "Structure" : {
       "localizations" : {
         "vi" : {
@@ -6399,6 +6953,16 @@
         }
       }
     },
+    "Test" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra"
+          }
+        }
+      }
+    },
     "Test Connection" : {
       "localizations" : {
         "vi" : {
@@ -6485,6 +7049,23 @@
         }
       }
     },
+    "This SQL query failed with an error. Please fix it.\n\nQuery:\n```sql\n%@\n```\n\nError: %@" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This SQL query failed with an error. Please fix it.\n\nQuery:\n```sql\n%1$@\n```\n\nError: %2$@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Câu truy vấn SQL sau đã thất bại với lỗi. Vui lòng sửa lỗi.\n\nTruy vấn:\n```sql\n%1$@\n```\n\nLỗi: %2$@"
+          }
+        }
+      }
+    },
     "This TRUNCATE query will permanently delete all rows in the table. This action cannot be undone." : {
       "localizations" : {
         "vi" : {
@@ -6547,6 +7128,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "để xem dữ liệu"
+          }
+        }
+      }
+    },
+    "Toggle AI Chat" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật/tắt AI Chat"
+          }
+        }
+      }
+    },
+    "Toggle AI Chat (⌘⇧L)" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật/tắt AI Chat (⌘⇧L)"
           }
         }
       }
@@ -6617,6 +7218,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bật/tắt lịch sử truy vấn (⌘⇧H)"
+          }
+        }
+      }
+    },
+    "Toggle Query History (⌘Y)" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật/tắt lịch sử truy vấn (⌘Y)"
           }
         }
       }
@@ -6791,6 +7402,16 @@
         }
       }
     },
+    "Untitled" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có tiêu đề"
+          }
+        }
+      }
+    },
     "Updated" : {
       "localizations" : {
         "vi" : {
@@ -6817,6 +7438,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mỹ ngắn (12/31/2024)"
+          }
+        }
+      }
+    },
+    "Use Default" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mặc định"
           }
         }
       }
@@ -7037,634 +7668,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Điền số 0"
-          }
-        }
-      }
-    },
-    "%@." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@."
-          }
-        }
-      }
-    },
-    "%lld in / %lld out tokens" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld in / %2$lld out tokens"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld vào / %2$lld ra token"
-          }
-        }
-      }
-    },
-    "AI" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI"
-          }
-        }
-      }
-    },
-    "AI Chat" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI Chat"
-          }
-        }
-      }
-    },
-    "AI is disabled for this connection." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI bị tắt cho kết nối này."
-          }
-        }
-      }
-    },
-    "API Key" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "API Key"
-          }
-        }
-      }
-    },
-    "Add Provider" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thêm nhà cung cấp"
-          }
-        }
-      }
-    },
-    "Always Allow" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Luôn cho phép"
-          }
-        }
-      }
-    },
-    "Ask AI about your database" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hỏi AI về cơ sở dữ liệu của bạn"
-          }
-        }
-      }
-    },
-    "Ask AI to Fix" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhờ AI sửa lỗi"
-          }
-        }
-      }
-    },
-    "Ask Each Time" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hỏi mỗi lần"
-          }
-        }
-      }
-    },
-    "Ask about your database..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hỏi về cơ sở dữ liệu của bạn..."
-          }
-        }
-      }
-    },
-    "Authentication failed. Check your API key." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xác thực thất bại. Kiểm tra API key của bạn."
-          }
-        }
-      }
-    },
-    "Authentication failed: %@" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xác thực thất bại: %@"
-          }
-        }
-      }
-    },
-    "Chat" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chat"
-          }
-        }
-      }
-    },
-    "Clear Conversation" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Xóa hội thoại"
-          }
-        }
-      }
-    },
-    "Click to load models" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhấp để tải danh sách model"
-          }
-        }
-      }
-    },
-    "Context" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ngữ cảnh"
-          }
-        }
-      }
-    },
-    "Conversation History" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lịch sử hội thoại"
-          }
-        }
-      }
-    },
-    "Copied" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đã sao chép"
-          }
-        }
-      }
-    },
-    "Custom" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tùy chỉnh"
-          }
-        }
-      }
-    },
-    "Default connection policy" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chính sách kết nối mặc định"
-          }
-        }
-      }
-    },
-    "Disabled" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đã tắt"
-          }
-        }
-      }
-    },
-    "Enabled" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đã bật"
-          }
-        }
-      }
-    },
-    "Endpoint" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Endpoint"
-          }
-        }
-      }
-    },
-    "Explain this SQL query:\n\n```sql\n%@\n```" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Giải thích chi tiết câu truy vấn SQL sau:\n\n```sql\n%@\n```"
-          }
-        }
-      }
-    },
-    "Explain with AI" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Giải thích với AI"
-          }
-        }
-      }
-    },
-    "Feature Routing" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Định tuyến tính năng"
-          }
-        }
-      }
-    },
-    "Fix Error" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sửa lỗi"
-          }
-        }
-      }
-    },
-    "Generation failed." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo phản hồi thất bại."
-          }
-        }
-      }
-    },
-    "Get help writing queries, explaining schemas, or fixing errors." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhận trợ giúp viết truy vấn, giải thích schema hoặc sửa lỗi."
-          }
-        }
-      }
-    },
-    "Include current query" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bao gồm truy vấn hiện tại"
-          }
-        }
-      }
-    },
-    "Include database schema" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bao gồm schema cơ sở dữ liệu"
-          }
-        }
-      }
-    },
-    "Include query results" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bao gồm kết quả truy vấn"
-          }
-        }
-      }
-    },
-    "Inline Suggestions" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gợi ý nội tuyến"
-          }
-        }
-      }
-    },
-    "Insert" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chèn"
-          }
-        }
-      }
-    },
-    "Invalid endpoint: %@" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Endpoint không hợp lệ: %@"
-          }
-        }
-      }
-    },
-    "Max schema tables: %lld" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Số bảng tối đa: %lld"
-          }
-        }
-      }
-    },
-    "Model" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Model"
-          }
-        }
-      }
-    },
-    "Model not found: %@" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không tìm thấy model: %@"
-          }
-        }
-      }
-    },
-    "Network error: %@" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lỗi mạng: %@"
-          }
-        }
-      }
-    },
-    "New Conversation" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hội thoại mới"
-          }
-        }
-      }
-    },
-    "No AI provider configured. Go to Settings > AI to add one." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chưa cấu hình nhà cung cấp AI. Vào Cài đặt > AI để thêm."
-          }
-        }
-      }
-    },
-    "No model selected" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chưa chọn model"
-          }
-        }
-      }
-    },
-    "Optimize Query" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tối ưu truy vấn"
-          }
-        }
-      }
-    },
-    "Optimize this SQL query for better performance:\n\n```sql\n%@\n```" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đề xuất tối ưu hóa cho câu truy vấn SQL sau:\n\n```sql\n%@\n```"
-          }
-        }
-      }
-    },
-    "Optimize with AI" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tối ưu với AI"
-          }
-        }
-      }
-    },
-    "Providers" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhà cung cấp"
-          }
-        }
-      }
-    },
-    "Rate limited. Please try again later." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đã vượt giới hạn tốc độ. Vui lòng thử lại sau."
-          }
-        }
-      }
-    },
-    "Regenerate" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo lại"
-          }
-        }
-      }
-    },
-    "Send Message" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gửi tin nhắn"
-          }
-        }
-      }
-    },
-    "Stop Generating" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dừng tạo phản hồi"
-          }
-        }
-      }
-    },
-    "Streaming failed: %@" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Phát trực tuyến thất bại: %@"
-          }
-        }
-      }
-    },
-    "Test" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra"
-          }
-        }
-      }
-    },
-    "Toggle AI Chat" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bật/tắt AI Chat"
-          }
-        }
-      }
-    },
-    "Toggle AI Chat (⌘⇧L)" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bật/tắt AI Chat (⌘⇧L)"
-          }
-        }
-      }
-    },
-    "Toggle Query History (⌘Y)" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bật/tắt lịch sử truy vấn (⌘Y)"
-          }
-        }
-      }
-    },
-    "Untitled" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có tiêu đề"
-          }
-        }
-      }
-    },
-    "Use Default" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mặc định"
-          }
-        }
-      }
-    },
-    "Server error (%lld): %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Server error (%1$lld): %2$@"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lỗi máy chủ (%1$lld): %2$@"
-          }
-        }
-      }
-    },
-    "This SQL query failed with an error. Please fix it.\n\nQuery:\n```sql\n%@\n```\n\nError: %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "This SQL query failed with an error. Please fix it.\n\nQuery:\n```sql\n%1$@\n```\n\nError: %2$@"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Câu truy vấn SQL sau đã thất bại với lỗi. Vui lòng sửa lỗi.\n\nTruy vấn:\n```sql\n%1$@\n```\n\nLỗi: %2$@"
           }
         }
       }
