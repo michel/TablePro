@@ -17,9 +17,9 @@ final class AnthropicProvider: AIProvider {
     private let session: URLSession
 
     init(endpoint: String, apiKey: String) {
-        self.endpoint = endpoint
+        self.endpoint = endpoint.hasSuffix("/") ? String(endpoint.dropLast()) : endpoint
         self.apiKey = apiKey
-        self.session = URLSession.shared
+        self.session = URLSession(configuration: .ephemeral)
     }
 
     // MARK: - AIProvider
@@ -108,7 +108,8 @@ final class AnthropicProvider: AIProvider {
             messages: [testMessage],
             model: "claude-sonnet-4-5-20250514",
             systemPrompt: nil,
-            maxTokens: 1
+            maxTokens: 1,
+            stream: false
         )
 
         let (_, response) = try await session.data(for: request)
@@ -127,7 +128,8 @@ final class AnthropicProvider: AIProvider {
         messages: [AIChatMessage],
         model: String,
         systemPrompt: String?,
-        maxTokens: Int = 4_096
+        maxTokens: Int = 4_096,
+        stream: Bool = true
     ) throws -> URLRequest {
         guard let url = URL(string: "\(endpoint)/v1/messages") else {
             throw AIProviderError.invalidEndpoint(endpoint)
@@ -142,7 +144,7 @@ final class AnthropicProvider: AIProvider {
         var body: [String: Any] = [
             "model": model,
             "max_tokens": maxTokens,
-            "stream": true
+            "stream": stream
         ]
 
         if let systemPrompt {

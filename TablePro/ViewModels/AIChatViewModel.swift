@@ -89,6 +89,7 @@ final class AIChatViewModel: ObservableObject {
             messages.removeLast()
         }
         streamingAssistantID = nil
+        persistCurrentConversation()
     }
 
     /// Clear all messages in the conversation

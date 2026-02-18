@@ -14,7 +14,7 @@ struct AIChatPanelView: View {
     let tables: [TableInfo]
     var coordinator: MainContentCoordinator?
 
-    @StateObject private var viewModel = AIChatViewModel()
+    @ObservedObject var viewModel: AIChatViewModel
     @State private var isNearBottom: Bool = true
 
     var body: some View {

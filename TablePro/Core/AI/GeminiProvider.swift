@@ -17,9 +17,9 @@ final class GeminiProvider: AIProvider {
     private let session: URLSession
 
     init(endpoint: String, apiKey: String) {
-        self.endpoint = endpoint
+        self.endpoint = endpoint.hasSuffix("/") ? String(endpoint.dropLast()) : endpoint
         self.apiKey = apiKey
-        self.session = URLSession.shared
+        self.session = URLSession(configuration: .ephemeral)
     }
 
     // MARK: - AIProvider
@@ -170,8 +170,9 @@ final class GeminiProvider: AIProvider {
         model: String,
         systemPrompt: String?
     ) throws -> URLRequest {
-        guard let url = URL(
-            string: "\(endpoint)/v1beta/models/\(model):streamGenerateContent?alt=sse&key=\(apiKey)"
+        guard let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(
+            string: "\(endpoint)/v1beta/models/\(encodedModel):streamGenerateContent?alt=sse&key=\(apiKey)"
         ) else {
             throw AIProviderError.invalidEndpoint(endpoint)
         }

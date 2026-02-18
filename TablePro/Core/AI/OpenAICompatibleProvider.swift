@@ -21,10 +21,10 @@ final class OpenAICompatibleProvider: AIProvider {
     private let session: URLSession
 
     init(endpoint: String, apiKey: String?, providerType: AIProviderType) {
-        self.endpoint = endpoint
+        self.endpoint = endpoint.hasSuffix("/") ? String(endpoint.dropLast()) : endpoint
         self.apiKey = apiKey
         self.providerType = providerType
-        self.session = URLSession.shared
+        self.session = URLSession(configuration: .ephemeral)
     }
 
     // MARK: - AIProvider

@@ -265,27 +265,14 @@ struct AIChatMessageView: View {
 
     // MARK: - Inline Markdown
 
-    private static var markdownCache: [String: AttributedString] = [:]
-    private static let maxCacheSize = 50
-
     private func inlineMarkdown(_ text: String) -> AttributedString {
-        if let cached = Self.markdownCache[text] {
-            return cached
-        }
-        let result: AttributedString
         if let attributed = try? AttributedString(
             markdown: text,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         ) {
-            result = attributed
-        } else {
-            result = AttributedString(text)
+            return attributed
         }
-        if Self.markdownCache.count >= Self.maxCacheSize {
-            Self.markdownCache.removeAll()
-        }
-        Self.markdownCache[text] = result
-        return result
+        return AttributedString(text)
     }
 }
 
