@@ -327,7 +327,7 @@ final class OpenAICompatibleProvider: AIProvider {
         var body = ""
         for try await line in bytes.lines {
             body += line
-            if body.count > 2000 { break }
+            if body.count > 2_000 { break }
         }
         return body
     }

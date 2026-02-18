@@ -304,7 +304,9 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     /// Internal query execution (called after any confirmations)
-    private func executeQueryInternal(_ sql: String) {
+    private func executeQueryInternal( // swiftlint:disable:this function_body_length
+        _ sql: String
+    ) {
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
 

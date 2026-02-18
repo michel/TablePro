@@ -233,6 +233,7 @@ struct KeyCombo: Codable, Equatable, Hashable {
             case "pageUp": return .pageUp
             case "pageDown": return .pageDown
             // NSDeleteFunctionKey (0xF728) is always a valid Unicode scalar
+            // swiftlint:disable:next force_unwrapping
             case "forwardDelete": return KeyEquivalent(Character(UnicodeScalar(NSDeleteFunctionKey)!))
             default: return KeyEquivalent(Character(key))
             }

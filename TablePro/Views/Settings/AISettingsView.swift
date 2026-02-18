@@ -348,6 +348,7 @@ struct AISettingsView: View {
         case .openAI: return "cpu"
         case .openRouter: return "arrow.triangle.branch"
         case .ollama: return "desktopcomputer"
+        case .gemini: return "sparkle"
         case .custom: return "gearshape"
         }
     }

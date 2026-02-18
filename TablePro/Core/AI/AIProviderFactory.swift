@@ -20,6 +20,11 @@ enum AIProviderFactory {
                 endpoint: config.endpoint,
                 apiKey: apiKey ?? ""
             )
+        case .gemini:
+            return GeminiProvider(
+                endpoint: config.endpoint,
+                apiKey: apiKey ?? ""
+            )
         case .openAI, .openRouter, .ollama, .custom:
             return OpenAICompatibleProvider(
                 endpoint: config.endpoint,

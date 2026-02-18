@@ -22,7 +22,7 @@ final class AIChatStorage {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
-        ).first!
+        ).first! // swiftlint:disable:this force_unwrapping
         directory = appSupport
             .appendingPathComponent("TablePro", isDirectory: true)
             .appendingPathComponent("ai_chats", isDirectory: true)

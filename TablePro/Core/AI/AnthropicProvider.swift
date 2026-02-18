@@ -127,7 +127,7 @@ final class AnthropicProvider: AIProvider {
         messages: [AIChatMessage],
         model: String,
         systemPrompt: String?,
-        maxTokens: Int = 4096
+        maxTokens: Int = 4_096
     ) throws -> URLRequest {
         guard let url = URL(string: "\(endpoint)/v1/messages") else {
             throw AIProviderError.invalidEndpoint(endpoint)
@@ -207,7 +207,7 @@ final class AnthropicProvider: AIProvider {
         var body = ""
         for try await line in bytes.lines {
             body += line
-            if body.count > 2000 { break }
+            if body.count > 2_000 { break }
         }
         return body
     }

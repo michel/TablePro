@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamic model picker in AI settings — click "Fetch" to retrieve available models from any provider, select from dropdown menu or type a custom model name
 - AI retry/regenerate — when AI generation fails, an inline "Retry" button appears; successful responses show a "Regenerate" button to re-stream
 - AI rich schema context — AI chat now receives full column definitions and foreign key relationships (not just table names) for more accurate SQL generation
+- Gemini (Google) AI provider — connect to Google's Gemini models with API key authentication, streaming responses, and automatic model discovery
 - AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
 - AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
 - AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models

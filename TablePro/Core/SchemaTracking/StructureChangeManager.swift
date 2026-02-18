@@ -662,7 +662,7 @@ final class StructureChangeManager: ObservableObject {
         case .foreignKeys: tabIndex = 2
         case .ddl: tabIndex = 3
         }
-        let cacheKey = tabIndex * 10000 + row
+        let cacheKey = tabIndex * 10_000 + row
         if let cached = visualStateCache[cacheKey] {
             return cached
         }

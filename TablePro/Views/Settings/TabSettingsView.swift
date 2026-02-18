@@ -17,6 +17,7 @@ struct TabSettingsView: View {
                     .help("When enabled, clicking a new table replaces the current clean table tab instead of opening a new tab")
 
                 Text(
+                    // swiftlint:disable:next line_length
                     "When enabled, clicking a table in the sidebar will replace the current tab if it has no unsaved changes and you haven't interacted with it (sorted, filtered, etc.)."
                 )
                     .font(.caption)

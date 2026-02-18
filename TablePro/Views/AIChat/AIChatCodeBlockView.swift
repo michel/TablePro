@@ -125,7 +125,6 @@ struct AIChatCodeBlockView: View {
         // swiftlint:enable force_try
     }
 
-    // swiftlint:disable:next function_body_length
     private func highlightedSQL(_ code: String) -> AttributedString {
         var result = AttributedString(code)
         result.font = .system(size: 12, design: .monospaced)
