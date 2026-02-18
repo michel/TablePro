@@ -16,6 +16,8 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     // MARK: - Properties
 
     weak var controller: TextViewController?
+    private var contextMenu: AIEditorContextMenu?
+    private var rightClickMonitor: Any?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -38,6 +40,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             guard self != nil else { return }
             self?.fixFindPanelHitTesting(controller: controller)
             self?.applyHorizontalScrollFix(controller: controller)
+            self?.installAIContextMenu(controller: controller)
         }
     }
 
@@ -73,7 +76,38 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         }
     }
 
-    func destroy() {}
+    func destroy() {
+        if let monitor = rightClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            rightClickMonitor = nil
+        }
+    }
+
+    // MARK: - AI Context Menu
+
+    private func installAIContextMenu(controller: TextViewController) {
+        guard let textView = controller.textView else { return }
+        let menu = AIEditorContextMenu(title: "")
+        menu.hasSelection = { [weak controller] in
+            guard let controller else { return false }
+            return controller.cursorPositions.contains { $0.range.length > 0 }
+        }
+        contextMenu = menu
+
+        // CodeEditTextView's TextView overrides menu(for:) with a hardcoded
+        // Cut/Copy/Paste menu, ignoring the stored `menu` property. Intercept
+        // right-clicks via a local event monitor and show our custom menu instead.
+        rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak textView, weak menu] event in
+            guard let textView, let menu,
+                  event.window === textView.window else { return event }
+
+            let locationInView = textView.convert(event.locationInWindow, from: nil)
+            guard textView.bounds.contains(locationInView) else { return event }
+
+            NSMenu.popUpContextMenu(menu, with: event, for: textView)
+            return nil // Consume event to prevent default menu
+        }
+    }
 
     // MARK: - Horizontal Scrolling Fix
 

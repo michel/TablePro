@@ -68,6 +68,8 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
             return makeImportItem(state: state)
         case .inspector:
             return makeInspectorItem()
+        case .aiChat:
+            return makeAIChatItem()
         }
     }
 
@@ -297,6 +299,26 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
 
         return item
     }
+
+    private func makeAIChatItem() -> NSToolbarItem {
+        let item = NSToolbarItem(itemIdentifier: ToolbarItemIdentifier.aiChat.nsIdentifier)
+        item.label = ToolbarItemIdentifier.aiChat.label
+        item.paletteLabel = ToolbarItemIdentifier.aiChat.paletteLabel
+        item.toolTip = ToolbarItemIdentifier.aiChat.toolTip
+
+        let button = NSButton(
+            image: systemImage(named: ToolbarItemIdentifier.aiChat.iconName, description: "AI Chat"),
+            target: ToolbarActionProxy.shared,
+            action: #selector(ToolbarActionProxy.aiChatAction)
+        )
+        button.bezelStyle = .texturedRounded
+        button.isBordered = true
+
+        item.view = button
+        item.isEnabled = true
+
+        return item
+    }
 }
 
 // MARK: - Action Proxy
@@ -369,5 +391,9 @@ final class DefaultToolbarItemFactory: ToolbarItemFactory {
 
     @objc func inspectorAction() {
         NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
+    }
+
+    @objc func aiChatAction() {
+        NotificationCenter.default.post(name: .toggleAIChatPanel, object: nil)
     }
 }

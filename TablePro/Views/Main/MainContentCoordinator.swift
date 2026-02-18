@@ -304,7 +304,9 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     /// Internal query execution (called after any confirmations)
-    private func executeQueryInternal(_ sql: String) {
+    private func executeQueryInternal( // swiftlint:disable:this function_body_length
+        _ sql: String
+    ) {
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
 
@@ -482,12 +484,23 @@ final class MainContentCoordinator: ObservableObject {
                         errorMessage: error.localizedDescription
                     )
 
-                    // Show error alert to user
-                    AlertHelper.showErrorSheet(
-                        title: String(localized: "Query Execution Failed"),
-                        message: error.localizedDescription,
-                        window: NSApp.keyWindow
-                    )
+                    // Show error alert with AI fix option
+                    let errorMessage = error.localizedDescription
+                    let queryCopy = sql
+                    Task { @MainActor in
+                        let wantsAIFix = await AlertHelper.showQueryErrorWithAIOption(
+                            title: String(localized: "Query Execution Failed"),
+                            message: errorMessage,
+                            window: NSApp.keyWindow
+                        )
+                        if wantsAIFix {
+                            NotificationCenter.default.post(
+                                name: .aiFixError,
+                                object: nil,
+                                userInfo: ["query": queryCopy, "error": errorMessage]
+                            )
+                        }
+                    }
                 }
             }
         }

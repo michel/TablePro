@@ -68,7 +68,9 @@ final class SQLCompletionProvider {
     // MARK: - Candidate Generation
 
     /// Get candidate completions based on context
-    private func getCandidates(for context: SQLContext) async -> [SQLCompletionItem] {
+    private func getCandidates( // swiftlint:disable:this function_body_length
+        for context: SQLContext
+    ) async -> [SQLCompletionItem] {
         var items: [SQLCompletionItem] = []
 
         // If we have a dot prefix, we're looking for columns of a specific table

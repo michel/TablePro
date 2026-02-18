@@ -34,6 +34,8 @@ struct MainContentView: View {
     // MARK: - Local State
 
     @State var selectedRowIndices: Set<Int> = []
+    @State private var isAIChatPresented: Bool = false
+    @StateObject private var aiViewModel = AIChatViewModel()
     @State private var previousSelectedTabId: UUID?
     @State private var previousSelectedTables: Set<TableInfo> = []
     @State private var editingCell: CellPosition?
@@ -257,6 +259,18 @@ struct MainContentView: View {
                     await loadTableMetadataIfNeeded()
                 }
             }
+
+            // AI Chat panel
+            if isAIChatPresented {
+                Divider()
+                AIChatPanelView(
+                    connection: connection,
+                    tables: tables,
+                    coordinator: coordinator,
+                    viewModel: aiViewModel
+                )
+                .frame(width: 360)
+            }
         }
     }
 
@@ -315,6 +329,7 @@ struct MainContentView: View {
             pendingDeletes: $pendingDeletes,
             tableOperationOptions: $tableOperationOptions,
             isInspectorPresented: $isInspectorPresented,
+            isAIChatPresented: $isAIChatPresented,
             editingCell: $editingCell
         )
     }

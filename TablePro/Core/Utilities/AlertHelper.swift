@@ -199,4 +199,36 @@ final class AlertHelper {
             alert.runModal()
         }
     }
+
+    // MARK: - Query Error with AI Option
+
+    /// Shows a query error dialog with an option to ask AI to fix it
+    /// - Parameters:
+    ///   - title: Error title
+    ///   - message: Error details
+    ///   - window: Parent window to attach sheet to (optional)
+    /// - Returns: true if "Ask AI to Fix" was clicked
+    static func showQueryErrorWithAIOption(
+        title: String,
+        message: String,
+        window: NSWindow?
+    ) async -> Bool {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: String(localized: "OK"))
+        alert.addButton(withTitle: String(localized: "Ask AI to Fix"))
+
+        if let window = window {
+            return await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { response in
+                    continuation.resume(returning: response == .alertSecondButtonReturn)
+                }
+            }
+        } else {
+            let response = alert.runModal()
+            return response == .alertSecondButtonReturn
+        }
+    }
 }

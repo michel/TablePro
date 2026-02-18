@@ -157,6 +157,7 @@ actor SQLSchemaProvider {
 
     /// Get completion items for all columns of tables in scope
     func allColumnsInScope(for references: [TableReference]) async -> [SQLCompletionItem] {
+        // swiftlint:disable:next large_tuple
         var itemDataBuilder: [(
             label: String, insertText: String, type: String, table: String,
             isPK: Bool, isNullable: Bool, defaultValue: String?, comment: String?

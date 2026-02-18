@@ -352,6 +352,9 @@ private struct StoredConnection: Codable {
     // Read-only mode
     let isReadOnly: Bool
 
+    // AI policy
+    let aiPolicy: String?
+
     init(from connection: DatabaseConnection) {
         self.id = connection.id
         self.name = connection.name
@@ -382,6 +385,9 @@ private struct StoredConnection: Codable {
 
         // Read-only mode
         self.isReadOnly = connection.isReadOnly
+
+        // AI policy
+        self.aiPolicy = connection.aiPolicy?.rawValue
     }
 
     // Custom decoder to handle migration from old format
@@ -416,6 +422,7 @@ private struct StoredConnection: Codable {
         color = try container.decodeIfPresent(String.self, forKey: .color) ?? ConnectionColor.none.rawValue
         tagId = try container.decodeIfPresent(String.self, forKey: .tagId)
         isReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
+        aiPolicy = try container.decodeIfPresent(String.self, forKey: .aiPolicy)
     }
 
     func toConnection() -> DatabaseConnection {
@@ -438,6 +445,7 @@ private struct StoredConnection: Codable {
 
         let parsedColor = ConnectionColor(rawValue: color) ?? .none
         let parsedTagId = tagId.flatMap { UUID(uuidString: $0) }
+        let parsedAIPolicy = aiPolicy.flatMap { AIConnectionPolicy(rawValue: $0) }
 
         return DatabaseConnection(
             id: id,
@@ -451,7 +459,8 @@ private struct StoredConnection: Codable {
             sslConfig: sslConfig,
             color: parsedColor,
             tagId: parsedTagId,
-            isReadOnly: isReadOnly
+            isReadOnly: isReadOnly,
+            aiPolicy: parsedAIPolicy
         )
     }
 }
