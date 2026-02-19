@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-19
+
 ### Changed
 - AI chat panel — native macOS inspector styling: removed iOS-style chat bubbles, flattened message layout with role headers and compact spacing, reduced heading sizes for narrow sidebar, inline typing indicator without pill background
 - **AppKit → SwiftUI migration:** migrated 5 NSPopover controllers (Enum, Set, TypePicker, JSONEditor, ForeignKey) to SwiftUI content views with a shared `PopoverPresenter` utility — eliminates manual `NSEvent` monitors, `NSPopoverDelegate`, and singleton patterns
@@ -285,7 +287,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/datlechin/tablepro/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/datlechin/tablepro/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/datlechin/tablepro/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/datlechin/tablepro/compare/v0.3.0...v0.3.1
