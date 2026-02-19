@@ -21,7 +21,8 @@ struct ContentView: View {
     @State private var connectionToDelete: DatabaseConnection?
     @State private var showDeleteConfirmation = false
     @State private var hasLoaded = false
-    @State private var isInspectorPresented = false  // Right sidebar (inspector) visibility
+    @State private var rightPanelState = RightPanelState()
+    @State private var inspectorContext = InspectorContext.empty
 
     @Environment(\.openWindow)
     private var openWindow
@@ -41,7 +42,7 @@ struct ContentView: View {
 
     var body: some View {
         mainContent
-            .frame(minWidth: 900, minHeight: 600)
+            .frame(minWidth: 1100, minHeight: 600)
             .confirmationDialog(
                 "Delete Connection",
                 isPresented: $showDeleteConfirmation,
@@ -130,7 +131,7 @@ struct ContentView: View {
                         databaseType: currentSession.connection.type
                     )
                 }
-                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 350)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 600)
             } detail: {
                 // MARK: - Detail (Main workspace with optional right sidebar)
                 MainContentView(
@@ -140,11 +141,21 @@ struct ContentView: View {
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding,
                     tableOperationOptions: sessionTableOperationOptionsBinding,
-                    isInspectorPresented: $isInspectorPresented
+                    inspectorContext: $inspectorContext,
+                    rightPanelState: rightPanelState
                 )
                 .id(currentSession.id)
             }
             .navigationTitle(currentSession.connection.name)
+            .inspector(isPresented: Bindable(rightPanelState).isPresented) {
+                UnifiedRightPanelView(
+                    state: rightPanelState,
+                    inspectorContext: inspectorContext,
+                    connection: currentSession.connection,
+                    tables: currentSession.tables
+                )
+                .inspectorColumnWidth(min: 280, ideal: 320, max: 500)
+            }
         } else {
             // No active session yet - show loading while connecting
             VStack(spacing: 16) {

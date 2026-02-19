@@ -21,7 +21,8 @@ struct MainContentView: View {
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
     @Binding var tableOperationOptions: [String: TableOperationOptions]
-    @Binding var isInspectorPresented: Bool
+    @Binding var inspectorContext: InspectorContext
+    var rightPanelState: RightPanelState
 
     // MARK: - State Objects
 
@@ -34,13 +35,10 @@ struct MainContentView: View {
     // MARK: - Local State
 
     @State var selectedRowIndices: Set<Int> = []
-    @State private var isAIChatPresented: Bool = false
-    @StateObject private var aiViewModel = AIChatViewModel()
     @State private var previousSelectedTabId: UUID?
     @State private var previousSelectedTables: Set<TableInfo> = []
     @State private var editingCell: CellPosition?
     @State private var notificationHandler: MainContentNotificationHandler?
-    @StateObject private var sidebarEditState = MultiRowEditState()
 
     // MARK: - Environment
 
@@ -55,7 +53,8 @@ struct MainContentView: View {
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
-        isInspectorPresented: Binding<Bool>
+        inspectorContext: Binding<InspectorContext>,
+        rightPanelState: RightPanelState
     ) {
         self.connection = connection
         self._tables = tables
@@ -63,7 +62,8 @@ struct MainContentView: View {
         self._pendingTruncates = pendingTruncates
         self._pendingDeletes = pendingDeletes
         self._tableOperationOptions = tableOperationOptions
-        self._isInspectorPresented = isInspectorPresented
+        self._inspectorContext = inspectorContext
+        self.rightPanelState = rightPanelState
 
         // Create state objects
         let tabMgr = QueryTabManager()
@@ -124,13 +124,23 @@ struct MainContentView: View {
             .onChange(of: selectedRowIndices) { newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
                 updateSidebarEditState()
+                updateInspectorContext()
             }
             .onChange(of: currentTab?.resultRows) { _ in
                 updateSidebarEditState()
+                updateInspectorContext()
+            }
+            .onChange(of: currentTab?.tableName) { _ in
+                updateInspectorContext()
+                Task { await loadTableMetadataIfNeeded() }
+            }
+            .onChange(of: coordinator.tableMetadata?.tableName) { _ in
+                updateInspectorContext()
             }
             .onAppear {
                 setupNotificationHandler()
                 updateToolbarPendingState()
+                updateInspectorContext()
             }
             .onChange(of: changeManager.hasChanges) { _ in
                 updateToolbarPendingState()
@@ -173,105 +183,71 @@ struct MainContentView: View {
 
     @ViewBuilder
     private var mainContentView: some View {
-        HStack(spacing: 0) {
-            MainEditorContentView(
-                tabManager: tabManager,
-                coordinator: coordinator,
-                changeManager: changeManager,
-                filterStateManager: filterStateManager,
-                connection: connection,
-                selectedRowIndices: $selectedRowIndices,
-                editingCell: $editingCell,
-                onCellEdit: { rowIndex, colIndex, value in
-                    coordinator.updateCellInTab(
-                        rowIndex: rowIndex, columnIndex: colIndex, value: value)
-                },
-                onSort: { columnIndex, ascending, isMultiSort in
-                    coordinator.handleSort(
-                        columnIndex: columnIndex, ascending: ascending,
-                        isMultiSort: isMultiSort,
-                        selectedRowIndices: &selectedRowIndices)
-                },
-                onAddRow: {
-                    coordinator.addNewRow(
-                        selectedRowIndices: &selectedRowIndices, editingCell: &editingCell)
-                },
-                onUndoInsert: { rowIndex in
-                    coordinator.undoInsertRow(at: rowIndex, selectedRowIndices: &selectedRowIndices)
-                },
-                onFilterColumn: { columnName in
-                    filterStateManager.addFilterForColumn(columnName)
-                },
-                onApplyFilters: { filters in
-                    coordinator.applyFilters(filters)
-                },
-                onClearFilters: {
-                    coordinator.clearFiltersAndReload()
-                },
-                onQuickSearch: { searchText in
-                    coordinator.applyQuickSearch(searchText)
-                },
-                onCommit: { sql in
-                    executeCommitSQL(sql)
-                },
-                onRefresh: {
-                    coordinator.runQuery()
-                },
-                onFirstPage: {
-                    coordinator.goToFirstPage()
-                },
-                onPreviousPage: {
-                    coordinator.goToPreviousPage()
-                },
-                onNextPage: {
-                    coordinator.goToNextPage()
-                },
-                onLastPage: {
-                    coordinator.goToLastPage()
-                },
-                onLimitChange: { newLimit in
-                    coordinator.updatePageSize(newLimit)
-                },
-                onOffsetChange: { newOffset in
-                    coordinator.updateOffset(newOffset)
-                },
-                onPaginationGo: {
-                    coordinator.applyPaginationSettings()
-                }
-            )
-
-            // Right sidebar
-            if isInspectorPresented {
-                Divider()
-                RightSidebarView(
-                    tableName: currentTab?.tableName,
-                    tableMetadata: coordinator.tableMetadata,
-                    selectedRowData: selectedRowDataForSidebar,
-                    isEditable: isSidebarEditable,
-                    isRowDeleted: isSelectedRowDeleted,
-                    onSave: {
-                        handleSidebarSave()
-                    },
-                    editState: sidebarEditState
-                )
-                .frame(width: 280)
-                .task(id: currentTab?.tableName) {
-                    await loadTableMetadataIfNeeded()
-                }
+        MainEditorContentView(
+            tabManager: tabManager,
+            coordinator: coordinator,
+            changeManager: changeManager,
+            filterStateManager: filterStateManager,
+            connection: connection,
+            selectedRowIndices: $selectedRowIndices,
+            editingCell: $editingCell,
+            onCellEdit: { rowIndex, colIndex, value in
+                coordinator.updateCellInTab(
+                    rowIndex: rowIndex, columnIndex: colIndex, value: value)
+            },
+            onSort: { columnIndex, ascending, isMultiSort in
+                coordinator.handleSort(
+                    columnIndex: columnIndex, ascending: ascending,
+                    isMultiSort: isMultiSort,
+                    selectedRowIndices: &selectedRowIndices)
+            },
+            onAddRow: {
+                coordinator.addNewRow(
+                    selectedRowIndices: &selectedRowIndices, editingCell: &editingCell)
+            },
+            onUndoInsert: { rowIndex in
+                coordinator.undoInsertRow(at: rowIndex, selectedRowIndices: &selectedRowIndices)
+            },
+            onFilterColumn: { columnName in
+                filterStateManager.addFilterForColumn(columnName)
+            },
+            onApplyFilters: { filters in
+                coordinator.applyFilters(filters)
+            },
+            onClearFilters: {
+                coordinator.clearFiltersAndReload()
+            },
+            onQuickSearch: { searchText in
+                coordinator.applyQuickSearch(searchText)
+            },
+            onCommit: { sql in
+                executeCommitSQL(sql)
+            },
+            onRefresh: {
+                coordinator.runQuery()
+            },
+            onFirstPage: {
+                coordinator.goToFirstPage()
+            },
+            onPreviousPage: {
+                coordinator.goToPreviousPage()
+            },
+            onNextPage: {
+                coordinator.goToNextPage()
+            },
+            onLastPage: {
+                coordinator.goToLastPage()
+            },
+            onLimitChange: { newLimit in
+                coordinator.updatePageSize(newLimit)
+            },
+            onOffsetChange: { newOffset in
+                coordinator.updateOffset(newOffset)
+            },
+            onPaginationGo: {
+                coordinator.applyPaginationSettings()
             }
-
-            // AI Chat panel
-            if isAIChatPresented {
-                Divider()
-                AIChatPanelView(
-                    connection: connection,
-                    tables: tables,
-                    coordinator: coordinator,
-                    viewModel: aiViewModel
-                )
-                .frame(width: 360)
-            }
-        }
+        )
     }
 
     // MARK: - Initialization
@@ -328,8 +304,7 @@ struct MainContentView: View {
             pendingTruncates: $pendingTruncates,
             pendingDeletes: $pendingDeletes,
             tableOperationOptions: $tableOperationOptions,
-            isInspectorPresented: $isInspectorPresented,
-            isAIChatPresented: $isAIChatPresented,
+            rightPanelState: rightPanelState,
             editingCell: $editingCell
         )
     }
@@ -515,11 +490,10 @@ struct MainContentView: View {
               let tab = coordinator.tabManager.selectedTab,
               !selectedRowIndices.isEmpty
         else {
-            sidebarEditState.fields = []
+            rightPanelState.editState.fields = []
             return
         }
 
-        // Gather rows for selected indices
         var allRows: [[String?]] = []
         for index in selectedRowIndices.sorted() {
             if index < tab.resultRows.count {
@@ -527,150 +501,25 @@ struct MainContentView: View {
             }
         }
 
-        // Configure edit state (this will preserve pending edits if data hasn't changed)
-        sidebarEditState.configure(
+        rightPanelState.editState.configure(
             selectedRowIndices: selectedRowIndices,
             allRows: allRows,
             columns: tab.resultColumns,
-            columnTypes: tab.columnTypes  // Pass ColumnType array, not String array
+            columnTypes: tab.columnTypes
         )
     }
 
-    private func handleSidebarSave() {
-        Task {
-            await saveSidebarEdits()
-        }
-    }
+    // MARK: - Inspector Context
 
-    @MainActor
-    private func saveSidebarEdits() async {
-        guard let tab = coordinator.tabManager.selectedTab,
-              !selectedRowIndices.isEmpty,
-              let tableName = tab.tableName
-        else {
-            return
-        }
-
-        let editedFields = sidebarEditState.getEditedFields()
-        guard !editedFields.isEmpty else { return }
-
-        do {
-            // Generate SQL for each selected row
-            var statements: [String] = []
-
-            for rowIndex in selectedRowIndices.sorted() {
-                guard rowIndex < tab.resultRows.count else { continue }
-                let row = tab.resultRows[rowIndex]
-
-                // Build UPDATE statement
-                guard
-                    let updateSQL = generateUpdateSQL(
-                        tableName: tableName,
-                        rowIndex: rowIndex,
-                        originalRow: row.values,
-                        editedFields: editedFields,
-                        columns: tab.resultColumns,
-                        primaryKeyColumn: changeManager.primaryKeyColumn
-                    )
-                else {
-                    continue
-                }
-
-                statements.append(updateSQL)
-            }
-
-            guard !statements.isEmpty else { return }
-
-            // Execute statements
-            try await coordinator.executeSidebarChanges(statements: statements)
-
-            // Refresh query to show updated data
-            // The onChange(resultRows) handler will automatically update the sidebar
-            coordinator.runQuery()
-        } catch {
-            // Show error using macOS alert
-            AlertHelper.showErrorSheet(
-                title: String(localized: "Failed to Save Changes"),
-                message: error.localizedDescription,
-                window: nil
-            )
-        }
-    }
-
-    private func generateUpdateSQL(
-        tableName: String,
-        rowIndex: Int,
-        originalRow: [String?],
-        editedFields: [(columnIndex: Int, columnName: String, newValue: String?)],
-        columns: [String],
-        primaryKeyColumn: String?
-    ) -> String? {
-        guard let pkColumn = primaryKeyColumn,
-              let pkIndex = columns.firstIndex(of: pkColumn),
-              pkIndex < originalRow.count,
-              let pkValue = originalRow[pkIndex]
-        else {
-            return nil
-        }
-
-        let dbType = coordinator.connection.type
-
-        // Build SET clause
-        let setClauses = editedFields.map { field -> String in
-            let quotedColumn = dbType.quoteIdentifier(field.columnName)
-            let value: String
-            if field.newValue == "__DEFAULT__" {
-                value = "DEFAULT"
-            } else if let newValue = field.newValue {
-                // Check if it's a SQL function (don't quote)
-                if isSQLFunction(newValue) {
-                    value = newValue.trimmingCharacters(in: .whitespaces)
-                } else {
-                    value = "'\(SQLEscaping.escapeStringLiteral(newValue))'"
-                }
-            } else {
-                value = "NULL"
-            }
-            return "\(quotedColumn) = \(value)"
-        }.joined(separator: ", ")
-
-        // Build WHERE clause
-        let quotedPK = dbType.quoteIdentifier(pkColumn)
-        let quotedPKValue = "'\(SQLEscaping.escapeStringLiteral(pkValue))'"
-        let whereClause = "\(quotedPK) = \(quotedPKValue)"
-
-        // Add LIMIT clause for MySQL/MariaDB
-        let limitClause = (dbType == .mysql || dbType == .mariadb) ? " LIMIT 1" : ""
-
-        return
-            "UPDATE \(dbType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
-    }
-
-    private func isSQLFunction(_ value: String) -> Bool {
-        let trimmed = value.trimmingCharacters(in: .whitespaces).uppercased()
-
-        let sqlFunctions = [
-            "NOW()",
-            "CURRENT_TIMESTAMP()",
-            "CURRENT_TIMESTAMP",
-            "CURDATE()",
-            "CURTIME()",
-            "UTC_TIMESTAMP()",
-            "UTC_DATE()",
-            "UTC_TIME()",
-            "LOCALTIME()",
-            "LOCALTIME",
-            "LOCALTIMESTAMP()",
-            "LOCALTIMESTAMP",
-            "SYSDATE()",
-            "UNIX_TIMESTAMP()",
-            "CURRENT_DATE()",
-            "CURRENT_DATE",
-            "CURRENT_TIME()",
-            "CURRENT_TIME",
-        ]
-
-        return sqlFunctions.contains(trimmed)
+    private func updateInspectorContext() {
+        inspectorContext = InspectorContext(
+            tableName: currentTab?.tableName,
+            tableMetadata: coordinator.tableMetadata,
+            selectedRowData: selectedRowDataForSidebar,
+            isEditable: isSidebarEditable,
+            isRowDeleted: isSelectedRowDeleted,
+            currentQuery: coordinator.tabManager.selectedTab?.query
+        )
     }
 }
 
@@ -684,7 +533,8 @@ struct MainContentView: View {
         pendingTruncates: .constant([]),
         pendingDeletes: .constant([]),
         tableOperationOptions: .constant([:]),
-        isInspectorPresented: .constant(false)
+        inspectorContext: .constant(.empty),
+        rightPanelState: RightPanelState()
     )
     .frame(width: 1_000, height: 600)
 }

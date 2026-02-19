@@ -23,6 +23,7 @@ final class AIChatViewModel: ObservableObject {
     @Published var lastMessageFailed: Bool = false
     @Published var conversations: [AIConversation] = []
     @Published var activeConversationID: UUID?
+    @Published var showAIAccessConfirmation = false
 
     // MARK: - Context Properties
 
@@ -47,6 +48,8 @@ final class AIChatViewModel: ObservableObject {
     private var streamingAssistantID: UUID?
     private var lastUsedFeature: AIFeature = .chat
     private let chatStorage = AIChatStorage.shared
+    private var sessionApprovedConnections: Set<UUID> = []
+    private var pendingFeature: AIFeature?
 
     // MARK: - Init
 
@@ -92,13 +95,11 @@ final class AIChatViewModel: ObservableObject {
         persistCurrentConversation()
     }
 
-    /// Clear all messages in the conversation
+    /// Clear all recent conversations
     func clearConversation() {
         cancelStream()
-        if let id = activeConversationID {
-            chatStorage.delete(id)
-            conversations.removeAll { $0.id == id }
-        }
+        chatStorage.deleteAll()
+        conversations.removeAll()
         messages.removeAll()
         activeConversationID = nil
         errorMessage = nil
@@ -130,6 +131,26 @@ final class AIChatViewModel: ObservableObject {
         messages.remove(at: lastAssistantIndex)
         errorMessage = nil
         startStreaming(feature: lastUsedFeature)
+    }
+
+    /// User confirmed AI access for the current connection
+    func confirmAIAccess() {
+        if let connectionID = connection?.id {
+            sessionApprovedConnections.insert(connectionID)
+        }
+        if let feature = pendingFeature {
+            pendingFeature = nil
+            startStreaming(feature: feature)
+        }
+    }
+
+    /// User denied AI access for the current connection
+    func denyAIAccess() {
+        pendingFeature = nil
+        // Remove the last user message since we can't process it
+        if let last = messages.last, last.role == .user {
+            messages.removeLast()
+        }
     }
 
     // MARK: - Conversation Management
@@ -218,13 +239,19 @@ final class AIChatViewModel: ObservableObject {
 
         // Check connection policy
         if connection != nil {
-            if let policy = resolveConnectionPolicy(settings: settings), policy == .never {
-                errorMessage = String(localized: "AI is disabled for this connection.")
-                // Remove the last user message since we can't process it
-                if let last = messages.last, last.role == .user {
-                    messages.removeLast()
+            if let policy = resolveConnectionPolicy(settings: settings) {
+                if policy == .never {
+                    errorMessage = String(localized: "AI is disabled for this connection.")
+                    if let last = messages.last, last.role == .user {
+                        messages.removeLast()
+                    }
+                    return
                 }
-                return
+                if policy == .askEachTime {
+                    pendingFeature = feature
+                    showAIAccessConfirmation = true
+                    return
+                }
             }
         }
 
@@ -321,13 +348,14 @@ final class AIChatViewModel: ObservableObject {
     }
 
     private func resolveConnectionPolicy(settings: AISettings) -> AIConnectionPolicy? {
-        // Per-connection policy takes priority over global default
         let policy = connection?.aiPolicy ?? settings.defaultConnectionPolicy
 
-        // TODO: Implement confirmation dialog for .askEachTime
         if policy == .askEachTime {
-            Self.logger.warning("AI connection policy is 'Ask Each Time' but confirmation dialog is not yet implemented; treating as 'Always Allow'")
-            return .alwaysAllow
+            // If already approved this session, treat as always allow
+            if let connectionID = connection?.id, sessionApprovedConnections.contains(connectionID) {
+                return .alwaysAllow
+            }
+            return .askEachTime
         }
 
         return policy

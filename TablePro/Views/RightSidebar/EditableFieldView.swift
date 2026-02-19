@@ -18,6 +18,7 @@ struct EditableFieldView: View {
     let hasMultipleValues: Bool  // Whether multiple selected rows have different values
     let isPendingNull: Bool
     let isPendingDefault: Bool
+    let isModified: Bool
 
     let onSetNull: () -> Void
     let onSetDefault: () -> Void
@@ -51,7 +52,6 @@ struct EditableFieldView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Label
             HStack(spacing: 4) {
                 Text(columnName)
                     .font(.system(size: DesignConstants.FontSize.small))
@@ -60,45 +60,37 @@ struct EditableFieldView: View {
                 Text(columnType)
                     .font(.system(size: DesignConstants.FontSize.tiny))
                     .foregroundStyle(.tertiary)
+
+                if isModified {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 6, height: 6)
+                }
             }
 
-            // Input row
-            HStack(spacing: 0) {
-                // Conditional: TextEditor for long text, TextField for short text
+            HStack(spacing: 4) {
                 if isLongText {
-                    // Multi-line text editor for long text types (TEXT, LONGTEXT, etc.)
                     TextEditor(text: $value)
                         .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
                         .disabled(isPendingNull || isPendingDefault)
                         .focused($isFocused)
-                        .frame(height: 120)  // Fixed height with internal scrolling
+                        .frame(height: 120)
                         .scrollContentBackground(.hidden)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
+                        .padding(4)
                         .background(Color(NSColor.textBackgroundColor))
-                        .cornerRadius(5)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
                         .overlay(
                             RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+                                .strokeBorder(Color(NSColor.separatorColor).opacity(0.5))
                         )
                 } else {
-                    // Single-line text field for short text, numbers, etc.
                     TextField(placeholderText, text: $value)
-                        .textFieldStyle(.plain)
+                        .textFieldStyle(.roundedBorder)
                         .font(.system(size: DesignConstants.FontSize.small))
                         .disabled(isPendingNull || isPendingDefault)
                         .focused($isFocused)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .cornerRadius(5)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
-                        )
                 }
 
-                // Menu button - custom button to avoid any default indicators
                 Menu {
                     Button("Set NULL") {
                         onSetNull()
@@ -143,11 +135,9 @@ struct EditableFieldView: View {
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
-                .padding(.leading, 6)
                 .help("Set special value")
             }
         }
-        .padding(.vertical, 6)
     }
 }
 
@@ -160,7 +150,6 @@ struct ReadOnlyFieldView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Label
             HStack(spacing: 4) {
                 Text(columnName)
                     .font(.system(size: DesignConstants.FontSize.small))
@@ -171,31 +160,25 @@ struct ReadOnlyFieldView: View {
                     .foregroundStyle(.tertiary)
             }
 
-            // Value display - looks like disabled text field
-            HStack {
+            Group {
                 if isLongText {
-                    // Multi-line display for long text with scrolling
-                    ScrollView {
-                        if let value = value {
-                            Text(value)
-                                .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
-                                .foregroundStyle(.primary)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            Text("NULL")
-                                .font(.system(size: DesignConstants.FontSize.small))
-                                .foregroundStyle(.tertiary)
-                                .italic()
-                        }
+                    if let value = value {
+                        Text(value)
+                            .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, maxHeight: 120, alignment: .topLeading)
+                            .clipped()
+                    } else {
+                        Text("NULL")
+                            .font(.system(size: DesignConstants.FontSize.small))
+                            .foregroundStyle(.tertiary)
+                            .italic()
+                            .frame(maxWidth: .infinity, maxHeight: 120, alignment: .topLeading)
                     }
-                    .frame(height: 120)  // Fixed height matching editable field
                 } else {
-                    // Single-line display for short text
                     if let value = value {
                         Text(value)
                             .font(.system(size: DesignConstants.FontSize.small))
-                            .foregroundStyle(.primary)
                             .textSelection(.enabled)
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -210,12 +193,7 @@ struct ReadOnlyFieldView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
             .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(5)
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
-            )
+            .clipShape(RoundedRectangle(cornerRadius: 5))
         }
-        .padding(.vertical, 6)
     }
 }

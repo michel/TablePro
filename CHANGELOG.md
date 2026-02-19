@@ -7,26 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- AI chat panel — native macOS inspector styling: removed iOS-style chat bubbles, flattened message layout with role headers and compact spacing, reduced heading sizes for narrow sidebar, inline typing indicator without pill background
+
 ### Added
-- AI token usage display — after each AI response, shows input/output token counts below the assistant message bubble
-- AI conversation persistence — chat conversations are automatically saved to disk and restored on relaunch, with conversation history menu, new chat button, and switch between past conversations
-- Ollama auto-detection — on app launch, automatically detects local Ollama server and registers it as an AI provider with the first available model
-- Dynamic model picker in AI settings — click "Fetch" to retrieve available models from any provider, select from dropdown menu or type a custom model name
-- AI retry/regenerate — when AI generation fails, an inline "Retry" button appears; successful responses show a "Regenerate" button to re-stream
-- AI rich schema context — AI chat now receives full column definitions and foreign key relationships (not just table names) for more accurate SQL generation
-- Gemini (Google) AI provider — connect to Google's Gemini models with API key authentication, streaming responses, and automatic model discovery
+- AI chat panel shows "Set Up AI Provider" empty state when no AI provider is configured, with a button to open Settings
 - AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
 - AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
 - AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
 - AI schema context — automatically includes database schema, current query, and query results in AI conversations for context-aware assistance
 - AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
+- AI chat markdown rendering — replaced custom per-line AttributedString parsing with MarkdownUI library for full CommonMark + GitHub Flavored Markdown support (proper lists, tables, blockquotes, headers, strikethrough)
 - Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
 - Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
-- AI editor integration — "Explain with AI" (`⌘L`) and "Optimize with AI" (`⌘⌥L`) actions available from the View menu, SQL editor context menu, and customizable keyboard shortcuts
-- AI prompt templates — centralized prompt formatting for Explain, Optimize, and Fix Error AI features
-- AI context menu in SQL editor — right-click selected SQL to explain or optimize with AI
-- "Ask AI to Fix" button in query error dialogs — when a query fails, click to send the query and error to AI for suggested fixes
-- AI keyboard shortcuts in Settings > Keyboard — new "AI" category with customizable shortcuts for Toggle AI Chat, Explain with AI, and Optimize with AI
 - Tab reuse setting — opt-in option in Settings > Tabs to reuse clean table tabs when clicking a new table in the sidebar (off by default)
 - Structure view: full undo/redo support (⌘Z / ⇧⌘Z) for all column, index, and foreign key operations
 - Structure view: database-specific type picker popover for the Type column — searchable, grouped by category (Numeric, String, Date & Time, Binary, Other), supports freeform input for parametric types like `VARCHAR(255)`
@@ -46,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Layout architecture:** replaced `SplitViewMinWidthEnforcer` NSViewRepresentable hack with proper AppDelegate-based inspector split view configuration — eliminates KVO observation, 300ms sleep, and recursive view tree traversal
+- **Inspector data flow:** replaced manual snapshot syncing (`syncRightPanelSnapshotData()` + 5 `onChange` handlers) with `InspectorContext` value type passed directly through the view hierarchy via `@Binding`
+- **Right panel state:** `RightPanelState` no longer holds snapshot copies of coordinator data or a weak coordinator reference — it now only manages panel visibility, tab state, and owned objects
+- **AI chat panel:** receives `currentQuery: String?` parameter instead of a `MainContentCoordinator` reference — better separation of concerns
+- **Sidebar save:** replaced `.saveSidebarChanges` notification with direct closure (`RightPanelState.onSave`) set by the notification handler
 - Structure tab grid columns now auto-size to fit content on data load
 - Structure view column headers and status messages are now localized
 - SQL autocomplete: 50ms debounce for completion triggers to reduce unnecessary work
@@ -53,12 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **AI Chat:** fixed race condition where switching conversations during streaming could crash with index-out-of-bounds — now uses message UUID lookup instead of captured array index
-- **AI Chat:** retry logic no longer silently fails when messages end in an unexpected state — now verifies last message is from the user before re-streaming
-- **AI Chat:** per-connection AI policy is now checked from the connection's `aiPolicy` field (previously only checked global default)
-- **AI Chat:** auto-scroll during streaming no longer forces the view to bottom when the user has scrolled up to read previous messages
-- **AI Chat:** SQL syntax highlighting in code blocks no longer recreates regex objects on every render — now uses pre-compiled static patterns
-- **AI Chat:** inline markdown rendering now caches `AttributedString` results to avoid redundant parsing
 - **Structure view:** undo/redo (⌘Z / ⇧⌘Z) now works for all schema editing operations — previously non-functional
 - **Structure view:** undo-delete no longer duplicates existing rows in the grid
 - **Structure view:** deleting a new (unsaved) item then undoing correctly re-adds it
@@ -83,10 +75,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Data grid:** column order no longer flashes/swaps when sorting (stable identifiers for layout persistence)
 - **Data grid:** "Copy Column Name" and "Filter with column" context menu actions no longer copy sort indicators (e.g., "name 1▲")
 - **SQL generation:** ALTER TABLE, DDL, and SQL Preview statements now consistently end with a semicolon
+- **AI chat:** "Ask Each Time" connection policy now shows a confirmation dialog before sending data to AI — previously silently fell through to "Always Allow"
 
 ### Removed
 
 - Deleted unused `StructureTableCoordinator.swift` (~275 lines of dead code)
+- Deleted 5 dead NSToolbar files (`ToolbarController`, `ToolbarWindowConfigurator`, `ToolbarItemFactory`, `ToolbarItemIdentifier`, `ToolbarHostingViews`) — never referenced by active code
+- Removed `SplitViewMinWidthEnforcer` struct from `ContentView.swift`
+- Removed `.saveSidebarChanges` notification definition and subscription
 
 ## [0.4.0] - 2026-02-16
 
@@ -129,6 +125,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-02-13
 
 ### Added
+- AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
+- AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
+- AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
+- AI schema context — automatically includes database schema, current query, and query results in AI conversations for context-aware assistance
+- AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
+- Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
+- Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
+
 
 - Anonymous usage analytics with opt-out toggle in Settings > General > Privacy — sends lightweight heartbeat (OS version, architecture, locale, database types) every 24 hours to help improve TablePro; no personal data or queries are collected
 - ENUM/SET column editor: double-click ENUM columns to select from a searchable dropdown popover, SET columns show a multi-select checkbox popover with OK/Cancel buttons
@@ -157,6 +161,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-02-11
 
 ### Added
+- AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
+- AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
+- AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
+- AI schema context — automatically includes database schema, current query, and query results in AI conversations for context-aware assistance
+- AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
+- Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
+- Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
+
 
 - SSL/TLS connection support for MySQL/MariaDB and PostgreSQL with configurable modes (Disabled, Preferred, Required, Verify CA, Verify Identity) and certificate file paths
 - RFC 4180-compliant CSV parser for clipboard paste with auto-detection of CSV vs TSV format
@@ -187,6 +199,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2026-02-09
 
 ### Added
+- AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
+- AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
+- AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
+- AI schema context — automatically includes database schema, current query, and query results in AI conversations for context-aware assistance
+- AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
+- Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
+- Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
+
 
 - Auto-update support via Sparkle 2 framework (EdDSA signed)
 - "Check for Updates..." menu item in TablePro menu

@@ -2,7 +2,7 @@
 //  RightSidebarView.swift
 //  TablePro
 //
-//  Professional macOS inspector-style right sidebar
+//  Professional macOS inspector-style right sidebar.
 //
 
 import SwiftUI
@@ -20,139 +20,97 @@ struct RightSidebarView: View {
 
     @State private var searchText: String = ""
 
-    private var mode: String {
+    // MARK: - Inspector Mode
+
+    private enum InspectorMode {
+        case editRow, rowDetails, tableInfo, empty
+    }
+
+    private var contentMode: InspectorMode {
         if selectedRowData != nil {
-            return isEditable ? String(localized: "Edit Row") : String(localized: "Row Details")
+            return isEditable && !isRowDeleted ? .editRow : .rowDetails
         }
-        return String(localized: "Table Info")
+        if tableMetadata != nil { return .tableInfo }
+        return .empty
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            headerView
-
-            Divider()
-
-            // Search (only for row details)
-            if selectedRowData != nil {
-                searchField
-
-                Divider()
+        switch contentMode {
+        case .editRow, .rowDetails:
+            if let rowData = selectedRowData {
+                rowDetailForm(rowData)
             }
-
-            // Content
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if let rowData = selectedRowData {
-                        rowDetailContent(rowData)
-                    } else if let metadata = tableMetadata {
-                        tableInfoContent(metadata)
-                    } else {
-                        emptyState
-                    }
-                }
+        case .tableInfo:
+            if let metadata = tableMetadata {
+                tableInfoContent(metadata)
             }
+        case .empty:
+            emptyState
         }
-        .background(Color(NSColor.windowBackgroundColor))
-    }
-
-    // MARK: - Header
-
-    private var headerView: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(mode)
-                    .font(.system(size: DesignConstants.FontSize.small, weight: .semibold))
-                if let name = tableName {
-                    Text(name)
-                        .font(.system(size: DesignConstants.FontSize.caption))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
-    // MARK: - Search
-
-    private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.tertiary)
-                .font(.system(size: DesignConstants.FontSize.caption))
-
-            TextField("Filter", text: $searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: DesignConstants.FontSize.small))
-
-            if !searchText.isEmpty {
-                Button(action: { searchText = "" }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                        .font(.system(size: DesignConstants.FontSize.caption))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, DesignConstants.Spacing.xs)
-        .background(Color(NSColor.textBackgroundColor).opacity(0.5))
     }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "sidebar.right")
-                .font(.system(size: DesignConstants.IconSize.extraLarge))
-                .foregroundStyle(.quaternary)
-            Text("No Selection")
-                .font(.system(size: DesignConstants.FontSize.small))
-                .foregroundStyle(.tertiary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        ContentUnavailableView(
+            String(localized: "No Selection"),
+            systemImage: "sidebar.right",
+            description: Text(String(localized: "Select a row or table to view details"))
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Table Info Content
 
-    @ViewBuilder
     private func tableInfoContent(_ metadata: TableMetadata) -> some View {
-        sectionHeader(String(localized: "SIZE"))
-        propertyRow(String(localized: "Data Size"), TableMetadata.formatSize(metadata.dataSize))
-        propertyRow(String(localized: "Index Size"), TableMetadata.formatSize(metadata.indexSize))
-        propertyRow(String(localized: "Total Size"), TableMetadata.formatSize(metadata.totalSize))
+        Form {
+            Section {
+                LabeledContent(String(localized: "Data Size"), value: TableMetadata.formatSize(metadata.dataSize))
+                LabeledContent(String(localized: "Index Size"), value: TableMetadata.formatSize(metadata.indexSize))
+                LabeledContent(String(localized: "Total Size"), value: TableMetadata.formatSize(metadata.totalSize))
+            } header: {
+                Text("SIZE")
+            }
 
-        sectionHeader(String(localized: "STATISTICS"))
-        if let rows = metadata.rowCount {
-            propertyRow(String(localized: "Rows"), "\(rows)")
-        }
-        if let avgLen = metadata.avgRowLength {
-            propertyRow(String(localized: "Avg Row"), "\(avgLen) B")
-        }
+            Section {
+                if let rows = metadata.rowCount {
+                    LabeledContent(String(localized: "Rows"), value: "\(rows)")
+                }
+                if let avgLen = metadata.avgRowLength {
+                    LabeledContent(String(localized: "Avg Row"), value: "\(avgLen) B")
+                }
+            } header: {
+                Text("STATISTICS")
+            }
 
-        if metadata.engine != nil || metadata.collation != nil {
-            sectionHeader(String(localized: "METADATA"))
-            if let engine = metadata.engine {
-                propertyRow(String(localized: "Engine"), engine)
+            if metadata.engine != nil || metadata.collation != nil {
+                Section {
+                    if let engine = metadata.engine {
+                        LabeledContent(String(localized: "Engine"), value: engine)
+                    }
+                    if let collation = metadata.collation {
+                        LabeledContent(String(localized: "Collation"), value: collation)
+                            .help(collation)
+                    }
+                } header: {
+                    Text("METADATA")
+                }
             }
-            if let collation = metadata.collation {
-                propertyRow(String(localized: "Collation"), collation)
-            }
-        }
 
-        if metadata.createTime != nil || metadata.updateTime != nil {
-            sectionHeader(String(localized: "TIMESTAMPS"))
-            if let create = metadata.createTime {
-                propertyRow(String(localized: "Created"), formatDate(create))
-            }
-            if let update = metadata.updateTime {
-                propertyRow(String(localized: "Updated"), formatDate(update))
+            if metadata.createTime != nil || metadata.updateTime != nil {
+                Section {
+                    if let create = metadata.createTime {
+                        LabeledContent(String(localized: "Created"), value: formatDate(create))
+                    }
+                    if let update = metadata.updateTime {
+                        LabeledContent(String(localized: "Updated"), value: formatDate(update))
+                    }
+                } header: {
+                    Text("TIMESTAMPS")
+                }
             }
         }
+        .formStyle(.grouped)
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -166,43 +124,53 @@ struct RightSidebarView: View {
         RightSidebarView.dateFormatter.string(from: date)
     }
 
-    // MARK: - Row Detail Content
+    // MARK: - Row Detail Form
 
-    @ViewBuilder
-    private func rowDetailContent(_ rowData: [(column: String, value: String?, type: String)]) -> some View {
+    private func rowDetailForm(
+        _ rowData: [(column: String, value: String?, type: String)]
+    ) -> some View {
         let filtered = searchText.isEmpty ? editState.fields : editState.fields.filter {
             $0.columnName.localizedCaseInsensitiveContains(searchText) ||
                 ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
 
-        sectionHeader(String(localized: "FIELDS (\(filtered.count))"))
+        return Form {
+            Section {
+                ForEach(filtered, id: \.columnName) { field in
+                    if contentMode == .editRow {
+                        editableFieldRow(field, at: field.columnIndex)
+                    } else {
+                        readonlyFieldRow(field)
+                    }
+                }
+            } header: {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let name = tableName {
+                        Text(name)
+                    }
+                    HStack {
+                        Text("FIELDS")
+                        Spacer()
+                        Text("\(filtered.count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
 
-        ForEach(filtered, id: \.columnName) { field in
-            if isEditable && !isRowDeleted {
-                editableFieldRow(field, at: field.columnIndex)
-            } else {
-                readonlyFieldRow(field)
+            if contentMode == .editRow && editState.hasEdits {
+                Section {
+                    Button(action: onSave) {
+                        Text("Save Changes")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .keyboardShortcut("s", modifiers: .command)
+                }
             }
         }
-
-        if isEditable && !isRowDeleted && editState.hasEdits {
-            saveButton
-        }
-    }
-
-    private var saveButton: some View {
-        VStack(spacing: 0) {
-            Divider()
-
-            Button(action: onSave) {
-                Text("Save Changes")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .keyboardShortcut("s", modifiers: .command)
-            .padding(12)
-        }
+        .formStyle(.grouped)
+        .searchable(text: $searchText, prompt: "Filter")
     }
 
     @ViewBuilder
@@ -219,11 +187,11 @@ struct RightSidebarView: View {
             hasMultipleValues: field.hasMultipleValues,
             isPendingNull: field.isPendingNull,
             isPendingDefault: field.isPendingDefault,
+            isModified: field.hasEdit,
             onSetNull: { editState.setFieldToNull(at: index) },
             onSetDefault: { editState.setFieldToDefault(at: index) },
             onSetFunction: { editState.setFieldToFunction(at: index, function: $0) }
         )
-        .padding(.horizontal, 12)
     }
 
     @ViewBuilder
@@ -234,33 +202,6 @@ struct RightSidebarView: View {
             isLongText: field.isLongText,
             value: field.originalValue
         )
-        .padding(.horizontal, 12)
-    }
-
-    // MARK: - UI Components
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: DesignConstants.FontSize.caption, weight: .medium))
-            .foregroundStyle(.tertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.top, 12)
-            .padding(.bottom, 4)
-    }
-
-    private func propertyRow(_ key: String, _ value: String) -> some View {
-        HStack {
-            Text(key)
-                .font(.system(size: DesignConstants.FontSize.small))
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(.system(size: DesignConstants.FontSize.small))
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 4)
     }
 }
 

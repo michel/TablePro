@@ -138,7 +138,6 @@ struct TableProApp: App {
         // Perform startup cleanup of query history if auto-cleanup is enabled
         Task { @MainActor in
             QueryHistoryManager.shared.performStartupCleanup()
-            await OllamaDetector.detectAndRegister()
         }
     }
 
@@ -398,21 +397,7 @@ struct TableProApp: App {
                 Button("Toggle AI Chat") {
                     NotificationCenter.default.post(name: .toggleAIChatPanel, object: nil)
                 }
-                .optionalKeyboardShortcut(shortcut(for: .toggleAIChat))
-                .disabled(!appState.isConnected)
-
-                Divider()
-
-                Button("Explain with AI") {
-                    NotificationCenter.default.post(name: .aiExplainSelection, object: nil)
-                }
-                .optionalKeyboardShortcut(shortcut(for: .aiExplainQuery))
-                .disabled(!appState.isConnected)
-
-                Button("Optimize with AI") {
-                    NotificationCenter.default.post(name: .aiOptimizeSelection, object: nil)
-                }
-                .optionalKeyboardShortcut(shortcut(for: .aiOptimizeQuery))
+                .keyboardShortcut("l", modifiers: [.command, .shift])
                 .disabled(!appState.isConnected)
             }
 
@@ -505,12 +490,6 @@ extension Notification.Name {
 
     // AI chat panel notifications
     static let toggleAIChatPanel = Notification.Name("toggleAIChatPanel")
-
-    // AI editor integration notifications
-    static let sendAIPrompt = Notification.Name("sendAIPrompt")
-    static let aiExplainSelection = Notification.Name("aiExplainSelection")
-    static let aiOptimizeSelection = Notification.Name("aiOptimizeSelection")
-    static let aiFixError = Notification.Name("aiFixError")
 
     // Database switcher notifications
     static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")

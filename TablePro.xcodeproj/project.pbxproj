@@ -11,6 +11,7 @@
 		5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000003 /* CodeEditLanguages */; };
 		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
 		5ACE00012F4F00000000000A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000009 /* Sparkle */; };
+		5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000C /* MarkdownUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +65,7 @@
 				5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */,
 				5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */,
 				5ACE00012F4F00000000000A /* Sparkle in Frameworks */,
+				5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -128,6 +130,7 @@
 				5ACE00012F4F000000000003 /* CodeEditLanguages */,
 				5ACE00012F4F000000000007 /* CodeEditTextView */,
 				5ACE00012F4F000000000009 /* Sparkle */,
+				5ACE00012F4F00000000000C /* MarkdownUI */,
 			);
 			productName = TablePro;
 			productReference = 5A1091C72EF17EDC0055EA7C /* TablePro.app */;
@@ -188,6 +191,7 @@
 			packageReferences = (
 				5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */,
 				5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				5ACE00012F4F00000000000B /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A1091C82EF17EDC0055EA7C /* Products */;
@@ -640,6 +644,14 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		5ACE00012F4F00000000000B /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -660,6 +672,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */;
 			productName = Sparkle;
+		};
+		5ACE00012F4F00000000000C /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5ACE00012F4F00000000000B /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
