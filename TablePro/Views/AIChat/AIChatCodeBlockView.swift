@@ -15,77 +15,75 @@ struct AIChatCodeBlockView: View {
     @State private var isCopied: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header with language badge and actions
-            HStack {
-                if let language {
-                    Text(language.uppercased())
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color(nsColor: .separatorColor).opacity(0.3))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
+        GroupBox {
+            codeContent
+        } label: {
+            codeBlockHeader
+        }
+        .groupBoxStyle(CodeBlockGroupBoxStyle())
+    }
 
-                Spacer()
-
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(code, forType: .string)
-                    isCopied = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        isCopied = false
-                    }
-                } label: {
-                    Label(
-                        isCopied ? String(localized: "Copied") : String(localized: "Copy"),
-                        systemImage: isCopied ? "checkmark" : "doc.on.doc"
-                    )
+    private var codeBlockHeader: some View {
+        HStack {
+            if let language {
+                Text(language.uppercased())
                     .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color(nsColor: .separatorColor).opacity(0.3))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+
+            Spacer()
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(code, forType: .string)
+                isCopied = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    isCopied = false
+                }
+            } label: {
+                Label(
+                    isCopied ? String(localized: "Copied") : String(localized: "Copy"),
+                    systemImage: isCopied ? "checkmark" : "doc.on.doc"
+                )
+                .font(.caption2)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+
+            if isSQL {
+                Button {
+                    NotificationCenter.default.post(
+                        name: .insertQueryFromAI,
+                        object: code
+                    )
+                } label: {
+                    Label(String(localized: "Insert"), systemImage: "square.and.pencil")
+                        .font(.caption2)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-
-                if isSQL {
-                    Button {
-                        NotificationCenter.default.post(
-                            name: .insertQueryFromAI,
-                            object: code
-                        )
-                    } label: {
-                        Label(String(localized: "Insert"), systemImage: "square.and.pencil")
-                            .font(.caption2)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-
-            Divider()
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                if isSQL {
-                    Text(highlightedSQL(code))
-                        .textSelection(.enabled)
-                        .padding(10)
-                } else {
-                    Text(code)
-                        .font(.system(size: 12, design: .monospaced))
-                        .textSelection(.enabled)
-                        .padding(10)
-                }
             }
         }
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(nsColor: .separatorColor).opacity(0.3), lineWidth: 1)
-        )
+    }
+
+    private var codeContent: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            if isSQL {
+                Text(highlightedSQL(code))
+                    .textSelection(.enabled)
+                    .padding(10)
+            } else {
+                Text(code)
+                    .font(.system(size: 12, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(10)
+            }
+        }
     }
 
     private var isSQL: Bool {
@@ -191,5 +189,27 @@ struct AIChatCodeBlockView: View {
         }
 
         return result
+    }
+}
+
+// MARK: - Code Block GroupBox Style
+
+private struct CodeBlockGroupBoxStyle: GroupBoxStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            configuration.label
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+
+            Divider()
+
+            configuration.content
+        }
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(nsColor: .separatorColor).opacity(0.4), lineWidth: 1)
+        )
     }
 }

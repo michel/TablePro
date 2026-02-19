@@ -7,7 +7,6 @@
 //
 
 import AppKit
-import CodeEditTextView
 import Combine
 import Foundation
 import os
@@ -32,8 +31,7 @@ final class MainContentNotificationHandler: ObservableObject {
     private let pendingTruncates: Binding<Set<String>>
     private let pendingDeletes: Binding<Set<String>>
     private let tableOperationOptions: Binding<[String: TableOperationOptions]>
-    private let isInspectorPresented: Binding<Bool>
-    private let isAIChatPresented: Binding<Bool>
+    private let rightPanelState: RightPanelState
     private let editingCell: Binding<CellPosition?>
 
     // MARK: - State
@@ -51,8 +49,7 @@ final class MainContentNotificationHandler: ObservableObject {
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
-        isInspectorPresented: Binding<Bool>,
-        isAIChatPresented: Binding<Bool>,
+        rightPanelState: RightPanelState,
         editingCell: Binding<CellPosition?>
     ) {
         self.coordinator = coordinator
@@ -63,11 +60,25 @@ final class MainContentNotificationHandler: ObservableObject {
         self.pendingTruncates = pendingTruncates
         self.pendingDeletes = pendingDeletes
         self.tableOperationOptions = tableOperationOptions
-        self.isInspectorPresented = isInspectorPresented
-        self.isAIChatPresented = isAIChatPresented
+        self.rightPanelState = rightPanelState
         self.editingCell = editingCell
 
+        setupSaveAction()
         setupObservers()
+    }
+
+    // MARK: - Save Action
+
+    private func setupSaveAction() {
+        rightPanelState.onSave = { [weak self] in
+            guard let self else { return }
+            Task {
+                try? await self.coordinator?.saveSidebarEdits(
+                    selectedRowIndices: self.selectedRowIndices.wrappedValue,
+                    editState: self.rightPanelState.editState
+                )
+            }
+        }
     }
 
     // MARK: - Observer Setup
@@ -84,7 +95,6 @@ final class MainContentNotificationHandler: ObservableObject {
         setupWindowObservers()
         setupFileOpenObservers()
         setupReconnectObservers()
-        setupAIOperationObservers()
     }
 
     // MARK: - Row Operations
@@ -643,9 +653,10 @@ final class MainContentNotificationHandler: ObservableObject {
         NotificationCenter.default.publisher(for: .toggleAIChatPanel)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                self?.isAIChatPresented.wrappedValue.toggle()
+                self?.handleToggleAIChat()
             }
             .store(in: &cancellables)
+
     }
 
     private func handleClearSelection() {
@@ -657,13 +668,24 @@ final class MainContentNotificationHandler: ObservableObject {
     }
 
     private func handleToggleRightSidebar() {
-        isInspectorPresented.wrappedValue.toggle()
-        if isInspectorPresented.wrappedValue,
-           let tableName = coordinator?.tabManager.selectedTab?.tableName,
-           coordinator?.tableMetadata?.tableName != tableName {
-            Task {
-                await coordinator?.loadTableMetadata(tableName: tableName)
+        if rightPanelState.isPresented && rightPanelState.activeTab == .details {
+            rightPanelState.isPresented = false
+        } else {
+            rightPanelState.isPresented = true
+            rightPanelState.activeTab = .details
+            if let tableName = coordinator?.tabManager.selectedTab?.tableName,
+               coordinator?.tableMetadata?.tableName != tableName {
+                Task { await coordinator?.loadTableMetadata(tableName: tableName) }
             }
+        }
+    }
+
+    private func handleToggleAIChat() {
+        if rightPanelState.isPresented && rightPanelState.activeTab == .aiChat {
+            rightPanelState.isPresented = false
+        } else {
+            rightPanelState.isPresented = true
+            rightPanelState.activeTab = .aiChat
         }
     }
 
@@ -779,83 +801,6 @@ final class MainContentNotificationHandler: ObservableObject {
     private func handleReconnect() {
         Task {
             await DatabaseManager.shared.reconnectCurrentSession()
-        }
-    }
-
-    // MARK: - AI Operations
-
-    private func setupAIOperationObservers() {
-        NotificationCenter.default.publisher(for: .aiExplainSelection)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleAIExplainSelection()
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .aiOptimizeSelection)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleAIOptimizeSelection()
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .aiFixError)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handleAIFixError(notification)
-            }
-            .store(in: &cancellables)
-    }
-
-    private func handleAIExplainSelection() {
-        guard let query = getSelectedOrCurrentQuery() else { return }
-        let prompt = AIPromptTemplates.explainQuery(query)
-        openAIPanelWithPrompt(prompt, feature: .explainQuery)
-    }
-
-    private func handleAIOptimizeSelection() {
-        guard let query = getSelectedOrCurrentQuery() else { return }
-        let prompt = AIPromptTemplates.optimizeQuery(query)
-        openAIPanelWithPrompt(prompt, feature: .optimizeQuery)
-    }
-
-    private func handleAIFixError(_ notification: Notification) {
-        guard let userInfo = notification.userInfo,
-              let query = userInfo["query"] as? String,
-              let error = userInfo["error"] as? String else { return }
-        let prompt = AIPromptTemplates.fixError(query: query, error: error)
-        openAIPanelWithPrompt(prompt, feature: .fixError)
-    }
-
-    private func getSelectedOrCurrentQuery() -> String? {
-        // Check if the first responder is a CodeEditTextView TextView with a selection
-        if let textView = NSApp.keyWindow?.firstResponder as? TextView {
-            let positions = textView.selectionManager.textSelections
-            if let selection = positions.first, selection.range.length > 0 {
-                let nsString = textView.textStorage.string as NSString
-                let range = selection.range
-                if range.location + range.length <= nsString.length {
-                    return nsString.substring(with: range)
-                }
-            }
-        }
-        // Fall back to current tab's query
-        return coordinator?.tabManager.selectedTab?.query
-    }
-
-    private func openAIPanelWithPrompt(_ prompt: String, feature: AIFeature) {
-        let wasAlreadyOpen = isAIChatPresented.wrappedValue
-        if !wasAlreadyOpen {
-            isAIChatPresented.wrappedValue = true
-        }
-
-        let delay: TimeInterval = wasAlreadyOpen ? 0 : 0.1
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            NotificationCenter.default.post(
-                name: .sendAIPrompt,
-                object: nil,
-                userInfo: ["prompt": prompt, "feature": feature.rawValue]
-            )
         }
     }
 }

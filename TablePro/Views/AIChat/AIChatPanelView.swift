@@ -12,32 +12,35 @@ import SwiftUI
 struct AIChatPanelView: View {
     let connection: DatabaseConnection
     let tables: [TableInfo]
-    var coordinator: MainContentCoordinator?
+    var currentQuery: String?
 
     @ObservedObject var viewModel: AIChatViewModel
     @State private var isNearBottom: Bool = true
+
+    private var hasConfiguredProvider: Bool {
+        AppSettingsManager.shared.ai.providers.contains(where: { $0.isEnabled })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
 
-            Divider()
-
-            if viewModel.messages.isEmpty {
+            if !hasConfiguredProvider && viewModel.messages.isEmpty {
+                noProviderState
+            } else if viewModel.messages.isEmpty {
                 emptyState
             } else {
                 messageList
             }
 
-            if let error = viewModel.errorMessage {
-                errorBanner(error)
+            if hasConfiguredProvider {
+                if let error = viewModel.errorMessage {
+                    errorBanner(error)
+                }
+
+                inputArea
             }
-
-            Divider()
-
-            inputArea
         }
-        .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             viewModel.connection = connection
             viewModel.tables = tables
@@ -56,96 +59,114 @@ struct AIChatPanelView: View {
             updateContext()
             viewModel.sendWithContext(prompt: prompt, feature: feature)
         }
+        .alert(
+            String(localized: "Allow AI Access"),
+            isPresented: $viewModel.showAIAccessConfirmation
+        ) {
+            Button(String(localized: "Allow")) {
+                viewModel.confirmAIAccess()
+            }
+            Button(String(localized: "Don't Allow"), role: .cancel) {
+                viewModel.denyAIAccess()
+            }
+        } message: {
+            Text(String(localized: "Your database schema and query data will be sent to the AI provider for analysis. Allow for this connection?"))
+        }
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack {
-            Label(String(localized: "AI Chat"), systemImage: "sparkles")
-                .font(.headline)
-                .foregroundStyle(.primary)
-
-            Spacer()
-
-            // History menu
-            Menu {
-                Button {
-                    viewModel.startNewConversation()
-                } label: {
-                    Label(String(localized: "New Conversation"), systemImage: "plus")
-                }
-
-                if !viewModel.conversations.isEmpty {
-                    Divider()
-
-                    ForEach(viewModel.conversations) { conversation in
-                        Button {
-                            viewModel.switchConversation(to: conversation.id)
-                        } label: {
-                            HStack {
-                                Text(conversation.title.isEmpty
-                                    ? String(localized: "Untitled")
-                                    : conversation.title)
-                                if conversation.id == viewModel.activeConversationID {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                }
-            } label: {
-                Image(systemName: "clock.arrow.circlepath")
-                    .foregroundStyle(.secondary)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help(String(localized: "Conversation History"))
-
-            // New chat button
+        HStack(spacing: 0) {
+            // Left: New conversation button
             Button {
                 viewModel.startNewConversation()
             } label: {
                 Image(systemName: "square.and.pencil")
                     .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
             }
             .buttonStyle(.plain)
             .help(String(localized: "New Conversation"))
 
-            // Clear/trash button
-            if !viewModel.messages.isEmpty {
-                Button {
+            Spacer()
+
+            // Center: Conversation title as dropdown
+            Menu {
+                if !viewModel.conversations.isEmpty {
+                    Section(String(localized: "Recent Conversations")) {
+                        ForEach(viewModel.conversations) { conversation in
+                            Button {
+                                viewModel.switchConversation(to: conversation.id)
+                            } label: {
+                                HStack {
+                                    Text(conversation.title.isEmpty
+                                        ? String(localized: "Untitled")
+                                        : conversation.title)
+                                    if conversation.id == viewModel.activeConversationID {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Divider()
+                }
+                Button(role: .destructive) {
                     viewModel.clearConversation()
                 } label: {
-                    Image(systemName: "trash")
-                        .foregroundStyle(.secondary)
+                    Label(String(localized: "Clear Recents"), systemImage: "trash")
                 }
-                .buttonStyle(.plain)
-                .help(String(localized: "Clear Conversation"))
+                .disabled(viewModel.conversations.isEmpty)
+            } label: {
+                HStack(spacing: 4) {
+                    let title = viewModel.conversations
+                        .first(where: { $0.id == viewModel.activeConversationID })?.title
+                        .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    Text(title.isEmpty ? String(localized: "New Chat") : title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                }
             }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Spacer()
+
+            // Right: Spacer to balance layout (history menu removed)
+            Color.clear
+                .frame(width: 32, height: 32)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
         .padding(.vertical, 8)
     }
 
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Image(systemName: "sparkles")
-                .font(.system(size: 32))
-                .foregroundStyle(.tertiary)
-            Text("Ask AI about your database")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("Get help writing queries, explaining schemas, or fixing errors.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-            Spacer()
+        ContentUnavailableView {
+            Label(String(localized: "Ask AI about your database"), systemImage: "sparkles")
+        } description: {
+            Text(String(localized: "Get help writing queries, explaining schemas, or fixing errors."))
         }
-        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - No Provider State
+
+    private var noProviderState: some View {
+        ContentUnavailableView {
+            Label(String(localized: "Set Up AI Provider"), systemImage: "sparkles")
+        } description: {
+            Text(String(localized: "Configure an AI provider in Settings to start chatting."))
+        } actions: {
+            SettingsLink {
+                Text(String(localized: "Go to Settings…"))
+            }
+            .simultaneousGesture(TapGesture().onEnded {
+                UserDefaults.standard.set(SettingsTab.ai.rawValue, forKey: "selectedSettingsTab")
+            })
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -154,14 +175,23 @@ struct AIChatPanelView: View {
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 8) {
-                    ForEach(viewModel.messages) { message in
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
                         if message.role != .system {
+                            // Extra spacing before user messages to separate conversation turns
+                            if message.role == .user
+                                && index > 0
+                                && viewModel.messages[0..<index].contains(where: { $0.role == .assistant })
+                            {
+                                Spacer()
+                                    .frame(height: 16)
+                            }
                             AIChatMessageView(
                                 message: message,
                                 onRetry: shouldShowRetry(for: message) ? { viewModel.retry() } : nil,
                                 onRegenerate: shouldShowRegenerate(for: message) ? { viewModel.regenerate() } : nil
                             )
+                            .padding(.vertical, 4)
                             .id(message.id)
                         }
                     }
@@ -173,9 +203,10 @@ struct AIChatPanelView: View {
                         .onAppear { isNearBottom = true }
                         .onDisappear { isNearBottom = false }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 8)
                 .padding(.vertical, 8)
             }
+            .scrollIndicators(.hidden)
             .onChange(of: viewModel.messages.last?.content) { _ in
                 if isNearBottom {
                     withAnimation(.easeOut(duration: 0.2)) {
@@ -220,47 +251,50 @@ struct AIChatPanelView: View {
     // MARK: - Input Area
 
     private var inputArea: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField(
-                String(localized: "Ask about your database..."),
-                text: $viewModel.inputText,
-                axis: .vertical
-            )
-            .textFieldStyle(.plain)
-            .lineLimit(1...5)
-            .onSubmit {
-                if !NSEvent.modifierFlags.contains(.shift) {
-                    updateContext()
-                    viewModel.sendMessage()
+        VStack(spacing: 0) {
+            Divider()
+            HStack(alignment: .center, spacing: 8) {
+                TextField(
+                    String(localized: "Ask about your database..."),
+                    text: $viewModel.inputText,
+                    axis: .vertical
+                )
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(1...5)
+                .onSubmit {
+                    if !NSEvent.modifierFlags.contains(.shift) {
+                        updateContext()
+                        viewModel.sendMessage()
+                    }
                 }
-            }
 
-            if viewModel.isStreaming {
-                Button {
-                    viewModel.cancelStream()
-                } label: {
-                    Image(systemName: "stop.circle.fill")
-                        .foregroundStyle(.red)
+                if viewModel.isStreaming {
+                    Button {
+                        viewModel.cancelStream()
+                    } label: {
+                        Image(systemName: "stop.circle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help(String(localized: "Stop Generating"))
+                } else {
+                    Button {
+                        updateContext()
+                        viewModel.sendMessage()
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .foregroundStyle(
+                                viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    ? .secondary : Color.accentColor
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .help(String(localized: "Send Message"))
                 }
-                .buttonStyle(.plain)
-                .help(String(localized: "Stop Generating"))
-            } else {
-                Button {
-                    updateContext()
-                    viewModel.sendMessage()
-                } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .foregroundColor(
-                            viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                ? .secondary : .accentColor
-                        )
-                }
-                .buttonStyle(.plain)
-                .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .help(String(localized: "Send Message"))
             }
+            .padding(8)
         }
-        .padding(12)
     }
 
     // MARK: - Schema Context
@@ -302,7 +336,7 @@ struct AIChatPanelView: View {
     // MARK: - Helpers
 
     private func updateContext() {
-        viewModel.currentQuery = coordinator?.tabManager.selectedTab?.query
+        viewModel.currentQuery = currentQuery
     }
 
     private func shouldShowRetry(for message: AIChatMessage) -> Bool {

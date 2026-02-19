@@ -433,6 +433,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             configureConnectionFormWindowStyle(window)
             configuredWindows.insert(windowId)
         }
+
+        // Note: Right panel uses overlay style (not .inspector()) — no split view configuration needed
     }
 
     private func configureWelcomeWindow() {
@@ -500,4 +502,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Keep connection form above welcome window (floating but allows interaction with other windows)
         window.level = .floating
     }
+
 }
