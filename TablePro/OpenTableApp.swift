@@ -86,20 +86,8 @@ struct PasteboardCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .paste))
 
             Button("Delete") {
-                // Check if first responder is the history panel's table view
-                // History panel uses responder chain for delete actions
-                // Data grid uses notifications for batched undo support
-                if let firstResponder = NSApp.keyWindow?.firstResponder {
-                    // Check class name to identify HistoryTableView
-                    let className = String(describing: type(of: firstResponder))
-                    if className.contains("HistoryTableView") {
-                        // Let history panel handle via responder chain
-                        NSApp.sendAction(#selector(NSText.delete(_:)), to: nil, from: nil)
-                        return
-                    }
-                }
-
                 // For data grid and other views, use notification for batched undo
+                // History panel now uses SwiftUI List with onDeleteCommand/swipeActions
                 NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .delete))

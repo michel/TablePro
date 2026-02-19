@@ -221,16 +221,13 @@ struct WelcomeWindowView: View {
         .listStyle(.inset)
         .scrollContentBackground(.hidden)
         .environment(\.defaultMinListRowHeight, 44)
-        .background(
-            KeyEventHandler { keyCode in
-                guard case .return = keyCode else { return false }
-                if let id = selectedConnectionId,
-                   let connection = connections.first(where: { $0.id == id }) {
-                    connectToDatabase(connection)
-                }
-                return true
+        .onKeyPress(.return) {
+            if let id = selectedConnectionId,
+               let connection = connections.first(where: { $0.id == id }) {
+                connectToDatabase(connection)
             }
-        )
+            return .handled
+        }
     }
 
     // MARK: - Empty State

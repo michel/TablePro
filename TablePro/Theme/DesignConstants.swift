@@ -137,7 +137,7 @@ enum DesignConstants {
         // Text
         static let primaryText = Color.primary
         static let secondaryText = Color.secondary
-        static let tertiaryText = Color.secondary.opacity(0.6)
+        static let tertiaryText = Color(nsColor: .tertiaryLabelColor)
 
         // Semantic
         static let success = Color.green

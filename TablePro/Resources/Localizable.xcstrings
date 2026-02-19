@@ -41,6 +41,9 @@
         }
       }
     },
+    "·" : {
+
+    },
     "''" : {
       "localizations" : {
         "vi" : {
@@ -252,6 +255,7 @@
       }
     },
     "%@." : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -307,7 +311,18 @@
         }
       }
     },
+    "%lld in · %lld out" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld in · %2$lld out"
+          }
+        }
+      }
+    },
     "%lld in / %lld out tokens" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -969,6 +984,15 @@
         }
       }
     },
+    "All Time" : {
+
+    },
+    "Allow" : {
+
+    },
+    "Allow AI Access" : {
+
+    },
     "Always" : {
       "localizations" : {
         "vi" : {
@@ -1359,6 +1383,9 @@
         }
       }
     },
+    "Choose a query from the list\nto see its full content here." : {
+
+    },
     "Clear" : {
       "localizations" : {
         "vi" : {
@@ -1378,6 +1405,9 @@
           }
         }
       }
+    },
+    "Clear all history" : {
+
     },
     "Clear All History?" : {
       "localizations" : {
@@ -1400,6 +1430,7 @@
       }
     },
     "Clear Conversation" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1428,6 +1459,9 @@
           }
         }
       }
+    },
+    "Clear Recents" : {
+
     },
     "Clear Search" : {
       "localizations" : {
@@ -1480,6 +1514,7 @@
       }
     },
     "Click to load models" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1695,6 +1730,9 @@
         }
       }
     },
+    "Configure an AI provider in Settings to start chatting." : {
+
+    },
     "Connect" : {
       "localizations" : {
         "vi" : {
@@ -1776,6 +1814,7 @@
       }
     },
     "Connection Status" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1785,7 +1824,11 @@
         }
       }
     },
+    "Connection successful" : {
+
+    },
     "Connection Switcher" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1836,6 +1879,7 @@
       }
     },
     "Conversation History" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1944,6 +1988,9 @@
           }
         }
       }
+    },
+    "Copy Query" : {
+
     },
     "Copy SQL" : {
       "localizations" : {
@@ -2302,6 +2349,7 @@
       }
     },
     "Database Switcher" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2591,6 +2639,9 @@
         }
       }
     },
+    "Details" : {
+
+    },
     "Disable foreign key checks" : {
       "localizations" : {
         "vi" : {
@@ -2670,6 +2721,9 @@
           }
         }
       }
+    },
+    "Don't Allow" : {
+
     },
     "Don't show this again" : {
       "localizations" : {
@@ -2801,7 +2855,11 @@
         }
       }
     },
+    "Edit Provider" : {
+
+    },
     "Edit Row" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3163,6 +3221,7 @@
       }
     },
     "Export Data" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3428,7 +3487,11 @@
         }
       }
     },
+    "FIELDS" : {
+
+    },
     "FIELDS (%lld)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3638,6 +3701,9 @@
         }
       }
     },
+    "Go to Settings…" : {
+
+    },
     "Graphite" : {
       "localizations" : {
         "vi" : {
@@ -3728,6 +3794,12 @@
         }
       }
     },
+    "history entries" : {
+
+    },
+    "history entry" : {
+
+    },
     "Ignore foreign key checks" : {
       "localizations" : {
         "vi" : {
@@ -3759,6 +3831,7 @@
       }
     },
     "Import Data" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3955,6 +4028,7 @@
       }
     },
     "Inspector" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3993,6 +4067,9 @@
           }
         }
       }
+    },
+    "Invalid JSON" : {
+
     },
     "Invalid username or password" : {
       "localizations" : {
@@ -4233,6 +4310,9 @@
           }
         }
       }
+    },
+    "Load in Editor" : {
+
     },
     "Load Table Template" : {
       "localizations" : {
@@ -4504,6 +4584,9 @@
         }
       }
     },
+    "New Chat" : {
+
+    },
     "New Connection" : {
       "localizations" : {
         "vi" : {
@@ -4545,6 +4628,7 @@
       }
     },
     "New Query Tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4784,6 +4868,9 @@
         }
       }
     },
+    "No Matching Queries" : {
+
+    },
     "No matching tables" : {
       "localizations" : {
         "vi" : {
@@ -4804,6 +4891,9 @@
         }
       }
     },
+    "No models loaded" : {
+
+    },
     "No pending changes" : {
       "localizations" : {
         "vi" : {
@@ -4823,6 +4913,12 @@
           }
         }
       }
+    },
+    "No providers configured" : {
+
+    },
+    "No Query History Yet" : {
+
     },
     "No rows" : {
       "localizations" : {
@@ -4893,6 +4989,9 @@
           }
         }
       }
+    },
+    "No values found" : {
+
     },
     "None" : {
       "localizations" : {
@@ -5701,7 +5800,11 @@
         }
       }
     },
+    "Recent Conversations" : {
+
+    },
     "Reconnect" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5722,6 +5825,7 @@
       }
     },
     "Reconnect to Database" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5962,6 +6066,7 @@
       }
     },
     "Row Details" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6011,6 +6116,9 @@
         }
       }
     },
+    "Run in New Tab" : {
+
+    },
     "Same options will be applied to all selected tables." : {
       "localizations" : {
         "vi" : {
@@ -6050,6 +6158,9 @@
           }
         }
       }
+    },
+    "Save Anyway" : {
+
     },
     "Save as Preset..." : {
       "localizations" : {
@@ -6181,6 +6292,9 @@
         }
       }
     },
+    "Search queries..." : {
+
+    },
     "Search shortcuts..." : {
       "localizations" : {
         "vi" : {
@@ -6220,6 +6334,12 @@
           }
         }
       }
+    },
+    "Select a Query" : {
+
+    },
+    "Select a row or table to view details" : {
+
     },
     "Select a table to copy its structure:" : {
       "localizations" : {
@@ -6316,6 +6436,9 @@
           }
         }
       }
+    },
+    "Set Up AI Provider" : {
+
     },
     "Set Value" : {
       "localizations" : {
@@ -6774,6 +6897,7 @@
       }
     },
     "Switch Database (⌘K)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6844,6 +6968,7 @@
       }
     },
     "Table Info" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6989,6 +7114,9 @@
         }
       }
     },
+    "The text is not valid JSON. Save anyway?" : {
+
+    },
     "This database has no tables yet." : {
       "localizations" : {
         "vi" : {
@@ -7018,6 +7146,9 @@
           }
         }
       }
+    },
+    "This Month" : {
+
     },
     "This operation is not supported" : {
       "localizations" : {
@@ -7076,6 +7207,9 @@
         }
       }
     },
+    "This Week" : {
+
+    },
     "This will permanently delete %lld %@. This action cannot be undone." : {
       "localizations" : {
         "en" : {
@@ -7132,6 +7266,9 @@
         }
       }
     },
+    "Today" : {
+
+    },
     "Toggle AI Chat" : {
       "localizations" : {
         "vi" : {
@@ -7143,6 +7280,7 @@
       }
     },
     "Toggle AI Chat (⌘⇧L)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7213,6 +7351,7 @@
       }
     },
     "Toggle Query History (⌘⇧H)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7281,6 +7420,9 @@
           }
         }
       }
+    },
+    "Try adjusting your search terms\nor date filter." : {
+
     },
     "Type" : {
       "localizations" : {
@@ -7642,6 +7784,9 @@
         }
       }
     },
+    "You" : {
+
+    },
     "You can re-enable this in Settings" : {
       "localizations" : {
         "vi" : {
@@ -7661,6 +7806,12 @@
           }
         }
       }
+    },
+    "Your database schema and query data will be sent to the AI provider for analysis. Allow for this connection?" : {
+
+    },
+    "Your executed queries will\nappear here for quick access." : {
+
     },
     "Zero Fill" : {
       "localizations" : {

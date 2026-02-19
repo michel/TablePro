@@ -296,12 +296,25 @@ final class MainContentNotificationHandler: ObservableObject {
 
     private func handleLoadQueryIntoEditor(_ notification: Notification) {
         guard let query = notification.object as? String,
-              let coordinator = coordinator,
-              let tabIndex = coordinator.tabManager.selectedTabIndex,
-              tabIndex < coordinator.tabManager.tabs.count else { return }
+              let coordinator = coordinator else { return }
 
-        coordinator.tabManager.tabs[tabIndex].query = query
-        coordinator.tabManager.tabs[tabIndex].hasUserInteraction = true
+        // Check if current tab is a query tab
+        if let tabIndex = coordinator.tabManager.selectedTabIndex,
+           tabIndex < coordinator.tabManager.tabs.count,
+           coordinator.tabManager.tabs[tabIndex].tabType == .query {
+            coordinator.tabManager.tabs[tabIndex].query = query
+            coordinator.tabManager.tabs[tabIndex].hasUserInteraction = true
+        } else {
+            // Create a new query tab and load the query into it
+            NotificationCenter.default.post(name: .newTab, object: nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if let newIndex = coordinator.tabManager.selectedTabIndex,
+                   newIndex < coordinator.tabManager.tabs.count {
+                    coordinator.tabManager.tabs[newIndex].query = query
+                    coordinator.tabManager.tabs[newIndex].hasUserInteraction = true
+                }
+            }
+        }
     }
 
     private func handleInsertQueryFromAI(_ notification: Notification) {

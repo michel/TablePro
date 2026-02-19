@@ -85,23 +85,18 @@ struct DatabaseSwitcherSheet: View {
             // SwiftUI handles sheet priority automatically - no nested sheets take precedence
             dismiss()
         }
-        .background(
-            KeyEventHandler { keyCode in
-                switch keyCode {
-                case .return:
-                    openSelectedDatabase()
-                    return true
-                case .upArrow:
-                    moveSelection(up: true)
-                    return true
-                case .downArrow:
-                    moveSelection(up: false)
-                    return true
-                default:
-                    return false
-                }
-            }
-        )
+        .onKeyPress(.return) {
+            openSelectedDatabase()
+            return .handled
+        }
+        .onKeyPress(.upArrow) {
+            moveSelection(up: true)
+            return .handled
+        }
+        .onKeyPress(.downArrow) {
+            moveSelection(up: false)
+            return .handled
+        }
     }
 
     // MARK: - Toolbar
