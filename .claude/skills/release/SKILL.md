@@ -1,0 +1,230 @@
+---
+name: release
+description: >
+  Prepares and ships a new TablePro release — bumps version numbers in
+  project.pbxproj, finalizes CHANGELOG.md, commits, tags, and pushes.
+  Use this skill whenever the user says "release", "bump version",
+  "ship version", "tag a release", "cut a release", or provides a
+  version number they want to release (e.g., "/release 0.5.0").
+---
+
+# Release Version
+
+Automate the full release pipeline for TablePro. The user provides the
+target version (e.g., `0.5.0`). You handle everything from version bump
+through git push.
+
+## Usage
+
+```
+/release <version>
+```
+
+Example: `/release 0.5.0`
+
+## Pre-flight Checks
+
+Before making any changes, verify ALL of the following. If any check
+fails, stop and tell the user what's wrong.
+
+1. **Version argument exists** — the user must provide a semver version
+   (e.g., `0.5.0`). If missing, ask for it.
+
+2. **Version is valid semver** — must match `X.Y.Z` where X, Y, Z are
+   non-negative integers. Pre-release suffixes like `-beta.1` or `-rc.1`
+   are allowed.
+
+3. **Version is newer** — compare against the current `MARKETING_VERSION`
+   in `project.pbxproj`. The new version must be greater. Read the
+   current value:
+   ```
+   Grep for "MARKETING_VERSION" in TablePro.xcodeproj/project.pbxproj
+   ```
+
+4. **Tag doesn't exist** — run `git tag -l "v<version>"` to confirm the
+   tag is available.
+
+5. **Working tree is clean** — run `git status --porcelain`. If there are
+   uncommitted changes, warn the user and ask whether to proceed (the
+   release commit will include those changes).
+
+6. **Unreleased section has content** — read `CHANGELOG.md` and verify
+   the `## [Unreleased]` section has entries. If empty, warn the user
+   that the release will have no changelog entries.
+
+7. **On main branch** — run `git branch --show-current`. Warn (but don't
+   block) if not on `main`.
+
+8. **SwiftLint passes** — run `swiftlint lint --strict`. If there are
+   any warnings or errors, spawn a Task subagent to fix all issues
+   before continuing with the release. The subagent should run
+   `swiftlint --fix` first, then manually fix any remaining issues,
+   and verify with `swiftlint lint --strict` until clean.
+
+## Release Steps
+
+### Step 1: Bump Version in project.pbxproj
+
+File: `TablePro.xcodeproj/project.pbxproj`
+
+There are exactly **4 lines** to update — 2 for `MARKETING_VERSION` and
+2 for `CURRENT_PROJECT_VERSION`, all belonging to the **main app target**
+(Debug + Release configs).
+
+- Set `MARKETING_VERSION` to the new version (e.g., `0.5.0`)
+- Increment `CURRENT_PROJECT_VERSION` by 1 from its current value
+
+**Do NOT touch** the test target's version lines (they have
+`MARKETING_VERSION = 1.0` and `CURRENT_PROJECT_VERSION = 1`).
+
+To identify the right lines: the main target's versions appear around
+lines 380-510 in pbxproj. The test target's are around lines 550-590.
+Always read the file and verify context before editing.
+
+Use `replace_all: true` for each edit — the main target's values are
+always different from the test target's values (test target has
+`MARKETING_VERSION = 1.0` and `CURRENT_PROJECT_VERSION = 1`), so
+`replace_all` safely targets only the correct occurrences. This is
+simpler than editing each of the 4 lines individually.
+
+### Step 2: Finalize CHANGELOG.md
+
+Make these edits to `CHANGELOG.md`:
+
+1. **Convert Unreleased to versioned heading** — replace:
+   ```
+   ## [Unreleased]
+   ```
+   with:
+   ```
+   ## [Unreleased]
+
+   ## [<version>] - <YYYY-MM-DD>
+   ```
+   where `<YYYY-MM-DD>` is today's date.
+
+2. **Update footer links** — at the bottom of the file:
+
+   Replace the `[Unreleased]` compare link:
+   ```
+   [Unreleased]: https://github.com/datlechin/tablepro/compare/v<old-version>...HEAD
+   ```
+   with:
+   ```
+   [Unreleased]: https://github.com/datlechin/tablepro/compare/v<version>...HEAD
+   [<version>]: https://github.com/datlechin/tablepro/compare/v<old-version>...v<version>
+   ```
+
+   `<old-version>` is the previous release version (the one currently in
+   the `[Unreleased]` compare link).
+
+### Step 3: Commit (main repo)
+
+Stage the changed files and commit:
+
+```bash
+git add TablePro.xcodeproj/project.pbxproj CHANGELOG.md
+git commit -m "$(cat <<'EOF'
+Release v<version>
+EOF
+)"
+```
+
+If there were other staged/unstaged changes from the pre-flight check
+that the user agreed to include, stage those too.
+
+### Step 4: Tag
+
+```bash
+git tag v<version>
+```
+
+### Step 5: Push
+
+Push the commit and the tag **separately** — `--follow-tags` only pushes
+annotated tags, but `git tag` creates lightweight tags:
+
+```bash
+git push origin main && git push origin v<version>
+```
+
+This triggers the CI/CD pipeline (`.github/workflows/build.yml`) which
+automatically:
+- Builds arm64 and x86_64 binaries
+- Creates DMG and ZIP artifacts
+- Signs with Sparkle EdDSA
+- Generates and commits `appcast.xml`
+- Creates the GitHub Release with release notes extracted from CHANGELOG.md
+
+### Step 6: Update Documentation Changelogs (separate repo)
+
+The documentation site lives in a **separate git repository** at
+`docs/` (relative to project root, mapped to the `tablepro.app` repo).
+Two changelog files need a new `<Update>` entry:
+
+- `docs/changelog.mdx` (English)
+- `docs/vi/changelog.mdx` (Vietnamese)
+
+**How to write the entry:**
+
+1. Read the new version's section from `CHANGELOG.md` (the entries you
+   finalized in Step 2).
+2. Rewrite them as a user-friendly `<Update>` block — group entries
+   under `### New Features`, `### Improvements`, `### Bug Fixes`, etc.
+   (not the raw Added/Changed/Fixed/Removed from Keep a Changelog).
+3. Write concise, user-facing descriptions (not developer-internal
+   details). Skip purely internal refactors unless they have visible
+   impact.
+
+**English format** (`docs/changelog.mdx`):
+
+```mdx
+<Update label="<Month Day, Year>" description="v<version>">
+  ### New Features
+
+  - **Feature Name**: Description
+
+  ### Improvements
+
+  - Description
+
+  ### Bug Fixes
+
+  - Description
+</Update>
+```
+
+Insert the new `<Update>` block at the top of the file, right after the
+frontmatter `---` closing delimiter (before the first existing `<Update>`).
+
+**Vietnamese format** (`docs/vi/changelog.mdx`):
+
+Same structure but with Vietnamese text. Use the date format
+`<Day> tháng <Month>, <Year>` (e.g., `19 tháng 2, 2026`). Translate
+feature names and descriptions to Vietnamese. Follow the style of
+existing Vietnamese entries in the file.
+
+**Commit and push in the docs repo:**
+
+```bash
+cd docs && git add changelog.mdx vi/changelog.mdx && git commit -m "$(cat <<'EOF'
+docs: update changelog for v<version>
+EOF
+)" && git push
+```
+
+## Post-release Summary
+
+After all pushes, print a summary:
+
+```
+Release v<version> (build <build-number>) pushed successfully.
+
+Main repo:
+  CI will now build arm64 + x86_64, create DMG/ZIP, update appcast.xml, create GitHub Release.
+  Monitor: https://github.com/datlechin/TablePro/actions
+  Release: https://github.com/datlechin/TablePro/releases/tag/v<version>
+
+Docs repo:
+  Changelog updated and pushed.
+```
