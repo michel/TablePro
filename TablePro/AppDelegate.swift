@@ -502,5 +502,4 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Keep connection form above welcome window (floating but allows interaction with other windows)
         window.level = .floating
     }
-
 }

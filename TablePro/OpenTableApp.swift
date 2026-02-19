@@ -381,7 +381,6 @@ struct TableProApp: App {
                 }
                 .optionalKeyboardShortcut(shortcut(for: .toggleHistory))
                 .disabled(!appState.isConnected)
-
             }
 
             // Tab navigation shortcuts

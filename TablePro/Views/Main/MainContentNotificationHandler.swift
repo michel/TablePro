@@ -670,7 +670,6 @@ final class MainContentNotificationHandler: ObservableObject {
                 self?.handleToggleRightSidebar()
             }
             .store(in: &cancellables)
-
     }
 
     private func handleClearSelection() {

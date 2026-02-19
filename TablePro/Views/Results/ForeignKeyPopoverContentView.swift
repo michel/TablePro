@@ -5,8 +5,8 @@
 //  SwiftUI popover content for searchable foreign key column editing.
 //
 
-import SwiftUI
 import os
+import SwiftUI
 
 struct ForeignKeyPopoverContentView: View {
     let currentValue: String?
