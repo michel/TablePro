@@ -1,0 +1,106 @@
+//
+//  TypePickerContentView.swift
+//  TablePro
+//
+//  Searchable type picker for structure view column type editing.
+//
+
+import SwiftUI
+
+struct TypePickerContentView: View {
+    let databaseType: DatabaseType
+    let currentValue: String
+    let onCommit: (String) -> Void
+    let onDismiss: () -> Void
+
+    @State private var searchText = ""
+
+    private static let rowHeight: CGFloat = 22
+    private static let sectionHeaderHeight: CGFloat = 28
+    private static let searchAreaHeight: CGFloat = 44
+    private static let maxTotalHeight: CGFloat = 360
+
+    private var visibleCategories: [DataTypeCategory] {
+        DataTypeCategory.allCases.filter { !filteredTypes(for: $0).isEmpty }
+    }
+
+    private func filteredTypes(for category: DataTypeCategory) -> [String] {
+        let types = category.types(for: databaseType)
+        if searchText.isEmpty { return types }
+        let query = searchText.lowercased()
+        return types.filter { $0.lowercased().contains(query) }
+    }
+
+    private var totalFilteredCount: Int {
+        visibleCategories.reduce(0) { $0 + filteredTypes(for: $1).count }
+    }
+
+    private var listHeight: CGFloat {
+        let contentHeight = CGFloat(totalFilteredCount) * Self.rowHeight
+            + CGFloat(visibleCategories.count) * Self.sectionHeaderHeight
+            + 8
+        return min(contentHeight, Self.maxTotalHeight - Self.searchAreaHeight)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TextField("Search or type...", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+                .onSubmit { commitFreeform() }
+
+            Divider()
+
+            List {
+                ForEach(visibleCategories, id: \.self) { category in
+                    Section(header: Text(category.rawValue)) {
+                        ForEach(filteredTypes(for: category), id: \.self) { type in
+                            typeRow(type)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                                .onTapGesture { commitType(type) }
+                                .listRowInsets(EdgeInsets(
+                                    top: 2, leading: 6, bottom: 2, trailing: 6
+                                ))
+                        }
+                    }
+                }
+            }
+            .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, Self.rowHeight)
+            .frame(height: listHeight)
+        }
+        .frame(width: 280)
+    }
+
+    @ViewBuilder
+    private func typeRow(_ type: String) -> some View {
+        if type.caseInsensitiveCompare(currentValue) == .orderedSame {
+            Text(type)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.accentColor)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        } else {
+            Text(type)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+
+    private func commitFreeform() {
+        let text = searchText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return }
+        onCommit(text)
+        onDismiss()
+    }
+
+    private func commitType(_ type: String) {
+        onCommit(type)
+        onDismiss()
+    }
+}

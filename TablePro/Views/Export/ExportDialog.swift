@@ -156,7 +156,7 @@ struct ExportDialog: View {
                     Spacer()
                 }
             } else {
-                ExportTableOutlineView(
+                ExportTableTreeView(
                     databaseItems: $databaseItems,
                     format: config.format
                 )

@@ -38,7 +38,7 @@
 //  ## Reference Files
 //  - `TableProApp.swift` - SwiftUI Commands that define shortcuts
 //  - `KeyHandlingTableView.swift` - Data grid keyboard handling
-//  - `HistoryTableView.swift` - Perfect responder chain example
+//  - `HistoryPanelView.swift` - SwiftUI history panel (uses onDeleteCommand)
 //  - `EditorTextView.swift` - SQL editor keyboard handling
 //
 

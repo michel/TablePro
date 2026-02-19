@@ -9,6 +9,21 @@ import AppKit
 import os
 import SwiftUI
 
+// MARK: - Sidebar Material Background
+
+/// NSVisualEffectView wrapper that provides the system sidebar material
+private struct SidebarMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}
+
 struct ContentView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ContentView")
 
@@ -132,6 +147,10 @@ struct ContentView: View {
                     )
                 }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 600)
+                .background {
+                    SidebarMaterial()
+                        .ignoresSafeArea()
+                }
             } detail: {
                 // MARK: - Detail (Main workspace with optional right sidebar)
                 MainContentView(

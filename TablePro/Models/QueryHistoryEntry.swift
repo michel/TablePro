@@ -63,7 +63,10 @@ struct QueryHistoryEntry: Identifiable, Codable, Hashable {
 
     /// Truncated query for preview (first 100 chars)
     var queryPreview: String {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.hasSuffix(";") {
+            trimmed += ";"
+        }
         if trimmed.count > 100 {
             return String(trimmed.prefix(100)) + "..."
         }

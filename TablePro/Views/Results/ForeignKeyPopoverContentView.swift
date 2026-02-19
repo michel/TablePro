@@ -1,0 +1,176 @@
+//
+//  ForeignKeyPopoverContentView.swift
+//  TablePro
+//
+//  SwiftUI popover content for searchable foreign key column editing.
+//
+
+import SwiftUI
+import os
+
+struct ForeignKeyPopoverContentView: View {
+    let currentValue: String?
+    let fkInfo: ForeignKeyInfo
+    let databaseType: DatabaseType
+    let onCommit: (String) -> Void
+    let onDismiss: () -> Void
+
+    @State private var searchText = ""
+    @State private var allValues: [FKValue] = []
+    @State private var selectedId: String?
+    @State private var isLoading = true
+
+    private static let logger = Logger(subsystem: "com.TablePro", category: "FKPopover")
+    private static let maxFetchRows = 1_000
+    private static let rowHeight: CGFloat = 24
+    private static let searchAreaHeight: CGFloat = 44
+    private static let maxHeight: CGFloat = 320
+
+    private var filteredValues: [FKValue] {
+        let query = searchText.lowercased()
+        if query.isEmpty { return allValues }
+        return allValues.filter { $0.display.lowercased().contains(query) }
+    }
+
+    private var listHeight: CGFloat {
+        let contentHeight = CGFloat(filteredValues.count) * Self.rowHeight
+        return min(contentHeight, Self.maxHeight - Self.searchAreaHeight)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TextField("Search...", text: $searchText)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 13))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
+
+            Divider()
+
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(height: 60)
+            } else if filteredValues.isEmpty {
+                Text("No values found")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 60)
+            } else {
+                List(filteredValues, selection: $selectedId) { value in
+                    rowLabel(for: value)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onCommit(value.id)
+                            onDismiss()
+                        }
+                        .listRowInsets(EdgeInsets(
+                            top: 2, leading: 6, bottom: 2, trailing: 6
+                        ))
+                }
+                .listStyle(.plain)
+                .environment(\.defaultMinListRowHeight, Self.rowHeight)
+                .frame(height: listHeight)
+                .onKeyPress(.return) {
+                    guard let id = selectedId else { return .ignored }
+                    onCommit(id)
+                    onDismiss()
+                    return .handled
+                }
+            }
+        }
+        .frame(width: 420)
+        .fixedSize(horizontal: false, vertical: true)
+        .task { await fetchForeignKeyValues() }
+    }
+
+    // MARK: - Row View
+
+    @ViewBuilder
+    private func rowLabel(for value: FKValue) -> some View {
+        if value.id == currentValue {
+            Text(value.display)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.accentColor)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        } else {
+            Text(value.display)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+    }
+
+    // MARK: - Data Fetching
+
+    private func fetchForeignKeyValues() async {
+        guard let driver = DatabaseManager.shared.activeDriver else {
+            Self.logger.error("No active driver for FK lookup")
+            isLoading = false
+            return
+        }
+
+        let quotedTable = databaseType.quoteIdentifier(fkInfo.referencedTable)
+        let quotedColumn = databaseType.quoteIdentifier(fkInfo.referencedColumn)
+
+        // Try to find a display column (first text-like column that isn't the FK column)
+        var displayColumn: String?
+        do {
+            let columnInfos = try await driver.fetchColumns(table: fkInfo.referencedTable)
+            displayColumn = columnInfos.first(where: { col in
+                col.name != fkInfo.referencedColumn &&
+                !col.isPrimaryKey &&
+                isTextLikeType(col.dataType)
+            })?.name
+        } catch {
+            Self.logger.debug("Could not fetch columns for display: \(error.localizedDescription)")
+        }
+
+        let query: String
+        if let displayCol = displayColumn {
+            let quotedDisplay = databaseType.quoteIdentifier(displayCol)
+            query = "SELECT \(quotedColumn), \(quotedDisplay) FROM \(quotedTable) ORDER BY \(quotedColumn) LIMIT \(Self.maxFetchRows)"
+        } else {
+            query = "SELECT DISTINCT \(quotedColumn) FROM \(quotedTable) ORDER BY \(quotedColumn) LIMIT \(Self.maxFetchRows)"
+        }
+
+        do {
+            let result = try await DatabaseManager.shared.execute(query: query)
+            var values: [FKValue] = []
+            for row in result.rows {
+                guard let idVal = row.first ?? nil else { continue }
+                let displayVal: String
+                if displayColumn != nil, row.count > 1, let second = row[1] {
+                    displayVal = "\(idVal) — \(second)"
+                } else {
+                    displayVal = idVal
+                }
+                values.append(FKValue(id: idVal, display: displayVal))
+            }
+            allValues = values
+            selectedId = currentValue
+        } catch {
+            Self.logger.error("FK value fetch failed: \(error.localizedDescription)")
+        }
+
+        isLoading = false
+    }
+
+    // MARK: - Helpers
+
+    private func isTextLikeType(_ typeString: String) -> Bool {
+        let upper = typeString.uppercased()
+        return upper.contains("CHAR") || upper.contains("TEXT") || upper.contains("NAME")
+    }
+}
+
+// MARK: - FK Value Model
+
+private struct FKValue: Identifiable, Hashable {
+    let id: String
+    let display: String
+}

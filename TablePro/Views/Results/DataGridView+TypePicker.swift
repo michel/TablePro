@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import SwiftUI
 
 extension TableViewCoordinator {
     func showTypePickerPopover(
@@ -20,23 +21,28 @@ extension TableViewCoordinator {
         let currentValue = rowData.value(at: columnIndex) ?? ""
         let dbType = databaseType ?? .mysql
 
-        TypePickerPopoverController.shared.show(
+        PopoverPresenter.show(
             relativeTo: cellView.bounds,
-            of: cellView,
-            databaseType: dbType,
-            currentValue: currentValue
-        ) { [weak self] newValue in
-            guard let self else { return }
-            guard let rowData = self.rowProvider.row(at: row) else { return }
-            let oldValue = rowData.value(at: columnIndex)
-            guard oldValue != newValue else { return }
+            of: cellView
+        ) { [weak self] dismiss in
+            TypePickerContentView(
+                databaseType: dbType,
+                currentValue: currentValue,
+                onCommit: { newValue in
+                    guard let self else { return }
+                    guard let rowData = self.rowProvider.row(at: row) else { return }
+                    let oldValue = rowData.value(at: columnIndex)
+                    guard oldValue != newValue else { return }
 
-            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
-            self.onCellEdit?(row, columnIndex, newValue)
+                    self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
+                    self.onCellEdit?(row, columnIndex, newValue)
 
-            tableView.reloadData(
-                forRowIndexes: IndexSet(integer: row),
-                columnIndexes: IndexSet(integer: column)
+                    tableView.reloadData(
+                        forRowIndexes: IndexSet(integer: row),
+                        columnIndexes: IndexSet(integer: column)
+                    )
+                },
+                onDismiss: dismiss
             )
         }
     }

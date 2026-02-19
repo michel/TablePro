@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - AI chat panel — native macOS inspector styling: removed iOS-style chat bubbles, flattened message layout with role headers and compact spacing, reduced heading sizes for narrow sidebar, inline typing indicator without pill background
+- **AppKit → SwiftUI migration:** migrated 5 NSPopover controllers (Enum, Set, TypePicker, JSONEditor, ForeignKey) to SwiftUI content views with a shared `PopoverPresenter` utility — eliminates manual `NSEvent` monitors, `NSPopoverDelegate`, and singleton patterns
+- **AppKit → SwiftUI migration:** replaced `KeyEventHandler` NSViewRepresentable with native `.onKeyPress()` modifiers (macOS 14+) in DatabaseSwitcherSheet and WelcomeWindowView
+- **AppKit → SwiftUI migration:** replaced AppKit history panel (5 files: `HistoryPanelController`, `HistoryListViewController`, `QueryPreviewViewController`, `HistoryTableView`, `HistoryRowView`) with single pure SwiftUI `HistoryPanelView` using `HSplitView`, `List` with selection, context menus, and swipe-to-delete
+- **AppKit → SwiftUI migration:** replaced `ExportTableOutlineView` (NSOutlineView, 757 lines across 2 files) with SwiftUI `ExportTableTreeView` using `List`, `DisclosureGroup`, and tristate checkboxes (~146 lines)
+- **Design tokens:** replaced hardcoded `Color.secondary.opacity(0.6)` with system `Color(nsColor: .tertiaryLabelColor)` in `DesignConstants` and `ToolbarDesignTokens` for proper semantic color
 
 ### Added
 - AI chat panel shows "Set Up AI Provider" empty state when no AI provider is configured, with a button to open Settings

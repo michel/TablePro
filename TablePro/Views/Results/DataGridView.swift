@@ -917,32 +917,26 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
         guard let databaseType = DatabaseManager.shared.currentSession?.connection.type else { return }
 
-        ForeignKeyPopoverController.shared.show(
+        PopoverPresenter.show(
             relativeTo: cellView.bounds,
             of: cellView,
-            currentValue: currentValue,
-            fkInfo: fkInfo,
-            databaseType: databaseType
-        ) { [weak self] newValue in
-            guard let self = self else { return }
-            guard let rowData = self.rowProvider.row(at: row) else { return }
-            let oldValue = rowData.value(at: columnIndex)
-            guard oldValue != newValue else { return }
-
-            let columnName = self.rowProvider.columns[columnIndex]
-            self.changeManager.recordCellChange(
-                rowIndex: row,
-                columnIndex: columnIndex,
-                columnName: columnName,
-                oldValue: oldValue,
-                newValue: newValue,
-                originalRow: rowData.values
+            contentSize: NSSize(width: 420, height: 320)
+        ) { [weak self] dismiss in
+            ForeignKeyPopoverContentView(
+                currentValue: currentValue,
+                fkInfo: fkInfo,
+                databaseType: databaseType,
+                onCommit: { newValue in
+                    self?.commitPopoverEdit(
+                        tableView: tableView,
+                        row: row,
+                        column: column,
+                        columnIndex: columnIndex,
+                        newValue: newValue
+                    )
+                },
+                onDismiss: dismiss
             )
-
-            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
-            self.onCellEdit?(row, columnIndex, newValue)
-
-            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
         }
     }
 
@@ -952,30 +946,24 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
 
-        JSONEditorPopoverController.shared.show(
+        PopoverPresenter.show(
             relativeTo: cellView.bounds,
             of: cellView,
-            value: currentValue
-        ) { [weak self] newValue in
-            guard let self = self else { return }
-            guard let rowData = self.rowProvider.row(at: row) else { return }
-            let oldValue = rowData.value(at: columnIndex)
-            guard oldValue != newValue else { return }
-
-            let columnName = self.rowProvider.columns[columnIndex]
-            self.changeManager.recordCellChange(
-                rowIndex: row,
-                columnIndex: columnIndex,
-                columnName: columnName,
-                oldValue: oldValue,
-                newValue: newValue,
-                originalRow: rowData.values
+            contentSize: NSSize(width: 420, height: 340)
+        ) { [weak self] dismiss in
+            JSONEditorContentView(
+                initialValue: currentValue,
+                onCommit: { newValue in
+                    self?.commitPopoverEdit(
+                        tableView: tableView,
+                        row: row,
+                        column: column,
+                        columnIndex: columnIndex,
+                        newValue: newValue
+                    )
+                },
+                onDismiss: dismiss
             )
-
-            self.rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
-            self.onCellEdit?(row, columnIndex, newValue)
-
-            tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
         }
     }
 
@@ -988,14 +976,26 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let currentValue = rowData.value(at: columnIndex)
         let isNullable = rowProvider.columnNullable[columnName] ?? true
 
-        EnumPopoverController.shared.show(
+        // Build value list (NULL first if nullable)
+        var values: [String] = []
+        if isNullable {
+            values.append("\u{2300} NULL")
+        }
+        values.append(contentsOf: allowedValues)
+
+        PopoverPresenter.show(
             relativeTo: cellView.bounds,
-            of: cellView,
-            currentValue: currentValue,
-            allowedValues: allowedValues,
-            isNullable: isNullable
-        ) { [weak self] newValue in
-            self?.commitPopoverEdit(tableView: tableView, row: row, column: column, columnIndex: columnIndex, newValue: newValue)
+            of: cellView
+        ) { [weak self] dismiss in
+            EnumPopoverContentView(
+                allValues: values,
+                currentValue: currentValue,
+                isNullable: isNullable,
+                onCommit: { newValue in
+                    self?.commitPopoverEdit(tableView: tableView, row: row, column: column, columnIndex: columnIndex, newValue: newValue)
+                },
+                onDismiss: dismiss
+            )
         }
     }
 
@@ -1007,13 +1007,30 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         let currentValue = rowData.value(at: columnIndex)
 
-        SetPopoverController.shared.show(
+        // Parse current value to determine checked state
+        let currentSet: Set<String>
+        if let value = currentValue {
+            currentSet = Set(value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+        } else {
+            currentSet = []
+        }
+        var selections: [String: Bool] = [:]
+        for value in allowedValues {
+            selections[value] = currentSet.contains(value)
+        }
+
+        PopoverPresenter.show(
             relativeTo: cellView.bounds,
-            of: cellView,
-            currentValue: currentValue,
-            allowedValues: allowedValues
-        ) { [weak self] newValue in
-            self?.commitPopoverEdit(tableView: tableView, row: row, column: column, columnIndex: columnIndex, newValue: newValue)
+            of: cellView
+        ) { [weak self] dismiss in
+            SetPopoverContentView(
+                allowedValues: allowedValues,
+                initialSelections: selections,
+                onCommit: { newValue in
+                    self?.commitPopoverEdit(tableView: tableView, row: row, column: column, columnIndex: columnIndex, newValue: newValue)
+                },
+                onDismiss: dismiss
+            )
         }
     }
 

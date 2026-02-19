@@ -99,7 +99,7 @@ enum ToolbarDesignTokens {
         /// Secondary text color - references base constant
         static let secondaryText = DesignConstants.Colors.secondaryText
 
-        /// Tertiary text color - slightly more transparent
-        static let tertiaryText = DesignConstants.Colors.tertiaryText.opacity(1.05)
+        /// Tertiary text color - system semantic color
+        static let tertiaryText = Color(nsColor: .tertiaryLabelColor)
     }
 }

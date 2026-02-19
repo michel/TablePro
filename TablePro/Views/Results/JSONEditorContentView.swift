@@ -1,0 +1,226 @@
+//
+//  JSONEditorContentView.swift
+//  TablePro
+//
+//  SwiftUI popover content for editing JSON/JSONB column values with formatting and validation.
+//
+
+import AppKit
+import SwiftUI
+
+struct JSONEditorContentView: View {
+    let initialValue: String?
+    let onCommit: (String) -> Void
+    let onDismiss: () -> Void
+
+    @State private var text: String
+    @State private var showInvalidAlert = false
+
+    init(
+        initialValue: String?,
+        onCommit: @escaping (String) -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.initialValue = initialValue
+        self.onCommit = onCommit
+        self.onDismiss = onDismiss
+        self._text = State(initialValue: Self.prettyPrint(initialValue) ?? initialValue ?? "")
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            JSONSyntaxTextView(text: $text)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Cancel") { onDismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Save") { saveJSON() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+        .frame(width: 420, height: 340)
+        .alert("Invalid JSON", isPresented: $showInvalidAlert) {
+            Button("Save Anyway") { commitAndClose(text) }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("The text is not valid JSON. Save anyway?")
+        }
+    }
+
+    // MARK: - Actions
+
+    private func saveJSON() {
+        guard !text.isEmpty else {
+            commitAndClose(text)
+            return
+        }
+
+        guard let data = text.data(using: .utf8),
+              (try? JSONSerialization.jsonObject(with: data)) != nil else {
+            showInvalidAlert = true
+            return
+        }
+
+        commitAndClose(text)
+    }
+
+    private func commitAndClose(_ value: String) {
+        let saveValue = Self.compact(value) ?? value
+        if saveValue != initialValue {
+            onCommit(saveValue)
+        }
+        onDismiss()
+    }
+
+    // MARK: - JSON Helpers
+
+    private static func prettyPrint(_ jsonString: String?) -> String? {
+        guard let data = jsonString?.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data),
+              let prettyData = try? JSONSerialization.data(
+                  withJSONObject: jsonObject,
+                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+              ),
+              let prettyString = String(data: prettyData, encoding: .utf8) else {
+            return nil
+        }
+        return prettyString
+    }
+
+    private static func compact(_ jsonString: String?) -> String? {
+        guard let data = jsonString?.data(using: .utf8),
+              let jsonObject = try? JSONSerialization.jsonObject(with: data),
+              let compactData = try? JSONSerialization.data(
+                  withJSONObject: jsonObject,
+                  options: [.withoutEscapingSlashes]
+              ),
+              let compactString = String(data: compactData, encoding: .utf8) else {
+            return nil
+        }
+        return compactString
+    }
+}
+
+// MARK: - JSON Syntax Highlighted Text View
+
+private struct JSONSyntaxTextView: NSViewRepresentable {
+    @Binding var text: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        guard let textView = scrollView.documentView as? NSTextView else {
+            return scrollView
+        }
+
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.backgroundColor = NSColor.textBackgroundColor
+        textView.textColor = NSColor.labelColor
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isGrammarCheckingEnabled = false
+        textView.allowsUndo = true
+
+        textView.textContainer?.widthTracksTextView = true
+        textView.isHorizontallyResizable = false
+
+        textView.delegate = context.coordinator
+        textView.string = text
+        Self.applyHighlighting(to: textView)
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView else { return }
+        if textView.string != text, !context.coordinator.isUpdating {
+            textView.string = text
+            Self.applyHighlighting(to: textView)
+        }
+    }
+
+    // MARK: - Syntax Highlighting
+
+    static func applyHighlighting(to textView: NSTextView) {
+        guard let textStorage = textView.textStorage else { return }
+        let length = textStorage.length
+        guard length > 0 else { return }
+
+        let fullRange = NSRange(location: 0, length: length)
+        let font = textView.font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        let content = textStorage.string
+
+        textStorage.beginEditing()
+
+        // Reset to base style
+        textStorage.addAttribute(.font, value: font, range: fullRange)
+        textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
+
+        // 1. Highlight all quoted strings as red (both keys and values initially)
+        applyPattern("\"(?:[^\"\\\\]|\\\\.)*\"", color: .systemRed, in: textStorage, content: content)
+
+        // 2. Re-highlight keys (strings followed by colon) as blue using capture group
+        if let keyRegex = try? NSRegularExpression(pattern: "(\"(?:[^\"\\\\]|\\\\.)*\")\\s*:") {
+            let range = NSRange(location: 0, length: length)
+            for match in keyRegex.matches(in: content, range: range) {
+                let keyRange = match.range(at: 1)
+                if keyRange.location != NSNotFound {
+                    textStorage.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: keyRange)
+                }
+            }
+        }
+
+        // 3. Numbers
+        applyPattern("(?<=[\\s,:\\[{])-?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?(?=[\\s,\\]}])", color: .systemPurple, in: textStorage, content: content)
+
+        // 4. Booleans and null
+        applyPattern("\\b(?:true|false|null)\\b", color: .systemOrange, in: textStorage, content: content)
+
+        textStorage.endEditing()
+    }
+
+    private static func applyPattern(
+        _ pattern: String,
+        color: NSColor,
+        in textStorage: NSTextStorage,
+        content: String
+    ) {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
+        let range = NSRange(location: 0, length: textStorage.length)
+        for match in regex.matches(in: content, range: range) {
+            textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
+        }
+    }
+
+    // MARK: - Coordinator
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: JSONSyntaxTextView
+        var isUpdating = false
+
+        init(_ parent: JSONSyntaxTextView) {
+            self.parent = parent
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            isUpdating = true
+            parent.text = textView.string
+            JSONSyntaxTextView.applyHighlighting(to: textView)
+            isUpdating = false
+        }
+    }
+}
