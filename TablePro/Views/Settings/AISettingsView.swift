@@ -331,6 +331,9 @@ private struct AIProviderEditorSheet: View {
         .onAppear {
             fetchModels()
         }
+        .onDisappear {
+            modelFetchTask?.cancel()
+        }
     }
 
     // MARK: - Header

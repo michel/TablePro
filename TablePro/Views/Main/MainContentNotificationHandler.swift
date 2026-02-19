@@ -72,11 +72,19 @@ final class MainContentNotificationHandler: ObservableObject {
     private func setupSaveAction() {
         rightPanelState.onSave = { [weak self] in
             guard let self else { return }
-            Task {
-                try? await self.coordinator?.saveSidebarEdits(
-                    selectedRowIndices: self.selectedRowIndices.wrappedValue,
-                    editState: self.rightPanelState.editState
-                )
+            Task { @MainActor in
+                do {
+                    try await self.coordinator?.saveSidebarEdits(
+                        selectedRowIndices: self.selectedRowIndices.wrappedValue,
+                        editState: self.rightPanelState.editState
+                    )
+                } catch {
+                    AlertHelper.showErrorSheet(
+                        title: String(localized: "Failed to Save Changes"),
+                        message: error.localizedDescription,
+                        window: nil
+                    )
+                }
             }
         }
     }

@@ -87,14 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] - 2026-02-16
 
 ### Added
-- AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
-- AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
-- AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
-- AI schema context — automatically includes database schema, current query, and query results in AI conversations for context-aware assistance
-- AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
-- Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
-- Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
-
 
 - SQL Preview button (eye icon) in toolbar to review all pending SQL statements before committing changes (⌘⇧P)
 - Multi-column sorting: Shift+click column headers to add columns to the sort list; regular click replaces with single sort. Sort priority indicators (1▲, 2▼) are shown in column headers when multiple columns are sorted

@@ -15,10 +15,11 @@ struct AIChatPanelView: View {
     var currentQuery: String?
 
     @ObservedObject var viewModel: AIChatViewModel
+    @ObservedObject private var settingsManager = AppSettingsManager.shared
     @State private var isNearBottom: Bool = true
 
     private var hasConfiguredProvider: Bool {
-        AppSettingsManager.shared.ai.providers.contains(where: { $0.isEnabled })
+        settingsManager.ai.providers.contains(where: { $0.isEnabled })
     }
 
     var body: some View {
