@@ -234,6 +234,14 @@ struct AIChatPanelView: View {
                 .padding(.vertical, 8)
             }
             .scrollIndicators(.hidden)
+            .onAppear {
+                if !viewModel.messages.isEmpty {
+                    // Delay to let ScrollView finish layout before scrolling
+                    DispatchQueue.main.async {
+                        proxy.scrollTo("bottomAnchor", anchor: .bottom)
+                    }
+                }
+            }
             .onChange(of: viewModel.messages.last?.content) { _ in
                 if isNearBottom {
                     withAnimation(.easeOut(duration: 0.2)) {
@@ -244,6 +252,12 @@ struct AIChatPanelView: View {
             .onChange(of: viewModel.messages.count) { _ in
                 // Always scroll on new message (user just sent a message)
                 withAnimation(.easeOut(duration: 0.2)) {
+                    proxy.scrollTo("bottomAnchor", anchor: .bottom)
+                }
+            }
+            .onChange(of: viewModel.activeConversationID) { _ in
+                // Scroll to bottom when switching conversations
+                DispatchQueue.main.async {
                     proxy.scrollTo("bottomAnchor", anchor: .bottom)
                 }
             }
