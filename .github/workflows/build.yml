@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install SwiftLint
-        run: brew install swiftlint
+        run: brew list swiftlint &>/dev/null || brew install swiftlint
 
       - name: Run SwiftLint
         run: swiftlint lint --strict
@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Install Git LFS
-        run: brew install git-lfs || true && git lfs install
+        run: brew list git-lfs &>/dev/null || brew install git-lfs; git lfs install
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -67,8 +67,8 @@ jobs:
           fi
 
           # Link packages with --force and --overwrite (needed for keg-only formulas)
-          brew link --force --overwrite mariadb-connector-c
-          brew link --force --overwrite libpq
+          brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
+          brew link --force --overwrite libpq 2>/dev/null || true
 
           # Verify installations
           if ! brew list mariadb-connector-c >/dev/null 2>&1; then
@@ -178,7 +178,7 @@ jobs:
 
           # Install create-dmg tool for proper icon handling in CI
           echo "📦 Installing create-dmg tool..."
-          brew install create-dmg
+          brew list create-dmg &>/dev/null || brew install create-dmg
 
           # Make DMG creation script executable
           chmod +x scripts/create-dmg.sh
@@ -241,7 +241,7 @@ jobs:
 
     steps:
       - name: Install Git LFS
-        run: brew install git-lfs || true && git lfs install
+        run: brew list git-lfs &>/dev/null || brew install git-lfs; git lfs install
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -321,8 +321,8 @@ jobs:
           fi
 
           # Link packages with --force (needed for keg-only formulas)
-          arch -x86_64 /usr/local/bin/brew link --force --overwrite mariadb-connector-c
-          arch -x86_64 /usr/local/bin/brew link --force --overwrite libpq
+          arch -x86_64 /usr/local/bin/brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
+          arch -x86_64 /usr/local/bin/brew link --force --overwrite libpq 2>/dev/null || true
 
           # Verify installations
           if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c >/dev/null 2>&1; then
@@ -431,7 +431,7 @@ jobs:
 
           # Install create-dmg tool for proper icon handling in CI
           echo "📦 Installing create-dmg tool..."
-          brew install create-dmg
+          brew list create-dmg &>/dev/null || brew install create-dmg
 
           # Make DMG creation script executable
           chmod +x scripts/create-dmg.sh
@@ -550,7 +550,7 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
 
           # Install Sparkle tools (Cask — binaries in Caskroom, not on PATH)
-          brew install --cask sparkle
+          brew list --cask sparkle &>/dev/null || brew install --cask sparkle
           SPARKLE_BIN="$(brew --caskroom)/sparkle/$(ls "$(brew --caskroom)/sparkle" | head -1)/bin"
 
           ARM64_ZIP="artifacts/TablePro-${VERSION}-arm64.zip"
