@@ -26,6 +26,7 @@ struct WelcomeWindowView: View {
     @State private var showDeleteConfirmation = false
     @State private var hoveredConnectionId: UUID?
     @State private var selectedConnectionId: UUID?  // For keyboard navigation
+    @State private var showOnboarding = !AppSettingsStorage.shared.hasCompletedOnboarding()
 
     @Environment(\.openWindow) private var openWindow
 
@@ -41,14 +42,18 @@ struct WelcomeWindowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Left panel - Branding
-            leftPanel
-
-            Divider()
-
-            // Right panel - Connections
-            rightPanel
+        ZStack {
+            if showOnboarding {
+                OnboardingContentView {
+                    withAnimation(.easeInOut(duration: 0.45)) {
+                        showOnboarding = false
+                    }
+                }
+                .transition(.move(edge: .leading))
+            } else {
+                welcomeContent
+                    .transition(.move(edge: .trailing))
+            }
         }
         .ignoresSafeArea()
         .frame(minWidth: 650, minHeight: 400)
@@ -73,6 +78,19 @@ struct WelcomeWindowView: View {
         .onReceive(NotificationCenter.default.publisher(for: .connectionUpdated)) { _ in
             loadConnections()
         }
+    }
+
+    private var welcomeContent: some View {
+        HStack(spacing: 0) {
+            // Left panel - Branding
+            leftPanel
+
+            Divider()
+
+            // Right panel - Connections
+            rightPanel
+        }
+        .transition(.opacity)
     }
 
     // MARK: - Left Panel

@@ -28,6 +28,7 @@ final class AppSettingsStorage {
         static let keyboard = "com.TablePro.settings.keyboard"
         static let ai = "com.TablePro.settings.ai"
         static let lastConnectionId = "com.TablePro.settings.lastConnectionId"
+        static let hasCompletedOnboarding = "com.TablePro.settings.hasCompletedOnboarding"
     }
 
     private init() {}
@@ -130,6 +131,18 @@ final class AppSettingsStorage {
         } else {
             defaults.removeObject(forKey: Keys.lastConnectionId)
         }
+    }
+
+    // MARK: - Onboarding
+
+    /// Check if user has completed onboarding
+    func hasCompletedOnboarding() -> Bool {
+        defaults.bool(forKey: Keys.hasCompletedOnboarding)
+    }
+
+    /// Mark onboarding as completed
+    func setOnboardingCompleted() {
+        defaults.set(true, forKey: Keys.hasCompletedOnboarding)
     }
 
     // MARK: - Reset
