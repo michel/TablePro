@@ -18,6 +18,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     weak var controller: TextViewController?
     private var contextMenu: AIEditorContextMenu?
     private var rightClickMonitor: Any?
+    private var inlineSuggestionManager: InlineSuggestionManager?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -41,6 +42,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             self?.fixFindPanelHitTesting(controller: controller)
             self?.applyHorizontalScrollFix(controller: controller)
             self?.installAIContextMenu(controller: controller)
+            self?.installInlineSuggestionManager(controller: controller)
         }
     }
 
@@ -59,10 +61,13 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             // Re-check horizontal scroll fix after each text change.
             // Layout has processed the new text by now, so estimatedWidth is current.
             self.ensureHorizontalScrollFix(controller: controller)
+            self.inlineSuggestionManager?.handleTextChange()
         }
     }
 
     func textViewDidChangeSelection(controller: TextViewController, newPositions: [CursorPosition]) {
+        inlineSuggestionManager?.handleSelectionChange()
+
         // When the find panel navigates to a match, it changes the selection
         // but the editor is not first responder. Scroll to the match manually
         // because CodeEditTextView's scrollSelectionToVisible() fails for
@@ -77,6 +82,9 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     }
 
     func destroy() {
+        inlineSuggestionManager?.uninstall()
+        inlineSuggestionManager = nil
+
         if let monitor = rightClickMonitor {
             NSEvent.removeMonitor(monitor)
             rightClickMonitor = nil
@@ -113,6 +121,14 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             NSMenu.popUpContextMenu(menu, with: event, for: textView)
             return nil // Consume event to prevent default menu
         }
+    }
+
+    // MARK: - Inline Suggestion Manager
+
+    private func installInlineSuggestionManager(controller: TextViewController) {
+        let manager = InlineSuggestionManager()
+        manager.install(controller: controller)
+        inlineSuggestionManager = manager
     }
 
     // MARK: - Horizontal Scrolling Fix

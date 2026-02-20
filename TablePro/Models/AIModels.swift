@@ -139,6 +139,7 @@ struct AISettings: Codable, Equatable {
     var includeQueryResults: Bool
     var maxSchemaTables: Int
     var defaultConnectionPolicy: AIConnectionPolicy
+    var inlineSuggestEnabled: Bool
 
     static let `default` = AISettings(
         providers: [],
@@ -147,7 +148,8 @@ struct AISettings: Codable, Equatable {
         includeCurrentQuery: true,
         includeQueryResults: false,
         maxSchemaTables: 20,
-        defaultConnectionPolicy: .askEachTime
+        defaultConnectionPolicy: .askEachTime,
+        inlineSuggestEnabled: false
     )
 
     init(
@@ -157,7 +159,8 @@ struct AISettings: Codable, Equatable {
         includeCurrentQuery: Bool = true,
         includeQueryResults: Bool = false,
         maxSchemaTables: Int = 20,
-        defaultConnectionPolicy: AIConnectionPolicy = .askEachTime
+        defaultConnectionPolicy: AIConnectionPolicy = .askEachTime,
+        inlineSuggestEnabled: Bool = false
     ) {
         self.providers = providers
         self.featureRouting = featureRouting
@@ -166,6 +169,7 @@ struct AISettings: Codable, Equatable {
         self.includeQueryResults = includeQueryResults
         self.maxSchemaTables = maxSchemaTables
         self.defaultConnectionPolicy = defaultConnectionPolicy
+        self.inlineSuggestEnabled = inlineSuggestEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -179,6 +183,7 @@ struct AISettings: Codable, Equatable {
         defaultConnectionPolicy = try container.decodeIfPresent(
             AIConnectionPolicy.self, forKey: .defaultConnectionPolicy
         ) ?? .askEachTime
+        inlineSuggestEnabled = try container.decodeIfPresent(Bool.self, forKey: .inlineSuggestEnabled) ?? false
     }
 }
 
