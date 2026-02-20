@@ -43,6 +43,9 @@ final class InlineSuggestionManager {
     /// Cached schema context to avoid re-fetching on every suggestion
     private var schemaCache: SchemaCache?
 
+    /// Background task for refreshing the schema cache (non-blocking)
+    private var schemaRefreshTask: Task<Void, Never>?
+
     /// Schema cache with TTL
     private struct SchemaCache {
         let databaseType: DatabaseType
@@ -64,6 +67,7 @@ final class InlineSuggestionManager {
         self.controller = controller
         installKeyEventMonitor()
         installScrollObserver()
+        triggerSchemaRefresh()
     }
 
     /// Remove all observers and layers
@@ -72,6 +76,8 @@ final class InlineSuggestionManager {
         debounceTimer = nil
         currentTask?.cancel()
         currentTask = nil
+        schemaRefreshTask?.cancel()
+        schemaRefreshTask = nil
         removeGhostLayer()
 
         if let monitor = keyEventMonitor {
@@ -143,12 +149,22 @@ final class InlineSuggestionManager {
 
     // MARK: - Schema Context
 
-    private func refreshSchemaCacheIfNeeded() async {
-        // Return early if cache is fresh
-        if let cache = schemaCache, !cache.isExpired {
-            return
-        }
+    /// Kick off a background schema refresh if the cache is stale or empty.
+    /// Does NOT block the caller — the AI request uses whatever cache is available now.
+    private func triggerSchemaRefresh() {
+        // Already fresh
+        if let cache = schemaCache, !cache.isExpired { return }
 
+        // Already fetching
+        if schemaRefreshTask != nil { return }
+
+        schemaRefreshTask = Task { [weak self] in
+            await self?.fetchSchemaCache()
+            self?.schemaRefreshTask = nil
+        }
+    }
+
+    private func fetchSchemaCache() async {
         guard let session = DatabaseManager.shared.currentSession,
               let driver = DatabaseManager.shared.activeDriver else {
             schemaCache = nil
@@ -186,6 +202,8 @@ final class InlineSuggestionManager {
                 if let fks { foreignKeys[name] = fks }
             }
         }
+
+        guard !Task.isCancelled else { return }
 
         schemaCache = SchemaCache(
             databaseType: session.connection.type,
@@ -259,7 +277,8 @@ final class InlineSuggestionManager {
     }
 
     private func fetchSuggestion(textBefore: String, fullQuery: String) async throws -> String {
-        await refreshSchemaCacheIfNeeded()
+        // Kick off background schema refresh if stale — don't block the AI request
+        triggerSchemaRefresh()
 
         let settings = AppSettingsManager.shared.ai
 
