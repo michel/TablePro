@@ -330,10 +330,15 @@ final class InlineSuggestionManager {
         return config.model
     }
 
-    /// Clean the AI suggestion: strip leading newlines and trailing whitespace,
-    /// but preserve leading spaces (they indicate spacing between tokens).
+    /// Clean the AI suggestion: strip thinking blocks, leading newlines,
+    /// and trailing whitespace, but preserve leading spaces.
     private func cleanSuggestion(_ raw: String) -> String {
         var result = raw
+
+        // Strip thinking blocks (e.g. <think>...</think>, <THINK>...</THINK>)
+        // Some models emit chain-of-thought reasoning wrapped in these tags
+        result = stripThinkingBlocks(result)
+
         // Strip leading newlines only (preserve leading spaces)
         while result.first?.isNewline == true {
             result.removeFirst()
@@ -343,6 +348,23 @@ final class InlineSuggestionManager {
             result.removeLast()
         }
         return result
+    }
+
+    /// Remove `<think>...</think>` blocks (case-insensitive) from AI output.
+    /// Handles partial/unclosed tags too — if a `<think>` opens but never closes,
+    /// everything from that tag onward is stripped.
+    private func stripThinkingBlocks(_ text: String) -> String {
+        let nsText = text as NSString
+        guard let regex = try? NSRegularExpression(
+            pattern: "<think>.*?</think>|<think>.*$",
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        ) else { return text }
+
+        return regex.stringByReplacingMatches(
+            in: text,
+            range: NSRange(location: 0, length: nsText.length),
+            withTemplate: ""
+        )
     }
 
     // MARK: - Ghost Text Rendering
