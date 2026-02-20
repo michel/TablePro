@@ -140,7 +140,8 @@ struct TableProApp: App {
     }
 
     var body: some Scene {
-        // Welcome Window - opens on launch
+        // Welcome Window - opens on launch (must be first Window scene so SwiftUI
+        // restores it by default when clicking the dock icon)
         Window("Welcome to TablePro", id: "welcome") {
             WelcomeWindowView()
                 .tint(accentTint)

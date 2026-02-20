@@ -764,6 +764,16 @@
         }
       }
     },
+    "A fast, lightweight native macOS database client" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ứng dụng quản lý cơ sở dữ liệu gốc macOS nhanh và nhẹ"
+          }
+        }
+      }
+    },
     "Accent Color:" : {
       "localizations" : {
         "vi" : {
@@ -1878,6 +1888,16 @@
         }
       }
     },
+    "Continue" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiếp tục"
+          }
+        }
+      }
+    },
     "Conversation History" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2048,6 +2068,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tạo"
+          }
+        }
+      }
+    },
+    "Create a connection to get started with\nyour databases." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo kết nối để bắt đầu sử dụng\ncơ sở dữ liệu của bạn."
           }
         }
       }
@@ -3687,6 +3717,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhận trợ giúp viết truy vấn, giải thích schema hoặc sửa lỗi."
+          }
+        }
+      }
+    },
+    "Get Started" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bắt đầu"
           }
         }
       }
@@ -6570,6 +6610,16 @@
         }
       }
     },
+    "Skip" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bỏ qua"
+          }
+        }
+      }
+    },
     "Software Update" : {
       "localizations" : {
         "vi" : {
@@ -7715,6 +7765,16 @@
         }
       }
     },
+    "What you can do" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bạn có thể làm gì"
+          }
+        }
+      }
+    },
     "When enabled, clicking a new table replaces the current clean table tab instead of opening a new tab" : {
       "localizations" : {
         "vi" : {
@@ -7804,6 +7864,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bạn có thay đổi chưa lưu trong cấu trúc bảng. Làm mới sẽ hủy các thay đổi này."
+          }
+        }
+      }
+    },
+    "You're all set!" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bạn đã sẵn sàng!"
           }
         }
       }
