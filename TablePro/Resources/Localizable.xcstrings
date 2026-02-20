@@ -964,6 +964,9 @@
         }
       }
     },
+    "AI-powered SQL completions appear as ghost text while typing. Press Tab to accept, Escape to dismiss." : {
+
+    },
     "All %lld rows selected" : {
       "localizations" : {
         "vi" : {
@@ -2948,6 +2951,9 @@
           }
         }
       }
+    },
+    "Enable inline suggestions" : {
+
     },
     "Enabled" : {
       "localizations" : {
