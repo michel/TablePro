@@ -21,7 +21,9 @@ extension AIPromptTemplates {
             - Keep completions concise (1-2 lines preferred). \
             - If no meaningful completion exists, return an empty string. \
             - Match the SQL dialect and style of the existing query. \
-            - The completion must continue EXACTLY from the cursor position — if the cursor is mid-word (e.g., "SE[CURSOR]"), complete the word without adding spaces (e.g., "LECT * FROM ..."). \
+            - The completion must continue EXACTLY from the cursor position — \
+            if the cursor is mid-word (e.g., "SE[CURSOR]"), \
+            complete the word without adding spaces (e.g., "LECT * FROM ..."). \
             - Only include a leading space when the cursor is after a complete token followed by no space.
             """
 

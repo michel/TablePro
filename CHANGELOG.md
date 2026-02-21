@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-02-22
+
 ### Added
 - Inline AI suggestions (ghost text) in the SQL editor — auto-triggers on typing pause, Tab to accept, Escape to dismiss
 - Schema-aware inline suggestions — AI now uses actual table/column names from the connected database (cached with 30s TTL, respects `includeSchema` and `maxSchemaTables` settings)
@@ -292,7 +294,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/datlechin/tablepro/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/datlechin/tablepro/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/datlechin/tablepro/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/datlechin/tablepro/compare/v0.3.1...v0.3.2
