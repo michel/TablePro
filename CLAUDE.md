@@ -222,7 +222,7 @@ TablePro/Views/
 ├── Import/                   # Import dialog, progress, error display
 ├── Main/                     # Main content coordinator
 │   ├── MainContentCoordinator.swift     # Core coordinator class
-│   ├── MainContentNotificationHandler.swift # Notification handling
+│   ├── MainContentCommandActions.swift       # @FocusedObject command handler
 │   ├── Child/                           # Child views
 │   │   ├── MainEditorContentView.swift
 │   │   ├── MainStatusBarView.swift

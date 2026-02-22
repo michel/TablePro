@@ -454,6 +454,7 @@ extension Notification.Name {
 
     // Tab operations
     static let showAllTables = Notification.Name("showAllTables")
+    static let newQueryTab = Notification.Name("newQueryTab")
 
     // Sidebar operations (still posted by SidebarView / ConnectionStatusView)
     static let copyTableNames = Notification.Name("copyTableNames")

@@ -126,14 +126,28 @@ final class MainContentCommandActions: ObservableObject {
             .sink { [weak self] _ in self?.duplicateRow() }
             .store(in: &cancellables)
 
+        // Note: .copySelectedRows and .pasteRows subscribers call the data-grid
+        // path directly (not the public methods) to avoid an infinite loop —
+        // the public methods re-post these notifications for structure view.
         NotificationCenter.default.publisher(for: .copySelectedRows)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.copySelectedRows() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                let indices = self.selectedRowIndices.wrappedValue
+                self.coordinator?.copySelectedRowsToClipboard(indices: indices)
+            }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .pasteRows)
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.pasteRows() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                var indices = self.selectedRowIndices.wrappedValue
+                var cell = self.editingCell.wrappedValue
+                self.coordinator?.pasteRows(selectedRowIndices: &indices, editingCell: &cell)
+                self.selectedRowIndices.wrappedValue = indices
+                self.editingCell.wrappedValue = cell
+            }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .createTable)
@@ -571,6 +585,11 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Tab Broadcasts
 
     private func setupTabBroadcastObservers() {
+        NotificationCenter.default.publisher(for: .newQueryTab)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.newTab() }
+            .store(in: &cancellables)
+
         NotificationCenter.default.publisher(for: .loadQueryIntoEditor)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in

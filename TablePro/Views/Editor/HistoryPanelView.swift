@@ -359,8 +359,12 @@ private extension HistoryPanelView {
     }
 
     func runInNewTab(_ entry: QueryHistoryEntry) {
-        // loadQueryIntoEditor handler creates a new tab if no query tab is selected
-        NotificationCenter.default.post(name: .loadQueryIntoEditor, object: entry.query)
+        // Always create a new tab first, then load query into it after a brief
+        // delay to let the tab be created before loading content.
+        NotificationCenter.default.post(name: .newQueryTab, object: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            NotificationCenter.default.post(name: .loadQueryIntoEditor, object: entry.query)
+        }
     }
 
     // MARK: - Filter State Persistence
