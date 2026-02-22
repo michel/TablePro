@@ -624,7 +624,7 @@ struct ExportDialog: View {
 
     private func openContainingFolder() {
         guard let url = exportedFileURL else { return }
-        NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 }
 
