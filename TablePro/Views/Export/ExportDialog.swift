@@ -589,7 +589,7 @@ struct ExportDialog: View {
             driver: driver,
             databaseType: connection.type
         )
-        exportServiceState.service = service
+        exportServiceState.setService(service)
 
         // Show progress dialog
         showProgressDialog = true
@@ -630,48 +630,33 @@ struct ExportDialog: View {
 
 // MARK: - Export Service State
 
-/// Observable wrapper for ExportService to enable SwiftUI bindings
+/// Observable wrapper that forwards ExportService updates to SwiftUI.
+/// Instead of mirroring individual @Published properties, this forwards
+/// objectWillChange from the underlying service for automatic view updates.
 @MainActor
 final class ExportServiceState: ObservableObject {
-    @Published var currentTable: String = ""
-    @Published var currentTableIndex: Int = 0
-    @Published var totalTables: Int = 0
-    @Published var processedRows: Int = 0
-    @Published var totalRows: Int = 0
-    @Published var statusMessage: String = ""
+    private var cancellable: AnyCancellable?
 
-    private var cancellables = Set<AnyCancellable>()
-
-    var service: ExportService? {
+    private(set) var service: ExportService? {
         didSet {
-            cancellables.removeAll()
-            guard let service = service else { return }
-
-            service.$currentTable
+            cancellable?.cancel()
+            guard let service else { return }
+            cancellable = service.objectWillChange
                 .receive(on: DispatchQueue.main)
-                .assign(to: &$currentTable)
-
-            service.$currentTableIndex
-                .receive(on: DispatchQueue.main)
-                .assign(to: &$currentTableIndex)
-
-            service.$totalTables
-                .receive(on: DispatchQueue.main)
-                .assign(to: &$totalTables)
-
-            service.$processedRows
-                .receive(on: DispatchQueue.main)
-                .assign(to: &$processedRows)
-
-            service.$totalRows
-                .receive(on: DispatchQueue.main)
-                .assign(to: &$totalRows)
-
-            service.$statusMessage
-                .receive(on: DispatchQueue.main)
-                .assign(to: &$statusMessage)
+                .sink { [weak self] _ in self?.objectWillChange.send() }
         }
     }
+
+    func setService(_ service: ExportService) {
+        self.service = service
+    }
+
+    var currentTable: String { service?.currentTable ?? "" }
+    var currentTableIndex: Int { service?.currentTableIndex ?? 0 }
+    var totalTables: Int { service?.totalTables ?? 0 }
+    var processedRows: Int { service?.processedRows ?? 0 }
+    var totalRows: Int { service?.totalRows ?? 0 }
+    var statusMessage: String { service?.statusMessage ?? "" }
 }
 
 // MARK: - Preview
