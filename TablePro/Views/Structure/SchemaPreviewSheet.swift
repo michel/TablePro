@@ -39,7 +39,8 @@ struct SchemaPreviewSheet: View {
                     if statements.isEmpty {
                         emptyState
                     } else {
-                        ForEach(Array(statements.enumerated()), id: \.offset) { index, sql in
+                        ForEach(statements.indices, id: \.self) { index in
+                            let sql = statements[index]
                             sqlStatement(sql: sql, index: index + 1)
                         }
                     }
