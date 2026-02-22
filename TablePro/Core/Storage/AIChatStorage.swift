@@ -19,10 +19,16 @@ final class AIChatStorage {
     private let decoder: JSONDecoder
 
     private init() {
-        let appSupport = FileManager.default.urls(
+        let appSupport: URL
+        if let resolved = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
-        ).first! // swiftlint:disable:this force_unwrapping
+        ).first {
+            appSupport = resolved
+        } else {
+            Self.logger.error("Application Support directory unavailable, falling back to temporary directory")
+            appSupport = FileManager.default.temporaryDirectory
+        }
         directory = appSupport
             .appendingPathComponent("TablePro", isDirectory: true)
             .appendingPathComponent("ai_chats", isDirectory: true)
