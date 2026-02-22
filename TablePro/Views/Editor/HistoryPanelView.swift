@@ -332,8 +332,7 @@ private extension HistoryPanelView {
     }
 
     func copyQuery(_ entry: QueryHistoryEntry) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(entry.query, forType: .string)
+        ClipboardService.shared.writeText(entry.query)
     }
 
     func copySelectedQuery() {

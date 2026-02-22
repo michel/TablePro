@@ -90,8 +90,7 @@ struct SidebarView: View {
         .onReceive(NotificationCenter.default.publisher(for: .copyTableNames)) { _ in
             guard !selectedTables.isEmpty else { return }
             let names = selectedTables.map { $0.name }.sorted()
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(names.joined(separator: ","), forType: .string)
+            ClipboardService.shared.writeText(names.joined(separator: ","))
         }
         .onReceive(NotificationCenter.default.publisher(for: .truncateTables)) { _ in
             guard !selectedTables.isEmpty else { return }
@@ -313,8 +312,7 @@ struct SidebarView: View {
             } else {
                 names = selectedTables.map { $0.name }.sorted()
             }
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(names.joined(separator: ","), forType: .string)
+            ClipboardService.shared.writeText(names.joined(separator: ","))
         }
         .keyboardShortcut("c", modifiers: .command)
         .disabled(!hasSelection)

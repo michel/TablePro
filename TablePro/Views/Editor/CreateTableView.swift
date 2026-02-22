@@ -904,7 +904,6 @@ struct CreateTableView: View {
 
     private func copySQLToClipboard() {
         let sql = service.generatePreviewSQL(options)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(sql, forType: .string)
+        ClipboardService.shared.writeText(sql)
     }
 }

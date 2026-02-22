@@ -39,8 +39,7 @@ struct AIChatCodeBlockView: View {
             Spacer()
 
             Button {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(code, forType: .string)
+                ClipboardService.shared.writeText(code)
                 isCopied = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                     isCopied = false

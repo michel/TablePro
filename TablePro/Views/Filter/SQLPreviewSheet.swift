@@ -75,8 +75,7 @@ struct SQLPreviewSheet: View {
     }
 
     private func copyToClipboard() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(sql, forType: .string)
+        ClipboardService.shared.writeText(sql)
         copied = true
 
         // Reset after delay

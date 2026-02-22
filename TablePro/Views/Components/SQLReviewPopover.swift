@@ -172,8 +172,7 @@ struct SQLReviewPopover: View {
 
     private func copyAllToClipboard() {
         let joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(joined, forType: .string)
+        ClipboardService.shared.writeText(joined)
         copied = true
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {

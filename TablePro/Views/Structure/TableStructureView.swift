@@ -728,8 +728,7 @@ struct TableStructureView: View {
     // MARK: - DDL Actions
 
     private func copyDDL() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(ddlStatement, forType: .string)
+        ClipboardService.shared.writeText(ddlStatement)
 
         withAnimation {
             showCopyConfirmation = true

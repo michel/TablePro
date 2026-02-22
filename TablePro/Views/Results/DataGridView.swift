@@ -729,8 +729,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     @objc private func copyColumnName(_ sender: NSMenuItem) {
         guard let columnName = sender.representedObject as? String else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(columnName, forType: .string)
+        ClipboardService.shared.writeText(columnName)
     }
 
     @objc private func filterWithColumn(_ sender: NSMenuItem) {
@@ -1296,8 +1295,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         }
 
         let text = lines.joined(separator: "\n")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        ClipboardService.shared.writeText(text)
     }
 
     func copyRowsWithHeaders(at indices: Set<Int>) {
@@ -1314,8 +1312,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         }
 
         let text = lines.joined(separator: "\n")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        ClipboardService.shared.writeText(text)
     }
 
     @MainActor
@@ -1357,8 +1354,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         if let rowData = rowProvider.row(at: rowIndex) {
             let value = rowData.value(at: columnIndex) ?? "NULL"
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(value, forType: .string)
+            ClipboardService.shared.writeText(value)
         }
     }
 }

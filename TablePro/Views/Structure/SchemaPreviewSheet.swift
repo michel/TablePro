@@ -116,8 +116,7 @@ struct SchemaPreviewSheet: View {
 
     private func copyButton(sql: String) -> some View {
         Button(action: {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(sql, forType: .string)
+            ClipboardService.shared.writeText(sql)
         }) {
             Label("Copy", systemImage: "doc.on.doc")
                 .font(.caption)
