@@ -92,12 +92,71 @@ struct MainContentView: View {
     // MARK: - Body
 
     var body: some View {
+        bodyContent
+            .sheet(isPresented: $coordinator.showDatabaseSwitcher) {
+                DatabaseSwitcherSheet(
+                    isPresented: $coordinator.showDatabaseSwitcher,
+                    currentDatabase: connection.database,
+                    databaseType: connection.type,
+                    connectionId: connection.id,
+                    onSelect: switchDatabase
+                )
+            }
+            .sheet(isPresented: $coordinator.showExportDialog) {
+                ExportDialog(
+                    isPresented: $coordinator.showExportDialog,
+                    connection: connection,
+                    preselectedTables: Set(selectedTables.map(\.name))
+                )
+            }
+            .sheet(isPresented: $coordinator.showImportDialog) {
+                ImportDialog(
+                    isPresented: $coordinator.showImportDialog,
+                    connection: connection,
+                    initialFileURL: coordinator.importFileURL
+                )
+            }
+            .modifier(FocusedCommandActionsModifier(actions: commandActions))
+    }
+
+    /// Split into two halves to help the Swift type checker with the long modifier chain.
+    private var bodyContent: some View {
+        bodyContentCore
+            .onChange(of: currentTab?.resultRows) {
+                scheduleInspectorUpdate()
+            }
+            .onChange(of: currentTab?.tableName) {
+                scheduleInspectorUpdate()
+                Task { await loadTableMetadataIfNeeded() }
+            }
+            .onChange(of: coordinator.tableMetadata?.tableName) {
+                scheduleInspectorUpdate()
+            }
+            .onAppear {
+                setupCommandActions()
+                updateToolbarPendingState()
+                updateInspectorContext()
+            }
+            .onChange(of: changeManager.hasChanges) {
+                updateToolbarPendingState()
+            }
+            .onChange(of: pendingTruncates) {
+                updateToolbarPendingState()
+            }
+            .onChange(of: pendingDeletes) {
+                updateToolbarPendingState()
+            }
+            .onChange(of: appState.hasStructureChanges) {
+                updateToolbarPendingState()
+            }
+    }
+
+    private var bodyContentCore: some View {
         mainContentView
             .openTableToolbar(state: toolbarState)
             .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { _, newTabId in
                 if coordinator.skipNextTabChangeOnChange {
-                    // Work already done by direct caller (keyboard/tab bar/sidebar)
                     coordinator.skipNextTabChangeOnChange = false
                     previousSelectedTabId = newTabId
                     return
@@ -131,60 +190,8 @@ struct MainContentView: View {
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
-                // Defer sidebar/inspector updates so SwiftUI can render the tab switch first
                 scheduleInspectorUpdate()
             }
-            .onChange(of: currentTab?.resultRows) {
-                scheduleInspectorUpdate()
-            }
-            .onChange(of: currentTab?.tableName) {
-                scheduleInspectorUpdate()
-                Task { await loadTableMetadataIfNeeded() }
-            }
-            .onChange(of: coordinator.tableMetadata?.tableName) {
-                scheduleInspectorUpdate()
-            }
-            .onAppear {
-                setupCommandActions()
-                updateToolbarPendingState()
-                updateInspectorContext()
-            }
-            .onChange(of: changeManager.hasChanges) {
-                updateToolbarPendingState()
-            }
-            .onChange(of: pendingTruncates) {
-                updateToolbarPendingState()
-            }
-            .onChange(of: pendingDeletes) {
-                updateToolbarPendingState()
-            }
-            .onChange(of: appState.hasStructureChanges) {
-                updateToolbarPendingState()
-            }
-            .sheet(isPresented: $coordinator.showDatabaseSwitcher) {
-                DatabaseSwitcherSheet(
-                    isPresented: $coordinator.showDatabaseSwitcher,
-                    currentDatabase: connection.database,
-                    databaseType: connection.type,
-                    connectionId: connection.id,
-                    onSelect: switchDatabase
-                )
-            }
-            .sheet(isPresented: $coordinator.showExportDialog) {
-                ExportDialog(
-                    isPresented: $coordinator.showExportDialog,
-                    connection: connection,
-                    preselectedTables: Set(selectedTables.map(\.name))
-                )
-            }
-            .sheet(isPresented: $coordinator.showImportDialog) {
-                ImportDialog(
-                    isPresented: $coordinator.showImportDialog,
-                    connection: connection,
-                    initialFileURL: coordinator.importFileURL
-                )
-            }
-            .modifier(FocusedCommandActionsModifier(actions: commandActions))
     }
 
     // MARK: - Main Content
