@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fixed TOCTOU race condition in `SQLiteDriver` — replaced `nonisolated(unsafe)` + DispatchQueue pattern with a dedicated actor (`SQLiteConnectionActor`) that serializes all sqlite3 handle access, preventing concurrent task races on the connection state
+
 ### Changed
 - Refactored menu and toolbar commands from NotificationCenter to `@FocusedObject` pattern — menu commands and toolbar buttons now call `MainContentCommandActions` methods directly instead of posting global notifications, with context-aware routing for structure view operations
 - Redesigned connection form with tab-based layout (General / SSH Tunnel / SSL/TLS / Advanced), replacing the single-scroll layout
