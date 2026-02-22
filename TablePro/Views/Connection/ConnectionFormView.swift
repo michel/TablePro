@@ -680,7 +680,7 @@ struct ConnectionFormView: View {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.directoryURL = URL(fileURLWithPath: NSHomeDirectory() + "/.ssh")
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         panel.showsHiddenFiles = true
 
         if panel.runModal() == .OK, let url = panel.url {

@@ -343,7 +343,8 @@ actor SSHTunnelManager {
 
     private func expandPath(_ path: String) -> String {
         if path.hasPrefix("~") {
-            return NSHomeDirectory() + path.dropFirst()
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(String(path.dropFirst(2))).path(percentEncoded: false)
         }
         return path
     }

@@ -28,7 +28,8 @@ struct SSHConfigEntry: Identifiable, Hashable {
 /// Parser for SSH config file (~/.ssh/config)
 final class SSHConfigParser {
     /// Default SSH config file path
-    static let defaultConfigPath = NSHomeDirectory() + "/.ssh/config"
+    static let defaultConfigPath = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".ssh/config").path(percentEncoded: false)
 
     /// Parse SSH config file and return all entries
     /// - Parameter path: Path to the SSH config file (defaults to ~/.ssh/config)
@@ -140,7 +141,8 @@ final class SSHConfigParser {
         guard let path = path else { return nil }
 
         if path.hasPrefix("~") {
-            return NSHomeDirectory() + path.dropFirst()
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(String(path.dropFirst(2))).path(percentEncoded: false)
         }
         return path
     }
