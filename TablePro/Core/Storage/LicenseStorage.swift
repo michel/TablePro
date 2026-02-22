@@ -47,7 +47,10 @@ final class LicenseStorage {
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
         ]
 
-        SecItemAdd(addQuery as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status != errSecSuccess {
+            Self.logger.error("Failed to save license key: OSStatus \(status)")
+        }
     }
 
     /// Load license key from Keychain

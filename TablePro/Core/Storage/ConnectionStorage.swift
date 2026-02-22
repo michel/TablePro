@@ -155,7 +155,10 @@ final class ConnectionStorage {
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
         ]
 
-        SecItemAdd(addQuery as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status != errSecSuccess {
+            Self.logger.error("Failed to save password: OSStatus \(status)")
+        }
     }
 
     /// Load password from Keychain
@@ -217,7 +220,10 @@ final class ConnectionStorage {
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
         ]
 
-        SecItemAdd(addQuery as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status != errSecSuccess {
+            Self.logger.error("Failed to save SSH password: OSStatus \(status)")
+        }
     }
 
     /// Load SSH password from Keychain
@@ -279,7 +285,10 @@ final class ConnectionStorage {
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
         ]
 
-        SecItemAdd(addQuery as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status != errSecSuccess {
+            Self.logger.error("Failed to save key passphrase: OSStatus \(status)")
+        }
     }
 
     /// Load private key passphrase from Keychain

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduced tab-switch CPU spikes from 40-60% to ~10-20% by eliminating redundant `reloadData()` calls: `configureForTable` no longer triggers a reload during tab switch (single controlled bump instead of 2-3), `onChange(of: resultColumns)` is suppressed while the switch is in progress, and `DataGridView.updateNSView` skips all heavy work when the data identity hasn't changed
 - Table open now shows data instantly — split `executeQueryInternal` into two phases: rows display immediately after SELECT completes, metadata (columns, FKs, enums, row count) loads in the background without blocking the grid
 - Eliminated 20-80ms overhead when clicking an already-open table in the sidebar — `openTableTab` short-circuits immediately, and `TableProTabSmart` no longer fires `@Published` when the selected tab hasn't changed
+- Keychain `SecItemAdd` return values are now checked and logged — previously, failed writes (e.g. `errSecDuplicateItem`, `errSecInteractionNotAllowed`) were silently discarded, risking password loss
 
 ## [0.6.0] - 2026-02-22
 
