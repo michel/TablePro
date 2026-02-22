@@ -111,7 +111,7 @@ struct ExportTableTreeView: View {
                     .disabled(!table.wrappedValue.isSelected)
                     .opacity(table.wrappedValue.isSelected ? 1.0 : 0.4)
                     .frame(width: 56, alignment: .center)
-                    .onChange(of: table.wrappedValue.sqlOptions) { newOptions in
+                    .onChange(of: table.wrappedValue.sqlOptions) { _, newOptions in
                         // Auto-update isSelected based on SQL options
                         table.isSelected.wrappedValue = newOptions.hasAnyOption
                     }

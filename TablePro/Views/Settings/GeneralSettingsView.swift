@@ -56,7 +56,7 @@ struct GeneralSettingsView: View {
 
             Section("Software Update") {
                 Toggle("Automatically check for updates", isOn: $settings.automaticallyCheckForUpdates)
-                    .onChange(of: settings.automaticallyCheckForUpdates) { newValue in
+                    .onChange(of: settings.automaticallyCheckForUpdates) { _, newValue in
                         updaterBridge.updater.automaticallyChecksForUpdates = newValue
                     }
 

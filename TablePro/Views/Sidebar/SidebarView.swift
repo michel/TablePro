@@ -57,7 +57,7 @@ struct SidebarView: View {
             content
         }
         .frame(minWidth: 280)
-        .onChange(of: selectedTables) { newTables in
+        .onChange(of: selectedTables) { _, newTables in
             guard !isRestoringSelection else { return }
             let added = newTables.subtracting(previousSelectedTables)
             if let table = added.first {
@@ -67,7 +67,7 @@ struct SidebarView: View {
             }
             previousSelectedTables = newTables
         }
-        .onChange(of: tables) { newTables in
+        .onChange(of: tables) { _, newTables in
             if newTables.isEmpty && DatabaseManager.shared.status != .disconnected && !isLoading {
                 loadTables()
             }

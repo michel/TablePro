@@ -95,7 +95,7 @@ struct MainContentView: View {
         mainContentView
             .openTableToolbar(state: toolbarState)
             .task { await initializeAndRestoreTabs() }
-            .onChange(of: tabManager.selectedTabId) { newTabId in
+            .onChange(of: tabManager.selectedTabId) { _, newTabId in
                 if coordinator.skipNextTabChangeOnChange {
                     // Work already done by direct caller (keyboard/tab bar/sidebar)
                     coordinator.skipNextTabChangeOnChange = false
@@ -105,43 +105,43 @@ struct MainContentView: View {
                 handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
                 previousSelectedTabId = newTabId
             }
-            .onChange(of: tabManager.tabs) { newTabs in
+            .onChange(of: tabManager.tabs) { _, newTabs in
                 handleTabsChange(newTabs)
             }
-            .onChange(of: currentTab?.resultColumns) { newColumns in
+            .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
-            .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { isConnected in
+            .onChange(of: DatabaseManager.shared.currentSession?.isConnected) { _, isConnected in
                 handleConnectionChange(isConnected)
             }
-            .onChange(of: DatabaseManager.shared.currentSession?.status) { newStatus in
+            .onChange(of: DatabaseManager.shared.currentSession?.status) { _, newStatus in
                 handleSessionStatusChange(newStatus)
             }
-            .onChange(of: currentTab?.isExecuting) { isExecuting in
+            .onChange(of: currentTab?.isExecuting) { _, isExecuting in
                 toolbarState.isExecuting = isExecuting ?? false
             }
-            .onChange(of: currentTab?.executionTime) { executionTime in
+            .onChange(of: currentTab?.executionTime) { _, executionTime in
                 if let time = executionTime {
                     toolbarState.lastQueryDuration = time
                 }
             }
-            .onChange(of: selectedTables) { newTables in
+            .onChange(of: selectedTables) { _, newTables in
                 handleTableSelectionChange(from: previousSelectedTables, to: newTables)
                 previousSelectedTables = newTables
             }
-            .onChange(of: selectedRowIndices) { newIndices in
+            .onChange(of: selectedRowIndices) { _, newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
                 // Defer sidebar/inspector updates so SwiftUI can render the tab switch first
                 scheduleInspectorUpdate()
             }
-            .onChange(of: currentTab?.resultRows) { _ in
+            .onChange(of: currentTab?.resultRows) {
                 scheduleInspectorUpdate()
             }
-            .onChange(of: currentTab?.tableName) { _ in
+            .onChange(of: currentTab?.tableName) {
                 scheduleInspectorUpdate()
                 Task { await loadTableMetadataIfNeeded() }
             }
-            .onChange(of: coordinator.tableMetadata?.tableName) { _ in
+            .onChange(of: coordinator.tableMetadata?.tableName) {
                 scheduleInspectorUpdate()
             }
             .onAppear {
@@ -149,16 +149,16 @@ struct MainContentView: View {
                 updateToolbarPendingState()
                 updateInspectorContext()
             }
-            .onChange(of: changeManager.hasChanges) { _ in
+            .onChange(of: changeManager.hasChanges) {
                 updateToolbarPendingState()
             }
-            .onChange(of: pendingTruncates) { _ in
+            .onChange(of: pendingTruncates) {
                 updateToolbarPendingState()
             }
-            .onChange(of: pendingDeletes) { _ in
+            .onChange(of: pendingDeletes) {
                 updateToolbarPendingState()
             }
-            .onChange(of: appState.hasStructureChanges) { _ in
+            .onChange(of: appState.hasStructureChanges) {
                 updateToolbarPendingState()
             }
             .sheet(isPresented: $coordinator.showDatabaseSwitcher) {

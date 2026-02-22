@@ -80,7 +80,7 @@ struct ContentView: View {
             }
             // Right sidebar toggle is handled by MainContentView (has the binding)
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
-            .onChange(of: dbManager.currentSessionId) { newSessionId in
+            .onChange(of: dbManager.currentSessionId) { _, newSessionId in
                 Task { @MainActor in
                     columnVisibility = newSessionId == nil ? .detailOnly : .all
                     AppState.shared.isConnected = newSessionId != nil

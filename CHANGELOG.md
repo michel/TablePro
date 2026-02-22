@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Eliminated 20-80ms overhead when clicking an already-open table in the sidebar — `openTableTab` short-circuits immediately, and `TableProTabSmart` no longer fires `@Published` when the selected tab hasn't changed
 - Keychain `SecItemAdd` return values are now checked and logged — previously, failed writes (e.g. `errSecDuplicateItem`, `errSecInteractionNotAllowed`) were silently discarded, risking password loss
 - Added `kSecAttrService` to all Keychain queries across `ConnectionStorage`, `LicenseStorage`, and `AIKeyStorage` — items now have a proper service identifier, preventing potential collisions with other apps
+- Ensured proper cleanup for `@State` reference type tokens — tracked untracked `Task` instances in `ImportDialog` (file selection), `AIProviderEditorSheet` (model fetching, connection test), and added `onDisappear` cancellation to prevent leaked work after view dismissal
 
 ## [0.6.0] - 2026-02-22
 

@@ -47,7 +47,7 @@ struct AIChatPanelView: View {
             viewModel.connection = connection
             viewModel.tables = tables
         }
-        .onChange(of: tables) { newTables in
+        .onChange(of: tables) { _, newTables in
             viewModel.tables = newTables
         }
         .task(id: tables) {
@@ -242,20 +242,20 @@ struct AIChatPanelView: View {
                     }
                 }
             }
-            .onChange(of: viewModel.messages.last?.content) { _ in
+            .onChange(of: viewModel.messages.last?.content) {
                 if isNearBottom {
                     withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo("bottomAnchor", anchor: .bottom)
                     }
                 }
             }
-            .onChange(of: viewModel.messages.count) { _ in
+            .onChange(of: viewModel.messages.count) {
                 // Always scroll on new message (user just sent a message)
                 withAnimation(.easeOut(duration: 0.2)) {
                     proxy.scrollTo("bottomAnchor", anchor: .bottom)
                 }
             }
-            .onChange(of: viewModel.activeConversationID) { _ in
+            .onChange(of: viewModel.activeConversationID) {
                 // Scroll to bottom when switching conversations
                 DispatchQueue.main.async {
                     proxy.scrollTo("bottomAnchor", anchor: .bottom)

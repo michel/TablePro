@@ -210,7 +210,7 @@ struct ImportDialog: View {
                     }
                     .pickerStyle(.menu)
                     .frame(width: 120)
-                    .onChange(of: selectedEncoding) { newEncoding in
+                    .onChange(of: selectedEncoding) { _, newEncoding in
                         config.encoding = newEncoding.encoding
                         // Cancel previous task to avoid race conditions
                         loadFileTask?.cancel()
@@ -274,7 +274,7 @@ struct ImportDialog: View {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
 
-            Task {
+            loadFileTask = Task {
                 await loadFile(url)
             }
         }

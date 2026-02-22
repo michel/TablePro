@@ -93,13 +93,13 @@ struct MainEditorContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: appState.isHistoryPanelVisible)
-        .onChange(of: tabManager.tabs.count) { _ in
+        .onChange(of: tabManager.tabs.count) {
             // Clean up sort cache for closed tabs
             let openTabIds = Set(tabManager.tabs.map(\.id))
             sortCache = sortCache.filter { openTabIds.contains($0.key) }
             coordinator.cleanupSortCache(openTabIds: openTabIds)
         }
-        .onChange(of: tabManager.selectedTabId) { _ in
+        .onChange(of: tabManager.selectedTabId) {
             updateHasQueryText()
         }
         .onAppear {

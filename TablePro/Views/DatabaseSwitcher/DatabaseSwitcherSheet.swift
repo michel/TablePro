@@ -185,7 +185,7 @@ struct DatabaseSwitcherSheet: View {
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
-            .onChange(of: viewModel.selectedDatabase) { newValue in
+            .onChange(of: viewModel.selectedDatabase) { _, newValue in
                 if let item = newValue {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         proxy.scrollTo(item, anchor: .center)

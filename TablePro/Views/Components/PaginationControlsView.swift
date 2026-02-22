@@ -44,10 +44,10 @@ struct PaginationControlsView: View {
             limitText = "\(pagination.pageSize)"
             offsetText = "\(pagination.currentOffset)"
         }
-        .onChange(of: pagination.pageSize) { newValue in
+        .onChange(of: pagination.pageSize) { _, newValue in
             limitText = "\(newValue)"
         }
-        .onChange(of: pagination.currentOffset) { newValue in
+        .onChange(of: pagination.currentOffset) { _, newValue in
             offsetText = "\(newValue)"
         }
     }

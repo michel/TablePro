@@ -58,11 +58,11 @@ struct TableStructureView: View {
             contentArea
         }
         .task(loadInitialData)
-        .onChange(of: selectedTab) { newValue in onSelectedTabChanged(newValue) }
-        .onChange(of: columns) { _ in onColumnsChanged() }
-        .onChange(of: indexes) { _ in onIndexesChanged() }
-        .onChange(of: foreignKeys) { _ in onForeignKeysChanged() }
-        .onChange(of: selectedRows) { newSelection in
+        .onChange(of: selectedTab) { _, newValue in onSelectedTabChanged(newValue) }
+        .onChange(of: columns) { onColumnsChanged() }
+        .onChange(of: indexes) { onIndexesChanged() }
+        .onChange(of: foreignKeys) { onForeignKeysChanged() }
+        .onChange(of: selectedRows) { _, newSelection in
             AppState.shared.hasRowSelection = !newSelection.isEmpty
         }
         .onAppear {
@@ -75,7 +75,7 @@ struct TableStructureView: View {
             AppState.shared.hasRowSelection = false
             AppState.shared.hasStructureChanges = false
         }
-        .onChange(of: structureChangeManager.hasChanges) { newValue in
+        .onChange(of: structureChangeManager.hasChanges) { _, newValue in
             AppState.shared.hasStructureChanges = newValue
         }
         .onReceive(NotificationCenter.default.publisher(for: .refreshData), perform: onRefreshData)

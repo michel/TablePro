@@ -125,11 +125,11 @@ private extension HistoryPanelView {
                 : String(localized: "history entries")
             Text("This will permanently delete \(count) \(itemName). This action cannot be undone.")
         }
-        .onChange(of: dateFilter) { _ in
+        .onChange(of: dateFilter) {
             saveFilterState()
             loadData()
         }
-        .onChange(of: searchText) { _ in
+        .onChange(of: searchText) {
             scheduleSearch()
         }
     }

@@ -310,6 +310,7 @@ private struct AIProviderEditorSheet: View {
     @State private var isFetchingModels: Bool = false
     @State private var modelFetchError: String?
     @State private var modelFetchTask: Task<Void, Never>?
+    @State private var testTask: Task<Void, Never>?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -347,6 +348,7 @@ private struct AIProviderEditorSheet: View {
         }
         .onDisappear {
             modelFetchTask?.cancel()
+            testTask?.cancel()
         }
     }
 
@@ -524,7 +526,7 @@ private struct AIProviderEditorSheet: View {
         isFetchingModels = true
         modelFetchError = nil
 
-        Task {
+        modelFetchTask = Task {
             do {
                 let models = try await provider.fetchAvailableModels()
                 fetchedModels = models
@@ -550,7 +552,7 @@ private struct AIProviderEditorSheet: View {
         isTesting = true
         testResult = nil
 
-        Task {
+        testTask = Task {
             do {
                 let success = try await provider.testConnection()
                 isTesting = false
