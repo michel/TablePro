@@ -367,6 +367,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // Remove all NotificationCenter observers added in applicationDidFinishLaunching
+        NotificationCenter.default.removeObserver(self)
+
         // Save tab state synchronously before app terminates (backup mechanism)
         saveAllTabStates()
     }
