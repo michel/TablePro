@@ -27,6 +27,16 @@ struct QuerySortCacheEntry {
     let resultVersion: Int
 }
 
+/// Represents which sheet is currently active in MainContentView.
+/// Uses a single `.sheet(item:)` modifier instead of multiple `.sheet(isPresented:)`.
+enum ActiveSheet: Identifiable {
+    case databaseSwitcher
+    case exportDialog
+    case importDialog
+
+    var id: Self { self }
+}
+
 /// Coordinator managing MainContentView business logic
 @MainActor
 final class MainContentCoordinator: ObservableObject {
@@ -54,9 +64,7 @@ final class MainContentCoordinator: ObservableObject {
     @Published var cursorPositions: [CursorPosition] = []
     @Published var tableMetadata: TableMetadata?
     // Removed: showErrorAlert and errorAlertMessage - errors now display inline
-    @Published var showDatabaseSwitcher = false
-    @Published var showExportDialog = false
-    @Published var showImportDialog = false
+    @Published var activeSheet: ActiveSheet?
     @Published var importFileURL: URL?
     @Published var needsLazyLoad = false
 

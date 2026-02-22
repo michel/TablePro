@@ -93,30 +93,46 @@ struct MainContentView: View {
 
     var body: some View {
         bodyContent
-            .sheet(isPresented: $coordinator.showDatabaseSwitcher) {
-                DatabaseSwitcherSheet(
-                    isPresented: $coordinator.showDatabaseSwitcher,
-                    currentDatabase: connection.database,
-                    databaseType: connection.type,
-                    connectionId: connection.id,
-                    onSelect: switchDatabase
-                )
-            }
-            .sheet(isPresented: $coordinator.showExportDialog) {
-                ExportDialog(
-                    isPresented: $coordinator.showExportDialog,
-                    connection: connection,
-                    preselectedTables: Set(selectedTables.map(\.name))
-                )
-            }
-            .sheet(isPresented: $coordinator.showImportDialog) {
-                ImportDialog(
-                    isPresented: $coordinator.showImportDialog,
-                    connection: connection,
-                    initialFileURL: coordinator.importFileURL
-                )
+            .sheet(item: $coordinator.activeSheet) { sheet in
+                sheetContent(for: sheet)
             }
             .modifier(FocusedCommandActionsModifier(actions: commandActions))
+    }
+
+    // MARK: - Sheet Content
+
+    /// Returns the appropriate sheet view for the given `ActiveSheet` case.
+    /// Uses a dismissal binding that sets `coordinator.activeSheet = nil` when the
+    /// child view sets `isPresented = false`.
+    @ViewBuilder
+    private func sheetContent(for sheet: ActiveSheet) -> some View {
+        let dismissBinding = Binding<Bool>(
+            get: { coordinator.activeSheet != nil },
+            set: { if !$0 { coordinator.activeSheet = nil } }
+        )
+
+        switch sheet {
+        case .databaseSwitcher:
+            DatabaseSwitcherSheet(
+                isPresented: dismissBinding,
+                currentDatabase: connection.database,
+                databaseType: connection.type,
+                connectionId: connection.id,
+                onSelect: switchDatabase
+            )
+        case .exportDialog:
+            ExportDialog(
+                isPresented: dismissBinding,
+                connection: connection,
+                preselectedTables: Set(selectedTables.map(\.name))
+            )
+        case .importDialog:
+            ImportDialog(
+                isPresented: dismissBinding,
+                connection: connection,
+                initialFileURL: coordinator.importFileURL
+            )
+        }
     }
 
     /// Split into two halves to help the Swift type checker with the long modifier chain.

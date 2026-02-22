@@ -394,7 +394,7 @@ final class MainContentCommandActions: ObservableObject {
     }
 
     func exportTables() {
-        coordinator?.showExportDialog = true
+        coordinator?.activeSheet = .exportDialog
     }
 
     func importTables() {
@@ -419,7 +419,7 @@ final class MainContentCommandActions: ObservableObject {
 
             // Store the selected file URL and show dialog
             self?.coordinator?.importFileURL = url
-            self?.coordinator?.showImportDialog = true
+            self?.coordinator?.activeSheet = .importDialog
         }
     }
 
@@ -444,7 +444,7 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: - Database Operations (Group A — Called Directly)
 
     func openDatabaseSwitcher() {
-        coordinator?.showDatabaseSwitcher = true
+        coordinator?.activeSheet = .databaseSwitcher
     }
 
     // MARK: - Undo/Redo (Group A — Called Directly)
