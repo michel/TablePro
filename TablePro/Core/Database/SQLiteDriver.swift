@@ -9,36 +9,6 @@ import Foundation
 import OSLog
 import SQLite3
 
-/// Thread-safe holder for the sqlite3 handle pointer, used for cross-thread interruption.
-/// `sqlite3_interrupt()` is documented as safe to call from any thread.
-private final class SQLiteHandleHolder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var _db: OpaquePointer?
-
-    var db: OpaquePointer? {
-        get {
-            lock.lock()
-            defer { lock.unlock() }
-            return _db
-        }
-        set {
-            lock.lock()
-            _db = newValue
-            lock.unlock()
-        }
-    }
-
-    /// Interrupt the currently running query. Thread-safe.
-    func interrupt() {
-        lock.lock()
-        let handle = _db
-        lock.unlock()
-        if let handle {
-            sqlite3_interrupt(handle)
-        }
-    }
-}
-
 // MARK: - SQLite Connection Actor
 
 /// Actor that owns and serializes all access to the sqlite3 handle,
@@ -47,13 +17,6 @@ private actor SQLiteConnectionActor {
     private static let logger = Logger(subsystem: "com.TablePro", category: "SQLiteConnectionActor")
 
     private var db: OpaquePointer?
-
-    /// Shared handle holder for cross-thread interruption
-    let handleHolder: SQLiteHandleHolder
-
-    init(handleHolder: SQLiteHandleHolder) {
-        self.handleHolder = handleHolder
-    }
 
     var isConnected: Bool { db != nil }
 
@@ -65,14 +28,10 @@ private actor SQLiteConnectionActor {
                 ?? "Unknown SQLite error"
             throw DatabaseError.connectionFailed(errorMessage)
         }
-
-        // Keep handle holder in sync for cross-thread interruption
-        handleHolder.db = db
     }
 
     func close() {
         if db != nil {
-            handleHolder.db = nil
             sqlite3_close(db)
             db = nil
         }
@@ -128,16 +87,8 @@ private actor SQLiteConnectionActor {
         // Execute and fetch rows
         var rows: [[String?]] = []
         var rowsAffected = 0
-        var isTruncated = false
-        let maxRows = DriverRowLimits.maxRows
 
         while sqlite3_step(statement) == SQLITE_ROW {
-            if rows.count >= maxRows {
-                isTruncated = true
-                Self.logger.warning("SQLite query truncated at \(maxRows) rows to prevent excessive memory usage")
-                break
-            }
-
             var row: [String?] = []
 
             for i in 0..<columnCount {
@@ -164,8 +115,7 @@ private actor SQLiteConnectionActor {
             columnTypes: columnTypes,
             rows: rows,
             rowsAffected: rowsAffected,
-            executionTime: executionTime,
-            isTruncated: isTruncated
+            executionTime: executionTime
         )
     }
 
@@ -237,16 +187,8 @@ private actor SQLiteConnectionActor {
         // Execute and fetch rows
         var rows: [[String?]] = []
         var rowsAffected = 0
-        var isTruncated = false
-        let maxRows = DriverRowLimits.maxRows
 
         while sqlite3_step(statement) == SQLITE_ROW {
-            if rows.count >= maxRows {
-                isTruncated = true
-                Self.logger.warning("SQLite query truncated at \(maxRows) rows to prevent excessive memory usage")
-                break
-            }
-
             var row: [String?] = []
 
             for i in 0..<columnCount {
@@ -273,8 +215,7 @@ private actor SQLiteConnectionActor {
             columnTypes: columnTypes,
             rows: rows,
             rowsAffected: rowsAffected,
-            executionTime: executionTime,
-            isTruncated: isTruncated
+            executionTime: executionTime
         )
     }
 }
@@ -286,7 +227,6 @@ private struct SQLiteRawResult: Sendable {
     let rows: [[String?]]
     let rowsAffected: Int
     let executionTime: TimeInterval
-    let isTruncated: Bool
 }
 
 // MARK: - SQLite Driver
@@ -298,12 +238,6 @@ final class SQLiteDriver: DatabaseDriver {
 
     /// Actor-isolated connection state — serializes all sqlite3 access
     private let connectionActor = SQLiteConnectionActor()
-
-    /// Cached regex for stripping LIMIT clause
-    private static let limitRegex = try? NSRegularExpression(pattern: "(?i)\\s+LIMIT\\s+\\d+")
-
-    /// Cached regex for stripping OFFSET clause
-    private static let offsetRegex = try? NSRegularExpression(pattern: "(?i)\\s+OFFSET\\s+\\d+")
 
     /// Server version string (SQLite library version, e.g., "3.43.2")
     var serverVersion: String? {
@@ -374,8 +308,7 @@ final class SQLiteDriver: DatabaseDriver {
             rows: rawResult.rows,
             rowsAffected: rawResult.rowsAffected,
             executionTime: rawResult.executionTime,
-            error: nil,
-            isTruncated: rawResult.isTruncated
+            error: nil
         )
     }
 
@@ -399,8 +332,7 @@ final class SQLiteDriver: DatabaseDriver {
             rows: rawResult.rows,
             rowsAffected: rawResult.rowsAffected,
             executionTime: rawResult.executionTime,
-            error: nil,
-            isTruncated: rawResult.isTruncated
+            error: nil
         )
     }
 
@@ -740,12 +672,14 @@ final class SQLiteDriver: DatabaseDriver {
     private func stripLimitOffset(from query: String) -> String {
         var result = query
 
-        if let regex = Self.limitRegex {
+        let limitPattern = "(?i)\\s+LIMIT\\s+\\d+"
+        if let regex = try? NSRegularExpression(pattern: limitPattern) {
             let range = NSRange(result.startIndex..., in: result)
             result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }
 
-        if let regex = Self.offsetRegex {
+        let offsetPattern = "(?i)\\s+OFFSET\\s+\\d+"
+        if let regex = try? NSRegularExpression(pattern: offsetPattern) {
             let range = NSRange(result.startIndex..., in: result)
             result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }

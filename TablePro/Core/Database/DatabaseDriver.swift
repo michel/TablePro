@@ -93,12 +93,6 @@ protocol DatabaseDriver: AnyObject {
     /// Create a new database
     func createDatabase(name: String, charset: String, collation: String?) async throws
 
-    // MARK: - Query Cancellation
-
-    /// Cancel the currently running query, if any.
-    /// Thread-safe — may be called from any thread/task while a query is in-flight.
-    func cancelQuery() throws
-
     // MARK: - Transaction Management
 
     /// Begin a transaction
@@ -121,11 +115,6 @@ extension DatabaseDriver {
         try await connect()
         disconnect()
         return true
-    }
-
-    /// Default no-op cancellation for drivers that don't support it
-    func cancelQuery() throws {
-        // No-op by default
     }
 
     /// Default fetchAllColumns: falls back to per-table fetchColumns (N+1).
@@ -188,12 +177,6 @@ extension DatabaseDriver {
     func rollbackTransaction() async throws {
         _ = try await execute(query: "ROLLBACK")
     }
-}
-
-/// Maximum number of rows fetched per query to prevent unbounded memory usage.
-/// Applies to all drivers as a safety net.
-enum DriverRowLimits {
-    static let maxRows = 500_000
 }
 
 /// Factory for creating database drivers

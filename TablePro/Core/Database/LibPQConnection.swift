@@ -47,7 +47,6 @@ struct LibPQQueryResult {
     let rows: [[String?]]
     let affectedRows: Int
     let commandTag: String?
-    let isTruncated: Bool
 }
 
 // MARK: - Type Mapping
@@ -115,7 +114,6 @@ final class LibPQConnection: @unchecked Sendable {
     private let stateLock = NSLock()
     private var _isConnected: Bool = false
     private var _isShuttingDown: Bool = false
-    private var _isCancelled: Bool = false
 
     /// Cached server version string, set at connect time on the serial queue
     private var _cachedServerVersion: String?
@@ -137,20 +135,6 @@ final class LibPQConnection: @unchecked Sendable {
         set {
             stateLock.lock()
             _isShuttingDown = newValue
-            stateLock.unlock()
-        }
-    }
-
-    /// Thread-safe cancellation flag
-    private(set) var isCancelled: Bool {
-        get {
-            stateLock.lock()
-            defer { stateLock.unlock() }
-            return _isCancelled
-        }
-        set {
-            stateLock.lock()
-            _isCancelled = newValue
             stateLock.unlock()
         }
     }
@@ -294,27 +278,6 @@ final class LibPQConnection: @unchecked Sendable {
         }
     }
 
-    // MARK: - Query Cancellation
-
-    /// Cancel the currently running query using the libpq PQcancel API.
-    /// Thread-safe — may be called from any thread while a query is in-flight.
-    func cancelCurrentQuery() {
-        isCancelled = true
-
-        guard let conn else { return }
-
-        // PQgetCancel / PQcancel are thread-safe and designed for cross-thread cancellation
-        guard let cancelObj = PQgetCancel(conn) else { return }
-        defer { PQfreeCancel(cancelObj) }
-
-        var errorBuf = [CChar](repeating: 0, count: 256)
-        let result = PQcancel(cancelObj, &errorBuf, Int32(errorBuf.count))
-        if result == 0 {
-            let errorMsg = String(cString: errorBuf)
-            logger.warning("PQcancel failed: \(errorMsg)")
-        }
-    }
-
     // MARK: - Query Execution
 
     /// Execute a SQL query and fetch all results
@@ -377,9 +340,6 @@ final class LibPQConnection: @unchecked Sendable {
             throw LibPQError.notConnected
         }
 
-        // Reset cancellation flag before starting a new query
-        isCancelled = false
-
         // Execute query
         let localQuery = String(query)
         let result: OpaquePointer? = localQuery.withCString { queryPtr in
@@ -405,8 +365,7 @@ final class LibPQConnection: @unchecked Sendable {
                 columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
-                commandTag: cmdTag,
-                isTruncated: false
+                commandTag: cmdTag
             )
 
         case PGRES_TUPLES_OK:
@@ -429,9 +388,6 @@ final class LibPQConnection: @unchecked Sendable {
         guard !isShuttingDown, let conn = self.conn else {
             throw LibPQError.notConnected
         }
-
-        // Reset cancellation flag before starting a new query
-        isCancelled = false
 
         // Convert parameters to C strings
         var paramValues: [UnsafePointer<CChar>?] = []
@@ -498,8 +454,7 @@ final class LibPQConnection: @unchecked Sendable {
                 columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
-                commandTag: cmdTag,
-                isTruncated: false
+                commandTag: cmdTag
             )
 
         case PGRES_TUPLES_OK:
@@ -545,18 +500,11 @@ final class LibPQConnection: @unchecked Sendable {
             columnTypeNames.append(pgOidToTypeName(UInt32(oid)))
         }
 
-        // Fetch rows (capped at DriverRowLimits.maxRows to prevent excessive memory usage)
-        let maxRows = DriverRowLimits.maxRows
-        let effectiveRows = min(numRows, maxRows)
-        let isTruncated = numRows > maxRows
-        if isTruncated {
-            logger.warning("PostgreSQL query truncated from \(numRows) to \(maxRows) rows to prevent excessive memory usage")
-        }
-
+        // Fetch rows
         var rows: [[String?]] = []
-        rows.reserveCapacity(effectiveRows)
+        rows.reserveCapacity(numRows)
 
-        for rowIndex in 0..<effectiveRows {
+        for rowIndex in 0..<numRows {
             var row: [String?] = []
             row.reserveCapacity(numFields)
 
@@ -597,8 +545,7 @@ final class LibPQConnection: @unchecked Sendable {
             columnTypeNames: columnTypeNames,
             rows: rows,
             affectedRows: numRows,
-            commandTag: getCommandTag(from: result),
-            isTruncated: isTruncated
+            commandTag: getCommandTag(from: result)
         )
     }
 

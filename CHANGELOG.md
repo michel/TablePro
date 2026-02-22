@@ -8,11 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Fixed 45 performance issues identified in PERFORMANCE.md audit:
-  - **Memory:** RowBuffer reference wrapper for QueryTab (MEM-1/2), index-based sort cache (MEM-3), streaming XLSX export with inline strings (MEM-4/15), row limits for all drivers (MEM-5), removed redundant String deep copies (MEM-6), weak driver reference in SQLSchemaProvider (MEM-9), undo stack depth cap (MEM-10), dictionary-based tab pending changes (MEM-11), weak self in Task captures (MEM-12), clear cached data on disconnect (MEM-13), AI chat message cap (MEM-14)
+- Fixed 40 performance issues identified in PERFORMANCE.md audit:
+  - **Memory:** RowBuffer reference wrapper for QueryTab (MEM-1/2), index-based sort cache (MEM-3), streaming XLSX export with inline strings (MEM-4/15), removed redundant String deep copies (MEM-6), weak driver reference in SQLSchemaProvider (MEM-9), undo stack depth cap (MEM-10), dictionary-based tab pending changes (MEM-11), weak self in Task captures (MEM-12), clear cached data on disconnect (MEM-13), AI chat message cap (MEM-14)
   - **CPU:** Removed unicodeScalars.map in MariaDB/PostgreSQL drivers (CPU-1/2), cached 100+ regex patterns in SQLFormatterService (CPU-3/5/8/9/10), async Keychain reads (CPU-4), cached stripLimitOffset/extractTableName/isDangerousQuery regex (CPU-6/13/14), cached CSV decimal regex (CPU-7), O(1) change lookup index (CPU-11), removed unused loadPassword call (CPU-12)
-  - **Data handling:** Auto-append LIMIT 10000 for unprotected queries (DAT-1), driver-level row limits at 500K rows (DAT-2/3), batch fetchAllColumns via INFORMATION_SCHEMA (DAT-4), index permutation sort cache (DAT-5), cached InMemoryRowProvider in @State (DAT-6), clipboard 50K row cap (DAT-7), Int-based row IDs replacing UUID (DAT-8)
-  - **Network:** Phase 2 metadata cache check (NET-1), connect_timeout for LibPQ (NET-2), driver-level cancelQuery via mysql_kill/PQcancel/sqlite3_interrupt (NET-3), isLoading guard for sidebar (NET-4), reuse cached schema for AI chat (NET-5)
+  - **Data handling:** Auto-append LIMIT 10000 for unprotected queries (DAT-1), batch fetchAllColumns via INFORMATION_SCHEMA (DAT-4), index permutation sort cache (DAT-5), cached InMemoryRowProvider in @State (DAT-6), clipboard 50K row cap (DAT-7)
+  - **Network:** Phase 2 metadata cache check (NET-1), connect_timeout for LibPQ (NET-2), isLoading guard for sidebar (NET-4), reuse cached schema for AI chat (NET-5)
   - **I/O:** Throttled history cleanup (IO-1), async history storage migration (IO-2), consolidated onChange handlers (IO-3)
 
 ## [0.6.0] - 2026-02-22

@@ -50,7 +50,6 @@ struct MariaDBQueryResult {
     let rows: [[String?]]
     let affectedRows: UInt64
     let insertId: UInt64
-    let isTruncated: Bool
 }
 
 // MARK: - Column Metadata
@@ -161,7 +160,6 @@ final class MariaDBConnection: @unchecked Sendable {
     private let stateLock = NSLock()
     private var _isConnected: Bool = false
     private var _isShuttingDown: Bool = false
-    private var _isCancelled: Bool = false
 
     /// Cached server version string, set at connect time on the serial queue
     private var _cachedServerVersion: String?
@@ -183,20 +181,6 @@ final class MariaDBConnection: @unchecked Sendable {
         set {
             stateLock.lock()
             _isShuttingDown = newValue
-            stateLock.unlock()
-        }
-    }
-
-    /// Thread-safe cancellation flag — set from any thread to interrupt row fetching
-    private(set) var isCancelled: Bool {
-        get {
-            stateLock.lock()
-            defer { stateLock.unlock() }
-            return _isCancelled
-        }
-        set {
-            stateLock.lock()
-            _isCancelled = newValue
             stateLock.unlock()
         }
     }
@@ -420,45 +404,6 @@ final class MariaDBConnection: @unchecked Sendable {
         }
     }
 
-    // MARK: - Query Cancellation
-
-    /// Cancel the currently running query by killing the server-side thread.
-    /// Thread-safe — may be called from any thread while a query is in-flight.
-    func cancelCurrentQuery() {
-        // Set the flag so row-fetching loops stop early
-        isCancelled = true
-
-        // Attempt to kill the server thread via a throwaway connection
-        guard let mysql = self.mysql else { return }
-        let threadId = mysql_thread_id(mysql)
-        guard threadId > 0 else { return }
-
-        // Open a separate connection just to send KILL QUERY
-        let killConn = mysql_init(nil)
-        guard let killConn else { return }
-
-        let password = self.password
-        let result: UnsafeMutablePointer<MYSQL>? = host.withCString { hostPtr in
-            user.withCString { userPtr in
-                if let pass = password {
-                    return pass.withCString { passPtr in
-                        mysql_real_connect(killConn, hostPtr, userPtr, passPtr, nil, port, nil, 0)
-                    }
-                } else {
-                    return mysql_real_connect(killConn, hostPtr, userPtr, nil, nil, port, nil, 0)
-                }
-            }
-        }
-
-        if result != nil {
-            let killQuery = "KILL QUERY \(threadId)"
-            _ = killQuery.withCString { queryPtr in
-                mysql_real_query(killConn, queryPtr, UInt(killQuery.utf8.count))
-            }
-        }
-        mysql_close(killConn)
-    }
-
     // MARK: - Query Execution
 
     /// Execute a SQL query and fetch all results
@@ -520,9 +465,6 @@ final class MariaDBConnection: @unchecked Sendable {
             throw MariaDBError.notConnected
         }
 
-        // Reset cancellation flag before starting a new query
-        isCancelled = false
-
         // Execute query using a local copy of the query string
         let localQuery = String(query)
         let queryStatus = localQuery.withCString { queryPtr in
@@ -550,8 +492,7 @@ final class MariaDBConnection: @unchecked Sendable {
                     columnTypeNames: [],
                     rows: [],
                     affectedRows: affected,
-                    insertId: insertId,
-                    isTruncated: false
+                    insertId: insertId
                 )
             } else {
                 // Error occurred
@@ -599,25 +540,8 @@ final class MariaDBConnection: @unchecked Sendable {
         var rows: [[String?]] = []
         // Pre-allocate capacity for better performance
         rows.reserveCapacity(1_000)  // Initial capacity
-        var wasCancelled = false
-        var isTruncated = false
-        let maxRows = DriverRowLimits.maxRows
 
         while let rowPtr = mysql_fetch_row(resultPtr) {
-            // Check cancellation flag between row fetches
-            if isCancelled {
-                wasCancelled = true
-                logger.info("Query cancelled during row fetch after \(rows.count) rows")
-                break
-            }
-
-            // Enforce row limit to prevent excessive memory usage
-            if rows.count >= maxRows {
-                isTruncated = true
-                logger.warning("MySQL query truncated at \(maxRows) rows to prevent excessive memory usage")
-                break
-            }
-
             // Get lengths for each field (needed for binary data)
             let lengths = mysql_fetch_lengths(resultPtr)
 
@@ -653,18 +577,13 @@ final class MariaDBConnection: @unchecked Sendable {
         // At this point, ALL string data has been copied to Swift-owned memory
         mysql_free_result(resultPtr)
 
-        if wasCancelled {
-            throw MariaDBError(code: 0, message: "Query cancelled by user", sqlState: nil)
-        }
-
         return MariaDBQueryResult(
             columns: columns,
             columnTypes: columnTypes,
             columnTypeNames: columnTypeNames,
             rows: rows,
             affectedRows: UInt64(rows.count),
-            insertId: 0,
-            isTruncated: isTruncated
+            insertId: 0
         )
     }
 
@@ -734,14 +653,13 @@ final class MariaDBConnection: @unchecked Sendable {
     }
 
     /// Fetch result set from a prepared statement
-    /// Returns a tuple of (rows, isTruncated)
     private func fetchResultSet(
         from stmt: UnsafeMutablePointer<MYSQL_STMT>,
         metadata: UnsafeMutablePointer<MYSQL_RES>,
         columns: [String],
         columnTypes: [UInt32],
         columnTypeNames: [String]
-    ) throws -> (rows: [[String?]], isTruncated: Bool) {
+    ) throws -> [[String?]] {
         let numFields = columns.count
         var resultBinds: [MYSQL_BIND] = Array(repeating: MYSQL_BIND(), count: numFields)
         var resultBuffers: [UnsafeMutableRawPointer] = []
@@ -773,25 +691,8 @@ final class MariaDBConnection: @unchecked Sendable {
         }
 
         var rows: [[String?]] = []
-        var isTruncated = false
-        let maxRows = DriverRowLimits.maxRows
 
         while mysql_stmt_fetch(stmt) == 0 {
-            // Check cancellation flag between row fetches
-            if isCancelled {
-                logger.info("Parameterized query cancelled during row fetch after \(rows.count) rows")
-                break
-            }
-
-            // Enforce row limit to prevent excessive memory usage
-            if rows.count >= maxRows {
-                isTruncated = true
-                logger.warning(
-                    "MySQL parameterized query truncated at \(maxRows) rows to prevent excessive memory usage"
-                )
-                break
-            }
-
             var row: [String?] = []
             for i in 0..<numFields {
                 if resultBinds[i].is_null?.pointee == 1 {
@@ -810,11 +711,7 @@ final class MariaDBConnection: @unchecked Sendable {
             rows.append(row)
         }
 
-        if isCancelled {
-            throw MariaDBError(code: 0, message: "Query cancelled by user", sqlState: nil)
-        }
-
-        return (rows: rows, isTruncated: isTruncated)
+        return rows
     }
 
     /// Synchronous parameterized query execution using prepared statements
@@ -823,9 +720,6 @@ final class MariaDBConnection: @unchecked Sendable {
         guard !isShuttingDown, let mysql = self.mysql else {
             throw MariaDBError.notConnected
         }
-
-        // Reset cancellation flag before starting a new query
-        isCancelled = false
 
         // Initialize prepared statement
         guard let stmt = mysql_stmt_init(mysql) else {
@@ -882,8 +776,7 @@ final class MariaDBConnection: @unchecked Sendable {
                 columnTypeNames: [],
                 rows: [],
                 affectedRows: UInt64(affected),
-                insertId: UInt64(insertId),
-                isTruncated: false
+                insertId: UInt64(insertId)
             )
         }
 
@@ -925,7 +818,7 @@ final class MariaDBConnection: @unchecked Sendable {
         }
 
         // Fetch all rows
-        let (rows, isTruncated) = try fetchResultSet(
+        let rows = try fetchResultSet(
             from: stmt,
             metadata: metadata,
             columns: columns,
@@ -939,8 +832,7 @@ final class MariaDBConnection: @unchecked Sendable {
             columnTypeNames: columnTypeNames,
             rows: rows,
             affectedRows: UInt64(rows.count),
-            insertId: 0,
-            isTruncated: isTruncated
+            insertId: 0
         )
     }
 

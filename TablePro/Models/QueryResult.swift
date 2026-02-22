@@ -9,24 +9,8 @@ import Foundation
 
 /// Represents a row of query results for UI display
 struct QueryResultRow: Identifiable, Equatable {
-    /// Monotonically increasing counter for cheap unique IDs (avoids UUID heap allocation)
-    private static var nextID = 0
-
-    /// Returns a unique integer ID and increments the counter.
-    /// Not thread-safe, but QueryResultRow is only created on @MainActor.
-    private static func makeNextID() -> Int {
-        defer { nextID += 1 }
-        return nextID
-    }
-
-    let id: Int
+    let id = UUID()
     var values: [String?]
-
-    /// Creates a row with an auto-generated unique ID
-    init(values: [String?]) {
-        self.id = Self.makeNextID()
-        self.values = values
-    }
 
     static func == (lhs: QueryResultRow, rhs: QueryResultRow) -> Bool {
         lhs.id == rhs.id
@@ -41,8 +25,6 @@ struct QueryResult {
     let rowsAffected: Int
     let executionTime: TimeInterval
     let error: DatabaseError?
-    /// True when the result was truncated at DriverRowLimits.maxRows
-    var isTruncated: Bool = false
 
     var isEmpty: Bool {
         rows.isEmpty
@@ -69,8 +51,7 @@ struct QueryResult {
         rows: [],
         rowsAffected: 0,
         executionTime: 0,
-        error: nil,
-        isTruncated: false
+        error: nil
     )
 }
 

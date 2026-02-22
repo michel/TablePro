@@ -1,6 +1,6 @@
 # TablePro Performance Audit
 
-Audit date: 2026-02-22 | Total issues: 45 | Fixed: 45 | Deferred: 0
+Audit date: 2026-02-22 | Total issues: 45 | Fixed: 40 | Deferred: 0
 
 ## Status Legend
 
@@ -18,7 +18,7 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 45 | Deferred: 0
 | MEM-2 | `duplicateTab()` deep-copies all result rows into new tab                       | High     | FIXED  | —      |
 | MEM-3 | Sort cache duplicates entire result set per sorted tab                          | High     | FIXED  | —      |
 | MEM-4 | XLSX export accumulates all rows of all tables in memory                        | High     | FIXED  | —      |
-| MEM-5 | `mysql_store_result` + redundant String copy doubles peak RAM                   | High     | FIXED  | —      |
+| MEM-5 | `mysql_store_result` + redundant String copy doubles peak RAM                   | High     | OPEN   | —      |
 | MEM-6 | Redundant deep copy in `executeQueryInternal` (triple-copy pipeline)            | Medium   | FIXED  | —      |
 | MEM-7 | `InMemoryRowProvider.rowCache` duplicates data without eviction                 | Medium   | FIXED  | —      |
 | MEM-8 | `DatabaseRowProvider` cache has no size limit or LRU eviction                   | Medium   | FIXED  | —      |
@@ -54,13 +54,13 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 45 | Deferred: 0
 | ID     | Issue                                                                          | Severity | Status | Commit |
 | ------ | ------------------------------------------------------------------------------ | -------- | ------ | ------ |
 | DAT-1  | Query tabs have no LIMIT protection — unbounded SELECT can OOM                 | High     | FIXED  | —      |
-| DAT-2  | `mysql_store_result` / `PQexec` load entire result set into client memory      | High     | FIXED  | —      |
-| DAT-3  | SQLite driver fetches all rows into array without limit                        | Medium   | FIXED  | —      |
+| DAT-2  | `mysql_store_result` / `PQexec` load entire result set into client memory      | High     | OPEN   | —      |
+| DAT-3  | SQLite driver fetches all rows into array without limit                        | Medium   | OPEN   | —      |
 | DAT-4  | `SQLSchemaProvider` eagerly loads columns for ALL tables (N+1 queries)         | Medium   | FIXED  | —      |
 | DAT-5  | Client-side sorting creates full memory copy for query tabs                    | Medium   | FIXED  | —      |
 | DAT-6  | `InMemoryRowProvider` recreated on every SwiftUI render                        | Medium   | FIXED  | —      |
 | DAT-7  | Clipboard copy builds unbounded string for large selections                    | Low      | FIXED  | —      |
-| DAT-8  | `QueryResult.toQueryResultRows()` deep copy with UUID allocation per row       | Low      | FIXED  | —      |
+| DAT-8  | `QueryResult.toQueryResultRows()` deep copy with UUID allocation per row       | Low      | OPEN   | —      |
 
 ## 4. Network / Database I/O (5 issues)
 
@@ -68,7 +68,7 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 45 | Deferred: 0
 | ------ | ------------------------------------------------------------------------------ | -------- | ------ | ------ |
 | NET-1  | Phase 2 metadata re-fetch on every query (columns, FKs, COUNT — 3 extra RTTs) | High     | FIXED  | —      |
 | NET-2  | Missing `connect_timeout` in LibPQ connection string                           | High     | FIXED  | —      |
-| NET-3  | No driver-level `cancelQuery()` — in-flight SQL continues after Task cancel    | Medium   | FIXED  | —      |
+| NET-3  | No driver-level `cancelQuery()` — in-flight SQL continues after Task cancel    | Medium   | OPEN   | —      |
 | NET-4  | `SidebarView.loadTables()` triggered by 3 notifications without deduplication  | Medium   | FIXED  | —      |
 | NET-5  | `AIChatPanelView.fetchSchemaContext()` N+1 queries per table                   | Medium   | FIXED  | —      |
 

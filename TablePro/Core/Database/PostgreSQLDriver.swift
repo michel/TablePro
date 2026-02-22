@@ -68,12 +68,6 @@ final class PostgreSQLDriver: DatabaseDriver {
         return isConnected
     }
 
-    // MARK: - Query Cancellation
-
-    func cancelQuery() throws {
-        libpqConnection?.cancelCurrentQuery()
-    }
-
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> QueryResult {
@@ -102,8 +96,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 rows: result.rows,
                 rowsAffected: result.affectedRows,
                 executionTime: Date().timeIntervalSince(startTime),
-                error: nil,
-                isTruncated: result.isTruncated
+                error: nil
             )
         } catch let error as NSError where !isRetry && isConnectionLostError(error) {
             // Connection lost - attempt reconnect and retry once
@@ -168,8 +161,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 rows: result.rows,
                 rowsAffected: result.affectedRows,
                 executionTime: Date().timeIntervalSince(startTime),
-                error: nil,
-                isTruncated: result.isTruncated
+                error: nil
             )
         } catch let error as NSError where !isRetry && isConnectionLostError(error) {
             // Connection lost - attempt reconnect and retry once

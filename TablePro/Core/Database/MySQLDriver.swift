@@ -87,12 +87,6 @@ final class MySQLDriver: DatabaseDriver {
         return isConnected
     }
 
-    // MARK: - Query Cancellation
-
-    func cancelQuery() throws {
-        mariadbConnection?.cancelCurrentQuery()
-    }
-
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> QueryResult {
@@ -122,8 +116,7 @@ final class MySQLDriver: DatabaseDriver {
                 rows: result.rows,
                 rowsAffected: Int(result.affectedRows),
                 executionTime: Date().timeIntervalSince(startTime),
-                error: nil,
-                isTruncated: result.isTruncated
+                error: nil
             )
         } catch let error as MariaDBError {
             throw DatabaseError.queryFailed(error.localizedDescription)
@@ -167,8 +160,7 @@ final class MySQLDriver: DatabaseDriver {
                 rows: result.rows,
                 rowsAffected: Int(result.affectedRows),
                 executionTime: Date().timeIntervalSince(startTime),
-                error: nil,
-                isTruncated: result.isTruncated
+                error: nil
             )
         } catch let error as MariaDBError where !isRetry && isConnectionLostError(error) {
             // Connection lost - attempt reconnect and retry once
