@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQLite connections now only show General and Advanced tabs (SSH/SSL hidden)
 
 ### Fixed
+- Fixed retain cycle in `UpdaterBridge` — `.assign(to:on:self)` retains self strongly; replaced with `.sink` using `[weak self]`
 - Eliminated tab switching delay — replaced view teardown/recreation with `ZStack`+`ForEach` to keep NSViews alive, moved tab persistence I/O to background threads, skipped unnecessary change-tracking deep copies, and coalesced redundant inspector/sidebar updates during tab switch
 - Reduced tab-switch CPU spikes from 40-60% to ~10-20% by eliminating redundant `reloadData()` calls: `configureForTable` no longer triggers a reload during tab switch (single controlled bump instead of 2-3), `onChange(of: resultColumns)` is suppressed while the switch is in progress, and `DataGridView.updateNSView` skips all heavy work when the data identity hasn't changed
 - Table open now shows data instantly — split `executeQueryInternal` into two phases: rows display immediately after SELECT completes, metadata (columns, FKs, enums, row count) loads in the background without blocking the grid

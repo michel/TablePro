@@ -24,7 +24,9 @@ final class UpdaterBridge: ObservableObject {
 
         // Observe canCheckForUpdates via KVO and publish to SwiftUI
         cancellable = controller.updater.publisher(for: \.canCheckForUpdates)
-            .assign(to: \.canCheckForUpdates, on: self)
+            .sink { [weak self] value in
+                self?.canCheckForUpdates = value
+            }
     }
 
     /// The underlying Sparkle updater for direct property access (e.g. automaticallyChecksForUpdates)
