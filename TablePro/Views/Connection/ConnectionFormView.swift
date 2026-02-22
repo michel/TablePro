@@ -672,7 +672,7 @@ struct ConnectionFormView: View {
         panel.canChooseDirectories = false
 
         if panel.runModal() == .OK, let url = panel.url {
-            database = url.path
+            database = url.path(percentEncoded: false)
         }
     }
 
@@ -684,7 +684,7 @@ struct ConnectionFormView: View {
         panel.showsHiddenFiles = true
 
         if panel.runModal() == .OK, let url = panel.url {
-            sshPrivateKeyPath = url.path
+            sshPrivateKeyPath = url.path(percentEncoded: false)
         }
     }
 
@@ -696,7 +696,7 @@ struct ConnectionFormView: View {
         panel.showsHiddenFiles = true
 
         if panel.runModal() == .OK, let url = panel.url {
-            binding.wrappedValue = url.path
+            binding.wrappedValue = url.path(percentEncoded: false)
         }
     }
 

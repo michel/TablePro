@@ -287,7 +287,7 @@ struct ImportDialog: View {
 
         // Validate that the URL points to a regular file, not a directory or symlink
         var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+        guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isDirectory),
             !isDirectory.boolValue
         else {
             filePreview = String(localized: "Error: Selected path is not a regular file")
@@ -298,10 +298,10 @@ struct ImportDialog: View {
 
         // Get file size
         do {
-            let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+            let attrs = try FileManager.default.attributesOfItem(atPath: url.path(percentEncoded: false))
             fileSize = attrs[.size] as? Int64 ?? 0
         } catch {
-            Self.logger.warning("Failed to get file attributes for \(url.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            Self.logger.warning("Failed to get file attributes for \(url.path(percentEncoded: false), privacy: .public): \(error.localizedDescription, privacy: .public)")
             fileSize = 0
         }
 
@@ -409,7 +409,7 @@ struct ImportDialog: View {
                 try FileManager.default.removeItem(at: tempURL)
             } catch {
                 Self.logger.error(
-                    "cleanupTempFiles: Failed to remove tempPreviewURL at \(tempURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                    "cleanupTempFiles: Failed to remove tempPreviewURL at \(tempURL.path(percentEncoded: false), privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
             }
             tempPreviewURL = nil
@@ -419,7 +419,7 @@ struct ImportDialog: View {
                 try FileManager.default.removeItem(at: tempURL)
             } catch {
                 Self.logger.error(
-                    "cleanupTempFiles: Failed to remove tempCountURL at \(tempURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                    "cleanupTempFiles: Failed to remove tempCountURL at \(tempURL.path(percentEncoded: false), privacy: .public): \(error.localizedDescription, privacy: .public)"
                 )
             }
             tempCountURL = nil

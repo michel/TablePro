@@ -282,8 +282,8 @@ final class ExportService: ObservableObject {
 
     /// Create a file at the given URL and return a FileHandle for writing
     private func createFileHandle(at url: URL) throws -> FileHandle {
-        guard FileManager.default.createFile(atPath: url.path, contents: nil) else {
-            throw ExportError.fileWriteFailed(url.path)
+        guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil) else {
+            throw ExportError.fileWriteFailed(url.path(percentEncoded: false))
         }
         return try FileHandle(forWritingTo: url)
     }
@@ -935,8 +935,8 @@ final class ExportService: ObservableObject {
             }
 
             // Create output file
-            guard FileManager.default.createFile(atPath: destination.path, contents: nil) else {
-                throw ExportError.fileWriteFailed(destination.path)
+            guard FileManager.default.createFile(atPath: destination.path(percentEncoded: false), contents: nil) else {
+                throw ExportError.fileWriteFailed(destination.path(percentEncoded: false))
             }
 
             // Use gzip to compress the file

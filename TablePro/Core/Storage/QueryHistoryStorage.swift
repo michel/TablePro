@@ -76,7 +76,7 @@ final class QueryHistoryStorage {
         // Create directory if needed
         try? fileManager.createDirectory(at: TableProDir, withIntermediateDirectories: true)
 
-        let dbPath = TableProDir.appendingPathComponent("query_history.db").path
+        let dbPath = TableProDir.appendingPathComponent("query_history.db").path(percentEncoded: false)
 
         // Open database
         if sqlite3_open(dbPath, &db) != SQLITE_OK {
