@@ -77,6 +77,7 @@ struct TableTabContentView: View {
                         columnNullable: tab.columnNullable
                     ),
                     changeManager: AnyChangeManager(dataManager: changeManager),
+                    resultVersion: tab.resultVersion,
                     isEditable: tab.isEditable && !tab.isView,
                     onCommit: onCommit,
                     onRefresh: onRefresh,

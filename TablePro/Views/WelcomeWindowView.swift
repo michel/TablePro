@@ -290,7 +290,7 @@ struct WelcomeWindowView: View {
     }
 
     private func connectToDatabase(_ connection: DatabaseConnection) {
-        // Open main window immediately - no delay
+        // Open main window first, then connect in background
         openWindow(id: "main")
         NSApplication.shared.closeWindows(withId: "welcome")
 

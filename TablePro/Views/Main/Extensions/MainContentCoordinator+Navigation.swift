@@ -20,6 +20,17 @@ extension MainContentCoordinator {
             currentDatabase = connection.database
         }
 
+        // Fast path: if this table is already the active tab in the same database, skip all work
+        if let current = tabManager.selectedTab,
+           current.tabType == .table,
+           current.tableName == tableName,
+           current.databaseName == currentDatabase {
+            if showStructure, let idx = tabManager.selectedTabIndex {
+                tabManager.tabs[idx].showStructure = true
+            }
+            return
+        }
+
         let needsQuery = tabManager.TableProTabSmart(
             tableName: tableName,
             hasUnsavedChanges: changeManager.hasChanges,
@@ -27,6 +38,11 @@ extension MainContentCoordinator {
             isView: isView,
             databaseName: currentDatabase
         )
+
+        // Attach timing once tab UUID is known (promotes any pending sidebar trigger)
+        if let tabId = tabManager.selectedTabId {
+            TabOpenTimingLogger.shared.attach(tabId: tabId, source: "openTable:\(tableName)")
+        }
 
         // Initialize pagination for new table tab
         if needsQuery, let tabIndex = tabManager.selectedTabIndex {
@@ -46,9 +62,10 @@ extension MainContentCoordinator {
         }
 
         if needsQuery {
-            Task { @MainActor in
-                runQuery()
-            }
+            runQuery()
+        } else if let tabId = tabManager.selectedTabId {
+            // Tab was already open and loaded — nothing more to do
+            TabOpenTimingLogger.shared.markDone(tabId: tabId, milestone: "openTable-tabReused")
         }
     }
 

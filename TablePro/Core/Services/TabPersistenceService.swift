@@ -32,6 +32,7 @@ final class TabPersistenceService: ObservableObject {
     // MARK: - Private State
 
     private var saveDebounceTask: Task<Void, Never>?
+    private var backgroundSaveTask: Task<Void, Never>?
     private var lastQueryDebounceTask: Task<Void, Never>?
     private let connectionId: UUID
 
@@ -103,7 +104,8 @@ final class TabPersistenceService: ObservableObject {
         )
     }
 
-    /// Flush pending debounced save before tab switch
+    /// Flush pending debounced save before tab switch.
+    /// Saves on a background thread to avoid blocking the main thread.
     /// - Parameters:
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
@@ -111,7 +113,32 @@ final class TabPersistenceService: ObservableObject {
         guard let task = saveDebounceTask, !task.isCancelled else { return }
 
         task.cancel()
-        saveTabsImmediately(tabs: tabs, selectedTabId: selectedTabId)
+        saveTabsAsync(tabs: tabs, selectedTabId: selectedTabId)
+    }
+
+    /// Save tabs asynchronously on a background thread to avoid blocking the main thread.
+    /// Use this for tab-switch paths; use saveTabsImmediately only when the process is about to exit.
+    /// - Parameters:
+    ///   - tabs: Current tabs array
+    ///   - selectedTabId: Currently selected tab ID
+    func saveTabsAsync(tabs: [QueryTab], selectedTabId: UUID?) {
+        guard !isRestoringTabs, !isDismissing else { return }
+
+        // Cancel any in-flight background save so an older snapshot can't
+        // finish after a newer one and overwrite it.
+        backgroundSaveTask?.cancel()
+
+        let tabsToSave = tabs
+        let selectedId = selectedTabId
+        let connId = connectionId
+        backgroundSaveTask = Task.detached(priority: .utility) {
+            guard !Task.isCancelled else { return }
+            TabStateStorage.shared.saveTabState(
+                connectionId: connId,
+                tabs: tabsToSave,
+                selectedTabId: selectedId
+            )
+        }
     }
 
     // MARK: - Restore Operations

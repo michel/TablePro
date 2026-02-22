@@ -87,7 +87,8 @@ final class DataChangeManager: ObservableObject {
         tableName: String,
         columns: [String],
         primaryKeyColumn: String?,
-        databaseType: DatabaseType = .mysql
+        databaseType: DatabaseType = .mysql,
+        triggerReload: Bool = true
     ) {
         self.tableName = tableName
         self.columns = columns
@@ -103,7 +104,9 @@ final class DataChangeManager: ObservableObject {
 
         changes.removeAll()
         hasChanges = false
-        reloadVersion += 1
+        if triggerReload {
+            reloadVersion += 1
+        }
     }
 
     // MARK: - Change Tracking

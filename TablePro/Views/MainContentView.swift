@@ -39,6 +39,8 @@ struct MainContentView: View {
     @State private var previousSelectedTables: Set<TableInfo> = []
     @State private var editingCell: CellPosition?
     @State private var notificationHandler: MainContentNotificationHandler?
+    @State private var queryResultsSummaryCache: (tabId: UUID, version: Int, summary: String?)?
+    @State private var inspectorUpdateWorkItem: DispatchWorkItem?
 
     // MARK: - Environment
 
@@ -94,6 +96,12 @@ struct MainContentView: View {
             .openTableToolbar(state: toolbarState)
             .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { newTabId in
+                if coordinator.skipNextTabChangeOnChange {
+                    // Work already done by direct caller (keyboard/tab bar/sidebar)
+                    coordinator.skipNextTabChangeOnChange = false
+                    previousSelectedTabId = newTabId
+                    return
+                }
                 handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
                 previousSelectedTabId = newTabId
             }
@@ -123,19 +131,18 @@ struct MainContentView: View {
             }
             .onChange(of: selectedRowIndices) { newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
-                updateSidebarEditState()
-                updateInspectorContext()
+                // Defer sidebar/inspector updates so SwiftUI can render the tab switch first
+                scheduleInspectorUpdate()
             }
             .onChange(of: currentTab?.resultRows) { _ in
-                updateSidebarEditState()
-                updateInspectorContext()
+                scheduleInspectorUpdate()
             }
             .onChange(of: currentTab?.tableName) { _ in
-                updateInspectorContext()
+                scheduleInspectorUpdate()
                 Task { await loadTableMetadataIfNeeded() }
             }
             .onChange(of: coordinator.tableMetadata?.tableName) { _ in
-                updateInspectorContext()
+                scheduleInspectorUpdate()
             }
             .onAppear {
                 setupNotificationHandler()
@@ -339,7 +346,7 @@ struct MainContentView: View {
             DatabaseManager.shared.updateSession(sessionId) { session in
                 session.selectedTabId = newTabId
             }
-            coordinator.tabPersistence.saveTabsImmediately(
+            coordinator.tabPersistence.saveTabsAsync(
                 tabs: tabManager.tabs,
                 selectedTabId: newTabId
             )
@@ -355,7 +362,7 @@ struct MainContentView: View {
             DatabaseManager.shared.updateSession(sessionId) { session in
                 session.tabs = newTabs
             }
-            coordinator.tabPersistence.saveTabsImmediately(
+            coordinator.tabPersistence.saveTabsAsync(
                 tabs: newTabs,
                 selectedTabId: tabManager.selectedTabId
             )
@@ -367,6 +374,9 @@ struct MainContentView: View {
     }
 
     private func handleColumnsChange(newColumns: [String]?) {
+        // Skip during tab switch — handleTabChange already configures the change manager
+        guard !coordinator.isHandlingTabSwitch else { return }
+
         guard let newColumns = newColumns, !newColumns.isEmpty,
               let tab = tabManager.selectedTab,
               !tab.pendingChanges.hasChanges
@@ -405,6 +415,7 @@ struct MainContentView: View {
         let added = newTables.subtracting(oldTables)
         if let table = added.first {
             selectedRowIndices = []
+            TabOpenTimingLogger.shared.markTrigger(source: "sidebar:\(table.name)")
             coordinator.openTableTab(table.name, isView: table.type == .view)
         }
         AppState.shared.hasTableSelection = !newTables.isEmpty
@@ -511,6 +522,19 @@ struct MainContentView: View {
 
     // MARK: - Inspector Context
 
+    /// Coalesces multiple onChange-triggered updates into a single deferred call.
+    /// During tab switch, onChange handlers fire 3-4× — this ensures we only rebuild once,
+    /// and defers the work so SwiftUI can render the tab switch first.
+    private func scheduleInspectorUpdate() {
+        inspectorUpdateWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [self] in
+            updateSidebarEditState()
+            updateInspectorContext()
+        }
+        inspectorUpdateWorkItem = workItem
+        DispatchQueue.main.async(execute: workItem)
+    }
+
     private func updateInspectorContext() {
         inspectorContext = InspectorContext(
             tableName: currentTab?.tableName,
@@ -519,8 +543,19 @@ struct MainContentView: View {
             isEditable: isSidebarEditable,
             isRowDeleted: isSelectedRowDeleted,
             currentQuery: coordinator.tabManager.selectedTab?.query,
-            queryResults: buildQueryResultsSummary()
+            queryResults: cachedQueryResultsSummary()
         )
+    }
+
+    private func cachedQueryResultsSummary() -> String? {
+        guard let tab = currentTab else { return nil }
+        if let cache = queryResultsSummaryCache,
+           cache.tabId == tab.id, cache.version == tab.resultVersion {
+            return cache.summary
+        }
+        let summary = buildQueryResultsSummary()
+        queryResultsSummaryCache = (tabId: tab.id, version: tab.resultVersion, summary: summary)
+        return summary
     }
 
     private func buildQueryResultsSummary() -> String? {

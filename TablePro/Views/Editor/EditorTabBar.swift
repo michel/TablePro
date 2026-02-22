@@ -11,22 +11,46 @@ import SwiftUI
 struct EditorTabBar: View {
     @ObservedObject var tabManager: QueryTabManager
 
+    /// Optional direct tab switch handler that bypasses SwiftUI .onChange delay.
+    /// When provided, called instead of `tabManager.selectTab(tab)`.
+    var onDirectSelect: ((QueryTab) -> Void)?
+
     var body: some View {
         HStack(spacing: 0) {
             // Scrollable tab list
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 1) {
-                    ForEach(tabManager.tabs) { tab in
-                        EditorTabItem(
-                            tab: tab,
-                            isSelected: tab.id == tabManager.selectedTabId,
-                            onSelect: { tabManager.selectTab(tab) },
-                            onClose: { tabManager.closeTab(tab) }
-                        )
-                        .contextMenu { tabContextMenu(for: tab) }
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 1) {
+                        ForEach(tabManager.tabs) { tab in
+                            EditorTabItem(
+                                tab: tab,
+                                isSelected: tab.id == tabManager.selectedTabId,
+                                onSelect: {
+                                    if let onDirectSelect {
+                                        onDirectSelect(tab)
+                                    } else {
+                                        tabManager.selectTab(tab)
+                                    }
+                                },
+                                onClose: { tabManager.closeTab(tab) }
+                            )
+                            .id(tab.id)
+                            .contextMenu { tabContextMenu(for: tab) }
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+                .onAppear {
+                    if let id = tabManager.selectedTabId {
+                        proxy.scrollTo(id)
                     }
                 }
-                .padding(.horizontal, 4)
+                .onChange(of: tabManager.selectedTabId) { newId in
+                    guard let id = newId else { return }
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        proxy.scrollTo(id)
+                    }
+                }
             }
 
             // Add tab button
