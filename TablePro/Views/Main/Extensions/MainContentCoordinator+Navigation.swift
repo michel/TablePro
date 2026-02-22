@@ -5,7 +5,11 @@
 //  Table tab opening and database switching operations for MainContentCoordinator
 //
 
+import AppKit
 import Foundation
+import os
+
+private let navigationLogger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator+Navigation")
 
 extension MainContentCoordinator {
     // MARK: - Table Tab Opening
@@ -198,6 +202,12 @@ extension MainContentCoordinator {
                 // (SQLite doesn't apply, but keeping for completeness)
             }
         } catch {
+            navigationLogger.error("Failed to switch database: \(error.localizedDescription, privacy: .public)")
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Database Switch Failed"),
+                message: error.localizedDescription,
+                window: NSApplication.shared.keyWindow
+            )
         }
     }
 
@@ -216,12 +226,16 @@ extension MainContentCoordinator {
             tagId: connection.tagId
         )
 
-        Task {
+        Task { @MainActor in
             do {
                 try await DatabaseManager.shared.connectToSession(newConnection)
             } catch {
-                await MainActor.run {
-                }
+                navigationLogger.error("Failed to connect to database '\(database, privacy: .public)': \(error.localizedDescription, privacy: .public)")
+                AlertHelper.showErrorSheet(
+                    title: String(localized: "Connection Failed"),
+                    message: error.localizedDescription,
+                    window: NSApplication.shared.keyWindow
+                )
             }
         }
     }
