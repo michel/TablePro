@@ -39,7 +39,7 @@ final class AIKeyStorage {
             kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
         ]
 
         let status = SecItemAdd(addQuery as CFDictionary, nil)
