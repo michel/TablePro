@@ -41,6 +41,7 @@ struct QuickSearchField: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.borderless)
+                .accessibilityLabel(String(localized: "Clear search"))
                 .help("Clear Search")
             }
         }

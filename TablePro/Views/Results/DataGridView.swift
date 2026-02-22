@@ -75,6 +75,8 @@ struct DataGridView: NSViewRepresentable {
         let tableView = KeyHandlingTableView()
         tableView.coordinator = context.coordinator
         tableView.style = .plain
+        tableView.setAccessibilityLabel(String(localized: "Data grid"))
+        tableView.setAccessibilityRole(.table)
         // Use settings for alternate row backgrounds
         let settings = AppSettingsManager.shared.dataGrid
         tableView.usesAlternatingRowBackgroundColors = settings.showAlternateRows
@@ -101,6 +103,7 @@ struct DataGridView: NSViewRepresentable {
         rowNumberColumn.maxWidth = 60
         rowNumberColumn.isEditable = false
         rowNumberColumn.resizingMask = []
+        rowNumberColumn.headerCell.setAccessibilityLabel(String(localized: "Row number"))
         tableView.addTableColumn(rowNumberColumn)
 
         // Add data columns (suppress resize notifications during setup)
@@ -108,6 +111,9 @@ struct DataGridView: NSViewRepresentable {
         for (index, columnName) in rowProvider.columns.enumerated() {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
             column.title = columnName
+            column.headerCell.setAccessibilityLabel(
+                String(localized: "Column: \(columnName)")
+            )
             // Use optimal width calculation based on both header and cell content
             column.width = cellFactory.calculateOptimalColumnWidth(
                 for: columnName,
@@ -249,6 +255,9 @@ struct DataGridView: NSViewRepresentable {
                 for (index, columnName) in rowProvider.columns.enumerated() {
                     let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
                     column.title = columnName
+                    column.headerCell.setAccessibilityLabel(
+                        String(localized: "Column: \(columnName)")
+                    )
                     if let savedWidth = columnLayout.columnWidths[columnName] {
                         column.width = savedWidth
                     } else {

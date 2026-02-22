@@ -92,6 +92,7 @@ final class DataGridCellFactory {
 
         cell.stringValue = "\(row + 1)"
         cell.textColor = visualState.isDeleted ? CellColors.deletedText : .secondaryLabelColor
+        cellView.setAccessibilityLabel(String(localized: "Row \(row + 1)"))
 
         return cellView
     }
@@ -271,6 +272,14 @@ final class DataGridCellFactory {
         }
 
         CATransaction.commit()
+
+        // Accessibility: describe cell content for VoiceOver
+        if !isLargeDataset {
+            let displayValue = value ?? String(localized: "NULL")
+            cell.setAccessibilityLabel(
+                String(localized: "Row \(row + 1), column \(columnIndex + 1): \(displayValue)")
+            )
+        }
 
         return cellView
     }

@@ -79,6 +79,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "network")
                         }
+                        .accessibilityLabel(String(localized: "Switch connection"))
                         .help("Switch Connection (⌘⌥C)")
                         .popover(isPresented: $showConnectionSwitcher) {
                             ConnectionSwitcherPopover {
@@ -95,6 +96,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "cylinder")
                         }
+                        .accessibilityLabel(String(localized: "Open database"))
                         .help("Open Database (⌘K)")
                         .disabled(
                             state.connectionState != .connected || state.databaseType == .sqlite)
@@ -103,6 +105,7 @@ struct TableProToolbar: ViewModifier {
                         Button("SQL") {
                             actions?.newTab()
                         }
+                        .accessibilityLabel(String(localized: "New query tab"))
                         .help("New Query Tab (⌘T)")
 
                         // Refresh button
@@ -111,6 +114,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "arrow.clockwise")
                         }
+                        .accessibilityLabel(String(localized: "Refresh data"))
                         .help("Refresh (⌘R)")
                         .disabled(state.connectionState != .connected)
 
@@ -120,6 +124,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "eye")
                         }
+                        .accessibilityLabel(String(localized: "Preview SQL"))
                         .help("Preview SQL (⌘⇧P)")
                         .disabled(!state.hasPendingChanges || state.connectionState != .connected)
                         .popover(isPresented: $state.showSQLReviewPopover) {
@@ -144,6 +149,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "line.3.horizontal.decrease.circle")
                         }
+                        .accessibilityLabel(String(localized: "Toggle filters"))
                         .help("Toggle Filters (⌘F)")
                         .disabled(state.connectionState != .connected || !state.isTableTab)
 
@@ -153,6 +159,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "clock")
                         }
+                        .accessibilityLabel(String(localized: "Toggle query history"))
                         .help("Toggle Query History (⌘Y)")
 
                         Divider()
@@ -164,6 +171,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "square.and.arrow.up")
                         }
+                        .accessibilityLabel(String(localized: "Export data"))
                         .help("Export Data (⌘⇧E)")
                         .disabled(state.connectionState != .connected)
 
@@ -173,6 +181,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "square.and.arrow.down")
                         }
+                        .accessibilityLabel(String(localized: "Import data"))
                         .help("Import Data (⌘⇧I)")
                         .disabled(state.connectionState != .connected || state.isReadOnly)
 
@@ -185,6 +194,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "sidebar.trailing")
                         }
+                        .accessibilityLabel(String(localized: "Toggle inspector"))
                         .help("Toggle Inspector (⌘⌥B)")
                     }
                 }

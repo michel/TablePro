@@ -81,6 +81,7 @@ struct FilterPanelView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: 80)
+            .accessibilityLabel(String(localized: "Filter logic mode"))
             .help("Match ALL filters (AND) or ANY filter (OR)")
 
             presetsMenu
@@ -92,6 +93,7 @@ struct FilterPanelView: View {
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)
+            .accessibilityLabel(String(localized: "Filter settings"))
             .help("Filter Settings")
             .popover(isPresented: $showSettingsPopover, arrowEdge: .bottom) {
                 FilterSettingsPopover()
@@ -106,6 +108,7 @@ struct FilterPanelView: View {
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.tint)
+            .accessibilityLabel(String(localized: "Add filter"))
             .help("Add Filter (Cmd+Shift+F)")
         }
         .padding(.horizontal, 8)
@@ -162,6 +165,7 @@ struct FilterPanelView: View {
         }
         .buttonStyle(.borderless)
         .foregroundStyle(.secondary)
+        .accessibilityLabel(String(localized: "Filter presets"))
         .help("Save and load filter presets")
         .onAppear {
             loadPresets()

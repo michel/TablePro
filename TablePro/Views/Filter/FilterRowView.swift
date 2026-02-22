@@ -59,6 +59,7 @@ struct FilterRowView: View {
             Toggle("", isOn: $filter.isSelected)
                 .toggleStyle(.checkbox)
                 .labelsHidden()
+                .accessibilityLabel(String(localized: "Select filter for \(displayColumnName)"))
 
             // Column dropdown - native Menu style
             columnMenu
@@ -143,6 +144,7 @@ struct FilterRowView: View {
             )
         }
         .menuStyle(.borderlessButton)
+        .accessibilityLabel(String(localized: "Filter column: \(displayColumnName)"))
         .simultaneousGesture(TapGesture().onEnded { onFocus() })
     }
 
@@ -179,6 +181,9 @@ struct FilterRowView: View {
             )
         }
         .menuStyle(.borderlessButton)
+        .accessibilityLabel(
+            String(localized: "Filter operator: \(filter.filterOperator.displayName)")
+        )
         .simultaneousGesture(TapGesture().onEnded { onFocus() })
     }
 
@@ -266,6 +271,7 @@ struct FilterRowView: View {
             .buttonStyle(.borderless)
             .foregroundStyle(filter.isValid ? Color(nsColor: .systemGreen) : Color.secondary)
             .disabled(!filter.isValid)
+            .accessibilityLabel(String(localized: "Apply this filter"))
             .help("Apply This Filter")
 
             // Duplicate
@@ -275,6 +281,7 @@ struct FilterRowView: View {
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)
+            .accessibilityLabel(String(localized: "Duplicate filter"))
             .help("Duplicate Filter")
 
             // Remove
@@ -284,6 +291,7 @@ struct FilterRowView: View {
             }
             .buttonStyle(.borderless)
             .foregroundStyle(.secondary)
+            .accessibilityLabel(String(localized: "Remove filter"))
             .help("Remove Filter")
         }
     }

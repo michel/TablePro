@@ -43,6 +43,9 @@ struct ConnectionStatusView: View {
         Text(formattedDatabaseInfo)
             .font(ToolbarDesignTokens.Typography.databaseType)
             .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
+            .accessibilityLabel(
+                String(localized: "Database type: \(formattedDatabaseInfo)")
+            )
             .help("Database: \(formattedDatabaseInfo)")
     }
 

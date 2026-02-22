@@ -149,6 +149,7 @@ struct SidebarView: View {
                         .font(.system(size: DesignConstants.FontSize.medium))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(String(localized: "Clear table filter"))
             }
         }
         .padding(.horizontal, 8)
@@ -564,6 +565,20 @@ struct TableRow: View {
                 .foregroundStyle(textColor)
         }
         .padding(.vertical, DesignConstants.Spacing.xxs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(tableAccessibilityLabel)
+    }
+
+    private var tableAccessibilityLabel: String {
+        var label = table.type == .view
+            ? String(localized: "View: \(table.name)")
+            : String(localized: "Table: \(table.name)")
+        if isPendingDelete {
+            label += ", " + String(localized: "pending delete")
+        } else if isPendingTruncate {
+            label += ", " + String(localized: "pending truncate")
+        }
+        return label
     }
 
     private var iconColor: Color {

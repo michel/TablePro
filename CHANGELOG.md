@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed TOCTOU race condition in `SQLiteDriver` — replaced `nonisolated(unsafe)` + DispatchQueue pattern with a dedicated actor (`SQLiteConnectionActor`) that serializes all sqlite3 handle access, preventing concurrent task races on the connection state
 - Consolidated multiple `.sheet(isPresented:)` modifiers in `MainContentView` into a single `.sheet(item:)` with an `ActiveSheet` enum — fixes SwiftUI anti-pattern where only the last `.sheet` modifier reliably activates
+- Added VoiceOver accessibility labels to custom controls: data grid (table view, column headers, cells), filter panel (logic toggle, presets, action buttons, filter row controls), toolbar buttons (connection switcher, database switcher, refresh, export, import, filter toggle, history toggle, inspector toggle), editor tab bar (tab items, close buttons, add tab button), and sidebar (table/view rows, search clear button)
 
 ### Changed
 - Migrated notification observers in `MainContentCommandActions` from Combine publishers (`.publisher(for:).sink`) to async sequences (`for await` over `NotificationCenter.default.notifications(named:)`) — removes `AnyCancellable` storage in favor of `Task` handles with proper cancellation on deinit

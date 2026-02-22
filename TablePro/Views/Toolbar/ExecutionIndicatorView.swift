@@ -18,17 +18,22 @@ struct ExecutionIndicatorView: View {
             if isExecuting {
                 ProgressView()
                     .controlSize(.small)
+                    .accessibilityLabel(String(localized: "Query executing"))
                     .help("Query executing...")
             } else if let duration = lastDuration {
                 // Show last query duration when not executing
                 Text(formattedDuration(duration))
                     .font(ToolbarDesignTokens.Typography.executionTime)
                     .foregroundStyle(ToolbarDesignTokens.Colors.tertiaryText)
+                    .accessibilityLabel(
+                        String(localized: "Last query took \(formattedDuration(duration))")
+                    )
                     .help("Last query execution time")
             } else {
                 Text("--")
                     .font(ToolbarDesignTokens.Typography.executionTime)
                     .foregroundStyle(.quaternary)
+                    .accessibilityLabel(String(localized: "No query executed yet"))
                     .help("Run a query to see execution time")
             }
         }

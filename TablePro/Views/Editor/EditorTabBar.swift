@@ -60,6 +60,7 @@ struct EditorTabBar: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel(String(localized: "Add new tab"))
             .help("New Query Tab (⌘T)")
             .padding(.trailing, 8)
         }
@@ -142,6 +143,7 @@ private struct EditorTabItem: View {
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.borderless)
+                .accessibilityLabel(String(localized: "Close tab \(tab.title)"))
                 .frame(width: 14, height: 14)
             }
         }
@@ -154,6 +156,11 @@ private struct EditorTabItem: View {
         )
         .onHover { isHovered = $0 }
         .onTapGesture { onSelect() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            String(localized: "\(tab.title) tab\(isSelected ? ", selected" : "")\(tab.isPinned ? ", pinned" : "")")
+        )
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var tabBackground: Color {
