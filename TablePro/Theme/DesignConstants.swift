@@ -127,8 +127,8 @@ enum DesignConstants {
         static let sectionBackground = Color(nsColor: .controlBackgroundColor)
         static let cardBackground = Color(nsColor: .windowBackgroundColor)
         static let alternateRow = Color(nsColor: .controlBackgroundColor).opacity(0.5)
-        static let hoverBackground = Color.accentColor.opacity(0.05)
-        static let selectedBackground = Color.accentColor.opacity(0.1)
+        static let hoverBackground = Color(nsColor: .controlAccentColor).opacity(0.05)
+        static let selectedBackground = Color(nsColor: .selectedContentBackgroundColor)
 
         // Borders
         static let border = Color(nsColor: .separatorColor)
@@ -140,16 +140,16 @@ enum DesignConstants {
         static let tertiaryText = Color(nsColor: .tertiaryLabelColor)
 
         // Semantic
-        static let success = Color.green
-        static let warning = Color.orange
-        static let error = Color.red
-        static let info = Color.blue
+        static let success = Color(nsColor: .systemGreen)
+        static let warning = Color(nsColor: .systemOrange)
+        static let error = Color(nsColor: .systemRed)
+        static let info = Color(nsColor: .systemBlue)
 
         // Badges
-        static let badgeBackground = Color.secondary.opacity(0.15)
-        static let primaryKeyBadge = Color.blue.opacity(0.15)
-        static let autoIncrementBadge = Color.purple.opacity(0.15)
-        static let nullBadge = Color.secondary.opacity(0.1)
+        static let badgeBackground = Color(nsColor: .quaternaryLabelColor)
+        static let primaryKeyBadge = Color(nsColor: .systemBlue).opacity(0.15)
+        static let autoIncrementBadge = Color(nsColor: .systemPurple).opacity(0.15)
+        static let nullBadge = Color(nsColor: .quaternaryLabelColor)
     }
 
     // MARK: - Corner Radius
@@ -189,11 +189,11 @@ enum DesignConstants {
     enum Shadow {
         /// Card shadow (subtle elevation)
         static let card: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) =
-            (Color.black.opacity(0.1), 4, 0, 2)
+            (Color(nsColor: .shadowColor).opacity(0.15), 4, 0, 2)
 
         /// Panel shadow (stronger elevation)
         static let panel: (color: Color, radius: CGFloat, x: CGFloat, y: CGFloat) =
-            (Color.black.opacity(0.15), 8, -2, 0)
+            (Color(nsColor: .shadowColor).opacity(0.2), 8, -2, 0)
     }
 
     // MARK: - Column Widths (for table editors)

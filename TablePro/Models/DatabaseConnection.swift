@@ -5,6 +5,7 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -182,14 +183,14 @@ enum ConnectionColor: String, CaseIterable, Identifiable, Codable {
     var color: Color {
         switch self {
         case .none: return .clear
-        case .red: return .red
-        case .orange: return .orange
-        case .yellow: return .yellow
-        case .green: return .green
-        case .blue: return .blue
-        case .purple: return .purple
-        case .pink: return .pink
-        case .gray: return .gray
+        case .red: return Color(nsColor: .systemRed)
+        case .orange: return Color(nsColor: .systemOrange)
+        case .yellow: return Color(nsColor: .systemYellow)
+        case .green: return Color(nsColor: .systemGreen)
+        case .blue: return Color(nsColor: .systemBlue)
+        case .purple: return Color(nsColor: .systemPurple)
+        case .pink: return Color(nsColor: .systemPink)
+        case .gray: return Color(nsColor: .systemGray)
         }
     }
 

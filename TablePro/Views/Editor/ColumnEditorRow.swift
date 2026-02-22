@@ -6,6 +6,7 @@
 //  Shows key properties: name, type, length, nullable, default.
 //
 
+import AppKit
 import SwiftUI
 
 struct ColumnEditorRow: View {
@@ -37,7 +38,7 @@ struct ColumnEditorRow: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 2)
-                    .background(Color.secondary.opacity(0.1))
+                    .background(Color(nsColor: .quaternaryLabelColor))
                     .cornerRadius(3)
             }
 
@@ -45,10 +46,10 @@ struct ColumnEditorRow: View {
             if column.autoIncrement {
                 Text("AUTO")
                     .font(.system(size: DesignConstants.FontSize.caption))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Color(nsColor: .systemBlue))
                     .padding(.horizontal, 4)
                     .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
+                    .background(Color(nsColor: .systemBlue).opacity(0.1))
                     .cornerRadius(3)
             }
 

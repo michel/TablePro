@@ -94,7 +94,7 @@ enum ToolbarDesignTokens {
 
     enum Colors {
         /// Divider color - very subtle like Xcode
-        static let divider = DesignConstants.Colors.secondaryText.opacity(0.15)
+        static let divider = Color(nsColor: .tertiaryLabelColor)
 
         /// Secondary text color - references base constant
         static let secondaryText = DesignConstants.Colors.secondaryText

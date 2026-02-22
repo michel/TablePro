@@ -5,6 +5,7 @@
 //  Pure SwiftUI tab bar replacement for NativeTabBar/NativeTabBarView.
 //
 
+import AppKit
 import SwiftUI
 
 /// SwiftUI tab bar for query/table tabs
@@ -113,7 +114,7 @@ private struct EditorTabItem: View {
             if tab.isPinned {
                 Image(systemName: "pin.fill")
                     .font(.system(size: 9))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color(nsColor: .systemOrange))
             }
 
             // Status icon or spinner
@@ -125,7 +126,7 @@ private struct EditorTabItem: View {
                 Image(systemName: tab.isView ? "eye" : tab.tabType == .table ? "tablecells" : "doc.text")
                     .font(.system(size: 11))
                     .foregroundStyle(
-                        tab.tabType == .table ? (tab.isView ? Color.purple : Color.blue) : Color.secondary
+                        tab.tabType == .table ? (tab.isView ? Color(nsColor: .systemPurple) : Color(nsColor: .systemBlue)) : Color.secondary
                     )
             }
 
@@ -165,7 +166,7 @@ private struct EditorTabItem: View {
 
     private var tabBackground: Color {
         if isSelected {
-            Color.accentColor.opacity(0.15)
+            Color(nsColor: .controlAccentColor).opacity(0.15)
         } else if isHovered {
             Color(nsColor: .quaternaryLabelColor)
         } else {

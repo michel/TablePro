@@ -6,6 +6,7 @@
 //  Extracted from MainContentView for better separation.
 //
 
+import AppKit
 import CodeEditSourceEditor
 import SwiftUI
 
@@ -492,7 +493,7 @@ struct MainEditorContentView: View {
                         .padding(.vertical, 2)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.secondary.opacity(0.1))
+                                .fill(Color(nsColor: .quaternaryLabelColor))
                         )
                     Text("Open SQL Editor")
                         .font(.callout)
@@ -516,7 +517,7 @@ struct MainEditorContentView: View {
                         .padding(.vertical, 2)
                         .background(
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.secondary.opacity(0.1))
+                                .fill(Color(nsColor: .quaternaryLabelColor))
                         )
                     Text("Switch Database")
                         .font(.callout)

@@ -5,6 +5,7 @@
 //  Settings view for customizing keyboard shortcuts.
 //
 
+import AppKit
 import SwiftUI
 
 /// Settings view for keyboard shortcut customization
@@ -34,7 +35,7 @@ struct KeyboardSettingsView: View {
                 }
             }
             .padding(8)
-            .background(.quaternary.opacity(0.5))
+            .background(.quaternary)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .padding(.horizontal, 20)
             .padding(.top, 16)

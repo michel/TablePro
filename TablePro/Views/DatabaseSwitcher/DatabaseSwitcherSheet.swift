@@ -6,6 +6,7 @@
 //  Features: Rich metadata, recent databases, refresh, create database, preview panel.
 //
 
+import AppKit
 import SwiftUI
 
 struct DatabaseSwitcherSheet: View {
@@ -204,7 +205,7 @@ struct DatabaseSwitcherSheet: View {
             Image(systemName: database.icon)
                 .font(.system(size: 14))
                 .foregroundStyle(
-                    isSelected ? .white : (database.isSystemDatabase ? .orange : .blue))
+                    isSelected ? .white : (database.isSystemDatabase ? Color(nsColor: .systemOrange) : Color(nsColor: .systemBlue)))
 
             // Name
             Text(database.name)
@@ -221,11 +222,11 @@ struct DatabaseSwitcherSheet: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
-                        Capsule()
+                        RoundedRectangle(cornerRadius: 4)
                             .fill(
                                 isSelected
                                     ? Color.white.opacity(0.15)
-                                    : Color(nsColor: .separatorColor).opacity(0.5))
+                                    : Color(nsColor: .quaternaryLabelColor))
                     )
             }
         }

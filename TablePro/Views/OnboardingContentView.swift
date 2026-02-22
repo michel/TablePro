@@ -6,6 +6,7 @@
 //  feature highlights, and get started page.
 //
 
+import AppKit
 import SwiftUI
 
 struct OnboardingContentView: View {
@@ -78,7 +79,7 @@ struct OnboardingContentView: View {
         VStack(spacing: DesignConstants.Spacing.md) {
             ZStack {
                 Circle()
-                    .fill(Color.orange.opacity(0.30))
+                    .fill(Color(nsColor: .systemOrange).opacity(0.30))
                     .frame(width: 100, height: 100)
                     .blur(radius: 25)
 
@@ -130,7 +131,7 @@ struct OnboardingContentView: View {
                     description: "Get intelligent SQL suggestions and query assistance"
                 )
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, 20)
             .frame(maxWidth: 420)
         }
     }
@@ -186,7 +187,7 @@ struct OnboardingContentView: View {
             HStack(spacing: 8) {
                 ForEach(0..<3, id: \.self) { i in
                     Circle()
-                        .fill(i == currentPage ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .fill(i == currentPage ? Color.accentColor : Color(nsColor: .tertiaryLabelColor))
                         .frame(width: 8, height: 8)
                         .scaleEffect(i == currentPage ? 1.2 : 1.0)
                         .onTapGesture { goToPage(i) }
