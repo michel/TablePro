@@ -9,7 +9,7 @@ import Foundation
 
 /// Represents a row of query results for UI display
 struct QueryResultRow: Identifiable, Equatable {
-    let id = UUID()
+    let id: Int
     var values: [String?]
 
     static func == (lhs: QueryResultRow, rhs: QueryResultRow) -> Bool {
@@ -43,8 +43,8 @@ struct QueryResult {
 
     /// Convert to QueryResultRow format for UI
     func toQueryResultRows() -> [QueryResultRow] {
-        rows.map { row in
-            QueryResultRow(values: row)
+        rows.enumerated().map { index, row in
+            QueryResultRow(id: index, values: row)
         }
     }
 

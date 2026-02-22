@@ -140,7 +140,7 @@ final class InMemoryRowProvider: RowProvider {
     /// Returns the index of the new row
     func appendRow(values: [String?]) -> Int {
         let newIndex = sourceRows.count
-        sourceRows.append(QueryResultRow(values: values))
+        sourceRows.append(QueryResultRow(id: newIndex, values: values))
         let rowData = TableRowData(index: newIndex, values: values)
         rowCache[newIndex] = rowData
         return newIndex

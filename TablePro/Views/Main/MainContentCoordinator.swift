@@ -393,8 +393,8 @@ final class MainContentCoordinator: ObservableObject {
                 // no need to deep copy with String($0).
                 let safeColumns = result.columns
                 let safeColumnTypes = result.columnTypes  // Column types are already value types (enum)
-                let safeRows = result.rows.map { row in
-                    QueryResultRow(values: row)
+                let safeRows = result.rows.enumerated().map { index, row in
+                    QueryResultRow(id: index, values: row)
                 }
                 let safeExecutionTime = result.executionTime
                 let safeRowsAffected = result.rowsAffected

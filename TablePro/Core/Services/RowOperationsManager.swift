@@ -54,11 +54,9 @@ final class RowOperationsManager {
         }
 
         // Add to resultRows
-        let newRow = QueryResultRow(values: newRowValues)
+        let newRowIndex = resultRows.count
+        let newRow = QueryResultRow(id: newRowIndex, values: newRowValues)
         resultRows.append(newRow)
-
-        // Get the new row index
-        let newRowIndex = resultRows.count - 1
 
         // Record in change manager as pending INSERT
         changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newRowValues)
@@ -92,11 +90,9 @@ final class RowOperationsManager {
         }
 
         // Add the duplicated row
-        let newRow = QueryResultRow(values: newValues)
+        let newRowIndex = resultRows.count
+        let newRow = QueryResultRow(id: newRowIndex, values: newValues)
         resultRows.append(newRow)
-
-        // Get the new row index
-        let newRowIndex = resultRows.count - 1
 
         // Record in change manager as pending INSERT
         changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newValues)
@@ -210,7 +206,7 @@ final class RowOperationsManager {
                 guard rowIndex <= resultRows.count else { continue }
 
                 let values = rowValues[index]
-                let newRow = QueryResultRow(values: values)
+                let newRow = QueryResultRow(id: rowIndex, values: values)
                 resultRows.insert(newRow, at: rowIndex)
             }
         }
@@ -234,7 +230,7 @@ final class RowOperationsManager {
 
         case .rowInsertion(let rowIndex):
             let newValues = [String?](repeating: nil, count: columns.count)
-            let newRow = QueryResultRow(values: newValues)
+            let newRow = QueryResultRow(id: rowIndex, values: newValues)
             if rowIndex <= resultRows.count {
                 resultRows.insert(newRow, at: rowIndex)
             }
@@ -423,7 +419,7 @@ final class RowOperationsManager {
             let rowValues = parsedRow.values
 
             // Add to resultRows
-            resultRows.append(QueryResultRow(values: rowValues))
+            resultRows.append(QueryResultRow(id: resultRows.count, values: rowValues))
             let newRowIndex = resultRows.count - 1
 
             // Record as pending INSERT in change manager

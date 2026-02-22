@@ -18,8 +18,8 @@ final class StructureRowProvider {
     var rows: [QueryResultRow] {
         switch tab {
         case .columns:
-            return changeManager.workingColumns.map { column in
-                QueryResultRow(values: [
+            return changeManager.workingColumns.enumerated().map { index, column in
+                QueryResultRow(id: index, values: [
                     column.name,
                     column.dataType,
                     column.isNullable ? "YES" : "NO",
@@ -29,17 +29,17 @@ final class StructureRowProvider {
                 ])
             }
         case .indexes:
-            return changeManager.workingIndexes.map { index in
-                QueryResultRow(values: [
-                    index.name,
-                    index.columns.joined(separator: ", "),
-                    index.type.rawValue,
-                    index.isUnique ? "YES" : "NO"
+            return changeManager.workingIndexes.enumerated().map { index, indexInfo in
+                QueryResultRow(id: index, values: [
+                    indexInfo.name,
+                    indexInfo.columns.joined(separator: ", "),
+                    indexInfo.type.rawValue,
+                    indexInfo.isUnique ? "YES" : "NO"
                 ])
             }
         case .foreignKeys:
-            return changeManager.workingForeignKeys.map { fk in
-                QueryResultRow(values: [
+            return changeManager.workingForeignKeys.enumerated().map { index, fk in
+                QueryResultRow(id: index, values: [
                     fk.name,
                     fk.columns.joined(separator: ", "),
                     fk.referencedTable,
