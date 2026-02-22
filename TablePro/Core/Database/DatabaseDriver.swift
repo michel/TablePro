@@ -8,6 +8,12 @@
 import Foundation
 import OSLog
 
+/// Row limit configuration for driver-level result capping
+enum DriverRowLimits {
+    static let defaultMax = 100_000
+    static let unlimitedMax = Int.max
+}
+
 /// Protocol defining database driver operations
 protocol DatabaseDriver: AnyObject {
     // MARK: - Properties
@@ -93,6 +99,12 @@ protocol DatabaseDriver: AnyObject {
     /// Create a new database
     func createDatabase(name: String, charset: String, collation: String?) async throws
 
+    // MARK: - Query Cancellation
+
+    /// Cancel the currently running query, if any.
+    /// Default implementation is a no-op for drivers that don't support cancellation.
+    func cancelQuery() throws
+
     // MARK: - Transaction Management
 
     /// Begin a transaction
@@ -131,6 +143,11 @@ extension DatabaseDriver {
             }
         }
         return result
+    }
+
+    /// Default no-op implementation for drivers that don't support query cancellation
+    func cancelQuery() throws {
+        // No-op by default
     }
 
     /// Default timeout implementation using database-specific session variables

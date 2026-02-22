@@ -26,6 +26,9 @@ struct QueryResult {
     let executionTime: TimeInterval
     let error: DatabaseError?
 
+    /// Whether the result was truncated due to driver-level row limits
+    var isTruncated: Bool = false
+
     var isEmpty: Bool {
         rows.isEmpty
     }

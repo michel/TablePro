@@ -42,6 +42,11 @@ private actor SQLiteConnectionActor {
         sqlite3_busy_timeout(db, milliseconds)
     }
 
+    /// Get the raw db handle for interrupt purposes.
+    /// sqlite3_interrupt() is one of the few sqlite3 APIs that is safe to call
+    /// from a different thread than the one running the query.
+    var dbHandleForInterrupt: OpaquePointer? { db }
+
     /// Execute a SQL query and return the raw result
     func executeQuery(_ query: String) throws -> SQLiteRawResult {
         guard let db else {
@@ -87,8 +92,14 @@ private actor SQLiteConnectionActor {
         // Execute and fetch rows
         var rows: [[String?]] = []
         var rowsAffected = 0
+        var truncated = false
 
         while sqlite3_step(statement) == SQLITE_ROW {
+            if rows.count >= DriverRowLimits.defaultMax {
+                truncated = true
+                break
+            }
+
             var row: [String?] = []
 
             for i in 0..<columnCount {
@@ -115,7 +126,8 @@ private actor SQLiteConnectionActor {
             columnTypes: columnTypes,
             rows: rows,
             rowsAffected: rowsAffected,
-            executionTime: executionTime
+            executionTime: executionTime,
+            isTruncated: truncated
         )
     }
 
@@ -187,8 +199,14 @@ private actor SQLiteConnectionActor {
         // Execute and fetch rows
         var rows: [[String?]] = []
         var rowsAffected = 0
+        var truncated = false
 
         while sqlite3_step(statement) == SQLITE_ROW {
+            if rows.count >= DriverRowLimits.defaultMax {
+                truncated = true
+                break
+            }
+
             var row: [String?] = []
 
             for i in 0..<columnCount {
@@ -215,7 +233,8 @@ private actor SQLiteConnectionActor {
             columnTypes: columnTypes,
             rows: rows,
             rowsAffected: rowsAffected,
-            executionTime: executionTime
+            executionTime: executionTime,
+            isTruncated: truncated
         )
     }
 }
@@ -227,6 +246,7 @@ private struct SQLiteRawResult: Sendable {
     let rows: [[String?]]
     let rowsAffected: Int
     let executionTime: TimeInterval
+    let isTruncated: Bool
 }
 
 // MARK: - SQLite Driver
@@ -238,6 +258,11 @@ final class SQLiteDriver: DatabaseDriver {
 
     /// Actor-isolated connection state — serializes all sqlite3 access
     private let connectionActor = SQLiteConnectionActor()
+
+    /// Raw db handle kept outside the actor for thread-safe sqlite3_interrupt() calls.
+    /// Only written from connect/disconnect (serialized by caller), read from cancelQuery().
+    /// sqlite3_interrupt() is documented as safe to call from any thread.
+    private nonisolated(unsafe) var dbHandleForInterrupt: OpaquePointer?
 
     /// Server version string (SQLite library version, e.g., "3.43.2")
     var serverVersion: String? {
@@ -270,6 +295,7 @@ final class SQLiteDriver: DatabaseDriver {
 
         do {
             try await connectionActor.open(path: path)
+            dbHandleForInterrupt = await connectionActor.dbHandleForInterrupt
             status = .connected
         } catch {
             let message = (error as? DatabaseError).flatMap { err -> String? in
@@ -287,6 +313,7 @@ final class SQLiteDriver: DatabaseDriver {
     }
 
     func disconnect() {
+        dbHandleForInterrupt = nil
         // Fire-and-forget close on the actor
         let actor = connectionActor
         Task { await actor.close() }
@@ -308,7 +335,8 @@ final class SQLiteDriver: DatabaseDriver {
             rows: rawResult.rows,
             rowsAffected: rawResult.rowsAffected,
             executionTime: rawResult.executionTime,
-            error: nil
+            error: nil,
+            isTruncated: rawResult.isTruncated
         )
     }
 
@@ -332,8 +360,16 @@ final class SQLiteDriver: DatabaseDriver {
             rows: rawResult.rows,
             rowsAffected: rawResult.rowsAffected,
             executionTime: rawResult.executionTime,
-            error: nil
+            error: nil,
+            isTruncated: rawResult.isTruncated
         )
+    }
+
+    // MARK: - Cancellation
+
+    func cancelQuery() throws {
+        guard let db = dbHandleForInterrupt else { return }
+        sqlite3_interrupt(db)
     }
 
     // MARK: - Schema

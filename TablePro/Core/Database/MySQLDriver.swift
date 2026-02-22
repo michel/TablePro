@@ -116,11 +116,18 @@ final class MySQLDriver: DatabaseDriver {
                 rows: result.rows,
                 rowsAffected: Int(result.affectedRows),
                 executionTime: Date().timeIntervalSince(startTime),
-                error: nil
+                error: nil,
+                isTruncated: result.isTruncated
             )
         } catch let error as MariaDBError {
             throw DatabaseError.queryFailed(error.localizedDescription)
         }
+    }
+
+    // MARK: - Query Cancellation
+
+    func cancelQuery() throws {
+        mariadbConnection?.cancelCurrentQuery()
     }
 
     /// Execute query with automatic reconnection on connection-lost errors
@@ -144,7 +151,8 @@ final class MySQLDriver: DatabaseDriver {
                         rows: [],
                         rowsAffected: Int(result.affectedRows),
                         executionTime: Date().timeIntervalSince(startTime),
-                        error: nil
+                        error: nil,
+                        isTruncated: result.isTruncated
                     )
                 }
             }
@@ -160,7 +168,8 @@ final class MySQLDriver: DatabaseDriver {
                 rows: result.rows,
                 rowsAffected: Int(result.affectedRows),
                 executionTime: Date().timeIntervalSince(startTime),
-                error: nil
+                error: nil,
+                isTruncated: result.isTruncated
             )
         } catch let error as MariaDBError where !isRetry && isConnectionLostError(error) {
             // Connection lost - attempt reconnect and retry once

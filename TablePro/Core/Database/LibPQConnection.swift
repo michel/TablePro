@@ -47,6 +47,7 @@ struct LibPQQueryResult {
     let rows: [[String?]]
     let affectedRows: Int
     let commandTag: String?
+    let isTruncated: Bool
 }
 
 // MARK: - Type Mapping
@@ -117,6 +118,9 @@ final class LibPQConnection: @unchecked Sendable {
 
     /// Cached server version string, set at connect time on the serial queue
     private var _cachedServerVersion: String?
+
+    /// Cancellation flag — set from any thread, checked in row-fetch loops
+    private var _isCancelled: Bool = false
 
     /// Thread-safe connection state accessor
     var isConnected: Bool {
@@ -278,6 +282,22 @@ final class LibPQConnection: @unchecked Sendable {
         }
     }
 
+    // MARK: - Query Cancellation
+
+    /// Cancel the currently running query using PQcancel.
+    /// Sets a flag checked in row-fetch loops and sends a cancel request to the server.
+    func cancelCurrentQuery() {
+        _isCancelled = true
+
+        guard let conn = conn else { return }
+        let cancelObj = PQgetCancel(conn)
+        guard let cancelObj = cancelObj else { return }
+        defer { PQfreeCancel(cancelObj) }
+
+        var errbuf = [CChar](repeating: 0, count: 256)
+        PQcancel(cancelObj, &errbuf, Int32(errbuf.count))
+    }
+
     // MARK: - Query Execution
 
     /// Execute a SQL query and fetch all results
@@ -365,7 +385,8 @@ final class LibPQConnection: @unchecked Sendable {
                 columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
-                commandTag: cmdTag
+                commandTag: cmdTag,
+                isTruncated: false
             )
 
         case PGRES_TUPLES_OK:
@@ -454,7 +475,8 @@ final class LibPQConnection: @unchecked Sendable {
                 columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
-                commandTag: cmdTag
+                commandTag: cmdTag,
+                isTruncated: false
             )
 
         case PGRES_TUPLES_OK:
@@ -500,11 +522,15 @@ final class LibPQConnection: @unchecked Sendable {
             columnTypeNames.append(pgOidToTypeName(UInt32(oid)))
         }
 
-        // Fetch rows
-        var rows: [[String?]] = []
-        rows.reserveCapacity(numRows)
+        // Fetch rows with row limit
+        let maxRows = DriverRowLimits.defaultMax
+        let effectiveRowCount = min(numRows, maxRows)
+        let truncated = numRows > maxRows
 
-        for rowIndex in 0..<numRows {
+        var rows: [[String?]] = []
+        rows.reserveCapacity(effectiveRowCount)
+
+        for rowIndex in 0..<effectiveRowCount {
             var row: [String?] = []
             row.reserveCapacity(numFields)
 
@@ -539,13 +565,18 @@ final class LibPQConnection: @unchecked Sendable {
             rows.append(row)
         }
 
+        if truncated {
+            logger.warning("Result set truncated at \(maxRows) rows (DriverRowLimits.defaultMax)")
+        }
+
         return LibPQQueryResult(
             columns: columns,
             columnOids: columnOids,
             columnTypeNames: columnTypeNames,
             rows: rows,
-            affectedRows: numRows,
-            commandTag: getCommandTag(from: result)
+            affectedRows: effectiveRowCount,
+            commandTag: getCommandTag(from: result),
+            isTruncated: truncated
         )
     }
 
