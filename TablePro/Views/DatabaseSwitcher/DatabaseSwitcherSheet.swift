@@ -71,9 +71,7 @@ struct DatabaseSwitcherSheet: View {
         }
         .frame(width: 420, height: 480)
         .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear {
-            Task { await viewModel.fetchDatabases() }
-        }
+        .task { await viewModel.fetchDatabases() }
         .sheet(isPresented: $showCreateDialog) {
             CreateDatabaseSheet { name, charset, collation in
                 try await viewModel.createDatabase(
