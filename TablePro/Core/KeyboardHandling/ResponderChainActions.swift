@@ -7,19 +7,23 @@
 //
 //  ## Architecture Pattern
 //
-//  TablePro uses Apple's native responder chain for keyboard shortcuts:
+//  TablePro uses three mechanisms for keyboard shortcuts and commands:
 //
-//  1. **SwiftUI Commands** define shortcuts (in TableProApp.swift)
-//     - `.commands { ... }` blocks register keyboard shortcuts
-//     - Commands send actions via `NSApp.sendAction(#selector(...), to: nil, from: nil)`
+//  1. **Responder Chain** (Apple Standard):
+//     - Standard edit actions: copy, paste, undo, delete, cancelOperation (ESC)
+//     - Context-aware: First responder handles action appropriately
+//     - Commands send via `NSApp.sendAction(#selector(...), to: nil, from: nil)`
 //
-//  2. **Responder Chain** finds the handler
-//     - macOS traverses: First Responder → Window → Window Controller → App
-//     - First `@objc` method matching selector gets called
+//  2. **@FocusedObject** (Menu/Toolbar → single handler):
+//     - Most menu commands call `MainContentCommandActions` directly
+//     - Toolbar buttons also use `@FocusedObject` for direct calls
+//     - Clean method calls, no global event bus
+//     - Commands are automatically nil (disabled) when no connection is active
 //
-//  3. **Validation** via `validateUserInterfaceItem`
-//     - Responders return `true` to enable menu items, `false` to disable
-//     - Enables context-aware shortcuts (e.g., Delete only works when rows selected)
+//  3. **NotificationCenter** (Multi-listener broadcasts only):
+//     - `.refreshData` (Sidebar + Coordinator + StructureView)
+//     - Non-menu notifications from AppKit views (DataGrid, SidebarView context menus)
+//     - Legitimate broadcasts where multiple views respond
 //
 //  ## Example Flow
 //

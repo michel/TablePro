@@ -78,25 +78,11 @@ struct ContentView: View {
                     }
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .toggleTableBrowser)) { _ in
-                guard currentSession != nil else { return }
-                Task { @MainActor in
-                    withAnimation {
-                        // Toggle left sidebar (2-column layout: sidebar + detail)
-                        if columnVisibility == .all {
-                            columnVisibility = .detailOnly
-                        } else {
-                            columnVisibility = .all
-                        }
-                    }
-                }
-            }
             // Right sidebar toggle is handled by MainContentView (has the binding)
+            // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
             .onChange(of: dbManager.currentSessionId) { newSessionId in
                 Task { @MainActor in
-                    withAnimation {
-                        columnVisibility = newSessionId == nil ? .detailOnly : .all
-                    }
+                    columnVisibility = newSessionId == nil ? .detailOnly : .all
                     AppState.shared.isConnected = newSessionId != nil
                     AppState.shared.isReadOnly = dbManager.currentSession?.connection.isReadOnly ?? false
 

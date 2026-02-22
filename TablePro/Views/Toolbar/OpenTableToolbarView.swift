@@ -64,6 +64,7 @@ struct ToolbarPrincipalContent: View {
 /// Apply this to a view to add the production toolbar
 struct TableProToolbar: ViewModifier {
     @ObservedObject var state: ConnectionToolbarState
+    @FocusedObject private var actions: MainContentCommandActions?
     @State private var showConnectionSwitcher = false
 
     func body(content: Content) -> some View {
@@ -90,8 +91,7 @@ struct TableProToolbar: ViewModifier {
 
                         // Database switcher button
                         Button {
-                            NotificationCenter.default.post(
-                                name: .openDatabaseSwitcher, object: nil)
+                            actions?.openDatabaseSwitcher()
                         } label: {
                             Image(systemName: "cylinder")
                         }
@@ -101,7 +101,7 @@ struct TableProToolbar: ViewModifier {
 
                         // SQL query tab button
                         Button("SQL") {
-                            NotificationCenter.default.post(name: .newTab, object: nil)
+                            actions?.newTab()
                         }
                         .help("New Query Tab (⌘T)")
 
@@ -116,7 +116,7 @@ struct TableProToolbar: ViewModifier {
 
                         // SQL Preview button
                         Button {
-                            NotificationCenter.default.post(name: .previewSQL, object: nil)
+                            actions?.previewSQL()
                         } label: {
                             Image(systemName: "eye")
                         }
@@ -140,7 +140,7 @@ struct TableProToolbar: ViewModifier {
                     HStack(spacing: 8) {
                         // Filter toggle
                         Button {
-                            NotificationCenter.default.post(name: .toggleFilterPanel, object: nil)
+                            actions?.toggleFilterPanel()
                         } label: {
                             Image(systemName: "line.3.horizontal.decrease.circle")
                         }
@@ -149,7 +149,7 @@ struct TableProToolbar: ViewModifier {
 
                         // History toggle
                         Button {
-                            NotificationCenter.default.post(name: .toggleHistoryPanel, object: nil)
+                            actions?.toggleHistoryPanel()
                         } label: {
                             Image(systemName: "clock")
                         }
@@ -160,7 +160,7 @@ struct TableProToolbar: ViewModifier {
 
                         // Export
                         Button {
-                            NotificationCenter.default.post(name: .exportTables, object: nil)
+                            actions?.exportTables()
                         } label: {
                             Image(systemName: "square.and.arrow.up")
                         }
@@ -169,7 +169,7 @@ struct TableProToolbar: ViewModifier {
 
                         // Import
                         Button {
-                            NotificationCenter.default.post(name: .importTables, object: nil)
+                            actions?.importTables()
                         } label: {
                             Image(systemName: "square.and.arrow.down")
                         }
@@ -181,7 +181,7 @@ struct TableProToolbar: ViewModifier {
 
                         // Inspector toggle
                         Button {
-                            NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
+                            actions?.toggleRightSidebar()
                         } label: {
                             Image(systemName: "sidebar.trailing")
                         }

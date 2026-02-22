@@ -16,7 +16,7 @@ import Foundation
     // Tab switcher state
     var activeTab: RightPanelTab = .details
 
-    // Save closure — set by MainContentNotificationHandler, called by UnifiedRightPanelView
+    // Save closure — set by MainContentCommandActions, called by UnifiedRightPanelView
     var onSave: (() -> Void)?
 
     // Owned objects — lifted from MainContentView @StateObject

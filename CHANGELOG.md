@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Refactored menu and toolbar commands from NotificationCenter to `@FocusedObject` pattern — menu commands and toolbar buttons now call `MainContentCommandActions` methods directly instead of posting global notifications, with context-aware routing for structure view operations
 - Redesigned connection form with tab-based layout (General / SSH Tunnel / SSL/TLS / Advanced), replacing the single-scroll layout
 - Revamped connection form UI to use native macOS grouped form style (`Form`/`.formStyle(.grouped)`) with `LabeledContent` for automatic label-value alignment and `Section` headers — replacing the previous hand-rolled `VStack` layout with custom `FormField` component
 - Removed unused `FormField` component and helper methods (`iconForType`, `colorForType`)

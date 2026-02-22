@@ -38,7 +38,7 @@ struct MainContentView: View {
     @State private var previousSelectedTabId: UUID?
     @State private var previousSelectedTables: Set<TableInfo> = []
     @State private var editingCell: CellPosition?
-    @State private var notificationHandler: MainContentNotificationHandler?
+    @State private var commandActions: MainContentCommandActions?
     @State private var queryResultsSummaryCache: (tabId: UUID, version: Int, summary: String?)?
     @State private var inspectorUpdateWorkItem: DispatchWorkItem?
 
@@ -145,7 +145,7 @@ struct MainContentView: View {
                 scheduleInspectorUpdate()
             }
             .onAppear {
-                setupNotificationHandler()
+                setupCommandActions()
                 updateToolbarPendingState()
                 updateInspectorContext()
             }
@@ -184,6 +184,7 @@ struct MainContentView: View {
                     initialFileURL: coordinator.importFileURL
                 )
             }
+            .modifier(FocusedCommandActionsModifier(actions: commandActions))
     }
 
     // MARK: - Main Content
@@ -292,7 +293,7 @@ struct MainContentView: View {
         }
     }
 
-    // MARK: - Notification Handler Setup
+    // MARK: - Command Actions Setup
 
     private func updateToolbarPendingState() {
         toolbarState.hasPendingChanges = changeManager.hasChanges
@@ -301,8 +302,8 @@ struct MainContentView: View {
             || AppState.shared.hasStructureChanges
     }
 
-    private func setupNotificationHandler() {
-        notificationHandler = MainContentNotificationHandler(
+    private func setupCommandActions() {
+        commandActions = MainContentCommandActions(
             coordinator: coordinator,
             filterStateManager: filterStateManager,
             connection: connection,
@@ -584,6 +585,23 @@ struct MainContentView: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - Focused Command Actions Modifier
+
+/// Conditionally publishes `MainContentCommandActions` as a focused scene object.
+/// `focusedSceneObject` requires a non-optional value, so this modifier
+/// only applies it when the actions object has been created.
+private struct FocusedCommandActionsModifier: ViewModifier {
+    let actions: MainContentCommandActions?
+
+    func body(content: Content) -> some View {
+        if let actions {
+            content.focusedSceneObject(actions)
+        } else {
+            content
+        }
     }
 }
 

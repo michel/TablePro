@@ -359,10 +359,8 @@ private extension HistoryPanelView {
     }
 
     func runInNewTab(_ entry: QueryHistoryEntry) {
-        NotificationCenter.default.post(name: .newTab, object: nil)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            NotificationCenter.default.post(name: .loadQueryIntoEditor, object: entry.query)
-        }
+        // loadQueryIntoEditor handler creates a new tab if no query tab is selected
+        NotificationCenter.default.post(name: .loadQueryIntoEditor, object: entry.query)
     }
 
     // MARK: - Filter State Persistence

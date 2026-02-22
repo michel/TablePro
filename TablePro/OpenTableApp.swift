@@ -31,6 +31,7 @@ final class AppState: ObservableObject {
 struct PasteboardCommands: Commands {
     @ObservedObject var appState: AppState
     @ObservedObject var settingsManager: AppSettingsManager
+    @FocusedObject var actions: MainContentCommandActions?
 
     /// Build a SwiftUI KeyboardShortcut from keyboard settings
     private func shortcut(for action: ShortcutAction) -> KeyboardShortcut? {
@@ -52,7 +53,7 @@ struct PasteboardCommands: Commands {
                     NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
                 } else if appState.hasRowSelection {
                     // Copy entire rows when rows are selected
-                    NotificationCenter.default.post(name: .copySelectedRows, object: nil)
+                    actions?.copySelectedRows()
                 } else if appState.hasTableSelection {
                     // Copy table names when tables are selected
                     NotificationCenter.default.post(name: .copyTableNames, object: nil)
@@ -64,7 +65,7 @@ struct PasteboardCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .copy))
 
             Button("Copy with Headers") {
-                NotificationCenter.default.post(name: .copySelectedRowsWithHeaders, object: nil)
+                actions?.copySelectedRowsWithHeaders()
             }
             .optionalKeyboardShortcut(shortcut(for: .copyWithHeaders))
             .disabled(!appState.hasRowSelection)
@@ -77,7 +78,7 @@ struct PasteboardCommands: Commands {
                     NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
                 } else if appState.isCurrentTabEditable {
                     // Paste rows when in editable table tab
-                    NotificationCenter.default.post(name: .pasteRows, object: nil)
+                    actions?.pasteRows()
                 } else {
                     // Fallback to standard paste
                     NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
@@ -86,9 +87,7 @@ struct PasteboardCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .paste))
 
             Button("Delete") {
-                // For data grid and other views, use notification for batched undo
-                // History panel now uses SwiftUI List with onDeleteCommand/swipeActions
-                NotificationCenter.default.post(name: .deleteSelectedRows, object: nil)
+                actions?.deleteSelectedRows()
             }
             .optionalKeyboardShortcut(shortcut(for: .delete))
             .disabled(!appState.isCurrentTabEditable && !appState.hasTableSelection)
@@ -121,6 +120,7 @@ struct TableProApp: App {
     @StateObject private var dbManager = DatabaseManager.shared
     @StateObject private var settingsManager = AppSettingsManager.shared
     @StateObject private var updaterBridge = UpdaterBridge()
+    @FocusedObject private var actions: MainContentCommandActions?
 
     init() {
         // Perform startup cleanup of query history if auto-cleanup is enabled
@@ -189,14 +189,14 @@ struct TableProApp: App {
             // 1. **Responder Chain** (Apple Standard):
             //    - Standard actions: copy, paste, undo, delete, cancelOperation (ESC)
             //    - Context-aware: First responder handles action appropriately
-            //    - Used for: Edit menu operations, ESC key
             //
-            // 2. **NotificationCenter** (For specific use cases):
-            //    - Data operations needing batched undo: addNewRow, deleteSelectedRows, saveChanges
-            //    - UI state broadcasts: View menu toggles (multiple listeners)
-            //    - Cross-layer coordination: File menu operations (window management)
+            // 2. **@FocusedObject** (Menu → single handler):
+            //    - Most menu commands call MainContentCommandActions directly
+            //    - Clean method calls, no global event bus
             //
-            // Migration from custom ESC system → native cancelOperation(_:) completed in Phase 4
+            // 3. **NotificationCenter** (Multi-listener broadcasts only):
+            //    - refreshData (Sidebar + Coordinator + StructureView)
+            //    - Legitimate broadcasts where multiple views respond
 
             // File menu
             CommandGroup(replacing: .newItem) {
@@ -208,24 +208,24 @@ struct TableProApp: App {
 
             CommandGroup(after: .newItem) {
                 Button("New Tab") {
-                    NotificationCenter.default.post(name: .newTab, object: nil)
+                    actions?.newTab()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .newTab))
                 .disabled(!appState.isConnected)
 
                 Button("New Table...") {
-                    NotificationCenter.default.post(name: .createTable, object: nil)
+                    actions?.createTable()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .newTable))
                 .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("New View...") {
-                    NotificationCenter.default.post(name: .createView, object: nil)
+                    actions?.createView()
                 }
                 .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("Open Database...") {
-                    NotificationCenter.default.post(name: .openDatabaseSwitcher, object: nil)
+                    actions?.openDatabaseSwitcher()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .openDatabase))
                 .disabled(!appState.isConnected)
@@ -239,13 +239,13 @@ struct TableProApp: App {
                 Divider()
 
                 Button("Save Changes") {
-                    NotificationCenter.default.post(name: .saveChanges, object: nil)
+                    actions?.saveChanges()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .saveChanges))
                 .disabled(!appState.isConnected || appState.isReadOnly)
 
                 Button("Preview SQL") {
-                    NotificationCenter.default.post(name: .previewSQL, object: nil)
+                    actions?.previewSQL()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .previewSQL))
                 .disabled(!appState.isConnected)
@@ -256,7 +256,7 @@ struct TableProApp: App {
                     let isMainWindowKey = keyWindow?.identifier?.rawValue.contains("main") == true
 
                     if appState.isConnected && isMainWindowKey {
-                        NotificationCenter.default.post(name: .closeCurrentTab, object: nil)
+                        actions?.closeCurrentTab()
                     } else {
                         // Close the focused window (connection form, welcome, etc.)
                         keyWindow?.close()
@@ -273,7 +273,7 @@ struct TableProApp: App {
                 .disabled(!appState.isConnected)
 
                 Button("Explain Query") {
-                    NotificationCenter.default.post(name: .explainQuery, object: nil)
+                    actions?.explainQuery()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .explainQuery))
                 .disabled(!appState.isConnected || !appState.hasQueryText)
@@ -281,13 +281,13 @@ struct TableProApp: App {
                 Divider()
 
                 Button("Export...") {
-                    NotificationCenter.default.post(name: .exportTables, object: nil)
+                    actions?.exportTables()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .export))
                 .disabled(!appState.isConnected)
 
                 Button("Import...") {
-                    NotificationCenter.default.post(name: .importTables, object: nil)
+                    actions?.importTables()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .importData))
                 .disabled(!appState.isConnected || appState.isReadOnly)
@@ -304,7 +304,7 @@ struct TableProApp: App {
                         NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
                     } else {
                         // Data grid undo
-                        NotificationCenter.default.post(name: .undoChange, object: nil)
+                        actions?.undoChange()
                     }
                 }
                 .optionalKeyboardShortcut(shortcut(for: .undo))
@@ -317,7 +317,7 @@ struct TableProApp: App {
                         NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
                     } else {
                         // Data grid redo
-                        NotificationCenter.default.post(name: .redoChange, object: nil)
+                        actions?.redoChange()
                     }
                 }
                 .optionalKeyboardShortcut(shortcut(for: .redo))
@@ -331,13 +331,13 @@ struct TableProApp: App {
                 Divider()
 
                 Button("Add Row") {
-                    NotificationCenter.default.post(name: .addNewRow, object: nil)
+                    actions?.addNewRow()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .addRow))
                 .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
 
                 Button("Duplicate Row") {
-                    NotificationCenter.default.post(name: .duplicateRow, object: nil)
+                    actions?.duplicateRow()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .duplicateRow))
                 .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
@@ -352,18 +352,16 @@ struct TableProApp: App {
                 .disabled(!appState.hasTableSelection || appState.isReadOnly)
             }
 
-            // View menu - using NotificationCenter for UI state broadcasts
-            // Note: These are UI state changes that multiple views need to know about,
-            // so NotificationCenter is the appropriate pattern here (not responder chain)
+            // View menu
             CommandGroup(after: .sidebar) {
                 Button("Toggle Table Browser") {
-                    NotificationCenter.default.post(name: .toggleTableBrowser, object: nil)
+                    NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
                 }
                 .optionalKeyboardShortcut(shortcut(for: .toggleTableBrowser))
                 .disabled(!appState.isConnected)
 
                 Button("Toggle Inspector") {
-                    NotificationCenter.default.post(name: .toggleRightSidebar, object: nil)
+                    actions?.toggleRightSidebar()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .toggleInspector))
                 .disabled(!appState.isConnected)
@@ -371,13 +369,13 @@ struct TableProApp: App {
                 Divider()
 
                 Button("Toggle Filters") {
-                    NotificationCenter.default.post(name: .toggleFilterPanel, object: nil)
+                    actions?.toggleFilterPanel()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .toggleFilters))
                 .disabled(!appState.isConnected)
 
                 Button("Toggle History") {
-                    NotificationCenter.default.post(name: .toggleHistoryPanel, object: nil)
+                    actions?.toggleHistoryPanel()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .toggleHistory))
                 .disabled(!appState.isConnected)
@@ -388,10 +386,7 @@ struct TableProApp: App {
                 // Tab switching by number (Cmd+1 through Cmd+9)
                 ForEach(1...9, id: \.self) { number in
                     Button("Select Tab \(number)") {
-                        NotificationCenter.default.post(
-                            name: .selectTabByNumber,
-                            object: number
-                        )
+                        actions?.selectTab(number: number)
                     }
                     .keyboardShortcut(
                         KeyEquivalent(Character(String(number))),
@@ -404,28 +399,28 @@ struct TableProApp: App {
 
                 // Previous tab (Cmd+Shift+[)
                 Button("Show Previous Tab") {
-                    NotificationCenter.default.post(name: .previousTab, object: nil)
+                    actions?.previousTab()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .showPreviousTabBrackets))
                 .disabled(!appState.isConnected)
 
                 // Next tab (Cmd+Shift+])
                 Button("Show Next Tab") {
-                    NotificationCenter.default.post(name: .nextTab, object: nil)
+                    actions?.nextTab()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .showNextTabBrackets))
                 .disabled(!appState.isConnected)
 
                 // Previous tab (Cmd+Option+Left)
                 Button("Previous Tab") {
-                    NotificationCenter.default.post(name: .previousTab, object: nil)
+                    actions?.previousTab()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .previousTabArrows))
                 .disabled(!appState.isConnected)
 
                 // Next tab (Cmd+Option+Right)
                 Button("Next Tab") {
-                    NotificationCenter.default.post(name: .nextTab, object: nil)
+                    actions?.nextTab()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .nextTabArrows))
                 .disabled(!appState.isConnected)
@@ -437,73 +432,49 @@ struct TableProApp: App {
 // MARK: - Notification Names
 
 extension Notification.Name {
+    // Connection lifecycle
     static let newConnection = Notification.Name("newConnection")
-    static let newTab = Notification.Name("newTab")
-    static let closeCurrentTab = Notification.Name("closeCurrentTab")
     static let deselectConnection = Notification.Name("deselectConnection")
-    static let saveChanges = Notification.Name("saveChanges")
-    static let saveStructureChanges = Notification.Name("saveStructureChanges")
+    static let openConnectionSwitcher = Notification.Name("openConnectionSwitcher")
+    static let reconnectDatabase = Notification.Name("reconnectDatabase")
+
+    // Multi-listener broadcasts (Sidebar + Coordinator + StructureView)
     static let refreshData = Notification.Name("refreshData")
     static let refreshAll = Notification.Name("refreshAll")
-    static let toggleTableBrowser = Notification.Name("toggleTableBrowser")
-    static let showAllTables = Notification.Name("showAllTables")
-    static let toggleRightSidebar = Notification.Name("toggleRightSidebar")
+
+    // Data operations (still posted by DataGrid / context menus / StructureView subscribers)
     static let deleteSelectedRows = Notification.Name("deleteSelectedRows")
     static let addNewRow = Notification.Name("addNewRow")
     static let duplicateRow = Notification.Name("duplicateRow")
-    static let copyTableNames = Notification.Name("copyTableNames")
-    static let truncateTables = Notification.Name("truncateTables")
     static let copySelectedRows = Notification.Name("copySelectedRows")
-    static let copySelectedRowsWithHeaders = Notification.Name("copySelectedRowsWithHeaders")
     static let pasteRows = Notification.Name("pasteRows")
-    static let clearSelection = Notification.Name("clearSelection")
     static let undoChange = Notification.Name("undoChange")
     static let redoChange = Notification.Name("redoChange")
-    static let openWelcomeWindow = Notification.Name("openWelcomeWindow")
+    static let clearSelection = Notification.Name("clearSelection")
+
+    // Tab operations
+    static let showAllTables = Notification.Name("showAllTables")
+
+    // Sidebar operations (still posted by SidebarView / ConnectionStatusView)
+    static let copyTableNames = Notification.Name("copyTableNames")
+    static let truncateTables = Notification.Name("truncateTables")
+    static let exportTables = Notification.Name("exportTables")
+    static let importTables = Notification.Name("importTables")
+    static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
+
+    // Structure view / sidebar operations (still posted by SidebarView, QueryEditorView)
+    static let createTable = Notification.Name("createTable")
+    static let createView = Notification.Name("createView")
+    static let explainQuery = Notification.Name("explainQuery")
+    static let saveStructureChanges = Notification.Name("saveStructureChanges")
+    static let previewStructureSQL = Notification.Name("previewStructureSQL")
+    static let showTableStructure = Notification.Name("showTableStructure")
+    static let editViewDefinition = Notification.Name("editViewDefinition")
 
     // Filter notifications
-    static let toggleFilterPanel = Notification.Name("toggleFilterPanel")
     static let applyAllFilters = Notification.Name("applyAllFilters")
     static let duplicateFilter = Notification.Name("duplicateFilter")
     static let removeFilter = Notification.Name("removeFilter")
-
-    // History panel notifications
-    static let toggleHistoryPanel = Notification.Name("toggleHistoryPanel")
-
-    // Database switcher notifications
-    static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
-
-    // Connection switcher notifications
-    static let openConnectionSwitcher = Notification.Name("openConnectionSwitcher")
-
-    // Reconnect notifications
-    static let reconnectDatabase = Notification.Name("reconnectDatabase")
-
-    // Table creation notifications
-    static let createTable = Notification.Name("createTable")
-
-    // View management notifications
-    static let createView = Notification.Name("createView")
-    static let editViewDefinition = Notification.Name("editViewDefinition")
-
-    // Table structure notifications
-    static let showTableStructure = Notification.Name("showTableStructure")
-
-    // Query execution notifications
-    static let explainQuery = Notification.Name("explainQuery")
-    static let previewSQL = Notification.Name("previewSQL")
-    static let previewStructureSQL = Notification.Name("previewStructureSQL")
-
-    // Export notifications
-    static let exportTables = Notification.Name("exportTables")
-
-    // Import notifications
-    static let importTables = Notification.Name("importTables")
-
-    // Tab navigation notifications
-    static let selectTabByNumber = Notification.Name("selectTabByNumber")
-    static let previousTab = Notification.Name("previousTab")
-    static let nextTab = Notification.Name("nextTab")
 
     // File opening notifications
     static let openSQLFiles = Notification.Name("openSQLFiles")
@@ -511,6 +482,7 @@ extension Notification.Name {
     // Window lifecycle notifications
     static let mainWindowWillClose = Notification.Name("mainWindowWillClose")
     static let openMainWindow = Notification.Name("openMainWindow")
+    static let openWelcomeWindow = Notification.Name("openWelcomeWindow")
 
     // License notifications
     static let licenseStatusDidChange = Notification.Name("licenseStatusDidChange")
