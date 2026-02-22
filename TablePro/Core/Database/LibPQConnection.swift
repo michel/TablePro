@@ -42,11 +42,12 @@ struct LibPQError: Error, LocalizedError {
 /// Result from a PostgreSQL query execution
 struct LibPQQueryResult {
     let columns: [String]
-    let columnOids: [UInt32]  // NEW: PostgreSQL Oid for each column
-    let columnTypeNames: [String]  // NEW: Raw type names (e.g., "text", "varchar")
+    let columnOids: [UInt32]  // PostgreSQL Oid for each column
+    let columnTypeNames: [String]  // Raw type names (e.g., "text", "varchar")
     let rows: [[String?]]
     let affectedRows: Int
     let commandTag: String?
+    let isTruncated: Bool
 }
 
 // MARK: - Type Mapping
@@ -118,6 +119,9 @@ final class LibPQConnection: @unchecked Sendable {
     /// Cached server version string, set at connect time on the serial queue
     private var _cachedServerVersion: String?
 
+    /// Cancellation flag — set from any thread, checked in row-fetch loops
+    private var _isCancelled: Bool = false
+
     /// Thread-safe connection state accessor
     var isConnected: Bool {
         stateLock.lock()
@@ -181,7 +185,7 @@ final class LibPQConnection: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
                 // Build connection string
-                var connStr = "host='\(host)' port='\(port)' dbname='\(database)'"
+                var connStr = "host='\(host)' port='\(port)' dbname='\(database)' connect_timeout='10'"
 
                 if !user.isEmpty {
                     connStr += " user='\(user)'"
@@ -278,6 +282,24 @@ final class LibPQConnection: @unchecked Sendable {
         }
     }
 
+    // MARK: - Query Cancellation
+
+    /// Cancel the currently running query using PQcancel.
+    /// Sets a flag checked in row-fetch loops and sends a cancel request to the server.
+    func cancelCurrentQuery() {
+        stateLock.lock()
+        _isCancelled = true
+        stateLock.unlock()
+
+        guard let conn = conn else { return }
+        let cancelObj = PQgetCancel(conn)
+        guard let cancelObj = cancelObj else { return }
+        defer { PQfreeCancel(cancelObj) }
+
+        var errbuf = [CChar](repeating: 0, count: 256)
+        PQcancel(cancelObj, &errbuf, Int32(errbuf.count))
+    }
+
     // MARK: - Query Execution
 
     /// Execute a SQL query and fetch all results
@@ -365,12 +387,13 @@ final class LibPQConnection: @unchecked Sendable {
                 columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
-                commandTag: cmdTag
+                commandTag: cmdTag,
+                isTruncated: false
             )
 
         case PGRES_TUPLES_OK:
             // SELECT query - fetch results
-            let queryResult = fetchResults(from: result)
+            let queryResult = try fetchResults(from: result)
             PQclear(result)
             return queryResult
 
@@ -454,12 +477,13 @@ final class LibPQConnection: @unchecked Sendable {
                 columnTypeNames: [],
                 rows: [],
                 affectedRows: affected,
-                commandTag: cmdTag
+                commandTag: cmdTag,
+                isTruncated: false
             )
 
         case PGRES_TUPLES_OK:
             // SELECT query - fetch results
-            let queryResult = fetchResults(from: result)
+            let queryResult = try fetchResults(from: result)
             PQclear(result)
             return queryResult
 
@@ -474,7 +498,7 @@ final class LibPQConnection: @unchecked Sendable {
     // MARK: - Result Parsing
 
     /// Fetch all results from a PGresult
-    private func fetchResults(from result: OpaquePointer) -> LibPQQueryResult {
+    private func fetchResults(from result: OpaquePointer) throws -> LibPQQueryResult {
         let numFields = Int(PQnfields(result))
         let numRows = Int(PQntuples(result))
 
@@ -489,8 +513,7 @@ final class LibPQConnection: @unchecked Sendable {
         for i in 0..<numFields {
             // Extract column name
             if let namePtr = PQfname(result, Int32(i)) {
-                let cStr = String(cString: namePtr)
-                columns.append(String(cStr.unicodeScalars.map { Character($0) }))
+                columns.append(String(cString: namePtr))
             } else {
                 columns.append("column_\(i)")
             }
@@ -501,11 +524,25 @@ final class LibPQConnection: @unchecked Sendable {
             columnTypeNames.append(pgOidToTypeName(UInt32(oid)))
         }
 
-        // Fetch all rows
-        var rows: [[String?]] = []
-        rows.reserveCapacity(numRows)
+        // Fetch rows with row limit
+        let maxRows = DriverRowLimits.defaultMax
+        let effectiveRowCount = min(numRows, maxRows)
+        let truncated = numRows > maxRows
 
-        for rowIndex in 0..<numRows {
+        var rows: [[String?]] = []
+        rows.reserveCapacity(effectiveRowCount)
+
+        for rowIndex in 0..<effectiveRowCount {
+            // Check cancellation flag (atomic read-then-clear via stateLock)
+            stateLock.lock()
+            let shouldCancel = _isCancelled
+            if shouldCancel { _isCancelled = false }
+            stateLock.unlock()
+            if shouldCancel {
+                PQclear(result)
+                throw LibPQError(message: "Query cancelled", sqlState: nil, detail: nil)
+            }
+
             var row: [String?] = []
             row.reserveCapacity(numFields)
 
@@ -523,18 +560,15 @@ final class LibPQConnection: @unchecked Sendable {
                     }
 
                     if let str = String(bytes: byteArray, encoding: .utf8) {
-                        var value = String(str.unicodeScalars.map { Character($0) })
-
                         // Boolean OID (16): convert "t"/"f" to "true"/"false"
                         if columnOids[colIndex] == 16 {
-                            value = value == "t" ? "true" : "false"
+                            row.append(str == "t" ? "true" : "false")
+                        } else {
+                            row.append(str)
                         }
-
-                        row.append(value)
                     } else {
                         // Fallback: create string from byte array as Latin1
-                        let latin1Str = String(bytes: byteArray, encoding: .isoLatin1) ?? ""
-                        row.append(String(latin1Str.unicodeScalars.map { Character($0) }))
+                        row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
                     }
                 } else {
                     row.append(nil)
@@ -543,13 +577,18 @@ final class LibPQConnection: @unchecked Sendable {
             rows.append(row)
         }
 
+        if truncated {
+            logger.warning("Result set truncated at \(maxRows) rows (DriverRowLimits.defaultMax)")
+        }
+
         return LibPQQueryResult(
             columns: columns,
             columnOids: columnOids,
             columnTypeNames: columnTypeNames,
             rows: rows,
             affectedRows: numRows,
-            commandTag: getCommandTag(from: result)
+            commandTag: getCommandTag(from: result),
+            isTruncated: truncated
         )
     }
 

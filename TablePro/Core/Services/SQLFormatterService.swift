@@ -30,6 +30,100 @@ struct SQLFormatterService: SQLFormatterProtocol {
     /// Alignment for SELECT columns (length of "SELECT ")
     private static let selectKeywordLength = 7
 
+    // MARK: - Cached Regex Patterns (CPU-3, CPU-9, CPU-10)
+
+    /// String literal extraction patterns — one per quote character
+    private static let stringLiteralRegexes: [String: NSRegularExpression] = {
+        var result: [String: NSRegularExpression] = [:]
+        for quoteChar in ["'", "\"", "`"] {
+            let escaped = NSRegularExpression.escapedPattern(for: quoteChar)
+            let pattern = "\(escaped)((?:\\\\\\\\\(quoteChar)|[^\(quoteChar)])*?)\(escaped)"
+            // swiftlint:disable:next force_try
+            result[quoteChar] = try! NSRegularExpression(pattern: pattern)
+        }
+        return result
+    }()
+
+    /// Line comment pattern: --[^\n]*
+    private static let lineCommentRegex: NSRegularExpression = {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(pattern: "--[^\\n]*")
+    }()
+
+    /// Block comment pattern: /* ... */
+    private static let blockCommentRegex: NSRegularExpression = {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(pattern: "/\\*.*?\\*/", options: .dotMatchesLineSeparators)
+    }()
+
+    /// Line break keyword patterns — pre-compiled for all 16 keywords (CPU-9)
+    /// Sorted by keyword length (longest first) to handle multi-word keywords correctly
+    private static let lineBreakRegexes: [(keyword: String, regex: NSRegularExpression)] = {
+        let keywords = [
+            "SELECT", "FROM", "WHERE", "JOIN", "INNER JOIN", "LEFT JOIN", "RIGHT JOIN",
+            "FULL JOIN", "CROSS JOIN", "ORDER BY", "GROUP BY", "HAVING",
+            "UNION", "UNION ALL", "INTERSECT", "EXCEPT", "LIMIT", "OFFSET"
+        ]
+        return keywords.sorted(by: { $0.count > $1.count }).map { keyword in
+            let escapedKeyword = NSRegularExpression.escapedPattern(for: keyword)
+            let pattern = "\\s+\(escapedKeyword)\\b"
+            // swiftlint:disable:next force_try
+            let regex = try! NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+            return (keyword, regex)
+        }
+    }()
+
+    /// Subquery pattern: \(\s*SELECT\b  (CPU-10)
+    private static let subqueryRegex: NSRegularExpression = {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(pattern: "\\(\\s*SELECT\\b", options: .caseInsensitive)
+    }()
+
+    /// Word boundary pattern for "END" keyword (CPU-10)
+    private static let endWordBoundaryRegex: NSRegularExpression = {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(pattern: "\\bEND\\b", options: .caseInsensitive)
+    }()
+
+    /// Word boundary pattern for "CASE" keyword (CPU-10)
+    private static let caseWordBoundaryRegex: NSRegularExpression = {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(pattern: "\\bCASE\\b", options: .caseInsensitive)
+    }()
+
+    /// WHERE condition alignment pattern: \s+(AND|OR)\s+
+    private static let whereConditionRegex: NSRegularExpression = {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(pattern: "\\s+(AND|OR)\\s+", options: .caseInsensitive)
+    }()
+
+    /// Keyword uppercasing regex cache per DatabaseType (CPU-5)
+    /// Uses NSLock for thread safety since static mutable state is shared.
+    private static let keywordRegexLock = NSLock()
+    private static var keywordRegexCache: [DatabaseType: NSRegularExpression] = [:]
+
+    /// Get or create the keyword uppercasing regex for a given database type
+    private static func keywordRegex(for dialect: DatabaseType) -> NSRegularExpression? {
+        keywordRegexLock.lock()
+        defer { keywordRegexLock.unlock() }
+
+        if let cached = keywordRegexCache[dialect] {
+            return cached
+        }
+
+        let provider = SQLDialectFactory.createDialect(for: dialect)
+        let allKeywords = provider.keywords.union(provider.functions).union(provider.dataTypes)
+        let escapedKeywords = allKeywords.map { NSRegularExpression.escapedPattern(for: $0) }
+        let pattern = "\\b(\(escapedKeywords.joined(separator: "|")))\\b"
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            return nil
+        }
+
+        keywordRegexCache[dialect] = regex
+        return regex
+    }
+
     // MARK: - Public API
 
     func format(
@@ -49,15 +143,17 @@ struct SQLFormatterService: SQLFormatterProtocol {
             throw SQLFormatterError.emptyInput
         }
 
-        if let cursor = cursorOffset, cursor > sql.count {
-            throw SQLFormatterError.invalidCursorPosition(cursor, max: sql.count)
+        // CPU-8: Use utf16.count for O(1) length instead of O(n) String.count
+        let sqlLength = sql.utf16.count
+        if let cursor = cursorOffset, cursor > sqlLength {
+            throw SQLFormatterError.invalidCursorPosition(cursor, max: sqlLength)
         }
 
         // Get dialect provider
         let dialectProvider = SQLDialectFactory.createDialect(for: dialect)
 
         // Format the SQL
-        let formatted = formatSQL(sql, dialect: dialectProvider, options: options)
+        let formatted = formatSQL(sql, dialect: dialectProvider, databaseType: dialect, options: options)
 
         // Cursor preservation
         let newCursor = cursorOffset.map { original in
@@ -75,6 +171,7 @@ struct SQLFormatterService: SQLFormatterProtocol {
     private func formatSQL(
         _ sql: String,
         dialect: SQLDialectProvider,
+        databaseType: DatabaseType,
         options: SQLFormatterOptions
     ) -> String {
         var result = sql
@@ -92,14 +189,14 @@ struct SQLFormatterService: SQLFormatterProtocol {
 
         // Step 3: Uppercase keywords (now safe - strings removed)
         if options.uppercaseKeywords {
-            result = uppercaseKeywords(result, dialect: dialect)
+            result = uppercaseKeywords(result, databaseType: databaseType)
         }
 
         // Step 4: Restore string literals
         result = restoreStringLiterals(result, literals: stringLiterals)
 
         // Step 5: Add line breaks before major keywords
-        result = addLineBreaks(result, dialect: dialect)
+        result = addLineBreaks(result)
 
         // Step 6: Add indentation based on nesting
         if options.indentSize > 0 {
@@ -148,21 +245,18 @@ struct SQLFormatterService: SQLFormatterProtocol {
             quoteChars = ["'", "`"]   // MySQL, SQLite
         }
 
-        // Extract each type of string literal
+        // Extract each type of string literal using cached regex
         for quoteChar in quoteChars {
-            let pattern = "\(NSRegularExpression.escapedPattern(for: quoteChar))((?:\\\\\\\\\(quoteChar)|[^\(quoteChar)])*?)\(NSRegularExpression.escapedPattern(for: quoteChar))"
+            guard let regex = Self.stringLiteralRegexes[quoteChar] else { continue }
+            let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
 
-            if let regex = createRegex(pattern) {
-                let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
-
-                // Process in reverse to maintain valid indices
-                for match in matches.reversed() {
-                    if let range = safeRange(from: match.range, in: result) {
-                        let literal = String(result[range])
-                        let placeholder = "__STRING_\(UUID().uuidString)__"
-                        literals.insert((placeholder, literal), at: 0)
-                        result.replaceSubrange(range, with: placeholder)
-                    }
+            // Process in reverse to maintain valid indices
+            for match in matches.reversed() {
+                if let range = safeRange(from: match.range, in: result) {
+                    let literal = String(result[range])
+                    let placeholder = "__STRING_\(UUID().uuidString)__"
+                    literals.insert((placeholder, literal), at: 0)
+                    result.replaceSubrange(range, with: placeholder)
                 }
             }
         }
@@ -186,32 +280,32 @@ struct SQLFormatterService: SQLFormatterProtocol {
         var result = sql
         var comments: [(String, String)] = []
 
-        // Extract line comments (-- ...)
-        let lineCommentPattern = "--[^\\n]*"
-        if let regex = createRegex(lineCommentPattern) {
-            let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
-            for match in matches.reversed() {
-                if let range = safeRange(from: match.range, in: result) {
-                    let comment = String(result[range])
-                    let placeholder = "__COMMENT_\(UUID().uuidString)__"  // Fix #6: UUID
-                    comments.insert((placeholder, comment), at: 0)
-                    result.replaceSubrange(range, with: placeholder)
-                }
+        // Extract line comments (-- ...) using cached regex
+        let lineMatches = Self.lineCommentRegex.matches(
+            in: result,
+            range: NSRange(result.startIndex..., in: result)
+        )
+        for match in lineMatches.reversed() {
+            if let range = safeRange(from: match.range, in: result) {
+                let comment = String(result[range])
+                let placeholder = "__COMMENT_\(UUID().uuidString)__"  // Fix #6: UUID
+                comments.insert((placeholder, comment), at: 0)
+                result.replaceSubrange(range, with: placeholder)
             }
         }
 
-        // Extract block comments (/* ... */)
+        // Extract block comments (/* ... */) using cached regex
         // Note: This doesn't handle nested block comments (SQL doesn't officially support them)
-        let blockCommentPattern = "/\\*.*?\\*/"
-        if let regex = createRegex(blockCommentPattern, options: .dotMatchesLineSeparators) {
-            let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result))
-            for match in matches.reversed() {
-                if let range = safeRange(from: match.range, in: result) {
-                    let comment = String(result[range])
-                    let placeholder = "__COMMENT_\(UUID().uuidString)__"  // Fix #6: UUID
-                    comments.insert((placeholder, comment), at: 0)
-                    result.replaceSubrange(range, with: placeholder)
-                }
+        let blockMatches = Self.blockCommentRegex.matches(
+            in: result,
+            range: NSRange(result.startIndex..., in: result)
+        )
+        for match in blockMatches.reversed() {
+            if let range = safeRange(from: match.range, in: result) {
+                let comment = String(result[range])
+                let placeholder = "__COMMENT_\(UUID().uuidString)__"  // Fix #6: UUID
+                comments.insert((placeholder, comment), at: 0)
+                result.replaceSubrange(range, with: placeholder)
             }
         }
 
@@ -229,15 +323,9 @@ struct SQLFormatterService: SQLFormatterProtocol {
 
     // MARK: - Keyword Uppercasing (Fix #1: Single-pass optimization)
 
-    /// Uppercase keywords using single regex pass (much faster than per-keyword)
-    private func uppercaseKeywords(_ sql: String, dialect: SQLDialectProvider) -> String {
-        let allKeywords = dialect.keywords.union(dialect.functions).union(dialect.dataTypes)
-
-        // Build alternation pattern: \b(SELECT|FROM|WHERE|...)\b
-        let escapedKeywords = allKeywords.map { NSRegularExpression.escapedPattern(for: $0) }
-        let pattern = "\\b(\(escapedKeywords.joined(separator: "|")))\\b"
-
-        guard let regex = createRegex(pattern, options: .caseInsensitive) else {
+    /// Uppercase keywords using single regex pass with cached pattern (CPU-5)
+    private func uppercaseKeywords(_ sql: String, databaseType: DatabaseType) -> String {
+        guard let regex = Self.keywordRegex(for: databaseType) else {
             return sql
         }
 
@@ -257,28 +345,16 @@ struct SQLFormatterService: SQLFormatterProtocol {
 
     // MARK: - Line Breaks
 
-    private func addLineBreaks(_ sql: String, dialect: SQLDialectProvider) -> String {
+    private func addLineBreaks(_ sql: String) -> String {
         var result = sql
 
-        // Keywords that should start on a new line
-        let lineBreakKeywords = [
-            "SELECT", "FROM", "WHERE", "JOIN", "INNER JOIN", "LEFT JOIN", "RIGHT JOIN",
-            "FULL JOIN", "CROSS JOIN", "ORDER BY", "GROUP BY", "HAVING",
-            "UNION", "UNION ALL", "INTERSECT", "EXCEPT", "LIMIT", "OFFSET"
-        ]
-
-        // Sort by length (longest first) to handle multi-word keywords correctly
-        for keyword in lineBreakKeywords.sorted(by: { $0.count > $1.count }) {
-            let escapedKeyword = NSRegularExpression.escapedPattern(for: keyword)
-            let pattern = "\\s+\(escapedKeyword)\\b"
-
-            if let regex = createRegex(pattern, options: .caseInsensitive) {
-                result = regex.stringByReplacingMatches(
-                    in: result,
-                    range: NSRange(result.startIndex..., in: result),
-                    withTemplate: "\n\(keyword.uppercased())"
-                )
-            }
+        // Use pre-compiled regex patterns for all line break keywords (CPU-9)
+        for (keyword, regex) in Self.lineBreakRegexes {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: "\n\(keyword.uppercased())"
+            )
         }
 
         return result
@@ -296,7 +372,8 @@ struct SQLFormatterService: SQLFormatterProtocol {
             guard !trimmed.isEmpty else { continue }
 
             // Decrease indent before processing closing parens or END
-            if trimmed.starts(with: ")") || hasWordBoundary(trimmed, word: "END") {
+            // Uses cached regex for word boundary checks (CPU-10)
+            if trimmed.starts(with: ")") || Self.hasWordBoundary(trimmed, regex: Self.endWordBoundaryRegex) {
                 indentLevel = max(0, indentLevel - 1)
             }
 
@@ -305,13 +382,15 @@ struct SQLFormatterService: SQLFormatterProtocol {
             result.append(indent + trimmed)
 
             // Increase indent after opening parens or CASE keyword
-            if trimmed.hasSuffix("(") || hasWordBoundary(trimmed, word: "CASE") {
+            if trimmed.hasSuffix("(") || Self.hasWordBoundary(trimmed, regex: Self.caseWordBoundaryRegex) {
                 indentLevel += 1
             }
 
-            // Special handling for subqueries: (SELECT
-            if let regex = createRegex("\\(\\s*SELECT\\b", options: .caseInsensitive),
-               regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) != nil {
+            // Special handling for subqueries: (SELECT — uses cached regex (CPU-10)
+            if Self.subqueryRegex.firstMatch(
+                in: trimmed,
+                range: NSRange(trimmed.startIndex..., in: trimmed)
+            ) != nil {
                 indentLevel += 1
             }
 
@@ -324,13 +403,9 @@ struct SQLFormatterService: SQLFormatterProtocol {
         return result.joined(separator: "\n")
     }
 
-    /// Check if a word appears with word boundaries (Fix #5)
-    private func hasWordBoundary(_ text: String, word: String) -> Bool {
-        let pattern = "\\b\(NSRegularExpression.escapedPattern(for: word))\\b"
-        guard let regex = createRegex(pattern, options: .caseInsensitive) else {
-            return false
-        }
-        return regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
+    /// Check if a word appears with word boundaries using a pre-compiled regex (CPU-10)
+    private static func hasWordBoundary(_ text: String, regex: NSRegularExpression) -> Bool {
+        regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
     // MARK: - Column Alignment
@@ -403,13 +478,8 @@ struct SQLFormatterService: SQLFormatterProtocol {
         // Fix #3: Work with immutable substring
         let whereClause = String(sql[whereRange.upperBound..<endIndex])
 
-        // Add line breaks before AND/OR
-        let pattern = "\\s+(AND|OR)\\s+"
-        guard let regex = createRegex(pattern, options: .caseInsensitive) else {
-            return sql
-        }
-
-        let replaced = regex.stringByReplacingMatches(
+        // Add line breaks before AND/OR using cached regex
+        let replaced = Self.whereConditionRegex.stringByReplacingMatches(
             in: whereClause,
             range: NSRange(whereClause.startIndex..., in: whereClause),
             withTemplate: "\n  $1 "
@@ -432,23 +502,17 @@ struct SQLFormatterService: SQLFormatterProtocol {
     private func preserveCursorPosition(original: Int, oldText: String, newText: String) -> Int {
         guard !oldText.isEmpty else { return 0 }
 
-        let ratio = Double(original) / Double(oldText.count)
-        let newPosition = Int(ratio * Double(newText.count))
+        // CPU-8: Use utf16.count for O(1) length instead of O(n) String.count
+        let oldLength = oldText.utf16.count
+        let newLength = newText.utf16.count
 
-        return min(newPosition, newText.count)
+        let ratio = Double(original) / Double(oldLength)
+        let newPosition = Int(ratio * Double(newLength))
+
+        return min(newPosition, newLength)
     }
 
     // MARK: - Helper Methods
-
-    /// Create regex with error logging (instead of silent failures)
-    private func createRegex(_ pattern: String, options: NSRegularExpression.Options = []) -> NSRegularExpression? {
-        do {
-            return try NSRegularExpression(pattern: pattern, options: options)
-        } catch {
-            assertionFailure("Failed to create regex '\(pattern)': \(error)")
-            return nil
-        }
-    }
 
     /// Safe NSRange to Range conversion (Fix #7: Unicode handling)
     ///

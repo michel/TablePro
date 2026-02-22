@@ -8,6 +8,12 @@
 import Foundation
 import OSLog
 
+/// Row limit configuration for driver-level result capping
+enum DriverRowLimits {
+    static let defaultMax = 100_000
+    static let unlimitedMax = Int.max
+}
+
 /// Protocol defining database driver operations
 protocol DatabaseDriver: AnyObject {
     // MARK: - Properties
@@ -64,6 +70,11 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch columns for a specific table
     func fetchColumns(table: String) async throws -> [ColumnInfo]
 
+    /// Fetch columns for ALL tables in a single batch query (avoids N+1).
+    /// Returns a dictionary keyed by table name.
+    /// Default implementation falls back to per-table fetchColumns.
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]]
+
     /// Fetch indexes for a specific table
     func fetchIndexes(table: String) async throws -> [IndexInfo]
 
@@ -88,6 +99,12 @@ protocol DatabaseDriver: AnyObject {
     /// Create a new database
     func createDatabase(name: String, charset: String, collation: String?) async throws
 
+    // MARK: - Query Cancellation
+
+    /// Cancel the currently running query, if any.
+    /// Default implementation is a no-op for drivers that don't support cancellation.
+    func cancelQuery() throws
+
     // MARK: - Transaction Management
 
     /// Begin a transaction
@@ -110,6 +127,27 @@ extension DatabaseDriver {
         try await connect()
         disconnect()
         return true
+    }
+
+    /// Default fetchAllColumns: falls back to per-table fetchColumns (N+1).
+    /// Drivers should override with a single bulk query where possible.
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
+        let allTables = try await fetchTables()
+        var result: [String: [ColumnInfo]] = [:]
+        for table in allTables {
+            do {
+                let columns = try await fetchColumns(table: table.name)
+                result[table.name] = columns
+            } catch {
+                // Skip tables whose columns can't be fetched
+            }
+        }
+        return result
+    }
+
+    /// Default no-op implementation for drivers that don't support query cancellation
+    func cancelQuery() throws {
+        // No-op by default
     }
 
     /// Default timeout implementation using database-specific session variables

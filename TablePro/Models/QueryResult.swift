@@ -9,7 +9,7 @@ import Foundation
 
 /// Represents a row of query results for UI display
 struct QueryResultRow: Identifiable, Equatable {
-    let id = UUID()
+    let id: Int
     var values: [String?]
 
     static func == (lhs: QueryResultRow, rhs: QueryResultRow) -> Bool {
@@ -26,6 +26,9 @@ struct QueryResult {
     let executionTime: TimeInterval
     let error: DatabaseError?
 
+    /// Whether the result was truncated due to driver-level row limits
+    var isTruncated: Bool = false
+
     var isEmpty: Bool {
         rows.isEmpty
     }
@@ -40,8 +43,8 @@ struct QueryResult {
 
     /// Convert to QueryResultRow format for UI
     func toQueryResultRows() -> [QueryResultRow] {
-        rows.map { row in
-            QueryResultRow(values: row)
+        rows.enumerated().map { index, row in
+            QueryResultRow(id: index, values: row)
         }
     }
 

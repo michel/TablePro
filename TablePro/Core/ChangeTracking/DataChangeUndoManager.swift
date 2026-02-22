@@ -10,6 +10,9 @@ import Foundation
 
 /// Manages undo/redo stacks for data changes
 final class DataChangeUndoManager {
+    /// Maximum number of undo/redo actions to retain in memory
+    private let maxUndoDepth = 100
+
     /// Undo stack for reversing changes (LIFO)
     private var undoStack: [UndoAction] = []
 
@@ -32,6 +35,7 @@ final class DataChangeUndoManager {
     /// Clears the redo stack since new changes invalidate redo history
     func push(_ action: UndoAction) {
         undoStack.append(action)
+        trimStack(&undoStack)
         // Don't clear redo here - let caller decide when to clear
     }
 
@@ -48,11 +52,13 @@ final class DataChangeUndoManager {
     /// Move an action from undo to redo stack
     func moveToRedo(_ action: UndoAction) {
         redoStack.append(action)
+        trimStack(&redoStack)
     }
 
     /// Move an action from redo to undo stack
     func moveToUndo(_ action: UndoAction) {
         undoStack.append(action)
+        trimStack(&undoStack)
     }
 
     /// Clear the undo stack
@@ -79,5 +85,14 @@ final class DataChangeUndoManager {
     /// Get the count of redo actions
     var redoCount: Int {
         redoStack.count
+    }
+
+    // MARK: - Private Helpers
+
+    /// Trim a stack to the maximum allowed depth, removing oldest entries first
+    private func trimStack(_ stack: inout [UndoAction]) {
+        if stack.count > maxUndoDepth {
+            stack.removeFirst(stack.count - maxUndoDepth)
+        }
     }
 }

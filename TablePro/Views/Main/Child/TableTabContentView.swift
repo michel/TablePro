@@ -44,6 +44,32 @@ struct TableTabContentView: View {
     @Binding var showStructure: Bool
     @Binding var columnLayout: ColumnLayoutState
 
+    // Cached row provider — avoids recreation on every SwiftUI render.
+    // Recreated only when tab.resultVersion changes (data refresh, sort, filter, pagination).
+    @State private var rowProvider: InMemoryRowProvider?
+    @State private var lastResultVersion: Int = -1
+
+    /// Creates a new InMemoryRowProvider from the current tab and row data.
+    private func makeRowProvider() -> InMemoryRowProvider {
+        InMemoryRowProvider(
+            rows: sortedRows,
+            columns: tab.resultColumns,
+            columnDefaults: tab.columnDefaults,
+            columnTypes: tab.columnTypes,
+            columnEnumValues: tab.columnEnumValues,
+            columnNullable: tab.columnNullable
+        )
+    }
+
+    /// Returns the current row provider, creating it on first access.
+    private var currentRowProvider: InMemoryRowProvider {
+        if let existing = rowProvider, lastResultVersion == tab.resultVersion {
+            return existing
+        }
+        // First render or version mismatch — create inline and schedule state update
+        return makeRowProvider()
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Show structure view or data view based on toggle
@@ -68,14 +94,7 @@ struct TableTabContentView: View {
                 }
 
                 DataGridView(
-                    rowProvider: InMemoryRowProvider(
-                        rows: sortedRows,
-                        columns: tab.resultColumns,
-                        columnDefaults: tab.columnDefaults,
-                        columnTypes: tab.columnTypes,
-                        columnEnumValues: tab.columnEnumValues,
-                        columnNullable: tab.columnNullable
-                    ),
+                    rowProvider: currentRowProvider,
                     changeManager: AnyChangeManager(dataManager: changeManager),
                     resultVersion: tab.resultVersion,
                     isEditable: tab.isEditable && !tab.isView,
@@ -110,5 +129,15 @@ struct TableTabContentView: View {
             )
         }
         .animation(.easeInOut(duration: 0.2), value: tab.errorMessage)
+        .onAppear {
+            let provider = makeRowProvider()
+            rowProvider = provider
+            lastResultVersion = tab.resultVersion
+        }
+        .onChange(of: tab.resultVersion) { _, newVersion in
+            let provider = makeRowProvider()
+            rowProvider = provider
+            lastResultVersion = newVersion
+        }
     }
 }

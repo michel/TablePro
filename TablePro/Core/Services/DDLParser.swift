@@ -9,6 +9,46 @@ import Foundation
 
 /// Parses CREATE TABLE DDL statements into TableCreationOptions
 struct DDLParser {
+    // MARK: - Cached Regex Patterns
+
+    /// Patterns for extracting table name from CREATE TABLE statements
+    private static let createTablePatterns: [NSRegularExpression] = [
+        // Pattern: CREATE TABLE `db`.`table` (database-qualified)
+        try! NSRegularExpression(
+            pattern: #"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`\"]?(\w+)[`\"]?\.[`\"]?(\w+)[`\"]?"#,
+            options: .caseInsensitive
+        ),
+        // Pattern: CREATE TABLE table (unqualified)
+        try! NSRegularExpression(
+            pattern: #"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`\"]?(\w+)[`\"]?"#,
+            options: .caseInsensitive
+        )
+    ]
+
+    /// Pattern for extracting DEFAULT value from column definition
+    private static let defaultValueRegex = try! NSRegularExpression(
+        pattern: #"DEFAULT\s+([^,\s]+|'[^']*')"#,
+        options: .caseInsensitive
+    )
+
+    /// Pattern for extracting PRIMARY KEY columns
+    private static let primaryKeyRegex = try! NSRegularExpression(
+        pattern: #"PRIMARY\s+KEY\s*\(([^)]+)\)"#,
+        options: .caseInsensitive
+    )
+
+    /// Pattern for extracting ENGINE option (MySQL/MariaDB)
+    private static let engineRegex = try! NSRegularExpression(
+        pattern: #"ENGINE\s*=\s*(\w+)"#,
+        options: .caseInsensitive
+    )
+
+    /// Pattern for extracting CHARSET option (MySQL/MariaDB)
+    private static let charsetRegex = try! NSRegularExpression(
+        pattern: #"(?:DEFAULT\s+)?CHARSET\s*=\s*(\w+)"#,
+        options: .caseInsensitive
+    )
+
     /// Parse a CREATE TABLE statement
     static func parse(_ ddl: String, databaseType: DatabaseType) throws -> TableCreationOptions {
         var options = TableCreationOptions()
@@ -39,24 +79,17 @@ struct DDLParser {
     // MARK: - Extraction Methods
 
     private static func extractTableName(from ddl: String) -> String? {
-        // Pattern: CREATE TABLE `db`.`table` or CREATE TABLE table
-        let patterns = [
-            #"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`\"]?(\w+)[`\"]?\.[`\"]?(\w+)[`\"]?"#,
-            #"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?[`\"]?(\w+)[`\"]?"#
-        ]
+        let nsString = ddl as NSString
 
-        for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                let nsString = ddl as NSString
-                if let match = regex.firstMatch(in: ddl, range: NSRange(location: 0, length: nsString.length)) {
-                    // If we have database.table pattern, use table name (second capture group)
-                    if match.numberOfRanges > 2 && match.range(at: 2).location != NSNotFound {
-                        return nsString.substring(with: match.range(at: 2))
-                    }
-                    // Otherwise use first capture group
-                    if match.numberOfRanges > 1 {
-                        return nsString.substring(with: match.range(at: 1))
-                    }
+        for regex in createTablePatterns {
+            if let match = regex.firstMatch(in: ddl, range: NSRange(location: 0, length: nsString.length)) {
+                // If we have database.table pattern, use table name (second capture group)
+                if match.numberOfRanges > 2 && match.range(at: 2).location != NSNotFound {
+                    return nsString.substring(with: match.range(at: 2))
+                }
+                // Otherwise use first capture group
+                if match.numberOfRanges > 1 {
+                    return nsString.substring(with: match.range(at: 1))
                 }
             }
         }
@@ -139,7 +172,7 @@ struct DDLParser {
 
         // Extract default value
         var defaultValue: String?
-        if let defaultMatch = try? NSRegularExpression(pattern: #"DEFAULT\s+([^,\s]+|'[^']*')"#, options: .caseInsensitive)
+        if let defaultMatch = defaultValueRegex
             .firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
             let nsString = line as NSString
             defaultValue = nsString.substring(with: defaultMatch.range(at: 1))
@@ -158,11 +191,8 @@ struct DDLParser {
     }
 
     private static func extractPrimaryKey(from ddl: String) -> [String] {
-        // Pattern: PRIMARY KEY (`col1`, `col2`)
-        let pattern = #"PRIMARY\s+KEY\s*\(([^)]+)\)"#
-
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: ddl, range: NSRange(ddl.startIndex..., in: ddl)) else {
+        guard let match = primaryKeyRegex
+            .firstMatch(in: ddl, range: NSRange(ddl.startIndex..., in: ddl)) else {
             return []
         }
 
@@ -178,10 +208,8 @@ struct DDLParser {
     }
 
     private static func extractEngine(from ddl: String) -> String? {
-        let pattern = #"ENGINE\s*=\s*(\w+)"#
-
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: ddl, range: NSRange(ddl.startIndex..., in: ddl)) else {
+        guard let match = engineRegex
+            .firstMatch(in: ddl, range: NSRange(ddl.startIndex..., in: ddl)) else {
             return nil
         }
 
@@ -190,10 +218,8 @@ struct DDLParser {
     }
 
     private static func extractCharset(from ddl: String) -> String? {
-        let pattern = #"(?:DEFAULT\s+)?CHARSET\s*=\s*(\w+)"#
-
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-              let match = regex.firstMatch(in: ddl, range: NSRange(ddl.startIndex..., in: ddl)) else {
+        guard let match = charsetRegex
+            .firstMatch(in: ddl, range: NSRange(ddl.startIndex..., in: ddl)) else {
             return nil
         }
 

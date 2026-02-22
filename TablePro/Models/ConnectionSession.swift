@@ -50,4 +50,15 @@ struct ConnectionSession: Identifiable {
         }
         return false
     }
+
+    /// Clear cached data that can be re-fetched on reconnect.
+    /// Called when the connection enters a disconnected or error state
+    /// to release memory held by stale table metadata.
+    mutating func clearCachedData() {
+        tables = []
+        selectedTables = []
+        pendingTruncates = []
+        pendingDeletes = []
+        tableOperationOptions = [:]
+    }
 }

@@ -39,11 +39,19 @@ final class AIChatViewModel: ObservableObject {
     /// Foreign keys by table name
     var foreignKeysByTable: [String: [ForeignKeyInfo]] = [:]
 
+    /// Schema provider for reusing cached column data (set by parent coordinator)
+    var schemaProvider: SQLSchemaProvider?
+
     /// Current query text from the active editor tab
     var currentQuery: String?
 
     /// Query results summary from the active tab
     var queryResults: String?
+
+    // MARK: - Constants
+
+    /// Maximum number of messages to keep in memory to prevent unbounded growth
+    private static let maxMessageCount = 200
 
     // MARK: - Private
 
@@ -69,6 +77,7 @@ final class AIChatViewModel: ObservableObject {
 
         let userMessage = AIChatMessage(role: .user, content: text)
         messages.append(userMessage)
+        trimMessagesIfNeeded()
         inputText = ""
         errorMessage = nil
 
@@ -79,6 +88,7 @@ final class AIChatViewModel: ObservableObject {
     func sendWithContext(prompt: String, feature: AIFeature) {
         let userMessage = AIChatMessage(role: .user, content: prompt)
         messages.append(userMessage)
+        trimMessagesIfNeeded()
         errorMessage = nil
 
         startStreaming(feature: feature)
@@ -228,6 +238,13 @@ final class AIChatViewModel: ObservableObject {
 
     // MARK: - Private Methods
 
+    /// Trims the messages array to stay within `maxMessageCount`, removing oldest messages first.
+    private func trimMessagesIfNeeded() {
+        if messages.count > Self.maxMessageCount {
+            messages.removeFirst(messages.count - Self.maxMessageCount)
+        }
+    }
+
     private func startStreaming(feature: AIFeature) {
         lastUsedFeature = feature
         lastMessageFailed = false
@@ -265,6 +282,7 @@ final class AIChatViewModel: ObservableObject {
         // Create assistant message placeholder
         let assistantMessage = AIChatMessage(role: .assistant, content: "")
         messages.append(assistantMessage)
+        trimMessagesIfNeeded()
         let assistantID = assistantMessage.id
         streamingAssistantID = assistantID
 

@@ -16,8 +16,8 @@ actor SQLSchemaProvider {
     private var isLoading = false
     private var lastLoadError: Error?
 
-    // Store the driver reference used during schema loading for column fetching
-    private var cachedDriver: DatabaseDriver?
+    // Store a weak driver reference to avoid retaining it after disconnect (MEM-9)
+    private weak var cachedDriver: (any DatabaseDriver)?
 
     // Store connection info for reference
     private var connectionInfo: DatabaseConnection?
@@ -38,17 +38,12 @@ actor SQLSchemaProvider {
             // Fetch all tables
             tables = try await driver.fetchTables()
 
-            // Pre-load columns for ALL tables sequentially
-            // SQLite (and most drivers) share a single connection handle that
-            // is NOT safe for concurrent use — parallel fetches cause mutex
-            // misuse crashes.  Serial iteration is fast enough for schema loading.
-            for table in tables {
-                do {
-                    let columns = try await driver.fetchColumns(table: table.name)
-                    columnCache[table.name.lowercased()] = columns
-                } catch {
-                    // Skip tables whose columns can't be fetched
-                }
+            // Bulk-fetch columns for all tables in a single query when supported
+            // (DAT-4: avoids N+1 queries — 1 query for tables + 1 for all columns
+            //  instead of 1 + N where N = table count).
+            let allColumns = try await driver.fetchAllColumns()
+            for (tableName, columns) in allColumns {
+                columnCache[tableName.lowercased()] = columns
             }
 
             isLoading = false

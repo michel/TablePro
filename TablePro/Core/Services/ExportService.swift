@@ -57,6 +57,8 @@ private extension String {
 @MainActor
 final class ExportService: ObservableObject {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
+    // swiftlint:disable:next force_try
+    private static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
     // MARK: - Published State
 
     @Published var isExporting: Bool = false
@@ -316,10 +318,10 @@ final class ExportService: ObservableObject {
             currentTable = table.qualifiedName
 
             let tableRef = qualifiedTableRef(for: table)
-            let batchSize = 10_000
+            let batchSize = 5_000
             var offset = 0
             var columns: [String] = []
-            var allRows: [[String?]] = []
+            var isFirstBatch = true
 
             while true {
                 try checkCancellation()
@@ -329,25 +331,43 @@ final class ExportService: ObservableObject {
 
                 if result.rows.isEmpty { break }
 
-                if columns.isEmpty {
+                if isFirstBatch {
                     columns = result.columns
+                    writer.beginSheet(
+                        name: table.name,
+                        columns: columns,
+                        includeHeader: options.includeHeaderRow,
+                        convertNullToEmpty: options.convertNullToEmpty
+                    )
+                    isFirstBatch = false
                 }
 
-                for row in result.rows {
-                    allRows.append(row)
+                // Write this batch to the sheet XML and release batch memory
+                autoreleasepool {
+                    writer.addRows(result.rows, convertNullToEmpty: options.convertNullToEmpty)
+                }
+
+                // Update progress for each row in this batch
+                for _ in result.rows {
                     await incrementProgress()
                 }
 
                 offset += batchSize
             }
 
-            writer.addSheet(
-                name: table.name,
-                columns: columns,
-                rows: allRows,
-                includeHeader: options.includeHeaderRow,
-                convertNullToEmpty: options.convertNullToEmpty
-            )
+            // If we fetched at least one batch, finish the sheet
+            if !isFirstBatch {
+                writer.finishSheet()
+            } else {
+                // Table was empty - create an empty sheet with no data
+                writer.beginSheet(
+                    name: table.name,
+                    columns: [],
+                    includeHeader: false,
+                    convertNullToEmpty: options.convertNullToEmpty
+                )
+                writer.finishSheet()
+            }
 
             await finalizeTableProgress()
         }
@@ -467,9 +487,11 @@ final class ExportService: ObservableObject {
                 }
 
                 // Handle decimal format
-                if options.decimalFormat == .comma,
-                   processed.range(of: #"^[+-]?\d+\.\d+$"#, options: .regularExpression) != nil {
-                    processed = processed.replacingOccurrences(of: ".", with: ",")
+                if options.decimalFormat == .comma {
+                    let range = NSRange(processed.startIndex..., in: processed)
+                    if Self.decimalFormatRegex.firstMatch(in: processed, range: range) != nil {
+                        processed = processed.replacingOccurrences(of: ".", with: ",")
+                    }
                 }
 
                 return escapeCSVField(processed, options: options, originalHadLineBreaks: hadLineBreaks)

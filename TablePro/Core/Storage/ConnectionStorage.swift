@@ -37,10 +37,7 @@ final class ConnectionStorage {
             let storedConnections = try decoder.decode([StoredConnection].self, from: data)
 
             let connections = storedConnections.map { stored in
-                let connection = stored.toConnection()
-                // Password is stored in Keychain, accessed when needed via loadPassword()
-                _ = loadPassword(for: stored.id)  // Verify password exists
-                return connection
+                stored.toConnection()
             }
             cachedConnections = connections
             return connections

@@ -47,6 +47,19 @@ final class DataChangeManager: ObservableObject {
     /// Lazy storage for inserted row values - avoids creating CellChange objects until needed
     private var insertedRowData: [Int: [String?]] = [:]
 
+    /// (rowIndex, changeType) → index in `changes` array for O(1) lookup
+    /// Replaces O(n) `firstIndex(where:)` scans in hot paths like `recordCellChange`
+    private var changeIndex: [RowChangeKey: Int] = [:]
+
+    /// Rebuild `changeIndex` from the `changes` array.
+    /// Called after mutations that invalidate array indices (removeAll, bulk shifts).
+    private func rebuildChangeIndex() {
+        changeIndex.removeAll(keepingCapacity: true)
+        for (index, change) in changes.enumerated() {
+            changeIndex[RowChangeKey(rowIndex: change.rowIndex, type: change.type)] = index
+        }
+    }
+
     /// Undo/redo manager
     private let undoManager = DataChangeUndoManager()
 
@@ -72,6 +85,7 @@ final class DataChangeManager: ObservableObject {
     /// Clear all changes (called after successful save)
     func clearChanges() {
         changes.removeAll()
+        changeIndex.removeAll()
         deletedRowIndices.removeAll()
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
@@ -95,6 +109,7 @@ final class DataChangeManager: ObservableObject {
         self.primaryKeyColumn = primaryKeyColumn
         self.databaseType = databaseType
 
+        changeIndex.removeAll()
         deletedRowIndices.removeAll()
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
@@ -132,10 +147,9 @@ final class DataChangeManager: ObservableObject {
             newValue: newValue
         )
 
-        // Check if this is an edit to an INSERTED row
-        if let insertIndex = changes.firstIndex(where: {
-            $0.rowIndex == rowIndex && $0.type == .insert
-        }) {
+        // Check if this is an edit to an INSERTED row — O(1) dictionary lookup
+        let insertKey = RowChangeKey(rowIndex: rowIndex, type: .insert)
+        if let insertIndex = changeIndex[insertKey] {
             // Update stored values directly
             if var storedValues = insertedRowData[rowIndex] {
                 if columnIndex < storedValues.count {
@@ -177,10 +191,9 @@ final class DataChangeManager: ObservableObject {
             return
         }
 
-        // Find existing UPDATE row change or create new one
-        if let existingIndex = changes.firstIndex(where: {
-            $0.rowIndex == rowIndex && $0.type == .update
-        }) {
+        // Find existing UPDATE row change or create new one — O(1) dictionary lookup
+        let updateKey = RowChangeKey(rowIndex: rowIndex, type: .update)
+        if let existingIndex = changeIndex[updateKey] {
             if let cellIndex = changes[existingIndex].cellChanges.firstIndex(where: {
                 $0.columnIndex == columnIndex
             }) {
@@ -202,6 +215,7 @@ final class DataChangeManager: ObservableObject {
                     }
                     if changes[existingIndex].cellChanges.isEmpty {
                         changes.remove(at: existingIndex)
+                        rebuildChangeIndex()
                     }
                 }
             } else {
@@ -217,6 +231,7 @@ final class DataChangeManager: ObservableObject {
                 originalRow: originalRow
             )
             changes.append(rowChange)
+            changeIndex[updateKey] = changes.count - 1
             modifiedCells[rowIndex, default: []].insert(columnIndex)
             changedRowIndices.insert(rowIndex)
         }
@@ -241,6 +256,7 @@ final class DataChangeManager: ObservableObject {
 
         let rowChange = RowChange(rowIndex: rowIndex, type: .delete, originalRow: originalRow)
         changes.append(rowChange)
+        rebuildChangeIndex()
         deletedRowIndices.insert(rowIndex)
         changedRowIndices.insert(rowIndex)  // Track for granular reload
         pushUndo(.rowDeletion(rowIndex: rowIndex, originalRow: originalRow))
@@ -272,6 +288,7 @@ final class DataChangeManager: ObservableObject {
             batchData.append((rowIndex: rowIndex, originalRow: originalRow))
         }
 
+        rebuildChangeIndex()
         pushUndo(.batchRowDeletion(rows: batchData))
         hasChanges = true
         reloadVersion += 1
@@ -284,6 +301,7 @@ final class DataChangeManager: ObservableObject {
         insertedRowData[rowIndex] = values
         let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: [])
         changes.append(rowChange)
+        changeIndex[RowChangeKey(rowIndex: rowIndex, type: .insert)] = changes.count - 1
         insertedRowIndices.insert(rowIndex)
         changedRowIndices.insert(rowIndex)  // Track for granular reload
         pushUndo(.rowInsertion(rowIndex: rowIndex))
@@ -296,6 +314,7 @@ final class DataChangeManager: ObservableObject {
     func undoRowDeletion(rowIndex: Int) {
         guard deletedRowIndices.contains(rowIndex) else { return }
         changes.removeAll { $0.rowIndex == rowIndex && $0.type == .delete }
+        rebuildChangeIndex()
         deletedRowIndices.remove(rowIndex)
         hasChanges = !changes.isEmpty
         reloadVersion += 1
@@ -321,6 +340,7 @@ final class DataChangeManager: ObservableObject {
             }
         }
 
+        rebuildChangeIndex()
         hasChanges = !changes.isEmpty
     }
 
@@ -330,11 +350,12 @@ final class DataChangeManager: ObservableObject {
         let validRows = rowIndices.filter { insertedRowIndices.contains($0) }
         guard !validRows.isEmpty else { return }
 
-        // Collect row values for undo/redo
+        // Collect row values for undo/redo — O(1) lookup via changeIndex
         var rowValues: [[String?]] = []
         for rowIndex in validRows {
-            if let insertChange = changes.first(where: { $0.rowIndex == rowIndex && $0.type == .insert }) {
-                let values = insertChange.cellChanges.sorted { $0.columnIndex < $1.columnIndex }
+            let key = RowChangeKey(rowIndex: rowIndex, type: .insert)
+            if let idx = changeIndex[key] {
+                let values = changes[idx].cellChanges.sorted { $0.columnIndex < $1.columnIndex }
                     .map { $0.newValue }
                 rowValues.append(values)
             } else {
@@ -364,6 +385,7 @@ final class DataChangeManager: ObservableObject {
             }
         }
 
+        rebuildChangeIndex()
         hasChanges = !changes.isEmpty
     }
 
@@ -393,26 +415,28 @@ final class DataChangeManager: ObservableObject {
 
         switch action {
         case .cellEdit(let rowIndex, let columnIndex, let columnName, let previousValue, _):
-            if let changeIndex = changes.firstIndex(where: {
-                $0.rowIndex == rowIndex && ($0.type == .update || $0.type == .insert)
-            }) {
-                if let cellIndex = changes[changeIndex].cellChanges.firstIndex(where: {
+            // O(1) lookup: try update first, then insert
+            let matchedIndex = changeIndex[RowChangeKey(rowIndex: rowIndex, type: .update)]
+                ?? changeIndex[RowChangeKey(rowIndex: rowIndex, type: .insert)]
+            if let changeIdx = matchedIndex {
+                if let cellIndex = changes[changeIdx].cellChanges.firstIndex(where: {
                     $0.columnIndex == columnIndex
                 }) {
-                    if changes[changeIndex].type == .update {
-                        let originalValue = changes[changeIndex].cellChanges[cellIndex].oldValue
+                    if changes[changeIdx].type == .update {
+                        let originalValue = changes[changeIdx].cellChanges[cellIndex].oldValue
                         if previousValue == originalValue {
-                            changes[changeIndex].cellChanges.remove(at: cellIndex)
+                            changes[changeIdx].cellChanges.remove(at: cellIndex)
                             modifiedCells[rowIndex]?.remove(columnIndex)
                             if modifiedCells[rowIndex]?.isEmpty == true {
                                 modifiedCells.removeValue(forKey: rowIndex)
                             }
-                            if changes[changeIndex].cellChanges.isEmpty {
-                                changes.remove(at: changeIndex)
+                            if changes[changeIdx].cellChanges.isEmpty {
+                                changes.remove(at: changeIdx)
+                                rebuildChangeIndex()
                             }
                         } else {
-                            let originalOldValue = changes[changeIndex].cellChanges[cellIndex].oldValue
-                            changes[changeIndex].cellChanges[cellIndex] = CellChange(
+                            let originalOldValue = changes[changeIdx].cellChanges[cellIndex].oldValue
+                            changes[changeIdx].cellChanges[cellIndex] = CellChange(
                                 rowIndex: rowIndex,
                                 columnIndex: columnIndex,
                                 columnName: columnName,
@@ -420,8 +444,8 @@ final class DataChangeManager: ObservableObject {
                                 newValue: previousValue
                             )
                         }
-                    } else if changes[changeIndex].type == .insert {
-                        changes[changeIndex].cellChanges[cellIndex] = CellChange(
+                    } else if changes[changeIdx].type == .insert {
+                        changes[changeIdx].cellChanges[cellIndex] = CellChange(
                             rowIndex: rowIndex,
                             columnIndex: columnIndex,
                             columnName: columnName,
@@ -472,6 +496,7 @@ final class DataChangeManager: ObservableObject {
                 insertedRowIndices.insert(rowIndex)
             }
 
+            rebuildChangeIndex()
             hasChanges = !changes.isEmpty
             reloadVersion += 1
             return (action, true, false, nil)
@@ -514,6 +539,7 @@ final class DataChangeManager: ObservableObject {
             }
             let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: cellChanges)
             changes.append(rowChange)
+            changeIndex[RowChangeKey(rowIndex: rowIndex, type: .insert)] = changes.count - 1
             hasChanges = true
             changedRowIndices.insert(rowIndex)
             reloadVersion += 1
@@ -539,6 +565,7 @@ final class DataChangeManager: ObservableObject {
                 insertedRowIndices.remove(rowIndex)
                 changedRowIndices.insert(rowIndex)
             }
+            rebuildChangeIndex()
             hasChanges = !changes.isEmpty
             reloadVersion += 1
             return (action, true, false)
@@ -599,6 +626,7 @@ final class DataChangeManager: ObservableObject {
 
     func discardChanges() {
         changes.removeAll()
+        changeIndex.removeAll()
         deletedRowIndices.removeAll()
         insertedRowIndices.removeAll()
         modifiedCells.removeAll()
@@ -631,6 +659,7 @@ final class DataChangeManager: ObservableObject {
         self.primaryKeyColumn = state.primaryKeyColumn
         self.columns = state.columns
         self.hasChanges = !state.changes.isEmpty
+        rebuildChangeIndex()
     }
 
     // MARK: - O(1) Lookups

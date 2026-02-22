@@ -82,8 +82,13 @@ final class DatabaseManager: ObservableObject {
         // Create SSH tunnel if needed
         var effectiveConnection = connection
         if connection.sshConfig.enabled {
-            let sshPassword = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
-            let keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: connection.id)
+            // Load Keychain credentials off the main thread to avoid blocking UI
+            let connectionId = connection.id
+            let (sshPassword, keyPassphrase) = await Task.detached {
+                let pwd = ConnectionStorage.shared.loadSSHPassword(for: connectionId)
+                let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: connectionId)
+                return (pwd, phrase)
+            }.value
 
             do {
                 let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
@@ -267,8 +272,14 @@ final class DatabaseManager: ObservableObject {
         // Create SSH tunnel if needed
         let tunnelPort: Int?
         if connection.sshConfig.enabled {
-            let sshPwd = sshPassword ?? ConnectionStorage.shared.loadSSHPassword(for: connection.id)
-            let keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: connection.id)
+            // Load Keychain credentials off the main thread to avoid blocking UI
+            let connectionId = connection.id
+            let (storedSshPwd, keyPassphrase) = await Task.detached {
+                let pwd = ConnectionStorage.shared.loadSSHPassword(for: connectionId)
+                let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: connectionId)
+                return (pwd, phrase)
+            }.value
+            let sshPwd = sshPassword ?? storedSshPwd
             tunnelPort = try await SSHTunnelManager.shared.createTunnel(
                 connectionId: connection.id,
                 sshHost: connection.sshConfig.host,
@@ -366,6 +377,7 @@ final class DatabaseManager: ObservableObject {
                         Self.logger.error("Health monitoring failed for session \(id) after 3 retries")
                         self.updateSession(id) { session in
                             session.status = .error(String(localized: "Connection lost"))
+                            session.clearCachedData()
                         }
                     case .checking:
                         break // No UI update needed
@@ -427,8 +439,13 @@ final class DatabaseManager: ObservableObject {
             // Recreate SSH tunnel if needed
             var effectiveConnection = session.connection
             if session.connection.sshConfig.enabled {
-                let sshPassword = ConnectionStorage.shared.loadSSHPassword(for: session.connection.id)
-                let keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: session.connection.id)
+                // Load Keychain credentials off the main thread to avoid blocking UI
+                let connectionId = session.connection.id
+                let (sshPassword, keyPassphrase) = await Task.detached {
+                    let pwd = ConnectionStorage.shared.loadSSHPassword(for: connectionId)
+                    let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: connectionId)
+                    return (pwd, phrase)
+                }.value
 
                 let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
                     connectionId: session.connection.id,
@@ -485,6 +502,7 @@ final class DatabaseManager: ObservableObject {
             Self.logger.error("Manual reconnect failed: \(error.localizedDescription)")
             updateSession(sessionId) { session in
                 session.status = .error(String(localized: "Reconnect failed: \(error.localizedDescription)"))
+                session.clearCachedData()
             }
         }
     }
@@ -512,9 +530,10 @@ final class DatabaseManager: ObservableObject {
         } catch {
             Self.logger.error("Failed to reconnect SSH tunnel: \(error.localizedDescription)")
 
-            // Mark as error
+            // Mark as error and release stale cached data
             updateSession(connectionId) { session in
                 session.status = .error("SSH tunnel disconnected. Click to reconnect.")
+                session.clearCachedData()
             }
         }
     }

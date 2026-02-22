@@ -9,7 +9,7 @@
 import Foundation
 
 /// Represents a type of data change
-enum ChangeType: Equatable {
+enum ChangeType: Hashable {
     case update
     case insert
     case delete
@@ -60,6 +60,12 @@ struct RowChange: Identifiable, Equatable {
         self.cellChanges = cellChanges
         self.originalRow = originalRow
     }
+}
+
+/// Composite key for O(1) lookup of RowChange by (rowIndex, type)
+struct RowChangeKey: Hashable {
+    let rowIndex: Int
+    let type: ChangeType
 }
 
 /// Represents an action that can be undone

@@ -14,6 +14,10 @@ import os
 @MainActor
 final class RowOperationsManager {
     private static let logger = Logger(subsystem: "com.TablePro", category: "RowOperationsManager")
+
+    /// Maximum number of rows that can be copied to clipboard to prevent OOM
+    private static let maxClipboardRows = 50_000
+
     // MARK: - Dependencies
 
     private let changeManager: DataChangeManager
@@ -50,11 +54,9 @@ final class RowOperationsManager {
         }
 
         // Add to resultRows
-        let newRow = QueryResultRow(values: newRowValues)
+        let newRowIndex = resultRows.count
+        let newRow = QueryResultRow(id: newRowIndex, values: newRowValues)
         resultRows.append(newRow)
-
-        // Get the new row index
-        let newRowIndex = resultRows.count - 1
 
         // Record in change manager as pending INSERT
         changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newRowValues)
@@ -88,11 +90,9 @@ final class RowOperationsManager {
         }
 
         // Add the duplicated row
-        let newRow = QueryResultRow(values: newValues)
+        let newRowIndex = resultRows.count
+        let newRow = QueryResultRow(id: newRowIndex, values: newValues)
         resultRows.append(newRow)
-
-        // Get the new row index
-        let newRowIndex = resultRows.count - 1
 
         // Record in change manager as pending INSERT
         changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newValues)
@@ -206,7 +206,7 @@ final class RowOperationsManager {
                 guard rowIndex <= resultRows.count else { continue }
 
                 let values = rowValues[index]
-                let newRow = QueryResultRow(values: values)
+                let newRow = QueryResultRow(id: rowIndex, values: values)
                 resultRows.insert(newRow, at: rowIndex)
             }
         }
@@ -230,7 +230,7 @@ final class RowOperationsManager {
 
         case .rowInsertion(let rowIndex):
             let newValues = [String?](repeating: nil, count: columns.count)
-            let newRow = QueryResultRow(values: newValues)
+            let newRow = QueryResultRow(id: rowIndex, values: newValues)
             if rowIndex <= resultRows.count {
                 resultRows.insert(newRow, at: rowIndex)
             }
@@ -304,6 +304,16 @@ final class RowOperationsManager {
         guard !selectedIndices.isEmpty else { return }
 
         let sortedIndices = selectedIndices.sorted()
+        let totalSelected = sortedIndices.count
+        let isTruncated = totalSelected > Self.maxClipboardRows
+
+        if isTruncated {
+            Self.logger.warning(
+                "Clipboard copy truncated: \(totalSelected) rows selected, capping at \(Self.maxClipboardRows)"
+            )
+        }
+
+        let indicesToCopy = isTruncated ? Array(sortedIndices.prefix(Self.maxClipboardRows)) : sortedIndices
         var lines: [String] = []
 
         // Add header row if requested
@@ -311,11 +321,15 @@ final class RowOperationsManager {
             lines.append(columns.joined(separator: "\t"))
         }
 
-        for rowIndex in sortedIndices {
+        for rowIndex in indicesToCopy {
             guard rowIndex < resultRows.count else { continue }
             let row = resultRows[rowIndex]
             let line = row.values.map { $0 ?? "NULL" }.joined(separator: "\t")
             lines.append(line)
+        }
+
+        if isTruncated {
+            lines.append("(truncated, showing first \(Self.maxClipboardRows) of \(totalSelected) rows)")
         }
 
         let text = lines.joined(separator: "\n")
@@ -405,7 +419,7 @@ final class RowOperationsManager {
             let rowValues = parsedRow.values
 
             // Add to resultRows
-            resultRows.append(QueryResultRow(values: rowValues))
+            resultRows.append(QueryResultRow(id: resultRows.count, values: rowValues))
             let newRowIndex = resultRows.count - 1
 
             // Record as pending INSERT in change manager
