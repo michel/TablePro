@@ -5,6 +5,7 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import AppKit
 import SwiftUI
 
 /// App-wide theme colors and styles
@@ -13,10 +14,10 @@ enum Theme {
 
     static let primaryColor = Color("AccentColor")
 
-    static let mysqlColor = Color.orange
-    static let postgresqlColor = Color.blue
-    static let sqliteColor = Color.green
-    static let mariadbColor = Color.cyan
+    static let mysqlColor = Color(nsColor: .systemOrange)
+    static let postgresqlColor = Color(nsColor: .systemBlue)
+    static let sqliteColor = Color(nsColor: .systemGreen)
+    static let mariadbColor = Color(nsColor: .systemCyan)
 
     // MARK: - Semantic Colors
 
@@ -52,7 +53,7 @@ enum Theme {
         Color(nsColor: .alternatingContentBackgroundColors[1])
     }
 
-    static let nullValue = Color.secondary.opacity(0.5)
+    static let nullValue = Color(nsColor: .tertiaryLabelColor)
     static let boolTrue = Color(nsColor: .systemGreen)
     static let boolFalse = Color(nsColor: .systemRed)
 
@@ -77,7 +78,7 @@ extension View {
     func cardStyle() -> some View {
         self
             .background(Theme.secondaryBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium))
     }
 
     /// Apply toolbar button styling

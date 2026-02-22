@@ -6,6 +6,7 @@
 //  Centralizes all toolbar-related state in a single, composable object.
 //
 
+import AppKit
 import Combine
 import SwiftUI
 
@@ -31,10 +32,10 @@ enum ConnectionEnvironment: String, CaseIterable {
     /// Badge background color
     var backgroundColor: Color {
         switch self {
-        case .local: return Color.gray.opacity(0.3)
-        case .ssh: return Color.orange.opacity(0.3)
-        case .production: return Color.red.opacity(0.3)
-        case .staging: return Color.blue.opacity(0.3)
+        case .local: return Color(nsColor: .systemGray).opacity(0.3)
+        case .ssh: return Color(nsColor: .systemOrange).opacity(0.3)
+        case .production: return Color(nsColor: .systemRed).opacity(0.3)
+        case .staging: return Color(nsColor: .systemBlue).opacity(0.3)
         }
     }
 
@@ -42,9 +43,9 @@ enum ConnectionEnvironment: String, CaseIterable {
     var foregroundColor: Color {
         switch self {
         case .local: return .secondary
-        case .ssh: return .orange
-        case .production: return .red
-        case .staging: return .blue
+        case .ssh: return Color(nsColor: .systemOrange)
+        case .production: return Color(nsColor: .systemRed)
+        case .staging: return Color(nsColor: .systemBlue)
         }
     }
 }
@@ -62,11 +63,11 @@ enum ToolbarConnectionState: Equatable {
     /// Status indicator color
     var indicatorColor: Color {
         switch self {
-        case .disconnected: return .gray
-        case .connecting: return .orange
-        case .connected: return .green
-        case .executing: return .blue
-        case .error: return .red
+        case .disconnected: return Color(nsColor: .systemGray)
+        case .connecting: return Color(nsColor: .systemOrange)
+        case .connected: return Color(nsColor: .systemGreen)
+        case .executing: return Color(nsColor: .systemBlue)
+        case .error: return Color(nsColor: .systemRed)
         }
     }
 
@@ -126,7 +127,7 @@ final class ConnectionToolbarState: ObservableObject {
     @Published var databaseName: String = ""
 
     /// Custom display color for the connection (uses database type color if not set)
-    @Published var displayColor: Color = .orange
+    @Published var displayColor: Color = .init(nsColor: .systemOrange)
 
     /// Current connection state
     @Published var connectionState: ToolbarConnectionState = .disconnected

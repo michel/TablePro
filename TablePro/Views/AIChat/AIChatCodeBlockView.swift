@@ -5,6 +5,7 @@
 //  Code block view with copy and insert-to-editor actions.
 //
 
+import AppKit
 import SwiftUI
 
 /// Displays a code block from AI response with action buttons
@@ -32,7 +33,7 @@ struct AIChatCodeBlockView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(nsColor: .separatorColor).opacity(0.3))
+                    .background(Color(nsColor: .separatorColor))
                     .clipShape(RoundedRectangle(cornerRadius: 4))
             }
 
@@ -204,11 +205,11 @@ private struct CodeBlockGroupBoxStyle: GroupBoxStyle {
 
             configuration.content
         }
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+        .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color(nsColor: .separatorColor).opacity(0.4), lineWidth: 1)
+                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
         )
     }
 }

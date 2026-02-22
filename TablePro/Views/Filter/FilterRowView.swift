@@ -6,6 +6,7 @@
 //  Extracted from FilterPanelView for better maintainability.
 //
 
+import AppKit
 import SwiftUI
 
 /// Single filter row view with native macOS styling
@@ -34,7 +35,7 @@ struct FilterRowView: View {
     /// Dynamic background color based on state
     private var backgroundFillColor: Color {
         if isFocused {
-            return Color.accentColor.opacity(0.06)
+            return Color(nsColor: .controlAccentColor).opacity(0.08)
         } else if isHovered {
             return Color(nsColor: .controlBackgroundColor)
         } else {
@@ -45,7 +46,7 @@ struct FilterRowView: View {
     /// Dynamic border color based on state
     private var borderColor: Color {
         if isFocused {
-            return Color.accentColor.opacity(0.3)
+            return Color(nsColor: .controlAccentColor).opacity(0.3)
         } else if isHovered {
             return Color(nsColor: .separatorColor).opacity(0.5)
         } else {

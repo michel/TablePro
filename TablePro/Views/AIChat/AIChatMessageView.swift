@@ -5,6 +5,7 @@
 //  Individual chat message view with native macOS inspector styling.
 //
 
+import AppKit
 import MarkdownUI
 import SwiftUI
 
@@ -70,7 +71,7 @@ struct AIChatMessageView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.circle")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color(nsColor: .systemRed))
                         Text("Generation failed.")
                             .foregroundStyle(.secondary)
                         Text("Retry")
@@ -153,8 +154,8 @@ extension MarkdownUI.Theme {
         }
         .blockquote { configuration in
             HStack(spacing: 0) {
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(Color.secondary.opacity(0.5))
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(nsColor: .tertiaryLabelColor))
                     .frame(width: 3)
                 configuration.label
                     .markdownTextStyle {
@@ -183,7 +184,7 @@ private struct TypingIndicatorView: View {
         HStack(spacing: 5) {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
-                    .fill(Color.secondary.opacity(0.6))
+                    .fill(Color(nsColor: .tertiaryLabelColor))
                     .frame(width: 6, height: 6)
                     .offset(y: animating ? -3 : 0)
                     .animation(

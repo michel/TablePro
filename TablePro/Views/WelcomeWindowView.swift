@@ -104,7 +104,7 @@ struct WelcomeWindowView: View {
                 // Logo with glow
                 ZStack {
                     Circle()
-                        .fill(Color.orange.opacity(0.30))
+                        .fill(Color(nsColor: .systemOrange).opacity(0.30))
                         .frame(width: 100, height: 100)
                         .blur(radius: 25)
 
@@ -163,7 +163,7 @@ struct WelcomeWindowView: View {
                         .frame(width: DesignConstants.IconSize.extraLarge, height: DesignConstants.IconSize.extraLarge)
                         .background(
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.primary.opacity(0.06))
+                                .fill(Color(nsColor: .quaternaryLabelColor))
                         )
                 }
                 .buttonStyle(.plain)
@@ -182,7 +182,7 @@ struct WelcomeWindowView: View {
                 .padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.primary.opacity(0.04))
+                        .fill(Color(nsColor: .quaternaryLabelColor))
                 )
             }
             .padding(.horizontal, DesignConstants.Spacing.md)
@@ -393,7 +393,7 @@ private struct ConnectionRow: View {
                             .foregroundStyle(tag.color.color)
                             .padding(.horizontal, DesignConstants.Spacing.xxs)
                             .padding(.vertical, DesignConstants.Spacing.xxxs)
-                            .background(Capsule().fill(tag.color.color.opacity(0.15)))
+                            .background(RoundedRectangle(cornerRadius: 4).fill(tag.color.color.opacity(0.15)))
                     }
                 }
 
@@ -487,7 +487,7 @@ private struct WelcomeButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(configuration.isPressed ? 0.08 : 0.04))
+                    .fill(Color(nsColor: configuration.isPressed ? .controlBackgroundColor : .quaternaryLabelColor))
             )
     }
 }
@@ -506,7 +506,7 @@ private struct KeyboardHint: View {
                 .padding(.vertical, DesignConstants.Spacing.xxxs)
                 .background(
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(Color.primary.opacity(0.06))
+                        .fill(Color(nsColor: .quaternaryLabelColor))
                 )
             Text(label)
         }
@@ -519,13 +519,13 @@ private extension ConnectionEnvironment {
     var badgeColor: Color {
         switch self {
         case .local:
-            return .green
+            return Color(nsColor: .systemGreen)
         case .ssh:
-            return .blue
+            return Color(nsColor: .systemBlue)
         case .staging:
-            return .orange
+            return Color(nsColor: .systemOrange)
         case .production:
-            return .red
+            return Color(nsColor: .systemRed)
         }
     }
 }

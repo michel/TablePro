@@ -6,6 +6,7 @@
 //  Shown from the toolbar connection button.
 //
 
+import AppKit
 import SwiftUI
 
 /// Popover content for quick connection switching
@@ -232,7 +233,7 @@ struct ConnectionSwitcherPopover: View {
 
                 Text(connectionSubtitle(connection))
                     .font(.system(size: 11))
-                    .foregroundStyle(isHighlighted ? .white.opacity(0.7) : .secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
@@ -244,27 +245,23 @@ struct ConnectionSwitcherPopover: View {
                     .controlSize(.small)
             } else if isActive {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(isHighlighted ? .white : .green)
+                    .foregroundStyle(isHighlighted ? .white : Color(nsColor: .systemGreen))
                     .font(.system(size: 14))
             } else if isConnected {
                 Circle()
-                    .fill(isHighlighted ? Color.white : .green)
+                    .fill(isHighlighted ? Color.white : Color(nsColor: .systemGreen))
                     .frame(width: 6, height: 6)
             }
 
             // Database type badge
             Text(connection.type.rawValue.uppercased())
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .foregroundStyle(isHighlighted ? .white.opacity(0.7) : .secondary)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(
-                            isHighlighted
-                                ? Color.white.opacity(0.15)
-                                : Color.secondary.opacity(0.12)
-                        )
+                        .fill(Color(nsColor: .separatorColor))
                 )
         }
         .padding(.vertical, 2)
