@@ -32,6 +32,7 @@ final class TabPersistenceService: ObservableObject {
     // MARK: - Private State
 
     private var saveDebounceTask: Task<Void, Never>?
+    private var backgroundSaveTask: Task<Void, Never>?
     private var lastQueryDebounceTask: Task<Void, Never>?
     private let connectionId: UUID
 
@@ -123,10 +124,15 @@ final class TabPersistenceService: ObservableObject {
     func saveTabsAsync(tabs: [QueryTab], selectedTabId: UUID?) {
         guard !isRestoringTabs, !isDismissing else { return }
 
+        // Cancel any in-flight background save so an older snapshot can't
+        // finish after a newer one and overwrite it.
+        backgroundSaveTask?.cancel()
+
         let tabsToSave = tabs
         let selectedId = selectedTabId
         let connId = connectionId
-        Task.detached(priority: .utility) {
+        backgroundSaveTask = Task.detached(priority: .utility) {
+            guard !Task.isCancelled else { return }
             TabStateStorage.shared.saveTabState(
                 connectionId: connId,
                 tabs: tabsToSave,
