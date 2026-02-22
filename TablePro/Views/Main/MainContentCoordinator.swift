@@ -70,6 +70,13 @@ final class MainContentCoordinator: ObservableObject {
     private var changeManagerUpdateTask: Task<Void, Never>?
     private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
+    /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
+    var isHandlingTabSwitch = false
+
+    /// Set when handleTabChange is called directly (keyboard/tab bar/sidebar),
+    /// so .onChange(of: selectedTabId) skips the redundant call.
+    var skipNextTabChangeOnChange = false
+
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
         querySortCache = querySortCache.filter { openTabIds.contains($0.key) }
@@ -255,6 +262,19 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
+    /// Execute table tab query directly without the Task wrapper.
+    /// Safe because table tab queries are always app-generated SELECTs.
+    /// Bypasses the 15-40ms scheduling delay of `Task { @MainActor in }`.
+    func executeTableTabQueryDirectly() {
+        guard let index = tabManager.selectedTabIndex else { return }
+        guard !tabManager.tabs[index].isExecuting else { return }
+
+        let sql = tabManager.tabs[index].query
+        guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
+        executeQueryInternal(sql)
+    }
+
     /// Run EXPLAIN on the current query (database-type-aware prefix)
     func runExplainQuery() {
         guard let index = tabManager.selectedTabIndex else { return }
@@ -328,70 +348,21 @@ final class MainContentCoordinator: ObservableObject {
         let tableName = extractTableName(from: sql)
         let isEditable = tableName != nil
 
+        TabOpenTimingLogger.shared.mark("dbQueryStart", tabId: tabId)
+
         currentQueryTask = Task {
             do {
                 let result = try await DatabaseManager.shared.execute(query: sql)
 
-                var columnDefaults: [String: String?] = [:]
-                var columnForeignKeys: [String: ForeignKeyInfo] = [:]
-                var totalRowCount: Int?
-                var primaryKeyColumn: String?
-
-                var columnEnumValues: [String: [String]] = [:]
-                var columnNullable: [String: Bool] = [:]
-
-                if isEditable, let tableName = tableName {
-                    if let driver = DatabaseManager.shared.activeDriver {
-                        async let columnInfoTask = driver.fetchColumns(table: tableName)
-                        async let fkInfoTask = driver.fetchForeignKeys(table: tableName)
-                        let quotedTable = conn.type.quoteIdentifier(tableName)
-                        async let countTask: QueryResult = try await DatabaseManager.shared.execute(query: "SELECT COUNT(*) FROM \(quotedTable)")
-
-                        let (columnInfo, fkInfo, countResult) = try await (columnInfoTask, fkInfoTask, countTask)
-
-                        for col in columnInfo {
-                            columnDefaults[col.name] = col.defaultValue
-                            columnNullable[col.name] = col.isNullable
-                        }
-
-                        // Build FK lookup map (column name -> FK info)
-                        for fk in fkInfo {
-                            columnForeignKeys[fk.column] = fk
-                        }
-
-                        // Detect primary key column
-                        primaryKeyColumn = columnInfo.first(where: { $0.isPrimaryKey })?.name
-
-                        if let firstRow = countResult.rows.first,
-                           let countStr = firstRow.first as? String,
-                           let count = Int(countStr) {
-                            totalRowCount = count
-                        }
-
-                        // Build enum/set value lookup map
-                        columnEnumValues = await fetchEnumValues(
-                            columnInfo: columnInfo,
-                            tableName: tableName,
-                            driver: driver,
-                            connectionType: conn.type
-                        )
-                    }
-                }
-
-                // Deep copy to prevent C buffer retention issues
+                // Phase 1: Deep copy result data immediately (before metadata queries)
                 let safeColumns = result.columns.map { String($0) }
                 let safeColumnTypes = result.columnTypes  // Column types are already value types (enum)
                 let safeRows = result.rows.map { row in
                     QueryResultRow(values: row.map { $0.map { String($0) } })
                 }
                 let safeExecutionTime = result.executionTime
-                let safeColumnDefaults = columnDefaults.mapValues { $0.map { String($0) } }
-                let safeColumnForeignKeys = columnForeignKeys
-                let safeColumnEnumValues = columnEnumValues
-                let safeColumnNullable = columnNullable
+                let safeRowsAffected = result.rowsAffected
                 let safeTableName = tableName.map { String($0) }
-                let safeTotalRowCount = totalRowCount
-                let safePrimaryKeyColumn = primaryKeyColumn.map { String($0) }
 
                 guard !Task.isCancelled else {
                     await MainActor.run {
@@ -404,6 +375,7 @@ final class MainContentCoordinator: ObservableObject {
                     return
                 }
 
+                // Phase 1: Display data rows immediately without waiting for metadata
                 await MainActor.run {
                     currentQueryTask = nil
                     toolbarState.isExecuting = false
@@ -416,39 +388,23 @@ final class MainContentCoordinator: ObservableObject {
                         var updatedTab = tabManager.tabs[idx]
                         updatedTab.resultColumns = safeColumns
                         updatedTab.columnTypes = safeColumnTypes
-                        updatedTab.columnDefaults = safeColumnDefaults
-                        updatedTab.columnForeignKeys = safeColumnForeignKeys
-                        updatedTab.columnEnumValues = safeColumnEnumValues
-                        updatedTab.columnNullable = safeColumnNullable
                         updatedTab.resultRows = safeRows
                         updatedTab.resultVersion += 1
                         updatedTab.executionTime = safeExecutionTime
-                        updatedTab.rowsAffected = result.rowsAffected
+                        updatedTab.rowsAffected = safeRowsAffected
                         updatedTab.isExecuting = false
                         updatedTab.lastExecutedAt = Date()
                         updatedTab.tableName = safeTableName
                         updatedTab.isEditable = isEditable && updatedTab.isEditable
-                        updatedTab.pagination.totalRowCount = safeTotalRowCount
                         tabManager.tabs[idx] = updatedTab
+                        TabOpenTimingLogger.shared.markDone(
+                            tabId: tabId,
+                            milestone: "dataDisplayed",
+                            extra: "(\(safeRows.count) rows)"
+                        )
                         AppState.shared.isCurrentTabEditable = updatedTab.isEditable
                             && !updatedTab.isView && updatedTab.tableName != nil
                         toolbarState.isTableTab = updatedTab.tabType == .table
-
-                        // Clear change tracking when loading new data (e.g., from refresh)
-                        // This ensures deleted rows don't retain red background after refresh
-                        if isEditable, let tableName = safeTableName {
-                            changeManager.configureForTable(
-                                tableName: tableName,
-                                columns: safeColumns,
-                                primaryKeyColumn: safePrimaryKeyColumn,
-                                databaseType: conn.type
-                            )
-                        } else {
-                            // For query results, just clear changes
-                            changeManager.clearChanges()
-                        }
-
-                        changeManager.reloadVersion += 1
 
                         QueryHistoryManager.shared.recordQuery(
                             query: sql,
@@ -461,6 +417,100 @@ final class MainContentCoordinator: ObservableObject {
                         )
                     }
                 }
+
+                // Phase 2: Fetch metadata in background, then update tab
+                if isEditable, let tableName = tableName {
+                    do {
+                        if let driver = DatabaseManager.shared.activeDriver {
+                            async let columnInfoTask = driver.fetchColumns(table: tableName)
+                            async let fkInfoTask = driver.fetchForeignKeys(table: tableName)
+                            let quotedTable = conn.type.quoteIdentifier(tableName)
+                            async let countTask: QueryResult = try await DatabaseManager.shared.execute(
+                                query: "SELECT COUNT(*) FROM \(quotedTable)"
+                            )
+
+                            let (columnInfo, fkInfo, countResult) = try await (
+                                columnInfoTask, fkInfoTask, countTask
+                            )
+
+                            var columnDefaults: [String: String?] = [:]
+                            var columnForeignKeys: [String: ForeignKeyInfo] = [:]
+                            var columnNullable: [String: Bool] = [:]
+
+                            for col in columnInfo {
+                                columnDefaults[col.name] = col.defaultValue
+                                columnNullable[col.name] = col.isNullable
+                            }
+
+                            // Build FK lookup map (column name -> FK info)
+                            for fk in fkInfo {
+                                columnForeignKeys[fk.column] = fk
+                            }
+
+                            // Detect primary key column
+                            let primaryKeyColumn = columnInfo.first(where: { $0.isPrimaryKey })?.name
+
+                            var totalRowCount: Int?
+                            if let firstRow = countResult.rows.first,
+                               let countStr = firstRow.first as? String,
+                               let count = Int(countStr) {
+                                totalRowCount = count
+                            }
+
+                            // Build enum/set value lookup map
+                            let columnEnumValues = await fetchEnumValues(
+                                columnInfo: columnInfo,
+                                tableName: tableName,
+                                driver: driver,
+                                connectionType: conn.type
+                            )
+
+                            // Deep copy metadata
+                            let safeColumnDefaults = columnDefaults.mapValues { $0.map { String($0) } }
+                            let safeColumnForeignKeys = columnForeignKeys
+                            let safeColumnEnumValues = columnEnumValues
+                            let safeColumnNullable = columnNullable
+                            let safeTotalRowCount = totalRowCount
+                            let safePrimaryKeyColumn = primaryKeyColumn.map { String($0) }
+
+                            // Phase 2: Update tab with metadata
+                            await MainActor.run {
+                                guard capturedGeneration == queryGeneration else { return }
+                                guard !Task.isCancelled else { return }
+
+                                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                                    var updatedTab = tabManager.tabs[idx]
+                                    updatedTab.columnDefaults = safeColumnDefaults
+                                    updatedTab.columnForeignKeys = safeColumnForeignKeys
+                                    updatedTab.columnEnumValues = safeColumnEnumValues
+                                    updatedTab.columnNullable = safeColumnNullable
+                                    updatedTab.pagination.totalRowCount = safeTotalRowCount
+                                    tabManager.tabs[idx] = updatedTab
+
+                                    changeManager.configureForTable(
+                                        tableName: tableName,
+                                        columns: safeColumns,
+                                        primaryKeyColumn: safePrimaryKeyColumn,
+                                        databaseType: conn.type
+                                    )
+                                }
+                            }
+                        }
+                    } catch {
+                        // Metadata fetch failed — data is already displayed from Phase 1,
+                        // so log the error but don't disrupt the user's view
+                        Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
+                            .error("Phase 2 metadata fetch failed: \(error.localizedDescription)")
+                    }
+                } else {
+                    // For non-editable query results, just clear changes
+                    await MainActor.run {
+                        guard capturedGeneration == queryGeneration else { return }
+                        guard !Task.isCancelled else { return }
+                        changeManager.clearChanges()
+                    }
+                }
+
             } catch {
                 guard capturedGeneration == queryGeneration else { return }
 
@@ -1302,8 +1352,6 @@ final class MainContentCoordinator: ObservableObject {
             tabManager.tabs[index].pendingChanges = TabPendingChanges()
         }
 
-        changeManager.reloadVersion += 1
-
         NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
     }
 
@@ -1340,65 +1388,105 @@ final class MainContentCoordinator: ObservableObject {
         selectedRowIndices: inout Set<Int>,
         tabs: [QueryTab]
     ) {
+        isHandlingTabSwitch = true
+        defer { isHandlingTabSwitch = false }
+
         tabPersistence.flushPendingSave(tabs: tabs, selectedTabId: tabManager.selectedTabId)
 
         if let oldId = oldTabId,
            let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId }) {
-            tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
+            // Only deep-copy change state when there are actual unsaved edits
+            if changeManager.hasChanges {
+                tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
+            }
             tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
         }
 
         if let newId = newTabId,
            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId }) {
             let newTab = tabManager.tabs[newIndex]
+
+            // Attach timing (picks up markTrigger from keyboard shortcut / sidebar if pending)
+            TabOpenTimingLogger.shared.attach(
+                tabId: newId,
+                source: "tabSwitch:\(newTab.tableName ?? newTab.title)"
+            )
+
             selectedRowIndices = newTab.selectedRowIndices
             AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil
             toolbarState.isTableTab = newTab.tabType == .table
 
-            Task { @MainActor in
-                if newTab.pendingChanges.hasChanges {
-                    changeManager.restoreState(from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
+            // Configure change manager without triggering reload yet — we'll fire a single
+            // reloadVersion bump below after everything is set up.
+            if newTab.pendingChanges.hasChanges {
+                changeManager.restoreState(from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
+            } else {
+                changeManager.configureForTable(
+                    tableName: newTab.tableName ?? "",
+                    columns: newTab.resultColumns,
+                    primaryKeyColumn: newTab.resultColumns.first,
+                    databaseType: connection.type,
+                    triggerReload: false
+                )
+            }
+
+            // Defer reloadVersion bump — only needed when we won't run a query.
+            // When a query runs, executeQueryInternal Phase 1 sets new result data
+            // that triggers its own SwiftUI update; bumping beforehand causes a
+            // redundant re-evaluation that blocks the Task executor (15-40ms).
+            TabOpenTimingLogger.shared.mark("tabConfigured", tabId: newId)
+
+            // Defer async operations (database switch, lazy load) to avoid blocking
+            let shouldSkipLazyLoad = tabPersistence.justRestoredTab
+            tabPersistence.clearJustRestoredFlag()
+
+            if !newTab.databaseName.isEmpty {
+                let currentDatabase: String
+                if let sessionId = DatabaseManager.shared.currentSessionId,
+                   let session = DatabaseManager.shared.activeSessions[sessionId] {
+                    currentDatabase = session.connection.database
                 } else {
-                    changeManager.configureForTable(
-                        tableName: newTab.tableName ?? "",
-                        columns: newTab.resultColumns,
-                        primaryKeyColumn: newTab.resultColumns.first,
-                        databaseType: connection.type
+                    currentDatabase = connection.database
+                }
+
+                if newTab.databaseName != currentDatabase {
+                    changeManager.reloadVersion += 1
+                    Task { @MainActor in
+                        await switchDatabase(to: newTab.databaseName)
+                    }
+                    return  // switchDatabase will re-execute the query
+                }
+            }
+
+            // If the tab shows isExecuting but has no results, the previous query was
+            // likely cancelled when the user rapidly switched away. Force-clear the stale
+            // flag so the lazy-load check below can re-execute the query.
+            if newTab.isExecuting && newTab.resultRows.isEmpty && newTab.lastExecutedAt == nil {
+                tabManager.tabs[newIndex].isExecuting = false
+            }
+
+            let needsLazyQuery = !shouldSkipLazyLoad
+                && newTab.tabType == .table
+                && newTab.resultRows.isEmpty
+                && newTab.lastExecutedAt == nil
+                && !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+            if needsLazyQuery {
+                if let session = DatabaseManager.shared.currentSession, session.isConnected {
+                    executeTableTabQueryDirectly()
+                } else {
+                    changeManager.reloadVersion += 1
+                    needsLazyLoad = true
+                    TabOpenTimingLogger.shared.markDone(
+                        tabId: newId, milestone: "tabSwitch-awaitingConnection"
                     )
                 }
-
-                let shouldSkipLazyLoad = tabPersistence.justRestoredTab
-                tabPersistence.clearJustRestoredFlag()
-
-                // Switch database if the new tab belongs to a different database
-                if !newTab.databaseName.isEmpty {
-                    let currentDatabase: String
-                    if let sessionId = DatabaseManager.shared.currentSessionId,
-                       let session = DatabaseManager.shared.activeSessions[sessionId] {
-                        currentDatabase = session.connection.database
-                    } else {
-                        currentDatabase = connection.database
-                    }
-
-                    if newTab.databaseName != currentDatabase {
-                        Task { @MainActor in
-                            await switchDatabase(to: newTab.databaseName)
-                        }
-                        return  // switchDatabase will re-execute the query
-                    }
-                }
-
-                if !shouldSkipLazyLoad &&
-                    newTab.tabType == .table &&
-                    newTab.resultRows.isEmpty &&
-                    newTab.lastExecutedAt == nil &&
-                    !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    if let session = DatabaseManager.shared.currentSession, session.isConnected {
-                        runQuery()
-                    } else {
-                        needsLazyLoad = true
-                    }
-                }
+            } else {
+                // Data already cached or not a table tab — bump reload and finish
+                changeManager.reloadVersion += 1
+                TabOpenTimingLogger.shared.markDone(
+                    tabId: newId, milestone: "tabSwitch-cachedData"
+                )
             }
         } else {
             AppState.shared.isCurrentTabEditable = false

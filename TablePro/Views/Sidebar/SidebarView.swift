@@ -269,6 +269,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
         .contextMenu {
             tableContextMenu()
         }

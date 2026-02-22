@@ -416,39 +416,93 @@ final class MainContentNotificationHandler: ObservableObject {
 
     private func setupTabNavigationObservers() {
         // Cmd+1-9: Select tab by number
+        // No .receive(on:) — already on main thread, saves 1-2ms RunLoop hop
         NotificationCenter.default.publisher(for: .selectTabByNumber)
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] notification in
                 guard let number = notification.object as? Int,
-                      let tabManager = self?.coordinator?.tabManager else { return }
+                      let self,
+                      let tabManager = self.coordinator?.tabManager else { return }
                 let index = number - 1
                 if index >= 0, index < tabManager.tabs.count {
-                    tabManager.selectTab(tabManager.tabs[index])
+                    self.performDirectTabSwitch(to: tabManager.tabs[index])
                 }
             }
             .store(in: &cancellables)
 
         // Cmd+Shift+[ or Cmd+Option+Left: Previous tab
         NotificationCenter.default.publisher(for: .previousTab)
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let tabManager = self?.coordinator?.tabManager,
+                guard let self,
+                      let tabManager = self.coordinator?.tabManager,
                       let current = tabManager.selectedTabIndex,
                       current > 0 else { return }
-                tabManager.selectTab(tabManager.tabs[current - 1])
+                let target = tabManager.tabs[current - 1]
+                TabOpenTimingLogger.shared.markTrigger(
+                    source: "keyboard:prevTab→\(target.tableName ?? target.title)"
+                )
+                self.performDirectTabSwitch(to: target)
             }
             .store(in: &cancellables)
 
         // Cmd+Shift+] or Cmd+Option+Right: Next tab
         NotificationCenter.default.publisher(for: .nextTab)
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                guard let tabManager = self?.coordinator?.tabManager,
+                guard let self,
+                      let tabManager = self.coordinator?.tabManager,
                       let current = tabManager.selectedTabIndex,
                       current + 1 < tabManager.tabs.count else { return }
-                tabManager.selectTab(tabManager.tabs[current + 1])
+                let target = tabManager.tabs[current + 1]
+                TabOpenTimingLogger.shared.markTrigger(
+                    source: "keyboard:nextTab→\(target.tableName ?? target.title)"
+                )
+                self.performDirectTabSwitch(to: target)
             }
             .store(in: &cancellables)
+    }
+
+    /// Perform a direct tab switch bypassing the SwiftUI .onChange delay.
+    /// Calls handleTabChange synchronously, then sets selectedTabId for UI update.
+    private func performDirectTabSwitch(to target: QueryTab) {
+        guard let coordinator = coordinator else { return }
+        let tabManager = coordinator.tabManager
+
+        // Skip if already on this tab
+        guard tabManager.selectedTabId != target.id else { return }
+
+        let oldTabId = tabManager.selectedTabId
+
+        // Set selectedTabId FIRST so that selectedTabIndex is correct inside
+        // handleTabChange (executeTableTabQueryDirectly uses selectedTabIndex).
+        // Set skip flag before selectedTabId to prevent .onChange from re-doing the work.
+        coordinator.skipNextTabChangeOnChange = true
+        tabManager.selectedTabId = target.id
+
+        // Call handleTabChange directly (synchronous — no SwiftUI scheduling delay)
+        var selectedRowIndices = selectedRowIndices.wrappedValue
+        coordinator.handleTabChange(
+            from: oldTabId,
+            to: target.id,
+            selectedRowIndices: &selectedRowIndices,
+            tabs: tabManager.tabs
+        )
+        self.selectedRowIndices.wrappedValue = selectedRowIndices
+
+        // Dismiss autocomplete windows
+        NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
+
+        // Persist tab selection
+        if !coordinator.tabPersistence.isRestoringTabs,
+           !coordinator.tabPersistence.isDismissing {
+            if let sessionId = DatabaseManager.shared.currentSessionId {
+                DatabaseManager.shared.updateSession(sessionId) { session in
+                    session.selectedTabId = target.id
+                }
+                coordinator.tabPersistence.saveTabsAsync(
+                    tabs: tabManager.tabs,
+                    selectedTabId: target.id
+                )
+            }
+        }
     }
 
     // MARK: - Filter Operations

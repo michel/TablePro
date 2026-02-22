@@ -64,17 +64,19 @@ final class DatabaseManager: ObservableObject {
     /// Connect to a database and create/switch to its session
     /// If connection already has a session, switches to it instead
     func connectToSession(_ connection: DatabaseConnection) async throws {
-        // Check if session already exists
-        if activeSessions[connection.id] != nil {
-            // Session exists, just switch to it
+        // Check if session already exists and is connected
+        if let existing = activeSessions[connection.id], existing.driver != nil {
+            // Session is fully connected, just switch to it
             switchToSession(connection.id)
             return
         }
 
-        // Create new session
-        var session = ConnectionSession(connection: connection)
-        session.status = .connecting
-        activeSessions[connection.id] = session
+        // Create new session (or reuse a prepared one)
+        if activeSessions[connection.id] == nil {
+            var session = ConnectionSession(connection: connection)
+            session.status = .connecting
+            activeSessions[connection.id] = session
+        }
         currentSessionId = connection.id
 
         // Create SSH tunnel if needed
@@ -129,10 +131,9 @@ final class DatabaseManager: ObservableObject {
             }
 
             // Update session with successful connection
-            session.driver = driver
-            session.status = driver.status
-            session.effectiveConnection = effectiveConnection
-            activeSessions[connection.id] = session
+            activeSessions[connection.id]?.driver = driver
+            activeSessions[connection.id]?.status = driver.status
+            activeSessions[connection.id]?.effectiveConnection = effectiveConnection
 
             // Restore tab state if it exists
             if let tabState = TabStateStorage.shared.loadTabState(connectionId: connection.id) {

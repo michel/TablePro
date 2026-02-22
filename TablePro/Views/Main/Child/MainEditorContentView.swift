@@ -68,7 +68,12 @@ struct MainEditorContentView: View {
         VStack(spacing: 0) {
             // Tab bar - only show when there are tabs
             if !tabManager.tabs.isEmpty {
-                EditorTabBar(tabManager: tabManager)
+                EditorTabBar(
+                    tabManager: tabManager,
+                    onDirectSelect: { tab in
+                        performDirectTabSwitch(to: tab)
+                    }
+                )
                 Divider()
             }
 
@@ -130,7 +135,6 @@ struct MainEditorContentView: View {
                     schemaProvider: coordinator.schemaProvider,
                     databaseType: coordinator.connection.type
                 )
-                .id(tab.id)
             }
             .frame(minHeight: 100, idealHeight: 200)
 
@@ -415,6 +419,50 @@ struct MainEditorContentView: View {
                 }
             }
         )
+    }
+
+    // MARK: - Direct Tab Switch
+
+    /// Perform a direct tab switch bypassing the SwiftUI .onChange delay.
+    /// Called from EditorTabBar click — calls handleTabChange synchronously.
+    private func performDirectTabSwitch(to tab: QueryTab) {
+        // Skip if already on this tab
+        guard tabManager.selectedTabId != tab.id else { return }
+
+        let oldTabId = tabManager.selectedTabId
+
+        // Set selectedTabId FIRST so that selectedTabIndex is correct inside
+        // handleTabChange (executeTableTabQueryDirectly uses selectedTabIndex).
+        // Set skip flag before selectedTabId to prevent .onChange from re-doing the work.
+        coordinator.skipNextTabChangeOnChange = true
+        tabManager.selectedTabId = tab.id
+
+        // Call handleTabChange directly (synchronous — no SwiftUI scheduling delay)
+        var indices = selectedRowIndices
+        coordinator.handleTabChange(
+            from: oldTabId,
+            to: tab.id,
+            selectedRowIndices: &indices,
+            tabs: tabManager.tabs
+        )
+        selectedRowIndices = indices
+
+        // Dismiss autocomplete windows
+        NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
+
+        // Persist tab selection
+        if !coordinator.tabPersistence.isRestoringTabs,
+           !coordinator.tabPersistence.isDismissing {
+            if let sessionId = DatabaseManager.shared.currentSessionId {
+                DatabaseManager.shared.updateSession(sessionId) { session in
+                    session.selectedTabId = tab.id
+                }
+                coordinator.tabPersistence.saveTabsAsync(
+                    tabs: tabManager.tabs,
+                    selectedTabId: tab.id
+                )
+            }
+        }
     }
 
     // MARK: - Empty State

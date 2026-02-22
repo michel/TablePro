@@ -103,7 +103,8 @@ final class TabPersistenceService: ObservableObject {
         )
     }
 
-    /// Flush pending debounced save before tab switch
+    /// Flush pending debounced save before tab switch.
+    /// Saves on a background thread to avoid blocking the main thread.
     /// - Parameters:
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
@@ -111,7 +112,27 @@ final class TabPersistenceService: ObservableObject {
         guard let task = saveDebounceTask, !task.isCancelled else { return }
 
         task.cancel()
-        saveTabsImmediately(tabs: tabs, selectedTabId: selectedTabId)
+        saveTabsAsync(tabs: tabs, selectedTabId: selectedTabId)
+    }
+
+    /// Save tabs asynchronously on a background thread to avoid blocking the main thread.
+    /// Use this for tab-switch paths; use saveTabsImmediately only when the process is about to exit.
+    /// - Parameters:
+    ///   - tabs: Current tabs array
+    ///   - selectedTabId: Currently selected tab ID
+    func saveTabsAsync(tabs: [QueryTab], selectedTabId: UUID?) {
+        guard !isRestoringTabs, !isDismissing else { return }
+
+        let tabsToSave = tabs
+        let selectedId = selectedTabId
+        let connId = connectionId
+        Task.detached(priority: .utility) {
+            TabStateStorage.shared.saveTabState(
+                connectionId: connId,
+                tabs: tabsToSave,
+                selectedTabId: selectedId
+            )
+        }
     }
 
     // MARK: - Restore Operations

@@ -492,7 +492,9 @@ final class QueryTabManager: ObservableObject {
         if let existingTab = tabs.first(where: {
             $0.tabType == .table && $0.tableName == tableName && $0.databaseName == databaseName
         }) {
-            selectedTabId = existingTab.id
+            if selectedTabId != existingTab.id {
+                selectedTabId = existingTab.id
+            }
             return false  // No need to run query, data already loaded
         }
 

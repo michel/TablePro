@@ -24,6 +24,14 @@ struct RowVisualState {
     static let empty = RowVisualState(isDeleted: false, isInserted: false, modifiedColumns: [])
 }
 
+/// Identity snapshot used to skip redundant updateNSView work when nothing has changed
+private struct DataGridIdentity: Equatable {
+    let reloadVersion: Int
+    let rowCount: Int
+    let columnCount: Int
+    let isEditable: Bool
+}
+
 /// High-performance table view using AppKit NSTableView
 struct DataGridView: NSViewRepresentable {
     let rowProvider: InMemoryRowProvider
@@ -159,6 +167,30 @@ struct DataGridView: NSViewRepresentable {
 
         if tableView.editedRow >= 0 { return }
 
+        // Identity-based early-return: skip heavy work when nothing has changed.
+        // Prevents redundant column comparison, visual-state cache rebuild, sort sync,
+        // and reloadData() during cascading onChange re-evaluations.
+        let currentIdentity = DataGridIdentity(
+            reloadVersion: changeManager.reloadVersion,
+            rowCount: rowProvider.totalRowCount,
+            columnCount: rowProvider.columns.count,
+            isEditable: isEditable
+        )
+        if currentIdentity == coordinator.lastIdentity {
+            // Only refresh closure callbacks — they capture new state on each body eval
+            coordinator.onCellEdit = onCellEdit
+            coordinator.onSort = onSort
+            coordinator.onAddRow = onAddRow
+            coordinator.onUndoInsert = onUndoInsert
+            coordinator.onFilterColumn = onFilterColumn
+            coordinator.onCommit = onCommit
+            coordinator.onRefresh = onRefresh
+            coordinator.onDeleteRows = onDeleteRows
+            coordinator.getVisualState = getVisualState
+            return
+        }
+        coordinator.lastIdentity = currentIdentity
+
         let versionChanged = coordinator.lastReloadVersion != changeManager.reloadVersion
         let oldRowCount = coordinator.cachedRowCount
         let oldColumnCount = coordinator.cachedColumnCount
@@ -204,25 +236,49 @@ struct DataGridView: NSViewRepresentable {
             coordinator.isRebuildingColumns = true
             defer { coordinator.isRebuildingColumns = false }
 
-            let columnsToRemove = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
-            for column in columnsToRemove {
-                tableView.removeTableColumn(column)
-            }
+            if columnsChanged {
+                // Column count changed — full rebuild (remove all, create all)
+                let columnsToRemove = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
+                for column in columnsToRemove {
+                    tableView.removeTableColumn(column)
+                }
 
-            for (index, columnName) in rowProvider.columns.enumerated() {
-                let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
-                column.title = columnName
-                // Use optimal width calculation based on both header and cell content
-                column.width = cellFactory.calculateOptimalColumnWidth(
-                    for: columnName,
-                    columnIndex: index,
-                    rowProvider: rowProvider
-                )
-                column.minWidth = 30
-                column.resizingMask = .userResizingMask
-                column.isEditable = isEditable
-                column.sortDescriptorPrototype = NSSortDescriptor(key: "col_\(index)", ascending: true)
-                tableView.addTableColumn(column)
+                for (index, columnName) in rowProvider.columns.enumerated() {
+                    let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("col_\(index)"))
+                    column.title = columnName
+                    if let savedWidth = columnLayout.columnWidths[columnName] {
+                        column.width = savedWidth
+                    } else {
+                        column.width = cellFactory.calculateOptimalColumnWidth(
+                            for: columnName,
+                            columnIndex: index,
+                            rowProvider: rowProvider
+                        )
+                    }
+                    column.minWidth = 30
+                    column.resizingMask = .userResizingMask
+                    column.isEditable = isEditable
+                    column.sortDescriptorPrototype = NSSortDescriptor(key: "col_\(index)", ascending: true)
+                    tableView.addTableColumn(column)
+                }
+            } else {
+                // Same column count — lightweight in-place update (avoids remove/add overhead)
+                for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+                    guard let colIndex = Self.columnIndex(from: column.identifier),
+                          colIndex < rowProvider.columns.count else { continue }
+                    let columnName = rowProvider.columns[colIndex]
+                    column.title = columnName
+                    if let savedWidth = columnLayout.columnWidths[columnName] {
+                        column.width = savedWidth
+                    } else {
+                        column.width = cellFactory.calculateOptimalColumnWidth(
+                            for: columnName,
+                            columnIndex: colIndex,
+                            rowProvider: rowProvider
+                        )
+                    }
+                    column.isEditable = isEditable
+                }
             }
             // Restore user-resized column widths after rebuild (only if user explicitly resized)
             if coordinator.hasUserResizedColumns, !columnLayout.columnWidths.isEmpty {
@@ -239,6 +295,22 @@ struct DataGridView: NSViewRepresentable {
             // Restore saved column order after rebuild (only if user explicitly reordered)
             if coordinator.hasUserResizedColumns, let savedOrder = columnLayout.columnOrder {
                 DataGridView.applyColumnOrder(savedOrder, to: tableView, columns: rowProvider.columns)
+            }
+
+            // Persist calculated widths so subsequent tab switches reuse them
+            // instead of calling the expensive calculateOptimalColumnWidth.
+            if !coordinator.hasUserResizedColumns {
+                var newWidths: [String: CGFloat] = [:]
+                for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+                    guard let colIndex = Self.columnIndex(from: column.identifier),
+                          colIndex < rowProvider.columns.count else { continue }
+                    newWidths[rowProvider.columns[colIndex]] = column.width
+                }
+                if !newWidths.isEmpty && newWidths != columnLayout.columnWidths {
+                    DispatchQueue.main.async {
+                        self.columnLayout.columnWidths = newWidths
+                    }
+                }
             }
         } else {
             // Always sync column editability (e.g., view tabs reusing table columns)
@@ -455,6 +527,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     @Binding var selectedRowIndices: Set<Int>
 
+    fileprivate var lastIdentity: DataGridIdentity?
     var lastReloadVersion: Int = 0
     private(set) var cachedRowCount: Int = 0
     private(set) var cachedColumnCount: Int = 0

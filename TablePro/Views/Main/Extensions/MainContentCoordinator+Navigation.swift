@@ -11,6 +11,15 @@ extension MainContentCoordinator {
     // MARK: - Table Tab Opening
 
     func openTableTab(_ tableName: String, showStructure: Bool = false, isView: Bool = false) {
+        // Fast path: if this table is already the active tab, skip all work
+        if let current = tabManager.selectedTab,
+           current.tabType == .table,
+           current.tableName == tableName {
+            if showStructure, let idx = tabManager.selectedTabIndex {
+                tabManager.tabs[idx].showStructure = true
+            }
+            return
+        }
         // Get current database name from active session (may differ from connection default after Cmd+K switch)
         let currentDatabase: String
         if let sessionId = DatabaseManager.shared.currentSessionId,
@@ -27,6 +36,11 @@ extension MainContentCoordinator {
             isView: isView,
             databaseName: currentDatabase
         )
+
+        // Attach timing once tab UUID is known (promotes any pending sidebar trigger)
+        if let tabId = tabManager.selectedTabId {
+            TabOpenTimingLogger.shared.attach(tabId: tabId, source: "openTable:\(tableName)")
+        }
 
         // Initialize pagination for new table tab
         if needsQuery, let tabIndex = tabManager.selectedTabIndex {
@@ -46,9 +60,10 @@ extension MainContentCoordinator {
         }
 
         if needsQuery {
-            Task { @MainActor in
-                runQuery()
-            }
+            runQuery()
+        } else if let tabId = tabManager.selectedTabId {
+            // Tab was already open and loaded — nothing more to do
+            TabOpenTimingLogger.shared.markDone(tabId: tabId, milestone: "openTable-tabReused")
         }
     }
 

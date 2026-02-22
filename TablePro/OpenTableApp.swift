@@ -152,11 +152,10 @@ struct TableProApp: App {
         .defaultSize(width: 700, height: 450)
 
         // Connection Form Window - opens when creating/editing a connection
-        WindowGroup("Connection", id: "connection-form", for: UUID?.self) { $connectionId in
+        WindowGroup(id: "connection-form", for: UUID?.self) { $connectionId in
             ConnectionFormView(connectionId: connectionId ?? nil)
                 .tint(accentTint)
         }
-        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
 
         // Main Window - opens when connecting to database

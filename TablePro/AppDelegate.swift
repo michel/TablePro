@@ -474,18 +474,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func isConnectionFormWindow(_ window: NSWindow) -> Bool {
-        // Check by window identifier or title
+        // Check by window identifier
         // WindowGroup uses "connection-form-X" format for identifiers
-        window.identifier?.rawValue.contains("connection-form") == true ||
-            window.title == "Connection"
+        window.identifier?.rawValue.contains("connection-form") == true
     }
 
     private func configureConnectionFormWindowStyle(_ window: NSWindow) {
-        // Remove miniaturize (yellow) button functionality
-        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-
-        // Remove zoom (green) button functionality
-        window.standardWindowButton(.zoomButton)?.isHidden = true
+        // Disable miniaturize (yellow) and zoom (green) buttons
+        window.standardWindowButton(.miniaturizeButton)?.isEnabled = false
+        window.standardWindowButton(.zoomButton)?.isEnabled = false
 
         // Remove these capabilities from the window's style mask
         window.styleMask.remove(.miniaturizable)
@@ -494,12 +491,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.collectionBehavior.remove(.fullScreenPrimary)
         window.collectionBehavior.insert(.fullScreenNone)
 
-        // Inset titlebar - make traffic light part of content area
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.styleMask.insert(.fullSizeContentView)
-
-        // Keep connection form above welcome window (floating but allows interaction with other windows)
+        // Keep connection form above welcome window
         window.level = .floating
     }
 }
