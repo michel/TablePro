@@ -22,7 +22,7 @@ struct SchemaPreviewSheet: View {
             HStack {
                 Image(systemName: "doc.text.magnifyingglass")
                     .font(.title2)
-                    .foregroundColor(.blue)
+                    .foregroundStyle(.blue)
                 Text("Preview Schema Changes")
                     .font(.title2)
                     .fontWeight(.semibold)
@@ -80,10 +80,10 @@ struct SchemaPreviewSheet: View {
         VStack(spacing: 12) {
             Image(systemName: "doc.plaintext")
                 .font(.system(size: 48))
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text("No changes to preview")
                 .font(.title3)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -93,7 +93,7 @@ struct SchemaPreviewSheet: View {
             HStack {
                 Text("Statement \(index)")
                     .font(.headline)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 copyButton(sql: sql)
             }

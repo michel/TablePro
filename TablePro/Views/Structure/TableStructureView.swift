@@ -598,7 +598,7 @@ struct TableStructureView: View {
                     }
                     Text("\(Int(ddlFontSize))")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .frame(width: 24)
                     Button(action: { ddlFontSize = min(24, ddlFontSize + 1) }) {
                         Image(systemName: "textformat.size.larger")
@@ -611,7 +611,7 @@ struct TableStructureView: View {
                 if showCopyConfirmation {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundStyle(.green)
                         Text("Copied!")
                     }
                     .transition(.opacity)
@@ -646,9 +646,9 @@ struct TableStructureView: View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundColor(.orange)
+                .foregroundStyle(.orange)
             Text(message)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -657,9 +657,9 @@ struct TableStructureView: View {
         VStack(spacing: 8) {
             Image(systemName: "tray")
                 .font(.largeTitle)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
             Text(message)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

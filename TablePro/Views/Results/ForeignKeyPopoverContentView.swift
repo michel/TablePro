@@ -53,7 +53,7 @@ struct ForeignKeyPopoverContentView: View {
                     .frame(height: 60)
             } else if filteredValues.isEmpty {
                 Text("No values found")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .font(.system(size: 12))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 60)
@@ -93,13 +93,13 @@ struct ForeignKeyPopoverContentView: View {
         if value.id == currentValue {
             Text(value.display)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(.accentColor)
+                .foregroundStyle(.accentColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else {
             Text(value.display)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }

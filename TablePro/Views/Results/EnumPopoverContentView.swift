@@ -71,19 +71,19 @@ struct EnumPopoverContentView: View {
         if value == enumNullMarker {
             Text(value)
                 .font(.system(size: 12, design: .monospaced).italic())
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else if value == currentValue {
             Text(value)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(.accentColor)
+                .foregroundStyle(.accentColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else {
             Text(value)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundColor(.primary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
