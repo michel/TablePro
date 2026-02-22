@@ -62,393 +62,301 @@ struct ConnectionFormView: View {
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
 
+    // Tab selection
+    @State private var selectedTab: FormTab = .general
+
     // Store original connection for editing
     @State private var originalConnection: DatabaseConnection?
+
+    // MARK: - Enums
 
     enum TestResult {
         case success
         case failure(String)
     }
 
+    private enum FormTab: String, CaseIterable {
+        case general = "General"
+        case ssh = "SSH Tunnel"
+        case ssl = "SSL/TLS"
+        case advanced = "Advanced"
+    }
+
+    // MARK: - Body
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Spacer()
-                Text(isNew ? String(localized: "New Connection") : String(localized: "Edit Connection"))
-                    .font(.headline)
-                Spacer()
-            }
-            .padding(.top, DesignConstants.Spacing.md)
-            .padding(.bottom, 16)
-
-            // Form content
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    generalSection
-                    appearanceSection
-                    connectionSection
-                    authSection
-                    if type != .sqlite {
-                        sslSection
-                        sshSection
-                    }
-                    aiSection
+            // Tab picker
+            Picker("", selection: $selectedTab) {
+                ForEach(visibleTabs, id: \.rawValue) { tab in
+                    Text(tab.rawValue).tag(tab)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-                .padding(.bottom, 20)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+
+            // Tab form content
+            tabForm
 
             Divider()
 
-            // Footer
             footer
         }
-        .frame(width: 520)
-        .ignoresSafeArea()
+        .frame(width: 480, height: 520)
+        .navigationTitle(isNew ? String(localized: "New Connection") : String(localized: "Edit Connection"))
         .onAppear {
             loadConnectionData()
             loadSSHConfig()
         }
-        .onChange(of: type) { newType in
-            port = String(newType.defaultPort)
-        }
-    }
-
-    // MARK: - General Section
-
-    private var generalSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("General")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-
-            VStack(spacing: 12) {
-                FormField(label: "Name", icon: "tag") {
-                    TextField("Connection name", text: $name)
-                        .textFieldStyle(.plain)
-                }
-
-                FormField(label: "Type", icon: "cylinder.split.1x2") {
-                    Picker("", selection: $type) {
-                        ForEach(DatabaseType.allCases) { dbType in
-                            Label(dbType.rawValue, image: iconForType(dbType))
-                                .tag(dbType)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                }
+        .onChange(of: type) {
+            port = String(type.defaultPort)
+            if type == .sqlite && (selectedTab == .ssh || selectedTab == .ssl) {
+                selectedTab = .general
             }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 
-    // MARK: - Appearance Section
+    // MARK: - Tab Picker Helpers
 
-    private var appearanceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Appearance")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
+    private var visibleTabs: [FormTab] {
+        if type == .sqlite {
+            return [.general, .advanced]
+        }
+        return FormTab.allCases
+    }
 
-            VStack(spacing: 12) {
-                FormField(label: "Color", icon: "paintpalette") {
-                    ConnectionColorPicker(selectedColor: $connectionColor)
+    // MARK: - Tab Form Content
+
+    @ViewBuilder
+    private var tabForm: some View {
+        switch selectedTab {
+        case .general:
+            generalForm
+        case .ssh:
+            sshForm
+        case .ssl:
+            sslForm
+        case .advanced:
+            advancedForm
+        }
+    }
+
+    // MARK: - General Tab
+
+    private var generalForm: some View {
+        Form {
+            Section {
+                Picker(String(localized: "Type"), selection: $type) {
+                    ForEach(DatabaseType.allCases) { t in
+                        Text(t.rawValue).tag(t)
+                    }
                 }
-
-                FormField(label: "Tag", icon: "tag") {
-                    ConnectionTagEditor(selectedTagId: $selectedTagId)
-                }
-
-                FormField(label: "Read-Only", icon: "lock") {
-                    Toggle("", isOn: $isReadOnly)
-                        .toggleStyle(.switch)
-                        .help("Prevent write operations (INSERT, UPDATE, DELETE, DROP, etc.)")
-                }
+                TextField(
+                    String(localized: "Name"),
+                    text: $name,
+                    prompt: Text("Connection name")
+                )
             }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-    }
 
-    // MARK: - Connection Section
-
-    private var connectionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Connection")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-
-            VStack(spacing: 12) {
-                if type != .sqlite {
-                    FormField(label: "Host", icon: "server.rack") {
-                        TextField("localhost", text: $host)
-                            .textFieldStyle(.plain)
-                    }
-
-                    FormField(label: "Port", icon: "number") {
-                        TextField(defaultPort, text: $port)
-                            .textFieldStyle(.plain)
-                    }
-                }
-
-                FormField(
-                    label: type == .sqlite ? String(localized: "File Path") : String(localized: "Database"),
-                    icon: type == .sqlite ? "doc" : "cylinder"
-                ) {
+            if type == .sqlite {
+                Section(String(localized: "Database File")) {
                     HStack {
                         TextField(
-                            type == .sqlite ? "/path/to/database.sqlite" : "database_name",
-                            text: $database
+                            String(localized: "File Path"),
+                            text: $database,
+                            prompt: Text("/path/to/database.sqlite")
                         )
-                        .textFieldStyle(.plain)
+                        Button(String(localized: "Browse...")) { browseForFile() }
+                            .controlSize(.small)
+                    }
+                }
+            } else {
+                Section(String(localized: "Connection")) {
+                    TextField(
+                        String(localized: "Host"),
+                        text: $host,
+                        prompt: Text("localhost")
+                    )
+                    TextField(
+                        String(localized: "Port"),
+                        text: $port,
+                        prompt: Text(defaultPort)
+                    )
+                    TextField(
+                        String(localized: "Database"),
+                        text: $database,
+                        prompt: Text("database_name")
+                    )
+                }
+                Section(String(localized: "Authentication")) {
+                    TextField(
+                        String(localized: "Username"),
+                        text: $username,
+                        prompt: Text("root")
+                    )
+                    SecureField(
+                        String(localized: "Password"),
+                        text: $password
+                    )
+                }
+            }
 
-                        if type == .sqlite {
-                            Button("Browse...") {
-                                browseForFile()
+            Section(String(localized: "Appearance")) {
+                LabeledContent(String(localized: "Color")) {
+                    ConnectionColorPicker(selectedColor: $connectionColor)
+                }
+                LabeledContent(String(localized: "Tag")) {
+                    ConnectionTagEditor(selectedTagId: $selectedTagId)
+                }
+                Toggle(String(localized: "Read-Only"), isOn: $isReadOnly)
+                    .help("Prevent write operations (INSERT, UPDATE, DELETE, DROP, etc.)")
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - SSH Tunnel Tab
+
+    private var sshForm: some View {
+        Form {
+            Section {
+                Toggle(String(localized: "Enable SSH Tunnel"), isOn: $sshEnabled)
+            }
+
+            if sshEnabled {
+                Section(String(localized: "Server")) {
+                    if !sshConfigEntries.isEmpty {
+                        Picker(String(localized: "Config Host"), selection: $selectedSSHConfigHost) {
+                            Text(String(localized: "Manual")).tag("")
+                            ForEach(sshConfigEntries) { entry in
+                                Text(entry.displayName).tag(entry.host)
+                            }
+                        }
+                        .onChange(of: selectedSSHConfigHost) {
+                            applySSHConfigEntry(selectedSSHConfigHost)
+                        }
+                    }
+                    if selectedSSHConfigHost.isEmpty || sshConfigEntries.isEmpty {
+                        TextField(
+                            String(localized: "SSH Host"),
+                            text: $sshHost,
+                            prompt: Text("ssh.example.com")
+                        )
+                    }
+                    TextField(
+                        String(localized: "SSH Port"),
+                        text: $sshPort,
+                        prompt: Text("22")
+                    )
+                    TextField(
+                        String(localized: "SSH User"),
+                        text: $sshUsername,
+                        prompt: Text("username")
+                    )
+                }
+                Section(String(localized: "Authentication")) {
+                    Picker(String(localized: "Method"), selection: $sshAuthMethod) {
+                        ForEach(SSHAuthMethod.allCases) { method in
+                            Text(method.rawValue).tag(method)
+                        }
+                    }
+                    if sshAuthMethod == .password {
+                        SecureField(String(localized: "Password"), text: $sshPassword)
+                    } else {
+                        LabeledContent(String(localized: "Key File")) {
+                            HStack {
+                                TextField("", text: $sshPrivateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                                Button(String(localized: "Browse")) { browseForPrivateKey() }
+                                    .controlSize(.small)
+                            }
+                        }
+                        SecureField(String(localized: "Passphrase"), text: $keyPassphrase)
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - SSL/TLS Tab
+
+    private var sslForm: some View {
+        Form {
+            Section {
+                Picker(String(localized: "SSL Mode"), selection: $sslMode) {
+                    ForEach(SSLMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+            }
+
+            if sslMode != .disabled {
+                Section {
+                    Text(sslMode.description)
+                        .foregroundStyle(.secondary)
+                }
+
+                if sslMode == .verifyCa || sslMode == .verifyIdentity {
+                    Section(String(localized: "CA Certificate")) {
+                        LabeledContent(String(localized: "CA Cert")) {
+                            HStack {
+                                TextField("", text: $sslCaCertPath, prompt: Text("/path/to/ca-cert.pem"))
+                                Button(String(localized: "Browse")) {
+                                    browseForCertificate(binding: $sslCaCertPath)
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+
+                Section(String(localized: "Client Certificates (Optional)")) {
+                    LabeledContent(String(localized: "Client Cert")) {
+                        HStack {
+                            TextField("", text: $sslClientCertPath, prompt: Text(String(localized: "(optional)")))
+                            Button(String(localized: "Browse")) {
+                                browseForCertificate(binding: $sslClientCertPath)
+                            }
+                            .controlSize(.small)
+                        }
+                    }
+                    LabeledContent(String(localized: "Client Key")) {
+                        HStack {
+                            TextField("", text: $sslClientKeyPath, prompt: Text(String(localized: "(optional)")))
+                            Button(String(localized: "Browse")) {
+                                browseForCertificate(binding: $sslClientKeyPath)
                             }
                             .controlSize(.small)
                         }
                     }
                 }
             }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
-    // MARK: - Auth Section
+    // MARK: - Advanced Tab
 
-    @ViewBuilder
-    private var authSection: some View {
-        if type != .sqlite {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Authentication")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-
-                VStack(spacing: 12) {
-                    FormField(label: "Username", icon: "person") {
-                        TextField("root", text: $username)
-                            .textFieldStyle(.plain)
-                    }
-
-                    FormField(label: "Password", icon: "lock") {
-                        SecureField("••••••••", text: $password)
-                            .textFieldStyle(.plain)
+    private var advancedForm: some View {
+        Form {
+            Section(String(localized: "AI")) {
+                Picker(String(localized: "AI Policy"), selection: $aiPolicy) {
+                    Text(String(localized: "Use Default"))
+                        .tag(AIConnectionPolicy?.none as AIConnectionPolicy?)
+                    ForEach(AIConnectionPolicy.allCases) { policy in
+                        Text(policy.displayName)
+                            .tag(AIConnectionPolicy?.some(policy) as AIConnectionPolicy?)
                     }
                 }
-                .padding(12)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
-    }
-
-    // MARK: - SSH Section
-
-    private var sslSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("SSL/TLS")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Picker("", selection: $sslMode) {
-                    ForEach(SSLMode.allCases) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                .labelsHidden()
-                .fixedSize()
-            }
-
-            if sslMode != .disabled {
-                VStack(spacing: 12) {
-                    Text(sslMode.description)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if sslMode == .verifyCa || sslMode == .verifyIdentity {
-                        FormField(label: "CA Cert", icon: "lock.shield") {
-                            HStack {
-                                TextField("/path/to/ca-cert.pem", text: $sslCaCertPath)
-                                    .textFieldStyle(.plain)
-                                Button("Browse") { browseForCertificate(binding: $sslCaCertPath) }
-                                    .controlSize(.small)
-                            }
-                        }
-                    }
-
-                    FormField(label: "Client Cert", icon: "person.badge.key") {
-                        HStack {
-                            TextField("(optional)", text: $sslClientCertPath)
-                                .textFieldStyle(.plain)
-                            Button("Browse") { browseForCertificate(binding: $sslClientCertPath) }
-                                .controlSize(.small)
-                        }
-                    }
-
-                    FormField(label: "Client Key", icon: "key") {
-                        HStack {
-                            TextField("(optional)", text: $sslClientKeyPath)
-                                .textFieldStyle(.plain)
-                            Button("Browse") { browseForCertificate(binding: $sslClientKeyPath) }
-                                .controlSize(.small)
-                        }
-                    }
-                }
-                .padding(12)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .cornerRadius(8)
-            }
-        }
-    }
-
-    private var sshSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("SSH Tunnel")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Toggle("", isOn: $sshEnabled)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-            }
-
-            if sshEnabled {
-                VStack(spacing: 12) {
-                    // SSH Host - from config or manual
-                    if !sshConfigEntries.isEmpty {
-                        FormField(label: "SSH Host", icon: "desktopcomputer") {
-                            HStack {
-                                Picker("", selection: $selectedSSHConfigHost) {
-                                    Text("Manual").tag("")
-                                    ForEach(sshConfigEntries) { entry in
-                                        Text(entry.displayName).tag(entry.host)
-                                    }
-                                }
-                                .labelsHidden()
-                                .fixedSize()
-                                .onChange(of: selectedSSHConfigHost) { newValue in
-                                    applySSHConfigEntry(newValue)
-                                }
-
-                                Spacer()
-                            }
-                        }
-                    }
-
-                    // Manual SSH Host input
-                    if selectedSSHConfigHost.isEmpty || sshConfigEntries.isEmpty {
-                        FormField(label: "SSH Host", icon: "desktopcomputer") {
-                            TextField("ssh.example.com", text: $sshHost)
-                                .textFieldStyle(.plain)
-                        }
-                    }
-
-                    FormField(label: "SSH Port", icon: "number") {
-                        TextField("22", text: $sshPort)
-                            .textFieldStyle(.plain)
-                    }
-
-                    FormField(label: "SSH User", icon: "person") {
-                        TextField("username", text: $sshUsername)
-                            .textFieldStyle(.plain)
-                    }
-
-                    // Auth method picker
-                    FormField(label: "Auth", icon: "key") {
-                        HStack {
-                            Picker("", selection: $sshAuthMethod) {
-                                ForEach(SSHAuthMethod.allCases) { method in
-                                    Label(method.rawValue, systemImage: method.iconName)
-                                        .tag(method)
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.segmented)
-                            .fixedSize()
-
-                            Spacer()
-                        }
-                    }
-
-                    // Password or Private Key based on auth method
-                    if sshAuthMethod == .password {
-                        FormField(label: "SSH Pass", icon: "lock.shield") {
-                            SecureField("••••••••", text: $sshPassword)
-                                .textFieldStyle(.plain)
-                        }
-                    } else {
-                        FormField(label: "Key File", icon: "doc.text") {
-                            HStack {
-                                TextField("~/.ssh/id_rsa", text: $sshPrivateKeyPath)
-                                    .textFieldStyle(.plain)
-
-                                Button("Browse") {
-                                    browseForPrivateKey()
-                                }
-                                .controlSize(.small)
-                            }
-                        }
-
-                        FormField(label: "Passphrase", icon: "key") {
-                            SecureField("(optional)", text: $keyPassphrase)
-                                .textFieldStyle(.plain)
-                        }
-                    }
-                }
-                .padding(12)
-                .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-        }
-    }
-
-    // MARK: - AI Section
-
-    private var aiSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("AI")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-
-            VStack(spacing: 12) {
-                FormField(label: "AI Policy", icon: "sparkles") {
-                    Picker("", selection: $aiPolicy) {
-                        Text(String(localized: "Use Default"))
-                            .tag(AIConnectionPolicy?.none as AIConnectionPolicy?)
-                        ForEach(AIConnectionPolicy.allCases) { policy in
-                            Text(policy.displayName)
-                                .tag(AIConnectionPolicy?.some(policy) as AIConnectionPolicy?)
-                        }
-                    }
-                    .labelsHidden()
-                }
-            }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
     }
 
     // MARK: - Footer
@@ -811,37 +719,6 @@ struct ConnectionFormView: View {
         if let keyPath = entry.identityFile {
             sshPrivateKeyPath = keyPath
             sshAuthMethod = .privateKey
-        }
-    }
-
-    private func iconForType(_ type: DatabaseType) -> String {
-        type.iconName
-    }
-
-    private func colorForType(_ type: DatabaseType) -> Color {
-        type.themeColor
-    }
-}
-
-// MARK: - Form Field Component
-
-struct FormField<Content: View>: View {
-    let label: String
-    let icon: String
-    @ViewBuilder var content: () -> Content
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .frame(width: 20)
-                .foregroundStyle(.secondary)
-
-            Text(label)
-                .frame(width: 80, alignment: .leading)
-                .foregroundStyle(.secondary)
-
-            content()
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
