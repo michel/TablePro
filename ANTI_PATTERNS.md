@@ -1,6 +1,6 @@
 # TablePro Anti-Patterns & macOS Incorrect Approaches
 
-Audit date: 2026-02-22 | Total issues: 56 | Fixed: 48 | Deferred: 8
+Audit date: 2026-02-22 | Total issues: 56 | Fixed: 53 | Deferred: 3
 
 ## Status Legend
 
@@ -15,7 +15,7 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 48 | Deferred: 8
 | ---- | ---------------------------------------------------------------------------------------------------- | -------- | -------- | -------------------- |
 | S-01 | `@StateObject` for singleton/shared instances in child views — should be `@ObservedObject`           | High     | FIXED    | `e41cce9`            |
 | S-02 | `@StateObject` re-creates instances on each parent re-render (WelcomeWindowView, ConnectionFormView) | High     | FIXED    | `e41cce9`            |
-| S-03 | Multiple `.sheet(isPresented:)` on same view — only last one works reliably                          | Medium   | DEFERRED | —                    |
+| S-03 | Multiple `.sheet(isPresented:)` on same view — only last one works reliably                          | Medium   | FIXED    | `aa6fbd1`            |
 | S-04 | `ForEach(enumerated())` without stable ID — use `ForEach(array.indices)` or identifiable             | Medium   | FIXED    | `752388b`, `004419a` |
 | S-05 | `@State` storing `Task` handles without cancellation on disappear                                    | High     | FIXED    | `57dd77f`            |
 | S-06 | Duplicate default initializers on `@StateObject` properties in MainContentView                       | Low      | FIXED    | `714dbf4`            |
@@ -48,10 +48,10 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 48 | Deferred: 8
 | ID   | Issue                                                          | Severity | Status   | Commit    |
 | ---- | -------------------------------------------------------------- | -------- | -------- | --------- |
 | C-01 | Bare `Task {}` not inheriting `@MainActor` context (Swift 5.9) | Critical | FIXED    | `ce46339` |
-| C-02 | `RunLoop.current.run(until:)` blocking main thread             | Critical | DEFERRED | —         |
+| C-02 | `RunLoop.current.run(until:)` blocking main thread             | Critical | FIXED    | `1ad188d` |
 | C-03 | Silent error swallowing in empty `catch {}` blocks             | High     | FIXED    | `564eea6` |
 | C-04 | `queue.sync` potential deadlock in MariaDB/LibPQ connections   | Critical | DEFERRED | —         |
-| C-05 | `nonisolated(unsafe)` TOCTOU in SQLiteDriver                   | High     | DEFERRED | —         |
+| C-05 | `nonisolated(unsafe)` TOCTOU in SQLiteDriver                   | High     | FIXED    | `42a61d4` |
 | C-06 | `Task {}` in `defer` blocks — not guaranteed to run            | Medium   | FIXED    | (direct)  |
 | C-08 | `DispatchQueue.main.async` instead of `Task { @MainActor in }` | Medium   | FIXED    | `11f49d0` |
 | C-09 | `DispatchWorkItem` debounce pattern — use `Task`-based pattern | Low      | FIXED    | `0371f5b` |
@@ -76,7 +76,7 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 48 | Deferred: 8
 | M-11 | `Bundle.main.infoDictionary` repeated access — centralize in extension    | Low      | FIXED    | `6977398` |
 | M-12 | Deprecated `NSWorkspace.selectFile` — use `activateFileViewerSelecting`   | Low      | FIXED    | `bc0b9a7` |
 | M-13 | Duplicate `ExportServiceState` wrapper — observe `ExportService` directly | Medium   | FIXED    | `85ac52a` |
-| M-14 | Combine pipelines in NotificationHandler — should use async sequences     | Low      | DEFERRED | —         |
+| M-14 | Combine pipelines in NotificationHandler — should use async sequences     | Low      | FIXED    | `9164eac` |
 | M-15 | Missing `removeObserver(self)` in `applicationWillTerminate`              | Medium   | FIXED    | `13d8c5f` |
 | M-16 | ConnectionStorage re-decodes from UserDefaults on every call              | Medium   | FIXED    | `663b702` |
 | M-17 | Force-unwrap on Application Support directory URL                         | Medium   | FIXED    | `4f95119` |
@@ -86,7 +86,7 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 48 | Deferred: 8
 
 | ID     | Issue                                           | Severity | Status   | Commit |
 | ------ | ----------------------------------------------- | -------- | -------- | ------ |
-| ACC-01 | Missing accessibility labels on custom controls | Medium   | DEFERRED | —      |
+| ACC-01 | Missing accessibility labels on custom controls | Medium   | FIXED    | `49942d8` |
 | ACC-02 | Editor ignores system Large Text setting        | Medium   | DEFERRED | —      |
 
 ---
@@ -103,33 +103,13 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 48 | Deferred: 8
 
 ## Deferred Issues Detail
 
-### C-02: RunLoop blocking (Critical)
-
-`RunLoop.current.run(until:)` blocks the main thread in SSH tunnel setup. Requires redesigning the tunnel establishment flow to be fully async.
-
 ### C-04: queue.sync deadlock (Critical)
 
 `MariaDBConnection` and `LibPQConnection` use `queue.sync` which can deadlock if called from the queue itself. Requires changing the `DatabaseDriver` protocol to async.
 
-### C-05: nonisolated(unsafe) TOCTOU (High)
-
-`SQLiteDriver` uses `nonisolated(unsafe)` with TOCTOU race conditions. Requires actor-based isolation.
-
-### S-03: Multiple .sheet modifiers (Medium)
-
-Multiple `.sheet(isPresented:)` on the same view only activates the last one. Requires refactoring to enum-based `.sheet(item:)` pattern.
-
 ### M-04: Large JSON in UserDefaults (Medium)
 
 Query tab state serialized as large JSON in UserDefaults. Requires migration to file-based storage.
-
-### M-14: Combine → async sequences (Low)
-
-NotificationHandler uses Combine publishers. Should migrate to `AsyncStream`/`for await` patterns.
-
-### ACC-01: Accessibility labels (Medium)
-
-Custom controls (DataGridView cells, filter chips, toolbar buttons) lack accessibility labels.
 
 ### ACC-02: Large Text support (Medium)
 
