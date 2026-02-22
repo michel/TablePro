@@ -33,14 +33,6 @@ struct DDLTextView: NSViewRepresentable {
         textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isHorizontallyResizable = true
 
-        // CRITICAL: Set the text
-        textView.string = ddl
-
-        // Apply basic syntax highlighting
-        if !ddl.isEmpty {
-            applyBasicSyntaxHighlighting(to: textView, fontSize: fontSize)
-        }
-
         return scrollView
     }
 

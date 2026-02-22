@@ -37,12 +37,6 @@ struct HighlightedSQLTextView: NSViewRepresentable {
         )
         textView.isHorizontallyResizable = true
 
-        // Set text and highlight
-        textView.string = sql
-        if !sql.isEmpty {
-            applyHighlighting(to: textView)
-        }
-
         return scrollView
     }
 

@@ -15,20 +15,18 @@ struct SQLCodePreview: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         // Create text storage and layout manager
-        let textStorage = NSTextStorage(string: text)
+        let textStorage = NSTextStorage(string: "")
         let layoutManager = NSLayoutManager()
         let textContainer = NSTextContainer()
 
         layoutManager.addTextContainer(textContainer)
         textStorage.addLayoutManager(layoutManager)
 
-        // Create text view
+        // Create text view - structural setup only
         let textView = NSTextView(frame: .zero, textContainer: textContainer)
         textView.isEditable = false
         textView.isSelectable = true
         textView.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-        textView.textColor = colorScheme == .dark ? .white : .black
-        textView.backgroundColor = colorScheme == .dark ? NSColor.textBackgroundColor : .white
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
@@ -45,7 +43,6 @@ struct SQLCodePreview: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
-        scrollView.backgroundColor = colorScheme == .dark ? .textBackgroundColor : .white
 
         return scrollView
     }
