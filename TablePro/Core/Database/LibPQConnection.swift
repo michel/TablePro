@@ -287,7 +287,9 @@ final class LibPQConnection: @unchecked Sendable {
     /// Cancel the currently running query using PQcancel.
     /// Sets a flag checked in row-fetch loops and sends a cancel request to the server.
     func cancelCurrentQuery() {
+        stateLock.lock()
         _isCancelled = true
+        stateLock.unlock()
 
         guard let conn = conn else { return }
         let cancelObj = PQgetCancel(conn)
@@ -391,7 +393,7 @@ final class LibPQConnection: @unchecked Sendable {
 
         case PGRES_TUPLES_OK:
             // SELECT query - fetch results
-            let queryResult = fetchResults(from: result)
+            let queryResult = try fetchResults(from: result)
             PQclear(result)
             return queryResult
 
@@ -481,7 +483,7 @@ final class LibPQConnection: @unchecked Sendable {
 
         case PGRES_TUPLES_OK:
             // SELECT query - fetch results
-            let queryResult = fetchResults(from: result)
+            let queryResult = try fetchResults(from: result)
             PQclear(result)
             return queryResult
 
@@ -496,7 +498,7 @@ final class LibPQConnection: @unchecked Sendable {
     // MARK: - Result Parsing
 
     /// Fetch all results from a PGresult
-    private func fetchResults(from result: OpaquePointer) -> LibPQQueryResult {
+    private func fetchResults(from result: OpaquePointer) throws -> LibPQQueryResult {
         let numFields = Int(PQnfields(result))
         let numRows = Int(PQntuples(result))
 
@@ -531,6 +533,16 @@ final class LibPQConnection: @unchecked Sendable {
         rows.reserveCapacity(effectiveRowCount)
 
         for rowIndex in 0..<effectiveRowCount {
+            // Check cancellation flag (atomic read-then-clear via stateLock)
+            stateLock.lock()
+            let shouldCancel = _isCancelled
+            if shouldCancel { _isCancelled = false }
+            stateLock.unlock()
+            if shouldCancel {
+                PQclear(result)
+                throw LibPQError(message: "Query cancelled", sqlState: nil, detail: nil)
+            }
+
             var row: [String?] = []
             row.reserveCapacity(numFields)
 
@@ -574,7 +586,7 @@ final class LibPQConnection: @unchecked Sendable {
             columnOids: columnOids,
             columnTypeNames: columnTypeNames,
             rows: rows,
-            affectedRows: effectiveRowCount,
+            affectedRows: numRows,
             commandTag: getCommandTag(from: result),
             isTruncated: truncated
         )

@@ -413,7 +413,9 @@ final class MariaDBConnection: @unchecked Sendable {
     /// Cancel the currently running query by setting a flag checked in row-fetch loops.
     /// Also attempts to send KILL QUERY on a separate connection for server-side cancellation.
     func cancelCurrentQuery() {
+        stateLock.lock()
         _isCancelled = true
+        stateLock.unlock()
 
         // Attempt server-side cancellation using KILL QUERY on a temporary connection
         guard let mysql = mysql else { return }
@@ -590,9 +592,12 @@ final class MariaDBConnection: @unchecked Sendable {
         var truncated = false
 
         while let rowPtr = mysql_fetch_row(resultPtr) {
-            // Check cancellation flag
-            if _isCancelled {
-                _isCancelled = false
+            // Check cancellation flag (atomic read-then-clear via stateLock)
+            stateLock.lock()
+            let shouldCancel = _isCancelled
+            if shouldCancel { _isCancelled = false }
+            stateLock.unlock()
+            if shouldCancel {
                 mysql_free_result(resultPtr)
                 throw MariaDBError(code: 0, message: "Query cancelled", sqlState: nil)
             }
@@ -762,9 +767,12 @@ final class MariaDBConnection: @unchecked Sendable {
         var truncated = false
 
         while mysql_stmt_fetch(stmt) == 0 {
-            // Check cancellation flag
-            if _isCancelled {
-                _isCancelled = false
+            // Check cancellation flag (atomic read-then-clear via stateLock)
+            stateLock.lock()
+            let shouldCancel = _isCancelled
+            if shouldCancel { _isCancelled = false }
+            stateLock.unlock()
+            if shouldCancel {
                 throw MariaDBError(code: 0, message: "Query cancelled", sqlState: nil)
             }
 

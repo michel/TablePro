@@ -259,10 +259,13 @@ final class SQLiteDriver: DatabaseDriver {
     /// Actor-isolated connection state — serializes all sqlite3 access
     private let connectionActor = SQLiteConnectionActor()
 
+    /// Lock protecting `_dbHandleForInterrupt` against concurrent disconnect/interrupt access
+    private let interruptLock = NSLock()
+
     /// Raw db handle kept outside the actor for thread-safe sqlite3_interrupt() calls.
-    /// Only written from connect/disconnect (serialized by caller), read from cancelQuery().
+    /// Protected by `interruptLock` for concurrent access between disconnect() and cancelQuery().
     /// sqlite3_interrupt() is documented as safe to call from any thread.
-    private nonisolated(unsafe) var dbHandleForInterrupt: OpaquePointer?
+    private nonisolated(unsafe) var _dbHandleForInterrupt: OpaquePointer?
 
     /// Server version string (SQLite library version, e.g., "3.43.2")
     var serverVersion: String? {
@@ -295,7 +298,9 @@ final class SQLiteDriver: DatabaseDriver {
 
         do {
             try await connectionActor.open(path: path)
-            dbHandleForInterrupt = await connectionActor.dbHandleForInterrupt
+            interruptLock.lock()
+            _dbHandleForInterrupt = await connectionActor.dbHandleForInterrupt
+            interruptLock.unlock()
             status = .connected
         } catch {
             let message = (error as? DatabaseError).flatMap { err -> String? in
@@ -313,7 +318,9 @@ final class SQLiteDriver: DatabaseDriver {
     }
 
     func disconnect() {
-        dbHandleForInterrupt = nil
+        interruptLock.lock()
+        _dbHandleForInterrupt = nil
+        interruptLock.unlock()
         // Fire-and-forget close on the actor
         let actor = connectionActor
         Task { await actor.close() }
@@ -368,7 +375,10 @@ final class SQLiteDriver: DatabaseDriver {
     // MARK: - Cancellation
 
     func cancelQuery() throws {
-        guard let db = dbHandleForInterrupt else { return }
+        interruptLock.lock()
+        let db = _dbHandleForInterrupt
+        interruptLock.unlock()
+        guard let db else { return }
         sqlite3_interrupt(db)
     }
 

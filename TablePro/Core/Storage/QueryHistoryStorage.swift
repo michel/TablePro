@@ -44,6 +44,7 @@ final class QueryHistoryStorage {
 
     // Configuration - cached from settings (to avoid MainActor issues on background queue)
     // These are updated via updateSettingsCache() before cleanup runs
+    private let settingsLock = NSLock()
     private var cachedMaxHistoryEntries: Int = 10_000
     private var cachedMaxHistoryDays: Int = 90
 
@@ -428,16 +429,24 @@ final class QueryHistoryStorage {
     func updateSettingsCache() {
         let settings = AppSettingsManager.shared.history
         // Use Int.max for "unlimited" (0) values
+        settingsLock.lock()
         cachedMaxHistoryEntries = settings.maxEntries == 0 ? Int.max : settings.maxEntries
         cachedMaxHistoryDays = settings.maxDays == 0 ? Int.max : settings.maxDays
+        settingsLock.unlock()
     }
 
     /// Perform cleanup: delete old entries and limit total count
     private func performCleanup() {
+        // Snapshot settings under lock for thread-safe access
+        settingsLock.lock()
+        let maxDays = cachedMaxHistoryDays
+        let maxEntries = cachedMaxHistoryEntries
+        settingsLock.unlock()
+
         // Skip cleanup if days is unlimited
-        if cachedMaxHistoryDays < Int.max {
+        if maxDays < Int.max {
             // Delete entries older than maxHistoryDays
-            let cutoffDate = Date().addingTimeInterval(-Double(cachedMaxHistoryDays * 24 * 60 * 60))
+            let cutoffDate = Date().addingTimeInterval(-Double(maxDays * 24 * 60 * 60))
             let deleteOldSQL = "DELETE FROM history WHERE executed_at < ?;"
 
             var statement: OpaquePointer?
@@ -449,7 +458,7 @@ final class QueryHistoryStorage {
         }
 
         // Skip entry limit cleanup if unlimited
-        if cachedMaxHistoryEntries < Int.max {
+        if maxEntries < Int.max {
             // Delete oldest entries if count exceeds limit
             let countSQL = "SELECT COUNT(*) FROM history;"
             var countStatement: OpaquePointer?
@@ -458,7 +467,7 @@ final class QueryHistoryStorage {
                     let count = Int(sqlite3_column_int(countStatement, 0))
                     sqlite3_finalize(countStatement)
 
-                    if count > cachedMaxHistoryEntries {
+                    if count > maxEntries {
                         let deleteExcessSQL = """
                             DELETE FROM history WHERE id IN (
                                 SELECT id FROM history ORDER BY executed_at ASC LIMIT ?
@@ -470,7 +479,7 @@ final class QueryHistoryStorage {
                             == SQLITE_OK
                         {
                             sqlite3_bind_int(
-                                deleteStatement, 1, Int32(count - cachedMaxHistoryEntries))
+                                deleteStatement, 1, Int32(count - maxEntries))
                             sqlite3_step(deleteStatement)
                             sqlite3_finalize(deleteStatement)
                         }

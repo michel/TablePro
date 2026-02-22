@@ -272,8 +272,10 @@ final class PostgreSQLDriver: DatabaseDriver {
         }
     }
 
-    /// Bulk-fetch columns for all tables in the public schema using a single
-    /// information_schema query (avoids N+1 per-table queries).
+    /// Bulk-fetch columns for all tables using a single information_schema query
+    /// (avoids N+1 per-table queries).
+    /// Note: Scoped to `public` schema, matching `fetchTables()` and `fetchColumns()`.
+    /// Non-public schemas are not supported by the current PostgreSQL driver.
     func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
         let query = """
             SELECT

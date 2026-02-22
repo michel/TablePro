@@ -577,12 +577,12 @@ final class QueryTabManager: ObservableObject {
            !hasUnsavedChanges,
            !tabs[selectedIndex].hasUserInteraction
         {
-            // Replace the current table tab instead of creating a new one
+            // Replace the current table tab instead of creating a new one.
+            // Assign a fresh RowBuffer to avoid aliasing the old buffer (MEM-1 safety).
+            tabs[selectedIndex].rowBuffer = RowBuffer()
             tabs[selectedIndex].title = tableName
             tabs[selectedIndex].tableName = tableName
             tabs[selectedIndex].query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
-            tabs[selectedIndex].resultColumns = []
-            tabs[selectedIndex].resultRows = []
             tabs[selectedIndex].resultVersion += 1
             tabs[selectedIndex].executionTime = nil
             tabs[selectedIndex].errorMessage = nil
