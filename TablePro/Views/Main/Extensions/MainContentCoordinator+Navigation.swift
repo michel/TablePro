@@ -45,7 +45,6 @@ extension MainContentCoordinator {
 
         // Attach timing once tab UUID is known (promotes any pending sidebar trigger)
         if let tabId = tabManager.selectedTabId {
-            TabOpenTimingLogger.shared.attach(tabId: tabId, source: "openTable:\(tableName)")
         }
 
         // Initialize pagination for new table tab
@@ -69,7 +68,6 @@ extension MainContentCoordinator {
             runQuery()
         } else if let tabId = tabManager.selectedTabId {
             // Tab was already open and loaded — nothing more to do
-            TabOpenTimingLogger.shared.markDone(tabId: tabId, milestone: "openTable-tabReused")
         }
     }
 

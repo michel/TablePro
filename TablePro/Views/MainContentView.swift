@@ -423,7 +423,6 @@ struct MainContentView: View {
         let added = newTables.subtracting(oldTables)
         if let table = added.first {
             selectedRowIndices = []
-            TabOpenTimingLogger.shared.markTrigger(source: "sidebar:\(table.name)")
             coordinator.openTableTab(table.name, isView: table.type == .view)
         }
         AppState.shared.hasTableSelection = !newTables.isEmpty

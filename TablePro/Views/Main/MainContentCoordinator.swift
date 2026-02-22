@@ -348,7 +348,6 @@ final class MainContentCoordinator: ObservableObject {
         let tableName = extractTableName(from: sql)
         let isEditable = tableName != nil
 
-        TabOpenTimingLogger.shared.mark("dbQueryStart", tabId: tabId)
 
         currentQueryTask = Task {
             do {
@@ -397,11 +396,6 @@ final class MainContentCoordinator: ObservableObject {
                         updatedTab.tableName = safeTableName
                         updatedTab.isEditable = isEditable && updatedTab.isEditable
                         tabManager.tabs[idx] = updatedTab
-                        TabOpenTimingLogger.shared.markDone(
-                            tabId: tabId,
-                            milestone: "dataDisplayed",
-                            extra: "(\(safeRows.count) rows)"
-                        )
                         AppState.shared.isCurrentTabEditable = updatedTab.isEditable
                             && !updatedTab.isView && updatedTab.tableName != nil
                         toolbarState.isTableTab = updatedTab.tabType == .table
@@ -1408,11 +1402,6 @@ final class MainContentCoordinator: ObservableObject {
            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId }) {
             let newTab = tabManager.tabs[newIndex]
 
-            // Attach timing (picks up markTrigger from keyboard shortcut / sidebar if pending)
-            TabOpenTimingLogger.shared.attach(
-                tabId: newId,
-                source: "tabSwitch:\(newTab.tableName ?? newTab.title)"
-            )
 
             selectedRowIndices = newTab.selectedRowIndices
             AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil
@@ -1436,7 +1425,6 @@ final class MainContentCoordinator: ObservableObject {
             // When a query runs, executeQueryInternal Phase 1 sets new result data
             // that triggers its own SwiftUI update; bumping beforehand causes a
             // redundant re-evaluation that blocks the Task executor (15-40ms).
-            TabOpenTimingLogger.shared.mark("tabConfigured", tabId: newId)
 
             // Defer async operations (database switch, lazy load) to avoid blocking
             let shouldSkipLazyLoad = tabPersistence.justRestoredTab
@@ -1479,16 +1467,10 @@ final class MainContentCoordinator: ObservableObject {
                 } else {
                     changeManager.reloadVersion += 1
                     needsLazyLoad = true
-                    TabOpenTimingLogger.shared.markDone(
-                        tabId: newId, milestone: "tabSwitch-awaitingConnection"
-                    )
                 }
             } else {
                 // Data already cached or not a table tab — bump reload and finish
                 changeManager.reloadVersion += 1
-                TabOpenTimingLogger.shared.markDone(
-                    tabId: newId, milestone: "tabSwitch-cachedData"
-                )
             }
         } else {
             AppState.shared.isCurrentTabEditable = false

@@ -316,9 +316,6 @@ final class MainContentCommandActions: ObservableObject {
               let current = tabManager.selectedTabIndex,
               current > 0 else { return }
         let target = tabManager.tabs[current - 1]
-        TabOpenTimingLogger.shared.markTrigger(
-            source: "keyboard:prevTab→\(target.tableName ?? target.title)"
-        )
         performDirectTabSwitch(to: target)
     }
 
@@ -327,9 +324,6 @@ final class MainContentCommandActions: ObservableObject {
               let current = tabManager.selectedTabIndex,
               current + 1 < tabManager.tabs.count else { return }
         let target = tabManager.tabs[current + 1]
-        TabOpenTimingLogger.shared.markTrigger(
-            source: "keyboard:nextTab→\(target.tableName ?? target.title)"
-        )
         performDirectTabSwitch(to: target)
     }
 

@@ -111,13 +111,13 @@ actor ConnectionHealthMonitor {
                 await self.performHealthCheck()
             }
 
-            Self.logger.debug("Monitoring loop exited for connection \(self.connectionId)")
+            Self.logger.trace("Monitoring loop exited for connection \(self.connectionId)")
         }
     }
 
     /// Stops periodic health monitoring and cancels any in-flight reconnect attempts.
     func stopMonitoring() {
-        Self.logger.info("Stopping health monitoring for connection \(self.connectionId)")
+        Self.logger.trace("Stopping health monitoring for connection \(self.connectionId)")
         monitoringTask?.cancel()
         monitoringTask = nil
     }
