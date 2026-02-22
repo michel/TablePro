@@ -172,9 +172,7 @@ final class FilterStateManager: ObservableObject {
     /// Toggle filter panel visibility
     func toggle() {
         let willOpen = !isVisible
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isVisible.toggle()
-        }
+        isVisible.toggle()
         if willOpen {
             shouldFocusQuickSearch = true
         }
@@ -182,17 +180,13 @@ final class FilterStateManager: ObservableObject {
 
     /// Show panel
     func show() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isVisible = true
-        }
+        isVisible = true
         shouldFocusQuickSearch = true
     }
 
     /// Close panel
     func close() {
-        withAnimation(.easeInOut(duration: 0.2)) {
-            isVisible = false
-        }
+        isVisible = false
     }
 
     // MARK: - Selection
