@@ -532,7 +532,6 @@ final class MainContentCoordinator: ObservableObject {
                         changeManager.clearChanges()
                     }
                 }
-
             } catch {
                 guard capturedGeneration == queryGeneration else { return }
 

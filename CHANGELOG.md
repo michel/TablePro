@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- Fixed TOCTOU race condition in `SQLiteDriver` — replaced `nonisolated(unsafe)` + DispatchQueue pattern with a dedicated actor (`SQLiteConnectionActor`) that serializes all sqlite3 handle access, preventing concurrent task races on the connection state
-- Consolidated multiple `.sheet(isPresented:)` modifiers in `MainContentView` into a single `.sheet(item:)` with an `ActiveSheet` enum — fixes SwiftUI anti-pattern where only the last `.sheet` modifier reliably activates
+## [0.6.0] - 2026-02-22
+
+### Added
+- Inline AI suggestions (ghost text) in the SQL editor — auto-triggers on typing pause, Tab to accept, Escape to dismiss
+- Schema-aware inline suggestions — AI now uses actual table/column names from the connected database (cached with 30s TTL, respects `includeSchema` and `maxSchemaTables` settings)
+- AI feature highlight row on onboarding features page
 - Added VoiceOver accessibility labels to custom controls: data grid (table view, column headers, cells), filter panel (logic toggle, presets, action buttons, filter row controls), toolbar buttons (connection switcher, database switcher, refresh, export, import, filter toggle, history toggle, inspector toggle), editor tab bar (tab items, close buttons, add tab button), and sidebar (table/view rows, search clear button)
 
 ### Changed
@@ -23,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added async/await wrapper methods to `QueryHistoryStorage` — existing completion-handler API preserved for compatibility, new `async` overloads use `withCheckedContinuation` for modern Swift concurrency callers
 
 ### Fixed
+- Fixed TOCTOU race condition in `SQLiteDriver` — replaced `nonisolated(unsafe)` + DispatchQueue pattern with a dedicated actor (`SQLiteConnectionActor`) that serializes all sqlite3 handle access, preventing concurrent task races on the connection state
+- Consolidated multiple `.sheet(isPresented:)` modifiers in `MainContentView` into a single `.sheet(item:)` with an `ActiveSheet` enum — fixes SwiftUI anti-pattern where only the last `.sheet` modifier reliably activates
 - Replaced blocking `Process.waitUntilExit()` calls in `SSHTunnelManager` with async `withCheckedContinuation`-based waiting, and replaced the fixed 1.5s sleep with active port probing — SSH tunnel setup no longer blocks the actor thread, keeping the UI responsive during connection
 - Eliminated potential deadlocks in `MariaDBConnection` and `LibPQConnection` — replaced all `queue.sync` calls (in `disconnect`, `deinit`, `isConnected`, `serverVersion`) with lock-protected cached state and `queue.async` cleanup, preventing deadlocks when callbacks re-enter the connection queue
 - SQL editor now respects the macOS accessibility text size preference (System Settings > Accessibility > Display > Text Size) — the user's chosen font size is scaled by the system's preferred text size factor, with live updates when the setting changes
@@ -36,13 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `kSecAttrService` to all Keychain queries across `ConnectionStorage`, `LicenseStorage`, and `AIKeyStorage` — items now have a proper service identifier, preventing potential collisions with other apps
 - Ensured proper cleanup for `@State` reference type tokens — tracked untracked `Task` instances in `ImportDialog` (file selection), `AIProviderEditorSheet` (model fetching, connection test), and added `onDisappear` cancellation to prevent leaked work after view dismissal
 - Replaced `.onAppear` with `.task` for I/O operations in `ConnectionTagEditor` — uses SwiftUI-idiomatic lifecycle-tied loading instead of `onAppear` which can re-fire on navigation
-
-## [0.6.0] - 2026-02-22
-
-### Added
-- Inline AI suggestions (ghost text) in the SQL editor — auto-triggers on typing pause, Tab to accept, Escape to dismiss
-- Schema-aware inline suggestions — AI now uses actual table/column names from the connected database (cached with 30s TTL, respects `includeSchema` and `maxSchemaTables` settings)
-- AI feature highlight row on onboarding features page
 
 ## [0.5.0] - 2026-02-19
 

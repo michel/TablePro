@@ -241,7 +241,35 @@ struct DataGridView: NSViewRepresentable {
         // This ensures column widths are recalculated based on actual cell content
         let shouldRebuildColumns = columnsChanged || (structureChanged && !rowProvider.columns.isEmpty)
 
-        if shouldRebuildColumns {
+        updateColumns(
+            tableView: tableView,
+            coordinator: coordinator,
+            columnsChanged: columnsChanged,
+            shouldRebuild: shouldRebuildColumns,
+            structureChanged: structureChanged
+        )
+
+        syncSortDescriptors(tableView: tableView, coordinator: coordinator)
+
+        reloadAndSyncSelection(
+            tableView: tableView,
+            coordinator: coordinator,
+            needsFullReload: needsFullReload,
+            versionChanged: versionChanged
+        )
+    }
+
+    // MARK: - updateNSView Helpers
+
+    /// Rebuild or sync table columns based on data changes
+    private func updateColumns(
+        tableView: NSTableView,
+        coordinator: TableViewCoordinator,
+        columnsChanged: Bool,
+        shouldRebuild: Bool,
+        structureChanged: Bool
+    ) {
+        if shouldRebuild {
             coordinator.isRebuildingColumns = true
             defer { coordinator.isRebuildingColumns = false }
 
@@ -356,8 +384,10 @@ struct DataGridView: NSViewRepresentable {
                 }
             }
         }
+    }
 
-        // Sync sort state
+    /// Synchronize sort descriptors and indicators with the table view
+    private func syncSortDescriptors(tableView: NSTableView, coordinator: TableViewCoordinator) {
         coordinator.isSyncingSortDescriptors = true
         defer { coordinator.isSyncingSortDescriptors = false }
 
@@ -378,7 +408,15 @@ struct DataGridView: NSViewRepresentable {
 
         // Update column header titles for multi-sort indicators
         Self.updateSortIndicators(tableView: tableView, sortState: sortState, columns: rowProvider.columns)
+    }
 
+    /// Reload table data as needed and synchronize selection and editing state
+    private func reloadAndSyncSelection(
+        tableView: NSTableView,
+        coordinator: TableViewCoordinator,
+        needsFullReload: Bool,
+        versionChanged: Bool
+    ) {
         if needsFullReload {
             tableView.reloadData()
         } else if versionChanged {
