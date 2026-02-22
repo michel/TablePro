@@ -544,12 +544,6 @@ private struct DoubleClickView: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         (nsView as? PassThroughDoubleClickView)?.onDoubleClick = onDoubleClick
     }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
-
-    class Coordinator: NSObject {}
 }
 
 private class PassThroughDoubleClickView: NSView {
