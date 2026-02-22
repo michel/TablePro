@@ -1,6 +1,6 @@
 # TablePro Anti-Patterns & macOS Incorrect Approaches
 
-Audit date: 2026-02-22 | Total issues: 56 | Fixed: 53 | Deferred: 3
+Audit date: 2026-02-22 | Total issues: 56 | Fixed: 56 | Deferred: 0
 
 ## Status Legend
 
@@ -50,7 +50,7 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 53 | Deferred: 3
 | C-01 | Bare `Task {}` not inheriting `@MainActor` context (Swift 5.9) | Critical | FIXED    | `ce46339` |
 | C-02 | `RunLoop.current.run(until:)` blocking main thread             | Critical | FIXED    | `1ad188d` |
 | C-03 | Silent error swallowing in empty `catch {}` blocks             | High     | FIXED    | `564eea6` |
-| C-04 | `queue.sync` potential deadlock in MariaDB/LibPQ connections   | Critical | DEFERRED | —         |
+| C-04 | `queue.sync` potential deadlock in MariaDB/LibPQ connections   | Critical | FIXED    | `a364f4e` |
 | C-05 | `nonisolated(unsafe)` TOCTOU in SQLiteDriver                   | High     | FIXED    | `42a61d4` |
 | C-06 | `Task {}` in `defer` blocks — not guaranteed to run            | Medium   | FIXED    | (direct)  |
 | C-08 | `DispatchQueue.main.async` instead of `Task { @MainActor in }` | Medium   | FIXED    | `11f49d0` |
@@ -66,7 +66,7 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 53 | Deferred: 3
 | M-01 | `SecItemAdd` return value not checked — failed writes silently lost       | Critical | FIXED    | `45b3272` |
 | M-02 | Missing `kSecAttrService` on Keychain queries — potential collisions      | High     | FIXED    | `551d9b8` |
 | M-03 | Wrong `kSecAttrAccessible` policy for macOS background access             | High     | FIXED    | `26863dc` |
-| M-04 | Large JSON in `UserDefaults` — should use file-based storage              | Medium   | DEFERRED | —         |
+| M-04 | Large JSON in `UserDefaults` — should use file-based storage              | Medium   | FIXED    | `1f53d57` |
 | M-05 | Deprecated `URL.path` — use `path(percentEncoded:)`                       | Low      | FIXED    | `31f41fb` |
 | M-06 | `NSHomeDirectory()` string concatenation instead of URL-based paths       | Medium   | FIXED    | `4a39da8` |
 | M-07 | Scattered `NSPasteboard.general` calls — consolidate to ClipboardService  | Medium   | FIXED    | `44b80c5` |
@@ -87,7 +87,7 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 53 | Deferred: 3
 | ID     | Issue                                           | Severity | Status   | Commit |
 | ------ | ----------------------------------------------- | -------- | -------- | ------ |
 | ACC-01 | Missing accessibility labels on custom controls | Medium   | FIXED    | `49942d8` |
-| ACC-02 | Editor ignores system Large Text setting        | Medium   | DEFERRED | —      |
+| ACC-02 | Editor ignores system Large Text setting        | Medium   | FIXED    | `b96a0b7` |
 
 ---
 
@@ -101,16 +101,6 @@ Audit date: 2026-02-22 | Total issues: 56 | Fixed: 53 | Deferred: 3
 
 ---
 
-## Deferred Issues Detail
+## All Issues Resolved
 
-### C-04: queue.sync deadlock (Critical)
-
-`MariaDBConnection` and `LibPQConnection` use `queue.sync` which can deadlock if called from the queue itself. Requires changing the `DatabaseDriver` protocol to async.
-
-### M-04: Large JSON in UserDefaults (Medium)
-
-Query tab state serialized as large JSON in UserDefaults. Requires migration to file-based storage.
-
-### ACC-02: Large Text support (Medium)
-
-SQL editor uses fixed font sizes, ignoring system accessibility text size preferences.
+All 56 anti-patterns identified in the audit have been fixed.
