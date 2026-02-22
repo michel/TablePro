@@ -18,7 +18,7 @@ struct HistoryPanelView: View {
     @State private var dateFilter: UIDateFilter = .all
     @State private var entries: [QueryHistoryEntry] = []
     @State private var showClearAllAlert = false
-    @State private var searchTask: DispatchWorkItem?
+    @State private var searchTask: Task<Void, Never>?
     @State private var copyButtonTitle = "Copy Query"
 
     private let dataProvider = HistoryDataProvider()
@@ -304,13 +304,11 @@ private extension HistoryPanelView {
 
     func scheduleSearch() {
         searchTask?.cancel()
-
-        let task = DispatchWorkItem { [self] in
+        searchTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
             loadData()
         }
-        searchTask = task
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: task)
     }
 
     func deleteEntry(_ entry: QueryHistoryEntry) {

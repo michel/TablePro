@@ -45,8 +45,7 @@ final class HistoryDataProvider {
     var dateFilter: UIDateFilter = .all
     var searchText: String = ""
 
-    private var searchTask: DispatchWorkItem?
-    private let searchDebounceInterval: TimeInterval = 0.15
+    private var searchTask: Task<Void, Never>?
 
     /// Callback when data changes
     var onDataChanged: (() -> Void)?
@@ -96,14 +95,12 @@ final class HistoryDataProvider {
 
     func scheduleSearch(completion: @escaping () -> Void) {
         searchTask?.cancel()
-
-        let task = DispatchWorkItem { [weak self] in
-            self?.loadData()
+        searchTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, let self else { return }
+            self.loadData()
             completion()
         }
-        searchTask = task
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + searchDebounceInterval, execute: task)
     }
 
     // MARK: - Item Access
