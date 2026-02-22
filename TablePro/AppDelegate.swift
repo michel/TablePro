@@ -468,7 +468,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.collectionBehavior.insert(.fullScreenNone)
 
         // Keep the window non-resizable (already set via SwiftUI, but reinforce here)
-        if !window.styleMask.contains(.resizable) == false {
+        if window.styleMask.contains(.resizable) {
             window.styleMask.remove(.resizable)
         }
     }
