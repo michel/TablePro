@@ -190,7 +190,7 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
         picker.frame = NSRect(x: padding, y: padding, width: pickerSize.width, height: pickerSize.height)
         contentView.addSubview(picker)
 
-        let viewController = NSViewController()
+        let viewController = PopoverContentViewController()
         viewController.view = contentView
 
         let pop = NSPopover()
@@ -218,5 +218,15 @@ final class DatePickerPopoverController: NSObject, NSPopoverDelegate {
         hasUserEdited = false
         originalWasNull = false
         popover = nil
+    }
+}
+
+// MARK: - Popover Content View Controller
+
+/// Minimal NSViewController subclass with proper loadView override.
+/// Avoids bare NSViewController() which bypasses the view controller lifecycle.
+private final class PopoverContentViewController: NSViewController {
+    override func loadView() {
+        self.view = NSView()
     }
 }
