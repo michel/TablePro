@@ -6,8 +6,10 @@
 //  Uses @Published properties with didSet for immediate persistence.
 //
 
+import AppKit
 import Combine
 import Foundation
+import os
 
 /// Observable settings manager for immediate persistence and live updates
 @MainActor
@@ -91,6 +93,11 @@ final class AppSettingsManager: ObservableObject {
     }
 
     private let storage = AppSettingsStorage.shared
+    private var accessibilityTextSizeObserver: NSObjectProtocol?
+    /// Tracks the last-seen accessibility scale factor to avoid redundant reloads.
+    /// The accessibility display options notification fires for all display option changes
+    /// (contrast, motion, etc.), not just text size.
+    private var lastAccessibilityScale: CGFloat = 1.0
 
     // MARK: - Initialization
 
@@ -114,6 +121,9 @@ final class AppSettingsManager: ObservableObject {
 
         // Initialize DateFormattingService with current format
         DateFormattingService.shared.updateFormat(dataGrid.dateFormat)
+
+        // Observe system accessibility text size changes and re-apply editor fonts
+        observeAccessibilityTextSizeChanges()
     }
 
     // MARK: - Notification Propagation
@@ -136,6 +146,34 @@ final class AppSettingsManager: ObservableObject {
             object: self,
             userInfo: [SettingsChangeInfo.userInfoKey: changeInfo]
         )
+    }
+
+    // MARK: - Accessibility Text Size
+
+    private static let logger = Logger(subsystem: "com.TablePro", category: "AppSettingsManager")
+
+    /// Observe the system accessibility text size preference and reload editor fonts when it changes.
+    /// Uses NSWorkspace.accessibilityDisplayOptionsDidChangeNotification which fires when the user
+    /// changes settings in System Settings > Accessibility > Display (including the Text Size slider).
+    private func observeAccessibilityTextSizeChanges() {
+        lastAccessibilityScale = SQLEditorTheme.accessibilityScaleFactor
+        accessibilityTextSizeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            let newScale = SQLEditorTheme.accessibilityScaleFactor
+            // Only reload if the text size scale actually changed (this notification
+            // also fires for contrast, reduce motion, etc.)
+            guard abs(newScale - lastAccessibilityScale) > 0.01 else { return }
+            lastAccessibilityScale = newScale
+            Self.logger.debug("Accessibility text size changed, scale: \(newScale, format: .fixed(precision: 2))")
+            // Re-apply editor fonts with the updated accessibility scale factor
+            SQLEditorTheme.reloadFromSettings(editor)
+            // Notify the editor view to rebuild its configuration
+            NotificationCenter.default.post(name: .accessibilityTextSizeDidChange, object: self)
+        }
     }
 
     /// Apply history settings immediately (triggered on settings change)

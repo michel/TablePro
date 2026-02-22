@@ -66,6 +66,9 @@ struct SQLEditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: .editorSettingsDidChange)) { _ in
             editorConfiguration = Self.makeConfiguration()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .accessibilityTextSizeDidChange)) { _ in
+            editorConfiguration = Self.makeConfiguration()
+        }
         .onAppear {
             if completionAdapter == nil {
                 completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)

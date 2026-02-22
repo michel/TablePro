@@ -37,6 +37,12 @@ extension Notification.Name {
     /// Posted when AI settings change (providers, routing, context options)
     static let aiSettingsDidChange = Notification.Name("aiSettingsDidChange")
 
+    // MARK: - System Notifications
+
+    /// Posted when the system accessibility text size preference changes.
+    /// Observers should reload fonts via SQLEditorTheme.reloadFromSettings().
+    static let accessibilityTextSizeDidChange = Notification.Name("accessibilityTextSizeDidChange")
+
     // MARK: - Generic Notification
 
     /// Posted for any settings change (in addition to domain-specific notification)
