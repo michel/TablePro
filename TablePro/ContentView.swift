@@ -12,7 +12,7 @@ import SwiftUI
 struct ContentView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ContentView")
 
-    @StateObject private var dbManager = DatabaseManager.shared
+    @ObservedObject private var dbManager = DatabaseManager.shared
     @State private var connections: [DatabaseConnection] = []
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showNewConnectionSheet = false

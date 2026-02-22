@@ -15,7 +15,7 @@ import SwiftUI
 struct WelcomeWindowView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "WelcomeWindowView")
     private let storage = ConnectionStorage.shared
-    @StateObject private var dbManager = DatabaseManager.shared
+    @ObservedObject private var dbManager = DatabaseManager.shared
 
     @State private var connections: [DatabaseConnection] = []
     @State private var searchText = ""

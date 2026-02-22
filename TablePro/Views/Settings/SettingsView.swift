@@ -14,7 +14,7 @@ enum SettingsTab: String {
 
 /// Main settings view with tab-based navigation (macOS Settings style)
 struct SettingsView: View {
-    @StateObject private var settingsManager = AppSettingsManager.shared
+    @ObservedObject private var settingsManager = AppSettingsManager.shared
     @EnvironmentObject var updaterBridge: UpdaterBridge
     @AppStorage("selectedSettingsTab") private var selectedTab: String = SettingsTab.general.rawValue
 
