@@ -47,6 +47,9 @@ final class QueryHistoryStorage {
     private var cachedMaxHistoryEntries: Int = 10_000
     private var cachedMaxHistoryDays: Int = 90
 
+    // Throttle cleanup: only run every 100 inserts
+    private var insertsSinceCleanup: Int = 0
+
     private init() {
         queue.sync {
             setupDatabase()
@@ -181,8 +184,12 @@ final class QueryHistoryStorage {
                 return
             }
 
-            // Cleanup before insert
-            self.performCleanup()
+            // Throttled cleanup: only run every 100 inserts
+            self.insertsSinceCleanup += 1
+            if self.insertsSinceCleanup >= 100 {
+                self.performCleanup()
+                self.insertsSinceCleanup = 0
+            }
 
             let sql = """
                 INSERT INTO history (id, query, connection_id, database_name, executed_at, execution_time, row_count, was_successful, error_message)

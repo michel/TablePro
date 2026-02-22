@@ -88,4 +88,51 @@ extension MainContentView {
     var currentTab: QueryTab? {
         coordinator.tabManager.selectedTab
     }
+
+    // MARK: - Consolidated onChange Triggers
+
+    /// Trigger for inspector updates — combines result version and table metadata name.
+    /// Replaces separate handlers for `currentTab?.resultRows` and
+    /// `coordinator.tableMetadata?.tableName` that both only called `scheduleInspectorUpdate()`.
+    /// Uses `resultVersion` instead of the full `resultRows` array to avoid deep equality checks.
+    var inspectorTrigger: InspectorTrigger {
+        InspectorTrigger(
+            resultVersion: currentTab?.resultVersion ?? -1,
+            metadataTableName: coordinator.tableMetadata?.tableName
+        )
+    }
+
+    /// Trigger for toolbar execution state — combines `isExecuting` and `executionTime`
+    /// from the current tab. Replaces two separate handlers that both updated `toolbarState`.
+    var executionStateTrigger: ExecutionStateTrigger {
+        ExecutionStateTrigger(
+            isExecuting: currentTab?.isExecuting ?? false,
+            executionTime: currentTab?.executionTime
+        )
+    }
+}
+
+// MARK: - Equatable Trigger Types
+
+/// Lightweight equatable value combining result version and metadata table name
+/// for consolidated inspector onChange observation.
+struct InspectorTrigger: Equatable {
+    let resultVersion: Int
+    let metadataTableName: String?
+}
+
+/// Lightweight equatable value combining all pending-change sources
+/// for consolidated toolbar badge onChange observation.
+struct PendingChangeTrigger: Equatable {
+    let hasDataChanges: Bool
+    let pendingTruncates: Set<String>
+    let pendingDeletes: Set<String>
+    let hasStructureChanges: Bool
+}
+
+/// Lightweight equatable value combining execution state properties
+/// for consolidated toolbar execution onChange observation.
+struct ExecutionStateTrigger: Equatable {
+    let isExecuting: Bool
+    let executionTime: TimeInterval?
 }

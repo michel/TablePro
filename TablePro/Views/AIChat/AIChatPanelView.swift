@@ -343,6 +343,8 @@ struct AIChatPanelView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "AIChatPanelView")
 
     /// Fetch column and foreign key info for tables and populate the view model.
+    /// Reuses cached columns from the shared `SQLSchemaProvider` when available,
+    /// falling back to direct driver queries only for uncached data.
     /// Respects AI settings (`includeSchema`, `maxSchemaTables`).
     private func fetchSchemaContext() async {
         let settings = AppSettingsManager.shared.ai
@@ -354,19 +356,38 @@ struct AIChatPanelView: View {
         var columns: [String: [ColumnInfo]] = [:]
         var foreignKeys: [String: [ForeignKeyInfo]] = [:]
 
-        for table in tablesToFetch {
-            do {
-                let cols = try await driver.fetchColumns(table: table.name)
-                columns[table.name] = cols
+        let provider = viewModel.schemaProvider
 
+        for table in tablesToFetch {
+            // Reuse cached columns from the schema provider (populated by
+            // MainContentCoordinator.loadSchema) to avoid N redundant queries.
+            if let provider {
+                let cached = await provider.getColumns(for: table.name)
+                if !cached.isEmpty {
+                    columns[table.name] = cached
+                }
+            }
+
+            // Fall back to driver query only when the cache missed
+            if columns[table.name] == nil {
+                do {
+                    let cols = try await driver.fetchColumns(table: table.name)
+                    columns[table.name] = cols
+                } catch {
+                    Self.logger.warning(
+                        "Failed to fetch columns for table '\(table.name)': \(error.localizedDescription)"
+                    )
+                }
+            }
+
+            // Foreign keys are not cached by SQLSchemaProvider — query per table
+            do {
                 let fks = try await driver.fetchForeignKeys(table: table.name)
                 foreignKeys[table.name] = fks
             } catch {
-                // Schema fetch failure is non-critical — skip this table
                 Self.logger.warning(
-                    "Failed to fetch schema for table '\(table.name)': \(error.localizedDescription)"
+                    "Failed to fetch foreign keys for table '\(table.name)': \(error.localizedDescription)"
                 )
-                continue
             }
         }
 

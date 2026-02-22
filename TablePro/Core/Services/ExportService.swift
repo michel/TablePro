@@ -57,6 +57,8 @@ private extension String {
 @MainActor
 final class ExportService: ObservableObject {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
+    // swiftlint:disable:next force_try
+    private static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
     // MARK: - Published State
 
     @Published var isExporting: Bool = false
@@ -467,9 +469,11 @@ final class ExportService: ObservableObject {
                 }
 
                 // Handle decimal format
-                if options.decimalFormat == .comma,
-                   processed.range(of: #"^[+-]?\d+\.\d+$"#, options: .regularExpression) != nil {
-                    processed = processed.replacingOccurrences(of: ".", with: ",")
+                if options.decimalFormat == .comma {
+                    let range = NSRange(processed.startIndex..., in: processed)
+                    if Self.decimalFormatRegex.firstMatch(in: processed, range: range) != nil {
+                        processed = processed.replacingOccurrences(of: ".", with: ",")
+                    }
                 }
 
                 return escapeCSVField(processed, options: options, originalHadLineBreaks: hadLineBreaks)

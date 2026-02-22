@@ -15,6 +15,12 @@ final class PostgreSQLDriver: DatabaseDriver {
     /// Native libpq connection wrapper
     private var libpqConnection: LibPQConnection?
 
+    /// Cached regex for stripping LIMIT clause
+    private static let limitRegex = try? NSRegularExpression(pattern: "(?i)\\s+LIMIT\\s+\\d+")
+
+    /// Cached regex for stripping OFFSET clause
+    private static let offsetRegex = try? NSRegularExpression(pattern: "(?i)\\s+OFFSET\\s+\\d+")
+
     /// Server version string (e.g., "16.1.0")
     var serverVersion: String? {
         libpqConnection?.serverVersion()
@@ -256,6 +262,82 @@ final class PostgreSQLDriver: DatabaseDriver {
                 comment: comment?.isEmpty == false ? comment : nil
             )
         }
+    }
+
+    /// Bulk-fetch columns for all tables in the public schema using a single
+    /// information_schema query (avoids N+1 per-table queries).
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
+        let query = """
+            SELECT
+                c.table_name,
+                c.column_name,
+                c.data_type,
+                c.is_nullable,
+                c.column_default,
+                c.collation_name,
+                pgd.description,
+                c.udt_name
+            FROM information_schema.columns c
+            LEFT JOIN pg_catalog.pg_statio_all_tables st
+                ON st.schemaname = c.table_schema
+                AND st.relname = c.table_name
+            LEFT JOIN pg_catalog.pg_description pgd
+                ON pgd.objoid = st.relid
+                AND pgd.objsubid = c.ordinal_position
+            WHERE c.table_schema = 'public'
+            ORDER BY c.table_name, c.ordinal_position
+            """
+
+        let result = try await execute(query: query)
+
+        var allColumns: [String: [ColumnInfo]] = [:]
+        for row in result.rows {
+            guard row.count >= 5,
+                  let tableName = row[0],
+                  let name = row[1],
+                  let rawDataType = row[2]
+            else {
+                continue
+            }
+
+            let udtName = row.count > 7 ? row[7] : nil
+
+            let dataType: String
+            if rawDataType.uppercased() == "USER-DEFINED", let udt = udtName {
+                dataType = "ENUM(\(udt))"
+            } else {
+                dataType = rawDataType.uppercased()
+            }
+
+            let isNullable = row[3] == "YES"
+            let defaultValue = row[4]
+            let collation = row.count > 5 ? row[5] : nil
+            let comment = row.count > 6 ? row[6] : nil
+
+            let charset: String? = {
+                guard let coll = collation else { return nil }
+                if coll.contains(".") {
+                    return coll.components(separatedBy: ".").last
+                }
+                return nil
+            }()
+
+            let column = ColumnInfo(
+                name: name,
+                dataType: dataType,
+                isNullable: isNullable,
+                isPrimaryKey: false,
+                defaultValue: defaultValue,
+                extra: nil,
+                charset: charset,
+                collation: collation,
+                comment: comment?.isEmpty == false ? comment : nil
+            )
+
+            allColumns[tableName, default: []].append(column)
+        }
+
+        return allColumns
     }
 
     /// Fetch allowed values for a PostgreSQL user-defined enum type
@@ -531,14 +613,12 @@ final class PostgreSQLDriver: DatabaseDriver {
     private func stripLimitOffset(from query: String) -> String {
         var result = query
 
-        let limitPattern = "(?i)\\s+LIMIT\\s+\\d+"
-        if let regex = try? NSRegularExpression(pattern: limitPattern) {
+        if let regex = Self.limitRegex {
             result = regex.stringByReplacingMatches(
                 in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
         }
 
-        let offsetPattern = "(?i)\\s+OFFSET\\s+\\d+"
-        if let regex = try? NSRegularExpression(pattern: offsetPattern) {
+        if let regex = Self.offsetRegex {
             result = regex.stringByReplacingMatches(
                 in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
         }

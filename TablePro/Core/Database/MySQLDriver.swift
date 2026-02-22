@@ -23,6 +23,15 @@ final class MySQLDriver: DatabaseDriver {
         return formatter
     }()
 
+    /// Cached regex for extracting table name from SELECT queries
+    private static let tableNameRegex = try? NSRegularExpression(pattern: "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?")
+
+    /// Cached regex for stripping LIMIT clause (handles LIMIT n or LIMIT n, m)
+    private static let limitRegex = try? NSRegularExpression(pattern: "(?i)\\s+LIMIT\\s+\\d+(\\s*,\\s*\\d+)?")
+
+    /// Cached regex for stripping OFFSET clause
+    private static let offsetRegex = try? NSRegularExpression(pattern: "(?i)\\s+OFFSET\\s+\\d+")
+
     init(connection: DatabaseConnection) {
         self.connection = connection
     }
@@ -243,6 +252,65 @@ final class MySQLDriver: DatabaseDriver {
                 comment: comment?.isEmpty == false ? comment : nil
             )
         }
+    }
+
+    /// Bulk-fetch columns for all tables in the current database using a single
+    /// INFORMATION_SCHEMA query (avoids N+1 per-table SHOW FULL COLUMNS calls).
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
+        let dbName = connection.database
+        let query = """
+            SELECT
+                TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, COLLATION_NAME,
+                IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, EXTRA, COLUMN_COMMENT
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = '\(SQLEscaping.escapeStringLiteral(dbName))'
+            ORDER BY TABLE_NAME, ORDINAL_POSITION
+            """
+
+        let result = try await execute(query: query)
+
+        var allColumns: [String: [ColumnInfo]] = [:]
+        for row in result.rows {
+            guard row.count >= 8,
+                  let tableName = row[0],
+                  let name = row[1],
+                  let dataType = row[2]
+            else {
+                continue
+            }
+
+            let collation = row[3]
+            let isNullable = row[4] == "YES"
+            let isPrimaryKey = row[5] == "PRI"
+            let defaultValue = row[6]
+            let extra = row[7]
+            let comment = row.count > 8 ? row[8] : nil
+
+            let charset: String? = {
+                guard let coll = collation, coll != "NULL" else { return nil }
+                return coll.components(separatedBy: "_").first
+            }()
+
+            let upperType = dataType.uppercased()
+            let normalizedType = (upperType.hasPrefix("ENUM(") || upperType.hasPrefix("SET("))
+                ? dataType : upperType
+
+            let column = ColumnInfo(
+                name: name,
+                dataType: normalizedType,
+                isNullable: isNullable,
+                isPrimaryKey: isPrimaryKey,
+                defaultValue: defaultValue,
+                extra: extra,
+                charset: charset,
+                collation: collation == "NULL" ? nil : collation,
+                comment: comment?.isEmpty == false ? comment : nil
+            )
+
+            allColumns[tableName, default: []].append(column)
+        }
+
+        return allColumns
     }
 
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
@@ -475,8 +543,7 @@ final class MySQLDriver: DatabaseDriver {
 
     /// Extract table name from SELECT query
     private func extractTableName(from query: String) -> String? {
-        let pattern = "(?i)\\bFROM\\s+[`\"']?([\\w]+)[`\"']?"
-        guard let regex = try? NSRegularExpression(pattern: pattern),
+        guard let regex = Self.tableNameRegex,
               let match = regex.firstMatch(in: query, range: NSRange(query.startIndex..., in: query)),
               let range = Range(match.range(at: 1), in: query)
         else {
@@ -504,15 +571,13 @@ final class MySQLDriver: DatabaseDriver {
         var result = query
 
         // Remove LIMIT clause (handles LIMIT n or LIMIT n, m)
-        let limitPattern = "(?i)\\s+LIMIT\\s+\\d+(\\s*,\\s*\\d+)?"
-        if let regex = try? NSRegularExpression(pattern: limitPattern) {
+        if let regex = Self.limitRegex {
             result = regex.stringByReplacingMatches(
                 in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
         }
 
         // Remove OFFSET clause
-        let offsetPattern = "(?i)\\s+OFFSET\\s+\\d+"
-        if let regex = try? NSRegularExpression(pattern: offsetPattern) {
+        if let regex = Self.offsetRegex {
             result = regex.stringByReplacingMatches(
                 in: result, range: NSRange(result.startIndex..., in: result), withTemplate: "")
         }

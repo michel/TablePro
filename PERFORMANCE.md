@@ -1,6 +1,6 @@
 # TablePro Performance Audit
 
-Audit date: 2026-02-22 | Total issues: 45 | Fixed: 0 | Deferred: 0
+Audit date: 2026-02-22 | Total issues: 45 | Fixed: 21 | Deferred: 0
 
 ## Status Legend
 
@@ -20,10 +20,10 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 0 | Deferred: 0
 | MEM-4 | XLSX export accumulates all rows of all tables in memory                        | High     | OPEN   | —      |
 | MEM-5 | `mysql_store_result` + redundant String copy doubles peak RAM                   | High     | OPEN   | —      |
 | MEM-6 | Redundant deep copy in `executeQueryInternal` (triple-copy pipeline)            | Medium   | OPEN   | —      |
-| MEM-7 | `InMemoryRowProvider.rowCache` duplicates data without eviction                 | Medium   | OPEN   | —      |
-| MEM-8 | `DatabaseRowProvider` cache has no size limit or LRU eviction                   | Medium   | OPEN   | —      |
-| MEM-9 | `SQLSchemaProvider` holds strong ref to `DatabaseDriver` (stale after disconnect) | Medium | OPEN   | —      |
-| MEM-10 | Undo/redo stacks grow unbounded with `originalRow` copies                      | Medium   | OPEN   | —      |
+| MEM-7 | `InMemoryRowProvider.rowCache` duplicates data without eviction                 | Medium   | FIXED  | —      |
+| MEM-8 | `DatabaseRowProvider` cache has no size limit or LRU eviction                   | Medium   | FIXED  | —      |
+| MEM-9 | `SQLSchemaProvider` holds strong ref to `DatabaseDriver` (stale after disconnect) | Medium | FIXED  | —      |
+| MEM-10 | Undo/redo stacks grow unbounded with `originalRow` copies                      | Medium   | FIXED  | —      |
 | MEM-11 | `TabPendingChanges` duplicates change state on every tab switch (CoW amplifier) | Medium  | OPEN   | —      |
 | MEM-12 | `currentQueryTask` captures coordinator strongly — delays dealloc              | Medium   | OPEN   | —      |
 | MEM-13 | `ConnectionSession` tables/tabs arrays persist when connection is idle          | Low      | OPEN   | —      |
@@ -34,19 +34,19 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 0 | Deferred: 0
 
 | ID    | Issue                                                                           | Severity | Status | Commit |
 | ----- | ------------------------------------------------------------------------------- | -------- | ------ | ------ |
-| CPU-1 | Redundant `unicodeScalars.map { Character($0) }` on every cell (MariaDB)       | Critical | OPEN   | —      |
-| CPU-2 | Redundant `unicodeScalars.map { Character($0) }` on every cell (PostgreSQL)    | Critical | OPEN   | —      |
-| CPU-3 | `SQLFormatterService` compiles 100+ regex patterns per format call              | High     | OPEN   | —      |
-| CPU-4 | Synchronous Keychain I/O on `@MainActor` during connection setup               | High     | OPEN   | —      |
-| CPU-5 | `uppercaseKeywords` builds 200+ branch alternation regex every format call      | High     | OPEN   | —      |
-| CPU-6 | `stripLimitOffset` regex compiled on every call (MySQL/PostgreSQL/SQLite)       | Medium   | OPEN   | —      |
-| CPU-7 | CSV export inline regex per row for decimal format detection                    | Medium   | OPEN   | —      |
-| CPU-8 | `String.count` used on large strings in SQLFormatterService (O(n))             | Medium   | OPEN   | —      |
-| CPU-9 | `addLineBreaks` compiles 16 regex patterns per format call                     | Medium   | OPEN   | —      |
-| CPU-10 | `addIndentation` compiles regex per line for subquery/word boundary            | Medium   | OPEN   | —      |
-| CPU-11 | `DataChangeManager.recordCellChange` linear search on changes array            | Medium   | OPEN   | —      |
-| CPU-12 | Unused `loadPassword()` called for every connection at startup                 | Medium   | OPEN   | —      |
-| CPU-13 | `extractTableName` regex compiled on every call                                | Low      | OPEN   | —      |
+| CPU-1 | Redundant `unicodeScalars.map { Character($0) }` on every cell (MariaDB)       | Critical | FIXED  | —      |
+| CPU-2 | Redundant `unicodeScalars.map { Character($0) }` on every cell (PostgreSQL)    | Critical | FIXED  | —      |
+| CPU-3 | `SQLFormatterService` compiles 100+ regex patterns per format call              | High     | FIXED  | —      |
+| CPU-4 | Synchronous Keychain I/O on `@MainActor` during connection setup               | High     | FIXED  | —      |
+| CPU-5 | `uppercaseKeywords` builds 200+ branch alternation regex every format call      | High     | FIXED  | —      |
+| CPU-6 | `stripLimitOffset` regex compiled on every call (MySQL/PostgreSQL/SQLite)       | Medium   | FIXED  | —      |
+| CPU-7 | CSV export inline regex per row for decimal format detection                    | Medium   | FIXED  | —      |
+| CPU-8 | `String.count` used on large strings in SQLFormatterService (O(n))             | Medium   | FIXED  | —      |
+| CPU-9 | `addLineBreaks` compiles 16 regex patterns per format call                     | Medium   | FIXED  | —      |
+| CPU-10 | `addIndentation` compiles regex per line for subquery/word boundary            | Medium   | FIXED  | —      |
+| CPU-11 | `DataChangeManager.recordCellChange` linear search on changes array            | Medium   | FIXED  | —      |
+| CPU-12 | Unused `loadPassword()` called for every connection at startup                 | Medium   | FIXED  | —      |
+| CPU-13 | `extractTableName` regex compiled on every call                                | Low      | FIXED  | —      |
 | CPU-14 | `isDangerousQuery` inline regex compiled per query execution                   | Low      | OPEN   | —      |
 
 ## 3. Large Data Handling (8 issues)
@@ -56,9 +56,9 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 0 | Deferred: 0
 | DAT-1  | Query tabs have no LIMIT protection — unbounded SELECT can OOM                 | High     | OPEN   | —      |
 | DAT-2  | `mysql_store_result` / `PQexec` load entire result set into client memory      | High     | OPEN   | —      |
 | DAT-3  | SQLite driver fetches all rows into array without limit                        | Medium   | OPEN   | —      |
-| DAT-4  | `SQLSchemaProvider` eagerly loads columns for ALL tables (N+1 queries)         | Medium   | OPEN   | —      |
+| DAT-4  | `SQLSchemaProvider` eagerly loads columns for ALL tables (N+1 queries)         | Medium   | FIXED  | —      |
 | DAT-5  | Client-side sorting creates full memory copy for query tabs                    | Medium   | OPEN   | —      |
-| DAT-6  | `InMemoryRowProvider` recreated on every SwiftUI render                        | Medium   | OPEN   | —      |
+| DAT-6  | `InMemoryRowProvider` recreated on every SwiftUI render                        | Medium   | FIXED  | —      |
 | DAT-7  | Clipboard copy builds unbounded string for large selections                    | Low      | OPEN   | —      |
 | DAT-8  | `QueryResult.toQueryResultRows()` deep copy with UUID allocation per row       | Low      | OPEN   | —      |
 
@@ -67,18 +67,18 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 0 | Deferred: 0
 | ID     | Issue                                                                          | Severity | Status | Commit |
 | ------ | ------------------------------------------------------------------------------ | -------- | ------ | ------ |
 | NET-1  | Phase 2 metadata re-fetch on every query (columns, FKs, COUNT — 3 extra RTTs) | High     | OPEN   | —      |
-| NET-2  | Missing `connect_timeout` in LibPQ connection string                           | High     | OPEN   | —      |
+| NET-2  | Missing `connect_timeout` in LibPQ connection string                           | High     | FIXED  | —      |
 | NET-3  | No driver-level `cancelQuery()` — in-flight SQL continues after Task cancel    | Medium   | OPEN   | —      |
-| NET-4  | `SidebarView.loadTables()` triggered by 3 notifications without deduplication  | Medium   | OPEN   | —      |
-| NET-5  | `AIChatPanelView.fetchSchemaContext()` N+1 queries per table                   | Medium   | OPEN   | —      |
+| NET-4  | `SidebarView.loadTables()` triggered by 3 notifications without deduplication  | Medium   | FIXED  | —      |
+| NET-5  | `AIChatPanelView.fetchSchemaContext()` N+1 queries per table                   | Medium   | FIXED  | —      |
 
 ## 5. Disk I/O / UI Responsiveness (3 issues)
 
 | ID     | Issue                                                                          | Severity | Status | Commit |
 | ------ | ------------------------------------------------------------------------------ | -------- | ------ | ------ |
-| IO-1   | `QueryHistoryStorage.performCleanup()` runs 3 SQLite ops on every INSERT      | High     | OPEN   | —      |
+| IO-1   | `QueryHistoryStorage.performCleanup()` runs 3 SQLite ops on every INSERT      | High     | FIXED  | —      |
 | IO-2   | `QueryHistoryStorage` uses blocking `queue.sync` for read operations           | High     | OPEN   | —      |
-| IO-3   | `MainContentView` has 15+ onChange handlers creating cascading update chains   | Medium   | OPEN   | —      |
+| IO-3   | `MainContentView` has 15+ onChange handlers creating cascading update chains   | Medium   | FIXED  | —      |
 
 ---
 

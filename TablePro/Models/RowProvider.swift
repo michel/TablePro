@@ -60,7 +60,11 @@ final class TableRowData {
 
 /// Row provider that keeps all data in memory (for existing QueryResultRow data).
 /// Uses lazy TableRowData creation to avoid O(n) heap allocations on init.
+/// Cache is bounded to `maxCacheSize` entries; evicted in full when exceeded
+/// since source data remains available in `sourceRows`.
 final class InMemoryRowProvider: RowProvider {
+    private static let maxCacheSize = 5_000
+
     private var sourceRows: [QueryResultRow]
     private var rowCache: [Int: TableRowData] = [:]
     private(set) var columns: [String]
@@ -167,6 +171,12 @@ final class InMemoryRowProvider: RowProvider {
         if let cached = rowCache[index] {
             return cached
         }
+        // Evict entire cache when it exceeds the threshold.
+        // This is safe because source data remains in sourceRows
+        // and entries will be re-materialized on demand.
+        if rowCache.count >= Self.maxCacheSize {
+            rowCache.removeAll(keepingCapacity: true)
+        }
         let rowData = TableRowData(index: index, values: sourceRows[index].values)
         rowCache[index] = rowData
         return rowData
@@ -175,9 +185,13 @@ final class InMemoryRowProvider: RowProvider {
 
 // MARK: - Database Row Provider (for virtualized access via driver)
 
-/// Row provider that fetches data on-demand from database
+/// Row provider that fetches data on-demand from database.
+/// Cache is bounded to `maxCacheSize` entries; oldest entries by row index
+/// are evicted when the limit is exceeded.
 final class DatabaseRowProvider: RowProvider {
     private static let logger = Logger(subsystem: "com.TablePro", category: "RowProvider")
+    private static let maxCacheSize = 10_000
+
     private let driver: DatabaseDriver
     private let baseQuery: String
     private var cache: [Int: TableRowData] = [:]
@@ -238,6 +252,7 @@ final class DatabaseRowProvider: RowProvider {
                     let rowData = TableRowData(index: offset + i, values: row)
                     cache[offset + i] = rowData
                 }
+                evictCacheIfNeeded(nearIndex: offset)
             } catch {
                 Self.logger.error("Prefetch error: \(error)")
             }
@@ -256,6 +271,7 @@ final class DatabaseRowProvider: RowProvider {
             let rowData = TableRowData(index: offset + i, values: row)
             cache[offset + i] = rowData
         }
+        evictCacheIfNeeded(nearIndex: offset)
     }
 
     /// Get row data at index (nil if not cached)
@@ -266,5 +282,19 @@ final class DatabaseRowProvider: RowProvider {
     /// Update a cached cell value
     func updateValue(_ value: String?, at rowIndex: Int, columnIndex: Int) {
         cache[rowIndex]?.setValue(value, at: columnIndex)
+    }
+
+    // MARK: - Private
+
+    /// Evict entries when cache exceeds `maxCacheSize`.
+    /// Keeps the half of entries closest to `nearIndex` (the current access window)
+    /// and discards the rest.
+    private func evictCacheIfNeeded(nearIndex: Int) {
+        guard cache.count > Self.maxCacheSize else { return }
+        let sorted = cache.keys.sorted(by: { abs($0 - nearIndex) > abs($1 - nearIndex) })
+        let evictCount = cache.count - Self.maxCacheSize / 2
+        for key in sorted.prefix(evictCount) {
+            cache.removeValue(forKey: key)
+        }
     }
 }

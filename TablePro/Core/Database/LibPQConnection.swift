@@ -181,7 +181,7 @@ final class LibPQConnection: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
                 // Build connection string
-                var connStr = "host='\(host)' port='\(port)' dbname='\(database)'"
+                var connStr = "host='\(host)' port='\(port)' dbname='\(database)' connect_timeout='10'"
 
                 if !user.isEmpty {
                     connStr += " user='\(user)'"
@@ -489,8 +489,7 @@ final class LibPQConnection: @unchecked Sendable {
         for i in 0..<numFields {
             // Extract column name
             if let namePtr = PQfname(result, Int32(i)) {
-                let cStr = String(cString: namePtr)
-                columns.append(String(cStr.unicodeScalars.map { Character($0) }))
+                columns.append(String(cString: namePtr))
             } else {
                 columns.append("column_\(i)")
             }
@@ -523,18 +522,15 @@ final class LibPQConnection: @unchecked Sendable {
                     }
 
                     if let str = String(bytes: byteArray, encoding: .utf8) {
-                        var value = String(str.unicodeScalars.map { Character($0) })
-
                         // Boolean OID (16): convert "t"/"f" to "true"/"false"
                         if columnOids[colIndex] == 16 {
-                            value = value == "t" ? "true" : "false"
+                            row.append(str == "t" ? "true" : "false")
+                        } else {
+                            row.append(str)
                         }
-
-                        row.append(value)
                     } else {
                         // Fallback: create string from byte array as Latin1
-                        let latin1Str = String(bytes: byteArray, encoding: .isoLatin1) ?? ""
-                        row.append(String(latin1Str.unicodeScalars.map { Character($0) }))
+                        row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
                     }
                 } else {
                     row.append(nil)

@@ -516,7 +516,7 @@ final class MariaDBConnection: @unchecked Sendable {
                 if let namePtr = field.name {
                     // Create completely independent copy of column name
                     let cStr = String(cString: namePtr)
-                    columns.append(String(cStr.unicodeScalars.map { Character($0) }))
+                    columns.append(cStr)
                 } else {
                     columns.append("column_\(i)")
                 }
@@ -561,12 +561,10 @@ final class MariaDBConnection: @unchecked Sendable {
                     }
 
                     if let str = String(bytes: byteArray, encoding: .utf8) {
-                        // Create a new string to ensure no shared storage
-                        row.append(String(str.unicodeScalars.map { Character($0) }))
+                        row.append(str)
                     } else {
                         // Fallback: create string from byte array as Latin1
-                        let latin1Str = String(bytes: byteArray, encoding: .isoLatin1) ?? ""
-                        row.append(String(latin1Str.unicodeScalars.map { Character($0) }))
+                        row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
                     }
                 } else {
                     row.append(nil)
@@ -703,7 +701,7 @@ final class MariaDBConnection: @unchecked Sendable {
                     let buffer = resultBuffers[i].assumingMemoryBound(to: UInt8.self)
                     let data = Data(bytes: buffer, count: length)
                     if let str = String(data: data, encoding: .utf8) {
-                        row.append(String(str.unicodeScalars.map { Character($0) }))
+                        row.append(str)
                     } else {
                         row.append(nil)
                     }
@@ -801,7 +799,7 @@ final class MariaDBConnection: @unchecked Sendable {
                 let field = fields[i]
                 if let namePtr = field.name {
                     let cStr = String(cString: namePtr)
-                    columns.append(String(cStr.unicodeScalars.map { Character($0) }))
+                    columns.append(cStr)
                 } else {
                     columns.append("column_\(i)")
                 }
@@ -876,7 +874,7 @@ final class MariaDBConnection: @unchecked Sendable {
                         let field = fields[i]
                         if let namePtr = field.name {
                             let cStr = String(cString: namePtr)
-                            columns.append(String(cStr.unicodeScalars.map { Character($0) }))
+                            columns.append(cStr)
                         } else {
                             columns.append("column_\(i)")
                         }
@@ -1021,10 +1019,10 @@ final class MariaDBStreamingResult: @unchecked Sendable {
                 }
 
                 if let str = String(bytes: byteArray, encoding: .utf8) {
-                    row.append(String(str.unicodeScalars.map { Character($0) }))
+                    row.append(str)
                 } else {
-                    let latin1Str = String(bytes: byteArray, encoding: .isoLatin1) ?? ""
-                    row.append(String(latin1Str.unicodeScalars.map { Character($0) }))
+                    // Fallback: create string from byte array as Latin1
+                    row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
                 }
             } else {
                 row.append(nil)

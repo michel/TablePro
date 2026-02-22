@@ -64,6 +64,11 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch columns for a specific table
     func fetchColumns(table: String) async throws -> [ColumnInfo]
 
+    /// Fetch columns for ALL tables in a single batch query (avoids N+1).
+    /// Returns a dictionary keyed by table name.
+    /// Default implementation falls back to per-table fetchColumns.
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]]
+
     /// Fetch indexes for a specific table
     func fetchIndexes(table: String) async throws -> [IndexInfo]
 
@@ -110,6 +115,22 @@ extension DatabaseDriver {
         try await connect()
         disconnect()
         return true
+    }
+
+    /// Default fetchAllColumns: falls back to per-table fetchColumns (N+1).
+    /// Drivers should override with a single bulk query where possible.
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
+        let allTables = try await fetchTables()
+        var result: [String: [ColumnInfo]] = [:]
+        for table in allTables {
+            do {
+                let columns = try await fetchColumns(table: table.name)
+                result[table.name] = columns
+            } catch {
+                // Skip tables whose columns can't be fetched
+            }
+        }
+        return result
     }
 
     /// Default timeout implementation using database-specific session variables

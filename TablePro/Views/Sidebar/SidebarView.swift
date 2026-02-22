@@ -103,7 +103,6 @@ struct SidebarView: View {
             guard tables.isEmpty else { return }
             // Defer state changes to avoid publishing during view update
             Task { @MainActor in
-                isLoading = true
                 if DatabaseManager.shared.activeDriver != nil {
                     loadTables()
                 }
@@ -442,6 +441,7 @@ struct SidebarView: View {
     // MARK: - Actions
 
     private func loadTables() {
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         Task {

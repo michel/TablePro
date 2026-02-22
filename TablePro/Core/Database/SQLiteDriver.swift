@@ -239,6 +239,12 @@ final class SQLiteDriver: DatabaseDriver {
     /// Actor-isolated connection state — serializes all sqlite3 access
     private let connectionActor = SQLiteConnectionActor()
 
+    /// Cached regex for stripping LIMIT clause
+    private static let limitRegex = try? NSRegularExpression(pattern: "(?i)\\s+LIMIT\\s+\\d+")
+
+    /// Cached regex for stripping OFFSET clause
+    private static let offsetRegex = try? NSRegularExpression(pattern: "(?i)\\s+OFFSET\\s+\\d+")
+
     /// Server version string (SQLite library version, e.g., "3.43.2")
     var serverVersion: String? {
         String(cString: sqlite3_libversion())
@@ -672,14 +678,12 @@ final class SQLiteDriver: DatabaseDriver {
     private func stripLimitOffset(from query: String) -> String {
         var result = query
 
-        let limitPattern = "(?i)\\s+LIMIT\\s+\\d+"
-        if let regex = try? NSRegularExpression(pattern: limitPattern) {
+        if let regex = Self.limitRegex {
             let range = NSRange(result.startIndex..., in: result)
             result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }
 
-        let offsetPattern = "(?i)\\s+OFFSET\\s+\\d+"
-        if let regex = try? NSRegularExpression(pattern: offsetPattern) {
+        if let regex = Self.offsetRegex {
             let range = NSRange(result.startIndex..., in: result)
             result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }

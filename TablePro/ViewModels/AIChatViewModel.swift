@@ -39,6 +39,9 @@ final class AIChatViewModel: ObservableObject {
     /// Foreign keys by table name
     var foreignKeysByTable: [String: [ForeignKeyInfo]] = [:]
 
+    /// Schema provider for reusing cached column data (set by parent coordinator)
+    var schemaProvider: SQLSchemaProvider?
+
     /// Current query text from the active editor tab
     var currentQuery: String?
 

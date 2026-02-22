@@ -135,34 +135,35 @@ struct MainContentView: View {
         }
     }
 
+    /// Trigger for toolbar pending-changes badge — combines all four sources that
+    /// contribute to `hasPendingChanges`. Replaces four separate handlers that each
+    /// called `updateToolbarPendingState()`.
+    private var pendingChangeTrigger: PendingChangeTrigger {
+        PendingChangeTrigger(
+            hasDataChanges: changeManager.hasChanges,
+            pendingTruncates: pendingTruncates,
+            pendingDeletes: pendingDeletes,
+            hasStructureChanges: appState.hasStructureChanges
+        )
+    }
+
     /// Split into two halves to help the Swift type checker with the long modifier chain.
     private var bodyContent: some View {
         bodyContentCore
-            .onChange(of: currentTab?.resultRows) {
-                scheduleInspectorUpdate()
-            }
             .onChange(of: currentTab?.tableName) {
                 scheduleInspectorUpdate()
                 Task { await loadTableMetadataIfNeeded() }
             }
-            .onChange(of: coordinator.tableMetadata?.tableName) {
+            .onChange(of: inspectorTrigger) {
                 scheduleInspectorUpdate()
             }
             .onAppear {
                 setupCommandActions()
                 updateToolbarPendingState()
                 updateInspectorContext()
+                rightPanelState.aiViewModel.schemaProvider = coordinator.schemaProvider
             }
-            .onChange(of: changeManager.hasChanges) {
-                updateToolbarPendingState()
-            }
-            .onChange(of: pendingTruncates) {
-                updateToolbarPendingState()
-            }
-            .onChange(of: pendingDeletes) {
-                updateToolbarPendingState()
-            }
-            .onChange(of: appState.hasStructureChanges) {
+            .onChange(of: pendingChangeTrigger) {
                 updateToolbarPendingState()
             }
     }
@@ -192,11 +193,9 @@ struct MainContentView: View {
             .onChange(of: DatabaseManager.shared.currentSession?.status) { _, newStatus in
                 handleSessionStatusChange(newStatus)
             }
-            .onChange(of: currentTab?.isExecuting) { _, isExecuting in
-                toolbarState.isExecuting = isExecuting ?? false
-            }
-            .onChange(of: currentTab?.executionTime) { _, executionTime in
-                if let time = executionTime {
+            .onChange(of: executionStateTrigger) { _, newValue in
+                toolbarState.isExecuting = newValue.isExecuting
+                if let time = newValue.executionTime {
                     toolbarState.lastQueryDuration = time
                 }
             }
