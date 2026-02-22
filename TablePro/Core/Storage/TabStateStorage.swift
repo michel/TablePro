@@ -195,7 +195,7 @@ final class TabStateStorage {
 
         guard !defaults.bool(forKey: Self.migrationCompleteKey) else { return }
 
-        Self.logger.info("Starting one-time migration of tab state from UserDefaults to file storage")
+        Self.logger.trace("Starting one-time migration of tab state from UserDefaults to file storage")
 
         var migratedTabStates = 0
         var migratedLastQueries = 0
@@ -240,11 +240,11 @@ final class TabStateStorage {
         defaults.set(true, forKey: Self.migrationCompleteKey)
 
         if migratedTabStates > 0 || migratedLastQueries > 0 {
-            Self.logger.info(
+            Self.logger.trace(
                 "Migration complete: \(migratedTabStates) tab states, \(migratedLastQueries) last queries"
             )
         } else {
-            Self.logger.info("Migration complete: no legacy data found")
+            Self.logger.trace("Migration complete: no legacy data found")
         }
     }
 }

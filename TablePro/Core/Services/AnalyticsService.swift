@@ -74,7 +74,7 @@ final class AnalyticsService {
     private func sendHeartbeat() async {
         // Check opt-out setting
         guard AppSettingsStorage.shared.loadGeneral().shareAnalytics else {
-            Self.logger.debug("Analytics disabled by user, skipping heartbeat")
+            Self.logger.trace("Analytics disabled by user, skipping heartbeat")
             return
         }
 

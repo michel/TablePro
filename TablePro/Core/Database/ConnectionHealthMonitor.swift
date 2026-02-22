@@ -94,11 +94,11 @@ actor ConnectionHealthMonitor {
     /// If monitoring is already active, this method does nothing.
     func startMonitoring() {
         guard monitoringTask == nil else {
-            Self.logger.debug("Monitoring already active for connection \(self.connectionId)")
+            Self.logger.trace("Monitoring already active for connection \(self.connectionId)")
             return
         }
 
-        Self.logger.info("Starting health monitoring for connection \(self.connectionId)")
+        Self.logger.trace("Starting health monitoring for connection \(self.connectionId)")
 
         monitoringTask = Task { [weak self] in
             guard let self else { return }

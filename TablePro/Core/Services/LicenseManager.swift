@@ -216,7 +216,7 @@ final class LicenseManager: ObservableObject {
             self.license = updatedLicense
             evaluateStatus()
 
-            Self.logger.debug("License re-validated successfully")
+            Self.logger.trace("License re-validated successfully")
         } catch {
             // Network failure — use grace period
             Self.logger.warning("Re-validation failed: \(error.localizedDescription)")
