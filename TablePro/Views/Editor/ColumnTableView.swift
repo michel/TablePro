@@ -36,7 +36,7 @@ struct ColumnTableView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 0) {
-                        ForEach(Array(columns.enumerated()), id: \.element.id) { index, column in
+                        ForEach(columns) { column in
                             ColumnTableRow(
                                 column: Binding(
                                     get: { column },
@@ -74,7 +74,7 @@ struct ColumnTableView: View {
                                 draggedColumn: $draggedColumn
                             ))
 
-                            if index < columns.count - 1 {
+                            if column.id != columns.last?.id {
                                 Divider()
                             }
                         }
