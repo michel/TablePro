@@ -11,7 +11,6 @@ import SwiftUI
 /// Read-only SQL code preview with line numbers
 struct SQLCodePreview: NSViewRepresentable {
     let text: String
-    @Environment(\.colorScheme) var colorScheme
 
     func makeNSView(context: Context) -> NSScrollView {
         // Create text storage and layout manager
@@ -27,6 +26,8 @@ struct SQLCodePreview: NSViewRepresentable {
         textView.isEditable = false
         textView.isSelectable = true
         textView.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        textView.textColor = NSColor.textColor
+        textView.backgroundColor = NSColor.textBackgroundColor
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
@@ -43,6 +44,7 @@ struct SQLCodePreview: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
+        scrollView.backgroundColor = NSColor.textBackgroundColor
 
         return scrollView
     }
@@ -54,9 +56,9 @@ struct SQLCodePreview: NSViewRepresentable {
                 textView.string = text
             }
             // Update appearance
-            textView.textColor = colorScheme == .dark ? .white : .black
-            textView.backgroundColor = colorScheme == .dark ? .textBackgroundColor : .white
-            nsView.backgroundColor = colorScheme == .dark ? .textBackgroundColor : .white
+            textView.textColor = NSColor.textColor
+            textView.backgroundColor = NSColor.textBackgroundColor
+            nsView.backgroundColor = NSColor.textBackgroundColor
         }
     }
 }
