@@ -37,7 +37,8 @@ final class MainContentCommandActions: ObservableObject {
 
     // MARK: - State
 
-    private var cancellables = Set<AnyCancellable>()
+    /// Task handles for async notification observers; cancelled on deinit.
+    private var notificationTasks: [Task<Void, Never>] = []
 
     // MARK: - Initialization
 
@@ -66,6 +67,29 @@ final class MainContentCommandActions: ObservableObject {
 
         setupSaveAction()
         setupObservers()
+    }
+
+    deinit {
+        for task in notificationTasks {
+            task.cancel()
+        }
+    }
+
+    // MARK: - Async Notification Helper
+
+    /// Creates a Task that iterates an async notification sequence and calls the handler.
+    /// The task is stored for cancellation on deinit.
+    private func observe(
+        _ name: Notification.Name,
+        handler: @escaping @MainActor (Notification) -> Void
+    ) {
+        let task = Task { @MainActor [weak self] in
+            for await notification in NotificationCenter.default.notifications(named: name) {
+                guard self != nil else { break }
+                handler(notification)
+            }
+        }
+        notificationTasks.append(task)
     }
 
     // MARK: - Save Action
@@ -104,81 +128,43 @@ final class MainContentCommandActions: ObservableObject {
         setupReconnectObservers()
     }
 
-    /// Subscribers for notifications still posted by non-menu views (DataGrid, SidebarView,
+    /// Observers for notifications still posted by non-menu views (DataGrid, SidebarView,
     /// context menus, QueryEditorView, ConnectionStatusView). These bridge AppKit/non-menu
     /// notification posts to the same command action methods used by @FocusedObject callers.
     private func setupNonMenuNotificationObservers() {
-        NotificationCenter.default.publisher(for: .addNewRow)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.addNewRow() }
-            .store(in: &cancellables)
+        observe(.addNewRow) { [weak self] _ in self?.addNewRow() }
 
-        NotificationCenter.default.publisher(for: .deleteSelectedRows)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                let directIndices = notification.userInfo?["rowIndices"] as? Set<Int>
-                self?.deleteSelectedRows(rowIndices: directIndices)
-            }
-            .store(in: &cancellables)
+        observe(.deleteSelectedRows) { [weak self] notification in
+            let directIndices = notification.userInfo?["rowIndices"] as? Set<Int>
+            self?.deleteSelectedRows(rowIndices: directIndices)
+        }
 
-        NotificationCenter.default.publisher(for: .duplicateRow)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.duplicateRow() }
-            .store(in: &cancellables)
+        observe(.duplicateRow) { [weak self] _ in self?.duplicateRow() }
 
-        // Note: .copySelectedRows and .pasteRows subscribers call the data-grid
+        // Note: .copySelectedRows and .pasteRows observers call the data-grid
         // path directly (not the public methods) to avoid an infinite loop —
         // the public methods re-post these notifications for structure view.
-        NotificationCenter.default.publisher(for: .copySelectedRows)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                let indices = self.selectedRowIndices.wrappedValue
-                self.coordinator?.copySelectedRowsToClipboard(indices: indices)
-            }
-            .store(in: &cancellables)
+        observe(.copySelectedRows) { [weak self] _ in
+            guard let self else { return }
+            let indices = self.selectedRowIndices.wrappedValue
+            self.coordinator?.copySelectedRowsToClipboard(indices: indices)
+        }
 
-        NotificationCenter.default.publisher(for: .pasteRows)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self else { return }
-                var indices = self.selectedRowIndices.wrappedValue
-                var cell = self.editingCell.wrappedValue
-                self.coordinator?.pasteRows(selectedRowIndices: &indices, editingCell: &cell)
-                self.selectedRowIndices.wrappedValue = indices
-                self.editingCell.wrappedValue = cell
-            }
-            .store(in: &cancellables)
+        observe(.pasteRows) { [weak self] _ in
+            guard let self else { return }
+            var indices = self.selectedRowIndices.wrappedValue
+            var cell = self.editingCell.wrappedValue
+            self.coordinator?.pasteRows(selectedRowIndices: &indices, editingCell: &cell)
+            self.selectedRowIndices.wrappedValue = indices
+            self.editingCell.wrappedValue = cell
+        }
 
-        NotificationCenter.default.publisher(for: .createTable)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.createTable() }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .createView)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.createView() }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .exportTables)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.exportTables() }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .importTables)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.importTables() }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .explainQuery)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.explainQuery() }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .openDatabaseSwitcher)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.openDatabaseSwitcher() }
-            .store(in: &cancellables)
+        observe(.createTable) { [weak self] _ in self?.createTable() }
+        observe(.createView) { [weak self] _ in self?.createView() }
+        observe(.exportTables) { [weak self] _ in self?.exportTables() }
+        observe(.importTables) { [weak self] _ in self?.importTables() }
+        observe(.explainQuery) { [weak self] _ in self?.explainQuery() }
+        observe(.openDatabaseSwitcher) { [weak self] _ in self?.openDatabaseSwitcher() }
     }
 
     // MARK: - Row Operations (Group A — Called Directly)
@@ -486,26 +472,9 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Filter Broadcasts
 
     private func setupFilterBroadcastObservers() {
-        NotificationCenter.default.publisher(for: .applyAllFilters)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleApplyAllFilters()
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .duplicateFilter)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleDuplicateFilter()
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .removeFilter)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleRemoveFilter()
-            }
-            .store(in: &cancellables)
+        observe(.applyAllFilters) { [weak self] _ in self?.handleApplyAllFilters() }
+        observe(.duplicateFilter) { [weak self] _ in self?.handleDuplicateFilter() }
+        observe(.removeFilter) { [weak self] _ in self?.handleRemoveFilter() }
     }
 
     private func handleApplyAllFilters() {
@@ -530,28 +499,14 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Data Broadcasts
 
     private func setupDataBroadcastObservers() {
-        NotificationCenter.default.publisher(for: .refreshData)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleRefreshData()
-            }
-            .store(in: &cancellables)
+        observe(.refreshData) { [weak self] _ in self?.handleRefreshData() }
+        observe(.refreshAll) { [weak self] _ in self?.handleRefreshAll() }
 
-        NotificationCenter.default.publisher(for: .refreshAll)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleRefreshAll()
+        observe(.showTableStructure) { [weak self] notification in
+            if let tableName = notification.object as? String {
+                self?.coordinator?.openTableTab(tableName, showStructure: true)
             }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: .showTableStructure)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                if let tableName = notification.object as? String {
-                    self?.coordinator?.openTableTab(tableName, showStructure: true)
-                }
-            }
-            .store(in: &cancellables)
+        }
     }
 
     private func handleRefreshData() {
@@ -579,47 +534,29 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Tab Broadcasts
 
     private func setupTabBroadcastObservers() {
-        NotificationCenter.default.publisher(for: .newQueryTab)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.newTab() }
-            .store(in: &cancellables)
+        observe(.newQueryTab) { [weak self] _ in self?.newTab() }
 
-        NotificationCenter.default.publisher(for: .loadQueryIntoEditor)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handleLoadQueryIntoEditor(notification)
-            }
-            .store(in: &cancellables)
+        observe(.loadQueryIntoEditor) { [weak self] notification in
+            self?.handleLoadQueryIntoEditor(notification)
+        }
 
-        NotificationCenter.default.publisher(for: .insertQueryFromAI)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handleInsertQueryFromAI(notification)
-            }
-            .store(in: &cancellables)
+        observe(.insertQueryFromAI) { [weak self] notification in
+            self?.handleInsertQueryFromAI(notification)
+        }
 
-        NotificationCenter.default.publisher(for: .tableTabClosed)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handleTableTabClosed(notification)
-            }
-            .store(in: &cancellables)
+        observe(.tableTabClosed) { [weak self] notification in
+            self?.handleTableTabClosed(notification)
+        }
 
-        NotificationCenter.default.publisher(for: .showAllTables)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.coordinator?.showAllTablesMetadata()
-            }
-            .store(in: &cancellables)
+        observe(.showAllTables) { [weak self] _ in
+            self?.coordinator?.showAllTablesMetadata()
+        }
 
-        NotificationCenter.default.publisher(for: .editViewDefinition)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                if let viewName = notification.object as? String {
-                    self?.handleEditViewDefinition(viewName)
-                }
+        observe(.editViewDefinition) { [weak self] notification in
+            if let viewName = notification.object as? String {
+                self?.handleEditViewDefinition(viewName)
             }
-            .store(in: &cancellables)
+        }
     }
 
     private func handleLoadQueryIntoEditor(_ notification: Notification) {
@@ -708,12 +645,7 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Database Broadcasts
 
     private func setupDatabaseBroadcastObservers() {
-        NotificationCenter.default.publisher(for: .databaseDidConnect)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleDatabaseDidConnect()
-            }
-            .store(in: &cancellables)
+        observe(.databaseDidConnect) { [weak self] _ in self?.handleDatabaseDidConnect() }
     }
 
     private func handleDatabaseDidConnect() {
@@ -728,12 +660,7 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: UI Broadcasts
 
     private func setupUIBroadcastObservers() {
-        NotificationCenter.default.publisher(for: .clearSelection)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleClearSelection()
-            }
-            .store(in: &cancellables)
+        observe(.clearSelection) { [weak self] _ in self?.handleClearSelection() }
     }
 
     private func handleClearSelection() {
@@ -747,27 +674,21 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Window Broadcasts
 
     private func setupWindowObservers() {
-        NotificationCenter.default.publisher(for: .mainWindowWillClose)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let coordinator = self?.coordinator else { return }
-                coordinator.tabPersistence.handleWindowClose(
-                    tabs: coordinator.tabManager.tabs,
-                    selectedTabId: coordinator.tabManager.selectedTabId
-                )
-            }
-            .store(in: &cancellables)
+        observe(.mainWindowWillClose) { [weak self] _ in
+            guard let coordinator = self?.coordinator else { return }
+            coordinator.tabPersistence.handleWindowClose(
+                tabs: coordinator.tabManager.tabs,
+                selectedTabId: coordinator.tabManager.selectedTabId
+            )
+        }
     }
 
     // MARK: File Open Broadcasts
 
     private func setupFileOpenObservers() {
-        NotificationCenter.default.publisher(for: .openSQLFiles)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] notification in
-                self?.handleOpenSQLFiles(notification)
-            }
-            .store(in: &cancellables)
+        observe(.openSQLFiles) { [weak self] notification in
+            self?.handleOpenSQLFiles(notification)
+        }
     }
 
     private func handleOpenSQLFiles(_ notification: Notification) {
@@ -798,12 +719,7 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Reconnect Broadcasts
 
     private func setupReconnectObservers() {
-        NotificationCenter.default.publisher(for: .reconnectDatabase)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.handleReconnect()
-            }
-            .store(in: &cancellables)
+        observe(.reconnectDatabase) { [weak self] _ in self?.handleReconnect() }
     }
 
     private func handleReconnect() {
