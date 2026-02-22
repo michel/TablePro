@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keychain `SecItemAdd` return values are now checked and logged — previously, failed writes (e.g. `errSecDuplicateItem`, `errSecInteractionNotAllowed`) were silently discarded, risking password loss
 - Added `kSecAttrService` to all Keychain queries across `ConnectionStorage`, `LicenseStorage`, and `AIKeyStorage` — items now have a proper service identifier, preventing potential collisions with other apps
 - Ensured proper cleanup for `@State` reference type tokens — tracked untracked `Task` instances in `ImportDialog` (file selection), `AIProviderEditorSheet` (model fetching, connection test), and added `onDisappear` cancellation to prevent leaked work after view dismissal
+- Replaced `.onAppear` with `.task` for I/O operations in `ConnectionTagEditor` — uses SwiftUI-idiomatic lifecycle-tied loading instead of `onAppear` which can re-fire on navigation
 
 ## [0.6.0] - 2026-02-22
 

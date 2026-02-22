@@ -92,7 +92,7 @@ struct ConnectionTagEditor: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .onAppear { allTags = tagStorage.loadTags() }
+        .task { allTags = tagStorage.loadTags() }
         .sheet(isPresented: $showingCreateSheet) {
             CreateTagSheet { tagName, tagColor in
                 let tag = ConnectionTag(name: tagName.lowercased(), isPreset: false, color: tagColor)
