@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added async/await wrapper methods to `QueryHistoryStorage` — existing completion-handler API preserved for compatibility, new `async` overloads use `withCheckedContinuation` for modern Swift concurrency callers
 
 ### Fixed
+- Replaced blocking `Process.waitUntilExit()` calls in `SSHTunnelManager` with async `withCheckedContinuation`-based waiting, and replaced the fixed 1.5s sleep with active port probing — SSH tunnel setup no longer blocks the actor thread, keeping the UI responsive during connection
 - Fixed retain cycle in `UpdaterBridge` — `.assign(to:on:self)` retains self strongly; replaced with `.sink` using `[weak self]`
 - Fixed leaked NotificationCenter observer in `SQLEditorCoordinator` — observer token is now stored and removed in `destroy()`
 - Eliminated tab switching delay — replaced view teardown/recreation with `ZStack`+`ForEach` to keep NSViews alive, moved tab persistence I/O to background threads, skipped unnecessary change-tracking deep copies, and coalesced redundant inspector/sidebar updates during tab switch

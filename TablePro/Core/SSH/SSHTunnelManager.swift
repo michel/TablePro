@@ -217,43 +217,28 @@ actor SSHTunnelManager {
             throw SSHTunnelError.tunnelCreationFailed(error.localizedDescription)
         }
 
-        // Wait a bit for connection to establish
-        try await Task.sleep(nanoseconds: 1_500_000_000)  // 1.5 seconds
+        // Wait for tunnel to become ready by probing the local port
+        let tunnelReady = await waitForTunnelReady(
+            localPort: localPort,
+            process: process,
+            timeoutSeconds: 15
+        )
 
-        // Check if process is still running
-        if !process.isRunning {
-            let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-            let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
+        if !tunnelReady {
+            // Process died or timed out — read stderr for diagnostics
+            if !process.isRunning {
+                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
 
-            // Provide more specific error messages
-            if errorMessage.contains("Permission denied") {
-                if authMethod == .privateKey {
-                    throw SSHTunnelError.tunnelCreationFailed(
-                        "Private key authentication failed. Possible causes:\n" +
-                            "• Private key doesn't match the public key on server\n" +
-                            "• Wrong passphrase for encrypted private key\n" +
-                            "• Wrong user or server\n" +
-                            "Debug: \(errorMessage)"
-                    )
-                } else {
-                    throw SSHTunnelError.authenticationFailed
-                }
-            }
-
-            if errorMessage.contains("authentication") {
-                throw SSHTunnelError.authenticationFailed
-            }
-
-            if errorMessage.contains("Connection timed out") || errorMessage.contains("Connection refused") {
-                throw SSHTunnelError.tunnelCreationFailed(
-                    "Cannot connect to SSH server. Check:\n" +
-                        "• Server address and port are correct\n" +
-                        "• Server is reachable (firewall, network)\n" +
-                        "Debug: \(errorMessage)"
+                throw classifySSHError(
+                    errorMessage: errorMessage,
+                    authMethod: authMethod
                 )
             }
 
-            throw SSHTunnelError.tunnelCreationFailed(errorMessage)
+            // Process still running but port never became reachable
+            process.terminate()
+            throw SSHTunnelError.connectionTimeout
         }
 
         // Store the tunnel
@@ -281,7 +266,7 @@ actor SSHTunnelManager {
 
         if tunnel.process.isRunning {
             tunnel.process.terminate()
-            tunnel.process.waitUntilExit()
+            await waitForProcessExit(tunnel.process)
         }
 
         tunnels.removeValue(forKey: connectionId)
@@ -364,9 +349,98 @@ actor SSHTunnelManager {
         chmod.executableURL = URL(fileURLWithPath: "/bin/chmod")
         chmod.arguments = ["+x", scriptPath]
         try chmod.run()
-        chmod.waitUntilExit()
+        await waitForProcessExit(chmod)
 
         return scriptPath
+    }
+
+    /// Wait for a Process to exit without blocking the current thread
+    private func waitForProcessExit(_ process: Process) async {
+        await withCheckedContinuation { continuation in
+            process.terminationHandler = { _ in
+                continuation.resume()
+            }
+        }
+    }
+
+    /// Probe the local port to detect when the SSH tunnel is ready to accept connections.
+    /// Returns `true` when the port is reachable, `false` on timeout or process death.
+    private func waitForTunnelReady(
+        localPort: Int,
+        process: Process,
+        timeoutSeconds: Int
+    ) async -> Bool {
+        let pollInterval: UInt64 = 250_000_000 // 250ms
+        let maxAttempts = timeoutSeconds * 4    // 4 polls per second
+
+        for _ in 0..<maxAttempts {
+            // If the SSH process died, bail out immediately
+            guard process.isRunning else { return false }
+
+            // Try to connect to the local forwarded port
+            if isPortReachable(localPort) {
+                return true
+            }
+
+            try? await Task.sleep(nanoseconds: pollInterval)
+        }
+
+        return false
+    }
+
+    /// Check whether a TCP connection to localhost:port succeeds
+    private func isPortReachable(_ port: Int) -> Bool {
+        let socketFD = socket(AF_INET, SOCK_STREAM, 0)
+        guard socketFD >= 0 else { return false }
+        defer { close(socketFD) }
+
+        var addr = sockaddr_in()
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_port = in_port_t(port).bigEndian
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+
+        let result = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(socketFD, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+
+        return result == 0
+    }
+
+    /// Classify an SSH stderr message into a specific error type
+    private func classifySSHError(
+        errorMessage: String,
+        authMethod: SSHAuthMethod
+    ) -> SSHTunnelError {
+        if errorMessage.contains("Permission denied") {
+            if authMethod == .privateKey {
+                return .tunnelCreationFailed(
+                    "Private key authentication failed. Possible causes:\n" +
+                        "• Private key doesn't match the public key on server\n" +
+                        "• Wrong passphrase for encrypted private key\n" +
+                        "• Wrong user or server\n" +
+                        "Debug: \(errorMessage)"
+                )
+            } else {
+                return .authenticationFailed
+            }
+        }
+
+        if errorMessage.contains("authentication") {
+            return .authenticationFailed
+        }
+
+        if errorMessage.contains("Connection timed out") || errorMessage.contains("Connection refused") {
+            return .tunnelCreationFailed(
+                "Cannot connect to SSH server. Check:\n" +
+                    "• Server address and port are correct\n" +
+                    "• Server is reachable (firewall, network)\n" +
+                    "Debug: \(errorMessage)"
+            )
+        }
+
+        return .tunnelCreationFailed(errorMessage)
     }
 
     private func cleanupAskpassScript() {
