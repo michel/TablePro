@@ -71,6 +71,8 @@ struct DDLTextView: NSViewRepresentable {
 
         let fullRange = NSRange(location: 0, length: textStorage.length)
 
+        textStorage.beginEditing()
+
         // Reset to base style
         let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         textStorage.addAttribute(.font, value: font, range: fullRange)
@@ -96,6 +98,8 @@ struct DDLTextView: NSViewRepresentable {
 
         // Numbers (purple)
         highlightPattern("\\b\\d+\\b", color: .systemPurple, in: textStorage)
+
+        textStorage.endEditing()
     }
 
     private func highlightPattern(_ pattern: String, color: NSColor, in textStorage: NSTextStorage) {
