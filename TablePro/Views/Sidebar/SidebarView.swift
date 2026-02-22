@@ -245,8 +245,9 @@ struct SidebarView: View {
                 }
             } header: {
                 Text("Tables")
+                    .help("Right-click to show all tables")
                     .contextMenu {
-                        Button("Show All Tables") {
+                        Button(String(localized: "Show All Tables")) {
                             onShowAllTables?()
                         }
                     }
