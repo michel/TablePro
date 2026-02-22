@@ -823,8 +823,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         let newSelection = Set(tableView.selectedRowIndexes.map { $0 })
         if newSelection != selectedRowIndices {
-            DispatchQueue.main.async {
-                self.selectedRowIndices = newSelection
+            Task { @MainActor [weak self] in
+                self?.selectedRowIndices = newSelection
             }
         }
 
@@ -1196,7 +1196,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
         onCellEdit?(row, columnIndex, newValue)
 
-        DispatchQueue.main.async {
+        Task { @MainActor in
             tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
         }
 
@@ -1226,7 +1226,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 nextColumn = tableView.numberOfColumns - 1
             }
 
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 tableView.selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
                 tableView.editColumn(nextColumn, row: nextRow, with: nil, select: true)
             }
@@ -1248,7 +1248,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 prevColumn = 1
             }
 
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 tableView.selectRowIndexes(IndexSet(integer: prevRow), byExtendingSelection: false)
                 tableView.editColumn(prevColumn, row: prevRow, with: nil, select: true)
             }
