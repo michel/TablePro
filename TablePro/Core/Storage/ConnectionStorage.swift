@@ -141,6 +141,7 @@ final class ConnectionStorage {
         // Delete existing
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
@@ -150,6 +151,7 @@ final class ConnectionStorage {
 
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
@@ -167,6 +169,7 @@ final class ConnectionStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
@@ -191,6 +194,7 @@ final class ConnectionStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
 
@@ -206,6 +210,7 @@ final class ConnectionStorage {
         // Delete existing
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
@@ -215,6 +220,7 @@ final class ConnectionStorage {
 
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
@@ -232,6 +238,7 @@ final class ConnectionStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
@@ -256,6 +263,7 @@ final class ConnectionStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
 
@@ -271,6 +279,7 @@ final class ConnectionStorage {
         // Delete existing
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
@@ -280,6 +289,7 @@ final class ConnectionStorage {
 
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
@@ -297,6 +307,7 @@ final class ConnectionStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
@@ -321,6 +332,7 @@ final class ConnectionStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
 

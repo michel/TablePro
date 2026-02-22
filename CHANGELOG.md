@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Table open now shows data instantly — split `executeQueryInternal` into two phases: rows display immediately after SELECT completes, metadata (columns, FKs, enums, row count) loads in the background without blocking the grid
 - Eliminated 20-80ms overhead when clicking an already-open table in the sidebar — `openTableTab` short-circuits immediately, and `TableProTabSmart` no longer fires `@Published` when the selected tab hasn't changed
 - Keychain `SecItemAdd` return values are now checked and logged — previously, failed writes (e.g. `errSecDuplicateItem`, `errSecInteractionNotAllowed`) were silently discarded, risking password loss
+- Added `kSecAttrService` to all Keychain queries across `ConnectionStorage`, `LicenseStorage`, and `AIKeyStorage` — items now have a proper service identifier, preventing potential collisions with other apps
 
 ## [0.6.0] - 2026-02-22
 

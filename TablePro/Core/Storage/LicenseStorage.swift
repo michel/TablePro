@@ -34,6 +34,7 @@ final class LicenseStorage {
         // Delete existing
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: account,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
@@ -42,6 +43,7 @@ final class LicenseStorage {
 
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
@@ -59,6 +61,7 @@ final class LicenseStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
@@ -83,6 +86,7 @@ final class LicenseStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: account,
         ]
 

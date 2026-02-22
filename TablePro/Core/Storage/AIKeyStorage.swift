@@ -26,6 +26,7 @@ final class AIKeyStorage {
         // Delete existing
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
@@ -35,6 +36,7 @@ final class AIKeyStorage {
 
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
@@ -52,6 +54,7 @@ final class AIKeyStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
@@ -76,6 +79,7 @@ final class AIKeyStorage {
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.TablePro",
             kSecAttrAccount as String: key,
         ]
 
