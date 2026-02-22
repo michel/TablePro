@@ -93,7 +93,7 @@ struct ForeignKeyPopoverContentView: View {
         if value.id == currentValue {
             Text(value.display)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(.tint)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else {

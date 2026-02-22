@@ -105,7 +105,7 @@ struct FilterPanelView: View {
                     .font(.system(size: DesignConstants.IconSize.small))
             }
             .buttonStyle(.borderless)
-            .foregroundStyle(.accentColor)
+            .foregroundStyle(.tint)
             .help("Add Filter (Cmd+Shift+F)")
         }
         .padding(.horizontal, 8)

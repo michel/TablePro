@@ -80,7 +80,7 @@ struct TypePickerContentView: View {
         if type.caseInsensitiveCompare(currentValue) == .orderedSame {
             Text(type)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(.tint)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else {

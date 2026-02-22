@@ -77,7 +77,7 @@ struct EnumPopoverContentView: View {
         } else if value == currentValue {
             Text(value)
                 .font(.system(size: 12, design: .monospaced))
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(.tint)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else {
