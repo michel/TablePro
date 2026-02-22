@@ -8,6 +8,9 @@
 
 import CLibPQ
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.TablePro", category: "LibPQConnection")
 
 // MARK: - Error Types
 
@@ -48,7 +51,7 @@ struct LibPQQueryResult {
 
 // MARK: - Type Mapping
 
-/// Converts a PostgreSQL OID value into a human‑readable type name string.
+/// Converts a PostgreSQL OID value into a human-readable type name string.
 /// - Parameter oid: The PostgreSQL object identifier (OID) for the column type.
 /// - Returns: The PostgreSQL type name corresponding to the given `oid`, or `"unknown"` if it is not mapped.
 /// - SeeAlso: https://www.postgresql.org/docs/current/datatype-oid.html
@@ -88,7 +91,8 @@ private func pgOidToTypeName(_ oid: UInt32) -> String {
 // MARK: - Connection Class
 
 /// Thread-safe PostgreSQL connection using libpq
-/// All blocking C calls are dispatched to a dedicated serial queue
+/// All blocking C calls are dispatched to a dedicated serial queue.
+/// Uses `queue.async` + continuations (never `queue.sync`) to prevent deadlocks.
 final class LibPQConnection: @unchecked Sendable {
     // MARK: - Properties
 
@@ -106,16 +110,34 @@ final class LibPQConnection: @unchecked Sendable {
     private let password: String?
     private let database: String
 
-    /// Connection state - accessed only from queue
+    /// Lock-protected connection state — avoids `queue.sync` deadlocks
+    private let stateLock = NSLock()
     private var _isConnected: Bool = false
+    private var _isShuttingDown: Bool = false
+
+    /// Cached server version string, set at connect time on the serial queue
+    private var _cachedServerVersion: String?
 
     /// Thread-safe connection state accessor
     var isConnected: Bool {
-        queue.sync { _isConnected }
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _isConnected
     }
 
-    /// Flag to prevent new queries during shutdown
-    private var isShuttingDown: Bool = false
+    /// Thread-safe shutdown flag accessor
+    private var isShuttingDown: Bool {
+        get {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+            return _isShuttingDown
+        }
+        set {
+            stateLock.lock()
+            _isShuttingDown = newValue
+            stateLock.unlock()
+        }
+    }
 
     // MARK: - Initialization
 
@@ -138,12 +160,16 @@ final class LibPQConnection: @unchecked Sendable {
     }
 
     deinit {
-        // Ensure all pending queue work completes before cleanup
-        queue.sync {
-            if let conn = conn {
-                PQfinish(conn)
+        // Capture the handle and queue to clean up asynchronously.
+        // By the time deinit runs, no other references exist, so the
+        // dispatched block is the sole owner of the pointer.
+        let handle = conn
+        let cleanupQueue = queue
+        conn = nil
+        if let handle = handle {
+            cleanupQueue.async {
+                PQfinish(handle)
             }
-            conn = nil
         }
     }
 
@@ -213,7 +239,19 @@ final class LibPQConnection: @unchecked Sendable {
                 }
 
                 self.conn = connection
+
+                // Cache server version while on the serial queue
+                let version = PQserverVersion(connection)
+                if version > 0 {
+                    let major = version / 10_000
+                    let minor = (version / 100) % 100
+                    let revision = version % 100
+                    self._cachedServerVersion = "\(major).\(minor).\(revision)"
+                }
+
+                self.stateLock.lock()
                 self._isConnected = true
+                self.stateLock.unlock()
                 continuation.resume()
             }
         }
@@ -221,13 +259,22 @@ final class LibPQConnection: @unchecked Sendable {
 
     /// Disconnect from the server
     func disconnect() {
-        queue.sync {
-            isShuttingDown = true
-            if let conn = conn {
-                PQfinish(conn)
+        isShuttingDown = true
+
+        // Capture handle for async cleanup — avoids queue.sync deadlock
+        let handle = conn
+        conn = nil
+
+        stateLock.lock()
+        _isConnected = false
+        stateLock.unlock()
+
+        _cachedServerVersion = nil
+
+        if let handle = handle {
+            queue.async {
+                PQfinish(handle)
             }
-            conn = nil
-            _isConnected = false
         }
     }
 
@@ -508,19 +555,9 @@ final class LibPQConnection: @unchecked Sendable {
 
     // MARK: - Server Information
 
-    /// Get the server version string
+    /// Get the server version string (cached at connect time)
     func serverVersion() -> String? {
-        queue.sync {
-            guard let conn = conn else { return nil }
-            let version = PQserverVersion(conn)
-            // Return nil if not connected (version == 0)
-            guard version > 0 else { return nil }
-            // Format: XXYYYZZ where XX is major, YYY is minor, ZZ is revision
-            let major = version / 10_000
-            let minor = (version / 100) % 100
-            let revision = version % 100
-            return "\(major).\(minor).\(revision)"
-        }
+        _cachedServerVersion
     }
 
     /// Get the current database name

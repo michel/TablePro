@@ -8,11 +8,14 @@
 
 import CMariaDB
 import Foundation
+import OSLog
 
 // MySQL/MariaDB field flag constants
 private let mysqlBinaryFlag: UInt = 0x0080   // 128
 private let mysqlEnumFlag: UInt = 0x0100     // 256
 private let mysqlSetFlag: UInt = 0x0800      // 2048
+
+private let logger = Logger(subsystem: "com.TablePro", category: "MariaDBConnection")
 
 // MARK: - Error Types
 
@@ -134,7 +137,8 @@ private func mysqlTypeToString(_ type: UInt32, length: UInt, flags: UInt) -> Str
 // MARK: - Connection Class
 
 /// Thread-safe MySQL/MariaDB connection using libmariadb
-/// All blocking C calls are dispatched to a dedicated serial queue
+/// All blocking C calls are dispatched to a dedicated serial queue.
+/// Uses `queue.async` + continuations (never `queue.sync`) to prevent deadlocks.
 final class MariaDBConnection: @unchecked Sendable {
     // MARK: - Properties
 
@@ -152,16 +156,34 @@ final class MariaDBConnection: @unchecked Sendable {
     private let password: String?
     private let database: String
 
-    /// Connection state - accessed only from queue
+    /// Lock-protected connection state — avoids `queue.sync` deadlocks
+    private let stateLock = NSLock()
     private var _isConnected: Bool = false
+    private var _isShuttingDown: Bool = false
+
+    /// Cached server version string, set at connect time on the serial queue
+    private var _cachedServerVersion: String?
 
     /// Thread-safe connection state accessor
     var isConnected: Bool {
-        queue.sync { _isConnected }
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _isConnected
     }
 
-    /// Flag to prevent new queries during shutdown
-    private var isShuttingDown: Bool = false
+    /// Thread-safe shutdown flag accessor
+    private var isShuttingDown: Bool {
+        get {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+            return _isShuttingDown
+        }
+        set {
+            stateLock.lock()
+            _isShuttingDown = newValue
+            stateLock.unlock()
+        }
+    }
 
     // MARK: - Initialization
 
@@ -184,12 +206,16 @@ final class MariaDBConnection: @unchecked Sendable {
     }
 
     deinit {
-        // Ensure all pending queue work completes before cleanup
-        queue.sync {
-            if let mysql = mysql {
-                mysql_close(mysql)
+        // Capture the handle and queue to clean up asynchronously.
+        // By the time deinit runs, no other references exist, so the
+        // dispatched block is the sole owner of the pointer.
+        let handle = mysql
+        let cleanupQueue = queue
+        mysql = nil
+        if let handle = handle {
+            cleanupQueue.async {
+                mysql_close(handle)
             }
-            mysql = nil
         }
     }
 
@@ -344,7 +370,14 @@ final class MariaDBConnection: @unchecked Sendable {
                     return
                 }
 
+                // Cache server version while on the serial queue
+                if let versionPtr = mysql_get_server_info(mysql) {
+                    self._cachedServerVersion = String(cString: versionPtr)
+                }
+
+                self.stateLock.lock()
                 self._isConnected = true
+                self.stateLock.unlock()
                 continuation.resume()
             }
         }
@@ -352,13 +385,22 @@ final class MariaDBConnection: @unchecked Sendable {
 
     /// Disconnect from the server
     func disconnect() {
-        queue.sync {
-            isShuttingDown = true
-            if let mysql = mysql {
-                mysql_close(mysql)
+        isShuttingDown = true
+
+        // Capture handle for async cleanup — avoids queue.sync deadlock
+        let handle = mysql
+        mysql = nil
+
+        stateLock.lock()
+        _isConnected = false
+        stateLock.unlock()
+
+        _cachedServerVersion = nil
+
+        if let handle = handle {
+            queue.async {
+                mysql_close(handle)
             }
-            mysql = nil
-            _isConnected = false
         }
     }
 
@@ -855,13 +897,9 @@ final class MariaDBConnection: @unchecked Sendable {
 
     // MARK: - Server Information
 
-    /// Get the server version string
+    /// Get the server version string (cached at connect time)
     func serverVersion() -> String? {
-        queue.sync {
-            guard let mysql = mysql else { return nil }
-            guard let version = mysql_get_server_info(mysql) else { return nil }
-            return String(cString: version)
-        }
+        _cachedServerVersion
     }
 
     /// Get the current database name
@@ -921,6 +959,7 @@ final class MariaDBStreamingResult: @unchecked Sendable {
     let columns: [String]
     let numFields: Int
     private let queue: DispatchQueue
+    private let closeLock = NSLock()
     private var isClosed = false
 
     init(
@@ -934,12 +973,14 @@ final class MariaDBStreamingResult: @unchecked Sendable {
     }
 
     deinit {
-        // Ensure cleanup on serial queue
-        queue.sync {
-            if !isClosed, let ptr = resultPtr {
+        // Capture state for async cleanup — avoids queue.sync deadlock.
+        // By the time deinit runs, no other references exist.
+        let ptr = resultPtr
+        let cleanupQueue = queue
+        resultPtr = nil
+        if !isClosed, let ptr = ptr {
+            cleanupQueue.async {
                 mysql_free_result(ptr)
-                resultPtr = nil
-                isClosed = true
             }
         }
     }
@@ -995,11 +1036,18 @@ final class MariaDBStreamingResult: @unchecked Sendable {
 
     /// Close the result set and free resources
     func close() {
-        queue.sync {
-            guard !isClosed, let ptr = resultPtr else { return }
+        closeLock.lock()
+        guard !isClosed, let ptr = resultPtr else {
+            closeLock.unlock()
+            return
+        }
+        isClosed = true
+        resultPtr = nil
+        closeLock.unlock()
+
+        // Free on the serial queue to avoid concurrent C library access
+        queue.async {
             mysql_free_result(ptr)
-            resultPtr = nil
-            isClosed = true
         }
     }
 }
