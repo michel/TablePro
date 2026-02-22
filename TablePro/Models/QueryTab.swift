@@ -240,6 +240,7 @@ struct QueryTab: Identifiable, Equatable {
 
     // Editing support
     var tableName: String?
+    var primaryKeyColumn: String?  // Detected PK from schema (set by Phase 2 metadata)
     var isEditable: Bool
     var isView: Bool  // True for database views (read-only)
     var databaseName: String  // Database this tab was opened in (for multi-database restore)
@@ -299,6 +300,7 @@ struct QueryTab: Identifiable, Equatable {
         self.errorMessage = nil
         self.isExecuting = false
         self.tableName = tableName
+        self.primaryKeyColumn = nil
         self.isEditable = tabType == .table  // Table tabs are editable by default
         self.isView = false
         self.databaseName = ""
@@ -322,6 +324,7 @@ struct QueryTab: Identifiable, Equatable {
         self.isPinned = persisted.isPinned
         self.tabType = persisted.tabType
         self.tableName = persisted.tableName
+        self.primaryKeyColumn = nil
 
         // Initialize runtime state with defaults
         self.lastExecutedAt = nil

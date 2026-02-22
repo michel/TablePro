@@ -11,15 +11,6 @@ extension MainContentCoordinator {
     // MARK: - Table Tab Opening
 
     func openTableTab(_ tableName: String, showStructure: Bool = false, isView: Bool = false) {
-        // Fast path: if this table is already the active tab, skip all work
-        if let current = tabManager.selectedTab,
-           current.tabType == .table,
-           current.tableName == tableName {
-            if showStructure, let idx = tabManager.selectedTabIndex {
-                tabManager.tabs[idx].showStructure = true
-            }
-            return
-        }
         // Get current database name from active session (may differ from connection default after Cmd+K switch)
         let currentDatabase: String
         if let sessionId = DatabaseManager.shared.currentSessionId,
@@ -27,6 +18,17 @@ extension MainContentCoordinator {
             currentDatabase = session.connection.database
         } else {
             currentDatabase = connection.database
+        }
+
+        // Fast path: if this table is already the active tab in the same database, skip all work
+        if let current = tabManager.selectedTab,
+           current.tabType == .table,
+           current.tableName == tableName,
+           current.databaseName == currentDatabase {
+            if showStructure, let idx = tabManager.selectedTabIndex {
+                tabManager.tabs[idx].showStructure = true
+            }
+            return
         }
 
         let needsQuery = tabManager.TableProTabSmart(

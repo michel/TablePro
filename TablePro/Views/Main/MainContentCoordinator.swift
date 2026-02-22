@@ -71,11 +71,11 @@ final class MainContentCoordinator: ObservableObject {
     private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
-    var isHandlingTabSwitch = false
+    internal var isHandlingTabSwitch = false
 
     /// Set when handleTabChange is called directly (keyboard/tab bar/sidebar),
     /// so .onChange(of: selectedTabId) skips the redundant call.
-    var skipNextTabChangeOnChange = false
+    internal var skipNextTabChangeOnChange = false
 
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
@@ -415,6 +415,12 @@ final class MainContentCoordinator: ObservableObject {
                             wasSuccessful: true,
                             errorMessage: nil
                         )
+
+                        // Clear stale edit state immediately so the save banner
+                        // doesn't linger while Phase 2 metadata loads in background.
+                        if isEditable {
+                            changeManager.clearChanges()
+                        }
                     }
                 }
 
@@ -487,20 +493,34 @@ final class MainContentCoordinator: ObservableObject {
                                     updatedTab.pagination.totalRowCount = safeTotalRowCount
                                     tabManager.tabs[idx] = updatedTab
 
-                                    changeManager.configureForTable(
-                                        tableName: tableName,
-                                        columns: safeColumns,
-                                        primaryKeyColumn: safePrimaryKeyColumn,
-                                        databaseType: conn.type
-                                    )
+                                    // Only reconfigure changeManager if this tab is still selected;
+                                    // otherwise the user switched away during Phase 2 and the
+                                    // changeManager already belongs to the new active tab.
+                                    if tabManager.selectedTabId == tabId {
+                                        changeManager.configureForTable(
+                                            tableName: tableName,
+                                            columns: safeColumns,
+                                            primaryKeyColumn: safePrimaryKeyColumn,
+                                            databaseType: conn.type
+                                        )
+                                    }
+
+                                    // Store primary key on the tab for accurate tab-switch restore
+                                    tabManager.tabs[idx].primaryKeyColumn = safePrimaryKeyColumn
                                 }
                             }
                         }
                     } catch {
                         // Metadata fetch failed — data is already displayed from Phase 1,
-                        // so log the error but don't disrupt the user's view
+                        // so log the error but don't disrupt the user's view.
+                        // Clear stale change state so the save banner doesn't linger.
                         Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
                             .error("Phase 2 metadata fetch failed: \(error.localizedDescription)")
+                        await MainActor.run {
+                            if tabManager.selectedTabId == tabId {
+                                changeManager.clearChanges()
+                            }
+                        }
                     }
                 } else {
                     // For non-editable query results, just clear changes
@@ -1424,7 +1444,7 @@ final class MainContentCoordinator: ObservableObject {
                 changeManager.configureForTable(
                     tableName: newTab.tableName ?? "",
                     columns: newTab.resultColumns,
-                    primaryKeyColumn: newTab.resultColumns.first,
+                    primaryKeyColumn: newTab.primaryKeyColumn ?? newTab.resultColumns.first,
                     databaseType: connection.type,
                     triggerReload: false
                 )

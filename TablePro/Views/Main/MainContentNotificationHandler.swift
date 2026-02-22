@@ -416,8 +416,8 @@ final class MainContentNotificationHandler: ObservableObject {
 
     private func setupTabNavigationObservers() {
         // Cmd+1-9: Select tab by number
-        // No .receive(on:) — already on main thread, saves 1-2ms RunLoop hop
         NotificationCenter.default.publisher(for: .selectTabByNumber)
+            .receive(on: RunLoop.main)
             .sink { [weak self] notification in
                 guard let number = notification.object as? Int,
                       let self,
@@ -431,6 +431,7 @@ final class MainContentNotificationHandler: ObservableObject {
 
         // Cmd+Shift+[ or Cmd+Option+Left: Previous tab
         NotificationCenter.default.publisher(for: .previousTab)
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self,
                       let tabManager = self.coordinator?.tabManager,
@@ -446,6 +447,7 @@ final class MainContentNotificationHandler: ObservableObject {
 
         // Cmd+Shift+] or Cmd+Option+Right: Next tab
         NotificationCenter.default.publisher(for: .nextTab)
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self,
                       let tabManager = self.coordinator?.tabManager,
