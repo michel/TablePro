@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-02-23
+
 ### Fixed
 - Fixed all 45 performance issues identified in PERFORMANCE.md audit:
   - **Memory:** RowBuffer reference wrapper for QueryTab (MEM-1/2), index-based sort cache (MEM-3), streaming XLSX export with inline strings (MEM-4/15), driver-level row limits cap at 100K rows (MEM-5), removed redundant String deep copies (MEM-6), weak driver reference in SQLSchemaProvider (MEM-9), undo stack depth cap (MEM-10), dictionary-based tab pending changes (MEM-11), weak self in Task captures (MEM-12), clear cached data on disconnect (MEM-13), AI chat message cap (MEM-14)
@@ -330,7 +332,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
   - Custom SQL query templates
   - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/datlechin/tablepro/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/datlechin/tablepro/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/datlechin/tablepro/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/datlechin/tablepro/compare/v0.3.2...v0.4.0

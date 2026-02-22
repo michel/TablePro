@@ -101,8 +101,6 @@ extension MainContentView {
             metadataTableName: coordinator.tableMetadata?.tableName
         )
     }
-
-
 }
 
 // MARK: - Equatable Trigger Types
@@ -122,5 +120,3 @@ struct PendingChangeTrigger: Equatable {
     let pendingDeletes: Set<String>
     let hasStructureChanges: Bool
 }
-
-

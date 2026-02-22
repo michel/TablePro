@@ -265,7 +265,7 @@ final class SQLiteDriver: DatabaseDriver {
     /// Raw db handle kept outside the actor for thread-safe sqlite3_interrupt() calls.
     /// Protected by `interruptLock` for concurrent access between disconnect() and cancelQuery().
     /// sqlite3_interrupt() is documented as safe to call from any thread.
-    private nonisolated(unsafe) var _dbHandleForInterrupt: OpaquePointer?
+    nonisolated(unsafe) private var _dbHandleForInterrupt: OpaquePointer?
 
     /// Server version string (SQLite library version, e.g., "3.43.2")
     var serverVersion: String? {
