@@ -114,7 +114,8 @@ struct SidebarView: View {
             if let operationType = pendingOperationType {
                 let tables = pendingOperationTables
                 if let firstTable = tables.first {
-                    let tableName = tables.count > 1
+                    let tableName =
+                        tables.count > 1
                         ? String(localized: "\(tables.count) tables")
                         : firstTable
                     TableOperationDialog(
@@ -122,7 +123,7 @@ struct SidebarView: View {
                         tableName: tableName,
                         operationType: operationType,
                         databaseType: databaseType
-                    )                        { options in
+                    ) { options in
                         confirmOperation(options: options)
                     }
                 }
@@ -229,43 +230,27 @@ struct SidebarView: View {
 
     private var tableList: some View {
         List(selection: $selectedTables) {
-            Section {
-                if isTablesExpanded {
-                    ForEach(filteredTables) { table in
-                        TableRow(
-                            table: table,
-                            isActive: activeTableName == table.name,
-                            isPendingTruncate: pendingTruncates.contains(table.name),
-                            isPendingDelete: pendingDeletes.contains(table.name)
-                        )
-                        .tag(table)
-                        .contextMenu {
-                            tableContextMenu(clickedTable: table)
-                        }
+            Section(isExpanded: $isTablesExpanded) {
+                ForEach(filteredTables) { table in
+                    TableRow(
+                        table: table,
+                        isActive: activeTableName == table.name,
+                        isPendingTruncate: pendingTruncates.contains(table.name),
+                        isPendingDelete: pendingDeletes.contains(table.name)
+                    )
+                    .tag(table)
+                    .contextMenu {
+                        tableContextMenu(clickedTable: table)
                     }
                 }
             } header: {
-                HStack {
-                    Button(action: {
-                        onShowAllTables?()
-                    }) {
-                        Text("Tables")
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Click to show all tables with metadata")
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .rotationEffect(.degrees(isTablesExpanded ? 90 : 0))
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .padding(.trailing, 12)
-                        .onTapGesture {
-                            withAnimation { isTablesExpanded.toggle() }
+                Text("Tables")
+                    .help("Right-click to show all tables")
+                    .contextMenu {
+                        Button(String(localized: "Show All Tables")) {
+                            onShowAllTables?()
                         }
-                }
+                    }
             }
         }
         .listStyle(.sidebar)
@@ -363,7 +348,10 @@ struct SidebarView: View {
             .disabled(!hasSelection || isReadOnly)
         }
 
-        Button(isView ? String(localized: "Drop View") : String(localized: "Delete"), role: .destructive) {
+        Button(
+            isView ? String(localized: "Drop View") : String(localized: "Delete"),
+            role: .destructive
+        ) {
             if selectedTables.isEmpty, let table = clickedTable {
                 selectedTables.insert(table)
             }
