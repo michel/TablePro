@@ -25,22 +25,24 @@ final class TableTemplateStorage {
     private let templatesKey = "saved_table_templates"
     private let fileManager = FileManager.default
 
-    private init() {}
+    private let templatesURL: URL?
 
-    // MARK: - Storage Location
+    private init() {
+        if let appSupport = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first {
+            let appFolder = appSupport.appendingPathComponent("TablePro", isDirectory: true)
 
-    private var templatesURL: URL? {
-        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
-            return nil
+            // Create directory if needed
+            if !fileManager.fileExists(atPath: appFolder.path) {
+                try? fileManager.createDirectory(at: appFolder, withIntermediateDirectories: true)
+            }
+
+            templatesURL = appFolder.appendingPathComponent("table_templates.json")
+        } else {
+            templatesURL = nil
         }
-        let appFolder = appSupport.appendingPathComponent("TablePro", isDirectory: true)
-
-        // Create directory if needed
-        if !fileManager.fileExists(atPath: appFolder.path) {
-            try? fileManager.createDirectory(at: appFolder, withIntermediateDirectories: true)
-        }
-
-        return appFolder.appendingPathComponent("table_templates.json")
     }
 
     // MARK: - Save/Load
