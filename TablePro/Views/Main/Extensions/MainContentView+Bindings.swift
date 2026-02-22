@@ -102,14 +102,7 @@ extension MainContentView {
         )
     }
 
-    /// Trigger for toolbar execution state — combines `isExecuting` and `executionTime`
-    /// from the current tab. Replaces two separate handlers that both updated `toolbarState`.
-    var executionStateTrigger: ExecutionStateTrigger {
-        ExecutionStateTrigger(
-            isExecuting: currentTab?.isExecuting ?? false,
-            executionTime: currentTab?.executionTime
-        )
-    }
+
 }
 
 // MARK: - Equatable Trigger Types
@@ -130,9 +123,4 @@ struct PendingChangeTrigger: Equatable {
     let hasStructureChanges: Bool
 }
 
-/// Lightweight equatable value combining execution state properties
-/// for consolidated toolbar execution onChange observation.
-struct ExecutionStateTrigger: Equatable {
-    let isExecuting: Bool
-    let executionTime: TimeInterval?
-}
+

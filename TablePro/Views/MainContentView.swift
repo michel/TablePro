@@ -193,12 +193,7 @@ struct MainContentView: View {
             .onChange(of: DatabaseManager.shared.currentSession?.status) { _, newStatus in
                 handleSessionStatusChange(newStatus)
             }
-            .onChange(of: executionStateTrigger) { _, newValue in
-                toolbarState.isExecuting = newValue.isExecuting
-                if let time = newValue.executionTime {
-                    toolbarState.lastQueryDuration = time
-                }
-            }
+
             .onChange(of: selectedTables) { _, newTables in
                 handleTableSelectionChange(from: previousSelectedTables, to: newTables)
                 previousSelectedTables = newTables
