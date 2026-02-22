@@ -27,6 +27,7 @@ struct RowVisualState {
 /// Identity snapshot used to skip redundant updateNSView work when nothing has changed
 private struct DataGridIdentity: Equatable {
     let reloadVersion: Int
+    let resultVersion: Int
     let rowCount: Int
     let columnCount: Int
     let isEditable: Bool
@@ -36,6 +37,7 @@ private struct DataGridIdentity: Equatable {
 struct DataGridView: NSViewRepresentable {
     let rowProvider: InMemoryRowProvider
     @ObservedObject var changeManager: AnyChangeManager
+    var resultVersion: Int = 0
     let isEditable: Bool
     var onCommit: ((String) -> Void)?
     var onRefresh: (() -> Void)?
@@ -172,6 +174,7 @@ struct DataGridView: NSViewRepresentable {
         // and reloadData() during cascading onChange re-evaluations.
         let currentIdentity = DataGridIdentity(
             reloadVersion: changeManager.reloadVersion,
+            resultVersion: resultVersion,
             rowCount: rowProvider.totalRowCount,
             columnCount: rowProvider.columns.count,
             isEditable: isEditable

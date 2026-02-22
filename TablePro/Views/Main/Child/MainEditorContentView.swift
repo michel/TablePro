@@ -285,6 +285,7 @@ struct MainEditorContentView: View {
                 columnNullable: tab.columnNullable
             ),
             changeManager: AnyChangeManager(dataManager: changeManager),
+            resultVersion: tab.resultVersion,
             isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
             onCommit: onCommit,
             onRefresh: onRefresh,
