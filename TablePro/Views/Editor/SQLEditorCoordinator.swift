@@ -19,6 +19,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     private var contextMenu: AIEditorContextMenu?
     private var rightClickMonitor: Any?
     private var inlineSuggestionManager: InlineSuggestionManager?
+    private var editorSettingsObserver: NSObjectProtocol?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -84,6 +85,11 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     func destroy() {
         inlineSuggestionManager?.uninstall()
         inlineSuggestionManager = nil
+
+        if let obs = editorSettingsObserver {
+            NotificationCenter.default.removeObserver(obs)
+            editorSettingsObserver = nil
+        }
 
         if let monitor = rightClickMonitor {
             NSEvent.removeMonitor(monitor)
@@ -156,7 +162,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
 
         // Re-apply after reloadUI() resets translatesAutoresizingMaskIntoConstraints.
         // reloadUI() is called when editor settings change (font, theme, etc.).
-        NotificationCenter.default.addObserver(
+        editorSettingsObserver = NotificationCenter.default.addObserver(
             forName: .editorSettingsDidChange,
             object: nil,
             queue: .main
