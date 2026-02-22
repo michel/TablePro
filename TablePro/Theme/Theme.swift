@@ -53,21 +53,21 @@ enum Theme {
     }
 
     static let nullValue = Color.secondary.opacity(0.5)
-    static let boolTrue = Color.green
-    static let boolFalse = Color.red
+    static let boolTrue = Color(nsColor: .systemGreen)
+    static let boolFalse = Color(nsColor: .systemRed)
 
     // MARK: - Status Colors
 
-    static let success = Color.green
-    static let warning = Color.orange
-    static let error = Color.red
-    static let info = Color.blue
+    static let success = Color(nsColor: .systemGreen)
+    static let warning = Color(nsColor: .systemOrange)
+    static let error = Color(nsColor: .systemRed)
+    static let info = Color(nsColor: .systemBlue)
 
     // MARK: - Connection Status
 
-    static let connected = Color.green
-    static let disconnected = Color.gray
-    static let connecting = Color.orange
+    static let connected = Color(nsColor: .systemGreen)
+    static let disconnected = Color(nsColor: .systemGray)
+    static let connecting = Color(nsColor: .systemOrange)
 }
 
 // MARK: - View Extensions
