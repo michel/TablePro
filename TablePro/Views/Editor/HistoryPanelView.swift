@@ -359,7 +359,9 @@ private extension HistoryPanelView {
     }
 
     func runInNewTab(_ entry: QueryHistoryEntry) {
-        NotificationCenter.default.post(name: .newTab, object: nil)
+        // Always create a new tab first, then load query into it after a brief
+        // delay to let the tab be created before loading content.
+        NotificationCenter.default.post(name: .newQueryTab, object: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             NotificationCenter.default.post(name: .loadQueryIntoEditor, object: entry.query)
         }

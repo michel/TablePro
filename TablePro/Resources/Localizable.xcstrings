@@ -1569,6 +1569,7 @@
       }
     },
     "Click to show all tables with metadata" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6686,6 +6687,9 @@
           }
         }
       }
+    },
+    "Show All Tables" : {
+
     },
     "Show alternate row backgrounds" : {
       "localizations" : {
