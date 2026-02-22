@@ -505,6 +505,7 @@
       }
     },
     "••••••••" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -964,6 +965,9 @@
         }
       }
     },
+    "AI Policy" : {
+
+    },
     "AI-powered SQL completions appear as ghost text while typing. Press Tab to accept, Escape to dismiss." : {
 
     },
@@ -1306,6 +1310,12 @@
         }
       }
     },
+    "CA Cert" : {
+
+    },
+    "CA Certificate" : {
+
+    },
     "Cancel" : {
       "localizations" : {
         "vi" : {
@@ -1547,6 +1557,15 @@
         }
       }
     },
+    "Client Cert" : {
+
+    },
+    "Client Certificates (Optional)" : {
+
+    },
+    "Client Key" : {
+
+    },
     "Clipboard is empty or contains no text data." : {
       "localizations" : {
         "vi" : {
@@ -1742,6 +1761,9 @@
           }
         }
       }
+    },
+    "Config Host" : {
+
     },
     "Configure an AI provider in Settings to start chatting." : {
 
@@ -2361,6 +2383,9 @@
         }
       }
     },
+    "Database File" : {
+
+    },
     "Database file not found: %@" : {
       "localizations" : {
         "vi" : {
@@ -2953,6 +2978,9 @@
       }
     },
     "Enable inline suggestions" : {
+
+    },
+    "Enable SSH Tunnel" : {
 
     },
     "Enabled" : {
@@ -3846,6 +3874,9 @@
     "history entry" : {
 
     },
+    "Host" : {
+
+    },
     "Ignore foreign key checks" : {
       "localizations" : {
         "vi" : {
@@ -4217,6 +4248,9 @@
         }
       }
     },
+    "Key File" : {
+
+    },
     "Keyboard" : {
       "localizations" : {
         "vi" : {
@@ -4539,6 +4573,9 @@
           }
         }
       }
+    },
+    "Method" : {
+
     },
     "Model" : {
       "localizations" : {
@@ -5416,6 +5453,9 @@
         }
       }
     },
+    "Passphrase" : {
+
+    },
     "Password" : {
       "localizations" : {
         "vi" : {
@@ -5475,6 +5515,9 @@
           }
         }
       }
+    },
+    "Port" : {
+
     },
     "Potentially Dangerous Queries" : {
       "localizations" : {
@@ -5815,6 +5858,9 @@
           }
         }
       }
+    },
+    "Read-Only" : {
+
     },
     "Read-only connection" : {
       "localizations" : {
@@ -6437,6 +6483,9 @@
         }
       }
     },
+    "Server" : {
+
+    },
     "Server error (%lld): %@" : {
       "localizations" : {
         "en" : {
@@ -6716,7 +6765,14 @@
         }
       }
     },
+    "SSH Host" : {
+
+    },
+    "SSH Port" : {
+
+    },
     "SSH Tunnel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6746,6 +6802,9 @@
         }
       }
     },
+    "SSH User" : {
+
+    },
     "ssh.example.com" : {
       "localizations" : {
         "vi" : {
@@ -6756,7 +6815,11 @@
         }
       }
     },
+    "SSL Mode" : {
+
+    },
     "SSL/TLS" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7083,6 +7146,9 @@
           }
         }
       }
+    },
+    "Tag" : {
+
     },
     "Tag name" : {
       "localizations" : {
@@ -7670,6 +7736,9 @@
           }
         }
       }
+    },
+    "Username" : {
+
     },
     "UTC_TIMESTAMP()" : {
       "localizations" : {
