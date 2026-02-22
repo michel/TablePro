@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Revamped connection form UI to use native macOS grouped form style (`Form`/`.formStyle(.grouped)`) with `LabeledContent` for automatic label-value alignment and `Section` headers — replacing the previous hand-rolled `VStack` layout with custom `FormField` component
 - Removed unused `FormField` component and helper methods (`iconForType`, `colorForType`)
 - SQLite connections now only show General and Advanced tabs (SSH/SSL hidden)
+- Added async/await wrapper methods to `QueryHistoryStorage` — existing completion-handler API preserved for compatibility, new `async` overloads use `withCheckedContinuation` for modern Swift concurrency callers
 
 ### Fixed
 - Fixed retain cycle in `UpdaterBridge` — `.assign(to:on:self)` retains self strongly; replaced with `.sink` using `[weak self]`

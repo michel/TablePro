@@ -476,6 +476,68 @@ final class QueryHistoryStorage {
         }
     }
 
+    // MARK: - Async/Await Wrappers
+
+    /// Add a history entry using async/await
+    func addHistory(_ entry: QueryHistoryEntry) async -> Bool {
+        await withCheckedContinuation { continuation in
+            addHistory(entry) { success in
+                continuation.resume(returning: success)
+            }
+        }
+    }
+
+    /// Fetch history with optional filters using async/await
+    func fetchHistory(
+        limit: Int = 100,
+        offset: Int = 0,
+        connectionId: UUID? = nil,
+        searchText: String? = nil,
+        dateFilter: DateFilter = .all
+    ) async -> [QueryHistoryEntry] {
+        await withCheckedContinuation { continuation in
+            fetchHistoryAsync(
+                limit: limit,
+                offset: offset,
+                connectionId: connectionId,
+                searchText: searchText,
+                dateFilter: dateFilter
+            ) { entries in
+                continuation.resume(returning: entries)
+            }
+        }
+    }
+
+    /// Delete a specific history entry using async/await
+    func deleteHistoryAsync(id: UUID) async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let result = self?.deleteHistory(id: id) ?? false
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    /// Get total history count using async/await
+    func getHistoryCountAsync() async -> Int {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let count = self?.getHistoryCount() ?? 0
+                continuation.resume(returning: count)
+            }
+        }
+    }
+
+    /// Clear all history entries using async/await
+    func clearAllHistoryAsync() async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let result = self?.clearAllHistory() ?? false
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
     // MARK: - Parsing Helpers
 
     private func parseHistoryEntry(from statement: OpaquePointer?) -> QueryHistoryEntry? {
