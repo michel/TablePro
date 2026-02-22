@@ -26,10 +26,10 @@ struct MainContentView: View {
 
     // MARK: - State Objects
 
-    @StateObject private var tabManager = QueryTabManager()
-    @StateObject private var changeManager = DataChangeManager()
-    @StateObject private var filterStateManager = FilterStateManager()
-    @StateObject private var toolbarState = ConnectionToolbarState()
+    @StateObject private var tabManager: QueryTabManager
+    @StateObject private var changeManager: DataChangeManager
+    @StateObject private var filterStateManager: FilterStateManager
+    @StateObject private var toolbarState: ConnectionToolbarState
     @StateObject var coordinator: MainContentCoordinator
 
     // MARK: - Local State
