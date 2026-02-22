@@ -17,12 +17,17 @@ final class ConnectionStorage {
     private let connectionsKey = "com.TablePro.connections"
     private let defaults = UserDefaults.standard
 
+    /// In-memory cache to avoid re-decoding JSON from UserDefaults on every access
+    private var cachedConnections: [DatabaseConnection]?
+
     private init() {}
 
     // MARK: - Connection CRUD
 
     /// Load all saved connections
     func loadConnections() -> [DatabaseConnection] {
+        if let cached = cachedConnections { return cached }
+
         guard let data = defaults.data(forKey: connectionsKey) else {
             return []
         }
@@ -31,12 +36,14 @@ final class ConnectionStorage {
             let decoder = JSONDecoder()
             let storedConnections = try decoder.decode([StoredConnection].self, from: data)
 
-            return storedConnections.map { stored in
+            let connections = storedConnections.map { stored in
                 let connection = stored.toConnection()
                 // Password is stored in Keychain, accessed when needed via loadPassword()
                 _ = loadPassword(for: stored.id)  // Verify password exists
                 return connection
             }
+            cachedConnections = connections
+            return connections
         } catch {
             Self.logger.error("Failed to load connections: \(error)")
             return []
@@ -45,6 +52,8 @@ final class ConnectionStorage {
 
     /// Save all connections
     func saveConnections(_ connections: [DatabaseConnection]) {
+        cachedConnections = connections
+
         let storedConnections = connections.map { StoredConnection(from: $0) }
 
         do {
