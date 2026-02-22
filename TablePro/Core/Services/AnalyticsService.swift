@@ -98,10 +98,10 @@ final class AnalyticsService {
             let (_, response) = try await session.data(for: request)
 
             if let httpResponse = response as? HTTPURLResponse {
-                Self.logger.debug("Analytics heartbeat sent, status: \(httpResponse.statusCode)")
+                Self.logger.trace("Analytics heartbeat sent, status: \(httpResponse.statusCode)")
             }
         } catch {
-            Self.logger.debug("Analytics heartbeat failed: \(error.localizedDescription)")
+            Self.logger.trace("Analytics heartbeat failed: \(error.localizedDescription)")
         }
     }
 

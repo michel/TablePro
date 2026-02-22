@@ -68,7 +68,7 @@ final class LicenseManager: ObservableObject {
             license = cached
             evaluateStatus()
 
-            Self.logger.debug("Loaded cached license for \(cached.email)")
+            Self.logger.trace("Loaded cached license for \(cached.email)")
         } catch {
             // Signature invalid — clear everything
             Self.logger.error("Cached license signature invalid, clearing")
