@@ -246,5 +246,7 @@ struct ShortcutRecorderView: NSViewRepresentable {
 
     func updateNSView(_ nsView: ShortcutRecorderNSView, context: Context) {
         nsView.currentCombo = combo
+        nsView.onRecord = { [onRecord] newCombo in onRecord?(newCombo) }
+        nsView.onClear = { [onClear] in onClear?() }
     }
 }
