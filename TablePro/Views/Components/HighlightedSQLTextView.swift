@@ -68,18 +68,10 @@ struct HighlightedSQLTextView: NSViewRepresentable {
 
     // MARK: - Syntax Highlighting
 
-    private func applyHighlighting(to textView: NSTextView) {
-        guard let textStorage = textView.textStorage else { return }
-        guard textStorage.length > 0 else { return }
+    // MARK: - Pre-compiled Syntax Patterns
 
-        let fullRange = NSRange(location: 0, length: textStorage.length)
-
-        textStorage.beginEditing()
-
-        // Reset to base style
-        let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
-        textStorage.addAttribute(.font, value: font, range: fullRange)
-        textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
+    private static let syntaxPatterns: [(regex: NSRegularExpression, color: NSColor)] = {
+        var patterns: [(NSRegularExpression, NSColor)] = []
 
         // SQL Keywords (blue)
         let keywords = [
@@ -94,31 +86,52 @@ struct HighlightedSQLTextView: NSViewRepresentable {
             "SUM", "AVG", "MIN", "MAX", "CASE", "WHEN", "THEN", "ELSE", "END",
             "UNION", "ALL", "WITH", "RECURSIVE"
         ]
-
         for keyword in keywords {
-            highlightPattern("\\b\(keyword)\\b", color: .systemBlue, in: textStorage)
+            if let regex = try? NSRegularExpression(pattern: "\\b\(keyword)\\b", options: .caseInsensitive) {
+                patterns.append((regex, .systemBlue))
+            }
         }
 
         // Strings (red)
-        highlightPattern("'[^']*'", color: .systemRed, in: textStorage)
+        if let regex = try? NSRegularExpression(pattern: "'[^']*'", options: .caseInsensitive) {
+            patterns.append((regex, .systemRed))
+        }
 
         // Backticks (orange)
-        highlightPattern("`[^`]*`", color: .systemOrange, in: textStorage)
+        if let regex = try? NSRegularExpression(pattern: "`[^`]*`", options: .caseInsensitive) {
+            patterns.append((regex, .systemOrange))
+        }
 
         // Numbers (purple)
-        highlightPattern("\\b\\d+\\b", color: .systemPurple, in: textStorage)
+        if let regex = try? NSRegularExpression(pattern: "\\b\\d+\\b", options: .caseInsensitive) {
+            patterns.append((regex, .systemPurple))
+        }
+
+        return patterns
+    }()
+
+    private func applyHighlighting(to textView: NSTextView) {
+        guard let textStorage = textView.textStorage else { return }
+        guard textStorage.length > 0 else { return }
+
+        let fullRange = NSRange(location: 0, length: textStorage.length)
+
+        textStorage.beginEditing()
+
+        // Reset to base style
+        let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        textStorage.addAttribute(.font, value: font, range: fullRange)
+        textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
+
+        // Apply pre-compiled patterns
+        let text = textStorage.string
+        for (regex, color) in Self.syntaxPatterns {
+            let matches = regex.matches(in: text, options: [], range: fullRange)
+            for match in matches {
+                textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
+            }
+        }
 
         textStorage.endEditing()
-    }
-
-    private func highlightPattern(_ pattern: String, color: NSColor, in textStorage: NSTextStorage) {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return }
-
-        let range = NSRange(location: 0, length: textStorage.length)
-        let matches = regex.matches(in: textStorage.string, options: [], range: range)
-
-        for match in matches {
-            textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
-        }
     }
 }
