@@ -322,11 +322,12 @@ struct MainEditorContentView: View {
         }
 
         // Check coordinator's async sort cache (for large datasets sorted on background thread)
+        // The cache stores index permutation to avoid duplicating all row data.
         if let cached = coordinator.querySortCache[tab.id],
            cached.columnIndex == (tab.sortState.columnIndex ?? -1),
            cached.direction == tab.sortState.direction,
            cached.resultVersion == tab.resultVersion {
-            return cached.rows
+            return cached.sortedIndices.map { tab.resultRows[$0] }
         }
 
         // For large datasets sorted async, return unsorted until cache is ready

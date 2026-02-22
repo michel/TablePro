@@ -14,6 +14,10 @@ import os
 @MainActor
 final class RowOperationsManager {
     private static let logger = Logger(subsystem: "com.TablePro", category: "RowOperationsManager")
+
+    /// Maximum number of rows that can be copied to clipboard to prevent OOM
+    private static let maxClipboardRows = 50_000
+
     // MARK: - Dependencies
 
     private let changeManager: DataChangeManager
@@ -304,6 +308,16 @@ final class RowOperationsManager {
         guard !selectedIndices.isEmpty else { return }
 
         let sortedIndices = selectedIndices.sorted()
+        let totalSelected = sortedIndices.count
+        let isTruncated = totalSelected > Self.maxClipboardRows
+
+        if isTruncated {
+            Self.logger.warning(
+                "Clipboard copy truncated: \(totalSelected) rows selected, capping at \(Self.maxClipboardRows)"
+            )
+        }
+
+        let indicesToCopy = isTruncated ? Array(sortedIndices.prefix(Self.maxClipboardRows)) : sortedIndices
         var lines: [String] = []
 
         // Add header row if requested
@@ -311,11 +325,15 @@ final class RowOperationsManager {
             lines.append(columns.joined(separator: "\t"))
         }
 
-        for rowIndex in sortedIndices {
+        for rowIndex in indicesToCopy {
             guard rowIndex < resultRows.count else { continue }
             let row = resultRows[rowIndex]
             let line = row.values.map { $0 ?? "NULL" }.joined(separator: "\t")
             lines.append(line)
+        }
+
+        if isTruncated {
+            lines.append("(truncated, showing first \(Self.maxClipboardRows) of \(totalSelected) rows)")
         }
 
         let text = lines.joined(separator: "\n")

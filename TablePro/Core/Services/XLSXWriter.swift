@@ -5,27 +5,35 @@
 //  Lightweight XLSX writer that creates Excel files without external dependencies.
 //  XLSX format = ZIP archive containing XML files (Office Open XML).
 //
-//  Performance: Uses Data buffers (not String concatenation) and zlib CRC-32
-//  to handle 100K+ row exports without freezing.
+//  Performance: Uses inline strings (no shared string table), Data buffers
+//  (not String concatenation), and batch row processing to handle 100K+ row
+//  exports with bounded memory usage.
 //
 
 import Foundation
 import os
 import zlib
 
-/// Writes data to XLSX format using raw ZIP file construction
+/// Writes data to XLSX format using raw ZIP file construction.
+///
+/// Uses inline strings (`t="inlineStr"`) instead of a shared string table
+/// to avoid unbounded memory growth from caching every unique string value.
+/// Rows are processed in batches and appended directly to per-sheet XML Data,
+/// so raw row arrays can be released after each batch.
 final class XLSXWriter {
     private static let logger = Logger(subsystem: "com.TablePro", category: "XLSXWriter")
 
-    /// Shared strings table for deduplication
-    private var sharedStrings: [String] = []
-    private var sharedStringIndex: [String: Int] = [:]
-
-    /// Worksheet data (one per table)
-    private var sheets: [(name: String, rows: [[CellValue]])] = []
+    /// Per-sheet metadata and accumulated XML data
+    private var sheets: [(name: String, data: Data)] = []
 
     /// Pre-cached column letter lookups
     private var columnLetterCache: [String] = []
+
+    /// Tracks the current row number for the active sheet being built
+    private var currentRowNumber: Int = 0
+
+    /// Whether the current sheet has a header row (used for bold styling)
+    private var currentSheetHasHeader: Bool = false
 
     enum CellValue {
         case string(String)
@@ -33,14 +41,43 @@ final class XLSXWriter {
         case empty
     }
 
-    /// Add a worksheet with the given name, columns, and rows
-    func addSheet(name: String, columns: [String], rows: [[String?]], includeHeader: Bool, convertNullToEmpty: Bool) {
-        var sheetRows: [[CellValue]] = []
-        sheetRows.reserveCapacity(rows.count + 1)
+    // MARK: - Sheet Building API
 
-        if includeHeader {
-            sheetRows.append(columns.map { .string($0) })
+    /// Begin a new worksheet. Must be followed by `addRows` calls and then `finishSheet`.
+    func beginSheet(name: String, columns: [String], includeHeader: Bool, convertNullToEmpty: Bool) {
+        let sanitized = sanitizeSheetName(name)
+        currentRowNumber = 0
+        currentSheetHasHeader = includeHeader
+
+        // Pre-cache column letters
+        let maxCols = max(columns.count, columnLetterCache.count)
+        if maxCols > columnLetterCache.count {
+            for i in columnLetterCache.count..<maxCols {
+                columnLetterCache.append(columnLetter(i))
+            }
         }
+
+        // Start sheet XML with header
+        var d = Data()
+        d.appendUTF8("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n")
+        d.appendUTF8("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>")
+
+        // Write header row if requested
+        if includeHeader {
+            let headerCells: [CellValue] = columns.map { .string($0) }
+            appendRow(headerCells, isHeader: true, to: &d)
+        }
+
+        sheets.append((name: sanitized, data: d))
+    }
+
+    /// Add a batch of raw rows to the current (last) sheet.
+    /// Converts `[String?]` to `CellValue` and writes XML immediately,
+    /// so the caller can release the raw row data after this call returns.
+    func addRows(_ rows: [[String?]], convertNullToEmpty: Bool) {
+        guard !sheets.isEmpty else { return }
+
+        var sheetData = sheets[sheets.count - 1].data
 
         for row in rows {
             let cellRow: [CellValue] = row.map { value in
@@ -56,27 +93,30 @@ final class XLSXWriter {
                 }
                 return .string(val)
             }
-            sheetRows.append(cellRow)
+            appendRow(cellRow, isHeader: false, to: &sheetData)
         }
 
-        // Sanitize sheet name for Excel (max 31 chars, no special chars)
-        let sanitized = sanitizeSheetName(name)
-        sheets.append((name: sanitized, rows: sheetRows))
+        sheets[sheets.count - 1].data = sheetData
+    }
 
-        // Pre-cache column letters for the max column count
-        let maxCols = max(columns.count, columnLetterCache.count)
-        if maxCols > columnLetterCache.count {
-            for i in columnLetterCache.count..<maxCols {
-                columnLetterCache.append(columnLetter(i))
-            }
-        }
+    /// Finish the current sheet by closing the XML tags.
+    func finishSheet() {
+        guard !sheets.isEmpty else { return }
+        sheets[sheets.count - 1].data.appendUTF8("</sheetData></worksheet>")
+    }
+
+    // MARK: - Legacy Convenience API
+
+    /// Add a complete worksheet with all rows at once (legacy compatibility).
+    /// For better memory usage, prefer `beginSheet` / `addRows` / `finishSheet`.
+    func addSheet(name: String, columns: [String], rows: [[String?]], includeHeader: Bool, convertNullToEmpty: Bool) {
+        beginSheet(name: name, columns: columns, includeHeader: includeHeader, convertNullToEmpty: convertNullToEmpty)
+        addRows(rows, convertNullToEmpty: convertNullToEmpty)
+        finishSheet()
     }
 
     /// Write the XLSX file to the given URL
     func write(to url: URL) throws {
-        // Build shared strings from all sheets
-        buildSharedStrings()
-
         // Create ZIP entries
         var entries: [ZipFileEntry] = []
 
@@ -86,14 +126,10 @@ final class XLSXWriter {
         entries.append(ZipFileEntry(path: "xl/_rels/workbook.xml.rels", data: workbookRelsXML()))
         entries.append(ZipFileEntry(path: "xl/styles.xml", data: stylesXML()))
 
-        if !sharedStrings.isEmpty {
-            entries.append(ZipFileEntry(path: "xl/sharedStrings.xml", data: sharedStringsXML()))
-        }
-
         for (index, sheet) in sheets.enumerated() {
             entries.append(ZipFileEntry(
                 path: "xl/worksheets/sheet\(index + 1).xml",
-                data: worksheetXML(for: sheet.rows)
+                data: sheet.data
             ))
         }
 
@@ -101,27 +137,46 @@ final class XLSXWriter {
         try zipData.write(to: url)
     }
 
-    // MARK: - Shared Strings
+    // MARK: - Row XML Generation
 
-    private func buildSharedStrings() {
-        sharedStrings = []
-        sharedStringIndex = [:]
+    /// Append a single row of cells to the given Data buffer using inline strings.
+    /// Inline strings use `t="inlineStr"` with `<is><t>text</t></is>` to avoid
+    /// the shared string table entirely (MEM-15 fix).
+    private func appendRow(_ cells: [CellValue], isHeader: Bool, to data: inout Data) {
+        currentRowNumber += 1
+        let rowNum = currentRowNumber
 
-        for sheet in sheets {
-            for row in sheet.rows {
-                for cell in row {
-                    if case .string(let value) = cell {
-                        if sharedStringIndex[value] == nil {
-                            sharedStringIndex[value] = sharedStrings.count
-                            sharedStrings.append(value)
-                        }
-                    }
+        data.appendUTF8("<row r=\"\(rowNum)\">")
+
+        for (colIndex, cell) in cells.enumerated() {
+            let colLetter = colIndex < columnLetterCache.count
+                ? columnLetterCache[colIndex]
+                : columnLetter(colIndex)
+            let cellRef = "\(colLetter)\(rowNum)"
+
+            switch cell {
+            case .string(let value):
+                if isHeader {
+                    // Header cells get bold style (s="1") + inline string
+                    data.appendUTF8("<c r=\"\(cellRef)\" t=\"inlineStr\" s=\"1\"><is><t>")
+                } else {
+                    data.appendUTF8("<c r=\"\(cellRef)\" t=\"inlineStr\"><is><t>")
                 }
+                data.appendXMLEscaped(value)
+                data.appendUTF8("</t></is></c>")
+            case .number(let value):
+                data.appendUTF8("<c r=\"\(cellRef)\"><v>")
+                data.appendXMLEscaped(value)
+                data.appendUTF8("</v></c>")
+            case .empty:
+                break
             }
         }
+
+        data.appendUTF8("</row>")
     }
 
-    // MARK: - XML Generation (Data-based to avoid O(n²) String concatenation)
+    // MARK: - XML Generation (Data-based to avoid O(n^2) String concatenation)
 
     private func contentTypesXML() -> Data {
         var d = Data()
@@ -131,9 +186,6 @@ final class XLSXWriter {
         d.appendUTF8("<Default Extension=\"xml\" ContentType=\"application/xml\"/>")
         d.appendUTF8("<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>")
         d.appendUTF8("<Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/>")
-        if !sharedStrings.isEmpty {
-            d.appendUTF8("<Override PartName=\"/xl/sharedStrings.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml\"/>")
-        }
         for index in sheets.indices {
             d.appendUTF8("<Override PartName=\"/xl/worksheets/sheet\(index + 1).xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>")
         }
@@ -173,9 +225,6 @@ final class XLSXWriter {
         }
         let nextId = sheets.count + 1
         d.appendUTF8("<Relationship Id=\"rId\(nextId)\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/>")
-        if !sharedStrings.isEmpty {
-            d.appendUTF8("<Relationship Id=\"rId\(nextId + 1)\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings\" Target=\"sharedStrings.xml\"/>")
-        }
         d.appendUTF8("</Relationships>")
         return d
     }
@@ -195,59 +244,6 @@ final class XLSXWriter {
         d.appendUTF8("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>")
         d.appendUTF8("<xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/>")
         d.appendUTF8("</cellXfs></styleSheet>")
-        return d
-    }
-
-    private func sharedStringsXML() -> Data {
-        // Pre-allocate: rough estimate of 50 bytes per string entry
-        var d = Data(capacity: sharedStrings.count * 50)
-        d.appendUTF8("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n")
-        d.appendUTF8("<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"\(sharedStrings.count)\" uniqueCount=\"\(sharedStrings.count)\">")
-        for str in sharedStrings {
-            d.appendUTF8("<si><t>")
-            d.appendXMLEscaped(str)
-            d.appendUTF8("</t></si>")
-        }
-        d.appendUTF8("</sst>")
-        return d
-    }
-
-    private func worksheetXML(for rows: [[CellValue]]) -> Data {
-        // Pre-allocate: rough estimate of 80 bytes per cell
-        let cellCount = rows.reduce(0) { $0 + $1.count }
-        var d = Data(capacity: cellCount * 80)
-
-        d.appendUTF8("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n")
-        d.appendUTF8("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>")
-
-        for (rowIndex, row) in rows.enumerated() {
-            let rowNum = rowIndex + 1
-            let isHeader = rowIndex == 0
-            d.appendUTF8("<row r=\"\(rowNum)\">")
-
-            for (colIndex, cell) in row.enumerated() {
-                let colLetter = colIndex < columnLetterCache.count ? columnLetterCache[colIndex] : columnLetter(colIndex)
-                switch cell {
-                case .string(let value):
-                    if let ssIndex = sharedStringIndex[value] {
-                        if isHeader {
-                            d.appendUTF8("<c r=\"\(colLetter)\(rowNum)\" t=\"s\" s=\"1\"><v>\(ssIndex)</v></c>")
-                        } else {
-                            d.appendUTF8("<c r=\"\(colLetter)\(rowNum)\" t=\"s\"><v>\(ssIndex)</v></c>")
-                        }
-                    }
-                case .number(let value):
-                    d.appendUTF8("<c r=\"\(colLetter)\(rowNum)\"><v>")
-                    d.appendXMLEscaped(value)
-                    d.appendUTF8("</v></c>")
-                case .empty:
-                    break
-                }
-            }
-            d.appendUTF8("</row>")
-        }
-
-        d.appendUTF8("</sheetData></worksheet>")
         return d
     }
 

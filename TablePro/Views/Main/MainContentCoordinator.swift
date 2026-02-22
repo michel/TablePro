@@ -19,9 +19,9 @@ enum DiscardAction {
     case refreshAll
 }
 
-/// Cache entry for async-sorted query tab rows
+/// Cache entry for async-sorted query tab rows (stores index permutation, not row copies)
 struct QuerySortCacheEntry {
-    let rows: [QueryResultRow]
+    let sortedIndices: [Int]
     let columnIndex: Int
     let direction: SortDirection
     let resultVersion: Int
@@ -78,6 +78,10 @@ final class MainContentCoordinator: ObservableObject {
     private var changeManagerUpdateTask: Task<Void, Never>?
     private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
+    /// Stores pending change state per tab ID, separate from QueryTab struct to avoid CoW amplification.
+    /// When switching tabs, change state is saved here instead of inside the QueryTab value type.
+    private var tabPendingChanges: [UUID: TabPendingChanges] = [:]
+
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
 
@@ -85,9 +89,10 @@ final class MainContentCoordinator: ObservableObject {
     /// so .onChange(of: selectedTabId) skips the redundant call.
     internal var skipNextTabChangeOnChange = false
 
-    /// Remove sort cache entries for tabs that no longer exist
+    /// Remove sort cache and pending change entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
         querySortCache = querySortCache.filter { openTabIds.contains($0.key) }
+        tabPendingChanges = tabPendingChanges.filter { openTabIds.contains($0.key) }
         for (tabId, task) in activeSortTasks where !openTabIds.contains(tabId) {
             task.cancel()
             activeSortTasks.removeValue(forKey: tabId)
@@ -162,6 +167,15 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
+    /// Default row limit for query tabs to prevent unbounded result sets
+    private static let defaultQueryLimit = 10_000
+
+    /// Pre-compiled regex for detecting existing LIMIT clause in SELECT queries
+    private static let limitClauseRegex = try? NSRegularExpression(
+        pattern: "\\bLIMIT\\s+\\d+",
+        options: .caseInsensitive
+    )
+
     // MARK: - Write Query Detection
 
     /// Write-operation SQL prefixes blocked in read-only mode
@@ -178,6 +192,9 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     // MARK: - Dangerous Query Detection
+
+    /// Pre-compiled regex for detecting WHERE clause in DELETE queries (avoids per-call compilation)
+    private static let whereClauseRegex = try? NSRegularExpression(pattern: "\\sWHERE\\s", options: [])
 
     /// Check if a query is potentially dangerous (DROP, TRUNCATE, DELETE without WHERE)
     func isDangerousQuery(_ sql: String) -> Bool {
@@ -196,7 +213,8 @@ final class MainContentCoordinator: ObservableObject {
         // Check for DELETE without WHERE clause
         if uppercased.hasPrefix("DELETE ") {
             // Check if there's a WHERE clause (handle any whitespace: space, tab, newline)
-            let hasWhere = uppercased.range(of: "\\sWHERE\\s", options: .regularExpression) != nil
+            let range = NSRange(uppercased.startIndex..., in: uppercased)
+            let hasWhere = Self.whereClauseRegex?.firstMatch(in: uppercased, options: [], range: range) != nil
             return !hasWhere
         }
 
@@ -353,26 +371,38 @@ final class MainContentCoordinator: ObservableObject {
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
-        let tableName = extractTableName(from: sql)
+
+        // DAT-1: For query tabs, auto-append LIMIT if the SQL is a SELECT without one
+        let effectiveSQL: String
+        if tab.tabType == .query {
+            effectiveSQL = Self.addLimitIfNeeded(to: sql, limit: Self.defaultQueryLimit)
+        } else {
+            effectiveSQL = sql
+        }
+
+        let tableName = extractTableName(from: effectiveSQL)
         let isEditable = tableName != nil
 
+        currentQueryTask = Task { [weak self] in
+            guard let self else { return }
 
-        currentQueryTask = Task {
             do {
-                let result = try await DatabaseManager.shared.execute(query: sql)
+                let result = try await DatabaseManager.shared.execute(query: effectiveSQL)
 
-                // Phase 1: Deep copy result data immediately (before metadata queries)
-                let safeColumns = result.columns.map { String($0) }
+                // Phase 1: Result data is already Swift-owned strings from the driver;
+                // no need to deep copy with String($0).
+                let safeColumns = result.columns
                 let safeColumnTypes = result.columnTypes  // Column types are already value types (enum)
                 let safeRows = result.rows.map { row in
-                    QueryResultRow(values: row.map { $0.map { String($0) } })
+                    QueryResultRow(values: row)
                 }
                 let safeExecutionTime = result.executionTime
                 let safeRowsAffected = result.rowsAffected
-                let safeTableName = tableName.map { String($0) }
+                let safeTableName = tableName
 
                 guard !Task.isCancelled else {
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self else { return }
                         if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                             tabManager.tabs[idx].isExecuting = false
                         }
@@ -383,7 +413,8 @@ final class MainContentCoordinator: ObservableObject {
                 }
 
                 // Phase 1: Display data rows immediately without waiting for metadata
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
                     currentQueryTask = nil
                     toolbarState.isExecuting = false
                     toolbarState.lastQueryDuration = safeExecutionTime
@@ -428,105 +459,121 @@ final class MainContentCoordinator: ObservableObject {
 
                 // Phase 2: Fetch metadata in background, then update tab
                 if isEditable, let tableName = tableName {
-                    do {
-                        if let driver = DatabaseManager.shared.activeDriver {
-                            async let columnInfoTask = driver.fetchColumns(table: tableName)
-                            async let fkInfoTask = driver.fetchForeignKeys(table: tableName)
-                            let quotedTable = conn.type.quoteIdentifier(tableName)
-                            async let countTask: QueryResult = try await DatabaseManager.shared.execute(
-                                query: "SELECT COUNT(*) FROM \(quotedTable)"
-                            )
+                    // NET-1: Skip Phase 2 if metadata is already cached for this table
+                    let alreadyCached: Bool = await MainActor.run { [weak self] in
+                        guard let self,
+                              let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }) else {
+                            return false
+                        }
+                        let tab = self.tabManager.tabs[idx]
+                        return tab.tableName == tableName
+                            && !tab.columnDefaults.isEmpty
+                            && tab.primaryKeyColumn != nil
+                    }
 
-                            let (columnInfo, fkInfo, countResult) = try await (
-                                columnInfoTask, fkInfoTask, countTask
-                            )
+                    if !alreadyCached {
+                        do {
+                            if let driver = DatabaseManager.shared.activeDriver {
+                                async let columnInfoTask = driver.fetchColumns(table: tableName)
+                                async let fkInfoTask = driver.fetchForeignKeys(table: tableName)
+                                let quotedTable = conn.type.quoteIdentifier(tableName)
+                                async let countTask: QueryResult = try await DatabaseManager.shared.execute(
+                                    query: "SELECT COUNT(*) FROM \(quotedTable)"
+                                )
 
-                            var columnDefaults: [String: String?] = [:]
-                            var columnForeignKeys: [String: ForeignKeyInfo] = [:]
-                            var columnNullable: [String: Bool] = [:]
+                                let (columnInfo, fkInfo, countResult) = try await (
+                                    columnInfoTask, fkInfoTask, countTask
+                                )
 
-                            for col in columnInfo {
-                                columnDefaults[col.name] = col.defaultValue
-                                columnNullable[col.name] = col.isNullable
-                            }
+                                var columnDefaults: [String: String?] = [:]
+                                var columnForeignKeys: [String: ForeignKeyInfo] = [:]
+                                var columnNullable: [String: Bool] = [:]
 
-                            // Build FK lookup map (column name -> FK info)
-                            for fk in fkInfo {
-                                columnForeignKeys[fk.column] = fk
-                            }
+                                for col in columnInfo {
+                                    columnDefaults[col.name] = col.defaultValue
+                                    columnNullable[col.name] = col.isNullable
+                                }
 
-                            // Detect primary key column
-                            let primaryKeyColumn = columnInfo.first(where: { $0.isPrimaryKey })?.name
+                                // Build FK lookup map (column name -> FK info)
+                                for fk in fkInfo {
+                                    columnForeignKeys[fk.column] = fk
+                                }
 
-                            var totalRowCount: Int?
-                            if let firstRow = countResult.rows.first,
-                               let countStr = firstRow.first as? String,
-                               let count = Int(countStr) {
-                                totalRowCount = count
-                            }
+                                // Detect primary key column
+                                let primaryKeyColumn = columnInfo.first(where: { $0.isPrimaryKey })?.name
 
-                            // Build enum/set value lookup map
-                            let columnEnumValues = await fetchEnumValues(
-                                columnInfo: columnInfo,
-                                tableName: tableName,
-                                driver: driver,
-                                connectionType: conn.type
-                            )
+                                var totalRowCount: Int?
+                                if let firstRow = countResult.rows.first,
+                                   let countStr = firstRow.first as? String,
+                                   let count = Int(countStr) {
+                                    totalRowCount = count
+                                }
 
-                            // Deep copy metadata
-                            let safeColumnDefaults = columnDefaults.mapValues { $0.map { String($0) } }
-                            let safeColumnForeignKeys = columnForeignKeys
-                            let safeColumnEnumValues = columnEnumValues
-                            let safeColumnNullable = columnNullable
-                            let safeTotalRowCount = totalRowCount
-                            let safePrimaryKeyColumn = primaryKeyColumn.map { String($0) }
+                                // Build enum/set value lookup map
+                                let columnEnumValues = await self.fetchEnumValues(
+                                    columnInfo: columnInfo,
+                                    tableName: tableName,
+                                    driver: driver,
+                                    connectionType: conn.type
+                                )
 
-                            // Phase 2: Update tab with metadata
-                            await MainActor.run {
-                                guard capturedGeneration == queryGeneration else { return }
-                                guard !Task.isCancelled else { return }
+                                let safeColumnDefaults = columnDefaults
+                                let safeColumnForeignKeys = columnForeignKeys
+                                let safeColumnEnumValues = columnEnumValues
+                                let safeColumnNullable = columnNullable
+                                let safeTotalRowCount = totalRowCount
+                                let safePrimaryKeyColumn = primaryKeyColumn
 
-                                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                                    var updatedTab = tabManager.tabs[idx]
-                                    updatedTab.columnDefaults = safeColumnDefaults
-                                    updatedTab.columnForeignKeys = safeColumnForeignKeys
-                                    updatedTab.columnEnumValues = safeColumnEnumValues
-                                    updatedTab.columnNullable = safeColumnNullable
-                                    updatedTab.pagination.totalRowCount = safeTotalRowCount
-                                    tabManager.tabs[idx] = updatedTab
+                                // Phase 2: Update tab with metadata
+                                await MainActor.run { [weak self] in
+                                    guard let self else { return }
+                                    guard capturedGeneration == queryGeneration else { return }
+                                    guard !Task.isCancelled else { return }
 
-                                    // Only reconfigure changeManager if this tab is still selected;
-                                    // otherwise the user switched away during Phase 2 and the
-                                    // changeManager already belongs to the new active tab.
-                                    if tabManager.selectedTabId == tabId {
-                                        changeManager.configureForTable(
-                                            tableName: tableName,
-                                            columns: safeColumns,
-                                            primaryKeyColumn: safePrimaryKeyColumn,
-                                            databaseType: conn.type
-                                        )
+                                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                                        var updatedTab = tabManager.tabs[idx]
+                                        updatedTab.columnDefaults = safeColumnDefaults
+                                        updatedTab.columnForeignKeys = safeColumnForeignKeys
+                                        updatedTab.columnEnumValues = safeColumnEnumValues
+                                        updatedTab.columnNullable = safeColumnNullable
+                                        updatedTab.pagination.totalRowCount = safeTotalRowCount
+                                        tabManager.tabs[idx] = updatedTab
+
+                                        // Only reconfigure changeManager if this tab is still selected;
+                                        // otherwise the user switched away during Phase 2 and the
+                                        // changeManager already belongs to the new active tab.
+                                        if tabManager.selectedTabId == tabId {
+                                            changeManager.configureForTable(
+                                                tableName: tableName,
+                                                columns: safeColumns,
+                                                primaryKeyColumn: safePrimaryKeyColumn,
+                                                databaseType: conn.type
+                                            )
+                                        }
+
+                                        // Store primary key on the tab for accurate tab-switch restore
+                                        tabManager.tabs[idx].primaryKeyColumn = safePrimaryKeyColumn
                                     }
-
-                                    // Store primary key on the tab for accurate tab-switch restore
-                                    tabManager.tabs[idx].primaryKeyColumn = safePrimaryKeyColumn
                                 }
                             }
-                        }
-                    } catch {
-                        // Metadata fetch failed — data is already displayed from Phase 1,
-                        // so log the error but don't disrupt the user's view.
-                        // Clear stale change state so the save banner doesn't linger.
-                        Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
-                            .error("Phase 2 metadata fetch failed: \(error.localizedDescription)")
-                        await MainActor.run {
-                            if tabManager.selectedTabId == tabId {
-                                changeManager.clearChanges()
+                        } catch {
+                            // Metadata fetch failed — data is already displayed from Phase 1,
+                            // so log the error but don't disrupt the user's view.
+                            // Clear stale change state so the save banner doesn't linger.
+                            Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
+                                .error("Phase 2 metadata fetch failed: \(error.localizedDescription)")
+                            await MainActor.run { [weak self] in
+                                guard let self else { return }
+                                if tabManager.selectedTabId == tabId {
+                                    changeManager.clearChanges()
+                                }
                             }
                         }
                     }
                 } else {
                     // For non-editable query results, just clear changes
-                    await MainActor.run {
+                    await MainActor.run { [weak self] in
+                        guard let self else { return }
                         guard capturedGeneration == queryGeneration else { return }
                         guard !Task.isCancelled else { return }
                         changeManager.clearChanges()
@@ -535,7 +582,8 @@ final class MainContentCoordinator: ObservableObject {
             } catch {
                 guard capturedGeneration == queryGeneration else { return }
 
-                await MainActor.run {
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
                     currentQueryTask = nil
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         var errTab = tabManager.tabs[idx]
@@ -623,6 +671,30 @@ final class MainContentCoordinator: ObservableObject {
         }
 
         return result
+    }
+
+    // MARK: - Query Limit Protection
+
+    /// Appends a LIMIT clause to SELECT queries that don't already have one.
+    /// Protects query tabs from unbounded result sets (e.g., SELECT * FROM million_row_table).
+    private static func addLimitIfNeeded(to sql: String, limit: Int) -> String {
+        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        let uppercased = trimmed.uppercased()
+
+        // Only apply to SELECT statements
+        guard uppercased.hasPrefix("SELECT ") else { return sql }
+
+        // Check if query already has a LIMIT clause
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        if limitClauseRegex?.firstMatch(in: trimmed, options: [], range: range) != nil {
+            return sql
+        }
+
+        // Strip trailing semicolon, append LIMIT, and re-add semicolon
+        let withoutSemicolon = trimmed.hasSuffix(";")
+            ? String(trimmed.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+            : trimmed
+        return "\(withoutSemicolon) LIMIT \(limit)"
     }
 
     // MARK: - SQL Parsing
@@ -802,7 +874,7 @@ final class MainContentCoordinator: ObservableObject {
 
                 let sortStartTime = Date()
                 let task = Task.detached { [weak self] in
-                    let sorted = Self.multiColumnSort(rows: rows, sortColumns: sortColumns)
+                    let sortedIndices = Self.multiColumnSortIndices(rows: rows, sortColumns: sortColumns)
                     let sortDuration = Date().timeIntervalSince(sortStartTime)
 
                     await MainActor.run { [weak self] in
@@ -813,7 +885,7 @@ final class MainContentCoordinator: ObservableObject {
                             return
                         }
                         self.querySortCache[tabId] = QuerySortCacheEntry(
-                            rows: sorted,
+                            sortedIndices: sortedIndices,
                             columnIndex: sortColumns.first?.columnIndex ?? 0,
                             direction: sortColumns.first?.direction ?? .ascending,
                             resultVersion: resultVersion
@@ -846,12 +918,16 @@ final class MainContentCoordinator: ObservableObject {
         runQuery()
     }
 
-    /// Multi-column sort comparison (nonisolated for background thread)
-    nonisolated private static func multiColumnSort(
+    /// Multi-column sort returning index permutation (nonisolated for background thread).
+    /// Returns an array of indices into the original `rows` array, sorted by the given columns.
+    nonisolated private static func multiColumnSortIndices(
         rows: [QueryResultRow],
         sortColumns: [SortColumn]
-    ) -> [QueryResultRow] {
-        rows.sorted { row1, row2 in
+    ) -> [Int] {
+        var indices = Array(0..<rows.count)
+        indices.sort { i1, i2 in
+            let row1 = rows[i1]
+            let row2 = rows[i2]
             for sortCol in sortColumns {
                 let val1 = sortCol.columnIndex < row1.values.count
                     ? (row1.values[sortCol.columnIndex] ?? "") : ""
@@ -865,6 +941,7 @@ final class MainContentCoordinator: ObservableObject {
             }
             return false
         }
+        return indices
     }
 
     // MARK: - Save Changes
@@ -1131,7 +1208,9 @@ final class MainContentCoordinator: ObservableObject {
 
                 changeManager.clearChanges()
                 if let index = tabManager.selectedTabIndex {
+                    let currentTabId = tabManager.tabs[index].id
                     tabManager.tabs[index].pendingChanges = TabPendingChanges()
+                    tabPendingChanges.removeValue(forKey: currentTabId)
                     tabManager.tabs[index].errorMessage = nil
                 }
 
@@ -1352,7 +1431,9 @@ final class MainContentCoordinator: ObservableObject {
         changeManager.clearChanges()
 
         if let index = tabManager.selectedTabIndex {
+            let currentTabId = tabManager.tabs[index].id
             tabManager.tabs[index].pendingChanges = TabPendingChanges()
+            tabPendingChanges.removeValue(forKey: currentTabId)
         }
 
         NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
@@ -1398,9 +1479,11 @@ final class MainContentCoordinator: ObservableObject {
 
         if let oldId = oldTabId,
            let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId }) {
-            // Only deep-copy change state when there are actual unsaved edits
+            // Save change state to separate dictionary to avoid CoW on QueryTab struct
             if changeManager.hasChanges {
-                tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
+                tabPendingChanges[oldId] = changeManager.saveState()
+            } else {
+                tabPendingChanges.removeValue(forKey: oldId)
             }
             tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
         }
@@ -1416,8 +1499,10 @@ final class MainContentCoordinator: ObservableObject {
 
             // Configure change manager without triggering reload yet — we'll fire a single
             // reloadVersion bump below after everything is set up.
-            if newTab.pendingChanges.hasChanges {
-                changeManager.restoreState(from: newTab.pendingChanges, tableName: newTab.tableName ?? "")
+            // Check separate dictionary first, then fall back to tab's pendingChanges for backward compat
+            let pendingState = tabPendingChanges[newId] ?? newTab.pendingChanges
+            if pendingState.hasChanges {
+                changeManager.restoreState(from: pendingState, tableName: newTab.tableName ?? "")
             } else {
                 changeManager.configureForTable(
                     tableName: newTab.tableName ?? "",

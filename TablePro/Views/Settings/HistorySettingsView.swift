@@ -60,7 +60,7 @@ struct HistorySettingsView: View {
     }
 
     private func clearAllHistory() {
-        _ = QueryHistoryManager.shared.clearAllHistory()
+        QueryHistoryManager.shared.clearAllHistory()
     }
 }
 

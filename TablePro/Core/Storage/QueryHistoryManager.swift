@@ -100,25 +100,8 @@ final class QueryHistoryManager {
 
     // MARK: - History Retrieval
 
-    /// Fetch history entries (synchronous - for compatibility)
+    /// Fetch history entries asynchronously (non-blocking)
     func fetchHistory(
-        limit: Int = 100,
-        offset: Int = 0,
-        connectionId: UUID? = nil,
-        searchText: String? = nil,
-        dateFilter: DateFilter = .all
-    ) -> [QueryHistoryEntry] {
-        storage.fetchHistory(
-            limit: limit,
-            offset: offset,
-            connectionId: connectionId,
-            searchText: searchText,
-            dateFilter: dateFilter
-        )
-    }
-
-    /// Fetch history entries asynchronously (non-blocking - preferred)
-    func fetchHistoryAsync(
         limit: Int = 100,
         offset: Int = 0,
         connectionId: UUID? = nil,
@@ -126,7 +109,7 @@ final class QueryHistoryManager {
         dateFilter: DateFilter = .all,
         completion: @escaping ([QueryHistoryEntry]) -> Void
     ) {
-        storage.fetchHistoryAsync(
+        storage.fetchHistory(
             limit: limit,
             offset: offset,
             connectionId: connectionId,
@@ -137,34 +120,37 @@ final class QueryHistoryManager {
     }
 
     /// Search queries using FTS5 full-text search
-    func searchQueries(_ text: String) -> [QueryHistoryEntry] {
+    func searchQueries(_ text: String, completion: @escaping ([QueryHistoryEntry]) -> Void) {
         guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
-            return fetchHistory()
+            fetchHistory(completion: completion)
+            return
         }
-        return storage.fetchHistory(searchText: text)
+        storage.fetchHistory(searchText: text, completion: completion)
     }
 
-    /// Delete a history entry
-    func deleteHistory(id: UUID) -> Bool {
-        let success = storage.deleteHistory(id: id)
-        if success {
-            NotificationCenter.default.post(name: .queryHistoryDidUpdate, object: nil)
+    /// Delete a history entry (async, non-blocking)
+    func deleteHistory(id: UUID, completion: ((Bool) -> Void)? = nil) {
+        storage.deleteHistory(id: id) { success in
+            if success {
+                NotificationCenter.default.post(name: .queryHistoryDidUpdate, object: nil)
+            }
+            completion?(success)
         }
-        return success
     }
 
-    /// Get total history count
-    func getHistoryCount() -> Int {
-        storage.getHistoryCount()
+    /// Get total history count (async, non-blocking)
+    func getHistoryCount(completion: @escaping (Int) -> Void) {
+        storage.getHistoryCount(completion: completion)
     }
 
-    /// Clear all history entries
-    func clearAllHistory() -> Bool {
-        let success = storage.clearAllHistory()
-        if success {
-            NotificationCenter.default.post(name: .queryHistoryDidUpdate, object: nil)
+    /// Clear all history entries (async, non-blocking)
+    func clearAllHistory(completion: ((Bool) -> Void)? = nil) {
+        storage.clearAllHistory { success in
+            if success {
+                NotificationCenter.default.post(name: .queryHistoryDidUpdate, object: nil)
+            }
+            completion?(success)
         }
-        return success
     }
 
     // MARK: - Cleanup

@@ -377,6 +377,7 @@ final class DatabaseManager: ObservableObject {
                         Self.logger.error("Health monitoring failed for session \(id) after 3 retries")
                         self.updateSession(id) { session in
                             session.status = .error(String(localized: "Connection lost"))
+                            session.clearCachedData()
                         }
                     case .checking:
                         break // No UI update needed
@@ -501,6 +502,7 @@ final class DatabaseManager: ObservableObject {
             Self.logger.error("Manual reconnect failed: \(error.localizedDescription)")
             updateSession(sessionId) { session in
                 session.status = .error(String(localized: "Reconnect failed: \(error.localizedDescription)"))
+                session.clearCachedData()
             }
         }
     }
@@ -528,9 +530,10 @@ final class DatabaseManager: ObservableObject {
         } catch {
             Self.logger.error("Failed to reconnect SSH tunnel: \(error.localizedDescription)")
 
-            // Mark as error
+            // Mark as error and release stale cached data
             updateSession(connectionId) { session in
                 session.status = .error("SSH tunnel disconnected. Click to reconnect.")
+                session.clearCachedData()
             }
         }
     }

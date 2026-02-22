@@ -1,6 +1,6 @@
 # TablePro Performance Audit
 
-Audit date: 2026-02-22 | Total issues: 45 | Fixed: 21 | Deferred: 0
+Audit date: 2026-02-22 | Total issues: 45 | Fixed: 45 | Deferred: 0
 
 ## Status Legend
 
@@ -14,21 +14,21 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 21 | Deferred: 0
 
 | ID    | Issue                                                                           | Severity | Status | Commit |
 | ----- | ------------------------------------------------------------------------------- | -------- | ------ | ------ |
-| MEM-1 | `QueryTab` is a struct — every mutation CoW-copies entire result set            | Critical | OPEN   | —      |
-| MEM-2 | `duplicateTab()` deep-copies all result rows into new tab                       | High     | OPEN   | —      |
-| MEM-3 | Sort cache duplicates entire result set per sorted tab                          | High     | OPEN   | —      |
-| MEM-4 | XLSX export accumulates all rows of all tables in memory                        | High     | OPEN   | —      |
-| MEM-5 | `mysql_store_result` + redundant String copy doubles peak RAM                   | High     | OPEN   | —      |
-| MEM-6 | Redundant deep copy in `executeQueryInternal` (triple-copy pipeline)            | Medium   | OPEN   | —      |
+| MEM-1 | `QueryTab` is a struct — every mutation CoW-copies entire result set            | Critical | FIXED  | —      |
+| MEM-2 | `duplicateTab()` deep-copies all result rows into new tab                       | High     | FIXED  | —      |
+| MEM-3 | Sort cache duplicates entire result set per sorted tab                          | High     | FIXED  | —      |
+| MEM-4 | XLSX export accumulates all rows of all tables in memory                        | High     | FIXED  | —      |
+| MEM-5 | `mysql_store_result` + redundant String copy doubles peak RAM                   | High     | FIXED  | —      |
+| MEM-6 | Redundant deep copy in `executeQueryInternal` (triple-copy pipeline)            | Medium   | FIXED  | —      |
 | MEM-7 | `InMemoryRowProvider.rowCache` duplicates data without eviction                 | Medium   | FIXED  | —      |
 | MEM-8 | `DatabaseRowProvider` cache has no size limit or LRU eviction                   | Medium   | FIXED  | —      |
 | MEM-9 | `SQLSchemaProvider` holds strong ref to `DatabaseDriver` (stale after disconnect) | Medium | FIXED  | —      |
 | MEM-10 | Undo/redo stacks grow unbounded with `originalRow` copies                      | Medium   | FIXED  | —      |
-| MEM-11 | `TabPendingChanges` duplicates change state on every tab switch (CoW amplifier) | Medium  | OPEN   | —      |
-| MEM-12 | `currentQueryTask` captures coordinator strongly — delays dealloc              | Medium   | OPEN   | —      |
-| MEM-13 | `ConnectionSession` tables/tabs arrays persist when connection is idle          | Low      | OPEN   | —      |
-| MEM-14 | `AIChatViewModel` messages accumulate without limit                             | Low      | OPEN   | —      |
-| MEM-15 | `XLSXWriter` sharedStrings table grows unbounded for large exports             | Low      | OPEN   | —      |
+| MEM-11 | `TabPendingChanges` duplicates change state on every tab switch (CoW amplifier) | Medium  | FIXED  | —      |
+| MEM-12 | `currentQueryTask` captures coordinator strongly — delays dealloc              | Medium   | FIXED  | —      |
+| MEM-13 | `ConnectionSession` tables/tabs arrays persist when connection is idle          | Low      | FIXED  | —      |
+| MEM-14 | `AIChatViewModel` messages accumulate without limit                             | Low      | FIXED  | —      |
+| MEM-15 | `XLSXWriter` sharedStrings table grows unbounded for large exports             | Low      | FIXED  | —      |
 
 ## 2. CPU / Main Thread (14 issues)
 
@@ -47,28 +47,28 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 21 | Deferred: 0
 | CPU-11 | `DataChangeManager.recordCellChange` linear search on changes array            | Medium   | FIXED  | —      |
 | CPU-12 | Unused `loadPassword()` called for every connection at startup                 | Medium   | FIXED  | —      |
 | CPU-13 | `extractTableName` regex compiled on every call                                | Low      | FIXED  | —      |
-| CPU-14 | `isDangerousQuery` inline regex compiled per query execution                   | Low      | OPEN   | —      |
+| CPU-14 | `isDangerousQuery` inline regex compiled per query execution                   | Low      | FIXED  | —      |
 
 ## 3. Large Data Handling (8 issues)
 
 | ID     | Issue                                                                          | Severity | Status | Commit |
 | ------ | ------------------------------------------------------------------------------ | -------- | ------ | ------ |
-| DAT-1  | Query tabs have no LIMIT protection — unbounded SELECT can OOM                 | High     | OPEN   | —      |
-| DAT-2  | `mysql_store_result` / `PQexec` load entire result set into client memory      | High     | OPEN   | —      |
-| DAT-3  | SQLite driver fetches all rows into array without limit                        | Medium   | OPEN   | —      |
+| DAT-1  | Query tabs have no LIMIT protection — unbounded SELECT can OOM                 | High     | FIXED  | —      |
+| DAT-2  | `mysql_store_result` / `PQexec` load entire result set into client memory      | High     | FIXED  | —      |
+| DAT-3  | SQLite driver fetches all rows into array without limit                        | Medium   | FIXED  | —      |
 | DAT-4  | `SQLSchemaProvider` eagerly loads columns for ALL tables (N+1 queries)         | Medium   | FIXED  | —      |
-| DAT-5  | Client-side sorting creates full memory copy for query tabs                    | Medium   | OPEN   | —      |
+| DAT-5  | Client-side sorting creates full memory copy for query tabs                    | Medium   | FIXED  | —      |
 | DAT-6  | `InMemoryRowProvider` recreated on every SwiftUI render                        | Medium   | FIXED  | —      |
-| DAT-7  | Clipboard copy builds unbounded string for large selections                    | Low      | OPEN   | —      |
-| DAT-8  | `QueryResult.toQueryResultRows()` deep copy with UUID allocation per row       | Low      | OPEN   | —      |
+| DAT-7  | Clipboard copy builds unbounded string for large selections                    | Low      | FIXED  | —      |
+| DAT-8  | `QueryResult.toQueryResultRows()` deep copy with UUID allocation per row       | Low      | FIXED  | —      |
 
 ## 4. Network / Database I/O (5 issues)
 
 | ID     | Issue                                                                          | Severity | Status | Commit |
 | ------ | ------------------------------------------------------------------------------ | -------- | ------ | ------ |
-| NET-1  | Phase 2 metadata re-fetch on every query (columns, FKs, COUNT — 3 extra RTTs) | High     | OPEN   | —      |
+| NET-1  | Phase 2 metadata re-fetch on every query (columns, FKs, COUNT — 3 extra RTTs) | High     | FIXED  | —      |
 | NET-2  | Missing `connect_timeout` in LibPQ connection string                           | High     | FIXED  | —      |
-| NET-3  | No driver-level `cancelQuery()` — in-flight SQL continues after Task cancel    | Medium   | OPEN   | —      |
+| NET-3  | No driver-level `cancelQuery()` — in-flight SQL continues after Task cancel    | Medium   | FIXED  | —      |
 | NET-4  | `SidebarView.loadTables()` triggered by 3 notifications without deduplication  | Medium   | FIXED  | —      |
 | NET-5  | `AIChatPanelView.fetchSchemaContext()` N+1 queries per table                   | Medium   | FIXED  | —      |
 
@@ -77,7 +77,7 @@ Audit date: 2026-02-22 | Total issues: 45 | Fixed: 21 | Deferred: 0
 | ID     | Issue                                                                          | Severity | Status | Commit |
 | ------ | ------------------------------------------------------------------------------ | -------- | ------ | ------ |
 | IO-1   | `QueryHistoryStorage.performCleanup()` runs 3 SQLite ops on every INSERT      | High     | FIXED  | —      |
-| IO-2   | `QueryHistoryStorage` uses blocking `queue.sync` for read operations           | High     | OPEN   | —      |
+| IO-2   | `QueryHistoryStorage` uses blocking `queue.sync` for read operations           | High     | FIXED  | —      |
 | IO-3   | `MainContentView` has 15+ onChange handlers creating cascading update chains   | Medium   | FIXED  | —      |
 
 ---

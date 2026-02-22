@@ -216,6 +216,50 @@ struct ColumnLayoutState: Equatable {
     var columnOrder: [String]?
 }
 
+/// Reference-type wrapper for large result data.
+/// When QueryTab (a struct) is copied via CoW, only this 8-byte reference is copied
+/// instead of duplicating potentially large result arrays.
+final class RowBuffer {
+    var rows: [QueryResultRow]
+    var columns: [String]
+    var columnTypes: [ColumnType]
+    var columnDefaults: [String: String?]
+    var columnForeignKeys: [String: ForeignKeyInfo]
+    var columnEnumValues: [String: [String]]
+    var columnNullable: [String: Bool]
+
+    init(
+        rows: [QueryResultRow] = [],
+        columns: [String] = [],
+        columnTypes: [ColumnType] = [],
+        columnDefaults: [String: String?] = [:],
+        columnForeignKeys: [String: ForeignKeyInfo] = [:],
+        columnEnumValues: [String: [String]] = [:],
+        columnNullable: [String: Bool] = [:]
+    ) {
+        self.rows = rows
+        self.columns = columns
+        self.columnTypes = columnTypes
+        self.columnDefaults = columnDefaults
+        self.columnForeignKeys = columnForeignKeys
+        self.columnEnumValues = columnEnumValues
+        self.columnNullable = columnNullable
+    }
+
+    /// Create a deep copy of this buffer (used when explicit data duplication is needed)
+    func copy() -> RowBuffer {
+        RowBuffer(
+            rows: rows,
+            columns: columns,
+            columnTypes: columnTypes,
+            columnDefaults: columnDefaults,
+            columnForeignKeys: columnForeignKeys,
+            columnEnumValues: columnEnumValues,
+            columnNullable: columnNullable
+        )
+    }
+}
+
 /// Represents a single tab (query or table)
 struct QueryTab: Identifiable, Equatable {
     let id: UUID
@@ -225,14 +269,46 @@ struct QueryTab: Identifiable, Equatable {
     var lastExecutedAt: Date?
     var tabType: TabType
 
-    // Results
-    var resultColumns: [String]
-    var columnTypes: [ColumnType]  // Column type metadata for formatting
-    var columnDefaults: [String: String?]  // Column name -> default value from schema
-    var columnForeignKeys: [String: ForeignKeyInfo]  // Column name -> FK info (for FK lookup)
-    var columnEnumValues: [String: [String]]  // Column name -> allowed enum/set values
-    var columnNullable: [String: Bool]  // Column name -> is nullable
-    var resultRows: [QueryResultRow]
+    // Results — stored in a reference-type buffer to avoid CoW duplication
+    // of large data when the struct is mutated (MEM-1 fix)
+    var rowBuffer: RowBuffer
+
+    // Backward-compatible computed accessors for result data
+    var resultColumns: [String] {
+        get { rowBuffer.columns }
+        set { rowBuffer.columns = newValue }
+    }
+
+    var columnTypes: [ColumnType] {
+        get { rowBuffer.columnTypes }
+        set { rowBuffer.columnTypes = newValue }
+    }
+
+    var columnDefaults: [String: String?] {
+        get { rowBuffer.columnDefaults }
+        set { rowBuffer.columnDefaults = newValue }
+    }
+
+    var columnForeignKeys: [String: ForeignKeyInfo] {
+        get { rowBuffer.columnForeignKeys }
+        set { rowBuffer.columnForeignKeys = newValue }
+    }
+
+    var columnEnumValues: [String: [String]] {
+        get { rowBuffer.columnEnumValues }
+        set { rowBuffer.columnEnumValues = newValue }
+    }
+
+    var columnNullable: [String: Bool] {
+        get { rowBuffer.columnNullable }
+        set { rowBuffer.columnNullable = newValue }
+    }
+
+    var resultRows: [QueryResultRow] {
+        get { rowBuffer.rows }
+        set { rowBuffer.rows = newValue }
+    }
+
     var executionTime: TimeInterval?
     var rowsAffected: Int  // Number of rows affected by non-SELECT queries
     var errorMessage: String?
@@ -288,13 +364,7 @@ struct QueryTab: Identifiable, Equatable {
         self.isPinned = isPinned
         self.tabType = tabType
         self.lastExecutedAt = nil
-        self.resultColumns = []
-        self.columnTypes = []
-        self.columnDefaults = [:]
-        self.columnForeignKeys = [:]
-        self.columnEnumValues = [:]
-        self.columnNullable = [:]
-        self.resultRows = []
+        self.rowBuffer = RowBuffer()
         self.executionTime = nil
         self.rowsAffected = 0
         self.errorMessage = nil
@@ -328,13 +398,7 @@ struct QueryTab: Identifiable, Equatable {
 
         // Initialize runtime state with defaults
         self.lastExecutedAt = nil
-        self.resultColumns = []
-        self.columnTypes = []
-        self.columnDefaults = [:]
-        self.columnForeignKeys = [:]
-        self.columnEnumValues = [:]
-        self.columnNullable = [:]
-        self.resultRows = []
+        self.rowBuffer = RowBuffer()
         self.executionTime = nil
         self.rowsAffected = 0
         self.errorMessage = nil
@@ -599,16 +663,15 @@ final class QueryTabManager: ObservableObject {
     }
 
     func duplicateTab(_ tab: QueryTab) {
+        // MEM-2 fix: Don't deep-copy result data — the duplicate tab starts with
+        // an empty RowBuffer. The user can re-execute the query if data is needed.
         var newTab = QueryTab(
             title: "\(tab.title) (copy)",
             query: tab.query
         )
-        newTab.resultColumns = tab.resultColumns
-        newTab.columnTypes = tab.columnTypes
-        newTab.columnForeignKeys = tab.columnForeignKeys
-        newTab.columnEnumValues = tab.columnEnumValues
-        newTab.columnNullable = tab.columnNullable
-        newTab.resultRows = tab.resultRows
+        newTab.tabType = tab.tabType
+        newTab.tableName = tab.tableName
+        newTab.databaseName = tab.databaseName
 
         if let index = tabs.firstIndex(of: tab) {
             tabs.insert(newTab, at: index + 1)

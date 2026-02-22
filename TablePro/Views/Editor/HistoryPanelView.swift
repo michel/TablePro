@@ -116,7 +116,7 @@ private extension HistoryPanelView {
         .alert(String(localized: "Clear All History?"), isPresented: $showClearAllAlert) {
             Button(String(localized: "Cancel"), role: .cancel) {}
             Button(String(localized: "Clear All"), role: .destructive) {
-                _ = dataProvider.clearAll()
+                dataProvider.clearAll()
             }
         } message: {
             let count = entries.count
@@ -293,12 +293,13 @@ private extension HistoryPanelView {
     func loadData() {
         dataProvider.dateFilter = dateFilter
         dataProvider.searchText = searchText
-        dataProvider.loadData()
-        entries = dataProvider.historyEntries
+        dataProvider.loadData {
+            entries = dataProvider.historyEntries
 
-        // Clear selection if the selected entry no longer exists
-        if let id = selectedEntryID, !entries.contains(where: { $0.id == id }) {
-            selectedEntryID = nil
+            // Clear selection if the selected entry no longer exists
+            if let id = selectedEntryID, !entries.contains(where: { $0.id == id }) {
+                selectedEntryID = nil
+            }
         }
     }
 
