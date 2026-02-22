@@ -181,7 +181,7 @@ private struct TypingIndicatorView: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            ForEach(0..<3) { index in
+            ForEach(0..<3, id: \.self) { index in
                 Circle()
                     .fill(Color.secondary.opacity(0.6))
                     .frame(width: 6, height: 6)
