@@ -166,17 +166,17 @@ struct ConnectionSwitcherPopover: View {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let items = allItems
             switch event.keyCode {
-            case 126: // Up arrow
+            case KeyCode.upArrow.rawValue:
                 if selectedIndex > 0 {
                     selectedIndex -= 1
                 }
                 return nil
-            case 125: // Down arrow
+            case KeyCode.downArrow.rawValue:
                 if selectedIndex < items.count - 1 {
                     selectedIndex += 1
                 }
                 return nil
-            case 36: // Return
+            case KeyCode.return.rawValue:
                 guard selectedIndex >= 0, selectedIndex < items.count else { return event }
                 switch items[selectedIndex] {
                 case .session(let session):
@@ -185,7 +185,7 @@ struct ConnectionSwitcherPopover: View {
                     connectToSaved(connection)
                 }
                 return nil
-            case 53: // Escape
+            case KeyCode.escape.rawValue:
                 onDismiss?()
                 return nil
             default:
