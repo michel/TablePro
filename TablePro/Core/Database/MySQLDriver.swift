@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 /// MySQL/MariaDB database driver using libmariadb
 /// Supports MySQL 5.7+, MySQL 8.x (all auth methods), and MariaDB
@@ -43,6 +44,10 @@ final class MySQLDriver: DatabaseDriver {
         mariadbConnection?.serverVersion()
     }
 
+    /// The actual server type detected from the version string after connecting.
+    /// Falls back to `connection.type` if detection hasn't occurred.
+    private(set) var detectedServerType: DatabaseType?
+
     // MARK: - Connection
 
     func connect() async throws {
@@ -65,6 +70,12 @@ final class MySQLDriver: DatabaseDriver {
             try await conn.connect()
             mariadbConnection = conn
             status = .connected
+
+            // Auto-detect actual server type from version string
+            // MariaDB includes "MariaDB" in its version (e.g., "10.5.20-MariaDB")
+            if let version = conn.serverVersion() {
+                detectedServerType = version.lowercased().contains("mariadb") ? .mariadb : .mysql
+            }
         } catch let error as MariaDBError {
             status = .error(error.message)
             throw DatabaseError.connectionFailed(error.localizedDescription)
@@ -77,6 +88,7 @@ final class MySQLDriver: DatabaseDriver {
     func disconnect() {
         mariadbConnection?.disconnect()
         mariadbConnection = nil
+        detectedServerType = nil
         status = .disconnected
     }
 
@@ -664,5 +676,27 @@ final class MySQLDriver: DatabaseDriver {
         }
 
         _ = try await execute(query: query)
+    }
+
+    // MARK: - Query Timeout
+
+    /// Override to use detected server type instead of connection.type
+    func applyQueryTimeout(_ seconds: Int) async throws {
+        guard seconds > 0 else { return }
+        let effectiveType = detectedServerType ?? connection.type
+        do {
+            switch effectiveType {
+            case .mysql:
+                let ms = seconds * 1_000
+                _ = try await execute(query: "SET SESSION max_execution_time = \(ms)")
+            case .mariadb:
+                _ = try await execute(query: "SET SESSION max_statement_time = \(seconds)")
+            default:
+                break
+            }
+        } catch {
+            Logger(subsystem: "com.TablePro", category: "MySQLDriver")
+                .warning("Failed to set query timeout: \(error.localizedDescription)")
+        }
     }
 }

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Welcome window now uses native macOS frosted glass translucency (NSVisualEffectView with behind-window blending)
 
 ### Fixed
+- Auto-detect MySQL vs MariaDB server type from version string to use correct timeout variable (`max_execution_time` for MySQL, `max_statement_time` for MariaDB)
 - Improved tab switching performance by caching row providers and change managers across SwiftUI render cycles
 - Eliminated selection sync feedback loop causing redundant DataGridView updates during tab switch
 - Enabled NSTableView row view recycling to reduce heap allocations during scrolling
