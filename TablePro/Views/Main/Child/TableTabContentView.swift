@@ -79,11 +79,6 @@ struct TableTabContentView: View {
         return makeRowProvider()
     }
 
-    private var currentChangeManager: AnyChangeManager {
-        if let cached = cachedChangeManager { return cached }
-        return AnyChangeManager(dataManager: changeManager)
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             // Show structure view or data view based on toggle

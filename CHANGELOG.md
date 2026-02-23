@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Welcome window now uses native macOS frosted glass translucency (NSVisualEffectView with behind-window blending)
 
 ### Fixed
+- Improved tab switching performance by caching row providers and change managers across SwiftUI render cycles
+- Eliminated selection sync feedback loop causing redundant DataGridView updates during tab switch
+- Enabled NSTableView row view recycling to reduce heap allocations during scrolling
+- Reduced SwiftUI re-render cascades by batching @Published mutations during tab switch
 - Improved DataGrid scrolling performance:
   - Row views now recycled via NSTableView's reuse pool instead of allocating new objects per scroll
   - Replaced O(n) String.count with O(1) NSString.length for large cell value truncation

@@ -58,7 +58,6 @@ struct MainEditorContentView: View {
     // MARK: - Sort Cache
 
     @State private var sortCache: [UUID: SortedRowsCache] = [:]
-    @State private var cachedChangeManager: AnyChangeManager?
 
     // Cached row provider — avoids recreation on every SwiftUI render.
     @State private var cachedRowProvider: InMemoryRowProvider?
@@ -363,11 +362,6 @@ struct MainEditorContentView: View {
             columnEnumValues: tab.columnEnumValues,
             columnNullable: tab.columnNullable
         )
-    }
-
-    private var currentChangeManager: AnyChangeManager {
-        if let cached = cachedChangeManager { return cached }
-        return AnyChangeManager(dataManager: changeManager)
     }
 
     private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
