@@ -38,19 +38,14 @@ final class KeyHandlingTableView: NSTableView {
     /// Currently focused column index (-1 = no focus, 0 = row number column)
     var focusedColumn: Int = -1 {
         didSet {
-            if oldValue != focusedColumn {
-                let rowToUpdate = focusedRow
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    if oldValue >= 0 && oldValue < self.numberOfColumns && rowToUpdate >= 0 && rowToUpdate < self.numberOfRows {
-                        self.reloadData(forRowIndexes: IndexSet(integer: rowToUpdate),
-                                        columnIndexes: IndexSet(integer: oldValue))
-                    }
-                    if self.focusedColumn >= 0 && self.focusedColumn < self.numberOfColumns && self.focusedRow >= 0 && self.focusedRow < self.numberOfRows {
-                        self.reloadData(forRowIndexes: IndexSet(integer: self.focusedRow),
-                                        columnIndexes: IndexSet(integer: self.focusedColumn))
-                    }
-                }
+            guard oldValue != focusedColumn else { return }
+            let row = focusedRow
+            guard row >= 0 && row < numberOfRows else { return }
+            var cols = IndexSet()
+            if oldValue >= 0 && oldValue < numberOfColumns { cols.insert(oldValue) }
+            if focusedColumn >= 0 && focusedColumn < numberOfColumns { cols.insert(focusedColumn) }
+            if !cols.isEmpty {
+                reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: cols)
             }
         }
     }

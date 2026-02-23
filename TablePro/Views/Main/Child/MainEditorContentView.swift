@@ -58,10 +58,19 @@ struct MainEditorContentView: View {
     // MARK: - Sort Cache
 
     @State private var sortCache: [UUID: SortedRowsCache] = [:]
+    @State private var wrappedChangeManager: AnyChangeManager?
 
     // MARK: - Environment
 
     @EnvironmentObject private var appState: AppState
+
+    /// Returns the cached AnyChangeManager, creating it on first access.
+    private var currentChangeManager: AnyChangeManager {
+        if let existing = wrappedChangeManager {
+            return existing
+        }
+        return AnyChangeManager(dataManager: changeManager)
+    }
 
     // MARK: - Body
 
@@ -105,6 +114,7 @@ struct MainEditorContentView: View {
         }
         .onAppear {
             updateHasQueryText()
+            wrappedChangeManager = AnyChangeManager(dataManager: changeManager)
         }
     }
 
@@ -285,7 +295,7 @@ struct MainEditorContentView: View {
                 columnEnumValues: tab.columnEnumValues,
                 columnNullable: tab.columnNullable
             ),
-            changeManager: AnyChangeManager(dataManager: changeManager),
+            changeManager: currentChangeManager,
             resultVersion: tab.resultVersion,
             isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
             onCommit: onCommit,
