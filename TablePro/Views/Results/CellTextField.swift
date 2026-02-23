@@ -100,8 +100,9 @@ final class CellTextFieldCell: NSTextFieldCell {
 
     override func fieldEditor(for controlView: NSView) -> NSTextView? {
         if customFieldEditor == nil {
-            customFieldEditor = CellFieldEditor()
-            customFieldEditor?.isFieldEditor = true
+            let editor = CellFieldEditor()
+            editor.isFieldEditor = true
+            customFieldEditor = editor
         }
         return customFieldEditor
     }

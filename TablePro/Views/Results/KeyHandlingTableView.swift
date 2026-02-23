@@ -232,6 +232,15 @@ final class KeyHandlingTableView: NSTableView {
         guard row >= 0, focusedColumn >= 1, coordinator?.isEditable == true else {
             return
         }
+
+        // Multiline values use overlay editor instead of field editor
+        let columnIndex = focusedColumn - 1
+        if let value = coordinator?.rowProvider.row(at: row)?.value(at: columnIndex),
+           value.containsLineBreak {
+            coordinator?.showOverlayEditor(tableView: self, row: row, column: focusedColumn, columnIndex: columnIndex, value: value)
+            return
+        }
+
         editColumn(focusedColumn, row: row, with: nil, select: true)
     }
 
