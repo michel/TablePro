@@ -51,6 +51,7 @@ struct DataGridView: NSViewRepresentable {
     var onAddRow: (() -> Void)?
     var onUndoInsert: ((Int) -> Void)?
     var onFilterColumn: ((String) -> Void)?
+    var onNavigateFK: ((String, ForeignKeyInfo) -> Void)?
     var getVisualState: ((Int) -> RowVisualState)?
     var dropdownColumns: Set<Int>? // Column indices that should use YES/NO dropdowns
     var typePickerColumns: Set<Int>?
@@ -198,6 +199,7 @@ struct DataGridView: NSViewRepresentable {
             coordinator.onRefresh = onRefresh
             coordinator.onDeleteRows = onDeleteRows
             coordinator.getVisualState = getVisualState
+            coordinator.onNavigateFK = onNavigateFK
             return
         }
         coordinator.lastIdentity = currentIdentity
@@ -226,6 +228,7 @@ struct DataGridView: NSViewRepresentable {
         coordinator.onUndoInsert = onUndoInsert
         coordinator.onFilterColumn = onFilterColumn
         coordinator.getVisualState = getVisualState
+        coordinator.onNavigateFK = onNavigateFK
         coordinator.dropdownColumns = dropdownColumns
         coordinator.typePickerColumns = typePickerColumns
         coordinator.databaseType = databaseType
@@ -566,6 +569,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var onAddRow: (() -> Void)?
     var onUndoInsert: ((Int) -> Void)?
     var onFilterColumn: ((String) -> Void)?
+    var onNavigateFK: ((String, ForeignKeyInfo) -> Void)?
     var getVisualState: ((Int) -> RowVisualState)?
     var dropdownColumns: Set<Int>?
     var typePickerColumns: Set<Int>?
@@ -844,6 +848,12 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let isDropdown = dropdownColumns?.contains(columnIndex) == true
         let isTypePicker = typePickerColumns?.contains(columnIndex) == true
 
+        let isFKColumn: Bool = {
+            guard columnIndex < rowProvider.columns.count else { return false }
+            let columnName = rowProvider.columns[columnIndex]
+            return rowProvider.columnForeignKeys[columnName] != nil
+        }()
+
         return cellFactory?.makeDataCell(
             tableView: tableView,
             row: row,
@@ -855,6 +865,9 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             isLargeDataset: isLargeDataset,
             isFocused: isFocused,
             isDropdown: isDropdown || isTypePicker,
+            isFKColumn: isFKColumn && !isDropdown && !(typePickerColumns?.contains(columnIndex) == true),
+            fkArrowTarget: self,
+            fkArrowAction: #selector(handleFKArrowClick(_:)),
             delegate: self
         )
     }
@@ -988,6 +1001,26 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         // Regular columns — start inline editing
         sender.editColumn(column, row: row, with: nil, select: true)
+    }
+
+    // MARK: - FK Navigation
+
+    @objc func handleFKArrowClick(_ sender: NSButton) {
+        guard let button = sender as? FKArrowButton else { return }
+        let row = button.fkRow
+        let columnIndex = button.fkColumnIndex
+
+        guard row >= 0 && row < cachedRowCount,
+              columnIndex >= 0 && columnIndex < rowProvider.columns.count,
+              let rowData = rowProvider.row(at: row) else { return }
+
+        let columnName = rowProvider.columns[columnIndex]
+        guard let fkInfo = rowProvider.columnForeignKeys[columnName] else { return }
+
+        let value = rowData.value(at: columnIndex)
+        guard let value = value, !value.isEmpty else { return }
+
+        onNavigateFK?(value, fkInfo)
     }
 
     // MARK: - Editing

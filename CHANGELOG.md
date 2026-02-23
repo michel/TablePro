@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Foreign key columns now show a navigation arrow icon in each cell — click to open the referenced table filtered by the FK value
+
 ### Changed
 - Add syntax highlighting to Import SQL file preview
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing
