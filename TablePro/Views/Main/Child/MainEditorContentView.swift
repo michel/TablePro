@@ -59,6 +59,12 @@ struct MainEditorContentView: View {
 
     @State private var sortCache: [UUID: SortedRowsCache] = [:]
 
+    // Cached row provider — avoids recreation on every SwiftUI render.
+    @State private var cachedRowProvider: InMemoryRowProvider?
+    @State private var cachedProviderTabId: UUID?
+    @State private var cachedProviderVersion: Int = -1
+    @State private var cachedChangeManager: AnyChangeManager?
+
     // MARK: - Environment
 
     @EnvironmentObject private var appState: AppState
@@ -105,6 +111,29 @@ struct MainEditorContentView: View {
         }
         .onAppear {
             updateHasQueryText()
+            cachedChangeManager = AnyChangeManager(dataManager: changeManager)
+            if let tab = tabManager.selectedTab {
+                let provider = makeRowProvider(for: tab)
+                cachedRowProvider = provider
+                cachedProviderTabId = tab.id
+                cachedProviderVersion = tab.resultVersion
+            }
+        }
+        .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
+            guard let tab = tabManager.selectedTab, let version = newVersion else { return }
+            let provider = makeRowProvider(for: tab)
+            cachedRowProvider = provider
+            cachedProviderTabId = tab.id
+            cachedProviderVersion = version
+        }
+        .onChange(of: tabManager.selectedTabId) { _, newId in
+            guard let tab = tabManager.selectedTab, let id = newId else { return }
+            if cachedProviderTabId != id {
+                let provider = makeRowProvider(for: tab)
+                cachedRowProvider = provider
+                cachedProviderTabId = id
+                cachedProviderVersion = tab.resultVersion
+            }
         }
     }
 
@@ -276,16 +305,8 @@ struct MainEditorContentView: View {
     @ViewBuilder
     private func dataGridView(tab: QueryTab) -> some View {
         DataGridView(
-            rowProvider: InMemoryRowProvider(
-                rows: sortedRows(for: tab),
-                columns: tab.resultColumns,
-                columnDefaults: tab.columnDefaults,
-                columnTypes: tab.columnTypes,
-                columnForeignKeys: tab.columnForeignKeys,
-                columnEnumValues: tab.columnEnumValues,
-                columnNullable: tab.columnNullable
-            ),
-            changeManager: AnyChangeManager(dataManager: changeManager),
+            rowProvider: currentRowProvider,
+            changeManager: currentChangeManager,
             resultVersion: tab.resultVersion,
             isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
             onCommit: onCommit,
@@ -309,6 +330,35 @@ struct MainEditorContentView: View {
             columnLayout: columnLayoutBinding(for: tab)
         )
         .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private var currentRowProvider: InMemoryRowProvider {
+        if let cached = cachedRowProvider,
+           cachedProviderTabId == tabManager.selectedTabId,
+           cachedProviderVersion == tabManager.selectedTab?.resultVersion ?? -1 {
+            return cached
+        }
+        guard let tab = tabManager.selectedTab else {
+            return InMemoryRowProvider(rows: [], columns: [])
+        }
+        return makeRowProvider(for: tab)
+    }
+
+    private func makeRowProvider(for tab: QueryTab) -> InMemoryRowProvider {
+        InMemoryRowProvider(
+            rows: sortedRows(for: tab),
+            columns: tab.resultColumns,
+            columnDefaults: tab.columnDefaults,
+            columnTypes: tab.columnTypes,
+            columnForeignKeys: tab.columnForeignKeys,
+            columnEnumValues: tab.columnEnumValues,
+            columnNullable: tab.columnNullable
+        )
+    }
+
+    private var currentChangeManager: AnyChangeManager {
+        if let cached = cachedChangeManager { return cached }
+        return AnyChangeManager(dataManager: changeManager)
     }
 
     private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
