@@ -174,7 +174,9 @@ struct DataGridView: NSViewRepresentable {
             tableView.usesAlternatingRowBackgroundColors = settings.showAlternateRows
         }
 
+        // Don't reload while editing (field editor or overlay)
         if tableView.editedRow >= 0 { return }
+        if let editor = context.coordinator.overlayEditor, editor.isActive { return }
 
         // Identity-based early-return: skip heavy work when nothing has changed.
         // Prevents redundant column comparison, visual-state cache rebuild, sort sync,
@@ -520,6 +522,7 @@ struct DataGridView: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ nsView: NSScrollView, coordinator: TableViewCoordinator) {
+        coordinator.overlayEditor?.dismiss(commit: false)
         if let observer = coordinator.settingsObserver {
             NotificationCenter.default.removeObserver(observer)
             coordinator.settingsObserver = nil
@@ -584,6 +587,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     weak var tableView: NSTableView?
     var cellFactory: DataGridCellFactory?
+    private(set) var overlayEditor: CellOverlayEditor?
 
     // Settings observer for real-time updates
     fileprivate var settingsObserver: NSObjectProtocol?
@@ -988,6 +992,13 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             return
         }
 
+        // Multiline values use the overlay editor instead of inline field editor
+        if let value = rowProvider.row(at: row)?.value(at: columnIndex),
+           value.containsLineBreak {
+            showOverlayEditor(tableView: sender, row: row, column: column, columnIndex: columnIndex, value: value)
+            return
+        }
+
         // Regular columns — start inline editing
         sender.editColumn(column, row: row, with: nil, select: true)
     }
@@ -1038,6 +1049,15 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 return false
             }
             if let typePickerCols = typePickerColumns, typePickerCols.contains(columnIndex) {
+                return false
+            }
+
+            // Multiline values use overlay editor — block inline field editor
+            if let value = rowProvider.row(at: row)?.value(at: columnIndex),
+               value.containsLineBreak {
+                let tableColumnIdx = tableView.column(withIdentifier: tableColumn.identifier)
+                guard tableColumnIdx >= 0 else { return false }
+                showOverlayEditor(tableView: tableView, row: row, column: tableColumnIdx, columnIndex: columnIndex, value: value)
                 return false
             }
         }
@@ -1255,6 +1275,84 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
     }
 
+    // MARK: - Overlay Editor (Multiline)
+
+    func showOverlayEditor(tableView: NSTableView, row: Int, column: Int, columnIndex: Int, value: String) {
+        if overlayEditor == nil {
+            overlayEditor = CellOverlayEditor()
+        }
+        guard let editor = overlayEditor else { return }
+
+        editor.onCommit = { [weak self] row, columnIndex, newValue in
+            self?.commitOverlayEdit(row: row, columnIndex: columnIndex, newValue: newValue)
+        }
+        editor.onTabNavigation = { [weak self] row, column, forward in
+            self?.handleOverlayTabNavigation(row: row, column: column, forward: forward)
+        }
+        editor.show(in: tableView, row: row, column: column, columnIndex: columnIndex, value: value)
+    }
+
+    private func commitOverlayEdit(row: Int, columnIndex: Int, newValue: String) {
+        guard let rowData = rowProvider.row(at: row) else { return }
+        let oldValue = rowData.value(at: columnIndex)
+        guard oldValue != newValue else { return }
+
+        let columnName = rowProvider.columns[columnIndex]
+        changeManager.recordCellChange(
+            rowIndex: row,
+            columnIndex: columnIndex,
+            columnName: columnName,
+            oldValue: oldValue,
+            newValue: newValue,
+            originalRow: rowData.values
+        )
+
+        rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
+        onCellEdit?(row, columnIndex, newValue)
+
+        let tableColumnIndex = columnIndex + 1
+        tableView?.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: tableColumnIndex))
+    }
+
+    private func handleOverlayTabNavigation(row: Int, column: Int, forward: Bool) {
+        guard let tableView = tableView else { return }
+
+        var nextColumn = forward ? column + 1 : column - 1
+        var nextRow = row
+
+        if forward {
+            if nextColumn >= tableView.numberOfColumns {
+                nextColumn = 1
+                nextRow += 1
+            }
+            if nextRow >= tableView.numberOfRows {
+                nextRow = tableView.numberOfRows - 1
+                nextColumn = tableView.numberOfColumns - 1
+            }
+        } else {
+            if nextColumn < 1 {
+                nextColumn = tableView.numberOfColumns - 1
+                nextRow -= 1
+            }
+            if nextRow < 0 {
+                nextRow = 0
+                nextColumn = 1
+            }
+        }
+
+        tableView.selectRowIndexes(IndexSet(integer: nextRow), byExtendingSelection: false)
+
+        // Check if next cell is also multiline → open overlay there
+        let nextColumnIndex = nextColumn - 1
+        if nextColumnIndex >= 0, nextColumnIndex < rowProvider.columns.count,
+           let value = rowProvider.row(at: nextRow)?.value(at: nextColumnIndex),
+           value.containsLineBreak {
+            showOverlayEditor(tableView: tableView, row: nextRow, column: nextColumn, columnIndex: nextColumnIndex, value: value)
+        } else {
+            tableView.editColumn(nextColumn, row: nextRow, with: nil, select: true)
+        }
+    }
+
     func control(_ control: NSControl, textShouldEndEditing fieldEditor: NSText) -> Bool {
         guard let textField = control as? NSTextField, let tableView = tableView else { return true }
 
@@ -1287,6 +1385,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         Task { @MainActor in
             tableView.reloadData(forRowIndexes: IndexSet(integer: row), columnIndexes: IndexSet(integer: column))
         }
+
+        (control as? CellTextField)?.restoreTruncatedDisplay()
 
         return true
     }

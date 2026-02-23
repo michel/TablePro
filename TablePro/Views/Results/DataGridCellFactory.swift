@@ -183,6 +183,7 @@ final class DataGridCellFactory {
             cell.lineBreakMode = .byTruncatingTail
             cell.maximumNumberOfLines = 1
             cell.cell?.truncatesLastVisibleLine = true
+            cell.cell?.usesSingleLineMode = true
             cell.translatesAutoresizingMaskIntoConstraints = false
 
             cellView.textField = cell
@@ -240,7 +241,14 @@ final class DataGridCellFactory {
             isNewCell = true
         }
 
-        // Configure FK arrow button (for both new and reused cells)
+        // Re-apply single-line properties (editing may reset these on reused cells)
+        if !isNewCell {
+            cell.lineBreakMode = .byTruncatingTail
+            cell.maximumNumberOfLines = 1
+            cell.cell?.truncatesLastVisibleLine = true
+            cell.cell?.usesSingleLineMode = true
+        }
+
         if isFKColumn, let button = cellView.viewWithTag(Self.fkArrowTag) as? FKArrowButton {
             button.target = fkArrowTarget
             button.action = fkArrowAction
@@ -350,6 +358,7 @@ final class DataGridCellFactory {
             displayValue = displayValue.sanitizedForCellDisplay
 
             cell.stringValue = displayValue
+            (cell as? CellTextField)?.originalValue = value
             cell.textColor = .labelColor
             if cell.font !== CellFonts.regular {
                 cell.font = CellFonts.regular
@@ -405,7 +414,7 @@ final class DataGridCellFactory {
                   let value = row.value(at: columnIndex) else { continue }
 
             // Use first 100 chars for width measurement (sufficient for column sizing)
-            let displayValue = String(value.prefix(100))
+            let displayValue = String(value.prefix(100)).sanitizedForCellDisplay
             let size = (displayValue as NSString).size(withAttributes: cellAttributes)
             maxWidth = max(maxWidth, size.width + 16) // cell padding
 
@@ -430,19 +439,44 @@ extension NSFont {
 
 // MARK: - String Extension for Cell Display
 
-private extension String {
-    /// Sanitize string for single-line cell display by replacing newlines with spaces.
-    /// Avoids allocation when string contains no newlines (common case).
-    var sanitizedForCellDisplay: String {
-        // Fast path: if no newlines exist, return self without allocation
-        guard contains(where: { $0 == "\n" || $0 == "\r" }) else { return self }
-
-        // Slow path: build new string with newlines replaced
-        var result = ""
-        result.reserveCapacity((self as NSString).length)
-        for char in self {
-            result.append(char == "\n" || char == "\r" ? " " : char)
+internal extension String {
+    /// Whether the string contains any Unicode line-break character
+    /// (LF, CR, VT, FF, NEL, LS, PS). Uses NSString UTF-16 loop for O(1) per-char access.
+    var containsLineBreak: Bool {
+        let nsString = self as NSString
+        let length = nsString.length
+        guard length > 0 else { return false }
+        for i in 0..<length {
+            let ch = nsString.character(at: i)
+            if ch == 0x0A || ch == 0x0D || ch == 0x0B || ch == 0x0C ||
+               ch == 0x85 || ch == 0x2028 || ch == 0x2029 {
+                return true
+            }
         }
-        return result
+        return false
+    }
+
+    /// Sanitize string for single-line cell display by replacing line-break characters with spaces.
+    /// Covers: LF (0x0A), CR (0x0D), VT (0x0B), FF (0x0C), NEL (0x85), LS (0x2028), PS (0x2029).
+    /// Uses NSString UTF-16 loop for O(1) per-character access (project convention for large strings).
+    var sanitizedForCellDisplay: String {
+        let nsString = self as NSString
+        let length = nsString.length
+        guard length > 0 else { return self }
+
+        guard containsLineBreak else { return self }
+
+        // Slow path: build new string with line breaks replaced by spaces
+        let mutable = NSMutableString(capacity: length)
+        for i in 0..<length {
+            let ch = nsString.character(at: i)
+            if ch == 0x0A || ch == 0x0D || ch == 0x0B || ch == 0x0C ||
+               ch == 0x85 || ch == 0x2028 || ch == 0x2029 {
+                mutable.append(" ")
+            } else {
+                mutable.append(String(utf16CodeUnits: [ch], count: 1))
+            }
+        }
+        return mutable as String
     }
 }
