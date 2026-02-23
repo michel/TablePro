@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Welcome window now uses native macOS frosted glass translucency (NSVisualEffectView with behind-window blending)
 
+### Fixed
+- Improved DataGrid scrolling performance:
+  - Row views now recycled via NSTableView's reuse pool instead of allocating new objects per scroll
+  - Replaced O(n) String.count with O(1) NSString.length for large cell value truncation
+  - Replaced expensive NSFontDescriptor.symbolicTraits checks with O(1) pointer equality on cached fonts
+  - Added layerContentsRedrawPolicy and canDrawSubviewsIntoLayer to reduce compositing overhead
+  - Cached NULL display string locally instead of per-cell singleton access
+  - Cached AnyChangeManager to avoid per-render allocation with Combine subscriptions
+  - Deferred accessibility label generation to when VoiceOver is active
+  - Removed unnecessary async dispatch in focusedColumn, collapsed two reloadData calls into one
+
 ## [0.6.2] - 2026-02-23
 
 ## [0.6.1] - 2026-02-23

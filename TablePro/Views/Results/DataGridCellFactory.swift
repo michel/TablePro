@@ -21,6 +21,30 @@ final class DataGridCellFactory {
     /// Maximum characters to render in a cell (for performance with very large text)
     private let maxCellTextLength = 10_000
 
+    // MARK: - Cached Settings
+
+    /// Cached NULL display string (updated via settings notification)
+    private var nullDisplayString: String = AppSettingsManager.shared.dataGrid.nullDisplay
+    private var settingsObserver: NSObjectProtocol?
+
+    init() {
+        settingsObserver = NotificationCenter.default.addObserver(
+            forName: .dataGridSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.nullDisplayString = AppSettingsManager.shared.dataGrid.nullDisplay
+            }
+        }
+    }
+
+    deinit {
+        if let observer = settingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
     // MARK: - Cached Fonts (avoid recreation per cell render)
 
     private enum CellFonts {
@@ -92,7 +116,9 @@ final class DataGridCellFactory {
 
         cell.stringValue = "\(row + 1)"
         cell.textColor = visualState.isDeleted ? CellColors.deletedText : .secondaryLabelColor
-        cellView.setAccessibilityLabel(String(localized: "Row \(row + 1)"))
+        if NSWorkspace.shared.isVoiceOverEnabled {
+            cellView.setAccessibilityLabel(String(localized: "Row \(row + 1)"))
+        }
 
         return cellView
     }
@@ -124,13 +150,12 @@ final class DataGridCellFactory {
             cellView = reused
             cell = textField
             isNewCell = false
-            if !cellView.wantsLayer {
-                cellView.wantsLayer = true
-            }
         } else {
             cellView = NSTableCellView()
             cellView.identifier = cellViewId
             cellView.wantsLayer = true
+            cellView.layerContentsRedrawPolicy = .onSetNeedsDisplay
+            cellView.canDrawSubviewsIntoLayer = true
 
             cell = CellTextField()
             cell.font = CellFonts.regular
@@ -190,9 +215,9 @@ final class DataGridCellFactory {
             cell.stringValue = ""
             if !isLargeDataset {
                 // Use settings for NULL display text
-                cell.placeholderString = AppSettingsManager.shared.dataGrid.nullDisplay
+                cell.placeholderString = nullDisplayString
                 cell.textColor = .secondaryLabelColor
-                if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
+                if cell.font !== CellFonts.italic {
                     cell.font = CellFonts.italic
                 }
             } else {
@@ -212,7 +237,7 @@ final class DataGridCellFactory {
             if !isLargeDataset {
                 cell.placeholderString = "Empty"
                 cell.textColor = .secondaryLabelColor
-                if isNewCell || cell.font?.fontDescriptor.symbolicTraits.contains(.italic) != true {
+                if cell.font !== CellFonts.italic {
                     cell.font = CellFonts.italic
                 }
             } else {
@@ -230,9 +255,9 @@ final class DataGridCellFactory {
                 // If formatting fails, fall back to original string
             }
 
-            if displayValue.count > maxCellTextLength {
-                let truncateIndex = displayValue.index(displayValue.startIndex, offsetBy: maxCellTextLength)
-                displayValue = String(displayValue[..<truncateIndex]) + "..."
+            let nsDisplayValue = displayValue as NSString
+            if nsDisplayValue.length > maxCellTextLength {
+                displayValue = nsDisplayValue.substring(to: maxCellTextLength) + "..."
             }
 
             // Sanitize: replace newlines with spaces for single-line display
@@ -240,8 +265,7 @@ final class DataGridCellFactory {
 
             cell.stringValue = displayValue
             cell.textColor = .labelColor
-            if cell.font?.fontDescriptor.symbolicTraits.contains(.italic) == true ||
-                cell.font?.fontDescriptor.symbolicTraits.contains(.bold) == true {
+            if cell.font !== CellFonts.regular {
                 cell.font = CellFonts.regular
             }
         }
@@ -274,7 +298,7 @@ final class DataGridCellFactory {
         CATransaction.commit()
 
         // Accessibility: describe cell content for VoiceOver
-        if !isLargeDataset {
+        if !isLargeDataset && NSWorkspace.shared.isVoiceOverEnabled {
             let displayValue = value ?? String(localized: "NULL")
             cell.setAccessibilityLabel(
                 String(localized: "Row \(row + 1), column \(columnIndex + 1): \(displayValue)")
@@ -366,7 +390,7 @@ private extension String {
 
         // Slow path: build new string with newlines replaced
         var result = ""
-        result.reserveCapacity(count)
+        result.reserveCapacity((self as NSString).length)
         for char in self {
             result.append(char == "\n" || char == "\r" ? " " : char)
         }

@@ -593,6 +593,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var hasUserResizedColumns: Bool = false
 
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
+    private let rowViewId = NSUserInterfaceItemIdentifier("DataRowView")
     private var pendingDropdownRow: Int = 0
     private var pendingDropdownColumn: Int = 0
     private var rowVisualStateCache: [Int: RowVisualState] = [:]
@@ -851,7 +852,13 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        let rowView = TableRowViewWithMenu()
+        let rowView: TableRowViewWithMenu
+        if let reused = tableView.makeView(withIdentifier: rowViewId, owner: nil) as? TableRowViewWithMenu {
+            rowView = reused
+        } else {
+            rowView = TableRowViewWithMenu()
+            rowView.identifier = rowViewId
+        }
         rowView.coordinator = self
         rowView.rowIndex = row
         return rowView
