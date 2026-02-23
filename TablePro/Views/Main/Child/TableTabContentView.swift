@@ -48,7 +48,7 @@ struct TableTabContentView: View {
     // Recreated only when tab.resultVersion changes (data refresh, sort, filter, pagination).
     @State private var rowProvider: InMemoryRowProvider?
     @State private var lastResultVersion: Int = -1
-    @State private var wrappedChangeManager: AnyChangeManager?
+    @State private var cachedChangeManager: AnyChangeManager?
 
     /// Creates a new InMemoryRowProvider from the current tab and row data.
     private func makeRowProvider() -> InMemoryRowProvider {
@@ -64,7 +64,7 @@ struct TableTabContentView: View {
 
     /// Returns the cached AnyChangeManager, creating it on first access.
     private var currentChangeManager: AnyChangeManager {
-        if let existing = wrappedChangeManager {
+        if let existing = cachedChangeManager {
             return existing
         }
         return AnyChangeManager(dataManager: changeManager)
@@ -77,6 +77,11 @@ struct TableTabContentView: View {
         }
         // First render or version mismatch — create inline and schedule state update
         return makeRowProvider()
+    }
+
+    private var currentChangeManager: AnyChangeManager {
+        if let cached = cachedChangeManager { return cached }
+        return AnyChangeManager(dataManager: changeManager)
     }
 
     var body: some View {
@@ -142,7 +147,7 @@ struct TableTabContentView: View {
             let provider = makeRowProvider()
             rowProvider = provider
             lastResultVersion = tab.resultVersion
-            wrappedChangeManager = AnyChangeManager(dataManager: changeManager)
+            cachedChangeManager = AnyChangeManager(dataManager: changeManager)
         }
         .onChange(of: tab.resultVersion) { _, newVersion in
             let provider = makeRowProvider()
