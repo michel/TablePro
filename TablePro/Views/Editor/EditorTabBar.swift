@@ -117,18 +117,12 @@ private struct EditorTabItem: View {
                     .foregroundStyle(Color(nsColor: .systemOrange))
             }
 
-            // Status icon or spinner
-            if tab.isExecuting {
-                ProgressView()
-                    .controlSize(.small)
-                    .frame(width: 11, height: 11)
-            } else {
-                Image(systemName: tab.isView ? "eye" : tab.tabType == .table ? "tablecells" : "doc.text")
-                    .font(.system(size: 11))
-                    .foregroundStyle(
-                        tab.tabType == .table ? (tab.isView ? Color(nsColor: .systemPurple) : Color(nsColor: .systemBlue)) : Color.secondary
-                    )
-            }
+            // Status icon
+            Image(systemName: tab.isView ? "eye" : tab.tabType == .table ? "tablecells" : "doc.text")
+                .font(.system(size: 11))
+                .foregroundStyle(
+                    tab.tabType == .table ? (tab.isView ? Color(nsColor: .systemPurple) : Color(nsColor: .systemBlue)) : Color.secondary
+                )
 
             // Title
             Text(tab.title)

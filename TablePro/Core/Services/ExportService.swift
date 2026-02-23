@@ -801,7 +801,7 @@ final class ExportService: ObservableObject {
                 // CREATE TABLE (structure)
                 if sqlOptions.includeStructure {
                     do {
-                        let ddl = try await driver.fetchTableDDL(table: tableRef)
+                        let ddl = try await driver.fetchTableDDL(table: table.name)
                         try fileHandle.write(contentsOf: ddl.toUTF8Data())
                         if !ddl.hasSuffix(";") {
                             try fileHandle.write(contentsOf: ";".toUTF8Data())
