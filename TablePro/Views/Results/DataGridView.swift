@@ -440,7 +440,9 @@ struct DataGridView: NSViewRepresentable {
         let currentSelection = tableView.selectedRowIndexes
         let targetSelection = IndexSet(selectedRowIndices)
         if currentSelection != targetSelection {
+            coordinator.isSyncingSelection = true
             tableView.selectRowIndexes(targetSelection, byExtendingSelection: false)
+            coordinator.isSyncingSelection = false
         }
 
         // Handle editingCell
@@ -589,10 +591,13 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     private(set) var cachedRowCount: Int = 0
     private(set) var cachedColumnCount: Int = 0
     var isSyncingSortDescriptors: Bool = false
+    /// Suppresses selection delegate callbacks during programmatic selection sync
+    var isSyncingSelection = false
     var isRebuildingColumns: Bool = false
     var hasUserResizedColumns: Bool = false
 
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
+    private static let rowViewIdentifier = NSUserInterfaceItemIdentifier("TableRowView")
     private var pendingDropdownRow: Int = 0
     private var pendingDropdownColumn: Int = 0
     private var rowVisualStateCache: [Int: RowVisualState] = [:]
@@ -851,7 +856,9 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        let rowView = TableRowViewWithMenu()
+        let rowView = (tableView.makeView(withIdentifier: Self.rowViewIdentifier, owner: nil) as? TableRowViewWithMenu)
+            ?? TableRowViewWithMenu()
+        rowView.identifier = Self.rowViewIdentifier
         rowView.coordinator = self
         rowView.rowIndex = row
         return rowView
@@ -866,6 +873,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
+        guard !isSyncingSelection else { return }
         guard let tableView = notification.object as? NSTableView else { return }
 
         let newSelection = Set(tableView.selectedRowIndexes.map { $0 })
