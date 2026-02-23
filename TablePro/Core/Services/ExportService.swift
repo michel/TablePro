@@ -779,19 +779,26 @@ final class ExportService: ObservableObject {
             try fileHandle.write(contentsOf: "-- Generated: \(dateFormatter.string(from: Date()))\n".toUTF8Data())
             try fileHandle.write(contentsOf: "-- Database Type: \(databaseType.rawValue)\n\n".toUTF8Data())
 
-            // Collect and emit dependent enum type definitions (PostgreSQL)
+            // Collect and emit dependent sequences and enum types (PostgreSQL)
+            var emittedSequenceNames: Set<String> = []
             var emittedTypeNames: Set<String> = []
-            let anyTableHasDrop = tables.contains { $0.sqlOptions.includeDrop }
-
             for table in tables where table.sqlOptions.includeStructure {
+                let sequences = try await driver.fetchDependentSequences(forTable: table.name)
+                for seq in sequences where !emittedSequenceNames.contains(seq.name) {
+                    emittedSequenceNames.insert(seq.name)
+                    let quotedName = "\"\(seq.name.replacingOccurrences(of: "\"", with: "\"\""))\""
+                    // Always DROP dependent sequences — they must be recreated for CREATE TABLE to succeed
+                    try fileHandle.write(contentsOf: "DROP SEQUENCE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
+                    try fileHandle.write(contentsOf: "\(seq.ddl)\n\n".toUTF8Data())
+                }
+
                 let enumTypes = try await driver.fetchDependentTypes(forTable: table.name)
                 for enumType in enumTypes where !emittedTypeNames.contains(enumType.name) {
                     emittedTypeNames.insert(enumType.name)
                     let quotedName = "\"\(enumType.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                    if anyTableHasDrop {
-                        try fileHandle.write(contentsOf: "DROP TYPE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
-                    }
-                    let quotedLabels = enumType.labels.map { "'\(SQLEscaping.escapeStringLiteral($0))'" }
+                    // Always DROP dependent types — they must be recreated for CREATE TABLE to succeed
+                    try fileHandle.write(contentsOf: "DROP TYPE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
+                    let quotedLabels = enumType.labels.map { "'\(SQLEscaping.escapeStringLiteral($0, databaseType: databaseType))'" }
                     try fileHandle.write(contentsOf: "CREATE TYPE \(quotedName) AS ENUM (\(quotedLabels.joined(separator: ", ")));\n\n".toUTF8Data())
                 }
             }
@@ -932,7 +939,7 @@ final class ExportService: ObservableObject {
             let values = row.map { value -> String in
                 guard let val = value else { return "NULL" }
                 // Use proper SQL escaping to prevent injection (handles backslashes, quotes, etc.)
-                let escaped = SQLEscaping.escapeStringLiteral(val)
+                let escaped = SQLEscaping.escapeStringLiteral(val, databaseType: databaseType)
                 return "'\(escaped)'"
             }.joined(separator: ", ")
 

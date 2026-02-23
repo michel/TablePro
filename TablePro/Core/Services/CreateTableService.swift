@@ -547,7 +547,7 @@ struct CreateTableService {
     /// Escape characters that can break SQL strings
     /// Delegates to shared SQLEscaping utility for consistent escaping across the codebase
     private func escapeSQLString(_ str: String) -> String {
-        SQLEscaping.escapeStringLiteral(str)
+        SQLEscaping.escapeStringLiteral(str, databaseType: databaseType)
     }
 }
 

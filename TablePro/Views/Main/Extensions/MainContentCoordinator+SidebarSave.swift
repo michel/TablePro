@@ -70,7 +70,7 @@ extension MainContentCoordinator {
                 if isSidebarSQLFunction(newValue) {
                     value = newValue.trimmingCharacters(in: .whitespaces)
                 } else {
-                    value = "'\(SQLEscaping.escapeStringLiteral(newValue))'"
+                    value = "'\(SQLEscaping.escapeStringLiteral(newValue, databaseType: dbType))'"
                 }
             } else {
                 value = "NULL"
@@ -79,7 +79,7 @@ extension MainContentCoordinator {
         }.joined(separator: ", ")
 
         let quotedPK = dbType.quoteIdentifier(pkColumn)
-        let quotedPKValue = "'\(SQLEscaping.escapeStringLiteral(pkValue))'"
+        let quotedPKValue = "'\(SQLEscaping.escapeStringLiteral(pkValue, databaseType: dbType))'"
         let whereClause = "\(quotedPK) = \(quotedPKValue)"
         let limitClause = (dbType == .mysql || dbType == .mariadb) ? " LIMIT 1" : ""
 
