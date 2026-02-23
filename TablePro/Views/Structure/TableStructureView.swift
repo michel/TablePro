@@ -706,15 +706,19 @@ struct TableStructureView: View {
             case .foreignKeys:
                 foreignKeys = try await driver.fetchForeignKeys(table: tableName)
             case .ddl:
+                let sequences = try await driver.fetchDependentSequences(forTable: tableName)
                 let enumTypes = try await driver.fetchDependentTypes(forTable: tableName)
                 let baseDDL = try await driver.fetchTableDDL(table: tableName)
-                if enumTypes.isEmpty {
+                if sequences.isEmpty && enumTypes.isEmpty {
                     ddlStatement = baseDDL
                 } else {
                     var preamble = ""
+                    for seq in sequences {
+                        preamble += seq.ddl + "\n\n"
+                    }
                     for enumType in enumTypes {
                         let quotedName = "\"\(enumType.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                        let quotedLabels = enumType.labels.map { "'\(SQLEscaping.escapeStringLiteral($0))'" }
+                        let quotedLabels = enumType.labels.map { "'\(SQLEscaping.escapeStringLiteral($0, databaseType: .postgresql))'" }
                         preamble += "CREATE TYPE \(quotedName) AS ENUM (\(quotedLabels.joined(separator: ", ")));\n"
                     }
                     ddlStatement = preamble + "\n" + baseDDL

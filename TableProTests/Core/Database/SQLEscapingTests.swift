@@ -108,6 +108,76 @@ struct SQLEscapingTests {
 
     // MARK: - escapeLikeWildcards Tests
 
+    // MARK: - PostgreSQL/SQLite escapeStringLiteral Tests
+
+    @Test("PostgreSQL: plain string unchanged")
+    func testPostgreSQLPlainStringUnchanged() {
+        let result = SQLEscaping.escapeStringLiteral("Hello World", databaseType: .postgresql)
+        #expect(result == "Hello World")
+    }
+
+    @Test("PostgreSQL: single quotes doubled")
+    func testPostgreSQLSingleQuotesDoubled() {
+        let result = SQLEscaping.escapeStringLiteral("O'Brien", databaseType: .postgresql)
+        #expect(result == "O''Brien")
+    }
+
+    @Test("PostgreSQL: newlines preserved")
+    func testPostgreSQLNewlinesPreserved() {
+        let result = SQLEscaping.escapeStringLiteral("Line1\nLine2", databaseType: .postgresql)
+        #expect(result == "Line1\nLine2")
+    }
+
+    @Test("PostgreSQL: carriage returns preserved")
+    func testPostgreSQLCarriageReturnsPreserved() {
+        let result = SQLEscaping.escapeStringLiteral("Text\rMore", databaseType: .postgresql)
+        #expect(result == "Text\rMore")
+    }
+
+    @Test("PostgreSQL: tabs preserved")
+    func testPostgreSQLTabsPreserved() {
+        let result = SQLEscaping.escapeStringLiteral("Col1\tCol2", databaseType: .postgresql)
+        #expect(result == "Col1\tCol2")
+    }
+
+    @Test("PostgreSQL: backslashes preserved")
+    func testPostgreSQLBackslashesPreserved() {
+        let result = SQLEscaping.escapeStringLiteral("C:\\Users\\Test", databaseType: .postgresql)
+        #expect(result == "C:\\Users\\Test")
+    }
+
+    @Test("PostgreSQL: null bytes stripped")
+    func testPostgreSQLNullBytesStripped() {
+        let result = SQLEscaping.escapeStringLiteral("Text\0End", databaseType: .postgresql)
+        #expect(result == "TextEnd")
+    }
+
+    @Test("PostgreSQL: combined special characters")
+    func testPostgreSQLCombinedSpecialCharacters() {
+        let result = SQLEscaping.escapeStringLiteral("O'Brien\\test\nline2\t\0end", databaseType: .postgresql)
+        #expect(result == "O''Brien\\test\nline2\tend")
+    }
+
+    @Test("SQLite: newlines preserved")
+    func testSQLiteNewlinesPreserved() {
+        let result = SQLEscaping.escapeStringLiteral("Line1\nLine2", databaseType: .sqlite)
+        #expect(result == "Line1\nLine2")
+    }
+
+    @Test("SQLite: backslashes preserved")
+    func testSQLiteBackslashesPreserved() {
+        let result = SQLEscaping.escapeStringLiteral("path\\to\\file", databaseType: .sqlite)
+        #expect(result == "path\\to\\file")
+    }
+
+    @Test("SQLite: single quotes doubled")
+    func testSQLiteSingleQuotesDoubled() {
+        let result = SQLEscaping.escapeStringLiteral("it's", databaseType: .sqlite)
+        #expect(result == "it''s")
+    }
+
+    // MARK: - escapeLikeWildcards Tests
+
     @Test("LIKE plain string unchanged")
     func testLikePlainStringUnchanged() {
         let input = "test"

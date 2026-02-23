@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add syntax highlighting to Import SQL file preview
 
 ### Fixed
+- Fix SQL export corrupting newline/tab/backslash characters for PostgreSQL and SQLite (MySQL-style backslash escaping was incorrectly applied to all database types)
+- Fix PostgreSQL SQL export failing to import when types/sequences already exist (`DROP IF EXISTS` now always emitted for dependent types and sequences)
 - Fix PostgreSQL SQL export missing `CREATE TYPE` definitions for enum columns, causing import errors
 - Fix PostgreSQL DDL tab not showing enum type definitions used by table columns
 
