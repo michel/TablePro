@@ -1435,6 +1435,29 @@ final class MainContentCoordinator: ObservableObject {
         tabManager.closeTab(tab)
     }
 
+
+    /// Performs a direct tab switch bypassing SwiftUI .onChange scheduling delay.
+    /// Called from tab bar clicks and keyboard shortcuts.
+    func performDirectTabSwitch(to tab: QueryTab, selectedRowIndices: inout Set<Int>) {
+        guard tabManager.selectedTabId != tab.id else { return }
+
+        let oldTabId = tabManager.selectedTabId
+        skipNextTabChangeOnChange = true
+        tabManager.selectedTabId = tab.id
+
+        handleTabChange(from: oldTabId, to: tab.id,
+                        selectedRowIndices: &selectedRowIndices, tabs: tabManager.tabs)
+
+        NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
+
+        guard !tabPersistence.isRestoringTabs, !tabPersistence.isDismissing,
+              let sessionId = DatabaseManager.shared.currentSessionId else { return }
+        DatabaseManager.shared.updateSession(sessionId) { session in
+            session.selectedTabId = tab.id
+        }
+        tabPersistence.saveTabsAsync(tabs: tabManager.tabs, selectedTabId: tab.id)
+    }
+
     func handleTabChange(
         from oldTabId: UUID?,
         to newTabId: UUID?,

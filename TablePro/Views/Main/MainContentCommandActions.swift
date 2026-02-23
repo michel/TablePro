@@ -313,49 +313,11 @@ final class MainContentCommandActions: ObservableObject {
         performDirectTabSwitch(to: target)
     }
 
-    /// Perform a direct tab switch bypassing the SwiftUI .onChange delay.
-    /// Calls handleTabChange synchronously, then sets selectedTabId for UI update.
     private func performDirectTabSwitch(to target: QueryTab) {
-        guard let coordinator = coordinator else { return }
-        let tabManager = coordinator.tabManager
-
-        // Skip if already on this tab
-        guard tabManager.selectedTabId != target.id else { return }
-
-        let oldTabId = tabManager.selectedTabId
-
-        // Set selectedTabId FIRST so that selectedTabIndex is correct inside
-        // handleTabChange (executeTableTabQueryDirectly uses selectedTabIndex).
-        // Set skip flag before selectedTabId to prevent .onChange from re-doing the work.
-        coordinator.skipNextTabChangeOnChange = true
-        tabManager.selectedTabId = target.id
-
-        // Call handleTabChange directly (synchronous — no SwiftUI scheduling delay)
-        var selectedRowIndices = selectedRowIndices.wrappedValue
-        coordinator.handleTabChange(
-            from: oldTabId,
-            to: target.id,
-            selectedRowIndices: &selectedRowIndices,
-            tabs: tabManager.tabs
-        )
-        self.selectedRowIndices.wrappedValue = selectedRowIndices
-
-        // Dismiss autocomplete windows
-        NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
-
-        // Persist tab selection
-        if !coordinator.tabPersistence.isRestoringTabs,
-           !coordinator.tabPersistence.isDismissing {
-            if let sessionId = DatabaseManager.shared.currentSessionId {
-                DatabaseManager.shared.updateSession(sessionId) { session in
-                    session.selectedTabId = target.id
-                }
-                coordinator.tabPersistence.saveTabsAsync(
-                    tabs: tabManager.tabs,
-                    selectedTabId: target.id
-                )
-            }
-        }
+        guard let coordinator else { return }
+        var indices = selectedRowIndices.wrappedValue
+        coordinator.performDirectTabSwitch(to: target, selectedRowIndices: &indices)
+        selectedRowIndices.wrappedValue = indices
     }
 
     // MARK: - Filter Operations (Group A — Called Directly)
