@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.2] - 2026-02-23
 
+### Changed
+- Replace generic SwiftUI colors with native macOS system colors (`Color(nsColor: .system*)` instead of `Color.red/green/blue/orange`) for proper dark mode, vibrancy, and accessibility adaptation
+- Replace hardcoded opacity on semantic colors with `quaternaryLabelColor`/`tertiaryLabelColor`
+- Use `shadowColor` instead of `Color.black` for shadows
+- Replace iOS-style Capsule badges with RoundedRectangle
+
 ## [0.6.1] - 2026-02-23
 
 ### Fixed
