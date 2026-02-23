@@ -82,6 +82,9 @@ final class MainContentCoordinator: ObservableObject {
     /// When switching tabs, change state is saved here instead of inside the QueryTab value type.
     private var tabPendingChanges: [UUID: TabPendingChanges] = [:]
 
+    /// Row selection state per tab, stored separately to avoid @Published fires on tab switch
+    private var tabSelectionCache: [UUID: Set<Int>] = [:]
+
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
 
@@ -93,10 +96,21 @@ final class MainContentCoordinator: ObservableObject {
     func cleanupSortCache(openTabIds: Set<UUID>) {
         querySortCache = querySortCache.filter { openTabIds.contains($0.key) }
         tabPendingChanges = tabPendingChanges.filter { openTabIds.contains($0.key) }
+        tabSelectionCache = tabSelectionCache.filter { openTabIds.contains($0.key) }
         for (tabId, task) in activeSortTasks where !openTabIds.contains(tabId) {
             task.cancel()
             activeSortTasks.removeValue(forKey: tabId)
         }
+    }
+
+    /// Writes cached selection state back to tab model before persistence
+    private func flushSelectionCache() {
+        for (tabId, selection) in tabSelectionCache {
+            if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                tabManager.tabs[idx].selectedRowIndices = selection
+            }
+        }
+        tabSelectionCache.removeAll()
     }
 
     // MARK: - Initialization
@@ -1440,7 +1454,7 @@ final class MainContentCoordinator: ObservableObject {
             } else {
                 tabPendingChanges.removeValue(forKey: oldId)
             }
-            tabManager.tabs[oldIndex].selectedRowIndices = selectedRowIndices
+            tabSelectionCache[oldId] = selectedRowIndices
         }
 
         if let newId = newTabId,
@@ -1448,7 +1462,7 @@ final class MainContentCoordinator: ObservableObject {
             let newTab = tabManager.tabs[newIndex]
 
 
-            selectedRowIndices = newTab.selectedRowIndices
+            selectedRowIndices = tabSelectionCache[newId] ?? newTab.selectedRowIndices
             AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil
             toolbarState.isTableTab = newTab.tabType == .table
 
@@ -1499,7 +1513,13 @@ final class MainContentCoordinator: ObservableObject {
             // likely cancelled when the user rapidly switched away. Force-clear the stale
             // flag so the lazy-load check below can re-execute the query.
             if newTab.isExecuting && newTab.resultRows.isEmpty && newTab.lastExecutedAt == nil {
-                tabManager.tabs[newIndex].isExecuting = false
+                let tabId = newId
+                Task { @MainActor [weak self] in
+                    guard let self,
+                          let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }),
+                          self.tabManager.tabs[idx].isExecuting else { return }
+                    self.tabManager.tabs[idx].isExecuting = false
+                }
             }
 
             let needsLazyQuery = !shouldSkipLazyLoad
