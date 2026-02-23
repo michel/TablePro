@@ -332,6 +332,9 @@ struct MainEditorContentView: View {
             onAddRow: onAddRow,
             onUndoInsert: onUndoInsert,
             onFilterColumn: onFilterColumn,
+            onNavigateFK: { [coordinator] value, fkInfo in
+                coordinator.navigateToFKReference(value: value, fkInfo: fkInfo)
+            },
             selectedRowIndices: $selectedRowIndices,
             sortState: sortStateBinding(for: tab),
             editingCell: $editingCell,

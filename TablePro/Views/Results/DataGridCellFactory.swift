@@ -9,6 +9,13 @@
 import AppKit
 import QuartzCore
 
+/// Custom button that stores FK row/column context for the click handler
+@MainActor
+final class FKArrowButton: NSButton {
+    var fkRow: Int = 0
+    var fkColumnIndex: Int = 0
+}
+
 /// Factory for creating data grid cell views
 @MainActor
 final class DataGridCellFactory {
@@ -126,6 +133,7 @@ final class DataGridCellFactory {
     // MARK: - Data Cell
 
     private static let chevronTag = 999
+    private static let fkArrowTag = 998
 
     func makeDataCell(
         tableView: NSTableView,
@@ -138,9 +146,19 @@ final class DataGridCellFactory {
         isLargeDataset: Bool,
         isFocused: Bool,
         isDropdown: Bool = false,
+        isFKColumn: Bool = false,
+        fkArrowTarget: AnyObject? = nil,
+        fkArrowAction: Selector? = nil,
         delegate: NSTextFieldDelegate
     ) -> NSView {
-        let cellViewId = NSUserInterfaceItemIdentifier(isDropdown ? "DropdownCellView" : "DataCellView")
+        let cellViewId: NSUserInterfaceItemIdentifier
+        if isDropdown {
+            cellViewId = NSUserInterfaceItemIdentifier("DropdownCellView")
+        } else if isFKColumn {
+            cellViewId = NSUserInterfaceItemIdentifier("FKArrowCellView")
+        } else {
+            cellViewId = NSUserInterfaceItemIdentifier("DataCellView")
+        }
         let cellView: NSTableCellView
         let cell: NSTextField
         let isNewCell: Bool
@@ -190,6 +208,28 @@ final class DataGridCellFactory {
                     chevron.widthAnchor.constraint(equalToConstant: 10),
                     chevron.heightAnchor.constraint(equalToConstant: 12),
                 ])
+            } else if isFKColumn {
+                let button = FKArrowButton()
+                button.tag = Self.fkArrowTag
+                button.bezelStyle = .inline
+                button.isBordered = false
+                button.image = NSImage(systemSymbolName: "arrow.right.circle.fill", accessibilityDescription: String(localized: "Navigate to referenced row"))
+                button.contentTintColor = .tertiaryLabelColor
+                button.translatesAutoresizingMaskIntoConstraints = false
+                button.setContentHuggingPriority(.required, for: .horizontal)
+                button.setContentCompressionResistancePriority(.required, for: .horizontal)
+                button.imageScaling = .scaleProportionallyDown
+                cellView.addSubview(button)
+
+                NSLayoutConstraint.activate([
+                    cell.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 4),
+                    cell.trailingAnchor.constraint(equalTo: button.leadingAnchor, constant: -2),
+                    cell.centerYAnchor.constraint(equalTo: cellView.centerYAnchor),
+                    button.trailingAnchor.constraint(equalTo: cellView.trailingAnchor, constant: -4),
+                    button.centerYAnchor.constraint(equalTo: cellView.centerYAnchor),
+                    button.widthAnchor.constraint(equalToConstant: 16),
+                    button.heightAnchor.constraint(equalToConstant: 16),
+                ])
             } else {
                 NSLayoutConstraint.activate([
                     cell.leadingAnchor.constraint(equalTo: cellView.leadingAnchor, constant: 4),
@@ -200,6 +240,15 @@ final class DataGridCellFactory {
             isNewCell = true
         }
 
+        // Configure FK arrow button (for both new and reused cells)
+        if isFKColumn, let button = cellView.viewWithTag(Self.fkArrowTag) as? FKArrowButton {
+            button.target = fkArrowTarget
+            button.action = fkArrowAction
+            button.fkRow = row
+            button.fkColumnIndex = columnIndex
+            button.isHidden = (value == nil || value?.isEmpty == true)
+        }
+
         cell.isEditable = isEditable
         cell.delegate = delegate
         cell.identifier = cellIdentifier
@@ -208,67 +257,7 @@ final class DataGridCellFactory {
         let isInserted = visualState.isInserted
         let isModified = visualState.modifiedColumns.contains(columnIndex)
 
-        // Update text content
-        cell.placeholderString = nil
-
-        if value == nil {
-            cell.stringValue = ""
-            if !isLargeDataset {
-                // Use settings for NULL display text
-                cell.placeholderString = nullDisplayString
-                cell.textColor = .secondaryLabelColor
-                if cell.font !== CellFonts.italic {
-                    cell.font = CellFonts.italic
-                }
-            } else {
-                cell.textColor = .secondaryLabelColor
-            }
-        } else if value == "__DEFAULT__" {
-            cell.stringValue = ""
-            if !isLargeDataset {
-                cell.placeholderString = "DEFAULT"
-                cell.textColor = .systemBlue
-                cell.font = CellFonts.medium
-            } else {
-                cell.textColor = .systemBlue
-            }
-        } else if value == "" {
-            cell.stringValue = ""
-            if !isLargeDataset {
-                cell.placeholderString = "Empty"
-                cell.textColor = .secondaryLabelColor
-                if cell.font !== CellFonts.italic {
-                    cell.font = CellFonts.italic
-                }
-            } else {
-                cell.textColor = .secondaryLabelColor
-            }
-        } else {
-            // Truncate very large text for performance (only visible chars matter)
-            var displayValue = value ?? ""
-
-            // Format dates using DateFormattingService if this is a date column
-            if let columnType = columnType, columnType.isDateType, !displayValue.isEmpty {
-                if let formattedDate = DateFormattingService.shared.format(dateString: displayValue) {
-                    displayValue = formattedDate
-                }
-                // If formatting fails, fall back to original string
-            }
-
-            let nsDisplayValue = displayValue as NSString
-            if nsDisplayValue.length > maxCellTextLength {
-                displayValue = nsDisplayValue.substring(to: maxCellTextLength) + "..."
-            }
-
-            // Sanitize: replace newlines with spaces for single-line display
-            displayValue = displayValue.sanitizedForCellDisplay
-
-            cell.stringValue = displayValue
-            cell.textColor = .labelColor
-            if cell.font !== CellFonts.regular {
-                cell.font = CellFonts.regular
-            }
-        }
+        configureTextContent(cell: cell, value: value, columnType: columnType, isLargeDataset: isLargeDataset)
 
         // Batch layer updates to avoid implicit animations
         CATransaction.begin()
@@ -306,6 +295,66 @@ final class DataGridCellFactory {
         }
 
         return cellView
+    }
+
+    // MARK: - Cell Text Content
+
+    private func configureTextContent(cell: NSTextField, value: String?, columnType: ColumnType?, isLargeDataset: Bool) {
+        cell.placeholderString = nil
+
+        if value == nil {
+            cell.stringValue = ""
+            if !isLargeDataset {
+                cell.placeholderString = nullDisplayString
+                cell.textColor = .secondaryLabelColor
+                if cell.font !== CellFonts.italic {
+                    cell.font = CellFonts.italic
+                }
+            } else {
+                cell.textColor = .secondaryLabelColor
+            }
+        } else if value == "__DEFAULT__" {
+            cell.stringValue = ""
+            if !isLargeDataset {
+                cell.placeholderString = "DEFAULT"
+                cell.textColor = .systemBlue
+                cell.font = CellFonts.medium
+            } else {
+                cell.textColor = .systemBlue
+            }
+        } else if value == "" {
+            cell.stringValue = ""
+            if !isLargeDataset {
+                cell.placeholderString = "Empty"
+                cell.textColor = .secondaryLabelColor
+                if cell.font !== CellFonts.italic {
+                    cell.font = CellFonts.italic
+                }
+            } else {
+                cell.textColor = .secondaryLabelColor
+            }
+        } else {
+            var displayValue = value ?? ""
+
+            if let columnType = columnType, columnType.isDateType, !displayValue.isEmpty {
+                if let formattedDate = DateFormattingService.shared.format(dateString: displayValue) {
+                    displayValue = formattedDate
+                }
+            }
+
+            let nsDisplayValue = displayValue as NSString
+            if nsDisplayValue.length > maxCellTextLength {
+                displayValue = nsDisplayValue.substring(to: maxCellTextLength) + "..."
+            }
+
+            displayValue = displayValue.sanitizedForCellDisplay
+
+            cell.stringValue = displayValue
+            cell.textColor = .labelColor
+            if cell.font !== CellFonts.regular {
+                cell.font = CellFonts.regular
+            }
+        }
     }
 
     // MARK: - Column Width Calculation
