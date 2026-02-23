@@ -10,6 +10,7 @@ import AppKit
 import QuartzCore
 
 /// Custom button that stores FK row/column context for the click handler
+@MainActor
 final class FKArrowButton: NSButton {
     var fkRow: Int = 0
     var fkColumnIndex: Int = 0
@@ -132,7 +133,7 @@ final class DataGridCellFactory {
     // MARK: - Data Cell
 
     private static let chevronTag = 999
-    static let fkArrowTag = 998
+    private static let fkArrowTag = 998
 
     func makeDataCell(
         tableView: NSTableView,
