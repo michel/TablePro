@@ -84,6 +84,10 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch the DDL (CREATE TABLE statement) for a specific table
     func fetchTableDDL(table: String) async throws -> String
 
+    /// Fetch dependent type definitions (e.g., PostgreSQL enum types) for a table.
+    /// Returns array of (typeName, labels) pairs. Default returns empty.
+    func fetchDependentTypes(forTable table: String) async throws -> [(name: String, labels: [String])]
+
     /// Fetch the view definition (SELECT statement) for a specific view
     func fetchViewDefinition(view: String) async throws -> String
 
@@ -143,6 +147,11 @@ extension DatabaseDriver {
             }
         }
         return result
+    }
+
+    /// Default: no dependent types (MySQL/SQLite don't have standalone enum types)
+    func fetchDependentTypes(forTable table: String) async throws -> [(name: String, labels: [String])] {
+        []
     }
 
     /// Default no-op implementation for drivers that don't support query cancellation

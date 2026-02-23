@@ -180,7 +180,7 @@ struct ImportDialog: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            SQLCodePreview(text: filePreview)
+            SQLCodePreview(text: $filePreview)
                 .frame(height: 280)
                 .cornerRadius(6)
                 .overlay(

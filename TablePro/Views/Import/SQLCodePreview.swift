@@ -2,63 +2,57 @@
 //  SQLCodePreview.swift
 //  TablePro
 //
-//  Simple read-only SQL code preview using native NSTextView
+//  Read-only SQL code preview with tree-sitter syntax highlighting
 //
 
-import AppKit
+import CodeEditLanguages
+import CodeEditSourceEditor
 import SwiftUI
 
-/// Read-only SQL code preview with line numbers
-struct SQLCodePreview: NSViewRepresentable {
-    let text: String
+/// Read-only SQL code preview with syntax highlighting powered by CodeEditSourceEditor
+struct SQLCodePreview: View {
+    @Binding var text: String
 
-    func makeNSView(context: Context) -> NSScrollView {
-        // Create text storage and layout manager
-        let textStorage = NSTextStorage(string: "")
-        let layoutManager = NSLayoutManager()
-        let textContainer = NSTextContainer()
+    @State private var editorState = SourceEditorState()
+    @State private var editorConfiguration = makeConfiguration()
+    @Environment(\.colorScheme) private var colorScheme
 
-        layoutManager.addTextContainer(textContainer)
-        textStorage.addLayoutManager(layoutManager)
-
-        // Create text view - structural setup only
-        let textView = NSTextView(frame: .zero, textContainer: textContainer)
-        textView.isEditable = false
-        textView.isSelectable = true
-        textView.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-        textView.textColor = NSColor.textColor
-        textView.backgroundColor = NSColor.textBackgroundColor
-        textView.minSize = NSSize(width: 0, height: 0)
-        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = true
-        textView.autoresizingMask = [.width, .height]
-
-        // Configure text container for proper scrolling
-        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.textContainer?.widthTracksTextView = false
-
-        // Create scroll view
-        let scrollView = NSScrollView()
-        scrollView.documentView = textView
-        scrollView.hasHorizontalScroller = true
-        scrollView.hasVerticalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.backgroundColor = NSColor.textBackgroundColor
-
-        return scrollView
+    var body: some View {
+        if text.isEmpty {
+            Color(nsColor: .textBackgroundColor)
+        } else {
+            SourceEditor(
+                $text,
+                language: .sql,
+                configuration: editorConfiguration,
+                state: $editorState
+            )
+            .onChange(of: colorScheme) {
+                editorConfiguration = Self.makeConfiguration()
+            }
+        }
     }
 
-    func updateNSView(_ nsView: NSScrollView, context: Context) {
-        if let textView = nsView.documentView as? NSTextView {
-            // Update text if changed
-            if textView.string != text {
-                textView.string = text
-            }
-            // Update appearance
-            textView.textColor = NSColor.textColor
-            textView.backgroundColor = NSColor.textBackgroundColor
-            nsView.backgroundColor = NSColor.textBackgroundColor
-        }
+    // MARK: - Configuration
+
+    private static func makeConfiguration() -> SourceEditorConfiguration {
+        SourceEditorConfiguration(
+            appearance: .init(
+                theme: TableProEditorTheme.make(),
+                font: SQLEditorTheme.font,
+                wrapLines: false
+            ),
+            behavior: .init(
+                isEditable: false
+            ),
+            layout: .init(
+                contentInsets: NSEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
+            ),
+            peripherals: .init(
+                showGutter: true,
+                showMinimap: false,
+                showFoldingRibbon: false
+            )
+        )
     }
 }

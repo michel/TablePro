@@ -363,6 +363,40 @@ final class PostgreSQLDriver: DatabaseDriver {
         return result.rows.compactMap { $0.first ?? nil }
     }
 
+    /// Fetch enum type definitions used by columns in the given table.
+    /// Returns array of (typeName, enumLabels) tuples.
+    func fetchEnumTypesForTable(_ table: String) async throws -> [(name: String, labels: [String])] {
+        let safeTable = SQLEscaping.escapeStringLiteral(table)
+        let query = """
+            SELECT DISTINCT t.typname,
+                   array_agg(e.enumlabel ORDER BY e.enumsortorder)
+            FROM pg_attribute a
+            JOIN pg_class c ON c.oid = a.attrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_type t ON t.oid = a.atttypid
+            JOIN pg_enum e ON e.enumtypid = t.oid
+            WHERE c.relname = '\(safeTable)'
+              AND n.nspname = 'public'
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+            GROUP BY t.typname
+            ORDER BY t.typname
+            """
+        let result = try await execute(query: query)
+        return result.rows.compactMap { row in
+            guard let typeName = row[0], let labelsStr = row[1] else { return nil }
+            let labels = labelsStr
+                .trimmingCharacters(in: CharacterSet(charactersIn: "{}"))
+                .components(separatedBy: ",")
+            return (name: typeName, labels: labels)
+        }
+    }
+
+    /// Protocol conformance: fetch dependent type definitions for a table.
+    func fetchDependentTypes(forTable table: String) async throws -> [(name: String, labels: [String])] {
+        try await fetchEnumTypesForTable(table)
+    }
+
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
         let query = """
             SELECT

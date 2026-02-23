@@ -779,6 +779,23 @@ final class ExportService: ObservableObject {
             try fileHandle.write(contentsOf: "-- Generated: \(dateFormatter.string(from: Date()))\n".toUTF8Data())
             try fileHandle.write(contentsOf: "-- Database Type: \(databaseType.rawValue)\n\n".toUTF8Data())
 
+            // Collect and emit dependent enum type definitions (PostgreSQL)
+            var emittedTypeNames: Set<String> = []
+            let anyTableHasDrop = tables.contains { $0.sqlOptions.includeDrop }
+
+            for table in tables where table.sqlOptions.includeStructure {
+                let enumTypes = try await driver.fetchDependentTypes(forTable: table.name)
+                for enumType in enumTypes where !emittedTypeNames.contains(enumType.name) {
+                    emittedTypeNames.insert(enumType.name)
+                    let quotedName = "\"\(enumType.name.replacingOccurrences(of: "\"", with: "\"\""))\""
+                    if anyTableHasDrop {
+                        try fileHandle.write(contentsOf: "DROP TYPE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
+                    }
+                    let quotedLabels = enumType.labels.map { "'\(SQLEscaping.escapeStringLiteral($0))'" }
+                    try fileHandle.write(contentsOf: "CREATE TYPE \(quotedName) AS ENUM (\(quotedLabels.joined(separator: ", ")));\n\n".toUTF8Data())
+                }
+            }
+
             for (index, table) in tables.enumerated() {
                 try checkCancellation()
 
