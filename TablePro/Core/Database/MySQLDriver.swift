@@ -153,13 +153,18 @@ final class MySQLDriver: DatabaseDriver {
         do {
             let result = try await conn.executeQuery(query)
 
-            // Handle empty result for SELECT queries - try to get column names from table
+            // Handle empty result for SELECT queries - try to get column names from table.
+            // Only issue the extra DESCRIBE round-trip when the MariaDB C API returned no
+            // column metadata AND the query is actually a SELECT (non-SELECT queries like
+            // INSERT/UPDATE legitimately return empty columns).
             if result.columns.isEmpty && result.rows.isEmpty {
-                if let tableName = extractTableName(from: query) {
+                let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+                let isSelect = trimmed.uppercased().hasPrefix("SELECT")
+                if isSelect, let tableName = extractTableName(from: query) {
                     let columns = try await fetchColumnNames(for: tableName)
                     return QueryResult(
                         columns: columns,
-                        columnTypes: Array(repeating: .text(rawType: nil), count: columns.count),  // Default to text for empty results
+                        columnTypes: Array(repeating: .text(rawType: nil), count: columns.count),
                         rows: [],
                         rowsAffected: Int(result.affectedRows),
                         executionTime: Date().timeIntervalSince(startTime),
