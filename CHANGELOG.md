@@ -17,8 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Row provider onChange handlers coalesced into a single trigger to avoid redundant InMemoryRowProvider rebuilds
 - SQL import now uses file-size estimation instead of a separate counting pass, eliminating the double-parse overhead for large files
 - History cleanup COUNT + DELETE now wrapped in a single transaction to reduce journal flushes
+- SQLite `fetchTableMetadata` now caps row count scan at 100k rows to avoid full table scans on large tables
+- SQLite `fetchIndexes` uses table-valued pragma functions in a single query instead of N+1 separate PRAGMA calls
+- MySQL empty-result DESCRIBE fallback now only triggers for SELECT queries, avoiding redundant round-trips for non-SELECT statements
+- Remove redundant `String(query)` copy in MariaDB query execution
 
 ### Fixed
+- Fix LibPQ parameterized query using Swift `deallocate()` for `strdup`-allocated memory instead of `free()`
 - FTS5 search input now sanitized to prevent parse errors from special characters like *, OR, AND
 - Fix SQL export corrupting newline/tab/backslash characters for PostgreSQL and SQLite (MySQL-style backslash escaping was incorrectly applied to all database types)
 - Fix PostgreSQL SQL export failing to import when types/sequences already exist (`DROP IF EXISTS` now always emitted for dependent types and sequences)
