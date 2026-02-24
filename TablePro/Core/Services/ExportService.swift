@@ -604,17 +604,18 @@ final class ExportService: ObservableObject {
                 for row in result.rows {
                     try checkCancellation()
 
-                    // Stream JSON row object directly to file to avoid building large strings in memory
+                    // Buffer entire row into a String, then write once (SVC-10)
                     let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
+                    var rowString = ""
 
-                    // Write comma/newline before every row except the first
+                    // Comma/newline before every row except the first
                     if hasWrittenRow {
-                        try fileHandle.write(contentsOf: ",\(newline)".toUTF8Data())
+                        rowString += ",\(newline)"
                     }
 
-                    // Write row prefix and opening brace
-                    try fileHandle.write(contentsOf: rowPrefix.toUTF8Data())
-                    try fileHandle.write(contentsOf: "{".toUTF8Data())
+                    // Row prefix and opening brace
+                    rowString += rowPrefix
+                    rowString += "{"
 
                     if let columns = columns {
                         var isFirstField = true
@@ -623,7 +624,7 @@ final class ExportService: ObservableObject {
                                 let value = row[colIndex]
                                 if config.jsonOptions.includeNullValues || value != nil {
                                     if !isFirstField {
-                                        try fileHandle.write(contentsOf: ", ".toUTF8Data())
+                                        rowString += ", "
                                     }
                                     isFirstField = false
 
@@ -632,14 +633,17 @@ final class ExportService: ObservableObject {
                                         value,
                                         preserveAsString: config.jsonOptions.preserveAllAsStrings
                                     )
-                                    try fileHandle.write(contentsOf: "\"\(escapedKey)\": \(jsonValue)".toUTF8Data())
+                                    rowString += "\"\(escapedKey)\": \(jsonValue)"
                                 }
                             }
                         }
                     }
 
                     // Close row object
-                    try fileHandle.write(contentsOf: "}".toUTF8Data())
+                    rowString += "}"
+
+                    // Single write per row instead of per field
+                    try fileHandle.write(contentsOf: rowString.toUTF8Data())
 
                     hasWrittenRow = true
 
