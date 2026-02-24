@@ -525,8 +525,11 @@ final class MariaDBConnection: @unchecked Sendable {
         }
 
         // Try to get result set (for SELECT queries)
-        // Use mysql_store_result for full dataset (safer for multiple queries)
-        let resultPtr = mysql_store_result(mysql)
+        // Use mysql_use_result for streaming — avoids buffering the entire result
+        // set in C heap memory before the Swift-level row cap takes effect.
+        // IMPORTANT: With mysql_use_result, all rows MUST be consumed (or the
+        // result freed after draining) before issuing another query on this connection.
+        let resultPtr = mysql_use_result(mysql)
 
         if resultPtr == nil {
             // Check if this was a non-SELECT query or an error
@@ -601,6 +604,9 @@ final class MariaDBConnection: @unchecked Sendable {
             if shouldCancel { _isCancelled = false }
             stateLock.unlock()
             if shouldCancel {
+                // Drain unfetched rows before freeing — required for mysql_use_result
+                // to avoid leaving the connection in a bad state
+                while mysql_fetch_row(resultPtr) != nil {}
                 mysql_free_result(resultPtr)
                 throw MariaDBError(code: 0, message: "Query cancelled", sqlState: nil)
             }
@@ -641,6 +647,10 @@ final class MariaDBConnection: @unchecked Sendable {
 
         if truncated {
             logger.warning("Result set truncated at \(maxRows) rows (DriverRowLimits.defaultMax)")
+            // Drain unfetched rows — required for mysql_use_result to leave the
+            // connection in a clean state for subsequent queries. The server streams
+            // remaining rows over the wire; we discard them without copying to Swift.
+            while mysql_fetch_row(resultPtr) != nil {}
         }
 
         // Free result set - CRITICAL to avoid memory leaks

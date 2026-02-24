@@ -369,6 +369,10 @@ final class LibPQConnection: @unchecked Sendable {
         }
 
         // Execute query
+        // TODO: (DB-2) PQexec buffers the entire result set in libpq memory before
+        // the Swift-level row cap takes effect. To stream results, switch to
+        // PQsendQuery + PQsetSingleRowMode + PQgetResult loop, which delivers one
+        // row at a time. This is a significant API change — deferred for now.
         let localQuery = String(query)
         let result: OpaquePointer? = localQuery.withCString { queryPtr in
             PQexec(conn, queryPtr)
