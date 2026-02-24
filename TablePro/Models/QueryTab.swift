@@ -452,7 +452,6 @@ struct QueryTab: Identifiable, Equatable {
             && lhs.errorMessage == rhs.errorMessage
             && lhs.executionTime == rhs.executionTime
             && lhs.resultVersion == rhs.resultVersion
-            && lhs.metadataVersion == rhs.metadataVersion
             && lhs.pagination == rhs.pagination
             && lhs.sortState == rhs.sortState
             && lhs.showStructure == rhs.showStructure
