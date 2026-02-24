@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Add syntax highlighting to Import SQL file preview
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing
+- AnyChangeManager now uses a reference-type box for lazy initialization, avoiding Combine pipeline creation during SwiftUI body evaluation
+- DataGridView identity check moved before AppSettingsManager read to skip settings access when nothing has changed
+- DataGridView async column width write-back now uses an isWritingColumnLayout guard to prevent two-frame bounce
+- Tab switch flushPendingSave debounced to skip redundant saves within 100ms of rapid tab switching
+- SQL editor frame-change notification throttled to 50ms to avoid redundant syntax highlight viewport recalculation on every keystroke
+- SQL editor text binding sync now uses O(1) NSString length pre-check before O(n) full string equality comparison
 - Toolbar executing state now fires a single objectWillChange instead of double-publishing isExecuting and connectionState
 - Row provider onChange handlers coalesced into a single trigger to avoid redundant InMemoryRowProvider rebuilds
 - SQL import now uses file-size estimation instead of a separate counting pass, eliminating the double-parse overhead for large files
