@@ -365,7 +365,7 @@ struct DataGridView: NSViewRepresentable {
 
             // Capture current column layout from user interactions (resize/reorder)
             // Only done in the non-rebuild path to avoid feedback loops
-            if tableView.tableColumns.count > 1 {
+            if coordinator.hasUserResizedColumns, tableView.tableColumns.count > 1 {
                 var currentWidths: [String: CGFloat] = [:]
                 var currentOrder: [String] = []
                 for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
@@ -387,6 +387,7 @@ struct DataGridView: NSViewRepresentable {
                         }
                     }
                 }
+                coordinator.hasUserResizedColumns = false
             }
         }
     }
@@ -885,6 +886,11 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     func tableViewColumnDidResize(_ notification: Notification) {
         // Only track user-initiated resizes, not programmatic ones during column rebuilds
+        guard !isRebuildingColumns else { return }
+        hasUserResizedColumns = true
+    }
+
+    func tableViewColumnDidMove(_ notification: Notification) {
         guard !isRebuildingColumns else { return }
         hasUserResizedColumns = true
     }
