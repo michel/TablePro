@@ -619,18 +619,15 @@ final class MariaDBConnection: @unchecked Sendable {
                     let lengthValue: UInt = lengths?[i] ?? 0
                     let length = Int(lengthValue)
 
-                    // Create string by explicitly copying bytes to a Swift array first
-                    // This ensures complete memory isolation from C buffers
-                    var byteArray = [UInt8](repeating: 0, count: length)
-                    if length > 0 {
-                        memcpy(&byteArray, fieldPtr, length)
-                    }
+                    // Pass C pointer directly to String via UnsafeBufferPointer
+                    // Avoids intermediate [UInt8] allocation — String copies internally
+                    let bufferPtr = UnsafeRawBufferPointer(start: fieldPtr, count: length)
 
-                    if let str = String(bytes: byteArray, encoding: .utf8) {
+                    if let str = String(bytes: bufferPtr, encoding: .utf8) {
                         row.append(str)
                     } else {
-                        // Fallback: create string from byte array as Latin1
-                        row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
+                        // Fallback: create string from buffer as Latin1
+                        row.append(String(bytes: bufferPtr, encoding: .isoLatin1) ?? "")
                     }
                 } else {
                     row.append(nil)
@@ -1108,17 +1105,15 @@ final class MariaDBStreamingResult: @unchecked Sendable {
                 let lengthValue: UInt = lengths?[i] ?? 0
                 let length = Int(lengthValue)
 
-                // Create string by explicitly copying bytes to a Swift array first
-                var byteArray = [UInt8](repeating: 0, count: length)
-                if length > 0 {
-                    memcpy(&byteArray, fieldPtr, length)
-                }
+                // Pass C pointer directly to String via UnsafeBufferPointer
+                // Avoids intermediate [UInt8] allocation — String copies internally
+                let bufferPtr = UnsafeRawBufferPointer(start: fieldPtr, count: length)
 
-                if let str = String(bytes: byteArray, encoding: .utf8) {
+                if let str = String(bytes: bufferPtr, encoding: .utf8) {
                     row.append(str)
                 } else {
-                    // Fallback: create string from byte array as Latin1
-                    row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
+                    // Fallback: create string from buffer as Latin1
+                    row.append(String(bytes: bufferPtr, encoding: .isoLatin1) ?? "")
                 }
             } else {
                 row.append(nil)

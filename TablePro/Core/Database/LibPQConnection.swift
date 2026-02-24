@@ -552,14 +552,11 @@ final class LibPQConnection: @unchecked Sendable {
                 } else if let valuePtr = PQgetvalue(result, Int32(rowIndex), Int32(colIndex)) {
                     let length = Int(PQgetlength(result, Int32(rowIndex), Int32(colIndex)))
 
-                    // Create string by explicitly copying bytes to a Swift array first
-                    // This ensures complete memory isolation from C buffers
-                    var byteArray = [UInt8](repeating: 0, count: length)
-                    if length > 0 {
-                        memcpy(&byteArray, valuePtr, length)
-                    }
+                    // Pass C pointer directly to String via UnsafeBufferPointer
+                    // Avoids intermediate [UInt8] allocation — String copies internally
+                    let bufferPtr = UnsafeRawBufferPointer(start: valuePtr, count: length)
 
-                    if let str = String(bytes: byteArray, encoding: .utf8) {
+                    if let str = String(bytes: bufferPtr, encoding: .utf8) {
                         // Boolean OID (16): convert "t"/"f" to "true"/"false"
                         if columnOids[colIndex] == 16 {
                             row.append(str == "t" ? "true" : "false")
@@ -567,8 +564,8 @@ final class LibPQConnection: @unchecked Sendable {
                             row.append(str)
                         }
                     } else {
-                        // Fallback: create string from byte array as Latin1
-                        row.append(String(bytes: byteArray, encoding: .isoLatin1) ?? "")
+                        // Fallback: create string from buffer as Latin1
+                        row.append(String(bytes: bufferPtr, encoding: .isoLatin1) ?? "")
                     }
                 } else {
                     row.append(nil)
