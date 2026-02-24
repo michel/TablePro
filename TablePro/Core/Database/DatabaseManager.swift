@@ -83,48 +83,15 @@ final class DatabaseManager: ObservableObject {
         }
         currentSessionId = connection.id
 
-        // Create SSH tunnel if needed
-        var effectiveConnection = connection
-        if connection.sshConfig.enabled {
-            // Load Keychain credentials off the main thread to avoid blocking UI
-            let connectionId = connection.id
-            let (sshPassword, keyPassphrase) = await Task.detached {
-                let pwd = ConnectionStorage.shared.loadSSHPassword(for: connectionId)
-                let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: connectionId)
-                return (pwd, phrase)
-            }.value
-
-            do {
-                let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
-                    connectionId: connection.id,
-                    sshHost: connection.sshConfig.host,
-                    sshPort: connection.sshConfig.port,
-                    sshUsername: connection.sshConfig.username,
-                    authMethod: connection.sshConfig.authMethod,
-                    privateKeyPath: connection.sshConfig.privateKeyPath,
-                    keyPassphrase: keyPassphrase,
-                    sshPassword: sshPassword,
-                    remoteHost: connection.host,
-                    remotePort: connection.port
-                )
-
-                // Create a modified connection that uses the tunnel
-                effectiveConnection = DatabaseConnection(
-                    id: connection.id,
-                    name: connection.name,
-                    host: "127.0.0.1",
-                    port: tunnelPort,
-                    database: connection.database,
-                    username: connection.username,
-                    type: connection.type,
-                    sshConfig: SSHConfiguration()  // Disable SSH for actual driver
-                )
-            } catch {
-                // Remove failed session
-                activeSessions.removeValue(forKey: connection.id)
-                currentSessionId = nil
-                throw error
-            }
+        // Create SSH tunnel if needed and build effective connection
+        let effectiveConnection: DatabaseConnection
+        do {
+            effectiveConnection = try await buildEffectiveConnection(for: connection)
+        } catch {
+            // Remove failed session
+            activeSessions.removeValue(forKey: connection.id)
+            currentSessionId = nil
+            throw error
         }
 
         // Create appropriate driver with effective connection
@@ -273,32 +240,11 @@ final class DatabaseManager: ObservableObject {
 
     /// Test a connection without keeping it open
     func testConnection(_ connection: DatabaseConnection, sshPassword: String? = nil) async throws -> Bool {
-        // Create SSH tunnel if needed
-        let tunnelPort: Int?
-        if connection.sshConfig.enabled {
-            // Load Keychain credentials off the main thread to avoid blocking UI
-            let connectionId = connection.id
-            let (storedSshPwd, keyPassphrase) = await Task.detached {
-                let pwd = ConnectionStorage.shared.loadSSHPassword(for: connectionId)
-                let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: connectionId)
-                return (pwd, phrase)
-            }.value
-            let sshPwd = sshPassword ?? storedSshPwd
-            tunnelPort = try await SSHTunnelManager.shared.createTunnel(
-                connectionId: connection.id,
-                sshHost: connection.sshConfig.host,
-                sshPort: connection.sshConfig.port,
-                sshUsername: connection.sshConfig.username,
-                authMethod: connection.sshConfig.authMethod,
-                privateKeyPath: connection.sshConfig.privateKeyPath,
-                keyPassphrase: keyPassphrase,
-                sshPassword: sshPwd,
-                remoteHost: connection.host,
-                remotePort: connection.port
-            )
-        } else {
-            tunnelPort = nil
-        }
+        // Build effective connection (creates SSH tunnel if needed)
+        let testConnection = try await buildEffectiveConnection(
+            for: connection,
+            sshPasswordOverride: sshPassword
+        )
 
         defer {
             // Close tunnel after test
@@ -309,25 +255,62 @@ final class DatabaseManager: ObservableObject {
             }
         }
 
-        // Create connection with tunnel port if applicable
-        let testConnection: DatabaseConnection
-        if let port = tunnelPort {
-            testConnection = DatabaseConnection(
-                id: connection.id,
-                name: connection.name,
-                host: "127.0.0.1",
-                port: port,
-                database: connection.database,
-                username: connection.username,
-                type: connection.type,
-                sshConfig: SSHConfiguration()  // Disable SSH for the actual driver connection
-            )
-        } else {
-            testConnection = connection
-        }
-
         let driver = DatabaseDriverFactory.createDriver(for: testConnection)
         return try await driver.testConnection()
+    }
+
+
+    // MARK: - SSH Tunnel Helper
+
+    /// Build an effective connection for the given database connection.
+    /// If SSH tunneling is enabled, creates a tunnel and returns a modified connection
+    /// pointing at localhost with the tunnel port. Otherwise returns the original connection.
+    ///
+    /// - Parameters:
+    ///   - connection: The original database connection configuration.
+    ///   - sshPasswordOverride: Optional SSH password to use instead of the stored one (for test connections).
+    /// - Returns: A connection suitable for the database driver (SSH disabled, pointing at tunnel if applicable).
+    private func buildEffectiveConnection(
+        for connection: DatabaseConnection,
+        sshPasswordOverride: String? = nil
+    ) async throws -> DatabaseConnection {
+        guard connection.sshConfig.enabled else {
+            return connection
+        }
+
+        // Load Keychain credentials off the main thread to avoid blocking UI
+        let connectionId = connection.id
+        let (storedSshPassword, keyPassphrase) = await Task.detached {
+            let pwd = ConnectionStorage.shared.loadSSHPassword(for: connectionId)
+            let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: connectionId)
+            return (pwd, phrase)
+        }.value
+
+        let sshPassword = sshPasswordOverride ?? storedSshPassword
+
+        let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
+            connectionId: connection.id,
+            sshHost: connection.sshConfig.host,
+            sshPort: connection.sshConfig.port,
+            sshUsername: connection.sshConfig.username,
+            authMethod: connection.sshConfig.authMethod,
+            privateKeyPath: connection.sshConfig.privateKeyPath,
+            keyPassphrase: keyPassphrase,
+            sshPassword: sshPassword,
+            remoteHost: connection.host,
+            remotePort: connection.port
+        )
+
+        return DatabaseConnection(
+            id: connection.id,
+            name: connection.name,
+            host: "127.0.0.1",
+            port: tunnelPort,
+            database: connection.database,
+            username: connection.username,
+            type: connection.type,
+            sshConfig: SSHConfiguration()  // Disable SSH for actual driver
+        )
     }
 
     // MARK: - Health Monitoring
@@ -481,41 +464,8 @@ final class DatabaseManager: ObservableObject {
             // Disconnect existing driver
             session.driver?.disconnect()
 
-            // Recreate SSH tunnel if needed
-            var effectiveConnection = session.connection
-            if session.connection.sshConfig.enabled {
-                // Load Keychain credentials off the main thread to avoid blocking UI
-                let connectionId = session.connection.id
-                let (sshPassword, keyPassphrase) = await Task.detached {
-                    let pwd = ConnectionStorage.shared.loadSSHPassword(for: connectionId)
-                    let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: connectionId)
-                    return (pwd, phrase)
-                }.value
-
-                let tunnelPort = try await SSHTunnelManager.shared.createTunnel(
-                    connectionId: session.connection.id,
-                    sshHost: session.connection.sshConfig.host,
-                    sshPort: session.connection.sshConfig.port,
-                    sshUsername: session.connection.sshConfig.username,
-                    authMethod: session.connection.sshConfig.authMethod,
-                    privateKeyPath: session.connection.sshConfig.privateKeyPath,
-                    keyPassphrase: keyPassphrase,
-                    sshPassword: sshPassword,
-                    remoteHost: session.connection.host,
-                    remotePort: session.connection.port
-                )
-
-                effectiveConnection = DatabaseConnection(
-                    id: session.connection.id,
-                    name: session.connection.name,
-                    host: "127.0.0.1",
-                    port: tunnelPort,
-                    database: session.connection.database,
-                    username: session.connection.username,
-                    type: session.connection.type,
-                    sshConfig: SSHConfiguration()
-                )
-            }
+            // Recreate SSH tunnel if needed and build effective connection
+            let effectiveConnection = try await buildEffectiveConnection(for: session.connection)
 
             // Create new driver and connect
             let driver = DatabaseDriverFactory.createDriver(for: effectiveConnection)
