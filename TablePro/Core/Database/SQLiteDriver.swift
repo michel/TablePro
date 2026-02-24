@@ -446,6 +446,54 @@ final class SQLiteDriver: DatabaseDriver {
         }
     }
 
+    /// Fetch columns for all tables in a single query using table-valued pragma functions.
+    /// Avoids the N+1 per-table PRAGMA calls from the default protocol implementation.
+    /// Requires SQLite 3.16.0+ (macOS 10.13+).
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
+        guard status == .connected else {
+            throw DatabaseError.notConnected
+        }
+
+        let query = """
+            SELECT m.name AS tbl, p.cid, p.name, p.type, p."notnull", p.dflt_value, p.pk
+            FROM sqlite_master m, pragma_table_info(m.name) p
+            WHERE m.type = 'table' AND m.name NOT LIKE 'sqlite_%'
+            ORDER BY m.name, p.cid
+            """
+        let result = try await execute(query: query)
+
+        var allColumns: [String: [ColumnInfo]] = [:]
+
+        for row in result.rows {
+            guard row.count >= 7,
+                  let tableName = row[0],
+                  let columnName = row[2],
+                  let dataType = row[3] else {
+                continue
+            }
+
+            let isNullable = row[4] == "0"   // notnull=0 means nullable
+            let defaultValue = row[5]
+            let isPrimaryKey = row[6] == "1"
+
+            let column = ColumnInfo(
+                name: columnName,
+                dataType: dataType,
+                isNullable: isNullable,
+                isPrimaryKey: isPrimaryKey,
+                defaultValue: defaultValue,
+                extra: nil,
+                charset: nil,
+                collation: nil,
+                comment: nil
+            )
+
+            allColumns[tableName, default: []].append(column)
+        }
+
+        return allColumns
+    }
+
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
         guard status == .connected else {
             throw DatabaseError.notConnected
