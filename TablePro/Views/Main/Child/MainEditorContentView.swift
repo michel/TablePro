@@ -26,6 +26,12 @@ private struct RowProviderTrigger: Equatable {
     let resultVersion: Int?
 }
 
+/// Reference-type box for lazy AnyChangeManager creation.
+/// Avoids creating Combine pipelines during SwiftUI body evaluation.
+private final class ChangeManagerBox {
+    var manager: AnyChangeManager?
+}
+
 /// Main editor content with tab bar and content switching
 struct MainEditorContentView: View {
     // MARK: - Dependencies
@@ -71,18 +77,22 @@ struct MainEditorContentView: View {
     @State private var cachedRowProvider: InMemoryRowProvider?
     @State private var cachedProviderTabId: UUID?
     @State private var cachedProviderVersion: Int = -1
-    @State private var cachedChangeManager: AnyChangeManager?
+    @State private var changeManagerBox = ChangeManagerBox()
 
     // MARK: - Environment
 
     @EnvironmentObject private var appState: AppState
 
-    /// Returns the cached AnyChangeManager, creating it on first access.
+    /// Returns the cached AnyChangeManager, creating it lazily on first access.
+    /// Uses a reference-type box so the instance is created once without
+    /// triggering a SwiftUI state change during body evaluation.
     private var currentChangeManager: AnyChangeManager {
-        if let existing = cachedChangeManager {
+        if let existing = changeManagerBox.manager {
             return existing
         }
-        return AnyChangeManager(dataManager: changeManager)
+        let manager = AnyChangeManager(dataManager: changeManager)
+        changeManagerBox.manager = manager
+        return manager
     }
 
     // MARK: - Body
@@ -127,7 +137,6 @@ struct MainEditorContentView: View {
         }
         .onAppear {
             updateHasQueryText()
-            cachedChangeManager = AnyChangeManager(dataManager: changeManager)
             if let tab = tabManager.selectedTab {
                 let provider = makeRowProvider(for: tab)
                 cachedRowProvider = provider
