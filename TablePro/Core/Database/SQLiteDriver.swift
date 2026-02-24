@@ -451,32 +451,54 @@ final class SQLiteDriver: DatabaseDriver {
             throw DatabaseError.notConnected
         }
 
-        // Get list of indexes for this table
-        let indexListQuery = "PRAGMA index_list('\(SQLEscaping.escapeStringLiteral(table))')"
-        let indexListResult = try await execute(query: indexListQuery)
+        // Use table-valued pragma functions to fetch all index info in a single query
+        // instead of N+1 separate PRAGMA calls. Requires SQLite 3.16.0+ (macOS 10.13+).
+        let safeTable = SQLEscaping.escapeStringLiteral(table)
+        let query = """
+            SELECT il.name, il."unique", il.origin, ii.name AS col_name
+            FROM pragma_index_list('\(safeTable)') il
+            LEFT JOIN pragma_index_info(il.name) ii ON 1=1
+            ORDER BY il.seq, ii.seqno
+            """
+        let result = try await execute(query: query)
 
-        var indexes: [IndexInfo] = []
+        // Group columns by index name, preserving order
+        var indexMap: [(name: String, isUnique: Bool, isPrimary: Bool, columns: [String])] = []
+        var indexLookup: [String: Int] = [:]
 
-        for row in indexListResult.rows {
-            guard row.count >= 3,
-                  let indexName = row[1] else { continue }
+        for row in result.rows {
+            guard row.count >= 4,
+                  let indexName = row[0] else { continue }
 
-            let isUnique = row[2] == "1"
-            let origin = row.count >= 4 ? (row[3] ?? "c") : "c"  // c=CREATE INDEX, pk=PRIMARY KEY
+            let isUnique = row[1] == "1"
+            let origin = row[2] ?? "c"
 
-            // Get columns for this index
-            let indexInfoQuery = "PRAGMA index_info('\(SQLEscaping.escapeStringLiteral(indexName))')"
-            let indexInfoResult = try await execute(query: indexInfoQuery)
+            if let idx = indexLookup[indexName] {
+                // Append column to existing index
+                if let colName = row[3] {
+                    indexMap[idx].columns.append(colName)
+                }
+            } else {
+                // New index entry
+                let columns: [String] = row[3].map { [$0] } ?? []
+                indexLookup[indexName] = indexMap.count
+                indexMap.append((
+                    name: indexName,
+                    isUnique: isUnique,
+                    isPrimary: origin == "pk",
+                    columns: columns
+                ))
+            }
+        }
 
-            let columns = indexInfoResult.rows.compactMap { $0.count >= 3 ? $0[2] : nil }
-
-            indexes.append(IndexInfo(
-                name: indexName,
-                columns: columns,
-                isUnique: isUnique,
-                isPrimary: origin == "pk",
+        let indexes = indexMap.map { entry in
+            IndexInfo(
+                name: entry.name,
+                columns: entry.columns,
+                isUnique: entry.isUnique,
+                isPrimary: entry.isPrimary,
                 type: "BTREE"
-            ))
+            )
         }
 
         return indexes.sorted { $0.isPrimary && !$1.isPrimary }
@@ -696,8 +718,8 @@ final class SQLiteDriver: DatabaseDriver {
         // Escape table name to prevent SQL injection (escape double quotes for identifier quoting)
         let safeTableName = tableName.replacingOccurrences(of: "\"", with: "\"\"")
 
-        // Get row count
-        let countQuery = "SELECT COUNT(*) FROM \"\(safeTableName)\""
+        // Get row count — cap scan at 100k rows to avoid full table scan on large tables
+        let countQuery = "SELECT COUNT(*) FROM (SELECT 1 FROM \"\(safeTableName)\" LIMIT 100001)"
         let countResult = try await execute(query: countQuery)
         let rowCount: Int64? = {
             guard let row = countResult.rows.first, let countStr = row.first else { return nil }
