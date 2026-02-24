@@ -88,6 +88,9 @@ final class MainContentCoordinator: ObservableObject {
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
 
+    /// Timestamp of last flushPendingSave call — used to debounce rapid tab switches
+    internal var lastFlushTime: CFAbsoluteTime = 0
+
     /// Set when handleTabChange is called directly (keyboard/tab bar/sidebar),
     /// so .onChange(of: selectedTabId) skips the redundant call.
     internal var skipNextTabChangeOnChange = false
