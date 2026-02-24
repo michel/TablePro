@@ -717,22 +717,18 @@ final class PostgreSQLDriver: DatabaseDriver {
         // Escape database name for use as a SQL string literal
         let escapedDbLiteral = SQLEscaping.escapeStringLiteral(database)
 
-        // Query for table count
-        let countQuery = """
-            SELECT COUNT(*)
-            FROM information_schema.tables
-            WHERE table_schema = 'public' AND table_catalog = '\(escapedDbLiteral)'
+        // Single query for both table count and database size
+        let query = """
+            SELECT
+                (SELECT COUNT(*)
+                 FROM information_schema.tables
+                 WHERE table_schema = 'public' AND table_catalog = '\(escapedDbLiteral)'),
+                pg_database_size('\(escapedDbLiteral)')
         """
-        let countResult = try await execute(query: countQuery)
-        let tableCount = Int(countResult.rows.first?[0] ?? "0") ?? 0
-
-        // Query for size
-        let sizeQuery = """
-            SELECT pg_database_size('\(escapedDbLiteral)')
-        """
-        let sizeResult = try await execute(query: sizeQuery)
-        let sizeString = sizeResult.rows.first?[0] ?? "0"
-        let sizeBytes = Int64(sizeString) ?? 0
+        let result = try await execute(query: query)
+        let row = result.rows.first
+        let tableCount = Int(row?[0] ?? "0") ?? 0
+        let sizeBytes = Int64(row?[1] ?? "0") ?? 0
 
         // Determine if system database
         let systemDatabases = ["postgres", "template0", "template1"]

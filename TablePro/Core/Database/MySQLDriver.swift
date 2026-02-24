@@ -617,24 +617,16 @@ final class MySQLDriver: DatabaseDriver {
         // Escape database name for use as a SQL string literal in information_schema queries
         let escapedDbLiteral = SQLEscaping.escapeStringLiteral(database)
 
-        // Query for table count
-        let countQuery = """
-            SELECT COUNT(*) as table_count
+        // Single query for both table count and total size
+        let query = """
+            SELECT COUNT(*), COALESCE(SUM(DATA_LENGTH + INDEX_LENGTH), 0)
             FROM information_schema.TABLES
             WHERE TABLE_SCHEMA = '\(escapedDbLiteral)'
         """
-        let countResult = try await execute(query: countQuery)
-        let tableCount = Int(countResult.rows.first?[0] ?? "0") ?? 0
-
-        // Query for size
-        let sizeQuery = """
-            SELECT SUM(DATA_LENGTH + INDEX_LENGTH) as size
-            FROM information_schema.TABLES
-            WHERE TABLE_SCHEMA = '\(escapedDbLiteral)'
-        """
-        let sizeResult = try await execute(query: sizeQuery)
-        let sizeString = sizeResult.rows.first?[0] ?? "0"
-        let sizeBytes = Int64(sizeString) ?? 0
+        let result = try await execute(query: query)
+        let row = result.rows.first
+        let tableCount = Int(row?[0] ?? "0") ?? 0
+        let sizeBytes = Int64(row?[1] ?? "0") ?? 0
 
         // Determine if system database
         let systemDatabases = ["information_schema", "mysql", "performance_schema", "sys"]
