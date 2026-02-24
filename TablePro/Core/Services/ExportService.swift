@@ -677,29 +677,47 @@ final class ExportService: ObservableObject {
     /// Escapes:
     /// - Quotation mark, backslash (required)
     /// - Control characters U+0000 to U+001F (required by spec)
+    ///
+    /// Uses UTF-8 byte iteration instead of grapheme-cluster iteration for performance.
+    /// All JSON-special characters and control codes are single-byte ASCII, so multi-byte
+    /// UTF-8 sequences (which never contain bytes < 0x80) are passed through unchanged.
     private func escapeJSONString(_ string: String) -> String {
-        var result = ""
-        result.reserveCapacity((string as NSString).length)
-        for char in string {
-            switch char {
-            case "\"": result += "\\\""
-            case "\\": result += "\\\\"
-            case "\n": result += "\\n"
-            case "\r": result += "\\r"
-            case "\t": result += "\\t"
-            case "\u{08}": result += "\\b"  // Backspace
-            case "\u{0C}": result += "\\f"  // Form feed
+        var utf8Result = [UInt8]()
+        utf8Result.reserveCapacity(string.utf8.count)
+
+        for byte in string.utf8 {
+            switch byte {
+            case 0x22: // "
+                utf8Result.append(0x5C) // backslash
+                utf8Result.append(0x22)
+            case 0x5C: // backslash
+                utf8Result.append(0x5C)
+                utf8Result.append(0x5C)
+            case 0x0A: // \n
+                utf8Result.append(0x5C)
+                utf8Result.append(0x6E) // n
+            case 0x0D: // \r
+                utf8Result.append(0x5C)
+                utf8Result.append(0x72) // r
+            case 0x09: // \t
+                utf8Result.append(0x5C)
+                utf8Result.append(0x74) // t
+            case 0x08: // backspace
+                utf8Result.append(0x5C)
+                utf8Result.append(0x62) // b
+            case 0x0C: // form feed
+                utf8Result.append(0x5C)
+                utf8Result.append(0x66) // f
+            case 0x00...0x1F:
+                // Other control characters: emit \uXXXX
+                let hex = String(format: "\\u%04X", byte)
+                utf8Result.append(contentsOf: hex.utf8)
             default:
-                // Escape other control characters (U+0000 to U+001F) as \uXXXX
-                if let scalar = char.unicodeScalars.first,
-                   scalar.value < 0x20 {
-                    result += String(format: "\\u%04X", scalar.value)
-                } else {
-                    result.append(char)
-                }
+                utf8Result.append(byte)
             }
         }
-        return result
+
+        return String(bytes: utf8Result, encoding: .utf8) ?? string
     }
 
     /// Format a value for JSON output with optional type detection
