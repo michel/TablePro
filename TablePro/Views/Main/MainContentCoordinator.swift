@@ -190,6 +190,12 @@ final class MainContentCoordinator: ObservableObject {
         options: .caseInsensitive
     )
 
+    /// Pre-compiled regex for extracting table name from SELECT queries
+    private static let tableNameRegex = try? NSRegularExpression(
+        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#,
+        options: []
+    )
+
     // MARK: - Query Execution
 
     func runQuery() {
@@ -669,8 +675,7 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - SQL Parsing
 
     func extractTableName(from sql: String) -> String? {
-        let pattern = #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+        guard let regex = Self.tableNameRegex,
               let match = regex.firstMatch(in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
               let range = Range(match.range(at: 1), in: sql) else {
             return nil
