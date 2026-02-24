@@ -328,7 +328,11 @@ final class QueryHistoryStorage {
 
         // Bind parameters in order
         if let searchText = searchText, !searchText.isEmpty {
-            sqlite3_bind_text(statement, bindIndex, searchText, -1, SQLITE_TRANSIENT)
+            // Sanitize for FTS5: wrap in double quotes for exact phrase matching,
+            // escaping any internal double quotes to prevent parse errors from
+            // special characters like *, OR, AND, etc.
+            let sanitized = "\"\(searchText.replacingOccurrences(of: "\"", with: "\"\""))\""
+            sqlite3_bind_text(statement, bindIndex, sanitized, -1, SQLITE_TRANSIENT)
             bindIndex += 1
         }
 
@@ -447,6 +451,9 @@ final class QueryHistoryStorage {
         let maxEntries = cachedMaxHistoryEntries
         settingsLock.unlock()
 
+        // Wrap all cleanup operations in a single transaction to reduce journal flushes
+        execute("BEGIN IMMEDIATE;")
+
         // Skip cleanup if days is unlimited
         if maxDays < Int.max {
             // Delete entries older than maxHistoryDays
@@ -493,6 +500,8 @@ final class QueryHistoryStorage {
                 }
             }
         }
+
+        execute("COMMIT;")
     }
 
     /// Manually trigger cleanup (call on app launch if autoCleanup is enabled)
