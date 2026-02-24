@@ -88,6 +88,8 @@ final class FilterSettingsStorage {
 
     private let settingsKey = "com.TablePro.filter.settings"
     private let lastFiltersKeyPrefix = "com.TablePro.filter.lastFilters."
+    /// Key used to persist the set of known per-table filter keys for efficient bulk removal.
+    private let knownFilterKeysKey = "com.TablePro.filter.knownFilterKeys"
     private let defaults = UserDefaults.standard
 
     private init() {}
@@ -143,12 +145,14 @@ final class FilterSettingsStorage {
         // Only save non-empty filter configurations
         guard !filters.isEmpty else {
             defaults.removeObject(forKey: key)
+            removeTrackedKey(key)
             return
         }
 
         do {
             let data = try JSONEncoder().encode(filters)
             defaults.set(data, forKey: key)
+            trackKey(key)
         } catch {
             Self.logger.error("Failed to encode last filters for \(tableName): \(error)")
         }
@@ -158,13 +162,40 @@ final class FilterSettingsStorage {
     func clearLastFilters(for tableName: String) {
         let key = lastFiltersKeyPrefix + sanitizeTableName(tableName)
         defaults.removeObject(forKey: key)
+        removeTrackedKey(key)
     }
 
-    /// Clear all stored last filters
+    /// Clear all stored last filters using the tracked key set instead of
+    /// loading the full UserDefaults plist via `dictionaryRepresentation()`.
     func clearAllLastFilters() {
-        let allKeys = defaults.dictionaryRepresentation().keys
-        for key in allKeys where key.hasPrefix(lastFiltersKeyPrefix) {
+        let keys = loadTrackedKeys()
+        for key in keys {
             defaults.removeObject(forKey: key)
+        }
+        defaults.removeObject(forKey: knownFilterKeysKey)
+    }
+
+    // MARK: - Key Tracking
+
+    /// Load the set of tracked per-table filter keys.
+    private func loadTrackedKeys() -> Set<String> {
+        let array = defaults.stringArray(forKey: knownFilterKeysKey) ?? []
+        return Set(array)
+    }
+
+    /// Add a key to the tracked set.
+    private func trackKey(_ key: String) {
+        var keys = loadTrackedKeys()
+        if keys.insert(key).inserted {
+            defaults.set(Array(keys), forKey: knownFilterKeysKey)
+        }
+    }
+
+    /// Remove a key from the tracked set.
+    private func removeTrackedKey(_ key: String) {
+        var keys = loadTrackedKeys()
+        if keys.remove(key) != nil {
+            defaults.set(Array(keys), forKey: knownFilterKeysKey)
         }
     }
 
