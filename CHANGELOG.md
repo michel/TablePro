@@ -29,6 +29,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MySQL empty-result DESCRIBE fallback now only triggers for SELECT queries, avoiding redundant round-trips for non-SELECT statements
 - Remove redundant `String(query)` copy in MariaDB query execution
 - MySQL result fetching now uses `mysql_use_result` (streaming) instead of `mysql_store_result` (full buffering), so only the capped row count is held in memory instead of the entire server result set
+- Instant pagination via approximate row count — MySQL/PostgreSQL tables now show "~N rows" immediately with data, then refine to exact count in background
+- QueryTab uses value-based equality for SwiftUI diffing, eliminating unnecessary ForEach re-renders on tab array writes
+- Cached static regex for `extractTableName`, `SQLiteDriver.stripLimitOffset`, and SQL function expressions to avoid per-call compilation
+- Static NumberFormatter in status bar to avoid per-render locale resolution
+- Batch `TableProTabSmart` field writes into single array store to avoid 14 CoW copies per query execution
+- Tab persistence writes moved off main thread via `Task.detached`
+- Single history entry per SQL import instead of per-statement recording
+- WAL mode enabled for query history SQLite database
+- Merged `fetchDatabaseMetadata` into single query for MySQL and PostgreSQL
+- Health ping now uses dedicated metadata driver to avoid blocking user queries
+- SSH tunnel setup extracted into shared helper to eliminate code duplication
+- PostgreSQL DDL queries dispatched concurrently with `async let`
+- Cancel query connection now uses 5-second connect timeout
+- PostgreSQL connection parameters properly escaped for special characters
+- SQLite `fetchAllColumns` overridden with single `sqlite_master` + `pragma_table_info` query
+- Eliminated intermediate `[UInt8]` buffer in MySQL and PostgreSQL field extraction
+- Column layout sync gated behind user-resize flag to skip O(n) loop on cursor moves
+- Column width calculation uses monospace character arithmetic instead of per-row CoreText calls
+- DataChangeManager maintains change index incrementally instead of full O(n) rebuild
+- JSON export buffers writes per row instead of per field
+- `SQLFormatterService` uses NSMutableString for keyword uppercasing and integer counter for placeholders
+- SQLContextAnalyzer uses single alternation regex and single-pass state machine for string/comment detection
+- `escapeJSONString` iterates UTF-8 bytes instead of grapheme clusters
+- `AppSettingsStorage` caches JSONDecoder/JSONEncoder as stored properties
+- `AppSettingsManager` stores validated settings in memory after didSet
+- `FilterSettingsStorage` uses tracked key set instead of loading full plist
+- Keychain saves use `SecItemAdd` + `SecItemUpdate` upsert pattern instead of delete + add
+- Autocomplete `detectFunctionContext` uses index tracking instead of character-by-character string building
 
 ### Fixed
 - Fix LibPQ parameterized query using Swift `deallocate()` for `strdup`-allocated memory instead of `free()`
