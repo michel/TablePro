@@ -511,10 +511,9 @@ final class MariaDBConnection: @unchecked Sendable {
             throw MariaDBError.notConnected
         }
 
-        // Execute query using a local copy of the query string
-        let localQuery = String(query)
-        let queryStatus = localQuery.withCString { queryPtr in
-            mysql_real_query(mysql, queryPtr, UInt(localQuery.utf8.count))
+        // Execute query — withCString guarantees a valid null-terminated buffer
+        let queryStatus = query.withCString { queryPtr in
+            mysql_real_query(mysql, queryPtr, UInt(query.utf8.count))
         }
 
         if queryStatus != 0 {
