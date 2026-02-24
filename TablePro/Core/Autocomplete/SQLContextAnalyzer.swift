@@ -600,13 +600,15 @@ final class SQLContextAnalyzer {
 
     /// Detect if cursor is inside a function call and return the function name.
     /// Uses NSString character-at-index for O(1) access per character.
+    /// Tracks word start/end indices and extracts once via `substring(with:)` instead
+    /// of appending characters one at a time.
     private func detectFunctionContext(in textBeforeCursor: String) -> String? {
         let ns = textBeforeCursor as NSString
         let length = ns.length
         var parenStack: [(position: Int, precedingWord: String?)] = []
         var inString = false
         var prevChar: UInt16 = 0
-        var currentWord = ""
+        var wordStart = -1        // -1 means "not in a word"
         var lastWord: String?
 
         for i in 0..<length {
@@ -617,15 +619,13 @@ final class SQLContextAnalyzer {
 
             if !inString {
                 if Self.isIdentifierChar(ch) {
-                    // Append ASCII character directly (safe: isIdentifierChar
-                    // only matches ASCII letters, digits, underscore)
-                    if let scalar = UnicodeScalar(ch) {
-                        currentWord.append(Character(scalar))
+                    if wordStart < 0 {
+                        wordStart = i
                     }
                 } else {
-                    if !currentWord.isEmpty {
-                        lastWord = currentWord
-                        currentWord = ""
+                    if wordStart >= 0 {
+                        lastWord = ns.substring(with: NSRange(location: wordStart, length: i - wordStart))
+                        wordStart = -1
                     }
 
                     if ch == Self.openParen {
@@ -640,6 +640,11 @@ final class SQLContextAnalyzer {
             }
 
             prevChar = ch
+        }
+
+        // Flush trailing word (cursor is immediately after an identifier)
+        if wordStart >= 0 {
+            lastWord = ns.substring(with: NSRange(location: wordStart, length: length - wordStart))
         }
 
         // If we're inside parentheses, check if it's a function call
