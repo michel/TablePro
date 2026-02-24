@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Add syntax highlighting to Import SQL file preview
+- XLSX export now enforces the Excel row limit (1,048,576) per sheet and uses autoreleasepool per row to reduce peak memory during large exports
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing
 - AnyChangeManager now uses a reference-type box for lazy initialization, avoiding Combine pipeline creation during SwiftUI body evaluation
 - DataGridView identity check moved before AppSettingsManager read to skip settings access when nothing has changed
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQLite `fetchIndexes` uses table-valued pragma functions in a single query instead of N+1 separate PRAGMA calls
 - MySQL empty-result DESCRIBE fallback now only triggers for SELECT queries, avoiding redundant round-trips for non-SELECT statements
 - Remove redundant `String(query)` copy in MariaDB query execution
+- MySQL result fetching now uses `mysql_use_result` (streaming) instead of `mysql_store_result` (full buffering), so only the capped row count is held in memory instead of the entire server result set
 
 ### Fixed
 - Fix LibPQ parameterized query using Swift `deallocate()` for `strdup`-allocated memory instead of `free()`

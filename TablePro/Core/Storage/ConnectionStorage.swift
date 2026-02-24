@@ -140,6 +140,13 @@ final class ConnectionStorage {
 
     // MARK: - Keychain (Password Storage)
 
+    // Thread safety note (SVC-15): SecItemCopyMatching is synchronous but all call sites
+    // are already off the main thread:
+    //   - MySQLDriver.connect() / PostgreSQLDriver.connect() — non-@MainActor async funcs
+    //   - DatabaseManager — uses Task.detached for SSH/key passphrase loads
+    //   - ConnectionFormView — single-item lookup during form population (negligible latency)
+    // No async wrapper is needed; adding one would add complexity without measurable benefit.
+
     /// Upsert a value into the Keychain: tries SecItemAdd first, falls back to SecItemUpdate
     /// on duplicate. Returns true on success.
     @discardableResult
