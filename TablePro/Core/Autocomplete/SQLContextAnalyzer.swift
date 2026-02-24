@@ -232,6 +232,16 @@ final class SQLContextAnalyzer {
         return try! NSRegularExpression(pattern: "(?!)")
     }()
 
+    /// Combined regex for removing strings and comments in a single pass (SVC-13)
+    private static let stringsAndCommentsRegex: NSRegularExpression = {
+        // Alternation: single-quoted strings | double-quoted strings | block comments | line comments
+        let pattern = #"'[^']*'|"[^"]*"|/\*[\s\S]*?\*/|--[^\n]*"#
+        if let regex = try? NSRegularExpression(pattern: pattern) {
+            return regex
+        }
+        assertionFailure("Failed to compile stringsAndCommentsRegex - invalid pattern")
+        return try! NSRegularExpression(pattern: "(?!)")
+    }()
 
     private static let cteFirstRegex: NSRegularExpression = {
         if let regex = try? NSRegularExpression(
@@ -707,80 +717,65 @@ final class SQLContextAnalyzer {
         let length = ns.length
         guard length > 0 else { return false }
 
-        // 1. Check block comments first: count /* and */ occurrences
-        var openCount = 0
-        var closeCount = 0
-        var searchStart = 0
-        while searchStart < length - 1 {
-            let remaining = NSRange(
-                location: searchStart, length: length - searchStart
-            )
-            let openRange = ns.range(of: "/*", range: remaining)
-            if openRange.location == NSNotFound { break }
-            openCount += 1
-            searchStart = openRange.location + 2
+        // Single-pass state machine scanning for block/line comments (SVC-14)
+        var blockDepth = 0
+        var lastBlockEnd = -1  // position after the last */ that closed depth to 0
+        var idx = 0
+
+        while idx < length {
+            let ch = ns.character(at: idx)
+
+            if blockDepth > 0 {
+                // Inside a block comment — look for */
+                if ch == 0x2A /* * */ && idx + 1 < length && ns.character(at: idx + 1) == 0x2F /* / */ {
+                    blockDepth -= 1
+                    if blockDepth == 0 {
+                        lastBlockEnd = idx + 2
+                    }
+                    idx += 2
+                    continue
+                }
+            } else {
+                // Outside block comment
+                if ch == 0x2F /* / */ && idx + 1 < length && ns.character(at: idx + 1) == 0x2A /* * */ {
+                    blockDepth += 1
+                    idx += 2
+                    continue
+                }
+            }
+            idx += 1
         }
 
-        searchStart = 0
-        while searchStart < length - 1 {
-            let remaining = NSRange(
-                location: searchStart, length: length - searchStart
-            )
-            let closeRange = ns.range(of: "*/", range: remaining)
-            if closeRange.location == NSNotFound { break }
-            closeCount += 1
-            searchStart = closeRange.location + 2
-        }
-
-        if openCount > closeCount {
+        // If we're still inside an unclosed block comment, cursor is in a comment
+        if blockDepth > 0 {
             return true
         }
 
-        // 2. Strip completed block comments before checking for line comments,
-        //    so that "--" inside a block comment is not treated as a line comment.
-        let strippedText: String
-        if openCount > 0 {
-            strippedText = Self.blockCommentRegex.stringByReplacingMatches(
-                in: text,
-                range: NSRange(location: 0, length: length),
-                withTemplate: ""
-            )
-        } else {
-            strippedText = text
-        }
-        let nsStripped = strippedText as NSString
-        let strippedLength = nsStripped.length
+        // Check for line comment on the last line, ignoring text inside block comments
+        // Start scanning from after the last block comment end, or from beginning
+        let scanStart = max(lastBlockEnd, 0)
 
-        // 3. Check for line comment (--) on the current line of the stripped text
-        let lastNewlineRange = nsStripped.range(
-            of: "\n", options: .backwards, range: NSRange(location: 0, length: strippedLength)
-        )
+        // Find the last newline at or after scanStart
+        let scanRange = NSRange(location: scanStart, length: length - scanStart)
+        let lastNewlineRange = ns.range(of: "\n", options: .backwards, range: scanRange)
 
+        let lineStart: Int
         if lastNewlineRange.location != NSNotFound {
-            let lineStart = lastNewlineRange.location + 1
-            if lineStart < strippedLength {
-                let currentLineRange = NSRange(
-                    location: lineStart, length: strippedLength - lineStart
-                )
-                let currentLine = nsStripped.substring(with: currentLineRange)
-                let nsLine = currentLine as NSString
-                let dashRange = nsLine.range(of: "--")
-                if dashRange.location != NSNotFound {
-                    let beforeDash = nsLine.substring(to: dashRange.location)
-                    if beforeDash.trimmingCharacters(in: .whitespaces).isEmpty ||
-                        !beforeDash.contains("'") {
-                        return true
-                    }
-                }
-            }
+            lineStart = lastNewlineRange.location + 1
         } else {
-            // First line — check for line comment
-            let dashRange = nsStripped.range(of: "--")
-            if dashRange.location != NSNotFound {
-                let before = nsStripped.substring(to: dashRange.location)
-                if !isInsideString(before) {
-                    return true
-                }
+            lineStart = scanStart
+        }
+
+        guard lineStart < length else { return false }
+
+        let lineRange = NSRange(location: lineStart, length: length - lineStart)
+        let currentLine = ns.substring(with: lineRange)
+        let nsLine = currentLine as NSString
+        let dashRange = nsLine.range(of: "--")
+        if dashRange.location != NSNotFound {
+            let before = nsLine.substring(to: dashRange.location)
+            if !isInsideString(before) {
+                return true
             }
         }
 
@@ -953,32 +948,30 @@ final class SQLContextAnalyzer {
 
     /// Remove string literals and comments for cleaner analysis
     private func removeStringsAndComments(from text: String) -> String {
-        var result = text
+        // Single-pass replacement using combined alternation regex (SVC-13)
+        let ns = text as NSString
+        let fullRange = NSRange(location: 0, length: ns.length)
+        let matches = Self.stringsAndCommentsRegex.matches(in: text, range: fullRange)
 
-        result = Self.singleQuoteStringRegex.stringByReplacingMatches(
-            in: result,
-            range: NSRange(location: 0, length: (result as NSString).length),
-            withTemplate: "''"
-        )
+        guard !matches.isEmpty else { return text }
 
-        result = Self.doubleQuoteStringRegex.stringByReplacingMatches(
-            in: result,
-            range: NSRange(location: 0, length: (result as NSString).length),
-            withTemplate: "\"\""
-        )
+        let mutable = NSMutableString(string: text)
 
-        result = Self.blockCommentRegex.stringByReplacingMatches(
-            in: result,
-            range: NSRange(location: 0, length: (result as NSString).length),
-            withTemplate: ""
-        )
+        // Process in reverse to maintain valid indices
+        for match in matches.reversed() {
+            let matchRange = match.range
+            let matched = ns.substring(with: matchRange)
+            // Single-quoted strings -> empty quotes; double-quoted strings -> empty quotes
+            // Block comments and line comments -> removed entirely
+            if matched.hasPrefix("'") {
+                mutable.replaceCharacters(in: matchRange, with: "''")
+            } else if matched.hasPrefix("\"") {
+                mutable.replaceCharacters(in: matchRange, with: "\"\"")
+            } else {
+                mutable.replaceCharacters(in: matchRange, with: "")
+            }
+        }
 
-        result = Self.lineCommentRegex.stringByReplacingMatches(
-            in: result,
-            range: NSRange(location: 0, length: (result as NSString).length),
-            withTemplate: ""
-        )
-
-        return result
+        return mutable as String
     }
 }
