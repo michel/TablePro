@@ -166,23 +166,8 @@ final class ImportService: ObservableObject {
                 currentStatement = nsStmt.length > 50 ? nsStmt.substring(to: 50) + "..." : statement
                 currentStatementIndex = executedCount + 1
 
-                let statementStartTime = Date()
-
                 do {
                     _ = try await driver.execute(query: statement)
-
-                    let executionTime = Date().timeIntervalSince(statementStartTime)
-
-                    // Record to history
-                    QueryHistoryManager.shared.recordQuery(
-                        query: statement,
-                        connectionId: connection.id,
-                        databaseName: connection.database,
-                        executionTime: executionTime,
-                        rowCount: 0,
-                        wasSuccessful: true,
-                        errorMessage: nil
-                    )
 
                     executedCount += 1
                     progress = Double(executedCount) / Double(totalStatements)
@@ -190,17 +175,6 @@ final class ImportService: ObservableObject {
                     // Statement execution failed
                     failedStatement = statement
                     failedLine = lineNumber
-
-                    // Record failed query to history
-                    QueryHistoryManager.shared.recordQuery(
-                        query: statement,
-                        connectionId: connection.id,
-                        databaseName: connection.database,
-                        executionTime: 0,
-                        rowCount: 0,
-                        wasSuccessful: false,
-                        errorMessage: error.localizedDescription
-                    )
 
                     throw ImportError.importFailed(
                         statement: statement,
@@ -265,10 +239,33 @@ final class ImportService: ObservableObject {
                 }
             }
 
+            // Record a single summary history entry for the failed import
+            let failedImportTime = Date().timeIntervalSince(startTime)
+            QueryHistoryManager.shared.recordQuery(
+                query: "-- Import from \(fileURL.lastPathComponent) (\(executedCount)/\(totalStatements) statements before failure)",
+                connectionId: connection.id,
+                databaseName: connection.database,
+                executionTime: failedImportTime,
+                rowCount: executedCount,
+                wasSuccessful: false,
+                errorMessage: error.localizedDescription
+            )
+
             throw error
         }
 
         let executionTime = Date().timeIntervalSince(startTime)
+
+        // Record a single summary history entry for the entire import
+        QueryHistoryManager.shared.recordQuery(
+            query: "-- Import from \(fileURL.lastPathComponent) (\(executedCount) statements)",
+            connectionId: connection.id,
+            databaseName: connection.database,
+            executionTime: executionTime,
+            rowCount: executedCount,
+            wasSuccessful: true,
+            errorMessage: nil
+        )
 
         return ImportResult(
             totalStatements: totalStatements,
