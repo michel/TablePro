@@ -88,6 +88,10 @@ final class QueryHistoryStorage {
             return
         }
 
+        // Enable WAL mode for concurrent reads and batched writes
+        execute("PRAGMA journal_mode=WAL;")
+        execute("PRAGMA synchronous=NORMAL;")
+
         createTables()
     }
 
