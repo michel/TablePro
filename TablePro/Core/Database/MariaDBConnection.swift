@@ -427,6 +427,10 @@ final class MariaDBConnection: @unchecked Sendable {
         let killConn = mysql_init(nil)
         guard let killConn = killConn else { return }
 
+        // Set a 5-second connect timeout so the kill connection doesn't block indefinitely
+        var killTimeout: UInt32 = 5
+        mysql_options(killConn, MYSQL_OPT_CONNECT_TIMEOUT, &killTimeout)
+
         // Connect with same credentials
         let killResult = host.withCString { hostPtr in
             user.withCString { userPtr in
