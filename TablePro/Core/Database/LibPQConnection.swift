@@ -185,14 +185,20 @@ final class LibPQConnection: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
                 // Build connection string
-                var connStr = "host='\(host)' port='\(port)' dbname='\(database)' connect_timeout='10'"
+                // Escape values for libpq key=value format (backslash and single quote)
+                func escapeConnParam(_ value: String) -> String {
+                    value.replacingOccurrences(of: "\\", with: "\\\\")
+                         .replacingOccurrences(of: "'", with: "\\'")
+                }
+
+                var connStr = "host='\(escapeConnParam(host))' port='\(port)' dbname='\(escapeConnParam(database))' connect_timeout='10'"
 
                 if !user.isEmpty {
-                    connStr += " user='\(user)'"
+                    connStr += " user='\(escapeConnParam(user))'"
                 }
 
                 if let password = password, !password.isEmpty {
-                    connStr += " password='\(password)'"
+                    connStr += " password='\(escapeConnParam(password))'"
                 }
 
                 // SSL/TLS configuration
@@ -210,13 +216,13 @@ final class LibPQConnection: @unchecked Sendable {
                 }
 
                 if !self.sslConfig.caCertificatePath.isEmpty {
-                    connStr += " sslrootcert='\(self.sslConfig.caCertificatePath)'"
+                    connStr += " sslrootcert='\(escapeConnParam(self.sslConfig.caCertificatePath))'"
                 }
                 if !self.sslConfig.clientCertificatePath.isEmpty {
-                    connStr += " sslcert='\(self.sslConfig.clientCertificatePath)'"
+                    connStr += " sslcert='\(escapeConnParam(self.sslConfig.clientCertificatePath))'"
                 }
                 if !self.sslConfig.clientKeyPath.isEmpty {
-                    connStr += " sslkey='\(self.sslConfig.clientKeyPath)'"
+                    connStr += " sslkey='\(escapeConnParam(self.sslConfig.clientKeyPath))'"
                 }
 
                 // Connect to PostgreSQL server
