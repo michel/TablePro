@@ -342,7 +342,7 @@ final class MainContentCoordinator: ObservableObject {
         tab.executionTime = nil
         tab.errorMessage = nil
         tabManager.tabs[index] = tab
-        toolbarState.isExecuting = true
+        toolbarState.setExecuting(true)
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
@@ -381,7 +381,7 @@ final class MainContentCoordinator: ObservableObject {
                         if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                             tabManager.tabs[idx].isExecuting = false
                         }
-                        toolbarState.isExecuting = false
+                        toolbarState.setExecuting(false)
                         toolbarState.lastQueryDuration = safeExecutionTime
                     }
                     return
@@ -391,7 +391,7 @@ final class MainContentCoordinator: ObservableObject {
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     currentQueryTask = nil
-                    toolbarState.isExecuting = false
+                    toolbarState.setExecuting(false)
                     toolbarState.lastQueryDuration = safeExecutionTime
 
                     guard capturedGeneration == queryGeneration else { return }
@@ -566,7 +566,7 @@ final class MainContentCoordinator: ObservableObject {
                         errTab.isExecuting = false
                         tabManager.tabs[idx] = errTab
                     }
-                    toolbarState.isExecuting = false
+                    toolbarState.setExecuting(false)
 
                     QueryHistoryManager.shared.recordQuery(
                         query: sql,
@@ -843,7 +843,7 @@ final class MainContentCoordinator: ObservableObject {
                 activeSortTasks[tabId]?.cancel()
                 activeSortTasks.removeValue(forKey: tabId)
                 tabManager.tabs[tabIndex].isExecuting = true
-                toolbarState.isExecuting = true
+                toolbarState.setExecuting(true)
                 querySortCache.removeValue(forKey: tabId)
 
                 let sortStartTime = Date()
@@ -868,7 +868,7 @@ final class MainContentCoordinator: ObservableObject {
                         sortedTab.isExecuting = false
                         sortedTab.executionTime = sortDuration
                         self.tabManager.tabs[idx] = sortedTab
-                        self.toolbarState.isExecuting = false
+                        self.toolbarState.setExecuting(false)
                         self.toolbarState.lastQueryDuration = sortDuration
                         self.activeSortTasks.removeValue(forKey: tabId)
                         self.changeManager.reloadVersion += 1

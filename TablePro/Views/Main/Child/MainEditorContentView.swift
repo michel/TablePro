@@ -18,6 +18,14 @@ private struct SortedRowsCache {
     let resultVersion: Int
 }
 
+/// Trigger struct for coalesced row-provider rebuilds.
+/// Combining selectedTabId and resultVersion into one Equatable value
+/// lets SwiftUI fire a single onChange instead of two independent ones.
+private struct RowProviderTrigger: Equatable {
+    let tabId: UUID?
+    let resultVersion: Int?
+}
+
 /// Main editor content with tab bar and content switching
 struct MainEditorContentView: View {
     // MARK: - Dependencies
@@ -127,19 +135,17 @@ struct MainEditorContentView: View {
                 cachedProviderVersion = tab.resultVersion
             }
         }
-        .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
-            guard let tab = tabManager.selectedTab, let version = newVersion else { return }
-            let provider = makeRowProvider(for: tab)
-            cachedRowProvider = provider
-            cachedProviderTabId = tab.id
-            cachedProviderVersion = version
-        }
-        .onChange(of: tabManager.selectedTabId) { _, newId in
-            guard let tab = tabManager.selectedTab, let id = newId else { return }
-            if cachedProviderTabId != id {
+        .onChange(of: RowProviderTrigger(
+            tabId: tabManager.selectedTabId,
+            resultVersion: tabManager.selectedTab?.resultVersion
+        )) { _, trigger in
+            guard let tab = tabManager.selectedTab else { return }
+            if cachedProviderTabId != trigger.tabId
+                || cachedProviderVersion != (trigger.resultVersion ?? -1)
+            {
                 let provider = makeRowProvider(for: tab)
                 cachedRowProvider = provider
-                cachedProviderTabId = id
+                cachedProviderTabId = tab.id
                 cachedProviderVersion = tab.resultVersion
             }
         }

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Add syntax highlighting to Import SQL file preview
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing
+- Toolbar executing state now fires a single objectWillChange instead of double-publishing isExecuting and connectionState
+- Row provider onChange handlers coalesced into a single trigger to avoid redundant InMemoryRowProvider rebuilds
 
 ### Fixed
 - Fix SQL export corrupting newline/tab/backslash characters for PostgreSQL and SQLite (MySQL-style backslash escaping was incorrectly applied to all database types)
