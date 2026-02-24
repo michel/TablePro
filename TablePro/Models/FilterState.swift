@@ -193,9 +193,11 @@ final class FilterStateManager: ObservableObject {
 
     /// Select/deselect all filters
     func selectAll(_ selected: Bool) {
-        for i in 0..<filters.count {
-            filters[i].isSelected = selected
+        var updated = filters
+        for i in 0..<updated.count {
+            updated[i].isSelected = selected
         }
+        filters = updated
     }
 
     /// Toggle selection for a filter
@@ -222,7 +224,7 @@ final class FilterStateManager: ObservableObject {
 
     /// Check if quick search is active
     var hasActiveQuickSearch: Bool {
-        !quickSearchText.trimmingCharacters(in: .whitespaces).isEmpty
+        quickSearchText.contains(where: { !$0.isWhitespace })
     }
 
     /// Count of valid filters
@@ -237,7 +239,9 @@ final class FilterStateManager: ObservableObject {
         TabFilterState(
             filters: filters,
             appliedFilters: appliedFilters,
-            isVisible: isVisible
+            isVisible: isVisible,
+            quickSearchText: quickSearchText,
+            filterLogicMode: filterLogicMode
         )
     }
 
@@ -246,6 +250,8 @@ final class FilterStateManager: ObservableObject {
         filters = state.filters
         appliedFilters = state.appliedFilters
         isVisible = state.isVisible
+        quickSearchText = state.quickSearchText
+        filterLogicMode = state.filterLogicMode
     }
 
     /// Save filters for a table (for "Restore Last Filter" setting)
@@ -356,28 +362,30 @@ final class FilterStateManager: ObservableObject {
 
     /// Get filters to use for preview/application
     /// If some (but not all) filters are selected, use only those
-    /// Otherwise use all valid filters
+    /// Otherwise use all valid filters (single-pass)
     private func getFiltersForPreview() -> [TableFilter] {
-        let validFilters = filters.filter { $0.isValid }
-        let selectedValidFilters = filters.filter { $0.isSelected && $0.isValid }
-
-        // If all valid filters are selected, or no filters are selected,
-        // treat it as "show all valid filters"
-        // Only use selective mode when SOME (but not all) are selected
-        if selectedValidFilters.count == validFilters.count || selectedValidFilters.isEmpty {
-            return validFilters
-        } else {
-            return selectedValidFilters
+        var valid: [TableFilter] = []
+        var selectedValid: [TableFilter] = []
+        for filter in filters where filter.isValid {
+            valid.append(filter)
+            if filter.isSelected { selectedValid.append(filter) }
         }
+        // Only use selective mode when SOME (but not all) are selected
+        if selectedValid.count == valid.count || selectedValid.isEmpty {
+            return valid
+        }
+        return selectedValid
     }
 }
 
 // MARK: - TabFilterState Extension
 
 extension TabFilterState {
-    init(filters: [TableFilter], appliedFilters: [TableFilter], isVisible: Bool) {
+    init(filters: [TableFilter], appliedFilters: [TableFilter], isVisible: Bool, quickSearchText: String, filterLogicMode: FilterLogicMode) {
         self.filters = filters
         self.appliedFilters = appliedFilters
         self.isVisible = isVisible
+        self.quickSearchText = quickSearchText
+        self.filterLogicMode = filterLogicMode
     }
 }

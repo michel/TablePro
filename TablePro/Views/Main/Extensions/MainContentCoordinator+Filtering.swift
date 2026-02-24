@@ -21,6 +21,7 @@ extension MainContentCoordinator {
         let newQuery = queryBuilder.buildFilteredQuery(
             tableName: tableName,
             filters: filters,
+            logicMode: filterStateManager.filterLogicMode,
             sortState: tabManager.tabs[tabIndex].sortState,
             columns: tabManager.tabs[tabIndex].resultColumns,
             limit: tabManager.tabs[tabIndex].pagination.pageSize,
@@ -82,18 +83,20 @@ extension MainContentCoordinator {
               let tableName = tabManager.tabs[tabIndex].tableName else { return }
 
         let tab = tabManager.tabs[tabIndex]
-        var newQuery = queryBuilder.buildBaseQuery(
-            tableName: tableName,
-            sortState: tab.sortState,
-            columns: tab.resultColumns,
-            limit: tab.pagination.pageSize,
-            offset: tab.pagination.currentOffset
-        )
-
+        let newQuery: String
         if filterStateManager.hasAppliedFilters {
             newQuery = queryBuilder.buildFilteredQuery(
                 tableName: tableName,
                 filters: filterStateManager.appliedFilters,
+                logicMode: filterStateManager.filterLogicMode,
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        } else {
+            newQuery = queryBuilder.buildBaseQuery(
+                tableName: tableName,
                 sortState: tab.sortState,
                 columns: tab.resultColumns,
                 limit: tab.pagination.pageSize,

@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing
 
 ### Fixed
+- Fix AND/OR filter logic mode ignored in query execution — preview showed correct OR logic but actual query always used AND
+- Fix filter panel state (filters, visibility, quick search, logic mode) not preserved when switching between tabs
+- Fix foreign key navigation filter being wiped when switching to a new tab (tab switch restore overwrote FK filter state)
+- Fix pagination count appearing 200-300ms after data loads — approximate row count from database metadata now displays instantly with data, exact count refines silently in the background
+- Fix foreign key navigation arrows and pagination count appearing with visible delay on initial table load — metadata now fetches on a dedicated parallel connection concurrent with the main query
 - Fix SQL export corrupting newline/tab/backslash characters for PostgreSQL and SQLite (MySQL-style backslash escaping was incorrectly applied to all database types)
 - Fix PostgreSQL SQL export failing to import when types/sequences already exist (`DROP IF EXISTS` now always emitted for dependent types and sequences)
 - Fix PostgreSQL SQL export missing `CREATE TYPE` definitions for enum columns, causing import errors

@@ -61,6 +61,7 @@ struct TableQueryBuilder {
     func buildFilteredQuery(
         tableName: String,
         filters: [TableFilter],
+        logicMode: FilterLogicMode = .and,
         sortState: SortState? = nil,
         columns: [String] = [],
         limit: Int = 200,
@@ -71,7 +72,7 @@ struct TableQueryBuilder {
 
         // Add WHERE clause from filters
         let generator = FilterSQLGenerator(databaseType: databaseType)
-        let whereClause = generator.generateWhereClause(from: filters)
+        let whereClause = generator.generateWhereClause(from: filters, logicMode: logicMode)
         if !whereClause.isEmpty {
             query += " \(whereClause)"
         }
@@ -106,10 +107,9 @@ struct TableQueryBuilder {
         var query = "SELECT * FROM \(quotedTable)"
 
         // Build OR conditions for all columns
-        // Cast to text to handle numeric/non-text columns (PostgreSQL requires explicit cast)
+        let escapedSearch = escapeForLike(searchText)
         let conditions = columns.map { column -> String in
             let quotedColumn = databaseType.quoteIdentifier(column)
-            let escapedSearch = escapeForLike(searchText)
             return buildLikeCondition(column: quotedColumn, searchText: escapedSearch)
         }
 

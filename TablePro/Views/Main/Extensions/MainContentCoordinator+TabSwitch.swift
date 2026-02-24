@@ -51,11 +51,20 @@ extension MainContentCoordinator {
                 tabPendingChanges.removeValue(forKey: oldId)
             }
             tabSelectionCache[oldId] = selectedRowIndices
+
+            // Save filter state for old tab (skip if already pre-saved by FK navigation)
+            if !filterStateSavedExternally {
+                tabManager.tabs[oldIndex].filterState = filterStateManager.saveToTabState()
+            }
+            filterStateSavedExternally = false
         }
 
         if let newId = newTabId,
            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId }) {
             let newTab = tabManager.tabs[newIndex]
+
+            // Restore filter state for new tab
+            filterStateManager.restoreFromTabState(newTab.filterState)
 
             selectedRowIndices = tabSelectionCache[newId] ?? newTab.selectedRowIndices
             AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil

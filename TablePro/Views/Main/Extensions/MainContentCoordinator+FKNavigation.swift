@@ -46,6 +46,13 @@ extension MainContentCoordinator {
             return
         }
 
+        // Pre-save old tab's filter state before TableProTabSmart changes selectedTabId,
+        // because updateFilterState will modify filterStateManager before .onChange fires
+        if let oldIndex = tabManager.selectedTabIndex {
+            tabManager.tabs[oldIndex].filterState = filterStateManager.saveToTabState()
+            filterStateSavedExternally = true
+        }
+
         // Open or reuse a tab for the referenced table
         let needsQuery = tabManager.TableProTabSmart(
             tableName: referencedTable,
@@ -80,10 +87,19 @@ extension MainContentCoordinator {
             tabManager.tabs[tabIndex].query = filteredQuery
 
             updateFilterState(filter, for: referencedTable)
+
+            // Persist FK filter to new tab so .onChange → handleTabChange restores it correctly
+            tabManager.tabs[tabIndex].filterState = filterStateManager.saveToTabState()
+
             runQuery()
         } else {
             // Reused tab already has data — apply filter (rebuilds query + re-runs)
             applyFKFilter(filter, for: referencedTable)
+
+            // Persist FK filter to reused tab
+            if let tabIndex = tabManager.selectedTabIndex {
+                tabManager.tabs[tabIndex].filterState = filterStateManager.saveToTabState()
+            }
         }
     }
 
@@ -96,5 +112,7 @@ extension MainContentCoordinator {
         filterStateManager.filters = [filter]
         filterStateManager.appliedFilters = [filter]
         filterStateManager.isVisible = true
+        filterStateManager.quickSearchText = ""
+        filterStateManager.filterLogicMode = .and
     }
 }
