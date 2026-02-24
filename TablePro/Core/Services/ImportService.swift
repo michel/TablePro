@@ -44,11 +44,8 @@ final class ImportService: ObservableObject {
         }
     }
 
-    private var countingTask: Task<Int, Error>?
-
     func cancelImport() {
         isCancelled = true
-        countingTask?.cancel()
     }
 
     // MARK: - Dependencies
@@ -96,28 +93,15 @@ final class ImportService: ObservableObject {
             }
         }
 
-        // 2. Count statements for progress
-        statusMessage = "Analyzing file..."
-        let countEncoding = config.encoding
-        let task = Task.detached { [parser] in
-            try await parser.countStatements(url: fileURL, encoding: countEncoding)
-        }
-        countingTask = task
-        defer { countingTask = nil }
-        do {
-            totalStatements = try await task.value
-        } catch is CancellationError {
-            throw ImportError.cancelled
-        }
-        statusMessage = ""
+        // 2. Estimate statement count from file size (skip counting pass to avoid double-parsing)
+        let attrs = try FileManager.default.attributesOfItem(atPath: fileURL.path(percentEncoded: false))
+        let fileSizeBytes = attrs[.size] as? Int64 ?? 0
 
-        // Check for cancellation after counting (before starting execution)
+        // Rough heuristic: ~200 bytes per statement on average
+        let estimatedStatements = max(1, Int(fileSizeBytes / 200))
+        totalStatements = estimatedStatements
+
         try checkCancellation()
-
-        // Check if file is empty
-        guard totalStatements > 0 else {
-            throw ImportError.fileReadFailed("File contains no SQL statements")
-        }
 
         // 3. Get database driver
         guard let driver = DatabaseManager.shared.activeDriver else {
@@ -143,20 +127,7 @@ final class ImportService: ObservableObject {
                 _ = try await driver.execute(query: beginTransactionStatement(for: connection.type))
             }
 
-            // 6. Parse and execute statements
-            // NOTE:
-            // This call may re-parse the file after a prior pass that counted
-            // the total number of statements for progress reporting. For large
-            // files this can roughly double the I/O and parsing overhead.
-            //
-            // This is currently an intentional tradeoff in favor of providing
-            // an accurate, determinate progress value (executedCount /
-            // totalStatements) to the UI. If import performance for very large
-            // files becomes an issue, consider:
-            //   - Removing the initial counting pass and using an indeterminate
-            //     progress indicator instead, or
-            //   - Parsing once and caching the statements, at the cost of
-            //     additional memory usage.
+            // 6. Parse and execute statements (single pass — no prior counting pass)
             let stream = try await parser.parseFile(url: fileURL, encoding: config.encoding)
 
             for try await (statement, lineNumber) in stream {
@@ -170,7 +141,7 @@ final class ImportService: ObservableObject {
                     _ = try await driver.execute(query: statement)
 
                     executedCount += 1
-                    progress = Double(executedCount) / Double(totalStatements)
+                    progress = min(1.0, Double(executedCount) / Double(totalStatements))
                 } catch {
                     // Statement execution failed
                     failedStatement = statement
@@ -242,7 +213,7 @@ final class ImportService: ObservableObject {
             // Record a single summary history entry for the failed import
             let failedImportTime = Date().timeIntervalSince(startTime)
             QueryHistoryManager.shared.recordQuery(
-                query: "-- Import from \(fileURL.lastPathComponent) (\(executedCount)/\(totalStatements) statements before failure)",
+                query: "-- Import from \(fileURL.lastPathComponent) (\(executedCount) statements before failure)",
                 connectionId: connection.id,
                 databaseName: connection.database,
                 executionTime: failedImportTime,
@@ -268,7 +239,7 @@ final class ImportService: ObservableObject {
         )
 
         return ImportResult(
-            totalStatements: totalStatements,
+            totalStatements: executedCount,
             executedStatements: executedCount,
             failedStatement: failedStatement,
             failedLine: failedLine,
