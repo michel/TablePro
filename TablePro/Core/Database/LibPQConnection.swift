@@ -417,9 +417,12 @@ final class LibPQConnection: @unchecked Sendable {
         var paramStrings: [String] = []
 
         defer {
-            // Free allocated C strings
+            // Free strdup-allocated C strings — must use free(), not deallocate(),
+            // because strdup uses malloc internally
             for ptr in paramValues {
-                ptr?.deallocate()
+                if let ptr = ptr {
+                    free(UnsafeMutablePointer(mutating: ptr))
+                }
             }
         }
 
