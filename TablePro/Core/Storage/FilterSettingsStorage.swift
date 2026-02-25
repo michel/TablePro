@@ -92,6 +92,9 @@ final class FilterSettingsStorage {
     private let knownFilterKeysKey = "com.TablePro.filter.knownFilterKeys"
     private let defaults = UserDefaults.standard
 
+    /// Cached settings to avoid repeated UserDefaults read + JSON decode
+    private var cachedSettings: FilterSettings?
+
     /// In-memory cache for tracked filter keys. Lazy-loaded on first access
     /// so that `trackKey`/`removeTrackedKey` avoid redundant UserDefaults reads.
     private var _trackedKeys: Set<String>?
@@ -114,22 +117,31 @@ final class FilterSettingsStorage {
 
     // MARK: - Settings
 
-    /// Load filter settings
+    /// Load filter settings (cached after first read)
     func loadSettings() -> FilterSettings {
+        if let cached = cachedSettings { return cached }
+
         guard let data = defaults.data(forKey: settingsKey) else {
-            return FilterSettings()
+            let defaultSettings = FilterSettings()
+            cachedSettings = defaultSettings
+            return defaultSettings
         }
 
         do {
-            return try JSONDecoder().decode(FilterSettings.self, from: data)
+            let decoded = try JSONDecoder().decode(FilterSettings.self, from: data)
+            cachedSettings = decoded
+            return decoded
         } catch {
             Self.logger.error("Failed to decode filter settings: \(error)")
-            return FilterSettings()
+            let defaultSettings = FilterSettings()
+            cachedSettings = defaultSettings
+            return defaultSettings
         }
     }
 
     /// Save filter settings
     func saveSettings(_ settings: FilterSettings) {
+        cachedSettings = settings
         do {
             let data = try JSONEncoder().encode(settings)
             defaults.set(data, forKey: settingsKey)
