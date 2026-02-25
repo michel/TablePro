@@ -576,7 +576,7 @@ final class MainContentCoordinator: ObservableObject {
                             query: "SELECT COUNT(*) FROM \(quotedTable)"
                         )
                         if let firstRow = countResult?.rows.first,
-                           let countStr = firstRow.first as? String,
+                           let countStr = firstRow.first ?? nil,
                            let count = Int(countStr) {
                             await MainActor.run { [weak self] in
                                 guard let self else { return }

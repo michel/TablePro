@@ -28,6 +28,7 @@ struct RowVisualState {
 private struct DataGridIdentity: Equatable {
     let reloadVersion: Int
     let resultVersion: Int
+    let metadataVersion: Int
     let rowCount: Int
     let columnCount: Int
     let isEditable: Bool
@@ -38,6 +39,7 @@ struct DataGridView: NSViewRepresentable {
     let rowProvider: InMemoryRowProvider
     @ObservedObject var changeManager: AnyChangeManager
     var resultVersion: Int = 0
+    var metadataVersion: Int = 0
     let isEditable: Bool
     var onCommit: ((String) -> Void)?
     var onRefresh: (() -> Void)?
@@ -174,6 +176,7 @@ struct DataGridView: NSViewRepresentable {
         let currentIdentity = DataGridIdentity(
             reloadVersion: changeManager.reloadVersion,
             resultVersion: resultVersion,
+            metadataVersion: metadataVersion,
             rowCount: rowProvider.totalRowCount,
             columnCount: rowProvider.columns.count,
             isEditable: isEditable
@@ -192,6 +195,7 @@ struct DataGridView: NSViewRepresentable {
             coordinator.onNavigateFK = onNavigateFK
             return
         }
+        let previousIdentity = coordinator.lastIdentity
         coordinator.lastIdentity = currentIdentity
 
         // Update settings-based properties dynamically (after identity check)
@@ -204,6 +208,7 @@ struct DataGridView: NSViewRepresentable {
         }
 
         let versionChanged = coordinator.lastReloadVersion != changeManager.reloadVersion
+        let metadataChanged = previousIdentity.map { $0.metadataVersion != metadataVersion } ?? false
         let oldRowCount = coordinator.cachedRowCount
         let oldColumnCount = coordinator.cachedColumnCount
         let newRowCount = rowProvider.totalRowCount
@@ -259,7 +264,8 @@ struct DataGridView: NSViewRepresentable {
             tableView: tableView,
             coordinator: coordinator,
             needsFullReload: needsFullReload,
-            versionChanged: versionChanged
+            versionChanged: versionChanged,
+            metadataChanged: metadataChanged
         )
     }
 
@@ -429,9 +435,13 @@ struct DataGridView: NSViewRepresentable {
         tableView: NSTableView,
         coordinator: TableViewCoordinator,
         needsFullReload: Bool,
-        versionChanged: Bool
+        versionChanged: Bool,
+        metadataChanged: Bool = false
     ) {
         if needsFullReload {
+            tableView.reloadData()
+        } else if metadataChanged {
+            // FK metadata arrived (Phase 2) — reload all cells to show FK arrow buttons
             tableView.reloadData()
         } else if versionChanged {
             // Granular reload: only reload rows that changed

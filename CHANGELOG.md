@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Foreign key columns now show a navigation arrow icon in each cell — click to open the referenced table filtered by the FK value
 
 ### Changed
+- Metadata queries (columns, FKs, row count) now run on a dedicated parallel connection, eliminating 200-300ms delay for FK arrows and pagination count on initial table load
+- Approximate row count from database metadata displays instantly with data; exact count refines silently in the background
 - Show warning indicator on filter presets referencing columns not in current table
 - Increase filter row height estimate for better accessibility support
 - FK navigation now uses dedicated FilterStateManager.setFKFilter API instead of direct property manipulation
