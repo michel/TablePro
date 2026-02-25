@@ -12,7 +12,11 @@ import SwiftUI
 struct ContentView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ContentView")
 
-    @ObservedObject private var dbManager = DatabaseManager.shared
+    /// Payload identifying what this native window-tab should display.
+    /// nil = default empty query tab (first window on connection).
+    let payload: EditorTabPayload?
+
+    @State private var currentSession: ConnectionSession?
     @State private var connections: [DatabaseConnection] = []
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showNewConnectionSheet = false
@@ -23,6 +27,9 @@ struct ContentView: View {
     @State private var hasLoaded = false
     @State private var rightPanelState = RightPanelState()
     @State private var inspectorContext = InspectorContext.empty
+    @State private var windowTitle: String
+    /// Per-window sidebar selection (independent of other window-tabs)
+    @State private var localSelectedTables: Set<TableInfo> = []
 
     @Environment(\.openWindow)
     private var openWindow
@@ -30,14 +37,11 @@ struct ContentView: View {
 
     private let storage = ConnectionStorage.shared
 
-    // Get current session from database manager
-    private var currentSession: ConnectionSession? {
-        dbManager.currentSession
-    }
-
-    // Get all sessions as array
-    private var sessions: [ConnectionSession] {
-        Array(dbManager.activeSessions.values)
+    init(payload: EditorTabPayload?) {
+        let start = CFAbsoluteTimeGetCurrent()
+        self.payload = payload
+        _windowTitle = State(initialValue: payload?.tableName ?? "SQL Query")
+        Self.logger.debug("[PERF] ContentView.init done in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms, payload=\(payload?.tableName ?? "nil")")
     }
 
     var body: some View {
@@ -62,7 +66,7 @@ struct ContentView: View {
                 openWindow(id: "connection-form", value: nil as UUID?)
             }
             .onReceive(NotificationCenter.default.publisher(for: .deselectConnection)) { _ in
-                if let sessionId = dbManager.currentSessionId {
+                if let sessionId = DatabaseManager.shared.currentSessionId {
                     // Always confirm before disconnecting
                     Task { @MainActor in
                         let confirmed = await AlertHelper.confirmDestructive(
@@ -73,25 +77,31 @@ struct ContentView: View {
                         )
 
                         if confirmed {
-                            await dbManager.disconnectSession(sessionId)
+                            await DatabaseManager.shared.disconnectSession(sessionId)
                         }
                     }
                 }
             }
             // Right sidebar toggle is handled by MainContentView (has the binding)
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
-            .onChange(of: dbManager.currentSessionId) { _, newSessionId in
-                Task { @MainActor in
-                    columnVisibility = newSessionId == nil ? .detailOnly : .all
-                    AppState.shared.isConnected = newSessionId != nil
-                    AppState.shared.isReadOnly = dbManager.currentSession?.connection.isReadOnly ?? false
-
-                    // When all sessions are closed, return to Welcome window
-                    if newSessionId == nil {
-                        openWindow(id: "welcome")
-                        NSApplication.shared.closeWindows(withId: "main")
-                    }
+            .onReceive(DatabaseManager.shared.$currentSessionId) { newSessionId in
+                currentSession = DatabaseManager.shared.currentSession
+                columnVisibility = newSessionId == nil ? .detailOnly : .all
+                AppState.shared.isConnected = newSessionId != nil
+                AppState.shared.isReadOnly = DatabaseManager.shared.activeSessions[newSessionId ?? UUID()]?.connection.isReadOnly ?? false
+            }
+            .onReceive(DatabaseManager.shared.$activeSessions) { sessions in
+                guard let sid = DatabaseManager.shared.currentSessionId else {
+                    if currentSession != nil { currentSession = nil }
+                    return
                 }
+                guard let newSession = sessions[sid] else { return }
+                // Skip update if fields ContentView uses haven't changed
+                if let existing = currentSession,
+                   existing.isContentViewEquivalent(to: newSession) {
+                    return
+                }
+                currentSession = newSession
             }
     }
 
@@ -105,8 +115,8 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     SidebarView(
                         tables: sessionTablesBinding,
-                        selectedTables: sessionSelectedTablesBinding,
-                        activeTableName: currentSession.selectedTables.first?.name,
+                        selectedTables: $localSelectedTables,
+                        activeTableName: windowTitle,
                         onTablePro: { _ in },
                         onShowAllTables: {
                             showAllTablesMetadata()
@@ -122,8 +132,10 @@ struct ContentView: View {
                 // MARK: - Detail (Main workspace with optional right sidebar)
                 MainContentView(
                     connection: currentSession.connection,
+                    payload: payload,
+                    windowTitle: $windowTitle,
                     tables: sessionTablesBinding,
-                    selectedTables: sessionSelectedTablesBinding,
+                    selectedTables: $localSelectedTables,
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding,
                     tableOperationOptions: sessionTableOperationOptionsBinding,
@@ -132,7 +144,8 @@ struct ContentView: View {
                 )
                 .id(currentSession.id)
             }
-            .navigationTitle(currentSession.connection.name)
+            .navigationTitle(windowTitle)
+            .navigationSubtitle(currentSession.connection.name)
             .inspector(isPresented: Bindable(rightPanelState).isPresented) {
                 UnifiedRightPanelView(
                     state: rightPanelState,
@@ -176,9 +189,9 @@ struct ContentView: View {
                 return get(session)
             },
             set: { newValue in
-                guard let sessionId = dbManager.currentSessionId else { return }
+                guard let sessionId = DatabaseManager.shared.currentSessionId else { return }
                 Task { @MainActor in
-                    dbManager.updateSession(sessionId) { session in
+                    DatabaseManager.shared.updateSession(sessionId) { session in
                         set(&session, newValue)
                     }
                 }
@@ -231,7 +244,7 @@ struct ContentView: View {
     private func connectToDatabase(_ connection: DatabaseConnection) {
         Task {
             do {
-                try await dbManager.connectToSession(connection)
+                try await DatabaseManager.shared.connectToSession(connection)
             } catch {
                 Self.logger.error("Failed to connect: \(error.localizedDescription)")
             }
@@ -240,7 +253,7 @@ struct ContentView: View {
 
     private func handleCloseSession(_ sessionId: UUID) {
         Task {
-            await dbManager.disconnectSession(sessionId)
+            await DatabaseManager.shared.disconnectSession(sessionId)
         }
     }
 
@@ -264,9 +277,9 @@ struct ContentView: View {
     }
 
     private func deleteConnection(_ connection: DatabaseConnection) {
-        if dbManager.activeSessions[connection.id] != nil {
+        if DatabaseManager.shared.activeSessions[connection.id] != nil {
             Task {
-                await dbManager.disconnectSession(connection.id)
+                await DatabaseManager.shared.disconnectSession(connection.id)
             }
         }
 
@@ -282,5 +295,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(payload: nil)
 }

@@ -8,10 +8,13 @@
 
 import Combine
 import Foundation
+import os
 
 /// Service for managing tab state persistence
 @MainActor
 final class TabPersistenceService: ObservableObject {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "TabPersistenceService")
+
     // MARK: - Constants
 
     private static let saveDebounceDelay: UInt64 = 500_000_000  // 500ms in nanoseconds
@@ -196,6 +199,7 @@ final class TabPersistenceService: ObservableObject {
     /// Wait for database connection to be established before executing query
     /// - Parameter onReady: Callback when connection is ready
     func waitForConnectionAndExecute(onReady: @escaping () -> Void) async {
+        let waitStart = CFAbsoluteTimeGetCurrent()
         var retryCount = 0
 
         while retryCount < Self.maxConnectionRetries {
@@ -203,8 +207,7 @@ final class TabPersistenceService: ObservableObject {
 
             if let session = DatabaseManager.shared.currentSession,
                session.isConnected {
-                // Small delay to ensure everything is initialized
-                try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
+                Self.logger.debug("[PERF] waitForConnectionAndExecute: connected after \(retryCount) retries, \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - waitStart) * 1000))ms")
                 await MainActor.run {
                     justRestoredTab = true
                     onReady()
@@ -214,6 +217,10 @@ final class TabPersistenceService: ObservableObject {
 
             try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
             retryCount += 1
+        }
+
+        if retryCount >= Self.maxConnectionRetries {
+            Self.logger.debug("[PERF] waitForConnectionAndExecute: timed out after \(retryCount) retries, \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - waitStart) * 1000))ms")
         }
     }
 

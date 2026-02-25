@@ -89,7 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let connection = connections.first(where: { $0.id == connectionId }) else { return }
 
         // Open main window and connect (same flow as auto-reconnect)
-        NotificationCenter.default.post(name: .openMainWindow, object: nil)
+        NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
 
         Task { @MainActor in
             do {
@@ -158,6 +158,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Enable native macOS window tabbing (Finder/Safari-style tabs)
+        NSWindow.allowsAutomaticWindowTabbing = true
+
         // Start license periodic validation
         Task { @MainActor in
             LicenseManager.shared.startPeriodicValidation()
@@ -276,7 +279,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Open main window via notification FIRST (before closing welcome window)
             // The OpenWindowHandler in welcome window will process this
-            NotificationCenter.default.post(name: .openMainWindow, object: nil)
+            NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
 
             // Connect in background and handle result
             Task { @MainActor in
@@ -340,29 +343,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Check if main window is being closed
         if isMainWindow(window) {
-            // CRITICAL: Post notification FIRST to allow MainContentView to flush pending saves
-            // This ensures query text is saved before SwiftUI tears down the view
-            NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
+            // Count remaining main windows (excluding the one being closed).
+            // We cannot rely on `window.tabbedWindows?.count` because AppKit
+            // may have already detached the closing window from its tab group
+            // by the time `willClose` fires, making the count unreliable.
+            let remainingMainWindows = NSApp.windows.filter {
+                $0 !== window && isMainWindow($0) && $0.isVisible
+            }.count
 
-            // Allow run loop to process notification handlers synchronously
-            // This is more elegant than Thread.sleep as it processes pending events
-            // rather than blocking the main thread entirely
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+            if remainingMainWindows == 0 {
+                // Last tab closing → disconnect and return to welcome screen
+                // CRITICAL: Post notification FIRST to allow MainContentView to flush pending saves
+                NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
 
-            // NOTE: We do NOT call saveAllTabStates() here because:
-            // 1. MainContentView already flushed the correct state via the notification above
-            // 2. By this point, SwiftUI may have torn down views and session.tabs could be stale/empty
-            // 3. Saving again would risk overwriting the good state with bad/empty state
+                // Allow run loop to process notification handlers synchronously
+                RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
 
-            // Disconnect sessions asynchronously (after save is complete)
-            Task { @MainActor in
-                await DatabaseManager.shared.disconnectAll()
+                // Disconnect sessions asynchronously (after save is complete)
+                Task { @MainActor in
+                    await DatabaseManager.shared.disconnectAll()
+                }
+
+                // Reopen welcome window after a brief delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.openWelcomeWindow()
+                }
             }
-
-            // Reopen welcome window after a brief delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                self.openWelcomeWindow()
-            }
+            // If not the last tab, just let the window close naturally —
+            // macOS handles removing the tab from the tab group.
         }
     }
 
@@ -376,10 +384,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.removeObserver(self)
     }
 
-    /// Save tab state for all active sessions
+    /// Save tab state for all active sessions using combined state from all native window-tabs
     @MainActor
     private func saveAllTabStates() {
-        for (connectionId, session) in DatabaseManager.shared.activeSessions {
+        // Collect tabs from NativeTabRegistry (authoritative source for native window tabs)
+        let registryConnectionIds = NativeTabRegistry.shared.connectionIds()
+
+        for connectionId in registryConnectionIds {
+            let combinedTabs = NativeTabRegistry.shared.allTabs(for: connectionId)
+            let selectedTabId = NativeTabRegistry.shared.selectedTabId(for: connectionId)
+
+            if combinedTabs.isEmpty {
+                TabStateStorage.shared.clearTabState(connectionId: connectionId)
+            } else {
+                TabStateStorage.shared.saveTabState(
+                    connectionId: connectionId,
+                    tabs: combinedTabs,
+                    selectedTabId: selectedTabId
+                )
+            }
+        }
+
+        // Also save for any active sessions not covered by the registry
+        // (e.g., sessions whose windows haven't appeared yet)
+        for (connectionId, session) in DatabaseManager.shared.activeSessions
+            where !registryConnectionIds.contains(connectionId)
+        {
             if session.tabs.isEmpty {
                 TabStateStorage.shared.clearTabState(connectionId: connectionId)
             } else {
@@ -436,6 +466,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Configure connection form window when it becomes key (only once)
         if isConnectionFormWindow(window) && !configuredWindows.contains(windowId) {
             configureConnectionFormWindowStyle(window)
+            configuredWindows.insert(windowId)
+        }
+
+        // Configure native tabbing for main windows (only once per window)
+        if isMainWindow(window) && !configuredWindows.contains(windowId) {
+            window.tabbingMode = .preferred
+            window.tabbingIdentifier = "com.TablePro.main"
             configuredWindows.insert(windowId)
         }
 

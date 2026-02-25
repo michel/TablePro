@@ -5,6 +5,7 @@
 //  Foreign key navigation operations for MainContentCoordinator
 //
 
+import AppKit
 import Foundation
 import os
 
@@ -50,17 +51,22 @@ extension MainContentCoordinator {
             return
         }
 
-        // Pre-save old tab's filter state before TableProTabSmart changes selectedTabId,
-        // because updateFilterState will modify filterStateManager before .onChange fires
-        if let oldIndex = tabManager.selectedTabIndex {
-            tabManager.tabs[oldIndex].filterState = filterStateManager.saveToTabState()
-            filterStateSavedExternally = true
+        // If current tab has unsaved changes, open in a new native tab instead of replacing
+        if changeManager.hasChanges {
+            let payload = EditorTabPayload(
+                connectionId: connection.id,
+                tabType: .table,
+                tableName: referencedTable,
+                databaseName: currentDatabase,
+                isView: false
+            )
+            WindowOpener.shared.openNativeTab(payload)
+            return
         }
 
-        // Open or reuse a tab for the referenced table
-        let needsQuery = tabManager.TableProTabSmart(
+        // Replace current tab content with the referenced table
+        let needsQuery = tabManager.replaceTabContent(
             tableName: referencedTable,
-            hasUnsavedChanges: changeManager.hasChanges,
             databaseType: connection.type,
             isView: false,
             databaseName: currentDatabase
@@ -78,6 +84,8 @@ extension MainContentCoordinator {
         }
 
         if needsQuery {
+            NSApp.keyWindow?.title = referencedTable
+
             // New tab — build filtered query directly, run once
             guard let tabIndex = tabManager.selectedTabIndex else { return }
             let tab = tabManager.tabs[tabIndex]

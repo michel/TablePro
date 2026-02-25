@@ -9,28 +9,6 @@
 import Foundation
 
 extension MainContentCoordinator {
-    /// Performs a direct tab switch bypassing SwiftUI .onChange scheduling delay.
-    /// Called from tab bar clicks and keyboard shortcuts.
-    func performDirectTabSwitch(to tab: QueryTab, selectedRowIndices: inout Set<Int>) {
-        guard tabManager.selectedTabId != tab.id else { return }
-
-        let oldTabId = tabManager.selectedTabId
-        skipNextTabChangeOnChange = true
-        tabManager.selectedTabId = tab.id
-
-        handleTabChange(from: oldTabId, to: tab.id,
-                        selectedRowIndices: &selectedRowIndices, tabs: tabManager.tabs)
-
-        NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
-
-        guard !tabPersistence.isRestoringTabs, !tabPersistence.isDismissing,
-              let sessionId = DatabaseManager.shared.currentSessionId else { return }
-        DatabaseManager.shared.updateSession(sessionId) { session in
-            session.selectedTabId = tab.id
-        }
-        tabPersistence.saveTabsAsync(tabs: tabManager.tabs, selectedTabId: tab.id)
-    }
-
     func handleTabChange(
         from oldTabId: UUID?,
         to newTabId: UUID?,
@@ -40,31 +18,6 @@ extension MainContentCoordinator {
         isHandlingTabSwitch = true
         defer { isHandlingTabSwitch = false }
 
-        // Debounce flush: skip if less than 100ms since last save to avoid
-        // redundant synchronous work during rapid tab switching.
-        let now = CFAbsoluteTimeGetCurrent()
-        if now - lastFlushTime >= 0.1 {
-            tabPersistence.flushPendingSave(tabs: tabs, selectedTabId: tabManager.selectedTabId)
-            lastFlushTime = now
-        }
-
-        if let oldId = oldTabId,
-           let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId }) {
-            // Save change state to separate dictionary to avoid CoW on QueryTab struct
-            if changeManager.hasChanges {
-                tabPendingChanges[oldId] = changeManager.saveState()
-            } else {
-                tabPendingChanges.removeValue(forKey: oldId)
-            }
-            tabSelectionCache[oldId] = selectedRowIndices
-
-            // Save filter state for old tab (skip if already pre-saved by FK navigation)
-            if !filterStateSavedExternally {
-                tabManager.tabs[oldIndex].filterState = filterStateManager.saveToTabState()
-            }
-            filterStateSavedExternally = false
-        }
-
         if let newId = newTabId,
            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId }) {
             let newTab = tabManager.tabs[newIndex]
@@ -72,14 +25,13 @@ extension MainContentCoordinator {
             // Restore filter state for new tab
             filterStateManager.restoreFromTabState(newTab.filterState)
 
-            selectedRowIndices = tabSelectionCache[newId] ?? newTab.selectedRowIndices
+            selectedRowIndices = newTab.selectedRowIndices
             AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil
             toolbarState.isTableTab = newTab.tabType == .table
 
             // Configure change manager without triggering reload yet — we'll fire a single
             // reloadVersion bump below after everything is set up.
-            // Check separate dictionary first, then fall back to tab's pendingChanges for backward compat
-            let pendingState = tabPendingChanges[newId] ?? newTab.pendingChanges
+            let pendingState = newTab.pendingChanges
             if pendingState.hasChanges {
                 changeManager.restoreState(from: pendingState, tableName: newTab.tableName ?? "")
             } else {

@@ -42,6 +42,9 @@ enum ActiveSheet: Identifiable {
 final class MainContentCoordinator: ObservableObject {
     private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
 
+    /// Per-connection shared schema providers so new tabs skip redundant schema loads
+    private static var sharedSchemaProviders: [UUID: SQLSchemaProvider] = [:]
+
     // MARK: - Dependencies
 
     let connection: DatabaseConnection
@@ -60,7 +63,7 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Published State
 
-    @Published var schemaProvider = SQLSchemaProvider()
+    @Published var schemaProvider: SQLSchemaProvider
     @Published var cursorPositions: [CursorPosition] = []
     @Published var tableMetadata: TableMetadata?
     // Removed: showErrorAlert and errorAlertMessage - errors now display inline
@@ -78,55 +81,19 @@ final class MainContentCoordinator: ObservableObject {
     private var changeManagerUpdateTask: Task<Void, Never>?
     private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
-    /// Stores pending change state per tab ID, separate from QueryTab struct to avoid CoW amplification.
-    /// When switching tabs, change state is saved here instead of inside the QueryTab value type.
-    internal var tabPendingChanges: [UUID: TabPendingChanges] = [:]
-
-    /// Row selection state per tab, stored separately to avoid @Published fires on tab switch
-    internal var tabSelectionCache: [UUID: Set<Int>] = [:]
-
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
 
-    /// Timestamp of last flushPendingSave call — used to debounce rapid tab switches
-    internal var lastFlushTime: CFAbsoluteTime = 0
-
-    /// Set when handleTabChange is called directly (keyboard/tab bar/sidebar),
-    /// so .onChange(of: selectedTabId) skips the redundant call.
-    internal var skipNextTabChangeOnChange = false
-
-    /// Set when FK navigation pre-saves old tab filter state before modifying filterStateManager,
-    /// so handleTabChange skips overwriting the old tab with the (now FK-modified) filter state.
-    internal var filterStateSavedExternally = false
-
-    /// Remove sort cache and pending change entries for tabs that no longer exist
+    /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
         let filteredSort = querySortCache.filter { openTabIds.contains($0.key) }
         if filteredSort.count != querySortCache.count {
             querySortCache = filteredSort
         }
-        let filteredPending = tabPendingChanges.filter { openTabIds.contains($0.key) }
-        if filteredPending.count != tabPendingChanges.count {
-            tabPendingChanges = filteredPending
-        }
-        let filteredSelection = tabSelectionCache.filter { openTabIds.contains($0.key) }
-        if filteredSelection.count != tabSelectionCache.count {
-            tabSelectionCache = filteredSelection
-        }
         for (tabId, task) in activeSortTasks where !openTabIds.contains(tabId) {
             task.cancel()
             activeSortTasks.removeValue(forKey: tabId)
         }
-    }
-
-    /// Writes cached selection state back to tab model before persistence
-    private func flushSelectionCache() {
-        for (tabId, selection) in tabSelectionCache {
-            if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                tabManager.tabs[idx].selectedRowIndices = selection
-            }
-        }
-        tabSelectionCache.removeAll()
     }
 
     // MARK: - Initialization
@@ -145,16 +112,24 @@ final class MainContentCoordinator: ObservableObject {
         self.toolbarState = toolbarState
         self.queryBuilder = TableQueryBuilder(databaseType: connection.type)
         self.tabPersistence = TabPersistenceService(connectionId: connection.id)
+
+        // Reuse existing schema provider for this connection, or create a new one
+        if let existing = Self.sharedSchemaProviders[connection.id] {
+            self.schemaProvider = existing
+        } else {
+            let provider = SQLSchemaProvider()
+            Self.sharedSchemaProviders[connection.id] = provider
+            self.schemaProvider = provider
+        }
     }
 
     // MARK: - Initialization Actions
 
-    /// Initialize view with connection info and load schema
-    func initializeView() async {
-        // Initialize toolbar with connection info
+    /// Synchronous toolbar setup — no I/O, safe to call inline
+    func initializeToolbar() {
+        let start = CFAbsoluteTimeGetCurrent()
         toolbarState.update(from: connection)
 
-        // Get actual connection state from session
         if let session = DatabaseManager.shared.currentSession {
             toolbarState.connectionState = mapSessionStatus(session.status)
             if let driver = session.driver {
@@ -164,9 +139,25 @@ final class MainContentCoordinator: ObservableObject {
             toolbarState.connectionState = .connected
             toolbarState.databaseVersion = driver.serverVersion
         }
+        Self.logger.debug("[PERF] initializeToolbar done in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms")
+    }
 
-        // Load schema for autocomplete
-        await loadSchema()
+    /// Load schema only if the shared provider hasn't loaded yet
+    func loadSchemaIfNeeded() async {
+        let start = CFAbsoluteTimeGetCurrent()
+        let alreadyLoaded = await schemaProvider.isSchemaLoaded()
+        if !alreadyLoaded {
+            await loadSchema()
+            Self.logger.debug("[PERF] loadSchemaIfNeeded: loaded schema in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms")
+        } else {
+            Self.logger.debug("[PERF] loadSchemaIfNeeded: already loaded, skipped in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms")
+        }
+    }
+
+    /// Initialize view with connection info and load schema (legacy — used by first window)
+    func initializeView() async {
+        initializeToolbar()
+        await loadSchemaIfNeeded()
     }
 
     /// Map ConnectionStatus to ToolbarConnectionState
@@ -215,8 +206,10 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Query Execution
 
     func runQuery() {
+        let queryStart = CFAbsoluteTimeGetCurrent()
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
+        Self.logger.debug("[PERF] runQuery() called for tab '\(self.tabManager.tabs[index].tableName ?? "query")'")
 
         let fullQuery = tabManager.tabs[index].query
 
@@ -344,8 +337,10 @@ final class MainContentCoordinator: ObservableObject {
     private func executeQueryInternal(
         _ sql: String
     ) {
+        let execStart = CFAbsoluteTimeGetCurrent()
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
+        Self.logger.debug("[PERF] executeQueryInternal started")
 
         currentQueryTask?.cancel()
         queryGeneration += 1
@@ -373,6 +368,7 @@ final class MainContentCoordinator: ObservableObject {
 
         let tableName = extractTableName(from: effectiveSQL)
         let isEditable = tableName != nil
+        let capturedExecStart = execStart
 
         currentQueryTask = Task { [weak self] in
             guard let self else { return }
@@ -400,6 +396,7 @@ final class MainContentCoordinator: ObservableObject {
                 }
 
                 // Main data query (on primary driver — runs concurrently with metadata)
+                Self.logger.debug("[PERF] executeQueryInternal: starting DB execute at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - capturedExecStart) * 1000))ms")
                 let result = try await DatabaseManager.shared.execute(query: effectiveSQL)
 
                 let safeColumns = result.columns
@@ -407,6 +404,7 @@ final class MainContentCoordinator: ObservableObject {
                 let safeRows = result.rows.enumerated().map { index, row in
                     QueryResultRow(id: index, values: row)
                 }
+                Self.logger.debug("[PERF] executeQueryInternal: DB execute done at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - capturedExecStart) * 1000))ms, \(safeRows.count) rows")
                 let safeExecutionTime = result.executionTime
                 let safeRowsAffected = result.rowsAffected
 
@@ -1071,23 +1069,17 @@ final class MainContentCoordinator: ObservableObject {
 
                 changeManager.clearChanges()
                 if let index = tabManager.selectedTabIndex {
-                    let currentTabId = tabManager.tabs[index].id
                     tabManager.tabs[index].pendingChanges = TabPendingChanges()
-                    tabPendingChanges.removeValue(forKey: currentTabId)
                     tabManager.tabs[index].errorMessage = nil
                 }
 
                 if clearTableOps {
                     // Close tabs for deleted tables
                     if !deletedTables.isEmpty {
-                        var tabsToClose: [QueryTab] = []
-                        for tab in tabManager.tabs {
-                            if let tableName = tab.tableName, deletedTables.contains(tableName) {
-                                tabsToClose.append(tab)
-                            }
-                        }
-                        for tab in tabsToClose {
-                            tabManager.closeTab(tab)
+                        if let currentTab = tabManager.selectedTab,
+                           let tableName = currentTab.tableName,
+                           deletedTables.contains(tableName) {
+                            NSApp.keyWindow?.close()
                         }
                     }
 
@@ -1238,27 +1230,18 @@ final class MainContentCoordinator: ObservableObject {
                 await schemaProvider.invalidateCache()
                 await loadSchema()
 
-                // Close the create table tab
-                if let tabIndex = tabManager.selectedTabIndex,
-                   tabIndex < tabManager.tabs.count {
-                    let currentTab = tabManager.tabs[tabIndex]
-                    tabManager.closeTab(currentTab)
-                }
-
-                // Open the newly created table in a new tab
-                let needs = tabManager.TableProTabSmart(
-                    tableName: options.tableName,
-                    hasUnsavedChanges: changeManager.hasChanges,
-                    databaseType: connection.type
-                )
-
                 // Refresh sidebar to show new table
                 NotificationCenter.default.post(name: .refreshData, object: nil)
 
-                // Execute query to load table data if needed (runs async)
-                if needs {
-                    runQuery()
-                }
+                // Close the create-table window and open the new table in a native tab
+                NSApp.keyWindow?.close()
+                let tablePayload = EditorTabPayload(
+                    connectionId: connection.id,
+                    tabType: .table,
+                    tableName: options.tableName,
+                    databaseName: options.databaseName
+                )
+                WindowOpener.shared.openNativeTab(tablePayload)
             } catch {
                 if let index = tabManager.selectedTabIndex {
                     tabManager.tabs[index].errorMessage = "Failed to create table: \(error.localizedDescription)"
@@ -1294,39 +1277,15 @@ final class MainContentCoordinator: ObservableObject {
         changeManager.clearChanges()
 
         if let index = tabManager.selectedTabIndex {
-            let currentTabId = tabManager.tabs[index].id
             tabManager.tabs[index].pendingChanges = TabPendingChanges()
-            tabPendingChanges.removeValue(forKey: currentTabId)
         }
 
         NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
     }
 
-    // MARK: - Tab Operations
-
-    func handleCloseAction() {
-        if let tab = tabManager.selectedTab, !tab.isPinned {
-            let hasEditedCells = changeManager.hasChanges
-
-            // Always confirm if there are unsaved changes
-            if hasEditedCells {
-                Task { @MainActor in
-                    let confirmed = await confirmDiscardChanges(action: .closeTab)
-                    if confirmed {
-                        closeCurrentTab()
-                    }
-                }
-            } else {
-                closeCurrentTab()
-            }
-        } else {
-            NotificationCenter.default.post(name: .deselectConnection, object: nil)
-        }
-    }
-
-    func closeCurrentTab() {
-        guard let tab = tabManager.selectedTab else { return }
-        tabManager.closeTab(tab)
+    /// Remove shared schema provider when a connection disconnects
+    static func clearSharedSchema(for connectionId: UUID) {
+        sharedSchemaProviders.removeValue(forKey: connectionId)
     }
 }
 
@@ -1577,4 +1536,5 @@ private extension MainContentCoordinator {
             }
         }
     }
+
 }

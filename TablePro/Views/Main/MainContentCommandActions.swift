@@ -247,29 +247,54 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: - Tab Operations (Group A — Called Directly)
 
     func newTab() {
-        guard let coordinator = coordinator else { return }
-        let lastQuery = coordinator.tabPersistence.loadLastQuery()
-        coordinator.tabManager.addTab(initialQuery: lastQuery)
+        // If no tabs exist (empty state), add directly to this window
+        if coordinator?.tabManager.tabs.isEmpty == true {
+            coordinator?.tabManager.addTab(databaseName: connection.database)
+            return
+        }
+        // Open a new native macOS window tab with a query editor
+        let payload = EditorTabPayload(connectionId: connection.id, tabType: .query)
+        WindowOpener.shared.openNativeTab(payload)
     }
 
     func closeCurrentTab() {
-        coordinator?.handleCloseAction()
+        // Close the native window tab — macOS handles removing it from the tab group.
+        // AppDelegate.windowWillClose handles disconnect when last tab closes.
+        NSApp.keyWindow?.close()
+    }
+
+    func closeTab() {
+        guard let keyWindow = NSApp.keyWindow else { return }
+        let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
+
+        if tabbedWindows.count > 1 {
+            // Multiple native tabs — close this window (macOS removes it from tab group)
+            keyWindow.close()
+        } else if coordinator?.tabManager.tabs.isEmpty == true {
+            // Already in empty state — close the connection window
+            keyWindow.close()
+        } else {
+            // Last tab with content — clear tabs to show empty state instead of closing
+            coordinator?.tabManager.tabs.removeAll()
+            coordinator?.tabManager.selectedTabId = nil
+            AppState.shared.isCurrentTabEditable = false
+            coordinator?.toolbarState.isTableTab = false
+        }
     }
 
     func createTable() {
-        guard !connection.isReadOnly, let coordinator = coordinator else { return }
+        guard !connection.isReadOnly else { return }
 
-        // Get current database name from the connection
-        let currentDatabase = connection.database
-
-        coordinator.tabManager.addCreateTableTab(
-            databaseName: currentDatabase,
-            databaseType: connection.type
+        let payload = EditorTabPayload(
+            connectionId: connection.id,
+            tabType: .createTable,
+            databaseName: connection.database
         )
+        WindowOpener.shared.openNativeTab(payload)
     }
 
     func createView() {
-        guard !connection.isReadOnly, let coordinator = coordinator else { return }
+        guard !connection.isReadOnly else { return }
 
         let template: String
         switch connection.type {
@@ -281,43 +306,31 @@ final class MainContentCommandActions: ObservableObject {
             template = "CREATE VIEW IF NOT EXISTS view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         }
 
-        coordinator.tabManager.addTab(
-            initialQuery: template,
-            title: "New View"
+        let payload = EditorTabPayload(
+            connectionId: connection.id,
+            tabType: .query,
+            databaseName: connection.database,
+            initialQuery: template
         )
+        WindowOpener.shared.openNativeTab(payload)
     }
 
     // MARK: - Tab Navigation (Group A — Called Directly)
 
     func selectTab(number: Int) {
-        guard let tabManager = coordinator?.tabManager else { return }
-        let index = number - 1
-        if index >= 0, index < tabManager.tabs.count {
-            performDirectTabSwitch(to: tabManager.tabs[index])
-        }
+        // Switch to the nth native window tab
+        guard let keyWindow = NSApp.keyWindow,
+              let tabbedWindows = keyWindow.tabbedWindows,
+              number > 0, number <= tabbedWindows.count else { return }
+        tabbedWindows[number - 1].makeKeyAndOrderFront(nil)
     }
 
     func previousTab() {
-        guard let tabManager = coordinator?.tabManager,
-              let current = tabManager.selectedTabIndex,
-              current > 0 else { return }
-        let target = tabManager.tabs[current - 1]
-        performDirectTabSwitch(to: target)
+        NSApp.sendAction(#selector(NSWindow.selectPreviousTab(_:)), to: nil, from: nil)
     }
 
     func nextTab() {
-        guard let tabManager = coordinator?.tabManager,
-              let current = tabManager.selectedTabIndex,
-              current + 1 < tabManager.tabs.count else { return }
-        let target = tabManager.tabs[current + 1]
-        performDirectTabSwitch(to: target)
-    }
-
-    private func performDirectTabSwitch(to target: QueryTab) {
-        guard let coordinator else { return }
-        var indices = selectedRowIndices.wrappedValue
-        coordinator.performDirectTabSwitch(to: target, selectedRowIndices: &indices)
-        selectedRowIndices.wrappedValue = indices
+        NSApp.sendAction(#selector(NSWindow.selectNextTab(_:)), to: nil, from: nil)
     }
 
     // MARK: - Filter Operations (Group A — Called Directly)
@@ -525,22 +538,20 @@ final class MainContentCommandActions: ObservableObject {
         guard let query = notification.object as? String,
               let coordinator = coordinator else { return }
 
-        // Check if current tab is a query tab
+        // If current window's tab is a query tab, load into it
         if let tabIndex = coordinator.tabManager.selectedTabIndex,
            tabIndex < coordinator.tabManager.tabs.count,
            coordinator.tabManager.tabs[tabIndex].tabType == .query {
             coordinator.tabManager.tabs[tabIndex].query = query
             coordinator.tabManager.tabs[tabIndex].hasUserInteraction = true
         } else {
-            // Create a new query tab and load the query into it
-            self.newTab()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                if let newIndex = coordinator.tabManager.selectedTabIndex,
-                   newIndex < coordinator.tabManager.tabs.count {
-                    coordinator.tabManager.tabs[newIndex].query = query
-                    coordinator.tabManager.tabs[newIndex].hasUserInteraction = true
-                }
-            }
+            // Open a new native tab with the query
+            let payload = EditorTabPayload(
+                connectionId: connection.id,
+                tabType: .query,
+                initialQuery: query
+            )
+            WindowOpener.shared.openNativeTab(payload)
         }
     }
 
@@ -548,11 +559,10 @@ final class MainContentCommandActions: ObservableObject {
         guard let query = notification.object as? String,
               let coordinator = coordinator else { return }
 
-        // Find or create a query tab
+        // If current window's tab is a query tab, append to it
         if let tabIndex = coordinator.tabManager.selectedTabIndex,
            tabIndex < coordinator.tabManager.tabs.count,
            coordinator.tabManager.tabs[tabIndex].tabType == .query {
-            // Append to existing query tab with separator
             let existingQuery = coordinator.tabManager.tabs[tabIndex].query
             if existingQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 coordinator.tabManager.tabs[tabIndex].query = query
@@ -561,8 +571,13 @@ final class MainContentCommandActions: ObservableObject {
             }
             coordinator.tabManager.tabs[tabIndex].hasUserInteraction = true
         } else {
-            // No query tab selected — create a new one
-            coordinator.tabManager.addTab(initialQuery: query)
+            // Open a new native tab with the query
+            let payload = EditorTabPayload(
+                connectionId: connection.id,
+                tabType: .query,
+                initialQuery: query
+            )
+            WindowOpener.shared.openNativeTab(payload)
         }
     }
 
@@ -573,19 +588,18 @@ final class MainContentCommandActions: ObservableObject {
     }
 
     private func handleEditViewDefinition(_ viewName: String) {
-        guard let coordinator = coordinator else { return }
-
         Task { @MainActor in
             do {
                 guard let driver = DatabaseManager.shared.activeDriver else { return }
                 let definition = try await driver.fetchViewDefinition(view: viewName)
 
-                coordinator.tabManager.addTab(
-                    initialQuery: definition,
-                    title: "View: \(viewName)"
+                let payload = EditorTabPayload(
+                    connectionId: connection.id,
+                    tabType: .query,
+                    initialQuery: definition
                 )
+                WindowOpener.shared.openNativeTab(payload)
             } catch {
-                // Open tab with a basic ALTER template on failure
                 let fallbackSQL: String
                 switch connection.type {
                 case .postgresql:
@@ -596,10 +610,12 @@ final class MainContentCommandActions: ObservableObject {
                     fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"
                 }
 
-                coordinator.tabManager.addTab(
-                    initialQuery: fallbackSQL,
-                    title: "View: \(viewName)"
+                let payload = EditorTabPayload(
+                    connectionId: connection.id,
+                    tabType: .query,
+                    initialQuery: fallbackSQL
                 )
+                WindowOpener.shared.openNativeTab(payload)
             }
         }
     }
@@ -638,8 +654,9 @@ final class MainContentCommandActions: ObservableObject {
     private func setupWindowObservers() {
         observe(.mainWindowWillClose) { [weak self] _ in
             guard let coordinator = self?.coordinator else { return }
+            let combinedTabs = NativeTabRegistry.shared.allTabs(for: coordinator.connection.id)
             coordinator.tabPersistence.handleWindowClose(
-                tabs: coordinator.tabManager.tabs,
+                tabs: combinedTabs,
                 selectedTabId: coordinator.tabManager.selectedTabId
             )
         }
@@ -654,8 +671,7 @@ final class MainContentCommandActions: ObservableObject {
     }
 
     private func handleOpenSQLFiles(_ notification: Notification) {
-        guard let urls = notification.object as? [URL],
-              let coordinator = coordinator else { return }
+        guard let urls = notification.object as? [URL] else { return }
 
         Task { @MainActor in
             for url in urls {
@@ -669,10 +685,12 @@ final class MainContentCommandActions: ObservableObject {
                 }.value
 
                 if let content {
-                    coordinator.tabManager.addTab(
-                        initialQuery: content,
-                        title: url.lastPathComponent
+                    let payload = EditorTabPayload(
+                        connectionId: connection.id,
+                        tabType: .query,
+                        initialQuery: content
                     )
+                    WindowOpener.shared.openNativeTab(payload)
                 }
             }
         }
