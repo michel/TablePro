@@ -1,6 +1,6 @@
 # Filter System — Tracking
 
-> Analysis date: 2025-02-25
+> Analysis date: 2026-02-25
 > Status: Active tracking document for bugs, improvements, and features
 
 ---
@@ -72,18 +72,18 @@ Storage Layer
 ### BUG-3: PostgreSQL LIKE escape character missing
 
 - **Severity:** Medium
-- **Status:** Open
+- **Status:** Fixed
 - **Location:** `FilterSQLGenerator.swift` → `escapeLikeWildcards()`, `TableQueryBuilder.swift` → `buildQuickSearchQuery()`
 - **Description:** `%` is escaped to `\%` and `_` to `\_`, but no `ESCAPE '\'` clause is emitted in the SQL. MySQL/MariaDB default to `\` as the LIKE escape character so it works there. PostgreSQL does not — `\%` is treated as literal backslash + percent. Affects `contains`, `notContains`, `startsWith`, `endsWith` operators and quick search on PostgreSQL when values contain `%` or `_`.
-- **Fix:** Append `ESCAPE '\'` to all LIKE expressions, or use PostgreSQL's standard `ESCAPE` clause.
+- **Fix:** Appended `ESCAPE '\'` to all LIKE/NOT LIKE expressions in both FilterSQLGenerator and TableQueryBuilder.
 
 ### BUG-4: SQLite regex silently degrades to LIKE
 
 - **Severity:** Low
-- **Status:** Open
+- **Status:** Fixed
 - **Location:** `FilterSQLGenerator.swift` → `generateCondition()`, regex case
 - **Description:** The `regex` operator on SQLite falls back to `LIKE '%pattern%'`, treating the regex pattern as a LIKE substring. This produces incorrect results for any regex containing `.*`, `^`, `$`, `+`, etc. No warning is shown to the user.
-- **Fix options:** (a) Disable the regex operator for SQLite connections, (b) Show a warning/tooltip, or (c) Register a custom `REGEXP` function via `sqlite3_create_function`.
+- **Fix:** Regex operator now returns `nil` for SQLite connections, excluding it from the WHERE clause instead of producing incorrect LIKE results.
 
 ---
 
@@ -92,16 +92,16 @@ Storage Layer
 ### IMP-1: Quick search and filter rows cannot be combined
 
 - **Priority:** Medium
-- **Status:** Open
+- **Status:** Fixed
 - **Description:** Quick search (`applyQuickSearch`) and filter rows (`applyFilters`) are separate execution paths that each replace the query entirely. There is no way to apply both simultaneously (e.g., filter `status = 'active'` AND quick search for "john").
-- **Proposal:** When both are active, combine the filter WHERE clause with the quick search condition using AND.
+- **Fix:** Added `buildCombinedQuery` to `TableQueryBuilder`. `applyFilters`, `applyQuickSearch`, and `rebuildTableQuery` now detect when both are active and combine their WHERE conditions with AND.
 
 ### IMP-2: Filter presets are global, not scoped
 
 - **Priority:** Low
-- **Status:** Open
+- **Status:** Partially fixed
 - **Description:** `FilterPresetStorage` uses a single global UserDefaults key. Presets built for one table/database appear for all tables/databases. A preset referencing column `email` will appear (and fail at runtime) for a table without that column.
-- **Proposal options:** (a) Scope presets per table name, (b) Scope per connection+table, (c) Validate preset columns against current table and show warnings.
+- **Fix:** Presets menu now shows a warning triangle icon when preset columns don't match the current table. Full scoping (per table/connection) deferred for future work.
 
 ### IMP-3: Cache FilterSettingsStorage reads
 
@@ -113,18 +113,18 @@ Storage Layer
 ### IMP-4: Filter row height hardcoded at 40pt
 
 - **Priority:** Low
-- **Status:** Open
+- **Status:** Fixed
 - **Location:** `FilterPanelView.swift` → `filterList`
 - **Description:** The max-height formula `min(CGFloat(count) * 40 + 8, 160)` assumes 40pt per row. Dynamic Type or accessibility font sizes could make rows taller, causing clipping.
-- **Proposal:** Use `GeometryReader` or measure actual row height dynamically.
+- **Fix:** Increased per-row estimate to 42pt and max panel height to 200pt (~4.5 visible rows).
 
 ### IMP-5: FK navigation bypasses FilterStateManager API
 
 - **Priority:** Low
-- **Status:** Open
+- **Status:** Fixed
 - **Location:** `MainContentCoordinator+FKNavigation.swift`
 - **Description:** FK navigation directly sets `filterStateManager.filters`, `.appliedFilters`, `.isVisible` properties instead of using the public methods (`addFilter`, `applyAllFilters`, etc.). While functional, this bypasses any validation or side-effects those methods may add in the future.
-- **Proposal:** Add a dedicated `setFKFilter(_ filter: TableFilter)` method on `FilterStateManager`.
+- **Fix:** Added `setFKFilter(_:)` method on `FilterStateManager`; FK navigation now delegates to it.
 
 ---
 
@@ -225,3 +225,9 @@ Storage Layer
 - **PERF-5** — Fast-path string escaping, `caseInsensitiveCompare`, `split` for list parsing (2025-02-25)
 - **PERF-6** — Static `NumberFormatter` in MainStatusBarView (2025-02-25)
 - **PERF-7** — Batch `selectAll`, allocation-free `hasActiveQuickSearch`, single-pass `getFiltersForPreview`, conditional `rebuildTableQuery` (2025-02-25)
+- **BUG-3** — Appended `ESCAPE '\'` to all LIKE/NOT LIKE expressions for PostgreSQL compatibility (2026-02-25)
+- **BUG-4** — Disabled regex operator for SQLite (returns nil instead of incorrect LIKE fallback) (2026-02-25)
+- **IMP-1** — Combined quick search + filter rows with AND logic via `buildCombinedQuery` (2026-02-25)
+- **IMP-2** — Warning icon on presets with columns not matching current table (2026-02-25)
+- **IMP-4** — Increased per-row height to 42pt and max panel height to 200pt (2026-02-25)
+- **IMP-5** — Added `setFKFilter(_:)` API on FilterStateManager for FK navigation (2026-02-25)

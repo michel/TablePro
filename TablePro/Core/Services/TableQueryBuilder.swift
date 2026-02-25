@@ -308,17 +308,16 @@ struct TableQueryBuilder {
     }
 
     /// Build a LIKE condition with proper type casting for non-text columns
-    /// PostgreSQL requires explicit cast to TEXT for numeric/other types
+    /// PostgreSQL requires explicit cast to TEXT for numeric/other types.
+    /// MySQL/MariaDB default to `\` as the LIKE escape character, so no ESCAPE clause needed.
+    /// PostgreSQL and SQLite require an explicit ESCAPE declaration.
     private func buildLikeCondition(column: String, searchText: String) -> String {
         switch databaseType {
         case .postgresql:
-            // PostgreSQL: Cast to TEXT to handle numeric, date, and other non-text types
             return "\(column)::TEXT LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mysql, .mariadb:
-            // MySQL/MariaDB: Implicit conversion works, but CAST is safer for all types
-            return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%' ESCAPE '\\'"
+            return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%'"
         case .sqlite:
-            // SQLite: Very lenient with type coercion, LIKE works on most types
             return "\(column) LIKE '%\(searchText)%' ESCAPE '\\'"
         }
     }

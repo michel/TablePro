@@ -101,13 +101,27 @@ extension MainContentCoordinator {
               let tableName = tabManager.tabs[tabIndex].tableName else { return }
 
         let tab = tabManager.tabs[tabIndex]
-        let newQuery = queryBuilder.buildBaseQuery(
-            tableName: tableName,
-            sortState: tab.sortState,
-            columns: tab.resultColumns,
-            limit: tab.pagination.pageSize,
-            offset: tab.pagination.currentOffset
-        )
+        let newQuery: String
+
+        // Preserve active quick search when clearing filter rows
+        if filterStateManager.hasActiveQuickSearch {
+            newQuery = queryBuilder.buildQuickSearchQuery(
+                tableName: tableName,
+                searchText: filterStateManager.quickSearchText,
+                columns: tab.resultColumns,
+                sortState: tab.sortState,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        } else {
+            newQuery = queryBuilder.buildBaseQuery(
+                tableName: tableName,
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        }
 
         tabManager.tabs[tabIndex].query = newQuery
         runQuery()
@@ -141,6 +155,15 @@ extension MainContentCoordinator {
                 logicMode: filterStateManager.filterLogicMode,
                 sortState: tab.sortState,
                 columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        } else if hasSearch {
+            newQuery = queryBuilder.buildQuickSearchQuery(
+                tableName: tableName,
+                searchText: filterStateManager.quickSearchText,
+                columns: tab.resultColumns,
+                sortState: tab.sortState,
                 limit: tab.pagination.pageSize,
                 offset: tab.pagination.currentOffset
             )

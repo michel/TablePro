@@ -43,6 +43,10 @@ extension MainContentCoordinator {
            current.tableName == referencedTable,
            current.databaseName == currentDatabase {
             applyFKFilter(filter, for: referencedTable)
+            // Persist so tab switch restore picks it up
+            if let idx = tabManager.selectedTabIndex {
+                tabManager.tabs[idx].filterState = filterStateManager.saveToTabState()
+            }
             return
         }
 

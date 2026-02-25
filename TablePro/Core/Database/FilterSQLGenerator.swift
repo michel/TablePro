@@ -109,14 +109,26 @@ struct FilterSQLGenerator {
 
     // MARK: - LIKE Conditions
 
+    /// Database-specific ESCAPE clause for LIKE patterns.
+    /// MySQL/MariaDB default to `\` as the LIKE escape character, so no clause needed.
+    /// PostgreSQL and SQLite require an explicit ESCAPE declaration.
+    private var likeEscapeClause: String {
+        switch databaseType {
+        case .mysql, .mariadb:
+            return ""
+        case .postgresql, .sqlite:
+            return " ESCAPE '\\'"
+        }
+    }
+
     private func generateLikeCondition(column: String, pattern: String) -> String {
-        let escapedPattern = escapeStringValue(pattern)
-        return "\(column) LIKE '\(escapedPattern)' ESCAPE '\\'"
+        let quotedPattern = escapeSQLQuote(pattern)
+        return "\(column) LIKE '\(quotedPattern)'\(likeEscapeClause)"
     }
 
     private func generateNotLikeCondition(column: String, pattern: String) -> String {
-        let escapedPattern = escapeStringValue(pattern)
-        return "\(column) NOT LIKE '\(escapedPattern)' ESCAPE '\\'"
+        let quotedPattern = escapeSQLQuote(pattern)
+        return "\(column) NOT LIKE '\(quotedPattern)'\(likeEscapeClause)"
     }
 
     // MARK: - REGEX Conditions (Database-Specific)
@@ -131,7 +143,7 @@ struct FilterSQLGenerator {
             return "\(column) ~ '\(escapedPattern)'"
         case .sqlite:
             // Should not reach here — filtered in generateCondition
-            return "\(column) LIKE '%\(escapedPattern)%' ESCAPE '\\'"
+            return "\(column) LIKE '%\(escapedPattern)%'"
         }
     }
 
@@ -161,6 +173,14 @@ struct FilterSQLGenerator {
 
         // String value - escape and quote
         return "'\(escapeStringValue(trimmed))'"
+    }
+
+    /// Escape only single quotes for SQL string literal context.
+    /// Used for LIKE patterns where backslashes are already escaped
+    /// by escapeLikeWildcards for the ESCAPE clause.
+    private func escapeSQLQuote(_ value: String) -> String {
+        guard value.contains("'") else { return value }
+        return value.replacingOccurrences(of: "'", with: "''")
     }
 
     /// Escape special characters in string values
