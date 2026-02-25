@@ -9,6 +9,12 @@ import SwiftUI
 
 /// Status bar at the bottom of the results section
 struct MainStatusBarView: View {
+    private static let decimalFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+
     let tab: QueryTab?
     let filterStateManager: FilterStateManager
     let selectedRowIndices: Set<Int>

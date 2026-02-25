@@ -252,13 +252,13 @@ struct TableQueryBuilder {
         switch databaseType {
         case .postgresql:
             // PostgreSQL: Cast to TEXT to handle numeric, date, and other non-text types
-            return "\(column)::TEXT LIKE '%\(searchText)%'"
+            return "\(column)::TEXT LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mysql, .mariadb:
             // MySQL/MariaDB: Implicit conversion works, but CAST is safer for all types
-            return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%'"
+            return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%' ESCAPE '\\'"
         case .sqlite:
             // SQLite: Very lenient with type coercion, LIKE works on most types
-            return "\(column) LIKE '%\(searchText)%'"
+            return "\(column) LIKE '%\(searchText)%' ESCAPE '\\'"
         }
     }
 }
