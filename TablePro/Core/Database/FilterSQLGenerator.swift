@@ -101,6 +101,8 @@ struct FilterSQLGenerator {
             return "\(quotedColumn) BETWEEN \(escapeValue(filter.value)) AND \(escapeValue(secondValue))"
 
         case .regex:
+            // SQLite doesn't support REGEXP without a custom function
+            if databaseType == .sqlite { return nil }
             return generateRegexCondition(column: quotedColumn, pattern: filter.value)
         }
     }
@@ -109,12 +111,12 @@ struct FilterSQLGenerator {
 
     private func generateLikeCondition(column: String, pattern: String) -> String {
         let escapedPattern = escapeStringValue(pattern)
-        return "\(column) LIKE '\(escapedPattern)'"
+        return "\(column) LIKE '\(escapedPattern)' ESCAPE '\\'"
     }
 
     private func generateNotLikeCondition(column: String, pattern: String) -> String {
         let escapedPattern = escapeStringValue(pattern)
-        return "\(column) NOT LIKE '\(escapedPattern)'"
+        return "\(column) NOT LIKE '\(escapedPattern)' ESCAPE '\\'"
     }
 
     // MARK: - REGEX Conditions (Database-Specific)
@@ -128,9 +130,8 @@ struct FilterSQLGenerator {
         case .postgresql:
             return "\(column) ~ '\(escapedPattern)'"
         case .sqlite:
-            // SQLite doesn't have built-in REGEXP unless extension loaded
-            // Fall back to LIKE with wildcards as a best-effort approximation
-            return "\(column) LIKE '%\(escapedPattern)%'"
+            // Should not reach here — filtered in generateCondition
+            return "\(column) LIKE '%\(escapedPattern)%' ESCAPE '\\'"
         }
     }
 

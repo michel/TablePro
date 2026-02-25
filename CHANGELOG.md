@@ -66,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix PostgreSQL SQL export missing `CREATE TYPE` definitions for enum columns, causing import errors
 - Fix PostgreSQL DDL tab not showing enum type definitions used by table columns
 - Fix compilation error for PostgreSQL dependent sequences export (`fetchDependentSequences` missing from `DatabaseDriver` protocol)
+- Fix PostgreSQL LIKE/NOT LIKE expressions missing `ESCAPE '\'` clause, causing wildcard escaping (`\%`, `\_`) to be treated as literal characters
+- Fix SQLite regex filter silently degrading to LIKE substring match instead of being excluded from the WHERE clause
 
 ## [0.6.4] - 2026-02-23
 
