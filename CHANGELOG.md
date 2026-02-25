@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Show warning indicator on filter presets referencing columns not in current table
 - Increase filter row height estimate for better accessibility support
+- FK navigation now uses dedicated FilterStateManager.setFKFilter API instead of direct property manipulation
 - Add syntax highlighting to Import SQL file preview
 - XLSX export now enforces the Excel row limit (1,048,576) per sheet and uses autoreleasepool per row to reduce peak memory during large exports
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing

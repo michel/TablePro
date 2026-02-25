@@ -109,10 +109,6 @@ extension MainContentCoordinator {
     }
 
     private func updateFilterState(_ filter: TableFilter, for tableName: String) {
-        filterStateManager.filters = [filter]
-        filterStateManager.appliedFilters = [filter]
-        filterStateManager.isVisible = true
-        filterStateManager.quickSearchText = ""
-        filterStateManager.filterLogicMode = .and
+        filterStateManager.setFKFilter(filter)
     }
 }
