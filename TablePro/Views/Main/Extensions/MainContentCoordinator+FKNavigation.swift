@@ -93,8 +93,6 @@ extension MainContentCoordinator {
     }
 
     private func updateFilterState(_ filter: TableFilter, for tableName: String) {
-        filterStateManager.filters = [filter]
-        filterStateManager.appliedFilters = [filter]
-        filterStateManager.isVisible = true
+        filterStateManager.setFKFilter(filter)
     }
 }

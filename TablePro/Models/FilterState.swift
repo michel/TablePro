@@ -90,6 +90,16 @@ final class FilterStateManager: ObservableObject {
         }
     }
 
+    /// Set a single FK navigation filter, replacing all existing state.
+    /// Used by FK navigation to apply an equality filter for the referenced column.
+    func setFKFilter(_ filter: TableFilter) {
+        filters = [filter]
+        appliedFilters = [filter]
+        isVisible = true
+        quickSearchText = ""
+        filterLogicMode = .and
+    }
+
     /// Duplicate a filter
     func duplicateFilter(_ filter: TableFilter) {
         var copy = filter
