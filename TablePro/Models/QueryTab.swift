@@ -102,6 +102,7 @@ struct PaginationState: Equatable {
     var currentPage: Int = 1         // Current page number (1-based)
     var currentOffset: Int = 0       // Current OFFSET for SQL query
     var isLoading: Bool = false      // Loading indicator
+    var isApproximateRowCount: Bool = false  // True when totalRowCount is from fast estimate
 
     /// Default page size constant (used when no explicit value is provided)
     /// Note: For new tabs, callers should pass AppSettingsManager.shared.dataGrid.defaultPageSize
@@ -347,6 +348,9 @@ struct QueryTab: Identifiable, Equatable {
     // Version counter incremented when resultRows changes (used for sort caching)
     var resultVersion: Int
 
+    // Version counter incremented when FK/metadata arrives (Phase 2), used to invalidate caches
+    var metadataVersion: Int
+
     // Table creation options (for .createTable tabs only)
     var tableCreationOptions: TableCreationOptions?
 
@@ -383,6 +387,7 @@ struct QueryTab: Identifiable, Equatable {
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
         self.resultVersion = 0
+        self.metadataVersion = 0
         self.tableCreationOptions = nil
     }
 
@@ -415,6 +420,7 @@ struct QueryTab: Identifiable, Equatable {
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
         self.resultVersion = 0
+        self.metadataVersion = 0
         self.tableCreationOptions = nil
     }
 

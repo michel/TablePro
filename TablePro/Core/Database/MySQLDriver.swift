@@ -428,6 +428,27 @@ final class MySQLDriver: DatabaseDriver {
         }
     }
 
+    func fetchApproximateRowCount(table: String) async throws -> Int? {
+        let dbName = connection.database
+        let query = """
+            SELECT TABLE_ROWS
+            FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = '\(SQLEscaping.escapeStringLiteral(dbName))'
+              AND TABLE_NAME = '\(SQLEscaping.escapeStringLiteral(table))'
+            """
+
+        let result = try await execute(query: query)
+
+        guard let firstRow = result.rows.first,
+              let value = firstRow[0],
+              let count = Int(value)
+        else {
+            return nil
+        }
+
+        return count
+    }
+
     func fetchTableDDL(table: String) async throws -> String {
         // The `table` argument must be a valid MySQL/MariaDB table identifier, optionally
         // schema-qualified, and is interpolated verbatim into the query. Examples:

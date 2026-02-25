@@ -81,6 +81,10 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch foreign keys for a specific table
     func fetchForeignKeys(table: String) async throws -> [ForeignKeyInfo]
 
+    /// Fetch an approximate row count using fast database-specific metadata.
+    /// Returns nil if not available (e.g., SQLite). Used for instant pagination display.
+    func fetchApproximateRowCount(table: String) async throws -> Int?
+
     /// Fetch the DDL (CREATE TABLE statement) for a specific table
     func fetchTableDDL(table: String) async throws -> String
 
@@ -162,6 +166,8 @@ extension DatabaseDriver {
     func fetchDependentSequences(forTable table: String) async throws -> [(name: String, ddl: String)] {
         []
     }
+
+    func fetchApproximateRowCount(table: String) async throws -> Int? { nil }
 
     /// Default no-op implementation for drivers that don't support query cancellation
     func cancelQuery() throws {

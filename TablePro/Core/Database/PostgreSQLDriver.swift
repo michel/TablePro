@@ -521,6 +521,29 @@ final class PostgreSQLDriver: DatabaseDriver {
         }
     }
 
+    func fetchApproximateRowCount(table: String) async throws -> Int? {
+        let query = """
+            SELECT reltuples::bigint
+            FROM pg_class
+            WHERE relname = '\(SQLEscaping.escapeStringLiteral(table))'
+              AND relnamespace = (
+                  SELECT oid FROM pg_namespace WHERE nspname = 'public'
+              )
+            """
+
+        let result = try await execute(query: query)
+
+        guard let firstRow = result.rows.first,
+              let value = firstRow[0],
+              let count = Int(value)
+        else {
+            return nil
+        }
+
+        // pg_class.reltuples can be -1 if never analyzed
+        return count >= 0 ? count : nil
+    }
+
     func fetchTableDDL(table: String) async throws -> String {
         // PostgreSQL doesn't have a direct equivalent to SHOW CREATE TABLE
         // We need to reconstruct it from system catalogs in multiple queries

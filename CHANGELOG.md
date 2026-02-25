@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Foreign key columns now show a navigation arrow icon in each cell — click to open the referenced table filtered by the FK value
 
 ### Changed
+- Metadata queries (columns, FKs, row count) now run on a dedicated parallel connection, eliminating 200-300ms delay for FK arrows and pagination count on initial table load
+- Approximate row count from database metadata displays instantly with data; exact count refines silently in the background
 - Add syntax highlighting to Import SQL file preview
 - XLSX export now enforces the Excel row limit (1,048,576) per sheet and uses autoreleasepool per row to reduce peak memory during large exports
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing

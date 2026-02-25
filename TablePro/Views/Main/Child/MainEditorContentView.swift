@@ -18,20 +18,6 @@ private struct SortedRowsCache {
     let resultVersion: Int
 }
 
-/// Trigger struct for coalesced row-provider rebuilds.
-/// Combining selectedTabId and resultVersion into one Equatable value
-/// lets SwiftUI fire a single onChange instead of two independent ones.
-private struct RowProviderTrigger: Equatable {
-    let tabId: UUID?
-    let resultVersion: Int?
-}
-
-/// Reference-type box for lazy AnyChangeManager creation.
-/// Avoids creating Combine pipelines during SwiftUI body evaluation.
-private final class ChangeManagerBox {
-    var manager: AnyChangeManager?
-}
-
 /// Main editor content with tab bar and content switching
 struct MainEditorContentView: View {
     // MARK: - Dependencies
@@ -77,22 +63,19 @@ struct MainEditorContentView: View {
     @State private var cachedRowProvider: InMemoryRowProvider?
     @State private var cachedProviderTabId: UUID?
     @State private var cachedProviderVersion: Int = -1
-    @State private var changeManagerBox = ChangeManagerBox()
+    @State private var cachedProviderMetadataVersion: Int = -1
+    @State private var cachedChangeManager: AnyChangeManager?
 
     // MARK: - Environment
 
     @EnvironmentObject private var appState: AppState
 
-    /// Returns the cached AnyChangeManager, creating it lazily on first access.
-    /// Uses a reference-type box so the instance is created once without
-    /// triggering a SwiftUI state change during body evaluation.
+    /// Returns the cached AnyChangeManager, creating it on first access.
     private var currentChangeManager: AnyChangeManager {
-        if let existing = changeManagerBox.manager {
+        if let existing = cachedChangeManager {
             return existing
         }
-        let manager = AnyChangeManager(dataManager: changeManager)
-        changeManagerBox.manager = manager
-        return manager
+        return AnyChangeManager(dataManager: changeManager)
     }
 
     // MARK: - Body
@@ -137,25 +120,39 @@ struct MainEditorContentView: View {
         }
         .onAppear {
             updateHasQueryText()
+            cachedChangeManager = AnyChangeManager(dataManager: changeManager)
             if let tab = tabManager.selectedTab {
                 let provider = makeRowProvider(for: tab)
                 cachedRowProvider = provider
                 cachedProviderTabId = tab.id
                 cachedProviderVersion = tab.resultVersion
+                cachedProviderMetadataVersion = tab.metadataVersion
             }
         }
-        .onChange(of: RowProviderTrigger(
-            tabId: tabManager.selectedTabId,
-            resultVersion: tabManager.selectedTab?.resultVersion
-        )) { _, trigger in
+        .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
+            guard let tab = tabManager.selectedTab, let version = newVersion else { return }
+            let provider = makeRowProvider(for: tab)
+            cachedRowProvider = provider
+            cachedProviderTabId = tab.id
+            cachedProviderVersion = version
+            cachedProviderMetadataVersion = tab.metadataVersion
+        }
+        .onChange(of: tabManager.selectedTab?.metadataVersion) { _, _ in
             guard let tab = tabManager.selectedTab else { return }
-            if cachedProviderTabId != trigger.tabId
-                || cachedProviderVersion != (trigger.resultVersion ?? -1)
-            {
+            let provider = makeRowProvider(for: tab)
+            cachedRowProvider = provider
+            cachedProviderTabId = tab.id
+            cachedProviderVersion = tab.resultVersion
+            cachedProviderMetadataVersion = tab.metadataVersion
+        }
+        .onChange(of: tabManager.selectedTabId) { _, newId in
+            guard let tab = tabManager.selectedTab, let id = newId else { return }
+            if cachedProviderTabId != id {
                 let provider = makeRowProvider(for: tab)
                 cachedRowProvider = provider
-                cachedProviderTabId = tab.id
+                cachedProviderTabId = id
                 cachedProviderVersion = tab.resultVersion
+                cachedProviderMetadataVersion = tab.metadataVersion
             }
         }
     }
@@ -331,6 +328,7 @@ struct MainEditorContentView: View {
             rowProvider: currentRowProvider,
             changeManager: currentChangeManager,
             resultVersion: tab.resultVersion,
+            metadataVersion: tab.metadataVersion,
             isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
             onCommit: onCommit,
             onRefresh: onRefresh,
@@ -361,7 +359,8 @@ struct MainEditorContentView: View {
     private var currentRowProvider: InMemoryRowProvider {
         if let cached = cachedRowProvider,
            cachedProviderTabId == tabManager.selectedTabId,
-           cachedProviderVersion == tabManager.selectedTab?.resultVersion ?? -1 {
+           cachedProviderVersion == tabManager.selectedTab?.resultVersion ?? -1,
+           cachedProviderMetadataVersion == tabManager.selectedTab?.metadataVersion ?? -1 {
             return cached
         }
         guard let tab = tabManager.selectedTab else {

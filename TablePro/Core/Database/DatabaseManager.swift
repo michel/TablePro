@@ -43,6 +43,12 @@ final class DatabaseManager: ObservableObject {
         currentSession?.driver
     }
 
+    /// Dedicated driver for metadata queries (columns, FKs, count).
+    /// Runs on a separate serial queue so metadata fetches don't block the main query.
+    var activeMetadataDriver: DatabaseDriver? {
+        currentSession?.metadataDriver
+    }
+
     /// Current connection status
     var status: ConnectionStatus {
         currentSession?.status ?? .disconnected
@@ -128,6 +134,26 @@ final class DatabaseManager: ObservableObject {
             if connection.type != .sqlite {
                 await startHealthMonitor(for: connection.id)
             }
+
+            // Create a dedicated metadata connection in the background so Phase 2
+            // metadata queries (columns, FKs, count) run in parallel with main queries.
+            let metaConnection = effectiveConnection
+            let metaConnectionId = connection.id
+            let metaTimeout = AppSettingsManager.shared.general.queryTimeoutSeconds
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let metaDriver = DatabaseDriverFactory.createDriver(for: metaConnection)
+                    try await metaDriver.connect()
+                    if metaTimeout > 0 {
+                        try? await metaDriver.applyQueryTimeout(metaTimeout)
+                    }
+                    activeSessions[metaConnectionId]?.metadataDriver = metaDriver
+                } catch {
+                    // Non-fatal: Phase 2 falls back to main driver if metadata driver unavailable
+                    Self.logger.warning("Metadata connection failed: \(error.localizedDescription)")
+                }
+            }
         } catch {
             // Close tunnel if connection failed
             if connection.sshConfig.enabled {
@@ -175,6 +201,7 @@ final class DatabaseManager: ObservableObject {
         // Stop health monitoring
         await stopHealthMonitor(for: sessionId)
 
+        session.metadataDriver?.disconnect()
         session.driver?.disconnect()
         activeSessions.removeValue(forKey: sessionId)
 

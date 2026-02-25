@@ -14,6 +14,7 @@ struct ConnectionSession: Identifiable {
     /// The connection used to create the driver (may differ from `connection` for SSH tunneled connections)
     var effectiveConnection: DatabaseConnection?
     var driver: DatabaseDriver?
+    var metadataDriver: DatabaseDriver?
     var status: ConnectionStatus = .disconnected
     var lastError: String?
 
