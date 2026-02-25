@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Quick search and filter rows can now be combined — when both are active, their WHERE conditions are joined with AND
 - Foreign key columns now show a navigation arrow icon in each cell — click to open the referenced table filtered by the FK value
 
 ### Changed

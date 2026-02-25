@@ -53,6 +53,7 @@ struct TableQueryBuilder {
     /// - Parameters:
     ///   - tableName: The table to query
     ///   - filters: Array of filters to apply
+    ///   - logicMode: AND/OR logic for combining filters
     ///   - sortState: Optional sort state
     ///   - columns: Available columns
     ///   - limit: Row limit (default 200)
@@ -61,6 +62,7 @@ struct TableQueryBuilder {
     func buildFilteredQuery(
         tableName: String,
         filters: [TableFilter],
+        logicMode: FilterLogicMode = .and,
         sortState: SortState? = nil,
         columns: [String] = [],
         limit: Int = 200,
@@ -71,7 +73,7 @@ struct TableQueryBuilder {
 
         // Add WHERE clause from filters
         let generator = FilterSQLGenerator(databaseType: databaseType)
-        let whereClause = generator.generateWhereClause(from: filters)
+        let whereClause = generator.generateWhereClause(from: filters, logicMode: logicMode)
         if !whereClause.isEmpty {
             query += " \(whereClause)"
         }
@@ -115,6 +117,66 @@ struct TableQueryBuilder {
 
         if !conditions.isEmpty {
             query += " WHERE (" + conditions.joined(separator: " OR ") + ")"
+        }
+
+        // Add ORDER BY
+        if let orderBy = buildOrderByClause(sortState: sortState, columns: columns) {
+            query += " \(orderBy)"
+        }
+
+        query += " LIMIT \(limit) OFFSET \(offset)"
+        return query
+    }
+
+    /// Build a query combining filter rows AND quick search
+    /// - Parameters:
+    ///   - tableName: The table to query
+    ///   - filters: Array of filters to apply
+    ///   - logicMode: AND/OR logic for combining filters
+    ///   - searchText: Quick search text
+    ///   - searchColumns: Columns for quick search
+    ///   - sortState: Optional sort state
+    ///   - columns: Available columns (for sort validation)
+    ///   - limit: Row limit
+    ///   - offset: Pagination offset
+    /// - Returns: Complete SQL query with both filter WHERE clause and quick search conditions
+    func buildCombinedQuery(
+        tableName: String,
+        filters: [TableFilter],
+        logicMode: FilterLogicMode = .and,
+        searchText: String,
+        searchColumns: [String],
+        sortState: SortState? = nil,
+        columns: [String] = [],
+        limit: Int = 200,
+        offset: Int = 0
+    ) -> String {
+        let quotedTable = databaseType.quoteIdentifier(tableName)
+        var query = "SELECT * FROM \(quotedTable)"
+
+        // Build filter conditions
+        let generator = FilterSQLGenerator(databaseType: databaseType)
+        let filterConditions = generator.generateConditions(from: filters, logicMode: logicMode)
+
+        // Build quick search conditions
+        let escapedSearch = escapeForLike(searchText)
+        let searchConditions = searchColumns.map { column -> String in
+            let quotedColumn = databaseType.quoteIdentifier(column)
+            return buildLikeCondition(column: quotedColumn, searchText: escapedSearch)
+        }
+        let searchClause = searchConditions.isEmpty ? "" : "(" + searchConditions.joined(separator: " OR ") + ")"
+
+        // Combine with AND
+        var whereParts: [String] = []
+        if !filterConditions.isEmpty {
+            whereParts.append("(\(filterConditions))")
+        }
+        if !searchClause.isEmpty {
+            whereParts.append(searchClause)
+        }
+
+        if !whereParts.isEmpty {
+            query += " WHERE " + whereParts.joined(separator: " AND ")
         }
 
         // Add ORDER BY

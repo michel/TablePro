@@ -18,14 +18,33 @@ extension MainContentCoordinator {
         // Reset pagination when filters change
         tabManager.tabs[tabIndex].pagination.reset()
 
-        let newQuery = queryBuilder.buildFilteredQuery(
-            tableName: tableName,
-            filters: filters,
-            sortState: tabManager.tabs[tabIndex].sortState,
-            columns: tabManager.tabs[tabIndex].resultColumns,
-            limit: tabManager.tabs[tabIndex].pagination.pageSize,
-            offset: tabManager.tabs[tabIndex].pagination.currentOffset
-        )
+        let tab = tabManager.tabs[tabIndex]
+        let newQuery: String
+
+        // Combine with quick search if active
+        if filterStateManager.hasActiveQuickSearch {
+            newQuery = queryBuilder.buildCombinedQuery(
+                tableName: tableName,
+                filters: filters,
+                logicMode: filterStateManager.filterLogicMode,
+                searchText: filterStateManager.quickSearchText,
+                searchColumns: tab.resultColumns,
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        } else {
+            newQuery = queryBuilder.buildFilteredQuery(
+                tableName: tableName,
+                filters: filters,
+                logicMode: filterStateManager.filterLogicMode,
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        }
 
         tabManager.tabs[tabIndex].query = newQuery
 
@@ -46,14 +65,31 @@ extension MainContentCoordinator {
         tabManager.tabs[tabIndex].pagination.reset()
 
         let tab = tabManager.tabs[tabIndex]
-        let newQuery = queryBuilder.buildQuickSearchQuery(
-            tableName: tableName,
-            searchText: searchText,
-            columns: tab.resultColumns,
-            sortState: tab.sortState,
-            limit: tab.pagination.pageSize,
-            offset: tab.pagination.currentOffset
-        )
+        let newQuery: String
+
+        // Combine with applied filters if present
+        if filterStateManager.hasAppliedFilters {
+            newQuery = queryBuilder.buildCombinedQuery(
+                tableName: tableName,
+                filters: filterStateManager.appliedFilters,
+                logicMode: filterStateManager.filterLogicMode,
+                searchText: searchText,
+                searchColumns: tab.resultColumns,
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        } else {
+            newQuery = queryBuilder.buildQuickSearchQuery(
+                tableName: tableName,
+                searchText: searchText,
+                columns: tab.resultColumns,
+                sortState: tab.sortState,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        }
 
         tabManager.tabs[tabIndex].query = newQuery
         runQuery()
@@ -82,18 +118,35 @@ extension MainContentCoordinator {
               let tableName = tabManager.tabs[tabIndex].tableName else { return }
 
         let tab = tabManager.tabs[tabIndex]
-        var newQuery = queryBuilder.buildBaseQuery(
-            tableName: tableName,
-            sortState: tab.sortState,
-            columns: tab.resultColumns,
-            limit: tab.pagination.pageSize,
-            offset: tab.pagination.currentOffset
-        )
+        let hasFilters = filterStateManager.hasAppliedFilters
+        let hasSearch = filterStateManager.hasActiveQuickSearch
 
-        if filterStateManager.hasAppliedFilters {
+        let newQuery: String
+        if hasFilters && hasSearch {
+            newQuery = queryBuilder.buildCombinedQuery(
+                tableName: tableName,
+                filters: filterStateManager.appliedFilters,
+                logicMode: filterStateManager.filterLogicMode,
+                searchText: filterStateManager.quickSearchText,
+                searchColumns: tab.resultColumns,
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        } else if hasFilters {
             newQuery = queryBuilder.buildFilteredQuery(
                 tableName: tableName,
                 filters: filterStateManager.appliedFilters,
+                logicMode: filterStateManager.filterLogicMode,
+                sortState: tab.sortState,
+                columns: tab.resultColumns,
+                limit: tab.pagination.pageSize,
+                offset: tab.pagination.currentOffset
+            )
+        } else {
+            newQuery = queryBuilder.buildBaseQuery(
+                tableName: tableName,
                 sortState: tab.sortState,
                 columns: tab.resultColumns,
                 limit: tab.pagination.pageSize,
