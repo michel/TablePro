@@ -527,7 +527,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             FROM pg_class
             WHERE relname = '\(SQLEscaping.escapeStringLiteral(table))'
               AND relnamespace = (
-                  SELECT oid FROM pg_namespace WHERE nspname = 'public'
+                  SELECT oid FROM pg_namespace WHERE nspname = current_schema()
               )
             """
 

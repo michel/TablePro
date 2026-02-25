@@ -488,7 +488,8 @@ final class DatabaseManager: ObservableObject {
         await stopHealthMonitor(for: sessionId)
 
         do {
-            // Disconnect existing driver
+            // Disconnect existing drivers
+            session.metadataDriver?.disconnect()
             session.driver?.disconnect()
 
             // Recreate SSH tunnel if needed and build effective connection
@@ -509,6 +510,24 @@ final class DatabaseManager: ObservableObject {
                 session.driver = driver
                 session.status = .connected
                 session.effectiveConnection = effectiveConnection
+            }
+
+            // Recreate metadata connection in background
+            let metaConnection = effectiveConnection
+            let metaConnectionId = sessionId
+            let metaTimeout = AppSettingsManager.shared.general.queryTimeoutSeconds
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let metaDriver = DatabaseDriverFactory.createDriver(for: metaConnection)
+                    try await metaDriver.connect()
+                    if metaTimeout > 0 {
+                        try? await metaDriver.applyQueryTimeout(metaTimeout)
+                    }
+                    activeSessions[metaConnectionId]?.metadataDriver = metaDriver
+                } catch {
+                    Self.logger.warning("Metadata reconnection failed: \(error.localizedDescription)")
+                }
             }
 
             // Restart health monitoring

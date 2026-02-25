@@ -75,6 +75,8 @@ struct MainEditorContentView: View {
         if let existing = cachedChangeManager {
             return existing
         }
+        // Fallback before onAppear initializes cachedChangeManager.
+        // Safe: onAppear fires before any user interaction needs it.
         return AnyChangeManager(dataManager: changeManager)
     }
 
@@ -131,6 +133,8 @@ struct MainEditorContentView: View {
         }
         .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
             guard let tab = tabManager.selectedTab, let version = newVersion else { return }
+            // Skip if this fired due to tab switch — selectedTabId handler owns that
+            guard cachedProviderTabId == tab.id else { return }
             let provider = makeRowProvider(for: tab)
             cachedRowProvider = provider
             cachedProviderTabId = tab.id

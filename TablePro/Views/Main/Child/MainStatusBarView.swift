@@ -101,13 +101,6 @@ struct MainStatusBarView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    /// Cached decimal formatter to avoid allocation on every render
-    private static let decimalFormatter: NumberFormatter = {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        return formatter
-    }()
-
     /// Generate row info text based on selection and pagination state
     private func rowInfoText(for tab: QueryTab) -> String {
         let loadedCount = tab.resultRows.count
