@@ -92,6 +92,24 @@ final class FilterSettingsStorage {
     private let knownFilterKeysKey = "com.TablePro.filter.knownFilterKeys"
     private let defaults = UserDefaults.standard
 
+    /// In-memory cache for tracked filter keys. Lazy-loaded on first access
+    /// so that `trackKey`/`removeTrackedKey` avoid redundant UserDefaults reads.
+    private var _trackedKeys: Set<String>?
+
+    private var trackedKeys: Set<String> {
+        get {
+            if let cached = _trackedKeys { return cached }
+            let array = defaults.stringArray(forKey: knownFilterKeysKey) ?? []
+            let keys = Set(array)
+            _trackedKeys = keys
+            return keys
+        }
+        set {
+            _trackedKeys = newValue
+            defaults.set(Array(newValue), forKey: knownFilterKeysKey)
+        }
+    }
+
     private init() {}
 
     // MARK: - Settings
@@ -168,34 +186,28 @@ final class FilterSettingsStorage {
     /// Clear all stored last filters using the tracked key set instead of
     /// loading the full UserDefaults plist via `dictionaryRepresentation()`.
     func clearAllLastFilters() {
-        let keys = loadTrackedKeys()
-        for key in keys {
+        for key in trackedKeys {
             defaults.removeObject(forKey: key)
         }
+        _trackedKeys = nil
         defaults.removeObject(forKey: knownFilterKeysKey)
     }
 
     // MARK: - Key Tracking
 
-    /// Load the set of tracked per-table filter keys.
-    private func loadTrackedKeys() -> Set<String> {
-        let array = defaults.stringArray(forKey: knownFilterKeysKey) ?? []
-        return Set(array)
-    }
-
     /// Add a key to the tracked set.
     private func trackKey(_ key: String) {
-        var keys = loadTrackedKeys()
+        var keys = trackedKeys
         if keys.insert(key).inserted {
-            defaults.set(Array(keys), forKey: knownFilterKeysKey)
+            trackedKeys = keys
         }
     }
 
     /// Remove a key from the tracked set.
     private func removeTrackedKey(_ key: String) {
-        var keys = loadTrackedKeys()
+        var keys = trackedKeys
         if keys.remove(key) != nil {
-            defaults.set(Array(keys), forKey: knownFilterKeysKey)
+            trackedKeys = keys
         }
     }
 

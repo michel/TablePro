@@ -756,20 +756,21 @@ final class SQLContextAnalyzer {
             return true
         }
 
-        // Check for line comment on the last line, ignoring text inside block comments
-        // Start scanning from after the last block comment end, or from beginning
-        let scanStart = max(lastBlockEnd, 0)
+        // Check for line comment on the last line, ignoring text inside block comments.
+        // The scan for "--" must start from whichever is later: the position after
+        // the last newline or the position after the last block comment close ("*/").
+        // This prevents "--" inside a closed block comment from being misdetected.
+        let fullRange = NSRange(location: 0, length: length)
+        let lastNewlineRange = ns.range(of: "\n", options: .backwards, range: fullRange)
 
-        // Find the last newline at or after scanStart
-        let scanRange = NSRange(location: scanStart, length: length - scanStart)
-        let lastNewlineRange = ns.range(of: "\n", options: .backwards, range: scanRange)
-
-        let lineStart: Int
+        let lastNewlineLocation: Int
         if lastNewlineRange.location != NSNotFound {
-            lineStart = lastNewlineRange.location + 1
+            lastNewlineLocation = lastNewlineRange.location + 1
         } else {
-            lineStart = scanStart
+            lastNewlineLocation = 0
         }
+
+        let lineStart = max(lastNewlineLocation, max(lastBlockEnd, 0))
 
         guard lineStart < length else { return false }
 

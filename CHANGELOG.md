@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merged `fetchDatabaseMetadata` into single query for MySQL and PostgreSQL
 - Health ping now uses dedicated metadata driver to avoid blocking user queries
 - SSH tunnel setup extracted into shared helper to eliminate code duplication
-- PostgreSQL DDL queries dispatched concurrently with `async let`
+- PostgreSQL DDL queries restructured with `async let` for cleaner dispatch (sequential on serial connection queue)
 - Cancel query connection now uses 5-second connect timeout
 - PostgreSQL connection parameters properly escaped for special characters
 - SQLite `fetchAllColumns` overridden with single `sqlite_master` + `pragma_table_info` query

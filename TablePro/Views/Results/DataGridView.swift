@@ -273,11 +273,6 @@ struct DataGridView: NSViewRepresentable {
         shouldRebuild: Bool,
         structureChanged: Bool
     ) {
-        // Skip column sync when an async layout write-back is pending —
-        // prevents the two-frame bounce where stale widths are applied
-        // before the async block updates them.
-        if coordinator.isWritingColumnLayout { return }
-
         if shouldRebuild {
             coordinator.isRebuildingColumns = true
             defer { coordinator.isRebuildingColumns = false }
@@ -368,6 +363,11 @@ struct DataGridView: NSViewRepresentable {
             for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
                 column.isEditable = isEditable
             }
+
+            // Skip layout capture when an async layout write-back is pending —
+            // prevents the two-frame bounce where stale widths are applied
+            // before the async block updates them.
+            guard !coordinator.isWritingColumnLayout else { return }
 
             // Capture current column layout from user interactions (resize/reorder)
             // Only done in the non-rebuild path to avoid feedback loops

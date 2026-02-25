@@ -607,6 +607,17 @@ final class MariaDBConnection: @unchecked Sendable {
                 // Drain unfetched rows before freeing — required for mysql_use_result
                 // to avoid leaving the connection in a bad state
                 while mysql_fetch_row(resultPtr) != nil {}
+                // mysql_fetch_row returns NULL for both end-of-data and errors.
+                // Check mysql_errno to detect network errors mid-drain that would
+                // leave the connection in a broken protocol state.
+                if mysql_errno(mysql) != 0 {
+                    let errorMsg = String(cString: mysql_error(mysql))
+                    mysql_free_result(resultPtr)
+                    throw MariaDBError(
+                        code: mysql_errno(mysql),
+                        message: "Error draining result set during cancellation: \(errorMsg)",
+                        sqlState: nil)
+                }
                 mysql_free_result(resultPtr)
                 throw MariaDBError(code: 0, message: "Query cancelled", sqlState: nil)
             }
@@ -651,6 +662,17 @@ final class MariaDBConnection: @unchecked Sendable {
             // connection in a clean state for subsequent queries. The server streams
             // remaining rows over the wire; we discard them without copying to Swift.
             while mysql_fetch_row(resultPtr) != nil {}
+            // mysql_fetch_row returns NULL for both end-of-data and errors.
+            // Check mysql_errno to detect network errors mid-drain that would
+            // leave the connection in a broken protocol state.
+            if mysql_errno(mysql) != 0 {
+                let errorMsg = String(cString: mysql_error(mysql))
+                mysql_free_result(resultPtr)
+                throw MariaDBError(
+                    code: mysql_errno(mysql),
+                    message: "Error draining result set: \(errorMsg)",
+                    sqlState: nil)
+            }
         }
 
         // Free result set - CRITICAL to avoid memory leaks

@@ -97,8 +97,11 @@ final class ImportService: ObservableObject {
         let attrs = try FileManager.default.attributesOfItem(atPath: fileURL.path(percentEncoded: false))
         let fileSizeBytes = attrs[.size] as? Int64 ?? 0
 
-        // Rough heuristic: ~200 bytes per statement on average
-        let estimatedStatements = max(1, Int(fileSizeBytes / 200))
+        // Rough heuristic: ~500 bytes per statement on average.
+        // SQL dumps typically contain large INSERT/DDL statements (5k-50k bytes each),
+        // so a smaller divisor (e.g. 200) grossly overestimates the count and causes the
+        // progress bar to crawl and never visually reach 100%.
+        let estimatedStatements = max(1, Int(fileSizeBytes / 500))
         totalStatements = estimatedStatements
 
         try checkCancellation()
@@ -154,6 +157,11 @@ final class ImportService: ObservableObject {
                     )
                 }
             }
+
+            // Update to actual count so UI shows correct final state
+            totalStatements = executedCount
+            currentStatementIndex = executedCount
+            progress = 1.0
 
             // 7. Commit transaction (if enabled)
             if config.wrapInTransaction {

@@ -451,8 +451,13 @@ final class QueryHistoryStorage {
         let maxEntries = cachedMaxHistoryEntries
         settingsLock.unlock()
 
-        // Wrap all cleanup operations in a single transaction to reduce journal flushes
-        execute("BEGIN IMMEDIATE;")
+        // Try to wrap all cleanup operations in a single transaction to reduce journal flushes.
+        // If BEGIN IMMEDIATE fails (e.g., WAL write contention), fall back to auto-commit mode
+        // so cleanup still runs — just without the single-transaction optimization.
+        let inTransaction = sqlite3_exec(db, "BEGIN IMMEDIATE;", nil, nil, nil) == SQLITE_OK
+        if !inTransaction {
+            Self.logger.warning("Failed to begin transaction for cleanup, falling back to auto-commit")
+        }
 
         // Skip cleanup if days is unlimited
         if maxDays < Int.max {
@@ -501,7 +506,12 @@ final class QueryHistoryStorage {
             }
         }
 
-        execute("COMMIT;")
+        if inTransaction {
+            if sqlite3_exec(db, "COMMIT;", nil, nil, nil) != SQLITE_OK {
+                Self.logger.warning("Failed to commit cleanup transaction, attempting rollback")
+                sqlite3_exec(db, "ROLLBACK;", nil, nil, nil)
+            }
+        }
     }
 
     /// Manually trigger cleanup (call on app launch if autoCleanup is enabled)

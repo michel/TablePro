@@ -574,7 +574,8 @@ final class PostgreSQLDriver: DatabaseDriver {
             ORDER BY indexname
             """
 
-        // Dispatch all three queries concurrently to minimize inter-query scheduling overhead
+        // Dispatch all three queries independently via async let for cleaner control flow;
+        // they execute sequentially on LibPQConnection's serial queue
         async let columnsResult = execute(query: columnsQuery)
         async let constraintsResult = execute(query: constraintsQuery)
         async let indexesResult = execute(query: indexesQuery)
