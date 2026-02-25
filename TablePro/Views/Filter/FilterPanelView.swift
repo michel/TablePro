@@ -135,8 +135,15 @@ struct FilterPanelView: View {
         Menu {
             if !savedPresets.isEmpty {
                 ForEach(savedPresets) { preset in
-                    Button(preset.name) {
-                        filterState.loadPreset(preset)
+                    Button(action: { filterState.loadPreset(preset) }) {
+                        HStack {
+                            Text(preset.name)
+                            if !presetColumnsMatch(preset) {
+                                Spacer()
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.yellow)
+                            }
+                        }
                     }
                 }
                 Divider()
@@ -193,7 +200,7 @@ struct FilterPanelView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
             }
-            .frame(maxHeight: min(CGFloat(filterState.filters.count) * 40 + 8, 160))
+            .frame(maxHeight: min(CGFloat(filterState.filters.count) * 42 + 8, 200))
             .onChange(of: filterState.focusedFilterId) { _, newFocusedId in
                 if let focusedId = newFocusedId {
                     withAnimation(.easeInOut(duration: 0.25)) {
@@ -252,6 +259,12 @@ struct FilterPanelView: View {
             get: { filterState.allFiltersSelected },
             set: { filterState.selectAll($0) }
         )
+    }
+
+    /// Check if all columns referenced in a preset exist in the current table's columns
+    private func presetColumnsMatch(_ preset: FilterPreset) -> Bool {
+        let presetColumns = preset.filters.map(\.columnName).filter { $0 != TableFilter.rawSQLColumn }
+        return presetColumns.allSatisfy { columns.contains($0) }
     }
 
     private func applySingleFilter(_ filter: TableFilter) {
