@@ -341,7 +341,7 @@ final class MainContentCoordinator: ObservableObject {
     }
 
     /// Internal query execution (called after any confirmations)
-    private func executeQueryInternal( // swiftlint:disable:this function_body_length
+    private func executeQueryInternal(
         _ sql: String
     ) {
         guard let index = tabManager.selectedTabIndex else { return }
@@ -378,32 +378,17 @@ final class MainContentCoordinator: ObservableObject {
             guard let self else { return }
 
             do {
-
                 // Pre-check metadata cache before starting any queries.
-                // Phase 1 doesn't clear metadata fields, so the cache state is
-                // the same whether we check before or after the main query.
-                typealias SchemaResult = (columnInfo: [ColumnInfo], fkInfo: [ForeignKeyInfo], approximateRowCount: Int?)
                 var parallelSchemaTask: Task<SchemaResult, Error>?
                 var needsMetadataFetch = false
 
                 if isEditable, let tableName = tableName {
-                    let alreadyCached: Bool = {
-                        guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else {
-                            return false
-                        }
-                        let tab = tabManager.tabs[idx]
-                        return tab.tableName == tableName
-                            && !tab.columnDefaults.isEmpty
-                            && tab.primaryKeyColumn != nil
-                    }()
-
-                    needsMetadataFetch = !alreadyCached
+                    needsMetadataFetch = !isMetadataCached(tabId: tabId, tableName: tableName)
 
                     // If metadata is NOT cached and a dedicated metadata driver exists,
                     // start fetching columns+FKs on the separate connection so it runs
-                    // in parallel with the main query. COUNT(*) runs on the main driver
-                    // after the main query finishes to utilize both connections fully.
-                    if !alreadyCached, let metaDriver = DatabaseManager.shared.activeMetadataDriver {
+                    // in parallel with the main query.
+                    if needsMetadataFetch, let metaDriver = DatabaseManager.shared.activeMetadataDriver {
                         parallelSchemaTask = Task {
                             async let cols = metaDriver.fetchColumns(table: tableName)
                             async let fks = metaDriver.fetchForeignKeys(table: tableName)
@@ -417,16 +402,13 @@ final class MainContentCoordinator: ObservableObject {
                 // Main data query (on primary driver — runs concurrently with metadata)
                 let result = try await DatabaseManager.shared.execute(query: effectiveSQL)
 
-                // Phase 1: Result data is already Swift-owned strings from the driver;
-                // no need to deep copy with String($0).
                 let safeColumns = result.columns
-                let safeColumnTypes = result.columnTypes  // Column types are already value types (enum)
+                let safeColumnTypes = result.columnTypes
                 let safeRows = result.rows.enumerated().map { index, row in
                     QueryResultRow(id: index, values: row)
                 }
                 let safeExecutionTime = result.executionTime
                 let safeRowsAffected = result.rowsAffected
-                let safeTableName = tableName
 
                 guard !Task.isCancelled else {
                     parallelSchemaTask?.cancel()
@@ -441,53 +423,19 @@ final class MainContentCoordinator: ObservableObject {
                     return
                 }
 
-                // Await schema result before Phase 1 so data + FK arrows appear
-                // in a single MainActor update (avoids MainActor contention from
-                // separate Phase 1 → Phase 2a hops that cause 200ms+ delays).
+                // Await schema result before Phase 1 so data + FK arrows appear together
                 var schemaResult: SchemaResult?
                 if needsMetadataFetch {
-                    if let parallelSchemaTask {
-                        schemaResult = try? await parallelSchemaTask.value
-                    } else if let driver = DatabaseManager.shared.activeDriver {
-                        do {
-                            async let cols = driver.fetchColumns(table: tableName ?? "")
-                            async let fks = driver.fetchForeignKeys(table: tableName ?? "")
-                            let (c, f) = try await (cols, fks)
-                            let approxCount = try? await driver.fetchApproximateRowCount(table: tableName ?? "")
-                            schemaResult = (columnInfo: c, fkInfo: f, approximateRowCount: approxCount)
-                        } catch {
-                            Self.logger.error("Phase 2 schema fetch failed: \(error.localizedDescription)")
-                        }
-                    }
+                    schemaResult = await awaitSchemaResult(
+                        parallelTask: parallelSchemaTask,
+                        tableName: tableName ?? ""
+                    )
                 }
 
-                // Prepare FK/column metadata if schema is available
-                var columnDefaults: [String: String?]?
-                var columnForeignKeys: [String: ForeignKeyInfo]?
-                var columnNullable: [String: Bool]?
-                var primaryKeyColumn: String?
-                if let schema = schemaResult {
-                    var defaults: [String: String?] = [:]
-                    var fks: [String: ForeignKeyInfo] = [:]
-                    var nullable: [String: Bool] = [:]
-                    for col in schema.columnInfo {
-                        defaults[col.name] = col.defaultValue
-                        nullable[col.name] = col.isNullable
-                    }
-                    for fk in schema.fkInfo {
-                        fks[fk.column] = fk
-                    }
-                    columnDefaults = defaults
-                    columnForeignKeys = fks
-                    columnNullable = nullable
-                    primaryKeyColumn = schema.columnInfo.first(where: { $0.isPrimaryKey })?.name
-                }
-
-                // COUNT(*) will be launched as fire-and-forget after Phase 1 display.
+                // Parse schema metadata if available
+                let metadata = schemaResult.map { parseSchemaMetadata($0) }
 
                 // Phase 1: Display data rows + FK arrows in a single MainActor update.
-                // By awaiting schema above, we avoid a second MainActor hop that would
-                // queue behind SwiftUI's grid re-render (200ms+ contention).
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     currentQueryTask = nil
@@ -497,127 +445,32 @@ final class MainContentCoordinator: ObservableObject {
                     guard capturedGeneration == queryGeneration else { return }
                     guard !Task.isCancelled else { return }
 
-                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        var updatedTab = tabManager.tabs[idx]
-                        updatedTab.resultColumns = safeColumns
-                        updatedTab.columnTypes = safeColumnTypes
-                        updatedTab.resultRows = safeRows
-                        updatedTab.resultVersion += 1
-                        updatedTab.executionTime = safeExecutionTime
-                        updatedTab.rowsAffected = safeRowsAffected
-                        updatedTab.isExecuting = false
-                        updatedTab.lastExecutedAt = Date()
-                        updatedTab.tableName = safeTableName
-                        updatedTab.isEditable = isEditable && updatedTab.isEditable
-
-                        // Merge FK metadata into the same update if available
-                        if let defaults = columnDefaults {
-                            updatedTab.columnDefaults = defaults
-                        }
-                        if let fks = columnForeignKeys {
-                            updatedTab.columnForeignKeys = fks
-                        }
-                        if let nullable = columnNullable {
-                            updatedTab.columnNullable = nullable
-                        }
-                        if let approxCount = schemaResult?.approximateRowCount, approxCount > 0 {
-                            updatedTab.pagination.totalRowCount = approxCount
-                            updatedTab.pagination.isApproximateRowCount = true
-                        }
-                        if schemaResult != nil {
-                            updatedTab.metadataVersion += 1
-                        }
-
-                        tabManager.tabs[idx] = updatedTab
-                        AppState.shared.isCurrentTabEditable = updatedTab.isEditable
-                            && !updatedTab.isView && updatedTab.tableName != nil
-                        toolbarState.isTableTab = updatedTab.tabType == .table
-
-                        if let pk = primaryKeyColumn {
-                            tabManager.tabs[idx].primaryKeyColumn = pk
-                        }
-
-                        if tabManager.selectedTabId == tabId, let pk = primaryKeyColumn {
-                            changeManager.configureForTable(
-                                tableName: tableName ?? "",
-                                columns: safeColumns,
-                                primaryKeyColumn: pk,
-                                databaseType: conn.type
-                            )
-                        }
-
-                        QueryHistoryManager.shared.recordQuery(
-                            query: sql,
-                            connectionId: conn.id,
-                            databaseName: conn.database,
-                            executionTime: safeExecutionTime,
-                            rowCount: safeRows.count,
-                            wasSuccessful: true,
-                            errorMessage: nil
-                        )
-
-                        // Clear stale edit state immediately so the save banner
-                        // doesn't linger while Phase 2 metadata loads in background.
-                        if isEditable {
-                            changeManager.clearChanges()
-                        }
-                    }
+                    applyPhase1Result(
+                        tabId: tabId,
+                        columns: safeColumns,
+                        columnTypes: safeColumnTypes,
+                        rows: safeRows,
+                        executionTime: safeExecutionTime,
+                        rowsAffected: safeRowsAffected,
+                        tableName: tableName,
+                        isEditable: isEditable,
+                        metadata: metadata,
+                        hasSchema: schemaResult != nil,
+                        sql: sql,
+                        connection: conn
+                    )
                 }
 
                 // Phase 2: Background exact COUNT + enum values.
                 if isEditable, let tableName = tableName, needsMetadataFetch {
-                    // Phase 2a: Fire-and-forget exact COUNT(*) to refine approximate count.
-                    let capturedGen = capturedGeneration
-                    let quotedTable = conn.type.quoteIdentifier(tableName)
-                    Task { [weak self] in
-                        guard let self else { return }
-                        guard let mainDriver = DatabaseManager.shared.activeDriver else { return }
-                        let countResult = try? await mainDriver.execute(
-                            query: "SELECT COUNT(*) FROM \(quotedTable)"
-                        )
-                        if let firstRow = countResult?.rows.first,
-                           let countStr = firstRow.first ?? nil,
-                           let count = Int(countStr) {
-                            await MainActor.run { [weak self] in
-                                guard let self else { return }
-                                guard capturedGen == queryGeneration else { return }
-                                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                                    tabManager.tabs[idx].pagination.totalRowCount = count
-                                    tabManager.tabs[idx].pagination.isApproximateRowCount = false
-                                }
-                            }
-                        }
-                    }
-
-                    // Phase 2b: Fetch enum/set values
-                    if let schema = schemaResult {
-                        let enumDriver = DatabaseManager.shared.activeMetadataDriver
-                            ?? DatabaseManager.shared.activeDriver
-                        if let enumDriver {
-                            let columnEnumValues = await self.fetchEnumValues(
-                                columnInfo: schema.columnInfo,
-                                tableName: tableName,
-                                driver: enumDriver,
-                                connectionType: conn.type
-                            )
-
-                            if !columnEnumValues.isEmpty {
-                                await MainActor.run { [weak self] in
-                                    guard let self else { return }
-                                    guard capturedGen == queryGeneration else { return }
-                                    guard !Task.isCancelled else { return }
-
-                                    if let idx = tabManager.tabs.firstIndex(where: {
-                                        $0.id == tabId
-                                    }) {
-                                        tabManager.tabs[idx].columnEnumValues = columnEnumValues
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    launchPhase2Work(
+                        tableName: tableName,
+                        tabId: tabId,
+                        capturedGeneration: capturedGeneration,
+                        connectionType: conn.type,
+                        schemaResult: schemaResult
+                    )
                 } else if !isEditable || tableName == nil {
-                    // For non-editable query results, just clear changes
                     await MainActor.run { [weak self] in
                         guard let self else { return }
                         guard capturedGeneration == queryGeneration else { return }
@@ -630,42 +483,7 @@ final class MainContentCoordinator: ObservableObject {
 
                 await MainActor.run { [weak self] in
                     guard let self else { return }
-                    currentQueryTask = nil
-                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                        var errTab = tabManager.tabs[idx]
-                        errTab.errorMessage = error.localizedDescription
-                        errTab.isExecuting = false
-                        tabManager.tabs[idx] = errTab
-                    }
-                    toolbarState.setExecuting(false)
-
-                    QueryHistoryManager.shared.recordQuery(
-                        query: sql,
-                        connectionId: conn.id,
-                        databaseName: conn.database,
-                        executionTime: 0,
-                        rowCount: 0,
-                        wasSuccessful: false,
-                        errorMessage: error.localizedDescription
-                    )
-
-                    // Show error alert with AI fix option
-                    let errorMessage = error.localizedDescription
-                    let queryCopy = sql
-                    Task { @MainActor in
-                        let wantsAIFix = await AlertHelper.showQueryErrorWithAIOption(
-                            title: String(localized: "Query Execution Failed"),
-                            message: errorMessage,
-                            window: NSApp.keyWindow
-                        )
-                        if wantsAIFix {
-                            NotificationCenter.default.post(
-                                name: .aiFixError,
-                                object: nil,
-                                userInfo: ["query": queryCopy, "error": errorMessage]
-                            )
-                        }
-                    }
+                    handleQueryExecutionError(error, sql: sql, tabId: tabId, connection: conn)
                 }
             }
         }
@@ -1509,5 +1327,254 @@ final class MainContentCoordinator: ObservableObject {
     func closeCurrentTab() {
         guard let tab = tabManager.selectedTab else { return }
         tabManager.closeTab(tab)
+    }
+}
+
+// MARK: - Query Execution Helpers
+
+private extension MainContentCoordinator {
+    /// Parsed schema metadata ready to apply to a tab
+    struct ParsedSchemaMetadata {
+        let columnDefaults: [String: String?]
+        let columnForeignKeys: [String: ForeignKeyInfo]
+        let columnNullable: [String: Bool]
+        let primaryKeyColumn: String?
+        let approximateRowCount: Int?
+    }
+
+    /// Schema result from parallel or sequential metadata fetch
+    typealias SchemaResult = (columnInfo: [ColumnInfo], fkInfo: [ForeignKeyInfo], approximateRowCount: Int?)
+
+    /// Parse a SchemaResult into dictionaries ready for tab assignment
+    func parseSchemaMetadata(_ schema: SchemaResult) -> ParsedSchemaMetadata {
+        var defaults: [String: String?] = [:]
+        var fks: [String: ForeignKeyInfo] = [:]
+        var nullable: [String: Bool] = [:]
+        for col in schema.columnInfo {
+            defaults[col.name] = col.defaultValue
+            nullable[col.name] = col.isNullable
+        }
+        for fk in schema.fkInfo {
+            fks[fk.column] = fk
+        }
+        return ParsedSchemaMetadata(
+            columnDefaults: defaults,
+            columnForeignKeys: fks,
+            columnNullable: nullable,
+            primaryKeyColumn: schema.columnInfo.first(where: { $0.isPrimaryKey })?.name,
+            approximateRowCount: schema.approximateRowCount
+        )
+    }
+
+    /// Check whether metadata is already cached for the given table in a tab
+    func isMetadataCached(tabId: UUID, tableName: String) -> Bool {
+        guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else {
+            return false
+        }
+        let tab = tabManager.tabs[idx]
+        return tab.tableName == tableName
+            && !tab.columnDefaults.isEmpty
+            && tab.primaryKeyColumn != nil
+    }
+
+    /// Await schema metadata from parallel task or fall back to sequential fetch
+    func awaitSchemaResult(
+        parallelTask: Task<SchemaResult, Error>?,
+        tableName: String
+    ) async -> SchemaResult? {
+        if let parallelTask {
+            return try? await parallelTask.value
+        }
+        guard let driver = DatabaseManager.shared.activeDriver else { return nil }
+        do {
+            async let cols = driver.fetchColumns(table: tableName)
+            async let fks = driver.fetchForeignKeys(table: tableName)
+            let (c, f) = try await (cols, fks)
+            let approxCount = try? await driver.fetchApproximateRowCount(table: tableName)
+            return (columnInfo: c, fkInfo: f, approximateRowCount: approxCount)
+        } catch {
+            Self.logger.error("Phase 2 schema fetch failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Apply Phase 1 query result data and optional metadata to the tab
+    func applyPhase1Result( // swiftlint:disable:this function_parameter_count
+        tabId: UUID,
+        columns: [String],
+        columnTypes: [ColumnType],
+        rows: [QueryResultRow],
+        executionTime: TimeInterval,
+        rowsAffected: Int,
+        tableName: String?,
+        isEditable: Bool,
+        metadata: ParsedSchemaMetadata?,
+        hasSchema: Bool,
+        sql: String,
+        connection conn: DatabaseConnection
+    ) {
+        guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else { return }
+
+        var updatedTab = tabManager.tabs[idx]
+        updatedTab.resultColumns = columns
+        updatedTab.columnTypes = columnTypes
+        updatedTab.resultRows = rows
+        updatedTab.resultVersion += 1
+        updatedTab.executionTime = executionTime
+        updatedTab.rowsAffected = rowsAffected
+        updatedTab.isExecuting = false
+        updatedTab.lastExecutedAt = Date()
+        updatedTab.tableName = tableName
+        updatedTab.isEditable = isEditable && updatedTab.isEditable
+
+        // Merge FK metadata into the same update if available
+        if let metadata {
+            updatedTab.columnDefaults = metadata.columnDefaults
+            updatedTab.columnForeignKeys = metadata.columnForeignKeys
+            updatedTab.columnNullable = metadata.columnNullable
+            if let approxCount = metadata.approximateRowCount, approxCount > 0 {
+                updatedTab.pagination.totalRowCount = approxCount
+                updatedTab.pagination.isApproximateRowCount = true
+            }
+        }
+        if hasSchema {
+            updatedTab.metadataVersion += 1
+        }
+
+        tabManager.tabs[idx] = updatedTab
+        AppState.shared.isCurrentTabEditable = updatedTab.isEditable
+            && !updatedTab.isView && updatedTab.tableName != nil
+        toolbarState.isTableTab = updatedTab.tabType == .table
+
+        if let pk = metadata?.primaryKeyColumn {
+            tabManager.tabs[idx].primaryKeyColumn = pk
+
+            if tabManager.selectedTabId == tabId {
+                changeManager.configureForTable(
+                    tableName: tableName ?? "",
+                    columns: columns,
+                    primaryKeyColumn: pk,
+                    databaseType: conn.type
+                )
+            }
+        }
+
+        QueryHistoryManager.shared.recordQuery(
+            query: sql,
+            connectionId: conn.id,
+            databaseName: conn.database,
+            executionTime: executionTime,
+            rowCount: rows.count,
+            wasSuccessful: true,
+            errorMessage: nil
+        )
+
+        // Clear stale edit state immediately so the save banner
+        // doesn't linger while Phase 2 metadata loads in background.
+        if isEditable {
+            changeManager.clearChanges()
+        }
+    }
+
+    /// Launch Phase 2 background work: exact COUNT(*) and enum value fetching
+    func launchPhase2Work(
+        tableName: String,
+        tabId: UUID,
+        capturedGeneration: Int,
+        connectionType: DatabaseType,
+        schemaResult: SchemaResult?
+    ) {
+        // Phase 2a: Fire-and-forget exact COUNT(*) to refine approximate count.
+        let quotedTable = connectionType.quoteIdentifier(tableName)
+        Task { [weak self] in
+            guard let self else { return }
+            guard let mainDriver = DatabaseManager.shared.activeDriver else { return }
+            let countResult = try? await mainDriver.execute(
+                query: "SELECT COUNT(*) FROM \(quotedTable)"
+            )
+            if let firstRow = countResult?.rows.first,
+               let countStr = firstRow.first ?? nil,
+               let count = Int(countStr) {
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    guard capturedGeneration == queryGeneration else { return }
+                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                        tabManager.tabs[idx].pagination.totalRowCount = count
+                        tabManager.tabs[idx].pagination.isApproximateRowCount = false
+                    }
+                }
+            }
+        }
+
+        // Phase 2b: Fetch enum/set values
+        guard let schema = schemaResult else { return }
+        let enumDriver = DatabaseManager.shared.activeMetadataDriver
+            ?? DatabaseManager.shared.activeDriver
+        guard let enumDriver else { return }
+
+        Task { [weak self] in
+            guard let self else { return }
+            let columnEnumValues = await self.fetchEnumValues(
+                columnInfo: schema.columnInfo,
+                tableName: tableName,
+                driver: enumDriver,
+                connectionType: connectionType
+            )
+
+            guard !columnEnumValues.isEmpty else { return }
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                guard capturedGeneration == queryGeneration else { return }
+                guard !Task.isCancelled else { return }
+                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                    tabManager.tabs[idx].columnEnumValues = columnEnumValues
+                }
+            }
+        }
+    }
+
+    /// Handle query execution error: update tab state, record history, show alert
+    func handleQueryExecutionError(
+        _ error: Error,
+        sql: String,
+        tabId: UUID,
+        connection conn: DatabaseConnection
+    ) {
+        currentQueryTask = nil
+        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+            var errTab = tabManager.tabs[idx]
+            errTab.errorMessage = error.localizedDescription
+            errTab.isExecuting = false
+            tabManager.tabs[idx] = errTab
+        }
+        toolbarState.setExecuting(false)
+
+        QueryHistoryManager.shared.recordQuery(
+            query: sql,
+            connectionId: conn.id,
+            databaseName: conn.database,
+            executionTime: 0,
+            rowCount: 0,
+            wasSuccessful: false,
+            errorMessage: error.localizedDescription
+        )
+
+        // Show error alert with AI fix option
+        let errorMessage = error.localizedDescription
+        let queryCopy = sql
+        Task { @MainActor in
+            let wantsAIFix = await AlertHelper.showQueryErrorWithAIOption(
+                title: String(localized: "Query Execution Failed"),
+                message: errorMessage,
+                window: NSApp.keyWindow
+            )
+            if wantsAIFix {
+                NotificationCenter.default.post(
+                    name: .aiFixError,
+                    object: nil,
+                    userInfo: ["query": queryCopy, "error": errorMessage]
+                )
+            }
+        }
     }
 }
