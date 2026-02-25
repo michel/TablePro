@@ -22,6 +22,9 @@ final class FilterPresetStorage {
     private let presetsKey = "com.TablePro.filter.presets"
     private let defaults = UserDefaults.standard
 
+    /// Cached presets to avoid repeated UserDefaults read + JSON decode
+    private var cachedPresets: [FilterPreset]?
+
     private init() {}
 
     /// Save a new preset
@@ -38,13 +41,18 @@ final class FilterPresetStorage {
         saveAllPresets(presets)
     }
 
-    /// Load all saved presets
+    /// Load all saved presets (cached after first read)
     func loadAllPresets() -> [FilterPreset] {
+        if let cached = cachedPresets { return cached }
+
         guard let data = defaults.data(forKey: presetsKey),
               let presets = try? JSONDecoder().decode([FilterPreset].self, from: data) else {
+            cachedPresets = []
             return []
         }
-        return presets.sorted { $0.createdAt > $1.createdAt }
+        let sorted = presets.sorted { $0.createdAt > $1.createdAt }
+        cachedPresets = sorted
+        return sorted
     }
 
     /// Delete a preset
@@ -57,6 +65,7 @@ final class FilterPresetStorage {
     /// Delete all presets
     func deleteAllPresets() {
         defaults.removeObject(forKey: presetsKey)
+        cachedPresets = nil
     }
 
     /// Rename a preset
@@ -71,5 +80,6 @@ final class FilterPresetStorage {
     private func saveAllPresets(_ presets: [FilterPreset]) {
         guard let data = try? JSONEncoder().encode(presets) else { return }
         defaults.set(data, forKey: presetsKey)
+        cachedPresets = presets.sorted { $0.createdAt > $1.createdAt }
     }
 }

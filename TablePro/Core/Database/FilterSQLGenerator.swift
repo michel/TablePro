@@ -101,20 +101,34 @@ struct FilterSQLGenerator {
             return "\(quotedColumn) BETWEEN \(escapeValue(filter.value)) AND \(escapeValue(secondValue))"
 
         case .regex:
+            // SQLite doesn't support REGEXP without a custom function
+            if databaseType == .sqlite { return nil }
             return generateRegexCondition(column: quotedColumn, pattern: filter.value)
         }
     }
 
     // MARK: - LIKE Conditions
 
+    /// Database-specific ESCAPE clause for LIKE patterns.
+    /// MySQL/MariaDB default to `\` as the LIKE escape character, so no clause needed.
+    /// PostgreSQL and SQLite require an explicit ESCAPE declaration.
+    private var likeEscapeClause: String {
+        switch databaseType {
+        case .mysql, .mariadb:
+            return ""
+        case .postgresql, .sqlite:
+            return " ESCAPE '\\'"
+        }
+    }
+
     private func generateLikeCondition(column: String, pattern: String) -> String {
-        let escapedPattern = escapeStringValue(pattern)
-        return "\(column) LIKE '\(escapedPattern)'"
+        let quotedPattern = escapeSQLQuote(pattern)
+        return "\(column) LIKE '\(quotedPattern)'\(likeEscapeClause)"
     }
 
     private func generateNotLikeCondition(column: String, pattern: String) -> String {
-        let escapedPattern = escapeStringValue(pattern)
-        return "\(column) NOT LIKE '\(escapedPattern)'"
+        let quotedPattern = escapeSQLQuote(pattern)
+        return "\(column) NOT LIKE '\(quotedPattern)'\(likeEscapeClause)"
     }
 
     // MARK: - REGEX Conditions (Database-Specific)
@@ -128,8 +142,7 @@ struct FilterSQLGenerator {
         case .postgresql:
             return "\(column) ~ '\(escapedPattern)'"
         case .sqlite:
-            // SQLite doesn't have built-in REGEXP unless extension loaded
-            // Fall back to LIKE with wildcards as a best-effort approximation
+            // Should not reach here — filtered in generateCondition
             return "\(column) LIKE '%\(escapedPattern)%'"
         }
     }
@@ -139,18 +152,17 @@ struct FilterSQLGenerator {
     /// Escape a value for SQL, auto-detecting type
     private func escapeValue(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespaces)
-        let upper = trimmed.uppercased()
 
-        // Check for NULL literal
-        if upper == "NULL" {
+        // Check for NULL literal (case-insensitive without allocating uppercased copy)
+        if trimmed.caseInsensitiveCompare("NULL") == .orderedSame {
             return "NULL"
         }
 
         // Check for boolean literals
-        if upper == "TRUE" {
+        if trimmed.caseInsensitiveCompare("TRUE") == .orderedSame {
             return databaseType == .postgresql ? "TRUE" : "1"
         }
-        if upper == "FALSE" {
+        if trimmed.caseInsensitiveCompare("FALSE") == .orderedSame {
             return databaseType == .postgresql ? "FALSE" : "0"
         }
 
@@ -163,36 +175,42 @@ struct FilterSQLGenerator {
         return "'\(escapeStringValue(trimmed))'"
     }
 
+    /// Escape only single quotes for SQL string literal context.
+    /// Used for LIKE patterns where backslashes are already escaped
+    /// by escapeLikeWildcards for the ESCAPE clause.
+    private func escapeSQLQuote(_ value: String) -> String {
+        guard value.contains("'") else { return value }
+        return value.replacingOccurrences(of: "'", with: "''")
+    }
+
     /// Escape special characters in string values
     private func escapeStringValue(_ value: String) -> String {
-        var result = value
-        // Escape backslashes first
-        result = result.replacingOccurrences(of: "\\", with: "\\\\")
-        // Escape single quotes
-        result = result.replacingOccurrences(of: "'", with: "''")
-        return result
+        // Fast path: most values have no special chars
+        guard value.contains("\\") || value.contains("'") else { return value }
+        return value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "''")
     }
 
     /// Escape LIKE pattern wildcards (% and _) in user input
     private func escapeLikeWildcards(_ value: String) -> String {
-        var result = value
-        // Escape the escape character first
-        result = result.replacingOccurrences(of: "\\", with: "\\\\")
-        // Escape LIKE wildcards
-        result = result.replacingOccurrences(of: "%", with: "\\%")
-        result = result.replacingOccurrences(of: "_", with: "\\_")
-        return result
+        // Fast path: most values have no special chars
+        guard value.contains("\\") || value.contains("%") || value.contains("_") else { return value }
+        return value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
     }
 
     // MARK: - List Parsing
 
     /// Parse comma-separated list values
     private func parseListValues(_ input: String) -> [String] {
-        // Split by comma, trim whitespace, filter empty
-        input
-            .components(separatedBy: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+        input.split(separator: ",", omittingEmptySubsequences: true)
+            .compactMap {
+                let trimmed = $0.trimmingCharacters(in: .whitespaces)
+                return trimmed.isEmpty ? nil : trimmed
+            }
     }
 }
 

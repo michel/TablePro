@@ -8,11 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Quick search and filter rows can now be combined — when both are active, their WHERE conditions are joined with AND
 - Foreign key columns now show a navigation arrow icon in each cell — click to open the referenced table filtered by the FK value
 
 ### Changed
 - Metadata queries (columns, FKs, row count) now run on a dedicated parallel connection, eliminating 200-300ms delay for FK arrows and pagination count on initial table load
 - Approximate row count from database metadata displays instantly with data; exact count refines silently in the background
+- Show warning indicator on filter presets referencing columns not in current table
+- Increase filter row height estimate for better accessibility support
+- FK navigation now uses dedicated FilterStateManager.setFKFilter API instead of direct property manipulation
 - Add syntax highlighting to Import SQL file preview
 - XLSX export now enforces the Excel row limit (1,048,576) per sheet and uses autoreleasepool per row to reduce peak memory during large exports
 - Multiline cell values now use a scrollable overlay editor instead of the constrained field editor, enabling proper vertical scrolling and line navigation during inline editing
@@ -61,6 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Autocomplete `detectFunctionContext` uses index tracking instead of character-by-character string building
 
 ### Fixed
+- Fix AND/OR filter logic mode ignored in query execution — preview showed correct OR logic but actual query always used AND
+- Fix filter panel state (filters, visibility, quick search, logic mode) not preserved when switching between tabs
+- Fix foreign key navigation filter being wiped when switching to a new tab (tab switch restore overwrote FK filter state)
+- Fix pagination count appearing 200-300ms after data loads — approximate row count from database metadata now displays instantly with data, exact count refines silently in the background
+- Fix foreign key navigation arrows and pagination count appearing with visible delay on initial table load — metadata now fetches on a dedicated parallel connection concurrent with the main query
 - Fix LibPQ parameterized query using Swift `deallocate()` for `strdup`-allocated memory instead of `free()`
 - FTS5 search input now sanitized to prevent parse errors from special characters like *, OR, AND
 - Fix SQL export corrupting newline/tab/backslash characters for PostgreSQL and SQLite (MySQL-style backslash escaping was incorrectly applied to all database types)
@@ -68,6 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix PostgreSQL SQL export missing `CREATE TYPE` definitions for enum columns, causing import errors
 - Fix PostgreSQL DDL tab not showing enum type definitions used by table columns
 - Fix compilation error for PostgreSQL dependent sequences export (`fetchDependentSequences` missing from `DatabaseDriver` protocol)
+- Fix PostgreSQL LIKE/NOT LIKE expressions missing `ESCAPE '\'` clause, causing wildcard escaping (`\%`, `\_`) to be treated as literal characters
+- Fix SQLite regex filter silently degrading to LIKE substring match instead of being excluded from the WHERE clause
 
 ## [0.6.4] - 2026-02-23
 
