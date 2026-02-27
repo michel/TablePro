@@ -130,11 +130,11 @@ These are **non-negotiable** — never skip them:
 
 2. **Localization**: Use `String(localized:)` for new user-facing strings in computed properties, AppKit code, alerts, and error descriptions. SwiftUI view literals (`Text("literal")`, `Button("literal")`) auto-localize. Do NOT localize technical terms (font names, database types, SQL keywords, encoding names).
 
-3. **Documentation**: Update docs in the separate `tablepro.app/` repo when adding/changing features. Key mappings:
-   - New keyboard shortcuts → `features/keyboard-shortcuts.mdx`
-   - UI/feature changes → relevant `features/*.mdx` page
-   - Settings changes → `customization/settings.mdx`
-   - Database driver changes → `databases/*.mdx`
+3. **Documentation**: Update docs in `docs/` (Mintlify-based) when adding/changing features. Key mappings:
+   - New keyboard shortcuts → `docs/features/keyboard-shortcuts.mdx`
+   - UI/feature changes → relevant `docs/features/*.mdx` page
+   - Settings changes → `docs/customization/settings.mdx`
+   - Database driver changes → `docs/databases/*.mdx`
    - Update both English (`docs/`) and Vietnamese (`docs/vi/`) pages
 
 4. **Test-first correctness**: When tests fail, fix the **source code** — never adjust tests to match incorrect output. Tests define expected behavior.
