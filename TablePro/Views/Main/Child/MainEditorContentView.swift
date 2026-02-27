@@ -120,7 +120,6 @@ struct MainEditorContentView: View {
             updateHasQueryText()
         }
         .onAppear {
-            let onAppearStart = CFAbsoluteTimeGetCurrent()
             updateHasQueryText()
             cachedChangeManager = AnyChangeManager(dataManager: changeManager)
             if let tab = tabManager.selectedTab {
@@ -129,7 +128,6 @@ struct MainEditorContentView: View {
                 tabProviderVersions[tab.id] = tab.resultVersion
                 tabProviderMetaVersions[tab.id] = tab.metadataVersion
             }
-            editorContentLogger.debug("[PERF] MainEditorContentView.onAppear done in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - onAppearStart) * 1000))ms")
         }
         .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
             guard let tab = tabManager.selectedTab, newVersion != nil else { return }

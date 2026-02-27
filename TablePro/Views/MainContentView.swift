@@ -69,7 +69,6 @@ struct MainContentView: View {
         inspectorContext: Binding<InspectorContext>,
         rightPanelState: RightPanelState
     ) {
-        let initStart = CFAbsoluteTimeGetCurrent()
         self.connection = connection
         self.payload = payload
         self._windowTitle = windowTitle
@@ -100,6 +99,9 @@ struct MainContentView: View {
                     if let index = tabMgr.selectedTabIndex {
                         tabMgr.tabs[index].isView = payload.isView
                         tabMgr.tabs[index].isEditable = !payload.isView
+                        if payload.showStructure {
+                            tabMgr.tabs[index].showStructure = true
+                        }
                     }
                 } else {
                     tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
@@ -132,7 +134,6 @@ struct MainContentView: View {
                 filterStateManager: filterMgr,
                 toolbarState: toolbarSt
             ))
-        Self.initLogger.debug("[PERF] MainContentView.init done in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - initStart) * 1000))ms, payload=\(payload?.tableName ?? "nil")")
     }
 
     // MARK: - Body
@@ -208,7 +209,6 @@ struct MainContentView: View {
                 scheduleInspectorUpdate()
             }
             .onAppear {
-                let onAppearStart = CFAbsoluteTimeGetCurrent()
                 // Set window title for empty state (no tabs restored)
                 if tabManager.tabs.isEmpty {
                     windowTitle = connection.name
@@ -225,7 +225,6 @@ struct MainContentView: View {
                     tabs: tabManager.tabs,
                     selectedTabId: tabManager.selectedTabId
                 )
-                Self.initLogger.debug("[PERF] MainContentView.onAppear done in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - onAppearStart) * 1000))ms")
             }
             .onDisappear {
                 NativeTabRegistry.shared.unregister(windowId: windowId)
@@ -349,10 +348,8 @@ struct MainContentView: View {
     private func initializeAndRestoreTabs() async {
         guard !hasInitialized else { return }
         hasInitialized = true
-        let restoreStart = CFAbsoluteTimeGetCurrent()
         // Sync toolbar setup (fast, no I/O)
         coordinator.initializeToolbar()
-        Self.initLogger.debug("[PERF] initializeAndRestoreTabs: initializeToolbar done at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms")
         // Schema load runs in background — doesn't block data query
         Task { await coordinator.loadSchemaIfNeeded() }
 
@@ -362,9 +359,7 @@ struct MainContentView: View {
                selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                Self.initLogger.debug("[PERF] initializeAndRestoreTabs: waiting for connection at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms")
                 await coordinator.tabPersistence.waitForConnectionAndExecute {
-                    Self.initLogger.debug("[PERF] initializeAndRestoreTabs: connection ready, running query at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms")
                     if !selectedTab.databaseName.isEmpty,
                        selectedTab.databaseName != coordinator.connection.database
                     {
@@ -376,13 +371,11 @@ struct MainContentView: View {
                     }
                 }
             }
-            Self.initLogger.debug("[PERF] initializeAndRestoreTabs: payload path done at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms")
             return
         }
 
         // No payload — restore tabs from storage (first window on connection)
         let result = coordinator.tabPersistence.restoreTabs()
-        Self.initLogger.debug("[PERF] initializeAndRestoreTabs: restoreTabs() done at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms, \(result.tabs.count) tabs")
         if !result.tabs.isEmpty {
             coordinator.tabPersistence.beginRestoration()
             defer { coordinator.tabPersistence.endRestoration() }
@@ -425,9 +418,7 @@ struct MainContentView: View {
             if selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                Self.initLogger.debug("[PERF] initializeAndRestoreTabs: waiting for connection (restore path) at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms")
                 await coordinator.tabPersistence.waitForConnectionAndExecute {
-                    Self.initLogger.debug("[PERF] initializeAndRestoreTabs: connection ready (restore), running query at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms")
                     if !selectedTab.databaseName.isEmpty,
                        selectedTab.databaseName != coordinator.connection.database
                     {
@@ -440,7 +431,6 @@ struct MainContentView: View {
                 }
             }
         }
-        Self.initLogger.debug("[PERF] initializeAndRestoreTabs: total done at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - restoreStart) * 1000))ms")
     }
 
     // MARK: - Command Actions Setup
@@ -493,9 +483,6 @@ struct MainContentView: View {
         // Critical for new native windows: localSelectedTables starts empty,
         // and this is the only place that can seed it from the restored tab.
         syncSidebarToCurrentTab()
-
-        // Dismiss autocomplete windows
-        NotificationCenter.default.post(name: NSNotification.Name("QueryTabDidChange"), object: nil)
 
         // Persist tab selection
         guard !coordinator.tabPersistence.isRestoringTabs,

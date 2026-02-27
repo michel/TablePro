@@ -8,13 +8,6 @@
 import Combine
 import Foundation
 
-// MARK: - Notifications
-
-extension Notification.Name {
-    /// Posted when a table tab is closed, with tableName as object
-    static let tableTabClosed = Notification.Name("tableTabClosed")
-}
-
 /// Type of tab
 enum TabType: Equatable, Codable, Hashable {
     case query       // SQL editor tab
@@ -27,7 +20,6 @@ struct PersistedTab: Codable {
     let id: UUID
     let title: String
     let query: String
-    let isPinned: Bool
     let tabType: TabType
     let tableName: String?
     var isView: Bool = false
@@ -266,7 +258,6 @@ struct QueryTab: Identifiable, Equatable {
     let id: UUID
     var title: String
     var query: String
-    var isPinned: Bool
     var lastExecutedAt: Date?
     var tabType: TabType
 
@@ -358,14 +349,12 @@ struct QueryTab: Identifiable, Equatable {
         id: UUID = UUID(),
         title: String = "Query",
         query: String = "",
-        isPinned: Bool = false,
         tabType: TabType = .query,
         tableName: String? = nil
     ) {
         self.id = id
         self.title = title
         self.query = query
-        self.isPinned = isPinned
         self.tabType = tabType
         self.lastExecutedAt = nil
         self.rowBuffer = RowBuffer()
@@ -396,7 +385,6 @@ struct QueryTab: Identifiable, Equatable {
         self.id = persisted.id
         self.title = persisted.title
         self.query = persisted.query
-        self.isPinned = persisted.isPinned
         self.tabType = persisted.tabType
         self.tableName = persisted.tableName
         self.primaryKeyColumn = nil
@@ -442,7 +430,6 @@ struct QueryTab: Identifiable, Equatable {
             id: id,
             title: title,
             query: persistedQuery,
-            isPinned: isPinned,
             tabType: tabType,
             tableName: tableName,
             isView: isView,
@@ -453,7 +440,6 @@ struct QueryTab: Identifiable, Equatable {
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
         lhs.id == rhs.id
             && lhs.title == rhs.title
-            && lhs.isPinned == rhs.isPinned
             && lhs.isExecuting == rhs.isExecuting
             && lhs.errorMessage == rhs.errorMessage
             && lhs.executionTime == rhs.executionTime

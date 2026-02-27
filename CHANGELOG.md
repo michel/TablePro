@@ -11,22 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refactored sidebar table list to MVVM architecture with testable SidebarViewModel
 - Extracted TableRow and context menu into separate files (TableRowView.swift, SidebarContextMenu.swift)
-
-### Removed
-
-- Removed broken SidebarFocusRestorer (non-functional NSViewRepresentable focus hack)
-- Removed dead code: unused onTablePro callback, single-table toggle methods
-
-### Fixed
-
-- Sidebar loses keyboard focus (arrow key navigation) after opening a second table tab
-- Sidebar active state flash and loss when clicking a table that opens in a new native window tab — removed the async revert; each window now re-syncs its sidebar via `NSWindow.didBecomeKeyNotification`, and programmatic syncs skip navigation via an early-return guard
-- Sidebar loses active state when opening a second table in a new native window tab — `handleTabSelectionChange` now calls `syncSidebarToCurrentTab()` so the new window's empty `localSelectedTables` is seeded from the restored tab
-- Sidebar now refreshes immediately after switching databases via Cmd+K — clears `session.tables` during the switch so `SidebarView.onChange` triggers `loadTables()` against the new database without requiring a manual refresh
-- Cmd+W in empty state (after all tabs are cleared) now closes the connection window and disconnects, instead of doing nothing
-
-### Changed
-
 - Migrated to native macOS window tabs (`NSWindow` tabbing) — tab bar is now rendered by macOS itself, identical to Finder/Safari/Xcode tabs with automatic dark/light mode support, drag-to-reorder, and "Merge All Windows" for free
 - Each tab is a full independent window with its own sidebar, editor, and state — no more shared tab manager or ZStack keep-alive pattern
 - New Tab (Cmd+T) creates a native macOS window tab; Close Tab (Cmd+W) closes the native tab
@@ -38,6 +22,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Show All Tables" now opens metadata query in a new native tab instead of appending to the current window
 - Create Table success closes the create-table window and opens the new table in a fresh native tab
 - Window title updates dynamically after navigate-in-place (sidebar click, FK navigation)
+
+### Fixed
+
+- Sidebar loses keyboard focus (arrow key navigation) after opening a second table tab
+- Sidebar active state flash and loss when clicking a table that opens in a new native window tab — removed the async revert; each window now re-syncs its sidebar via `NSWindow.didBecomeKeyNotification`, and programmatic syncs skip navigation via an early-return guard
+- Sidebar loses active state when opening a second table in a new native window tab — `handleTabSelectionChange` now calls `syncSidebarToCurrentTab()` so the new window's empty `localSelectedTables` is seeded from the restored tab
+- Sidebar now refreshes immediately after switching databases via Cmd+K — clears `session.tables` during the switch so `SidebarView.onChange` triggers `loadTables()` against the new database without requiring a manual refresh
+- Cmd+W in empty state (after all tabs are cleared) now closes the connection window and disconnects, instead of doing nothing
+- Fix Cmd+K database switch flooding all windows with error alerts — `.refreshAll` broadcast caused every window to re-execute its table query against the wrong database; now only the current tab re-executes, and only if its table exists in the new database
+- Fix clicking a table in the sidebar replacing the current tab instead of opening a new native tab
+- Fix clicking a table from a query tab overwriting the SQL editor instead of opening a separate table tab
+- Tab persistence no longer overwrites combined state from all windows when a single window saves — uses NativeTabRegistry for combined state
+- Query text editing in one window no longer corrupts other windows' persisted tab state
+- Fix Cmd+W on any tab disconnecting the session and showing welcome screen — now only disconnects when the last main window is closed
+- Fix Cmd+T from empty state creating two native tabs instead of one — now adds a query tab to the current window
+- Fix clicking a table in the sidebar from empty state not opening the table — now creates a table tab in the current window
+- Fix native tab title showing "SQL Query" instead of the table name when opening a table from empty state
+- Fix Cmd+W on the last tab disconnecting the session instead of returning to empty state
+
+### Removed
+
+- Removed broken SidebarFocusRestorer (non-functional NSViewRepresentable focus hack)
+- Removed dead code: unused onTablePro callback, single-table toggle methods
+- Custom AppKit tab bar (NativeTabBarView) — replaced by native macOS window tab bar
+- Removed vestigial multi-tab code: `performDirectTabSwitch`, `skipNextTabChangeOnChange`, `tabPendingChanges`, `tabSelectionCache`, `lastFlushTime`, `filterStateSavedExternally`, `flushSelectionCache`, `duplicateTab`, `togglePin`, `selectTab`, `switchToDatabase` (legacy)
 
 ### Performance
 
@@ -54,27 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Guard health monitor status writes to skip no-op `.connected` → `.connected` transitions — eliminates idle 30-second cascade on all windows
 - Extract all menu commands into `AppMenuCommands` struct — `AppState` changes now only re-evaluate menu items, not the Scene body / all WindowGroups
 - Add `isContentViewEquivalent(to:)` comparison on `ConnectionSession` — skips `@State` writes when only `tabs`, `selectedTabId`, or `lastActiveAt` changed, preventing O(N) MainContentView.init cascade across windows
-
-### Fixed
-
-- Fix Cmd+K database switch flooding all windows with error alerts — `.refreshAll` broadcast caused every window to re-execute its table query against the wrong database; now only the current tab re-executes, and only if its table exists in the new database
-- Fix clicking a table in the sidebar replacing the current tab instead of opening a new native tab
-- Fix clicking a table from a query tab overwriting the SQL editor instead of opening a separate table tab
-- Tab persistence no longer overwrites combined state from all windows when a single window saves — uses NativeTabRegistry for combined state
-- Query text editing in one window no longer corrupts other windows' persisted tab state
-- Fix Cmd+W on any tab disconnecting the session and showing welcome screen — now only disconnects when the last main window is closed
-- Fix Cmd+T from empty state creating two native tabs instead of one — now adds a query tab to the current window
-- Fix clicking a table in the sidebar from empty state not opening the table — now creates a table tab in the current window
-
-### Fixed
-
-- Fix native tab title showing "SQL Query" instead of the table name when opening a table from empty state
-- Fix Cmd+W on the last tab disconnecting the session instead of returning to empty state
-
-### Removed
-
-- Custom AppKit tab bar (NativeTabBarView) — replaced by native macOS window tab bar
-- Removed vestigial multi-tab code: `performDirectTabSwitch`, `skipNextTabChangeOnChange`, `tabPendingChanges`, `tabSelectionCache`, `lastFlushTime`, `filterStateSavedExternally`, `flushSelectionCache`, `duplicateTab`, `togglePin`, `selectTab`, `switchToDatabase` (legacy)
 
 ## [0.7.0] - 2026-02-25
 

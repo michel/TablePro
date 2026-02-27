@@ -15,9 +15,6 @@ extension MainContentCoordinator {
     // MARK: - Table Tab Opening
 
     func openTableTab(_ tableName: String, showStructure: Bool = false, isView: Bool = false) {
-        let openStart = CFAbsoluteTimeGetCurrent()
-        navigationLogger.debug("[PERF] openTableTab('\(tableName)') called")
-
         // Get current database name from active session (may differ from connection default after Cmd+K switch)
         let currentDatabase: String
         if let sessionId = DatabaseManager.shared.currentSessionId,
@@ -72,7 +69,8 @@ extension MainContentCoordinator {
                 tabType: .table,
                 tableName: tableName,
                 databaseName: currentDatabase,
-                isView: isView
+                isView: isView,
+                showStructure: showStructure
             )
             WindowOpener.shared.openNativeTab(payload)
             return
@@ -84,11 +82,10 @@ extension MainContentCoordinator {
             tabType: .table,
             tableName: tableName,
             databaseName: currentDatabase,
-            isView: isView
+            isView: isView,
+            showStructure: showStructure
         )
-        navigationLogger.debug("[PERF] openTableTab: calling openNativeTab at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - openStart) * 1000))ms")
         WindowOpener.shared.openNativeTab(payload)
-        navigationLogger.debug("[PERF] openTableTab: openNativeTab returned at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - openStart) * 1000))ms")
     }
 
     func showAllTablesMetadata() {

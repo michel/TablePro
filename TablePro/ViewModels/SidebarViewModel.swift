@@ -59,6 +59,7 @@ final class SidebarViewModel: ObservableObject {
 
     private let tableFetcher: TableFetcher
     private var cancellables = Set<AnyCancellable>()
+    private var hasSetupNotifications = false
 
     // MARK: - Convenience Accessors
 
@@ -85,13 +86,6 @@ final class SidebarViewModel: ObservableObject {
     var tableOperationOptions: [String: TableOperationOptions] {
         get { tableOperationOptionsBinding.wrappedValue }
         set { tableOperationOptionsBinding.wrappedValue = newValue }
-    }
-
-    // MARK: - Computed Properties
-
-    var filteredTables: [TableInfo] {
-        guard !searchText.isEmpty else { return tables }
-        return tables.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     // MARK: - Initialization
@@ -125,15 +119,12 @@ final class SidebarViewModel: ObservableObject {
         }
     }
 
-    func handleTablesChange() {
-        if tables.isEmpty && DatabaseManager.shared.status != .disconnected && !isLoading {
-            loadTables()
-        }
-    }
-
     // MARK: - Notifications
 
     func setupNotifications() {
+        guard !hasSetupNotifications else { return }
+        hasSetupNotifications = true
+
         NotificationCenter.default.publisher(for: .databaseDidConnect)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in

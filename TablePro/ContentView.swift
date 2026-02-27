@@ -38,10 +38,8 @@ struct ContentView: View {
     private let storage = ConnectionStorage.shared
 
     init(payload: EditorTabPayload?) {
-        let start = CFAbsoluteTimeGetCurrent()
         self.payload = payload
         _windowTitle = State(initialValue: payload?.tableName ?? "SQL Query")
-        Self.logger.debug("[PERF] ContentView.init done in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms, payload=\(payload?.tableName ?? "nil")")
     }
 
     var body: some View {
@@ -202,14 +200,6 @@ struct ContentView: View {
         createSessionBinding(
             get: { $0.tables },
             set: { $0.tables = $1 },
-            defaultValue: []
-        )
-    }
-
-    private var sessionSelectedTablesBinding: Binding<Set<TableInfo>> {
-        createSessionBinding(
-            get: { $0.selectedTables },
-            set: { $0.selectedTables = $1 },
             defaultValue: []
         )
     }

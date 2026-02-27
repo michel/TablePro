@@ -261,23 +261,6 @@
         }
       }
     },
-    "%@ tab%@%@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ tab%2$@%3$@"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ tab%@%@"
-          }
-        }
-      }
-    },
     "%@." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -952,17 +935,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Thêm chỉ mục để cải thiện hiệu suất truy vấn trên các cột thường xuyên tìm kiếm"
-          }
-        }
-      }
-    },
-    "Add new tab" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thêm tab mới"
           }
         }
       }
@@ -1780,34 +1752,12 @@
         }
       }
     },
-    "Close Other Tabs" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đóng các tab khác"
-          }
-        }
-      }
-    },
     "Close Tab" : {
       "localizations" : {
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đóng tab"
-          }
-        }
-      }
-    },
-    "Close tab %@" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đóng tab %@"
           }
         }
       }
@@ -3144,17 +3094,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhân bản dòng"
-          }
-        }
-      }
-    },
-    "Duplicate Tab" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nhân bản tab"
           }
         }
       }
@@ -6051,17 +5990,6 @@
         }
       }
     },
-    "Pin Tab" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ghim tab"
-          }
-        }
-      }
-    },
     "Pink" : {
       "localizations" : {
         "vi" : {
@@ -8486,17 +8414,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không giới hạn"
-          }
-        }
-      }
-    },
-    "Unpin Tab" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bỏ ghim tab"
           }
         }
       }

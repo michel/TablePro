@@ -425,21 +425,5 @@ struct HistorySettings: Codable, Equatable {
 
 /// Tab behavior settings
 struct TabSettings: Codable, Equatable {
-    /// When enabled, clicking a new table in the sidebar replaces the current clean table tab
-    /// instead of creating a new tab. A "clean" tab is one with no unsaved changes, no user
-    /// interaction, and not pinned.
-    var reuseCleanTableTab: Bool
-
-    static let `default` = TabSettings(
-        reuseCleanTableTab: false
-    )
-
-    init(reuseCleanTableTab: Bool = false) {
-        self.reuseCleanTableTab = reuseCleanTableTab
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        reuseCleanTableTab = try container.decodeIfPresent(Bool.self, forKey: .reuseCleanTableTab) ?? false
-    }
+    static let `default` = TabSettings()
 }

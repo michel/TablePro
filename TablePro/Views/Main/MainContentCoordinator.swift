@@ -15,7 +15,6 @@ import SwiftUI
 /// Discard action types for unified alert handling
 enum DiscardAction {
     case refresh
-    case closeTab
     case refreshAll
 }
 
@@ -127,7 +126,6 @@ final class MainContentCoordinator: ObservableObject {
 
     /// Synchronous toolbar setup — no I/O, safe to call inline
     func initializeToolbar() {
-        let start = CFAbsoluteTimeGetCurrent()
         toolbarState.update(from: connection)
 
         if let session = DatabaseManager.shared.currentSession {
@@ -139,18 +137,13 @@ final class MainContentCoordinator: ObservableObject {
             toolbarState.connectionState = .connected
             toolbarState.databaseVersion = driver.serverVersion
         }
-        Self.logger.debug("[PERF] initializeToolbar done in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms")
     }
 
     /// Load schema only if the shared provider hasn't loaded yet
     func loadSchemaIfNeeded() async {
-        let start = CFAbsoluteTimeGetCurrent()
         let alreadyLoaded = await schemaProvider.isSchemaLoaded()
         if !alreadyLoaded {
             await loadSchema()
-            Self.logger.debug("[PERF] loadSchemaIfNeeded: loaded schema in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms")
-        } else {
-            Self.logger.debug("[PERF] loadSchemaIfNeeded: already loaded, skipped in \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - start) * 1000))ms")
         }
     }
 
@@ -206,10 +199,8 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Query Execution
 
     func runQuery() {
-        let queryStart = CFAbsoluteTimeGetCurrent()
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
-        Self.logger.debug("[PERF] runQuery() called for tab '\(self.tabManager.tabs[index].tableName ?? "query")'")
 
         let fullQuery = tabManager.tabs[index].query
 
@@ -337,10 +328,8 @@ final class MainContentCoordinator: ObservableObject {
     private func executeQueryInternal(
         _ sql: String
     ) {
-        let execStart = CFAbsoluteTimeGetCurrent()
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
-        Self.logger.debug("[PERF] executeQueryInternal started")
 
         currentQueryTask?.cancel()
         queryGeneration += 1
@@ -368,7 +357,6 @@ final class MainContentCoordinator: ObservableObject {
 
         let tableName = extractTableName(from: effectiveSQL)
         let isEditable = tableName != nil
-        let capturedExecStart = execStart
 
         currentQueryTask = Task { [weak self] in
             guard let self else { return }
@@ -396,7 +384,6 @@ final class MainContentCoordinator: ObservableObject {
                 }
 
                 // Main data query (on primary driver — runs concurrently with metadata)
-                Self.logger.debug("[PERF] executeQueryInternal: starting DB execute at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - capturedExecStart) * 1000))ms")
                 let result = try await DatabaseManager.shared.execute(query: effectiveSQL)
 
                 let safeColumns = result.columns
@@ -404,7 +391,6 @@ final class MainContentCoordinator: ObservableObject {
                 let safeRows = result.rows.enumerated().map { index, row in
                     QueryResultRow(id: index, values: row)
                 }
-                Self.logger.debug("[PERF] executeQueryInternal: DB execute done at +\(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - capturedExecStart) * 1000))ms, \(safeRows.count) rows")
                 let safeExecutionTime = result.executionTime
                 let safeRowsAffected = result.rowsAffected
 

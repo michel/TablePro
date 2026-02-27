@@ -113,18 +113,6 @@ final class TabPersistenceService: ObservableObject {
         )
     }
 
-    /// Flush pending debounced save before tab switch.
-    /// Saves on a background thread to avoid blocking the main thread.
-    /// - Parameters:
-    ///   - tabs: Current tabs array
-    ///   - selectedTabId: Currently selected tab ID
-    func flushPendingSave(tabs: [QueryTab], selectedTabId: UUID?) {
-        guard let task = saveDebounceTask, !task.isCancelled else { return }
-
-        task.cancel()
-        saveTabsAsync(tabs: tabs, selectedTabId: selectedTabId)
-    }
-
     /// Save tabs asynchronously on a background thread to avoid blocking the main thread.
     /// Use this for tab-switch paths; use saveTabsImmediately only when the process is about to exit.
     /// - Parameters:
@@ -199,7 +187,6 @@ final class TabPersistenceService: ObservableObject {
     /// Wait for database connection to be established before executing query
     /// - Parameter onReady: Callback when connection is ready
     func waitForConnectionAndExecute(onReady: @escaping () -> Void) async {
-        let waitStart = CFAbsoluteTimeGetCurrent()
         var retryCount = 0
 
         while retryCount < Self.maxConnectionRetries {
@@ -207,7 +194,6 @@ final class TabPersistenceService: ObservableObject {
 
             if let session = DatabaseManager.shared.currentSession,
                session.isConnected {
-                Self.logger.debug("[PERF] waitForConnectionAndExecute: connected after \(retryCount) retries, \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - waitStart) * 1000))ms")
                 await MainActor.run {
                     justRestoredTab = true
                     onReady()
@@ -220,7 +206,7 @@ final class TabPersistenceService: ObservableObject {
         }
 
         if retryCount >= Self.maxConnectionRetries {
-            Self.logger.debug("[PERF] waitForConnectionAndExecute: timed out after \(retryCount) retries, \(String(format: "%.0f", (CFAbsoluteTimeGetCurrent() - waitStart) * 1000))ms")
+            Self.logger.warning("waitForConnectionAndExecute: timed out after \(retryCount) retries")
         }
     }
 
@@ -237,23 +223,6 @@ final class TabPersistenceService: ObservableObject {
     /// Mark restoration as complete
     func endRestoration() {
         isRestoringTabs = false
-    }
-
-    // MARK: - Session Sync
-
-    /// Sync tabs to session for in-memory persistence
-    /// - Parameters:
-    ///   - tabs: Current tabs array
-    ///   - selectedTabId: Currently selected tab ID
-    func syncToSession(tabs: [QueryTab], selectedTabId: UUID?) {
-        guard !isRestoringTabs, !isDismissing else { return }
-
-        if let sessionId = DatabaseManager.shared.currentSessionId {
-            DatabaseManager.shared.updateSession(sessionId) { session in
-                session.tabs = tabs
-                session.selectedTabId = selectedTabId
-            }
-        }
     }
 
     /// Clear saved state when all tabs are closed

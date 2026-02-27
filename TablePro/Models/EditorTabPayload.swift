@@ -10,30 +10,33 @@ import Foundation
 
 /// Payload passed to each native window tab to identify what content it should display.
 /// Each window-tab receives this at creation time via `openWindow(id:value:)`.
-struct EditorTabPayload: Codable, Hashable {
+internal struct EditorTabPayload: Codable, Hashable {
     /// Unique identifier for this window-tab (ensures openWindow always creates a new window)
-    let id: UUID
+    internal let id: UUID
     /// The connection this tab belongs to
-    let connectionId: UUID
+    internal let connectionId: UUID
     /// What type of content to display
-    let tabType: TabType
+    internal let tabType: TabType
     /// Table name (for .table tabs)
-    let tableName: String?
+    internal let tableName: String?
     /// Database context (for multi-database connections)
-    let databaseName: String?
+    internal let databaseName: String?
     /// Initial SQL query (for .query tabs opened from files)
-    let initialQuery: String?
+    internal let initialQuery: String?
     /// Whether this tab displays a database view (read-only)
-    let isView: Bool
+    internal let isView: Bool
+    /// Whether to show the structure view instead of data (for "Show Structure" context menu)
+    internal let showStructure: Bool
 
-    init(
+    internal init(
         id: UUID = UUID(),
         connectionId: UUID,
         tabType: TabType = .query,
         tableName: String? = nil,
         databaseName: String? = nil,
         initialQuery: String? = nil,
-        isView: Bool = false
+        isView: Bool = false,
+        showStructure: Bool = false
     ) {
         self.id = id
         self.connectionId = connectionId
@@ -42,10 +45,23 @@ struct EditorTabPayload: Codable, Hashable {
         self.databaseName = databaseName
         self.initialQuery = initialQuery
         self.isView = isView
+        self.showStructure = showStructure
+    }
+
+    internal init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        connectionId = try container.decode(UUID.self, forKey: .connectionId)
+        tabType = try container.decode(TabType.self, forKey: .tabType)
+        tableName = try container.decodeIfPresent(String.self, forKey: .tableName)
+        databaseName = try container.decodeIfPresent(String.self, forKey: .databaseName)
+        initialQuery = try container.decodeIfPresent(String.self, forKey: .initialQuery)
+        isView = try container.decodeIfPresent(Bool.self, forKey: .isView) ?? false
+        showStructure = try container.decodeIfPresent(Bool.self, forKey: .showStructure) ?? false
     }
 
     /// Create a payload from a persisted QueryTab for restoration
-    init(from tab: QueryTab, connectionId: UUID) {
+    internal init(from tab: QueryTab, connectionId: UUID) {
         self.id = UUID()
         self.connectionId = connectionId
         self.tabType = tab.tabType
@@ -53,5 +69,6 @@ struct EditorTabPayload: Codable, Hashable {
         self.databaseName = tab.databaseName
         self.initialQuery = tab.query
         self.isView = tab.isView
+        self.showStructure = tab.showStructure
     }
 }

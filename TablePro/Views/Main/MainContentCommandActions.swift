@@ -257,12 +257,6 @@ final class MainContentCommandActions: ObservableObject {
         WindowOpener.shared.openNativeTab(payload)
     }
 
-    func closeCurrentTab() {
-        // Close the native window tab — macOS handles removing it from the tab group.
-        // AppDelegate.windowWillClose handles disconnect when last tab closes.
-        NSApp.keyWindow?.close()
-    }
-
     func closeTab() {
         guard let keyWindow = NSApp.keyWindow else { return }
         let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
@@ -323,14 +317,6 @@ final class MainContentCommandActions: ObservableObject {
               let tabbedWindows = keyWindow.tabbedWindows,
               number > 0, number <= tabbedWindows.count else { return }
         tabbedWindows[number - 1].makeKeyAndOrderFront(nil)
-    }
-
-    func previousTab() {
-        NSApp.sendAction(#selector(NSWindow.selectPreviousTab(_:)), to: nil, from: nil)
-    }
-
-    func nextTab() {
-        NSApp.sendAction(#selector(NSWindow.selectNextTab(_:)), to: nil, from: nil)
     }
 
     // MARK: - Filter Operations (Group A — Called Directly)
@@ -519,10 +505,6 @@ final class MainContentCommandActions: ObservableObject {
             self?.handleInsertQueryFromAI(notification)
         }
 
-        observe(.tableTabClosed) { [weak self] notification in
-            self?.handleTableTabClosed(notification)
-        }
-
         observe(.showAllTables) { [weak self] _ in
             self?.coordinator?.showAllTablesMetadata()
         }
@@ -578,12 +560,6 @@ final class MainContentCommandActions: ObservableObject {
                 initialQuery: query
             )
             WindowOpener.shared.openNativeTab(payload)
-        }
-    }
-
-    private func handleTableTabClosed(_ notification: Notification) {
-        if let tableName = notification.object as? String {
-            selectedTables.wrappedValue = selectedTables.wrappedValue.filter { $0.name != tableName }
         }
     }
 
