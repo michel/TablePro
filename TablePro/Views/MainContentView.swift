@@ -252,9 +252,10 @@ struct MainContentView: View {
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {
                     coordinator.needsLazyLoad = false
+                    coordinator.tabPersistence.markJustRestored()
                     if let selectedTab = tabManager.selectedTab,
                        !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != coordinator.connection.database
+                       selectedTab.databaseName != session.connection.database
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
@@ -374,7 +375,7 @@ struct MainContentView: View {
                 {
                     coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != coordinator.connection.database
+                       selectedTab.databaseName != session.connection.database
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
@@ -439,7 +440,7 @@ struct MainContentView: View {
                 {
                     coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != coordinator.connection.database
+                       selectedTab.databaseName != session.connection.database
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {

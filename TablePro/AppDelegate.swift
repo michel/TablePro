@@ -259,6 +259,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func postSQLFilesWhenReady(urls: [URL], attemptsRemaining: Int) {
         if NSApp.windows.contains(where: { isMainWindow($0) && $0.isKeyWindow }) || attemptsRemaining <= 0 {
+            if attemptsRemaining <= 0 {
+                Self.logger.warning("postSQLFilesWhenReady: no key main window after retries, posting anyway")
+            }
             NotificationCenter.default.post(name: .openSQLFiles, object: urls)
         } else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
