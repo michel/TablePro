@@ -18,8 +18,6 @@ final class TabPersistenceService: ObservableObject {
     // MARK: - Constants
 
     private static let saveDebounceDelay: UInt64 = 500_000_000  // 500ms in nanoseconds
-    private static let connectionCheckDelay: UInt64 = 100_000_000  // 100ms in nanoseconds
-    private static let maxConnectionRetries = 50  // Max retries for connection check (5 seconds total)
 
     // MARK: - State
 
@@ -184,38 +182,9 @@ final class TabPersistenceService: ObservableObject {
         return RestoreResult(tabs: [], selectedTabId: nil, source: .none)
     }
 
-    /// Wait for database connection to be established before executing query.
-    /// Checks immediately first — avoids polling delay when connection is already ready
-    /// (common for second+ tabs where the first tab already established the connection).
-    /// - Parameter onReady: Callback when connection is ready
-    func waitForConnectionAndExecute(onReady: @escaping () -> Void) async {
-        // Fast path: connection already established (second+ tabs)
-        if let session = DatabaseManager.shared.currentSession,
-           session.isConnected {
-            justRestoredTab = true
-            onReady()
-            return
-        }
-
-        // Slow path: wait for connection (first tab after connect)
-        var retryCount = 0
-        while retryCount < Self.maxConnectionRetries {
-            guard !isDismissing else { break }
-
-            try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
-            retryCount += 1
-
-            if let session = DatabaseManager.shared.currentSession,
-               session.isConnected {
-                justRestoredTab = true
-                onReady()
-                return
-            }
-        }
-
-        if retryCount >= Self.maxConnectionRetries {
-            Self.logger.warning("waitForConnectionAndExecute: timed out after \(retryCount) retries")
-        }
+    /// Mark that a tab was just restored (prevents duplicate lazy load on tab switch)
+    func markJustRestored() {
+        justRestoredTab = true
     }
 
     /// Reset the just restored flag

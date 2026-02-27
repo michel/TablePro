@@ -254,10 +254,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard !queuedFileURLs.isEmpty else { return }
         let urls = queuedFileURLs
         queuedFileURLs.removeAll()
+        postSQLFilesWhenReady(urls: urls, attemptsRemaining: 10)
+    }
 
-        // Small delay to allow coordinator/tab manager to finish setup
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+    private func postSQLFilesWhenReady(urls: [URL], attemptsRemaining: Int) {
+        if NSApp.windows.contains(where: { isMainWindow($0) && $0.isKeyWindow }) || attemptsRemaining <= 0 {
             NotificationCenter.default.post(name: .openSQLFiles, object: urls)
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                self?.postSQLFilesWhenReady(urls: urls, attemptsRemaining: attemptsRemaining - 1)
+            }
         }
     }
 
@@ -274,7 +280,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Open main window first, then attempt connection
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+        DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
             // Open main window via notification FIRST (before closing welcome window)
@@ -307,7 +313,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Close any macOS-restored main windows
     private func closeRestoredMainWindows() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        DispatchQueue.main.async {
             for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
                 window.close()
             }

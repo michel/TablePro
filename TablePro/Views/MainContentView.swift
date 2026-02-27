@@ -252,7 +252,14 @@ struct MainContentView: View {
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {
                     coordinator.needsLazyLoad = false
-                    coordinator.runQuery()
+                    if let selectedTab = tabManager.selectedTab,
+                       !selectedTab.databaseName.isEmpty,
+                       selectedTab.databaseName != coordinator.connection.database
+                    {
+                        Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
+                    } else {
+                        coordinator.runQuery()
+                    }
                 }
                 toolbarState.connectionState = mapSessionStatus(session.status)
             }
@@ -361,16 +368,21 @@ struct MainContentView: View {
                selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                await coordinator.tabPersistence.waitForConnectionAndExecute {
+                // Fast path: connection already ready
+                if let session = DatabaseManager.shared.activeSessions[connection.id],
+                   session.isConnected
+                {
+                    coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
                        selectedTab.databaseName != coordinator.connection.database
                     {
-                        Task {
-                            await coordinator.switchDatabase(to: selectedTab.databaseName)
-                        }
+                        Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
                         coordinator.executeTableTabQueryDirectly()
                     }
+                } else {
+                    // Reactive path: fires via .onReceive($activeSessions) when connection is ready
+                    coordinator.needsLazyLoad = true
                 }
             }
             return
@@ -407,12 +419,12 @@ struct MainContentView: View {
             if !remainingTabs.isEmpty {
                 // Delay to let the first window finish setup
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 300_000_000)
+                    try? await Task.sleep(nanoseconds: 100_000_000)
                     for tab in remainingTabs {
                         let payload = EditorTabPayload(from: tab, connectionId: connection.id)
                         WindowOpener.shared.openNativeTab(payload)
                         // Small delay between opens to avoid overwhelming AppKit
-                        try? await Task.sleep(nanoseconds: 100_000_000)
+                        try? await Task.sleep(nanoseconds: 50_000_000)
                     }
                 }
             }
@@ -421,16 +433,21 @@ struct MainContentView: View {
             if selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                await coordinator.tabPersistence.waitForConnectionAndExecute {
+                // Fast path: connection already ready
+                if let session = DatabaseManager.shared.activeSessions[connection.id],
+                   session.isConnected
+                {
+                    coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
                        selectedTab.databaseName != coordinator.connection.database
                     {
-                        Task {
-                            await coordinator.switchDatabase(to: selectedTab.databaseName)
-                        }
+                        Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
                         coordinator.executeTableTabQueryDirectly()
                     }
+                } else {
+                    // Reactive path: fires via .onReceive($activeSessions) when connection is ready
+                    coordinator.needsLazyLoad = true
                 }
             }
         }
