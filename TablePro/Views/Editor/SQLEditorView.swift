@@ -23,65 +23,77 @@ struct SQLEditorView: View {
     @State private var editorState = SourceEditorState()
     @State private var completionAdapter: SQLCompletionAdapter?
     @State private var coordinator = SQLEditorCoordinator()
+    @State private var editorReady = false
     @State private var editorConfiguration = makeConfiguration()
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        SourceEditor(
-            $text,
-            language: .sql,
-            configuration: editorConfiguration,
-            state: $editorState,
-            coordinators: [coordinator],
-            completionDelegate: completionAdapter
-        )
-        .onChange(of: editorState.cursorPositions) { _, newValue in
-            guard let positions = newValue else { return }
-            // Skip cursor propagation when the editor doesn't have focus
-            // (e.g., find panel match highlighting). Propagating triggers
-            // a SwiftUI re-render that disrupts the find panel's focus.
-            guard coordinator.isEditorFirstResponder else { return }
-            // Guard against stale propagation during tab switch (.id() recreation):
-            // verify the editor's text still matches the binding before propagating.
-            // Use O(1) length pre-check to avoid O(n) string comparison on large docs.
-            if let controller = coordinator.controller {
-                let currentString = controller.textView.string as NSString
-                let bindingString = text as NSString
-                if currentString.length != bindingString.length || currentString != bindingString {
-                    return
+        if editorReady {
+            SourceEditor(
+                $text,
+                language: .sql,
+                configuration: editorConfiguration,
+                state: $editorState,
+                coordinators: [coordinator],
+                completionDelegate: completionAdapter
+            )
+            .onChange(of: editorState.cursorPositions) { _, newValue in
+                guard let positions = newValue else { return }
+                // Skip cursor propagation when the editor doesn't have focus
+                // (e.g., find panel match highlighting). Propagating triggers
+                // a SwiftUI re-render that disrupts the find panel's focus.
+                guard coordinator.isEditorFirstResponder else { return }
+                // Guard against stale propagation during tab switch (.id() recreation):
+                // verify the editor's text still matches the binding before propagating.
+                // Use O(1) length pre-check to avoid O(n) string comparison on large docs.
+                if let controller = coordinator.controller {
+                    let currentString = controller.textView.string as NSString
+                    let bindingString = text as NSString
+                    if currentString.length != bindingString.length || currentString != bindingString {
+                        return
+                    }
+                }
+                cursorPositions = positions
+            }
+            // SourceEditor doesn't re-read the text binding in updateNSViewController,
+            // so programmatic changes on the SAME tab (clear, format) won't appear
+            // without this. Tab switches don't need it — .id(tab.id) recreates the
+            // entire SourceEditor with the correct text.
+            .onChange(of: text) { _, newValue in
+                if let controller = coordinator.controller {
+                    let currentString = controller.textView.string as NSString
+                    let newString = newValue as NSString
+                    // Fast O(1) length check before expensive O(n) string equality
+                    if currentString.length != newString.length || currentString != newString {
+                        let fullRange = NSRange(location: 0, length: currentString.length)
+                        controller.textView.replaceCharacters(in: fullRange, with: newValue)
+                    }
                 }
             }
-            cursorPositions = positions
-        }
-        // SourceEditor doesn't re-read the text binding in updateNSViewController,
-        // so programmatic changes on the SAME tab (clear, format) won't appear
-        // without this. Tab switches don't need it — .id(tab.id) recreates the
-        // entire SourceEditor with the correct text.
-        .onChange(of: text) { _, newValue in
-            if let controller = coordinator.controller {
-                let currentString = controller.textView.string as NSString
-                let newString = newValue as NSString
-                // Fast O(1) length check before expensive O(n) string equality
-                if currentString.length != newString.length || currentString != newString {
-                    let fullRange = NSRange(location: 0, length: currentString.length)
-                    controller.textView.replaceCharacters(in: fullRange, with: newValue)
+            .onChange(of: colorScheme) {
+                editorConfiguration = Self.makeConfiguration()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .editorSettingsDidChange)) { _ in
+                editorConfiguration = Self.makeConfiguration()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .accessibilityTextSizeDidChange)) { _ in
+                editorConfiguration = Self.makeConfiguration()
+            }
+            .onAppear {
+                if completionAdapter == nil {
+                    completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)
                 }
+                coordinator.schemaProvider = schemaProvider
             }
-        }
-        .onChange(of: colorScheme) {
-            editorConfiguration = Self.makeConfiguration()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .editorSettingsDidChange)) { _ in
-            editorConfiguration = Self.makeConfiguration()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .accessibilityTextSizeDidChange)) { _ in
-            editorConfiguration = Self.makeConfiguration()
-        }
-        .onAppear {
-            if completionAdapter == nil {
-                completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)
-            }
-            coordinator.schemaProvider = schemaProvider
+        } else {
+            Color(nsColor: .textBackgroundColor)
+                .onAppear {
+                    if completionAdapter == nil {
+                        completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)
+                    }
+                    coordinator.schemaProvider = schemaProvider
+                    editorReady = true
+                }
         }
     }
 

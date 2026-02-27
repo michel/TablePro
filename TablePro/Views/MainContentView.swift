@@ -390,7 +390,7 @@ struct MainContentView: View {
         }
 
         // No payload — restore tabs from storage (first window on connection)
-        let result = coordinator.tabPersistence.restoreTabs()
+        let result = await coordinator.tabPersistence.restoreTabs()
         if !result.tabs.isEmpty {
             coordinator.tabPersistence.beginRestoration()
             defer { coordinator.tabPersistence.endRestoration() }

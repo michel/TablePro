@@ -169,6 +169,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Start anonymous usage analytics heartbeat
         AnalyticsService.shared.startPeriodicHeartbeat()
 
+        // Pre-warm query history storage on background thread
+        // (avoids blocking main thread on first access due to queue.sync in init)
+        Task.detached(priority: .background) {
+            _ = QueryHistoryStorage.shared
+        }
+
         // Configure windows after app launch
         configureWelcomeWindow()
 

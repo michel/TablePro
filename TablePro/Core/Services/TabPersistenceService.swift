@@ -153,13 +153,16 @@ final class TabPersistenceService: ObservableObject {
 
     /// Restore tabs from storage (disk first, then session fallback)
     /// - Returns: RestoreResult with tabs and source
-    func restoreTabs() -> RestoreResult {
+    func restoreTabs() async -> RestoreResult {
         isRestoringTabs = true
         defer { isRestoringTabs = false }
 
-        // Try disk storage first (persists across app restarts)
-        if let savedState = TabStateStorage.shared.loadTabState(connectionId: connectionId),
-           !savedState.tabs.isEmpty {
+        // Try disk storage first (persists across app restarts, offload file I/O)
+        let connId = connectionId
+        let savedState = await Task.detached(priority: .userInitiated) {
+            TabStateStorage.shared.loadTabState(connectionId: connId)
+        }.value
+        if let savedState, !savedState.tabs.isEmpty {
             let restoredTabs = savedState.tabs.map { QueryTab(from: $0) }
             return RestoreResult(
                 tabs: restoredTabs,
