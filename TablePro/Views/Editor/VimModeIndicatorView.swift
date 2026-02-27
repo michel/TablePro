@@ -12,13 +12,23 @@ struct VimModeIndicatorView: View {
     let mode: VimMode
 
     var body: some View {
-        Text(mode.displayLabel)
-            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-            .foregroundStyle(foregroundColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(backgroundColor)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
+        if case .commandLine = mode {
+            Text(mode.displayLabel)
+                .font(.system(size: 11, weight: .regular, design: .monospaced))
+                .foregroundStyle(foregroundColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(backgroundColor)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        } else {
+            Text(mode.displayLabel)
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .foregroundStyle(foregroundColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(backgroundColor)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
     }
 
     private var foregroundColor: Color {
