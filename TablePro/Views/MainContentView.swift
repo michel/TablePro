@@ -390,6 +390,13 @@ struct MainContentView: View {
             return
         }
 
+        // If other windows already exist for this connection, this is a "new tab"
+        // from the native macOS "+" button — just add a single empty query tab.
+        if NativeTabRegistry.shared.hasWindows(for: connection.id) {
+            tabManager.addTab(databaseName: connection.database)
+            return
+        }
+
         // No payload — restore tabs from storage (first window on connection)
         let result = await coordinator.tabPersistence.restoreTabs()
         if !result.tabs.isEmpty {
