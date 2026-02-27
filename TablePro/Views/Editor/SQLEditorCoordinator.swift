@@ -85,7 +85,7 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
         // Notify inline suggestion manager immediately (lightweight)
         DispatchQueue.main.async { [weak self] in
             self?.inlineSuggestionManager?.handleTextChange()
-            self?.vimCursorManager?.updatePosition(cursorOffset: self?.vimEngine?.cursorOffset)
+            self?.vimCursorManager?.updatePosition()
         }
 
         // Throttle frame-change notification — during rapid typing, only the
@@ -108,7 +108,7 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
 
     func textViewDidChangeSelection(controller: TextViewController, newPositions: [CursorPosition]) {
         inlineSuggestionManager?.handleSelectionChange()
-        vimCursorManager?.updatePosition(cursorOffset: vimEngine?.cursorOffset)
+        vimCursorManager?.updatePosition()
 
         // When the find panel navigates to a match, it changes the selection
         // but the editor is not first responder. Scroll to the match manually
@@ -278,7 +278,7 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             DispatchQueue.main.async {
                 self.setHorizontalScrollProperties(controller: controller)
                 self.handleVimSettingsChange(controller: controller)
-                self.vimCursorManager?.updatePosition(cursorOffset: self.vimEngine?.cursorOffset)
+                self.vimCursorManager?.updatePosition()
             }
         }
 

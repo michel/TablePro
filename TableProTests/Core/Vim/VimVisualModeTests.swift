@@ -422,7 +422,8 @@ final class VimVisualModeTests: XCTestCase {
         // Now paste to check register.
         _ = key("p")
         // Register contains "he" (characterwise). Paste after cursor.
-        XCTAssertTrue(buffer.text.contains("he"))
+        XCTAssertEqual(buffer.text, "lhelo world\nsecond line\nthird line\n",
+            "Register should contain 'he' and paste should insert it at offset 1")
     }
 
     // MARK: - Visual Mode with Multiple Characters Selected

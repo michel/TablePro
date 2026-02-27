@@ -18,7 +18,7 @@ enum VimMode: Equatable {
         case .normal: return "NORMAL"
         case .insert: return "INSERT"
         case .visual(let linewise): return linewise ? "VISUAL LINE" : "VISUAL"
-        case .commandLine: return "COMMAND"
+        case .commandLine(let buffer): return buffer
         }
     }
 

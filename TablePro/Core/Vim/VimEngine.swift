@@ -25,17 +25,7 @@ final class VimEngine {
     private(set) var mode: VimMode = .normal {
         didSet {
             if oldValue != mode {
-                // Suppress for commandLine buffer content updates — display shows "COMMAND" regardless
-                let categoryChanged: Bool
-                switch (oldValue, mode) {
-                case (.commandLine, .commandLine):
-                    categoryChanged = false
-                default:
-                    categoryChanged = true
-                }
-                if categoryChanged {
-                    onModeChange?(mode)
-                }
+                onModeChange?(mode)
             }
         }
     }
