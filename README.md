@@ -5,13 +5,17 @@
 <h1 align="center">TablePro</h1>
 
 <p align="center">
-  A fast, native macOS database client — built with SwiftUI and AppKit.
+  A fast, native macOS database client with AI-powered SQL assistance.
 </p>
 
 <p align="center">
   <a href="https://docs.tablepro.app">Documentation</a> ·
   <a href="https://github.com/datlechin/tablepro/releases">Download</a> ·
   <a href="https://github.com/datlechin/tablepro/issues">Report Bug</a>
+</p>
+
+<p align="center">
+  <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
 ---
