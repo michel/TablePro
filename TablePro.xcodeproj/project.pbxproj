@@ -413,25 +413,15 @@
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.8.0;
-				"OTHER_LDFLAGS[arch=arm64]" = (
+				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
-					"-L/opt/homebrew/opt/libpq/lib",
-					"-L/opt/homebrew/opt/openssl/lib",
-					"-lpq",
-					"-lcrypto",
-					"-lssl",
-					"-lz",
-					"-Wl,-w",
-				);
-				"OTHER_LDFLAGS[arch=x86_64]" = (
 					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmariadb.a",
-					"-L/usr/local/opt/libpq/lib",
-					"-L/usr/local/opt/openssl/lib",
-					"-lpq",
-					"-lcrypto",
-					"-lssl",
+					"$(PROJECT_DIR)/Libs/libpq.a",
+					"$(PROJECT_DIR)/Libs/libpgcommon.a",
+					"$(PROJECT_DIR)/Libs/libpgport.a",
+					"$(PROJECT_DIR)/Libs/libssl.a",
+					"$(PROJECT_DIR)/Libs/libcrypto.a",
 					"-lz",
 					"-Wl,-w",
 				);
@@ -504,25 +494,15 @@
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.8.0;
-				"OTHER_LDFLAGS[arch=arm64]" = (
+				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
-					"-L/opt/homebrew/opt/libpq/lib",
-					"-L/opt/homebrew/opt/openssl/lib",
-					"-lpq",
-					"-lcrypto",
-					"-lssl",
-					"-lz",
-					"-Wl,-w",
-				);
-				"OTHER_LDFLAGS[arch=x86_64]" = (
 					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmariadb.a",
-					"-L/usr/local/opt/libpq/lib",
-					"-L/usr/local/opt/openssl/lib",
-					"-lpq",
-					"-lcrypto",
-					"-lssl",
+					"$(PROJECT_DIR)/Libs/libpq.a",
+					"$(PROJECT_DIR)/Libs/libpgcommon.a",
+					"$(PROJECT_DIR)/Libs/libpgport.a",
+					"$(PROJECT_DIR)/Libs/libssl.a",
+					"$(PROJECT_DIR)/Libs/libcrypto.a",
 					"-lz",
 					"-Wl,-w",
 				);
