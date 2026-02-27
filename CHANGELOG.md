@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Installation docs now show `xattr -cr` as the primary fix for the "damaged" error instead of the right-click method which doesn't resolve it
+
 ## [0.8.0] - 2026-02-27
 
 ### Changed
