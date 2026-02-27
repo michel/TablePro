@@ -262,7 +262,9 @@ struct MainContentView: View {
                 previousSelectedTables = newTables
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-                syncSidebarToCurrentTab()
+                DispatchQueue.main.async {
+                    syncSidebarToCurrentTab()
+                }
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
@@ -367,7 +369,7 @@ struct MainContentView: View {
                             await coordinator.switchDatabase(to: selectedTab.databaseName)
                         }
                     } else {
-                        coordinator.runQuery()
+                        coordinator.executeTableTabQueryDirectly()
                     }
                 }
             }
@@ -392,6 +394,7 @@ struct MainContentView: View {
             // Update registry with this window's single tab
             NativeTabRegistry.shared.update(
                 windowId: windowId,
+                connectionId: connection.id,
                 tabs: tabManager.tabs,
                 selectedTabId: selectedTab.id
             )
@@ -426,7 +429,7 @@ struct MainContentView: View {
                             await coordinator.switchDatabase(to: selectedTab.databaseName)
                         }
                     } else {
-                        coordinator.runQuery()
+                        coordinator.executeTableTabQueryDirectly()
                     }
                 }
             }
@@ -492,6 +495,7 @@ struct MainContentView: View {
         // Update registry (non-observable, safe inside onChange)
         NativeTabRegistry.shared.update(
             windowId: windowId,
+            connectionId: connection.id,
             tabs: tabManager.tabs,
             selectedTabId: newTabId
         )
@@ -499,8 +503,8 @@ struct MainContentView: View {
         // Defer session sync + persistence to next run loop to avoid
         // "tried to update multiple times per frame" warning
         let connId = connection.id
-        let tabs = tabManager.tabs
         DispatchQueue.main.async { [coordinator] in
+            guard !coordinator.tabPersistence.isDismissing else { return }
             let combinedTabs = NativeTabRegistry.shared.allTabs(for: connId)
             coordinator.tabPersistence.saveTabsAsync(
                 tabs: combinedTabs,
@@ -521,6 +525,7 @@ struct MainContentView: View {
         // Update registry (non-observable, safe inside onChange)
         NativeTabRegistry.shared.update(
             windowId: windowId,
+            connectionId: connection.id,
             tabs: newTabs,
             selectedTabId: tabManager.selectedTabId
         )
@@ -530,6 +535,7 @@ struct MainContentView: View {
         let connId = connection.id
         let selectedTabId = tabManager.selectedTabId
         DispatchQueue.main.async { [coordinator] in
+            guard !coordinator.tabPersistence.isDismissing else { return }
             let combinedTabs = NativeTabRegistry.shared.allTabs(for: connId)
             coordinator.tabPersistence.saveTabsAsync(
                 tabs: combinedTabs,

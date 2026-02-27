@@ -31,14 +31,17 @@ internal final class NativeTabRegistry {
         entries[windowId] = WindowEntry(connectionId: connectionId, tabs: tabs, selectedTabId: selectedTabId)
     }
 
-    /// Update a window's tabs (call when tabs or selection changes)
-    internal func update(windowId: UUID, tabs: [QueryTab], selectedTabId: UUID?) {
-        guard entries[windowId] != nil else {
-            Self.logger.warning("update called for unregistered windowId \(windowId)")
-            return
+    /// Update a window's tabs (call when tabs or selection changes).
+    /// Auto-registers the window if not yet registered — handles the race where
+    /// `.onChange` fires before `.onAppear` (upsert pattern).
+    internal func update(windowId: UUID, connectionId: UUID, tabs: [QueryTab], selectedTabId: UUID?) {
+        if entries[windowId] != nil {
+            entries[windowId]?.tabs = tabs
+            entries[windowId]?.selectedTabId = selectedTabId
+        } else {
+            // Auto-register: .onChange can fire before .onAppear
+            entries[windowId] = WindowEntry(connectionId: connectionId, tabs: tabs, selectedTabId: selectedTabId)
         }
-        entries[windowId]?.tabs = tabs
-        entries[windowId]?.selectedTabId = selectedTabId
     }
 
     /// Remove a window from the registry (call on window close/disappear)

@@ -353,13 +353,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             if remainingMainWindows == 0 {
                 // Last tab closing → disconnect and return to welcome screen
-                // CRITICAL: Post notification FIRST to allow MainContentView to flush pending saves
                 NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
 
-                // Allow run loop to process notification handlers synchronously
-                RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
-
-                // Disconnect sessions asynchronously (after save is complete)
+                // Disconnect sessions asynchronously
                 Task { @MainActor in
                     await DatabaseManager.shared.disconnectAll()
                 }
@@ -469,7 +465,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             configuredWindows.insert(windowId)
         }
 
-        // Configure native tabbing for main windows (only once per window)
+        // Configure native tabbing for main windows (only once per window).
+        // Must be synchronous — tabbingMode must be set before the window
+        // is displayed so macOS merges it into the existing tab group.
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
             window.tabbingMode = .preferred
             window.tabbingIdentifier = "com.TablePro.main"

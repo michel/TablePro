@@ -232,6 +232,7 @@ struct MainEditorContentView: View {
                 if !coordinator.tabPersistence.isRestoringTabs && !coordinator.tabPersistence.isDismissing {
                     NativeTabRegistry.shared.update(
                         windowId: windowId,
+                        connectionId: connectionId,
                         tabs: tabManager.tabs,
                         selectedTabId: tabManager.selectedTabId
                     )

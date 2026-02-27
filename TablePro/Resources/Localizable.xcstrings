@@ -1763,6 +1763,7 @@
       }
     },
     "Closing this tab will discard all unsaved changes." : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6683,6 +6684,7 @@
       }
     },
     "Reuse clean table tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7746,6 +7748,7 @@
       }
     },
     "Tab Behavior" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8639,6 +8642,7 @@
       }
     },
     "When enabled, clicking a new table replaces the current clean table tab instead of opening a new tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8649,6 +8653,7 @@
       }
     },
     "When enabled, clicking a table in the sidebar will replace the current tab if it has no unsaved changes and you haven't interacted with it (sorted, filtered, etc.)." : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {

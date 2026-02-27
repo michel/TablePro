@@ -100,17 +100,17 @@ final class TabPersistenceService: ObservableObject {
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
     func handleWindowClose(tabs: [QueryTab], selectedTabId: UUID?) {
-        // Set flag to prevent further saves
         isDismissing = true
-
-        // Cancel debounce task and save immediately
         saveDebounceTask?.cancel()
 
-        TabStateStorage.shared.saveTabState(
-            connectionId: connectionId,
-            tabs: tabs,
-            selectedTabId: selectedTabId
-        )
+        let connId = connectionId
+        Task.detached(priority: .userInitiated) {
+            TabStateStorage.shared.saveTabState(
+                connectionId: connId,
+                tabs: tabs,
+                selectedTabId: selectedTabId
+            )
+        }
     }
 
     /// Save tabs asynchronously on a background thread to avoid blocking the main thread.
@@ -184,25 +184,33 @@ final class TabPersistenceService: ObservableObject {
         return RestoreResult(tabs: [], selectedTabId: nil, source: .none)
     }
 
-    /// Wait for database connection to be established before executing query
+    /// Wait for database connection to be established before executing query.
+    /// Checks immediately first — avoids polling delay when connection is already ready
+    /// (common for second+ tabs where the first tab already established the connection).
     /// - Parameter onReady: Callback when connection is ready
     func waitForConnectionAndExecute(onReady: @escaping () -> Void) async {
-        var retryCount = 0
+        // Fast path: connection already established (second+ tabs)
+        if let session = DatabaseManager.shared.currentSession,
+           session.isConnected {
+            justRestoredTab = true
+            onReady()
+            return
+        }
 
+        // Slow path: wait for connection (first tab after connect)
+        var retryCount = 0
         while retryCount < Self.maxConnectionRetries {
             guard !isDismissing else { break }
 
-            if let session = DatabaseManager.shared.currentSession,
-               session.isConnected {
-                await MainActor.run {
-                    justRestoredTab = true
-                    onReady()
-                }
-                break
-            }
-
             try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
             retryCount += 1
+
+            if let session = DatabaseManager.shared.currentSession,
+               session.isConnected {
+                justRestoredTab = true
+                onReady()
+                return
+            }
         }
 
         if retryCount >= Self.maxConnectionRetries {
