@@ -126,7 +126,7 @@ When approaching limits: extract into `TypeName+Category.swift` extension files 
 
 These are **non-negotiable** — never skip them:
 
-1. **CHANGELOG.md**: Update under `[Unreleased]` section (Added/Fixed/Changed) for every feature, bug fix, or notable change.
+1. **CHANGELOG.md**: Update under `[Unreleased]` section (Added/Fixed/Changed) for every feature, bug fix, or notable change. Documentation-only changes (`docs/`) do **not** need a CHANGELOG entry.
 
 2. **Localization**: Use `String(localized:)` for new user-facing strings in computed properties, AppKit code, alerts, and error descriptions. SwiftUI view literals (`Text("literal")`, `Button("literal")`) auto-localize. Do NOT localize technical terms (font names, database types, SQL keywords, encoding names).
 
@@ -140,6 +140,8 @@ These are **non-negotiable** — never skip them:
 4. **Test-first correctness**: When tests fail, fix the **source code** — never adjust tests to match incorrect output. Tests define expected behavior.
 
 5. **Lint after changes**: Run `swiftlint lint --strict` to verify compliance.
+
+6. **Commit messages**: Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). Single line only, no description body. Examples: `docs: fix installation instructions for unsigned app`, `fix: prevent crash on empty query result`, `feat: add CSV export`.
 
 ## Agent Execution Strategy
 
