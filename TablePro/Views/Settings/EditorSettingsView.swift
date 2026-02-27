@@ -47,6 +47,7 @@ struct EditorSettingsView: View {
                     Text("4 spaces").tag(4)
                     Text("8 spaces").tag(8)
                 }
+                Toggle("Vim mode", isOn: $settings.vimModeEnabled)
             }
         }
         .formStyle(.grouped)

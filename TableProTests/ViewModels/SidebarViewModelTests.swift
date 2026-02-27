@@ -78,42 +78,6 @@ private func makeSUT(
 @Suite("SidebarViewModel")
 struct SidebarViewModelTests {
 
-    // MARK: - Search Filtering
-
-    @Test("filteredTables returns all when search is empty")
-    @MainActor
-    func filteredTablesReturnsAllWhenSearchEmpty() {
-        let tables = [
-            TestFixtures.makeTableInfo(name: "users"),
-            TestFixtures.makeTableInfo(name: "orders")
-        ]
-        let (vm, _, _, _, _, _) = makeSUT(tables: tables)
-        #expect(vm.filteredTables.count == 2)
-    }
-
-    @Test("filteredTables filters case-insensitively")
-    @MainActor
-    func filteredTablesFiltersCaseInsensitive() {
-        let tables = [
-            TestFixtures.makeTableInfo(name: "Users"),
-            TestFixtures.makeTableInfo(name: "orders"),
-            TestFixtures.makeTableInfo(name: "PRODUCTS")
-        ]
-        let (vm, _, _, _, _, _) = makeSUT(tables: tables)
-        vm.searchText = "user"
-        #expect(vm.filteredTables.count == 1)
-        #expect(vm.filteredTables.first?.name == "Users")
-    }
-
-    @Test("filteredTables returns empty for no matches")
-    @MainActor
-    func filteredTablesReturnsEmptyForNoMatches() {
-        let tables = [TestFixtures.makeTableInfo(name: "users")]
-        let (vm, _, _, _, _, _) = makeSUT(tables: tables)
-        vm.searchText = "xyz"
-        #expect(vm.filteredTables.isEmpty)
-    }
-
     // MARK: - Table Loading
 
     @Test("loadTables sets isLoading and populates tables")

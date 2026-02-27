@@ -8611,6 +8611,9 @@
         }
       }
     },
+    "Vim mode" : {
+
+    },
     "WARNING: Failed to re-enable foreign key checks: %@. Please manually verify FK constraints are enabled." : {
       "localizations" : {
         "vi" : {
