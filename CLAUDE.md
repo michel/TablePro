@@ -103,6 +103,7 @@ private static let logger = Logger(subsystem: "com.TablePro", category: "Compone
 - **Access control**: always explicit (`private`, `internal`, `public`). Specify on extension, not individual members.
 - **No force unwrapping/casting** — use `guard let`, `if let`, `as?`
 - **Acronyms as words**: `JsonEncoder` not `JSONEncoder` (except SDK types)
+- **No unnecessary comments**: Don't add comments that restate what the code already says. Only comment to explain non-obvious "why" reasoning or clarify genuinely complex logic.
 - **Extension access modifiers on the extension itself**:
     ```swift
     // Good
