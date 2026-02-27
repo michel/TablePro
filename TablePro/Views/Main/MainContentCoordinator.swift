@@ -1522,5 +1522,4 @@ private extension MainContentCoordinator {
             }
         }
     }
-
 }
