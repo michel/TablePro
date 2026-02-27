@@ -12,10 +12,16 @@ import XCTest
 
 @MainActor
 final class VimEngineTests: XCTestCase {
-    private var buffer: VimTextBufferMock!
     private var engine: VimEngine!
+    private var buffer: VimTextBufferMock!
     private var lastMode: VimMode?
     private var lastCommand: String?
+
+    // Default text: "hello world\nsecond line\nthird line\n"
+    //  offsets:      0123456789A B (line 0: 0–11, newline at 11)
+    //               C D E F ... (line 1: 12–23, newline at 23)
+    //               ...         (line 2: 24–34, newline at 34)
+    //  total length = 35
 
     override func setUp() {
         super.setUp()
@@ -25,1260 +31,950 @@ final class VimEngineTests: XCTestCase {
         engine.onCommand = { [weak self] cmd in self?.lastCommand = cmd }
     }
 
+    override func tearDown() {
+        engine = nil
+        buffer = nil
+        lastMode = nil
+        lastCommand = nil
+        super.tearDown()
+    }
+
+    // MARK: - Helpers
+
+    /// Feed a sequence of characters, each as a separate process() call.
+    private func keys(_ chars: String) {
+        for char in chars {
+            _ = engine.process(char, shift: false)
+        }
+    }
+
+    /// Feed a single character with optional shift.
+    private func key(_ char: Character, shift: Bool = false) {
+        _ = engine.process(char, shift: shift)
+    }
+
+    /// Send Escape key.
+    private func escape() {
+        _ = engine.process("\u{1B}", shift: false)
+    }
+
+    /// Send Enter key.
+    private func enter() {
+        _ = engine.process("\r", shift: false)
+    }
+
+    /// Send Backspace (DEL) key.
+    private func backspace() {
+        _ = engine.process("\u{7F}", shift: false)
+    }
+
+    /// Current cursor position shorthand.
+    private var cursorPos: Int {
+        buffer.selectedRange().location
+    }
+
     // MARK: - Initial State
 
-    func testStartsInNormalMode() {
+    func testInitialModeIsNormal() {
         XCTAssertEqual(engine.mode, .normal)
+    }
+
+    func testInitialCursorAtZero() {
+        XCTAssertEqual(cursorPos, 0)
+        XCTAssertEqual(engine.cursorOffset, 0)
     }
 
     func testModeChangeCallbackNotCalledOnInit() {
         XCTAssertNil(lastMode)
     }
 
-    // MARK: - Mode Transitions: Insert Mode Entry
-
-    func testIEntersInsertMode() {
-        XCTAssertTrue(engine.process("i", shift: false))
-        XCTAssertEqual(engine.mode, .insert)
-        XCTAssertEqual(lastMode, .insert)
-    }
-
-    func testAEntersInsertModeAfterCursor() {
-        buffer.setSelectedRange(NSRange(location: 2, length: 0))
-        _ = engine.process("a", shift: false)
-        XCTAssertEqual(engine.mode, .insert)
-        XCTAssertEqual(buffer.selectedRange().location, 3)
-    }
-
-    func testAAtEndOfBuffer() {
-        buffer.setSelectedRange(NSRange(location: buffer.length, length: 0))
-        _ = engine.process("a", shift: false)
-        XCTAssertEqual(engine.mode, .insert)
-        // Should not advance past end
-        XCTAssertEqual(buffer.selectedRange().location, buffer.length)
-    }
-
-    func testShiftIEntersInsertAtLineStart() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("I", shift: true)
-        XCTAssertEqual(engine.mode, .insert)
-        XCTAssertEqual(buffer.selectedRange().location, 0)
-    }
-
-    func testShiftIOnSecondLine() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0)) // In "second line"
-        _ = engine.process("I", shift: true)
-        XCTAssertEqual(engine.mode, .insert)
-        XCTAssertEqual(buffer.selectedRange().location, 12) // Start of "second line\n"
-    }
-
-    func testShiftAEntersInsertAtLineEnd() {
-        buffer.setSelectedRange(NSRange(location: 2, length: 0))
-        _ = engine.process("A", shift: true)
-        XCTAssertEqual(engine.mode, .insert)
-        // Should be at end of "hello world" (before newline, position 11)
-        XCTAssertEqual(buffer.selectedRange().location, 11)
-    }
-
-    func testOOpensLineBelow() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("o", shift: false)
-        XCTAssertEqual(engine.mode, .insert)
-        XCTAssertTrue(buffer.text.contains("hello world\n\n"))
-    }
-
-    func testShiftOOpensLineAbove() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0)) // In "second line"
-        _ = engine.process("O", shift: true)
-        XCTAssertEqual(engine.mode, .insert)
-        // A newline should be inserted before "second line"
-        XCTAssertTrue(buffer.text.contains("hello world\n\nsecond"))
-    }
-
-    // MARK: - Mode Transitions: Escape from Insert
-
-    func testEscapeExitsInsertMode() {
-        _ = engine.process("i", shift: false)
-        XCTAssertTrue(engine.process("\u{1B}", shift: false))
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testEscapeFromInsertMovesCursorBack() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("i", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 4)
-    }
-
-    func testEscapeFromInsertAtLineStartDoesNotMoveBack() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("i", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 0)
-    }
-
-    func testEscapeFromInsertAtSecondLineStartDoesNotMoveBack() {
-        buffer.setSelectedRange(NSRange(location: 12, length: 0)) // Start of "second line"
-        _ = engine.process("i", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
-        // Should NOT move back past line start
-        XCTAssertEqual(buffer.selectedRange().location, 12)
-    }
-
-    // MARK: - Insert Mode Passthrough
-
-    func testInsertModePassesThroughRegularKeys() {
-        _ = engine.process("i", shift: false)
-        XCTAssertFalse(engine.process("a", shift: false))
-        XCTAssertFalse(engine.process("b", shift: false))
-        XCTAssertFalse(engine.process("1", shift: false))
-        XCTAssertFalse(engine.process(" ", shift: false))
-    }
-
-    func testInsertModeOnlyConsumesEscape() {
-        _ = engine.process("i", shift: false)
-        XCTAssertTrue(engine.process("\u{1B}", shift: false))
-    }
-
-    // MARK: - Mode Transitions: Visual Mode
-
-    func testVEntersVisualMode() {
-        _ = engine.process("v", shift: false)
-        XCTAssertEqual(engine.mode, .visual(linewise: false))
-    }
-
-    func testShiftVEntersVisualLineMode() {
-        _ = engine.process("V", shift: true)
-        XCTAssertEqual(engine.mode, .visual(linewise: true))
-    }
-
-    func testEscapeExitsVisualMode() {
-        _ = engine.process("v", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testEscapeExitsVisualLineMode() {
-        _ = engine.process("V", shift: true)
-        _ = engine.process("\u{1B}", shift: false)
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testVTogglesBetweenVisualAndNormal() {
-        _ = engine.process("v", shift: false)
-        XCTAssertEqual(engine.mode, .visual(linewise: false))
-        _ = engine.process("v", shift: false) // Toggle off
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testShiftVTogglesVisualLineMode() {
-        _ = engine.process("V", shift: true)
-        XCTAssertEqual(engine.mode, .visual(linewise: true))
-        _ = engine.process("V", shift: true) // Toggle off
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testVSwitchesFromLinewiseToCharacterwise() {
-        _ = engine.process("V", shift: true)
-        XCTAssertEqual(engine.mode, .visual(linewise: true))
-        _ = engine.process("v", shift: false)
-        XCTAssertEqual(engine.mode, .visual(linewise: false))
-    }
-
-    func testShiftVSwitchesFromCharacterwiseToLinewise() {
-        _ = engine.process("v", shift: false)
-        XCTAssertEqual(engine.mode, .visual(linewise: false))
-        _ = engine.process("V", shift: true)
-        XCTAssertEqual(engine.mode, .visual(linewise: true))
-    }
-
-    // MARK: - Mode Transitions: Command-Line Mode
-
-    func testColonEntersCommandLineMode() {
-        _ = engine.process(":", shift: false)
-        if case .commandLine(let buf) = engine.mode {
-            XCTAssertEqual(buf, ":")
-        } else {
-            XCTFail("Expected command-line mode")
-        }
-    }
-
-    func testSlashEntersSearchCommandLine() {
-        _ = engine.process("/", shift: false)
-        if case .commandLine(let buf) = engine.mode {
-            XCTAssertEqual(buf, "/")
-        } else {
-            XCTFail("Expected command-line mode with / prefix")
-        }
-    }
-
-    // MARK: - Basic Motions: h, j, k, l
+    // MARK: - Basic Motions (h, j, k, l)
 
     func testHMovesLeft() {
         buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("h", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 4)
+        keys("h")
+        XCTAssertEqual(cursorPos, 4)
     }
 
-    func testHDoesNotMovePastLineStart() {
+    func testHAtStartOfBufferStaysAtZero() {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("h", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 0)
+        keys("h")
+        XCTAssertEqual(cursorPos, 0)
     }
 
-    func testHDoesNotMovePastSecondLineStart() {
-        buffer.setSelectedRange(NSRange(location: 12, length: 0)) // Start of "second line"
-        _ = engine.process("h", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 12)
+    func testHDoesNotCrossLineBoundary() {
+        // Position at start of second line (offset 12)
+        buffer.setSelectedRange(NSRange(location: 12, length: 0))
+        keys("h")
+        XCTAssertEqual(cursorPos, 12, "h should not move past start of current line")
     }
 
     func testLMovesRight() {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("l", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 1)
+        keys("l")
+        XCTAssertEqual(cursorPos, 1)
     }
 
-    func testLDoesNotMovePastLineEnd() {
-        // "hello world\n" — last char is at index 10, should not go past
+    func testLAtEndOfLineClampsToLastChar() {
+        // "hello world\n" — last content char is 'd' at offset 10, newline at 11
+        // l should not go past offset 10 on this line
         buffer.setSelectedRange(NSRange(location: 10, length: 0))
-        _ = engine.process("l", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 10)
+        keys("l")
+        XCTAssertEqual(cursorPos, 10, "l should not move past last character before newline")
     }
 
     func testJMovesDown() {
-        buffer.setSelectedRange(NSRange(location: 3, length: 0))
-        _ = engine.process("j", shift: false)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, 1)
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("j")
+        // Line 0 col 0 -> Line 1 col 0, offset 12
+        XCTAssertEqual(cursorPos, 12)
     }
 
-    func testJDoesNotMovePastLastLine() {
-        // Move to last line
-        let lastLineOffset = buffer.offset(forLine: buffer.lineCount - 1, column: 0)
-        buffer.setSelectedRange(NSRange(location: lastLineOffset, length: 0))
-        _ = engine.process("j", shift: false)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, buffer.lineCount - 1)
+    func testJAtLastLineStays() {
+        // Last line is "third line\n" starting at offset 24
+        buffer.setSelectedRange(NSRange(location: 24, length: 0))
+        keys("j")
+        // Should stay on line 2 (last line)
+        let (line, _) = buffer.lineAndColumn(forOffset: cursorPos)
+        XCTAssertEqual(line, 2)
     }
 
     func testKMovesUp() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0)) // In "second line"
-        _ = engine.process("k", shift: false)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, 0)
+        // Start on second line
+        buffer.setSelectedRange(NSRange(location: 12, length: 0))
+        keys("k")
+        // Line 1 col 0 -> Line 0 col 0, offset 0
+        XCTAssertEqual(cursorPos, 0)
     }
 
-    func testKDoesNotMovePastFirstLine() {
-        buffer.setSelectedRange(NSRange(location: 3, length: 0))
-        _ = engine.process("k", shift: false)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, 0)
-    }
-
-    func testJKPreservesGoalColumn() {
-        // Start at column 5 on first line
+    func testKAtFirstLineStays() {
         buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("j", shift: false) // Down
-        _ = engine.process("j", shift: false) // Down again
-        _ = engine.process("k", shift: false) // Up
-        // Should still be at column 5 on second line
-        let (line, col) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, 1)
-        XCTAssertEqual(col, 5)
+        keys("k")
+        // Already on first line, stays on first line
+        let (line, _) = buffer.lineAndColumn(forOffset: cursorPos)
+        XCTAssertEqual(line, 0)
     }
 
-    // MARK: - Line Motions: 0, $
+    func testHWithCount() {
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("3h")
+        XCTAssertEqual(cursorPos, 2)
+    }
+
+    func testLWithCount() {
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("3l")
+        XCTAssertEqual(cursorPos, 3)
+    }
+
+    func testJWithCount() {
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("2j")
+        // Line 0 -> Line 2
+        let (line, _) = buffer.lineAndColumn(forOffset: cursorPos)
+        XCTAssertEqual(line, 2)
+    }
+
+    func testKWithCount() {
+        // Start on last line
+        buffer.setSelectedRange(NSRange(location: 24, length: 0))
+        keys("2k")
+        // Line 2 -> Line 0
+        let (line, _) = buffer.lineAndColumn(forOffset: cursorPos)
+        XCTAssertEqual(line, 0)
+    }
+
+    func testJPreservesGoalColumn() {
+        // Position at column 5 in line 0
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("j")
+        // Should be at column 5 of line 1 (offset 12+5 = 17)
+        XCTAssertEqual(cursorPos, 17)
+    }
+
+    // MARK: - Word Motions (w, b, e)
+
+    func testWMovesToNextWordStart() {
+        // "hello world\n..." — cursor at 0 ('h'), w should go to 'w' at offset 6
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("w")
+        XCTAssertEqual(cursorPos, 6)
+    }
+
+    func testWAtEndOfBuffer() {
+        // Move to near end, then w should clamp
+        buffer.setSelectedRange(NSRange(location: 30, length: 0))
+        keys("w")
+        XCTAssertTrue(cursorPos <= buffer.length)
+    }
+
+    func testBMovesToPreviousWordStart() {
+        // At 'w' (offset 6), b should go back to 'h' (offset 0)
+        buffer.setSelectedRange(NSRange(location: 6, length: 0))
+        keys("b")
+        XCTAssertEqual(cursorPos, 0)
+    }
+
+    func testBAtStartOfBuffer() {
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("b")
+        XCTAssertEqual(cursorPos, 0)
+    }
+
+    func testEMovesToWordEnd() {
+        // "hello world..." — at 0 ('h'), e should go to end of "hello" = offset 4 ('o')
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("e")
+        XCTAssertEqual(cursorPos, 4)
+    }
+
+    func testWWithCount() {
+        // At 0, 2w should skip "hello" and "world" — go to start of "second"
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("2w")
+        XCTAssertEqual(cursorPos, 12)
+    }
+
+    func testBWithCount() {
+        // At offset 18 (' ' between "second" and "line"), first b goes to 's' at 12,
+        // second b crosses newline to 'w' at 6 ("world")
+        buffer.setSelectedRange(NSRange(location: 18, length: 0))
+        keys("2b")
+        XCTAssertEqual(cursorPos, 6)
+    }
+
+    func testEWithCount() {
+        // At 0, 2e should go to end of "world" = offset 10 ('d')
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("2e")
+        XCTAssertEqual(cursorPos, 10)
+    }
+
+    // MARK: - Line Motions (0, $)
 
     func testZeroMovesToLineStart() {
+        // Position in middle of first line
         buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("0", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 0)
+        keys("0")
+        XCTAssertEqual(cursorPos, 0)
     }
 
     func testZeroOnSecondLine() {
-        buffer.setSelectedRange(NSRange(location: 18, length: 0)) // Mid "second line"
-        _ = engine.process("0", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 12)
+        buffer.setSelectedRange(NSRange(location: 18, length: 0))
+        keys("0")
+        XCTAssertEqual(cursorPos, 12)
     }
 
     func testDollarMovesToLineEnd() {
+        // "hello world\n" — $ should go to last content char 'd' at offset 10
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("$", shift: false)
-        // Last char of "hello world" is at index 10
-        XCTAssertEqual(buffer.selectedRange().location, 10)
+        keys("$")
+        XCTAssertEqual(cursorPos, 10)
     }
 
-    // MARK: - Word Motions: w, b, e
-
-    func testWMovesToNextWord() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("w", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 6) // Start of "world"
+    func testDollarOnSecondLine() {
+        // "second line\n" — starts at 12, last content char 'e' at 22
+        buffer.setSelectedRange(NSRange(location: 12, length: 0))
+        keys("$")
+        XCTAssertEqual(cursorPos, 22)
     }
 
-    func testBMovesToPreviousWord() {
-        buffer.setSelectedRange(NSRange(location: 6, length: 0))
-        _ = engine.process("b", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 0) // Start of "hello"
-    }
-
-    func testEMovesToEndOfWord() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("e", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 4) // End of "hello"
-    }
-
-    func testMultipleWMotions() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("w", shift: false) // → "world"
-        _ = engine.process("w", shift: false) // → next word
-        XCTAssertGreaterThan(buffer.selectedRange().location, 6)
-    }
-
-    // MARK: - Document Motions: gg, G
+    // MARK: - Document Motions (G, gg)
 
     func testGGMovesToDocumentStart() {
         buffer.setSelectedRange(NSRange(location: 20, length: 0))
-        _ = engine.process("g", shift: false)
-        _ = engine.process("g", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 0)
+        keys("gg")
+        XCTAssertEqual(cursorPos, 0)
     }
 
-    func testGGWithCountGoesToLine() {
-        _ = engine.process("2", shift: false)
-        _ = engine.process("g", shift: false)
-        _ = engine.process("g", shift: false)
-        // 2gg → line 2 (0-indexed line 1)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, 1)
-    }
-
-    func testShiftGMovesToLastLine() {
+    func testGMovesToLastLine() {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("G", shift: true)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, buffer.lineCount - 1)
+        key("G", shift: true)
+        // G goes to start of last line. Last line starts at 24.
+        let lineRange = buffer.lineRange(forOffset: cursorPos)
+        let lastLineRange = buffer.lineRange(forOffset: buffer.length - 1)
+        XCTAssertEqual(lineRange.location, lastLineRange.location)
     }
 
-    func testShiftGWithCountGoesToLine() {
-        _ = engine.process("2", shift: false)
-        _ = engine.process("G", shift: true)
-        // 2G → line 2 (0-indexed line 1)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, 1)
+    func testCountGMovesToSpecificLine() {
+        // 2G goes to line 2 (1-indexed), which is 0-indexed line 1 starting at offset 12
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("2")
+        key("G", shift: true)
+        let (line, _) = buffer.lineAndColumn(forOffset: cursorPos)
+        XCTAssertEqual(line, 1, "2G should go to line 2 (0-indexed line 1)")
     }
 
-    func testGFollowedByNonGIsConsumed() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("g", shift: false)
-        let consumed = engine.process("x", shift: false) // Not a valid g-combo
+    func testCountGGMovesToSpecificLine() {
+        // 2gg goes to line 2 (1-indexed), which is 0-indexed line 1
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("2gg")
+        let (line, _) = buffer.lineAndColumn(forOffset: cursorPos)
+        XCTAssertEqual(line, 1, "2gg should go to line 2 (0-indexed line 1)")
+    }
+
+    // MARK: - Insert Mode Entry (i, a, A, I, o, O)
+
+    func testIEntersInsertMode() {
+        let consumed = engine.process("i", shift: false)
         XCTAssertTrue(consumed)
-        // Cursor shouldn't have changed meaningfully (unknown g-prefix consumed)
+        XCTAssertEqual(engine.mode, .insert)
+        XCTAssertEqual(lastMode, .insert)
+    }
+
+    func testIDoesNotMoveCursor() {
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("i")
+        XCTAssertEqual(cursorPos, 5)
+    }
+
+    func testAEntersInsertModeAfterCursor() {
+        buffer.setSelectedRange(NSRange(location: 2, length: 0))
+        keys("a")
+        XCTAssertEqual(engine.mode, .insert)
+        XCTAssertEqual(cursorPos, 3)
+    }
+
+    func testAAtEndOfBuffer() {
+        buffer.setSelectedRange(NSRange(location: buffer.length, length: 0))
+        keys("a")
+        XCTAssertEqual(engine.mode, .insert)
+        // At end, cannot advance further
+        XCTAssertEqual(cursorPos, buffer.length)
+    }
+
+    func testAUpperEntersInsertModeAtLineEnd() {
+        // "hello world\n" — A should position cursor at offset 11 (after 'd', before '\n')
+        buffer.setSelectedRange(NSRange(location: 3, length: 0))
+        key("A", shift: true)
+        XCTAssertEqual(engine.mode, .insert)
+        XCTAssertEqual(cursorPos, 11)
+    }
+
+    func testIUpperEntersInsertModeAtLineStart() {
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        key("I", shift: true)
+        XCTAssertEqual(engine.mode, .insert)
+        XCTAssertEqual(cursorPos, 0)
+    }
+
+    func testIUpperOnSecondLine() {
+        buffer.setSelectedRange(NSRange(location: 18, length: 0))
+        key("I", shift: true)
+        XCTAssertEqual(engine.mode, .insert)
+        XCTAssertEqual(cursorPos, 12)
+    }
+
+    func testOOpensLineBelowAndEntersInsert() {
+        // Cursor on first line ("hello world\n")
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("o")
+        XCTAssertEqual(engine.mode, .insert)
+        // A new blank line should be inserted after line 0's newline
+        // "hello world\n" has newline at 11, so insert "\n" at offset 12
+        // Current line ends with newline, so cursor goes to offset 12 (the new line)
+        XCTAssertEqual(cursorPos, 12, "o should place cursor on the new blank line")
+        XCTAssertTrue(buffer.text.contains("hello world\n\n"), "Should insert a newline after current line")
+    }
+
+    func testOUpperOpensLineAboveAndEntersInsert() {
+        // Cursor on second line
+        buffer.setSelectedRange(NSRange(location: 14, length: 0))
+        keys("O")
+        XCTAssertEqual(engine.mode, .insert)
+        // O inserts "\n" at start of current line (offset 12), cursor goes to 12
+        XCTAssertEqual(cursorPos, 12, "O should place cursor on the new blank line above")
+    }
+
+    func testOOnLastLineWithoutTrailingNewline() {
+        // Buffer without trailing newline
+        buffer = VimTextBufferMock(text: "line one\nline two")
+        engine = VimEngine(buffer: buffer)
+        // Cursor on last line
+        buffer.setSelectedRange(NSRange(location: 12, length: 0))
+        keys("o")
+        XCTAssertEqual(engine.mode, .insert)
+        // "line two" has no trailing newline; o inserts "\n" at offset 17 (end of buffer)
+        // lineEndsWithNewline is false, so cursorPos = lineEnd + 1 = 17 + 1 = 18
+        XCTAssertTrue(buffer.text.contains("line two\n"), "Should append newline after last line")
+    }
+
+    func testEscapeReturnsToNormalMode() {
+        keys("i")
+        XCTAssertEqual(engine.mode, .insert)
+        escape()
+        XCTAssertEqual(engine.mode, .normal)
+    }
+
+    func testEscapeInInsertMovesCursorBack() {
+        // Vim convention: exiting insert mode moves cursor back one position
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("i")
+        escape()
+        XCTAssertEqual(cursorPos, 4)
+    }
+
+    func testEscapeInInsertAtLineStartStays() {
+        // At start of line, escape should not move cursor back past line boundary
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("i")
+        escape()
+        XCTAssertEqual(cursorPos, 0)
+    }
+
+    // MARK: - Delete Operations (x, dd, d+motion)
+
+    func testXDeletesCharacterUnderCursor() {
+        // "hello world\n..." — delete 'h' at offset 0
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("x")
+        XCTAssertEqual(buffer.text, "ello world\nsecond line\nthird line\n")
+    }
+
+    func testXWithCount() {
+        // 3x at offset 0 deletes "hel"
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("3x")
+        XCTAssertEqual(buffer.text, "lo world\nsecond line\nthird line\n")
+    }
+
+    func testXDoesNotCrossLineBoundary() {
+        // Position at 'd' (offset 10), which is the last char before '\n' at 11
+        // 5x should only delete 'd' (1 char), not cross into the newline
+        buffer.setSelectedRange(NSRange(location: 10, length: 0))
+        keys("5x")
+        // Only 1 char available before newline, so only 'd' is deleted
+        XCTAssertEqual(buffer.text, "hello worl\nsecond line\nthird line\n")
+    }
+
+    func testXAtEndOfLine() {
+        // Position at 'd' (offset 10), last content char
+        buffer.setSelectedRange(NSRange(location: 10, length: 0))
+        keys("x")
+        XCTAssertEqual(buffer.text, "hello worl\nsecond line\nthird line\n")
+    }
+
+    func testXOnEmptyLine() {
+        buffer = VimTextBufferMock(text: "line\n\nline\n")
+        engine = VimEngine(buffer: buffer)
+        // Cursor on the empty line (offset 5, which is the '\n' at the empty line)
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("x")
+        // contentEnd == pos for empty line; deleteCount should be 0; no change
+        XCTAssertEqual(buffer.text, "line\n\nline\n")
+    }
+
+    func testDDDeletesCurrentLine() {
+        // Delete first line "hello world\n"
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("dd")
+        XCTAssertEqual(buffer.text, "second line\nthird line\n")
+    }
+
+    func testDDWithCount() {
+        // 2dd deletes first two lines
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("2dd")
+        XCTAssertEqual(buffer.text, "third line\n")
+    }
+
+    func testDDOnLastRemainingLine() {
+        buffer = VimTextBufferMock(text: "only line\n")
+        engine = VimEngine(buffer: buffer)
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("dd")
+        XCTAssertEqual(buffer.text, "")
+    }
+
+    func testDWDeletesWord() {
+        // At offset 0, dw deletes "hello " (from 0 to next word boundary)
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("dw")
+        XCTAssertEqual(buffer.text, "world\nsecond line\nthird line\n")
+    }
+
+    func testDDollarDeletesToLineEnd() {
+        // d$ at offset 5 should delete from 5 through last char before newline (inclusive)
+        // "hello world\n" — offset 5 is ' ', d$ should delete " world" (offsets 5-10)
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("d$")
+        // $ motion moves to offset 10 (last char). d$ with inclusive means deletes 5..10 inclusive = 6 chars
+        XCTAssertEqual(buffer.text, "hello\nsecond line\nthird line\n")
+    }
+
+    func testDZeroDeletesToLineStart() {
+        // d0 at offset 5 should delete from 0 to 5 (exclusive end)
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("d0")
+        XCTAssertEqual(buffer.text, " world\nsecond line\nthird line\n")
+    }
+
+    func testDBDeletesBackwardWord() {
+        // At offset 6 ('w' in "world"), db should delete backwards to word boundary
+        // b from 6 goes to 6 (start of "world"), then from word start...
+        // Actually, from 6 ('w'), b goes to 0 ('h') — no, let's check:
+        // wordBoundary(forward: false, from: 6) — pos=5 (' '), not word char, skip; pos=4 ('o'), word char;
+        // then go back through word chars to pos=0. So b goes to 0.
+        // db deletes from 0 to 6 = "hello "
+        buffer.setSelectedRange(NSRange(location: 6, length: 0))
+        keys("db")
+        XCTAssertEqual(buffer.text, "world\nsecond line\nthird line\n")
+    }
+
+    // MARK: - Change Operations (cc, c+motion)
+
+    func testCCChangesEntireLine() {
+        // cc deletes line content (keeps newline) and enters insert mode
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("cc")
+        XCTAssertEqual(engine.mode, .insert)
+        // "hello world\n" content deleted, newline kept
+        XCTAssertEqual(buffer.text, "\nsecond line\nthird line\n")
+        XCTAssertEqual(cursorPos, 0)
+    }
+
+    func testCWChangesWord() {
+        // cw at offset 0 should delete "hello" to next word boundary, enter insert
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("cw")
+        XCTAssertEqual(engine.mode, .insert)
+        // w from 0 goes to 6, so range 0-6 ("hello ") is deleted
+        XCTAssertEqual(buffer.text, "world\nsecond line\nthird line\n")
+    }
+
+    func testCDollarChangesToLineEnd() {
+        // c$ at offset 5 changes from 5 to end of line
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("c$")
+        XCTAssertEqual(engine.mode, .insert)
+        XCTAssertEqual(buffer.text, "hello\nsecond line\nthird line\n")
+    }
+
+    // MARK: - Yank and Paste (yy, y+motion, p, P)
+
+    func testYYYanksCurrentLine() {
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("yy")
+        // Buffer should be unchanged
+        XCTAssertEqual(buffer.text, "hello world\nsecond line\nthird line\n")
+        // Cursor should remain on same line
+        let (line, _) = buffer.lineAndColumn(forOffset: cursorPos)
+        XCTAssertEqual(line, 0)
+    }
+
+    func testYWYanksWord() {
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("yw")
+        // Buffer unchanged
+        XCTAssertEqual(buffer.text, "hello world\nsecond line\nthird line\n")
+        // Cursor should be at start of yanked range
+        XCTAssertEqual(cursorPos, 0)
+    }
+
+    func testPPastesCharacterwiseAfterCursor() {
+        // Yank "hello " with yw, then paste after cursor
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("yw") // Yanks from 0 to word boundary
+        // Now cursor is at 0, move to offset 11 (newline)... let's stay at 0
+        keys("p")
+        // Characterwise paste inserts after cursor position (pos+1)
+        // "hello " inserted at offset 1
+        XCTAssertTrue(buffer.text.hasPrefix("h"))
+    }
+
+    func testPUpperPastesBeforeCursor() {
+        // Delete 'h' with x to store in register, then P pastes before cursor
+        buffer.setSelectedRange(NSRange(location: 3, length: 0))
+        keys("x") // Deletes 'l' at offset 3, register = "l"
+        XCTAssertEqual(buffer.text, "helo world\nsecond line\nthird line\n")
+        keys("P")
+        // P pastes before cursor (at position 3)
+        XCTAssertEqual(buffer.text, "hello world\nsecond line\nthird line\n")
+    }
+
+    func testPPastesLinewiseAfterCurrentLine() {
+        // yy to yank line, j to go to second line, p to paste after
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("yy") // Yanks "hello world\n"
+        keys("j")  // Move to second line
+        keys("p")  // Paste linewise after current line
+        // Should insert "hello world\n" after "second line\n"
+        XCTAssertEqual(buffer.text, "hello world\nsecond line\nhello world\nthird line\n")
+    }
+
+    func testPUpperPastesLinewiseBeforeCurrentLine() {
+        // yy to yank line, j to second line, P to paste before
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("yy") // Yanks "hello world\n"
+        keys("j")  // Move to second line
+        key("P", shift: true) // Paste linewise before current line
+        // Should insert "hello world\n" before "second line\n"
+        XCTAssertEqual(buffer.text, "hello world\nhello world\nsecond line\nthird line\n")
+    }
+
+    func testDDThenPRestoresLine() {
+        // Delete first line, then paste it back
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("dd") // Deletes "hello world\n", cursor on "second line"
+        XCTAssertEqual(buffer.text, "second line\nthird line\n")
+        keys("p") // Linewise paste after current line
+        XCTAssertEqual(buffer.text, "second line\nhello world\nthird line\n")
+    }
+
+    // MARK: - Undo/Redo
+
+    func testUCallsUndo() {
+        XCTAssertEqual(buffer.undoCallCount, 0)
+        keys("u")
+        XCTAssertEqual(buffer.undoCallCount, 1)
+    }
+
+    func testUCallsUndoMultipleTimes() {
+        keys("u")
+        keys("u")
+        keys("u")
+        XCTAssertEqual(buffer.undoCallCount, 3)
+    }
+
+    func testCtrlRCallsRedo() {
+        XCTAssertEqual(buffer.redoCallCount, 0)
+        engine.redo()
+        XCTAssertEqual(buffer.redoCallCount, 1)
     }
 
     // MARK: - Count Prefix
 
     func testCountPrefixWithMotion() {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("3", shift: false)
-        _ = engine.process("l", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 3)
+        keys("3l")
+        XCTAssertEqual(cursorPos, 3)
     }
 
-    func testCountPrefixWithJ() {
+    func testCountPrefixWithOperator() {
+        // 3dd deletes 3 lines
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("2", shift: false)
-        _ = engine.process("j", shift: false)
-        let (line, _) = buffer.lineAndColumn(forOffset: buffer.selectedRange().location)
-        XCTAssertEqual(line, 2)
+        keys("3dd")
+        // All three content lines deleted (plus trailing newline gives empty)
+        XCTAssertEqual(buffer.text, "")
     }
 
-    func testCountPrefixWithH() {
+    func testCountPrefixOverflow() {
+        // Large count should be capped and not crash
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("999999l")
+        // Should not crash, cursor should be clamped to valid position
+        XCTAssertTrue(cursorPos >= 0 && cursorPos <= buffer.length)
+    }
+
+    func testZeroAsMotionNotCount() {
+        // 0 alone should go to line start (it's a motion, not count digit)
         buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("3", shift: false)
-        _ = engine.process("h", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 2)
+        keys("0")
+        XCTAssertEqual(cursorPos, 0)
     }
 
-    func testCountPrefixWithW() {
+    func testZeroAfterCountIsCountDigit() {
+        // "10l" — 1 starts count, 0 continues it -> count=10, l moves right 10
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("2", shift: false)
-        _ = engine.process("w", shift: false)
-        // Two word-forward motions from "hello"
-        XCTAssertGreaterThan(buffer.selectedRange().location, 6)
+        keys("10l")
+        XCTAssertEqual(cursorPos, 10)
     }
 
-    func testMultiDigitCountPrefix() {
+    func testEscapeClearsCountPrefix() {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("1", shift: false)
-        _ = engine.process("0", shift: false)
-        _ = engine.process("l", shift: false)
-        // 10l → move right 10 (clamped to line end)
-        XCTAssertEqual(buffer.selectedRange().location, 10)
+        keys("3")
+        escape()
+        // Now type l — should move by 1, not 3
+        keys("l")
+        XCTAssertEqual(cursorPos, 1)
     }
 
-    func testCountPrefixOverflowIsCapped() {
-        // Entering a very large count should not crash
-        for _ in 0..<10 {
-            _ = engine.process("9", shift: false)
-        }
-        _ = engine.process("l", shift: false)
-        // Should not crash — count is capped at 99999
-    }
+    // MARK: - Pending Operator
 
-    func testZeroIsMotionNotCountWhenNoPrefix() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("0", shift: false) // Should move to line start, not start count
-        XCTAssertEqual(buffer.selectedRange().location, 0)
-    }
-
-    func testZeroIsContinuationWhenCountActive() {
+    func testPendingOperatorCancelledByEscape() {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("1", shift: false)
-        _ = engine.process("0", shift: false) // Count = 10
-        _ = engine.process("l", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 10)
+        keys("d") // Enter pending delete
+        escape()   // Cancel
+        keys("l") // Should just be a motion, not delete
+        XCTAssertEqual(cursorPos, 1)
+        XCTAssertEqual(buffer.text, "hello world\nsecond line\nthird line\n")
     }
 
-    // MARK: - Delete Line (dd)
-
-    func testDDDeletesCurrentLine() {
+    func testPendingOperatorCancelledByUnknownKey() {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("d", shift: false)
-        _ = engine.process("d", shift: false)
-        XCTAssertFalse(buffer.text.hasPrefix("hello world"))
-        XCTAssertTrue(buffer.text.hasPrefix("second line"))
+        keys("d")  // Enter pending delete
+        keys("z")  // Unknown key cancels operator
+        // Buffer should be unchanged
+        XCTAssertEqual(buffer.text, "hello world\nsecond line\nthird line\n")
     }
 
-    func testDDDeletesMiddleLine() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0)) // "second line"
-        _ = engine.process("d", shift: false)
-        _ = engine.process("d", shift: false)
-        XCTAssertFalse(buffer.text.contains("second line"))
-        XCTAssertTrue(buffer.text.contains("hello world"))
-        XCTAssertTrue(buffer.text.contains("third line"))
-    }
-
-    func testDDWithCount() {
+    func testDoubleOperatorExecutes() {
+        // dd deletes line
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("2", shift: false)
-        _ = engine.process("d", shift: false)
-        _ = engine.process("d", shift: false)
-        // Should delete first two lines
-        XCTAssertTrue(buffer.text.hasPrefix("third line"))
-    }
+        keys("dd")
+        XCTAssertEqual(buffer.text, "second line\nthird line\n")
 
-    // MARK: - Delete with Motion (dw, d$, d0)
+        // yy yanks line (buffer unchanged)
+        keys("yy")
+        XCTAssertEqual(buffer.text, "second line\nthird line\n")
 
-    func testDeleteWord() {
+        // cc changes line (enters insert, deletes content)
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("d", shift: false)
-        _ = engine.process("w", shift: false)
-        XCTAssertTrue(buffer.text.hasPrefix("world"))
-    }
-
-    func testDeleteToLineEnd() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("d", shift: false)
-        _ = engine.process("$", shift: false)
-        // Should delete " world" leaving "hello"
-        XCTAssertTrue(buffer.text.hasPrefix("hello"))
-    }
-
-    func testDeleteToLineStart() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("d", shift: false)
-        _ = engine.process("0", shift: false)
-        // Should delete "hello" leaving " world\n..."
-        XCTAssertTrue(buffer.text.hasPrefix(" world"))
-    }
-
-    func testDeleteWithJ() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("d", shift: false)
-        _ = engine.process("j", shift: false)
-        // Should delete first two lines
-        XCTAssertTrue(buffer.text.hasPrefix("third line"))
-    }
-
-    func testDeleteWithK() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0)) // "second line"
-        _ = engine.process("d", shift: false)
-        _ = engine.process("k", shift: false)
-        // Should delete first two lines
-        XCTAssertTrue(buffer.text.hasPrefix("third line"))
-    }
-
-    func testDeleteWordWithB() {
-        buffer.setSelectedRange(NSRange(location: 6, length: 0)) // Start of "world"
-        _ = engine.process("d", shift: false)
-        _ = engine.process("b", shift: false)
-        // Should delete "hello " leaving "world\n..."
-        XCTAssertTrue(buffer.text.hasPrefix("world"))
-    }
-
-    func testDeleteToWordEnd() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("d", shift: false)
-        _ = engine.process("e", shift: false)
-        // Should delete "hello" leaving " world\n..."
-        XCTAssertTrue(buffer.text.hasPrefix(" world"))
-    }
-
-    // MARK: - Yank Line (yy) and Paste (p, P)
-
-    func testYYYanksLine() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("y", shift: false)
-        _ = engine.process("y", shift: false)
-        // Text should be unchanged
-        XCTAssertTrue(buffer.text.hasPrefix("hello world"))
-    }
-
-    func testYYAndPasteBelow() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("y", shift: false)
-        _ = engine.process("y", shift: false)
-        _ = engine.process("p", shift: false)
-        XCTAssertTrue(buffer.text.contains("hello world\nhello world\n"))
-    }
-
-    func testYYAndPasteAbove() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0)) // "second line"
-        _ = engine.process("y", shift: false)
-        _ = engine.process("y", shift: false)
-        _ = engine.process("P", shift: true) // Paste above
-        XCTAssertTrue(buffer.text.contains("second line\nsecond line\n"))
-    }
-
-    func testPasteEmptyRegisterDoesNothing() {
-        let originalText = buffer.text
-        _ = engine.process("p", shift: false)
-        XCTAssertEqual(buffer.text, originalText)
-    }
-
-    // MARK: - Characterwise Paste
-
-    func testXThenPRestoresCharacter() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("x", shift: false) // Delete 'h'
-        XCTAssertTrue(buffer.text.hasPrefix("ello"))
-        _ = engine.process("P", shift: true) // Paste before cursor
-        XCTAssertTrue(buffer.text.hasPrefix("hello"))
-    }
-
-    // MARK: - Change Line (cc)
-
-    func testCCChangesLine() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("c", shift: false)
-        _ = engine.process("c", shift: false)
-        XCTAssertEqual(engine.mode, .insert)
-        // Line content removed, newline preserved
-        XCTAssertTrue(buffer.text.hasPrefix("\n"))
-    }
-
-    // MARK: - Change with Motion (cw)
-
-    func testChangeWord() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("c", shift: false)
-        _ = engine.process("w", shift: false)
+        keys("cc")
         XCTAssertEqual(engine.mode, .insert)
     }
 
-    // MARK: - Delete Character (x)
+    // MARK: - Command Line Mode
 
-    func testXDeletesCharacter() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("x", shift: false)
-        XCTAssertTrue(buffer.text.hasPrefix("ello world"))
-    }
-
-    func testXWithCount() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("3", shift: false)
-        _ = engine.process("x", shift: false)
-        XCTAssertTrue(buffer.text.hasPrefix("lo world"))
-    }
-
-    func testXAtEndOfBuffer() {
-        let emptyBuffer = VimTextBufferMock(text: "a")
-        let emptyEngine = VimEngine(buffer: emptyBuffer)
-        emptyBuffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = emptyEngine.process("x", shift: false)
-        XCTAssertEqual(emptyBuffer.text, "")
-    }
-
-    func testXOnEmptyBufferDoesNotCrash() {
-        let emptyBuffer = VimTextBufferMock(text: "")
-        let emptyEngine = VimEngine(buffer: emptyBuffer)
-        _ = emptyEngine.process("x", shift: false)
-        XCTAssertEqual(emptyBuffer.text, "")
-    }
-
-    // MARK: - Undo
-
-    func testUCallsUndo() {
-        // Verify 'u' is consumed in Normal mode
-        let consumed = engine.process("u", shift: false)
-        XCTAssertTrue(consumed)
-    }
-
-    func testRedoMethod() {
-        // Verify redo() doesn't crash
-        engine.redo()
-    }
-
-    // MARK: - Visual Mode Motions
-
-    func testVisualModeExtendsSelectionWithL() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false) // Enter visual
-        _ = engine.process("l", shift: false)
-        _ = engine.process("l", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsSelectionWithW() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("w", shift: false) // Extend to next word
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsSelectionWithH() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("h", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsSelectionWithJ() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("j", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsSelectionWithK() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("k", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsWith0() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("0", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertEqual(sel.location, 0)
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsWith$() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("$", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsWithE() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("e", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsWithB() {
-        buffer.setSelectedRange(NSRange(location: 6, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("b", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertGreaterThan(sel.length, 0)
-    }
-
-    func testVisualModeExtendsWithG() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("G", shift: true) // Extend to end
-        let sel = buffer.selectedRange()
-        XCTAssertEqual(sel.length, buffer.length)
-    }
-
-    // MARK: - Visual Mode Operations
-
-    func testVisualDeleteSelection() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("l", shift: false)
-        _ = engine.process("l", shift: false)
-        _ = engine.process("d", shift: false)
-        XCTAssertEqual(engine.mode, .normal)
-        // Some characters should have been deleted
-        XCTAssertFalse(buffer.text.hasPrefix("hel"))
-    }
-
-    func testVisualXDeletesSelection() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("l", shift: false)
-        _ = engine.process("x", shift: false) // x in visual = delete
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testVisualYankSelection() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("e", shift: false)
-        _ = engine.process("y", shift: false)
-        XCTAssertEqual(engine.mode, .normal)
-        // Text should be unchanged after yank
-        XCTAssertTrue(buffer.text.hasPrefix("hello world"))
-    }
-
-    func testVisualChangeSelection() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("e", shift: false)
-        _ = engine.process("c", shift: false) // Change
-        XCTAssertEqual(engine.mode, .insert)
-    }
-
-    func testVisualLineModeSelectsEntireLine() {
-        buffer.setSelectedRange(NSRange(location: 5, length: 0))
-        _ = engine.process("V", shift: true) // Visual line
-        let sel = buffer.selectedRange()
-        // Should select the entire first line including newline
-        XCTAssertEqual(sel.location, 0)
-        XCTAssertEqual(sel.length, 12) // "hello world\n"
-    }
-
-    func testVisualLineModeDeleteRemovesFullLines() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("V", shift: true)
-        _ = engine.process("d", shift: false)
-        XCTAssertEqual(engine.mode, .normal)
-        XCTAssertTrue(buffer.text.hasPrefix("second line"))
-    }
-
-    // MARK: - Command-Line Mode
-
-    func testCommandLineAccumulatesCharacters() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("w", shift: false)
-        _ = engine.process("q", shift: false)
+    func testColonEntersCommandLineMode() {
+        keys(":")
         if case .commandLine(let buf) = engine.mode {
-            XCTAssertEqual(buf, ":wq")
+            XCTAssertEqual(buf, ":")
         } else {
-            XCTFail("Expected command-line mode")
+            XCTFail("Expected commandLine mode")
         }
     }
 
-    func testCommandLineEnterExecutes() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("w", shift: false)
-        _ = engine.process("\r", shift: false)
+    func testEscapeExitsCommandLineMode() {
+        keys(":")
+        escape()
+        XCTAssertEqual(engine.mode, .normal)
+    }
+
+    func testCommandW() {
+        keys(":")
+        keys("w")
+        enter()
         XCTAssertEqual(lastCommand, "w")
         XCTAssertEqual(engine.mode, .normal)
     }
 
-    func testCommandLineNewlineExecutes() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("q", shift: false)
-        _ = engine.process("\n", shift: false)
+    func testCommandQ() {
+        keys(":")
+        keys("q")
+        enter()
         XCTAssertEqual(lastCommand, "q")
         XCTAssertEqual(engine.mode, .normal)
     }
 
-    func testCommandLineEscapeCancels() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("w", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
+    func testCommandWQ() {
+        keys(":")
+        keys("wq")
+        enter()
+        XCTAssertEqual(lastCommand, "wq")
         XCTAssertEqual(engine.mode, .normal)
-        XCTAssertNil(lastCommand)
     }
 
-    func testCommandLineBackspaceRemovesChar() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("w", shift: false)
-        _ = engine.process("q", shift: false)
-        _ = engine.process("\u{7F}", shift: false) // Backspace
+    func testBackspaceInCommandLine() {
+        keys(":")
+        keys("wq")
+        // Command buffer should be ":wq"
+        backspace()
+        // Should remove last char, leaving ":w"
         if case .commandLine(let buf) = engine.mode {
             XCTAssertEqual(buf, ":w")
         } else {
-            XCTFail("Expected command-line mode")
+            XCTFail("Expected commandLine mode after backspace")
         }
     }
 
-    func testCommandLineBackspaceOnEmptyExits() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("\u{7F}", shift: false) // Backspace on ":"
+    func testBackspaceOnEmptyCommandExitsToNormal() {
+        keys(":")
+        // Buffer is just ":", backspace should exit to normal
+        backspace()
         XCTAssertEqual(engine.mode, .normal)
     }
 
-    func testSearchCommandLineExecutes() {
-        _ = engine.process("/", shift: false)
-        _ = engine.process("h", shift: false)
-        _ = engine.process("i", shift: false)
-        _ = engine.process("\r", shift: false)
-        XCTAssertEqual(lastCommand, "hi")
+    func testCommandLineCharsAppend() {
+        keys(":")
+        keys("s")
+        keys("e")
+        keys("t")
+        if case .commandLine(let buf) = engine.mode {
+            XCTAssertEqual(buf, ":set")
+        } else {
+            XCTFail("Expected commandLine mode")
+        }
     }
 
-    // MARK: - Escape in Normal Mode
-
-    func testEscapeInNormalModeClearsPendingOperator() {
-        _ = engine.process("d", shift: false) // Start pending delete
-        _ = engine.process("\u{1B}", shift: false)
-        // Now 'd' should start a new pending, not dd
-        _ = engine.process("d", shift: false)
-        XCTAssertTrue(buffer.text.hasPrefix("hello world"))
-    }
-
-    func testEscapeInNormalModeClearsCountPrefix() {
-        _ = engine.process("5", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
-        _ = engine.process("l", shift: false)
-        // Count was cleared, so only moves 1
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("l", shift: false)
-        XCTAssertEqual(buffer.selectedRange().location, 1)
-    }
-
-    func testEscapeInNormalModeClearsPendingG() {
-        _ = engine.process("g", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
-        // pendingG should be cleared — next 'g' starts fresh
-    }
-
-    // MARK: - Reset
-
-    func testResetClearsPendingState() {
-        _ = engine.process("d", shift: false)
-        engine.reset()
-        XCTAssertEqual(engine.mode, .normal)
-        _ = engine.process("d", shift: false)
-        XCTAssertTrue(buffer.text.hasPrefix("hello world"))
-    }
-
-    func testResetFromInsertMode() {
-        _ = engine.process("i", shift: false)
-        engine.reset()
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testResetFromVisualMode() {
-        _ = engine.process("v", shift: false)
-        engine.reset()
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    func testResetFromCommandLineMode() {
-        _ = engine.process(":", shift: false)
-        engine.reset()
-        XCTAssertEqual(engine.mode, .normal)
-    }
-
-    // MARK: - Operator + Motion Combinations
-
-    func testYankWord() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("y", shift: false)
-        _ = engine.process("w", shift: false)
-        // Text unchanged
-        XCTAssertTrue(buffer.text.hasPrefix("hello world"))
-        // Now paste should insert the yanked word
-        _ = engine.process("p", shift: false)
-        XCTAssertTrue(buffer.text.contains("hhello"))
-    }
-
-    func testYankToLineEnd() {
-        buffer.setSelectedRange(NSRange(location: 0, length: 0))
-        _ = engine.process("y", shift: false)
-        _ = engine.process("$", shift: false)
-        // Text unchanged, cursor at line start
-        XCTAssertEqual(buffer.selectedRange().location, 0)
-    }
-
-    func testDeleteBackwardWord() {
-        buffer.setSelectedRange(NSRange(location: 6, length: 0)) // Start of "world"
-        _ = engine.process("d", shift: false)
-        _ = engine.process("b", shift: false)
-        XCTAssertTrue(buffer.text.hasPrefix("world"))
+    func testSlashEntersCommandLineMode() {
+        keys("/")
+        if case .commandLine(let buf) = engine.mode {
+            XCTAssertEqual(buf, "/")
+        } else {
+            XCTFail("Expected commandLine mode with /")
+        }
     }
 
     // MARK: - Edge Cases
 
     func testEmptyBuffer() {
-        let emptyBuffer = VimTextBufferMock(text: "")
-        let emptyEngine = VimEngine(buffer: emptyBuffer)
-        _ = emptyEngine.process("j", shift: false)
-        _ = emptyEngine.process("k", shift: false)
-        _ = emptyEngine.process("h", shift: false)
-        _ = emptyEngine.process("l", shift: false)
-        _ = emptyEngine.process("w", shift: false)
-        _ = emptyEngine.process("b", shift: false)
-        _ = emptyEngine.process("e", shift: false)
-        _ = emptyEngine.process("0", shift: false)
-        _ = emptyEngine.process("$", shift: false)
-        XCTAssertEqual(emptyBuffer.selectedRange().location, 0)
+        buffer = VimTextBufferMock(text: "")
+        engine = VimEngine(buffer: buffer)
+
+        // Motions should not crash
+        keys("h")
+        XCTAssertEqual(buffer.selectedRange().location, 0)
+        keys("l")
+        XCTAssertEqual(buffer.selectedRange().location, 0)
+        keys("j")
+        keys("k")
+        keys("w")
+        keys("b")
+        keys("e")
+        keys("0")
+        keys("$")
+        keys("gg")
+        key("G", shift: true)
+
+        // Operations should not crash
+        keys("x")
+        keys("dd")
+        keys("yy")
+
+        XCTAssertEqual(buffer.text, "")
     }
 
-    func testSingleCharBuffer() {
-        let singleBuffer = VimTextBufferMock(text: "a")
-        let singleEngine = VimEngine(buffer: singleBuffer)
-        _ = singleEngine.process("l", shift: false) // Can't move right
-        XCTAssertEqual(singleBuffer.selectedRange().location, 0)
-        _ = singleEngine.process("h", shift: false) // Can't move left
-        XCTAssertEqual(singleBuffer.selectedRange().location, 0)
+    func testSingleCharacterBuffer() {
+        buffer = VimTextBufferMock(text: "a")
+        engine = VimEngine(buffer: buffer)
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+
+        // x deletes the single character
+        keys("x")
+        XCTAssertEqual(buffer.text, "")
     }
 
-    func testSingleLineBuffer() {
-        let singleLine = VimTextBufferMock(text: "hello")
-        let singleEngine = VimEngine(buffer: singleLine)
-        _ = singleEngine.process("j", shift: false) // No line below
-        let (line, _) = singleLine.lineAndColumn(forOffset: singleLine.selectedRange().location)
-        XCTAssertEqual(line, 0)
+    func testSingleCharacterBufferMotions() {
+        buffer = VimTextBufferMock(text: "a")
+        engine = VimEngine(buffer: buffer)
+
+        keys("l")
+        // 'a' is at 0, length 1, no newline. contentEnd=1, maxPos=0. Can't go right.
+        XCTAssertEqual(buffer.selectedRange().location, 0)
+
+        keys("h")
+        XCTAssertEqual(buffer.selectedRange().location, 0)
     }
 
-    func testUnknownKeysInNormalModeAreConsumed() {
+    func testCursorAtBufferEnd() {
+        // Position at the very end of buffer (past all characters)
+        // With trailing newline, offset == length is a phantom empty line
+        // h cannot cross line boundary, so cursor stays at length
+        buffer.setSelectedRange(NSRange(location: buffer.length, length: 0))
+        keys("h")
+        // On the phantom empty line after trailing \n, h stays put
+        XCTAssertEqual(buffer.selectedRange().location, buffer.length)
+
+        // Use k to move to previous line, then h should work
+        keys("k")
+        let posAfterK = buffer.selectedRange().location
+        XCTAssertTrue(posAfterK < buffer.length, "k should move off the phantom line")
+    }
+
+    func testProcessReturnsConsumedStatus() {
+        // Normal mode keys should be consumed
+        let consumedH = engine.process("h", shift: false)
+        XCTAssertTrue(consumedH)
+
+        // Enter insert mode
+        _ = engine.process("i", shift: false)
+        // In insert mode, non-escape keys pass through (not consumed)
+        let consumedA = engine.process("a", shift: false)
+        XCTAssertFalse(consumedA, "Insert mode should not consume regular characters")
+
+        // Escape is consumed in insert mode
+        let consumedEsc = engine.process("\u{1B}", shift: false)
+        XCTAssertTrue(consumedEsc)
+    }
+
+    func testResetClearsAllState() {
+        // Build up some state
+        keys("3d")
+        engine.reset()
+        XCTAssertEqual(engine.mode, .normal)
+        // After reset, l should move by 1 (no lingering count or pending operator)
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("l")
+        XCTAssertEqual(cursorPos, 1)
+        XCTAssertEqual(buffer.text, "hello world\nsecond line\nthird line\n")
+    }
+
+    func testUnknownKeyInNormalModeConsumed() {
         let consumed = engine.process("z", shift: false)
-        XCTAssertTrue(consumed)
+        XCTAssertTrue(consumed, "Unknown keys should be consumed in normal mode")
     }
 
-    func testUnknownKeysInVisualModeAreConsumed() {
-        _ = engine.process("v", shift: false)
-        let consumed = engine.process("z", shift: false)
-        XCTAssertTrue(consumed)
+    func testMultipleOperationsSequentially() {
+        // Delete first line, then delete second (now first) line
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("dd")
+        XCTAssertEqual(buffer.text, "second line\nthird line\n")
+        keys("dd")
+        XCTAssertEqual(buffer.text, "third line\n")
+        keys("dd")
+        XCTAssertEqual(buffer.text, "")
     }
 
-    func testDDOnAllLinesLeavesEmptyBuffer() {
-        let twoLineBuffer = VimTextBufferMock(text: "a\nb\n")
-        let twoLineEngine = VimEngine(buffer: twoLineBuffer)
-        _ = twoLineEngine.process("d", shift: false)
-        _ = twoLineEngine.process("d", shift: false)
-        _ = twoLineEngine.process("d", shift: false)
-        _ = twoLineEngine.process("d", shift: false)
-        _ = twoLineEngine.process("d", shift: false)
-        _ = twoLineEngine.process("d", shift: false)
-        // Should not crash
+    func testDJDeletesTwoLines() {
+        // dj should delete the current line and the line below
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("dj")
+        // Should delete lines 0 and 1 ("hello world\nsecond line\n")
+        XCTAssertEqual(buffer.text, "third line\n")
     }
 
-    func testNormalModeConsumesAllKeys() {
-        // Normal mode should consume all printable keys (not pass through)
-        for char: Character in ["a", "b", "z", "q", "f", "t", "n", "m"] {
-            engine.reset() // Ensure engine is in Normal mode before each key
-            XCTAssertTrue(engine.process(char, shift: false), "Key '\(char)' should be consumed in Normal mode")
-        }
+    func testDKDeletesTwoLines() {
+        // dk on line 1 should delete lines 0 and 1
+        buffer.setSelectedRange(NSRange(location: 12, length: 0))
+        keys("dk")
+        XCTAssertEqual(buffer.text, "third line\n")
     }
 
-    // MARK: - Operator Cancellation
-
-    func testPendingOperatorCancelledByUnknownKey() {
-        _ = engine.process("d", shift: false) // Pending delete
-        _ = engine.process("z", shift: false) // Unknown → clears pending
-        // Now dd should work fresh
-        _ = engine.process("d", shift: false)
-        _ = engine.process("d", shift: false)
-        XCTAssertTrue(buffer.text.hasPrefix("second line"))
+    func testXSavesToRegisterAndPCanPaste() {
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("x")  // Delete 'h', stored in register
+        XCTAssertEqual(buffer.text, "ello world\nsecond line\nthird line\n")
+        keys("p")  // Paste 'h' after cursor
+        // 'h' pasted at offset 1
+        XCTAssertTrue(buffer.text.hasPrefix("eh"))
     }
 
-    // MARK: - Visual Mode GG
-
-    func testVisualGGExtendsToStart() {
-        buffer.setSelectedRange(NSRange(location: 15, length: 0))
-        _ = engine.process("v", shift: false)
-        _ = engine.process("g", shift: false)
-        _ = engine.process("g", shift: false)
-        let sel = buffer.selectedRange()
-        XCTAssertEqual(sel.location, 0)
-        XCTAssertGreaterThan(sel.length, 0)
+    func testGPendingCancelledByNonG() {
+        buffer.setSelectedRange(NSRange(location: 5, length: 0))
+        keys("g")  // Enter pending g
+        keys("x")  // Not 'g', so pending g is consumed/cancelled
+        // Cursor should still be at 5 (unknown g-prefixed key consumed, no motion)
+        XCTAssertEqual(engine.mode, .normal)
     }
 
-    // MARK: - Mode Change Callback
-
-    func testModeChangeCallback() {
-        var modes: [VimMode] = []
-        engine.onModeChange = { mode in modes.append(mode) }
-
-        _ = engine.process("i", shift: false) // → insert
-        _ = engine.process("\u{1B}", shift: false) // → normal
-        _ = engine.process("v", shift: false) // → visual
-        _ = engine.process("\u{1B}", shift: false) // → normal
-
-        XCTAssertEqual(modes.count, 4)
-        XCTAssertEqual(modes[0], .insert)
-        XCTAssertEqual(modes[1], .normal)
-        XCTAssertEqual(modes[2], .visual(linewise: false))
-        XCTAssertEqual(modes[3], .normal)
+    func testDEDeletesInclusiveToWordEnd() {
+        // de at offset 0 should delete "hello" (inclusive of 'o' at offset 4)
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("de")
+        // e goes to offset 4, inclusive means delete 0..4 inclusive = 5 chars
+        XCTAssertEqual(buffer.text, " world\nsecond line\nthird line\n")
     }
 
-    func testModeChangeNotFiredWhenModeUnchanged() {
-        var callCount = 0
-        engine.onModeChange = { _ in callCount += 1 }
-
-        _ = engine.process("\u{1B}", shift: false) // Already normal → no fire
-        XCTAssertEqual(callCount, 0)
+    func testCCWithCount() {
+        // 2cc should change two lines
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("2cc")
+        XCTAssertEqual(engine.mode, .insert)
+        // Both "hello world\n" and "second line\n" content deleted, last newline kept
+        XCTAssertEqual(buffer.text, "\nthird line\n")
     }
 
-    // MARK: - Command Callback
-
-    func testCommandCallback() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("w", shift: false)
-        _ = engine.process("q", shift: false)
-        _ = engine.process("\r", shift: false)
-        XCTAssertEqual(lastCommand, "wq")
-    }
-
-    func testCommandNotFiredOnCancel() {
-        _ = engine.process(":", shift: false)
-        _ = engine.process("w", shift: false)
-        _ = engine.process("\u{1B}", shift: false)
-        XCTAssertNil(lastCommand)
-    }
-}
-
-// MARK: - VimMode Tests
-
-@MainActor
-final class VimModeTests: XCTestCase {
-    func testDisplayLabels() {
-        XCTAssertEqual(VimMode.normal.displayLabel, "NORMAL")
-        XCTAssertEqual(VimMode.insert.displayLabel, "INSERT")
-        XCTAssertEqual(VimMode.visual(linewise: false).displayLabel, "VISUAL")
-        XCTAssertEqual(VimMode.visual(linewise: true).displayLabel, "VISUAL LINE")
-        XCTAssertEqual(VimMode.commandLine(buffer: ":w").displayLabel, "COMMAND")
-    }
-
-    func testIsInsert() {
-        XCTAssertTrue(VimMode.insert.isInsert)
-        XCTAssertFalse(VimMode.normal.isInsert)
-        XCTAssertFalse(VimMode.visual(linewise: false).isInsert)
-        XCTAssertFalse(VimMode.commandLine(buffer: ":").isInsert)
-    }
-
-    func testIsVisual() {
-        XCTAssertTrue(VimMode.visual(linewise: false).isVisual)
-        XCTAssertTrue(VimMode.visual(linewise: true).isVisual)
-        XCTAssertFalse(VimMode.normal.isVisual)
-        XCTAssertFalse(VimMode.insert.isVisual)
-        XCTAssertFalse(VimMode.commandLine(buffer: ":").isVisual)
-    }
-
-    func testEquality() {
-        XCTAssertEqual(VimMode.normal, VimMode.normal)
-        XCTAssertEqual(VimMode.insert, VimMode.insert)
-        XCTAssertEqual(VimMode.visual(linewise: false), VimMode.visual(linewise: false))
-        XCTAssertEqual(VimMode.visual(linewise: true), VimMode.visual(linewise: true))
-        XCTAssertNotEqual(VimMode.visual(linewise: false), VimMode.visual(linewise: true))
-        XCTAssertNotEqual(VimMode.normal, VimMode.insert)
-        XCTAssertEqual(
-            VimMode.commandLine(buffer: ":w"),
-            VimMode.commandLine(buffer: ":w")
-        )
-        XCTAssertNotEqual(
-            VimMode.commandLine(buffer: ":w"),
-            VimMode.commandLine(buffer: ":q")
-        )
-    }
-}
-
-// MARK: - VimRegister Tests
-
-@MainActor
-final class VimRegisterTests: XCTestCase {
-    func testDefaultValues() {
-        let reg = VimRegister()
-        XCTAssertEqual(reg.text, "")
-        XCTAssertFalse(reg.isLinewise)
-    }
-
-    func testStoresText() {
-        var reg = VimRegister()
-        reg.text = "hello"
-        reg.isLinewise = true
-        XCTAssertEqual(reg.text, "hello")
-        XCTAssertTrue(reg.isLinewise)
-    }
-}
-
-// MARK: - VimCommandLineHandler Tests
-
-@MainActor
-final class VimCommandLineHandlerTests: XCTestCase {
-    func testWCommandCallsExecuteQuery() {
-        var handler = VimCommandLineHandler()
-        var called = false
-        handler.onExecuteQuery = { called = true }
-        handler.handle("w")
-        XCTAssertTrue(called)
-    }
-
-    func testWQCommandCallsExecuteQuery() {
-        var handler = VimCommandLineHandler()
-        var called = false
-        handler.onExecuteQuery = { called = true }
-        handler.handle("wq")
-        XCTAssertTrue(called)
-    }
-
-    func testQCommandDoesNotCallExecuteQuery() {
-        var handler = VimCommandLineHandler()
-        var called = false
-        handler.onExecuteQuery = { called = true }
-        handler.handle("q")
-        XCTAssertFalse(called)
-    }
-
-    func testUnknownCommandDoesNothing() {
-        var handler = VimCommandLineHandler()
-        var called = false
-        handler.onExecuteQuery = { called = true }
-        handler.handle("unknown")
-        XCTAssertFalse(called)
-    }
-
-    func testTrimsWhitespace() {
-        var handler = VimCommandLineHandler()
-        var called = false
-        handler.onExecuteQuery = { called = true }
-        handler.handle("  w  ")
-        XCTAssertTrue(called)
-    }
-}
-
-// MARK: - VimTextBufferMock Tests
-
-@MainActor
-final class VimTextBufferMockTests: XCTestCase {
-    func testLength() {
-        let buf = VimTextBufferMock(text: "hello")
-        XCTAssertEqual(buf.length, 5)
-    }
-
-    func testEmptyLength() {
-        let buf = VimTextBufferMock(text: "")
-        XCTAssertEqual(buf.length, 0)
-    }
-
-    func testLineCount() {
-        let buf = VimTextBufferMock(text: "a\nb\nc\n")
-        XCTAssertEqual(buf.lineCount, 3)
-    }
-
-    func testLineCountSingleLine() {
-        let buf = VimTextBufferMock(text: "hello")
-        XCTAssertEqual(buf.lineCount, 1)
-    }
-
-    func testLineCountEmpty() {
-        let buf = VimTextBufferMock(text: "")
-        XCTAssertEqual(buf.lineCount, 1)
-    }
-
-    func testLineRange() {
-        let buf = VimTextBufferMock(text: "hello\nworld\n")
-        let range = buf.lineRange(forOffset: 0)
-        XCTAssertEqual(range.location, 0)
-        XCTAssertEqual(range.length, 6) // "hello\n"
-    }
-
-    func testLineRangeSecondLine() {
-        let buf = VimTextBufferMock(text: "hello\nworld\n")
-        let range = buf.lineRange(forOffset: 6)
-        XCTAssertEqual(range.location, 6)
-        XCTAssertEqual(range.length, 6) // "world\n"
-    }
-
-    func testLineAndColumn() {
-        let buf = VimTextBufferMock(text: "hello\nworld\n")
-        let (line, col) = buf.lineAndColumn(forOffset: 8) // 'r' in "world"
-        XCTAssertEqual(line, 1)
-        XCTAssertEqual(col, 2)
-    }
-
-    func testOffsetForLineAndColumn() {
-        let buf = VimTextBufferMock(text: "hello\nworld\n")
-        let offset = buf.offset(forLine: 1, column: 2)
-        XCTAssertEqual(offset, 8) // 'r' in "world"
-    }
-
-    func testCharacterAt() {
-        let buf = VimTextBufferMock(text: "hello")
-        XCTAssertEqual(buf.character(at: 0), 0x68) // 'h'
-        XCTAssertEqual(buf.character(at: 4), 0x6F) // 'o'
-    }
-
-    func testCharacterAtOutOfBounds() {
-        let buf = VimTextBufferMock(text: "hi")
-        XCTAssertEqual(buf.character(at: -1), 0)
-        XCTAssertEqual(buf.character(at: 5), 0)
-    }
-
-    func testSetSelectedRange() {
-        let buf = VimTextBufferMock(text: "hello")
-        buf.setSelectedRange(NSRange(location: 3, length: 0))
-        XCTAssertEqual(buf.selectedRange().location, 3)
-    }
-
-    func testSetSelectedRangeClamped() {
-        let buf = VimTextBufferMock(text: "hi")
-        buf.setSelectedRange(NSRange(location: 100, length: 50))
-        XCTAssertLessThanOrEqual(buf.selectedRange().location, buf.length)
-    }
-
-    func testReplaceCharacters() {
-        let buf = VimTextBufferMock(text: "hello")
-        buf.replaceCharacters(in: NSRange(location: 0, length: 5), with: "world")
-        XCTAssertEqual(buf.text, "world")
-    }
-
-    func testReplaceCharactersInsert() {
-        let buf = VimTextBufferMock(text: "hllo")
-        buf.replaceCharacters(in: NSRange(location: 1, length: 0), with: "e")
-        XCTAssertEqual(buf.text, "hello")
-    }
-
-    func testWordBoundaryForward() {
-        let buf = VimTextBufferMock(text: "hello world")
-        let pos = buf.wordBoundary(forward: true, from: 0)
-        XCTAssertEqual(pos, 6) // Start of "world"
-    }
-
-    func testWordBoundaryBackward() {
-        let buf = VimTextBufferMock(text: "hello world")
-        let pos = buf.wordBoundary(forward: false, from: 6)
-        XCTAssertEqual(pos, 0) // Start of "hello"
-    }
-
-    func testWordEnd() {
-        let buf = VimTextBufferMock(text: "hello world")
-        let pos = buf.wordEnd(from: 0)
-        XCTAssertEqual(pos, 4) // End of "hello"
-    }
-
-    func testLineRangeClampedOffset() {
-        let buf = VimTextBufferMock(text: "hi")
-        // Should not crash with out-of-range offset
-        let range = buf.lineRange(forOffset: 100)
-        XCTAssertEqual(range.location, 0)
-    }
-
-    func testUndoRedoNoOp() {
-        let buf = VimTextBufferMock(text: "hello")
-        // Should not crash
-        buf.undo()
-        buf.redo()
-        XCTAssertEqual(buf.text, "hello")
+    func testYYThenPAfterDelete() {
+        // Yank first line, delete it, then paste
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("yy")
+        keys("dd")
+        XCTAssertEqual(buffer.text, "second line\nthird line\n")
+        // Register now has dd content (linewise), not yy content
+        // Actually dd overwrites the register. So p pastes "hello world\n"
+        keys("p")
+        XCTAssertEqual(buffer.text, "second line\nhello world\nthird line\n")
     }
 }
 

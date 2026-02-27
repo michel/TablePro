@@ -30,6 +30,7 @@ struct QueryEditorView: View {
     var databaseType: DatabaseType?
 
     @State private var vimMode: VimMode = .normal
+    @State private var isVimEnabled = AppSettingsManager.shared.editor.vimModeEnabled
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -54,6 +55,9 @@ struct QueryEditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: .formatQueryRequested)) { _ in
             formatQuery()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .editorSettingsDidChange)) { _ in
+            isVimEnabled = AppSettingsManager.shared.editor.vimModeEnabled
+        }
     }
 
     // MARK: - Toolbar
@@ -64,7 +68,7 @@ struct QueryEditorView: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            if AppSettingsManager.shared.editor.vimModeEnabled {
+            if isVimEnabled {
                 VimModeIndicatorView(mode: vimMode)
             }
 

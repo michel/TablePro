@@ -17,6 +17,9 @@ protocol VimTextBuffer: AnyObject {
     /// Total number of lines in the buffer
     var lineCount: Int { get }
 
+    /// Invalidates any cached line count — call after text changes
+    func invalidateLineCache()
+
     /// Returns the NSRange of the entire line containing the given offset
     func lineRange(forOffset offset: Int) -> NSRange
 

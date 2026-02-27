@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import os
 
 /// Pending operator waiting for a motion
 enum VimOperator {
@@ -17,12 +18,24 @@ enum VimOperator {
 /// Core Vim editing engine — deterministic state machine
 @MainActor
 final class VimEngine {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "VimEngine")
+
     // MARK: - State
 
     private(set) var mode: VimMode = .normal {
         didSet {
-            if mode != oldValue {
-                onModeChange?(mode)
+            if oldValue != mode {
+                // Suppress for commandLine buffer content updates — display shows "COMMAND" regardless
+                let categoryChanged: Bool
+                switch (oldValue, mode) {
+                case (.commandLine, .commandLine):
+                    categoryChanged = false
+                default:
+                    categoryChanged = true
+                }
+                if categoryChanged {
+                    onModeChange?(mode)
+                }
             }
         }
     }
@@ -87,6 +100,11 @@ final class VimEngine {
         buffer?.redo()
     }
 
+    /// Invalidate the buffer's cached line count — call after external text changes
+    func invalidateLineCache() {
+        buffer?.invalidateLineCache()
+    }
+
     /// Reset all pending state
     func reset() {
         pendingOperator = nil
@@ -97,8 +115,8 @@ final class VimEngine {
 
     // MARK: - Effective Count
 
-    /// Returns the effective count (1 if no count was entered)
-    private var effectiveCount: Int {
+    /// Returns the effective count (1 if no count was entered) and resets the prefix
+    private func consumeCount() -> Int {
         let count = countPrefix > 0 ? countPrefix : 1
         countPrefix = 0
         return count
@@ -125,7 +143,7 @@ final class VimEngine {
             pendingG = false
             if char == "g" {
                 // gg — go to beginning
-                let count = effectiveCount
+                let count = consumeCount()
                 if count > 1 {
                     goToLine(count - 1, in: buffer)
                 } else {
@@ -141,19 +159,19 @@ final class VimEngine {
         switch char {
         // -- Motions --
         case "h":
-            moveLeft(effectiveCount, in: buffer)
+            moveLeft(consumeCount(), in: buffer)
             return true
         case "j":
-            moveDown(effectiveCount, in: buffer)
+            moveDown(consumeCount(), in: buffer)
             return true
         case "k":
-            moveUp(effectiveCount, in: buffer)
+            moveUp(consumeCount(), in: buffer)
             return true
         case "l":
-            moveRight(effectiveCount, in: buffer)
+            moveRight(consumeCount(), in: buffer)
             return true
         case "w":
-            let count = effectiveCount
+            let count = consumeCount()
             if let op = pendingOperator {
                 executeOperatorWithMotion(op, motion: { self.wordForward(count, in: buffer) }, in: buffer)
             } else {
@@ -162,7 +180,7 @@ final class VimEngine {
             goalColumn = nil
             return true
         case "b":
-            let count = effectiveCount
+            let count = consumeCount()
             if let op = pendingOperator {
                 executeOperatorWithMotion(op, motion: { self.wordBackward(count, in: buffer) }, in: buffer)
             } else {
@@ -171,7 +189,7 @@ final class VimEngine {
             goalColumn = nil
             return true
         case "e":
-            let count = effectiveCount
+            let count = consumeCount()
             if let op = pendingOperator {
                 executeOperatorWithMotion(op, motion: { self.wordEndMotion(count, in: buffer) }, inclusive: true, in: buffer)
             } else {
@@ -189,7 +207,7 @@ final class VimEngine {
             return true
         case "$":
             if let op = pendingOperator {
-                executeOperatorWithMotion(op, motion: { self.moveToLineEnd(in: buffer) }, in: buffer)
+                executeOperatorWithMotion(op, motion: { self.moveToLineEnd(in: buffer) }, inclusive: true, in: buffer)
             } else {
                 moveToLineEnd(in: buffer)
             }
@@ -248,8 +266,11 @@ final class VimEngine {
             let pos = buffer.selectedRange().location
             let lineRange = buffer.lineRange(forOffset: pos)
             let lineEnd = lineRange.location + lineRange.length
+            let lineEndsWithNewline = lineEnd > lineRange.location
+                && buffer.character(at: lineEnd - 1) == 0x0A
             buffer.replaceCharacters(in: NSRange(location: lineEnd, length: 0), with: "\n")
-            buffer.setSelectedRange(NSRange(location: lineEnd, length: 0))
+            let cursorPos = lineEndsWithNewline ? lineEnd : lineEnd + 1
+            buffer.setSelectedRange(NSRange(location: cursorPos, length: 0))
             mode = .insert
             return true
         case "O":
@@ -286,7 +307,7 @@ final class VimEngine {
         case "d":
             if pendingOperator == .delete {
                 // dd — delete current line
-                deleteLine(effectiveCount, in: buffer)
+                deleteLine(consumeCount(), in: buffer)
                 pendingOperator = nil
                 return true
             }
@@ -296,7 +317,7 @@ final class VimEngine {
         case "y":
             if pendingOperator == .yank {
                 // yy — yank current line
-                yankLine(effectiveCount, in: buffer)
+                yankLine(consumeCount(), in: buffer)
                 pendingOperator = nil
                 return true
             }
@@ -306,7 +327,7 @@ final class VimEngine {
         case "c":
             if pendingOperator == .change {
                 // cc — change current line
-                changeLine(effectiveCount, in: buffer)
+                changeLine(consumeCount(), in: buffer)
                 pendingOperator = nil
                 return true
             }
@@ -342,10 +363,14 @@ final class VimEngine {
 
         // -- x: delete character under cursor --
         case "x":
-            let count = effectiveCount
+            let count = consumeCount()
             let pos = buffer.selectedRange().location
-            let remaining = buffer.length - pos
-            let deleteCount = min(count, remaining)
+            let lineRange = buffer.lineRange(forOffset: pos)
+            let lineEnd = lineRange.location + lineRange.length
+            let contentEnd = lineEnd > lineRange.location
+                && lineEnd <= buffer.length
+                && buffer.character(at: lineEnd - 1) == 0x0A ? lineEnd - 1 : lineEnd
+            let deleteCount = min(count, max(0, contentEnd - pos))
             if deleteCount > 0 {
                 let range = NSRange(location: pos, length: deleteCount)
                 register.text = buffer.string(in: range)
@@ -441,7 +466,7 @@ final class VimEngine {
                     && lineEnd <= buffer.length
                     && buffer.character(at: lineEnd - 1) == 0x0A ? lineEnd - 1 : lineEnd
             case "G":
-                newPos = buffer.length
+                newPos = max(0, buffer.length - 1)
             default:
                 newPos = cursorPos
             }
@@ -523,7 +548,7 @@ final class VimEngine {
             mode = .normal
             return true
         case "\u{7F}": // Backspace (DEL character)
-            if commandBuffer.count > 1 {
+            if (commandBuffer as NSString).length > 1 {
                 mode = .commandLine(buffer: String(commandBuffer.dropLast()))
             } else {
                 mode = .normal // Backspace on empty command exits

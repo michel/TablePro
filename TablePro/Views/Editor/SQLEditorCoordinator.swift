@@ -79,6 +79,9 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     }
 
     func textViewDidChangeText(controller: TextViewController) {
+        // Invalidate Vim buffer's cached line count after text changes
+        vimEngine?.invalidateLineCache()
+
         // Notify inline suggestion manager immediately (lightweight)
         DispatchQueue.main.async { [weak self] in
             self?.inlineSuggestionManager?.handleTextChange()
@@ -217,11 +220,9 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
         self.vimMode = .normal
 
         // Install block cursor for Normal mode
-        if let textView = controller.textView {
-            let cursorManager = VimCursorManager()
-            cursorManager.install(textView: textView)
-            self.vimCursorManager = cursorManager
-        }
+        let cursorManager = VimCursorManager()
+        cursorManager.install(textView: textView)
+        self.vimCursorManager = cursorManager
     }
 
     private func uninstallVimKeyInterceptor() {

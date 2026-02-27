@@ -18,6 +18,8 @@ final class VimTextBufferAdapter: VimTextBuffer {
         self.textView = textView
     }
 
+    private var cachedLineCount: Int?
+
     // MARK: - VimTextBuffer
 
     var length: Int {
@@ -26,9 +28,13 @@ final class VimTextBufferAdapter: VimTextBuffer {
     }
 
     var lineCount: Int {
-        guard let textView else { return 0 }
+        if let cached = cachedLineCount { return cached }
+        guard let textView else { return 1 }
         let nsString = textView.string as NSString
-        if nsString.length == 0 { return 1 }
+        if nsString.length == 0 {
+            cachedLineCount = 1
+            return 1
+        }
         var count = 0
         var index = 0
         while index < nsString.length {
@@ -36,7 +42,13 @@ final class VimTextBufferAdapter: VimTextBuffer {
             count += 1
             index = lineRange.location + lineRange.length
         }
-        return max(1, count)
+        let result = max(1, count)
+        cachedLineCount = result
+        return result
+    }
+
+    func invalidateLineCache() {
+        cachedLineCount = nil
     }
 
     func lineRange(forOffset offset: Int) -> NSRange {
@@ -50,18 +62,25 @@ final class VimTextBufferAdapter: VimTextBuffer {
         guard let textView else { return (0, 0) }
         let nsString = textView.string as NSString
         let clampedOffset = min(max(0, offset), nsString.length)
+
+        if nsString.length == 0 { return (0, 0) }
+
+        // Find line start for the clamped offset
+        let safeOffset = min(clampedOffset, max(0, nsString.length - 1))
+        let lineRange = nsString.lineRange(for: NSRange(location: safeOffset, length: 0))
+        let column = clampedOffset - lineRange.location
+
+        // Count newlines before lineRange.location — uses fast NSString search
         var line = 0
-        var index = 0
-        while index < nsString.length {
-            let lineRange = nsString.lineRange(for: NSRange(location: index, length: 0))
-            if clampedOffset >= lineRange.location && clampedOffset < lineRange.location + lineRange.length {
-                return (line, clampedOffset - lineRange.location)
-            }
+        var searchStart = 0
+        while searchStart < lineRange.location {
+            let found = nsString.range(of: "\n", range: NSRange(location: searchStart, length: lineRange.location - searchStart))
+            if found.location == NSNotFound { break }
             line += 1
-            index = lineRange.location + lineRange.length
+            searchStart = found.location + found.length
         }
-        // At end of text
-        return (max(0, line), clampedOffset - index + (nsString.length > 0 ? 0 : 0))
+
+        return (line, column)
     }
 
     func offset(forLine line: Int, column: Int) -> Int {

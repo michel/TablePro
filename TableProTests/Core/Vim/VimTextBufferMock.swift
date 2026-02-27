@@ -35,6 +35,10 @@ final class VimTextBufferMock: VimTextBuffer {
         return max(1, count)
     }
 
+    func invalidateLineCache() {
+        // No-op in mock — lineCount is always computed from current text
+    }
+
     func lineRange(forOffset offset: Int) -> NSRange {
         let nsString = text as NSString
         let clampedOffset = min(max(0, offset), nsString.length)
@@ -48,13 +52,20 @@ final class VimTextBufferMock: VimTextBuffer {
         var index = 0
         while index < nsString.length {
             let range = nsString.lineRange(for: NSRange(location: index, length: 0))
-            if clampedOffset >= range.location && clampedOffset < range.location + range.length {
+            let rangeEnd = range.location + range.length
+            if clampedOffset >= range.location && clampedOffset < rangeEnd {
                 return (line, clampedOffset - range.location)
             }
             line += 1
-            index = range.location + range.length
+            index = rangeEnd
         }
-        return (max(0, line), 0)
+        // End-of-file: clampedOffset == nsString.length
+        // Return position on the last line
+        if nsString.length > 0 {
+            let lastLineRange = nsString.lineRange(for: NSRange(location: max(0, nsString.length - 1), length: 0))
+            return (line - 1, clampedOffset - lastLineRange.location)
+        }
+        return (0, 0)
     }
 
     func offset(forLine line: Int, column: Int) -> Int {
@@ -141,13 +152,11 @@ final class VimTextBufferMock: VimTextBuffer {
         _selectedRange = NSRange(location: range.location + (string as NSString).length, length: 0)
     }
 
-    func undo() {
-        // No-op in mock
-    }
+    private(set) var undoCallCount = 0
+    private(set) var redoCallCount = 0
 
-    func redo() {
-        // No-op in mock
-    }
+    func undo() { undoCallCount += 1 }
+    func redo() { redoCallCount += 1 }
 
     private func isWordChar(_ char: unichar) -> Bool {
         guard let scalar = UnicodeScalar(char) else { return false }

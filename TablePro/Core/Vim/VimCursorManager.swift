@@ -82,7 +82,7 @@ final class VimCursorManager {
         // CodeEditTextView creates after the selection change notification fires
         // (e.g., double-click word selection recreates NSTextInsertionIndicator views).
         hideSystemCursor()
-        scheduleDefferredHide()
+        scheduleDeferredHide()
 
         let offset = cursorOffset ?? textView.selectedRange().location
         guard offset != NSNotFound else {
@@ -105,30 +105,38 @@ final class VimCursorManager {
             return
         }
 
-        // Remove old layer and create a fresh one
-        removeBlockCursorLayer()
-
-        let layer = CALayer()
-        layer.contentsScale = textView.window?.backingScaleFactor ?? 2.0
-        layer.backgroundColor = SQLEditorTheme.insertionPoint.withAlphaComponent(0.4).cgColor
-        layer.frame = CGRect(
+        let frame = CGRect(
             x: rect.origin.x,
             y: rect.origin.y,
             width: charWidth,
             height: rect.height
         )
 
-        // Add blink animation
-        let blinkAnimation = CABasicAnimation(keyPath: "opacity")
-        blinkAnimation.fromValue = 1.0
-        blinkAnimation.toValue = 0.0
-        blinkAnimation.duration = 0.5
-        blinkAnimation.autoreverses = true
-        blinkAnimation.repeatCount = .infinity
-        layer.add(blinkAnimation, forKey: "blink")
+        if let existingLayer = blockCursorLayer {
+            // Reuse existing layer — just update frame
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            existingLayer.frame = frame
+            CATransaction.commit()
+        } else {
+            // Create new layer
+            let layer = CALayer()
+            layer.contentsScale = textView.window?.backingScaleFactor ?? 2.0
+            layer.backgroundColor = SQLEditorTheme.insertionPoint.withAlphaComponent(0.4).cgColor
+            layer.frame = frame
 
-        textView.layer?.addSublayer(layer)
-        blockCursorLayer = layer
+            // Add blink animation
+            let blinkAnimation = CABasicAnimation(keyPath: "opacity")
+            blinkAnimation.fromValue = 1.0
+            blinkAnimation.toValue = 0.0
+            blinkAnimation.duration = 0.5
+            blinkAnimation.autoreverses = true
+            blinkAnimation.repeatCount = .infinity
+            layer.add(blinkAnimation, forKey: "blink")
+
+            textView.layer?.addSublayer(layer)
+            blockCursorLayer = layer
+        }
     }
 
     // MARK: - Private Helpers
@@ -139,7 +147,7 @@ final class VimCursorManager {
     }
 
     /// Schedule a deferred hide to catch cursor views recreated after selection changes
-    private func scheduleDefferredHide() {
+    private func scheduleDeferredHide() {
         deferredHideWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self, self.isBlockCursorActive else { return }
