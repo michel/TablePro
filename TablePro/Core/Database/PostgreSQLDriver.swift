@@ -26,7 +26,7 @@ final class PostgreSQLDriver: DatabaseDriver {
 
     /// Escaped schema name for use in SQL string literals
     var escapedSchema: String {
-        SQLEscaping.escapeStringLiteral(currentSchema)
+        SQLEscaping.escapeStringLiteral(currentSchema, databaseType: .postgresql)
     }
 
     /// Server version string (e.g., "16.1.0")
@@ -762,7 +762,8 @@ final class PostgreSQLDriver: DatabaseDriver {
     func fetchSchemas() async throws -> [String] {
         let result = try await execute(query: """
             SELECT schema_name FROM information_schema.schemata
-            WHERE schema_name NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+            WHERE schema_name NOT LIKE 'pg_%'
+              AND schema_name <> 'information_schema'
             ORDER BY schema_name
             """)
         return result.rows.compactMap { row in row.first.flatMap { $0 } }

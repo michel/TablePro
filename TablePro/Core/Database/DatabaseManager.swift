@@ -162,8 +162,7 @@ final class DatabaseManager: ObservableObject {
                     }
                     // Sync schema on metadata driver for PostgreSQL
                     if let pgMetaDriver = metaDriver as? PostgreSQLDriver,
-                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema,
-                       savedSchema != "public" {
+                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
                         try? await pgMetaDriver.switchSchema(to: savedSchema)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
@@ -477,8 +476,7 @@ final class DatabaseManager: ObservableObject {
 
         // Restore schema for PostgreSQL if session had a non-default schema
         if let pgDriver = driver as? PostgreSQLDriver,
-           let savedSchema = session.currentSchema,
-           savedSchema != "public" {
+           let savedSchema = session.currentSchema {
             try? await pgDriver.switchSchema(to: savedSchema)
         }
 
@@ -538,8 +536,7 @@ final class DatabaseManager: ObservableObject {
 
             // Restore schema for PostgreSQL if session had a non-default schema
             if let pgDriver = driver as? PostgreSQLDriver,
-               let savedSchema = activeSessions[sessionId]?.currentSchema,
-               savedSchema != "public" {
+               let savedSchema = activeSessions[sessionId]?.currentSchema {
                 try? await pgDriver.switchSchema(to: savedSchema)
             }
 
@@ -564,8 +561,7 @@ final class DatabaseManager: ObservableObject {
                     }
                     // Restore schema on metadata driver too
                     if let pgMetaDriver = metaDriver as? PostgreSQLDriver,
-                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema,
-                       savedSchema != "public" {
+                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
                         try? await pgMetaDriver.switchSchema(to: savedSchema)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
