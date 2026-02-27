@@ -35,6 +35,9 @@ final class MainContentCommandActions: ObservableObject {
     private let rightPanelState: RightPanelState
     private let editingCell: Binding<CellPosition?>
 
+    /// The window this instance belongs to — used for key-window guards.
+    weak var window: NSWindow?
+
     // MARK: - State
 
     /// Task handles for async notification observers; cancelled on deinit.
@@ -92,6 +95,23 @@ final class MainContentCommandActions: ObservableObject {
         notificationTasks.append(task)
     }
 
+    /// Returns true if this instance's window is the current key window.
+    private func isKeyWindow() -> Bool {
+        guard let window = self.window else { return false }
+        return window.isKeyWindow
+    }
+
+    /// Like `observe(_:handler:)` but only runs the handler when this instance's window is key.
+    private func observeKeyWindowOnly(
+        _ name: Notification.Name,
+        handler: @escaping @MainActor (Notification) -> Void
+    ) {
+        observe(name) { [weak self] notification in
+            guard self?.isKeyWindow() == true else { return }
+            handler(notification)
+        }
+    }
+
     // MARK: - Save Action
 
     private func setupSaveAction() {
@@ -132,25 +152,25 @@ final class MainContentCommandActions: ObservableObject {
     /// context menus, QueryEditorView, ConnectionStatusView). These bridge AppKit/non-menu
     /// notification posts to the same command action methods used by @FocusedObject callers.
     private func setupNonMenuNotificationObservers() {
-        observe(.addNewRow) { [weak self] _ in self?.addNewRow() }
+        observeKeyWindowOnly(.addNewRow) { [weak self] _ in self?.addNewRow() }
 
-        observe(.deleteSelectedRows) { [weak self] notification in
+        observeKeyWindowOnly(.deleteSelectedRows) { [weak self] notification in
             let directIndices = notification.userInfo?["rowIndices"] as? Set<Int>
             self?.deleteSelectedRows(rowIndices: directIndices)
         }
 
-        observe(.duplicateRow) { [weak self] _ in self?.duplicateRow() }
+        observeKeyWindowOnly(.duplicateRow) { [weak self] _ in self?.duplicateRow() }
 
         // Note: .copySelectedRows and .pasteRows observers call the data-grid
         // path directly (not the public methods) to avoid an infinite loop —
         // the public methods re-post these notifications for structure view.
-        observe(.copySelectedRows) { [weak self] _ in
+        observeKeyWindowOnly(.copySelectedRows) { [weak self] _ in
             guard let self else { return }
             let indices = self.selectedRowIndices.wrappedValue
             self.coordinator?.copySelectedRowsToClipboard(indices: indices)
         }
 
-        observe(.pasteRows) { [weak self] _ in
+        observeKeyWindowOnly(.pasteRows) { [weak self] _ in
             guard let self else { return }
             var indices = self.selectedRowIndices.wrappedValue
             var cell = self.editingCell.wrappedValue
@@ -159,12 +179,12 @@ final class MainContentCommandActions: ObservableObject {
             self.editingCell.wrappedValue = cell
         }
 
-        observe(.createTable) { [weak self] _ in self?.createTable() }
-        observe(.createView) { [weak self] _ in self?.createView() }
-        observe(.exportTables) { [weak self] _ in self?.exportTables() }
-        observe(.importTables) { [weak self] _ in self?.importTables() }
-        observe(.explainQuery) { [weak self] _ in self?.explainQuery() }
-        observe(.openDatabaseSwitcher) { [weak self] _ in self?.openDatabaseSwitcher() }
+        observeKeyWindowOnly(.createTable) { [weak self] _ in self?.createTable() }
+        observeKeyWindowOnly(.createView) { [weak self] _ in self?.createView() }
+        observeKeyWindowOnly(.exportTables) { [weak self] _ in self?.exportTables() }
+        observeKeyWindowOnly(.importTables) { [weak self] _ in self?.importTables() }
+        observeKeyWindowOnly(.explainQuery) { [weak self] _ in self?.explainQuery() }
+        observeKeyWindowOnly(.openDatabaseSwitcher) { [weak self] _ in self?.openDatabaseSwitcher() }
     }
 
     // MARK: - Row Operations (Group A — Called Directly)
@@ -246,14 +266,18 @@ final class MainContentCommandActions: ObservableObject {
 
     // MARK: - Tab Operations (Group A — Called Directly)
 
-    func newTab() {
+    func newTab(initialQuery: String? = nil) {
         // If no tabs exist (empty state), add directly to this window
         if coordinator?.tabManager.tabs.isEmpty == true {
-            coordinator?.tabManager.addTab(databaseName: connection.database)
+            coordinator?.tabManager.addTab(initialQuery: initialQuery, databaseName: connection.database)
             return
         }
         // Open a new native macOS window tab with a query editor
-        let payload = EditorTabPayload(connectionId: connection.id, tabType: .query)
+        let payload = EditorTabPayload(
+            connectionId: connection.id,
+            tabType: .query,
+            initialQuery: initialQuery
+        )
         WindowOpener.shared.openNativeTab(payload)
     }
 
@@ -433,9 +457,9 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Filter Broadcasts
 
     private func setupFilterBroadcastObservers() {
-        observe(.applyAllFilters) { [weak self] _ in self?.handleApplyAllFilters() }
-        observe(.duplicateFilter) { [weak self] _ in self?.handleDuplicateFilter() }
-        observe(.removeFilter) { [weak self] _ in self?.handleRemoveFilter() }
+        observeKeyWindowOnly(.applyAllFilters) { [weak self] _ in self?.handleApplyAllFilters() }
+        observeKeyWindowOnly(.duplicateFilter) { [weak self] _ in self?.handleDuplicateFilter() }
+        observeKeyWindowOnly(.removeFilter) { [weak self] _ in self?.handleRemoveFilter() }
     }
 
     private func handleApplyAllFilters() {
@@ -460,10 +484,10 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Data Broadcasts
 
     private func setupDataBroadcastObservers() {
-        observe(.refreshData) { [weak self] _ in self?.handleRefreshData() }
-        observe(.refreshAll) { [weak self] _ in self?.handleRefreshAll() }
+        observeKeyWindowOnly(.refreshData) { [weak self] _ in self?.handleRefreshData() }
+        observeKeyWindowOnly(.refreshAll) { [weak self] _ in self?.handleRefreshAll() }
 
-        observe(.showTableStructure) { [weak self] notification in
+        observeKeyWindowOnly(.showTableStructure) { [weak self] notification in
             if let tableName = notification.object as? String {
                 self?.coordinator?.openTableTab(tableName, showStructure: true)
             }
@@ -495,21 +519,24 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Tab Broadcasts
 
     private func setupTabBroadcastObservers() {
-        observe(.newQueryTab) { [weak self] _ in self?.newTab() }
+        observeKeyWindowOnly(.newQueryTab) { [weak self] notification in
+            let initialQuery = notification.object as? String
+            self?.newTab(initialQuery: initialQuery)
+        }
 
-        observe(.loadQueryIntoEditor) { [weak self] notification in
+        observeKeyWindowOnly(.loadQueryIntoEditor) { [weak self] notification in
             self?.handleLoadQueryIntoEditor(notification)
         }
 
-        observe(.insertQueryFromAI) { [weak self] notification in
+        observeKeyWindowOnly(.insertQueryFromAI) { [weak self] notification in
             self?.handleInsertQueryFromAI(notification)
         }
 
-        observe(.showAllTables) { [weak self] _ in
+        observeKeyWindowOnly(.showAllTables) { [weak self] _ in
             self?.coordinator?.showAllTablesMetadata()
         }
 
-        observe(.editViewDefinition) { [weak self] notification in
+        observeKeyWindowOnly(.editViewDefinition) { [weak self] notification in
             if let viewName = notification.object as? String {
                 self?.handleEditViewDefinition(viewName)
             }
@@ -614,7 +641,7 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: UI Broadcasts
 
     private func setupUIBroadcastObservers() {
-        observe(.clearSelection) { [weak self] _ in self?.handleClearSelection() }
+        observeKeyWindowOnly(.clearSelection) { [weak self] _ in self?.handleClearSelection() }
     }
 
     private func handleClearSelection() {
@@ -641,7 +668,7 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: File Open Broadcasts
 
     private func setupFileOpenObservers() {
-        observe(.openSQLFiles) { [weak self] notification in
+        observeKeyWindowOnly(.openSQLFiles) { [weak self] notification in
             self?.handleOpenSQLFiles(notification)
         }
     }
@@ -675,7 +702,7 @@ final class MainContentCommandActions: ObservableObject {
     // MARK: Reconnect Broadcasts
 
     private func setupReconnectObservers() {
-        observe(.reconnectDatabase) { [weak self] _ in self?.handleReconnect() }
+        observeKeyWindowOnly(.reconnectDatabase) { [weak self] _ in self?.handleReconnect() }
     }
 
     private func handleReconnect() {

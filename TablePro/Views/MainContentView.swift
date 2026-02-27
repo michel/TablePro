@@ -446,7 +446,7 @@ struct MainContentView: View {
     }
 
     private func setupCommandActions() {
-        commandActions = MainContentCommandActions(
+        let actions = MainContentCommandActions(
             coordinator: coordinator,
             filterStateManager: filterStateManager,
             connection: connection,
@@ -458,6 +458,16 @@ struct MainContentView: View {
             rightPanelState: rightPanelState,
             editingCell: $editingCell
         )
+        actions.window = NSApp.keyWindow
+        commandActions = actions
+
+        // Safety fallback: if window wasn't key yet at onAppear time,
+        // retry on next run loop when the window is guaranteed to be visible
+        if actions.window == nil {
+            DispatchQueue.main.async { [weak actions] in
+                actions?.window = NSApp.keyWindow
+            }
+        }
     }
 
     // MARK: - Database Switcher

@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix InMemoryRowProvider bulk cache eviction — now uses proximity-based eviction keeping entries near current scroll position
 - Fix stale tabRowProviders entries when tab IDs change without count changing
 - Fix crash on macOS 14.x caused by `_strchrnul` symbol not found in libpq.5.dylib — switch libpq and OpenSSL from dynamic Homebrew linking to vendored static libraries built with MACOSX_DEPLOYMENT_TARGET=14.0
+- Fix duplicate tabs and lag when inserting SQL from AI Chat or History panel with multiple window-tabs open — notification handlers now only fire in the key window
+- Fix "Run in New Tab" race condition in History panel — replaced fragile two-notification + 100ms delay pattern with a single atomic notification
 
 ## [0.8.0] - 2026-02-27
 
