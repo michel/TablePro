@@ -20,21 +20,21 @@ internal final class NativeTabRegistry {
 
     private struct WindowEntry {
         let connectionId: UUID
-        var tabs: [QueryTab]
+        var tabs: [TabSnapshot]
         var selectedTabId: UUID?
     }
 
     private var entries: [UUID: WindowEntry] = [:]
 
     /// Register a window's tabs in the registry
-    internal func register(windowId: UUID, connectionId: UUID, tabs: [QueryTab], selectedTabId: UUID?) {
+    internal func register(windowId: UUID, connectionId: UUID, tabs: [TabSnapshot], selectedTabId: UUID?) {
         entries[windowId] = WindowEntry(connectionId: connectionId, tabs: tabs, selectedTabId: selectedTabId)
     }
 
     /// Update a window's tabs (call when tabs or selection changes).
     /// Auto-registers the window if not yet registered — handles the race where
     /// `.onChange` fires before `.onAppear` (upsert pattern).
-    internal func update(windowId: UUID, connectionId: UUID, tabs: [QueryTab], selectedTabId: UUID?) {
+    internal func update(windowId: UUID, connectionId: UUID, tabs: [TabSnapshot], selectedTabId: UUID?) {
         if entries[windowId] != nil {
             entries[windowId]?.tabs = tabs
             entries[windowId]?.selectedTabId = selectedTabId
@@ -50,7 +50,7 @@ internal final class NativeTabRegistry {
     }
 
     /// Get combined tabs from all windows for a connection
-    internal func allTabs(for connectionId: UUID) -> [QueryTab] {
+    internal func allTabs(for connectionId: UUID) -> [TabSnapshot] {
         entries.values
             .filter { $0.connectionId == connectionId }
             .flatMap(\.tabs)

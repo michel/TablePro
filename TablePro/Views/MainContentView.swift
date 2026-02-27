@@ -222,7 +222,7 @@ struct MainContentView: View {
                 NativeTabRegistry.shared.register(
                     windowId: windowId,
                     connectionId: connection.id,
-                    tabs: tabManager.tabs,
+                    tabs: tabManager.tabs.map { $0.toSnapshot() },
                     selectedTabId: tabManager.selectedTabId
                 )
             }
@@ -395,7 +395,7 @@ struct MainContentView: View {
             NativeTabRegistry.shared.update(
                 windowId: windowId,
                 connectionId: connection.id,
-                tabs: tabManager.tabs,
+                tabs: tabManager.tabs.map { $0.toSnapshot() },
                 selectedTabId: selectedTab.id
             )
 
@@ -496,7 +496,7 @@ struct MainContentView: View {
         NativeTabRegistry.shared.update(
             windowId: windowId,
             connectionId: connection.id,
-            tabs: tabManager.tabs,
+            tabs: tabManager.tabs.map { $0.toSnapshot() },
             selectedTabId: newTabId
         )
 
@@ -526,7 +526,7 @@ struct MainContentView: View {
         NativeTabRegistry.shared.update(
             windowId: windowId,
             connectionId: connection.id,
-            tabs: newTabs,
+            tabs: newTabs.map { $0.toSnapshot() },
             selectedTabId: tabManager.selectedTabId
         )
 

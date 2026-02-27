@@ -51,7 +51,7 @@ final class TabPersistenceService: ObservableObject {
     /// - Parameters:
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
-    func saveTabsDebounced(tabs: [QueryTab], selectedTabId: UUID?) {
+    func saveTabsDebounced(tabs: [TabSnapshot], selectedTabId: UUID?) {
         guard !isRestoringTabs, !isDismissing else { return }
 
         // Cancel previous debounce task
@@ -82,7 +82,7 @@ final class TabPersistenceService: ObservableObject {
     /// - Parameters:
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
-    func saveTabsImmediately(tabs: [QueryTab], selectedTabId: UUID?) {
+    func saveTabsImmediately(tabs: [TabSnapshot], selectedTabId: UUID?) {
         guard !isRestoringTabs, !isDismissing else { return }
 
         let connId = connectionId
@@ -99,7 +99,7 @@ final class TabPersistenceService: ObservableObject {
     /// - Parameters:
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
-    func handleWindowClose(tabs: [QueryTab], selectedTabId: UUID?) {
+    func handleWindowClose(tabs: [TabSnapshot], selectedTabId: UUID?) {
         isDismissing = true
         saveDebounceTask?.cancel()
 
@@ -118,7 +118,7 @@ final class TabPersistenceService: ObservableObject {
     /// - Parameters:
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
-    func saveTabsAsync(tabs: [QueryTab], selectedTabId: UUID?) {
+    func saveTabsAsync(tabs: [TabSnapshot], selectedTabId: UUID?) {
         guard !isRestoringTabs, !isDismissing else { return }
 
         // Cancel any in-flight background save so an older snapshot can't

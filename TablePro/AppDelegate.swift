@@ -411,7 +411,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 TabStateStorage.shared.saveTabState(
                     connectionId: connectionId,
-                    tabs: session.tabs,
+                    tabs: session.tabs.map { $0.toSnapshot() },
                     selectedTabId: session.selectedTabId
                 )
             }
