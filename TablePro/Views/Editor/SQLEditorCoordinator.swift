@@ -26,6 +26,7 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     /// Debounce work item for frame-change notification to avoid
     /// triggering syntax highlight viewport recalculation on every keystroke.
     private nonisolated(unsafe) var frameChangeWorkItem: DispatchWorkItem?
+    private nonisolated(unsafe) var clipboardMonitor: Any?
 
     /// Published Vim mode for UI observation
     @Published private(set) var vimMode: VimMode = .normal
@@ -33,6 +34,8 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     private var vimKeyInterceptor: VimKeyInterceptor?
     private var commandHandler = VimCommandLineHandler()
     private var vimCursorManager: VimCursorManager?
+    var onCloseTab: (() -> Void)?
+    var onExecuteQuery: (() -> Void)?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -52,6 +55,9 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             NotificationCenter.default.removeObserver(observer)
         }
         frameChangeWorkItem?.cancel()
+        if let monitor = clipboardMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
 
         let suggestionManager = inlineSuggestionManager
         if let manager = suggestionManager {
@@ -75,6 +81,7 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             self?.installAIContextMenu(controller: controller)
             self?.installInlineSuggestionManager(controller: controller)
             self?.installVimModeIfEnabled(controller: controller)
+            self?.installClipboardMonitor(controller: controller)
         }
     }
 
@@ -141,6 +148,11 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             NSEvent.removeMonitor(monitor)
             rightClickMonitor = nil
         }
+
+        if let monitor = clipboardMonitor {
+            NSEvent.removeMonitor(monitor)
+            clipboardMonitor = nil
+        }
     }
 
     // MARK: - AI Context Menu
@@ -201,12 +213,11 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             self?.vimCursorManager?.updateMode(mode)
         }
 
-        commandHandler.onExecuteQuery = {
-            NSApp.sendAction(
-                #selector(TableProResponderActions.executeQuery(_:)),
-                to: nil,
-                from: nil
-            )
+        commandHandler.onExecuteQuery = { [weak self] in
+            self?.onExecuteQuery?()
+        }
+        commandHandler.onCloseTab = { [weak self] in
+            self?.onCloseTab?()
         }
         engine.onCommand = { [weak self] command in
             self?.commandHandler.handle(command)
@@ -240,6 +251,46 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             installVimKeyInterceptor(controller: controller)
         } else if !enabled && vimKeyInterceptor != nil {
             uninstallVimKeyInterceptor()
+        }
+    }
+
+    // MARK: - Clipboard Monitor
+
+    private func installClipboardMonitor(controller: TextViewController) {
+        guard let textView = controller.textView else { return }
+
+        clipboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak textView] event in
+            guard let textView,
+                  event.window === textView.window,
+                  textView.window?.firstResponder === textView else {
+                return event
+            }
+
+            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard mods.contains(.command),
+                  !mods.contains(.shift), !mods.contains(.option), !mods.contains(.control) else {
+                return event
+            }
+
+            let range = textView.selectedRange()
+            guard range.length > 0 else { return event }
+            let text = (textView.string as NSString).substring(with: range)
+
+            switch event.keyCode {
+            case 8: // Cmd+C
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                return nil
+            case 7: // Cmd+X
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                textView.replaceCharacters(in: range, with: "")
+                return nil
+            default:
+                break
+            }
+
+            return event
         }
     }
 

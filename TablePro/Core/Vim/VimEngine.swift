@@ -203,6 +203,18 @@ final class VimEngine {
             }
             goalColumn = nil
             return true
+        case "^", "_":
+            if let op = pendingOperator {
+                executeOperatorWithMotion(op, motion: {
+                    let target = self.firstNonBlankOffset(from: buffer.selectedRange().location, in: buffer)
+                    buffer.setSelectedRange(NSRange(location: target, length: 0))
+                }, in: buffer)
+            } else {
+                let target = firstNonBlankOffset(from: buffer.selectedRange().location, in: buffer)
+                buffer.setSelectedRange(NSRange(location: target, length: 0))
+            }
+            goalColumn = nil
+            return true
         case "g":
             pendingG = true
             return true
@@ -430,7 +442,7 @@ final class VimEngine {
             buffer.setSelectedRange(NSRange(location: pos, length: 0))
             return true
 
-        case "h", "j", "k", "l", "w", "b", "e", "0", "$", "G":
+        case "h", "j", "k", "l", "w", "b", "e", "0", "$", "G", "^", "_":
             // Motion — extend selection
             let cursorPos = visualCursorEnd(buffer: buffer)
             let newPos: Int
@@ -459,6 +471,8 @@ final class VimEngine {
                     && buffer.character(at: lineEnd - 1) == 0x0A ? lineEnd - 1 : lineEnd
             case "G":
                 newPos = max(0, buffer.length - 1)
+            case "^", "_":
+                newPos = firstNonBlankOffset(from: cursorPos, in: buffer)
             default:
                 newPos = cursorPos
             }
@@ -672,6 +686,21 @@ final class VimEngine {
         }
         let finalPos = contentEnd > lineRange.location ? contentEnd - 1 : lineRange.location
         buffer.setSelectedRange(NSRange(location: finalPos, length: 0))
+    }
+
+    private func firstNonBlankOffset(from position: Int, in buffer: VimTextBuffer) -> Int {
+        let lineRange = buffer.lineRange(forOffset: position)
+        var target = lineRange.location
+        let lineEnd = lineRange.location + lineRange.length
+        while target < lineEnd {
+            let ch = buffer.character(at: target)
+            if ch != 0x20 && ch != 0x09 && ch != 0x0A { break }
+            target += 1
+        }
+        if target >= lineEnd || buffer.character(at: target) == 0x0A {
+            target = lineRange.location
+        }
+        return target
     }
 
     private func goToLine(_ line: Int, in buffer: VimTextBuffer) {

@@ -191,7 +191,11 @@ struct MainEditorContentView: View {
                     cursorPositions: $coordinator.cursorPositions,
                     onExecute: { coordinator.runQuery() },
                     schemaProvider: coordinator.schemaProvider,
-                    databaseType: coordinator.connection.type
+                    databaseType: coordinator.connection.type,
+                    onCloseTab: {
+                        NSApp.keyWindow?.close()
+                    },
+                    onExecuteQuery: { coordinator.runQuery() }
                 )
             }
             .frame(minHeight: 100, idealHeight: 200)
