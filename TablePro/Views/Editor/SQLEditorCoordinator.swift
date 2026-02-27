@@ -20,12 +20,12 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     /// Shared schema provider for inline AI suggestions (avoids duplicate schema fetches)
     var schemaProvider: SQLSchemaProvider?
     private var contextMenu: AIEditorContextMenu?
-    private nonisolated(unsafe) var rightClickMonitor: Any?
-    private nonisolated(unsafe) var inlineSuggestionManager: InlineSuggestionManager?
-    private nonisolated(unsafe) var editorSettingsObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var rightClickMonitor: Any?
+    nonisolated(unsafe) private var inlineSuggestionManager: InlineSuggestionManager?
+    nonisolated(unsafe) private var editorSettingsObserver: NSObjectProtocol?
     /// Debounce work item for frame-change notification to avoid
     /// triggering syntax highlight viewport recalculation on every keystroke.
-    private nonisolated(unsafe) var frameChangeWorkItem: DispatchWorkItem?
+    nonisolated(unsafe) private var frameChangeWorkItem: DispatchWorkItem?
 
     /// Published Vim mode for UI observation
     @Published private(set) var vimMode: VimMode = .normal

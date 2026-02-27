@@ -1049,6 +1049,9 @@
         }
       }
     },
+    "ALL SCHEMAS" : {
+
+    },
     "All Time" : {
       "localizations" : {
         "vi" : {
@@ -2452,6 +2455,12 @@
         }
       }
     },
+    "Current schema: %@ (⌘K to switch)" : {
+
+    },
+    "Current schema: %@ (read-only, ⌘K to switch)" : {
+
+    },
     "CURRENT_TIMESTAMP()" : {
       "localizations" : {
         "vi" : {
@@ -3725,6 +3734,9 @@
         }
       }
     },
+    "Failed to load schemas" : {
+
+    },
     "Failed to load tables: %@" : {
       "localizations" : {
         "vi" : {
@@ -4820,6 +4832,9 @@
         }
       }
     },
+    "Loading schemas..." : {
+
+    },
     "Loading tables..." : {
       "localizations" : {
         "vi" : {
@@ -5384,6 +5399,9 @@
         }
       }
     },
+    "No matching schemas" : {
+
+    },
     "No matching tables" : {
       "localizations" : {
         "vi" : {
@@ -5483,6 +5501,12 @@
           }
         }
       }
+    },
+    "No schemas found" : {
+
+    },
+    "No schemas match \"%@\"" : {
+
     },
     "No Selection" : {
       "localizations" : {
@@ -5803,6 +5827,9 @@
           }
         }
       }
+    },
+    "Open Schema" : {
+
     },
     "Open SQL Editor" : {
       "localizations" : {
@@ -7000,6 +7027,9 @@
           }
         }
       }
+    },
+    "Search schemas..." : {
+
     },
     "Search shortcuts..." : {
       "localizations" : {

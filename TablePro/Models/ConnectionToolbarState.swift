@@ -236,6 +236,15 @@ final class ConnectionToolbarState: ObservableObject {
         connectionName = connection.name
         if connection.type == .sqlite {
             databaseName = (connection.database as NSString).lastPathComponent
+        } else if connection.type == .postgresql {
+            // For PostgreSQL, show schema name from active session if available
+            if let sessionId = DatabaseManager.shared.currentSessionId,
+               let session = DatabaseManager.shared.activeSessions[sessionId],
+               let schema = session.currentSchema {
+                databaseName = schema
+            } else {
+                databaseName = connection.database
+            }
         } else {
             databaseName = connection.database
         }

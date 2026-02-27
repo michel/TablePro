@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Vim keybindings for SQL editor (Normal/Insert/Visual modes, motions, operators, :w/:q commands) with toggle in Editor Settings
+- PostgreSQL schema switching via ⌘K database switcher (browse and switch between schemas like `public`, `auth`, custom schemas)
 
 ### Fixed
 
