@@ -29,7 +29,8 @@ struct SQLEditorView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        if editorReady {
+        Group {
+            if editorReady {
             SourceEditor(
                 $text,
                 language: .sql,
@@ -95,6 +96,7 @@ struct SQLEditorView: View {
                     coordinator.schemaProvider = schemaProvider
                     editorReady = true
                 }
+            }
         }
         .onReceive(coordinator.$vimMode) { newMode in
             vimMode = newMode
