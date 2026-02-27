@@ -35,40 +35,57 @@ extension MainContentCoordinator {
             return
         }
 
-        let needsQuery = tabManager.TableProTabSmart(
-            tableName: tableName,
-            hasUnsavedChanges: changeManager.hasChanges,
-            databaseType: connection.type,
-            isView: isView,
-            databaseName: currentDatabase
-        )
-
-        // Attach timing once tab UUID is known (promotes any pending sidebar trigger)
-        if let tabId = tabManager.selectedTabId {
+        // Check if another native window tab already has this table open — switch to it
+        if let keyWindow = NSApp.keyWindow {
+            let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
+            for window in tabbedWindows where window.title == tableName {
+                window.makeKeyAndOrderFront(nil)
+                return
+            }
         }
 
-        // Initialize pagination for new table tab
-        if needsQuery, let tabIndex = tabManager.selectedTabIndex {
-            tabManager.tabs[tabIndex].pagination.reset()
-        }
-
-        // Update editable state for menu items (tab switch handler may not fire on reuse path)
-        if let tabIndex = tabManager.selectedTabIndex {
-            let tab = tabManager.tabs[tabIndex]
-            AppState.shared.isCurrentTabEditable = tab.isEditable && !tab.isView && tab.tableName != nil
-            toolbarState.isTableTab = tab.tabType == .table
-        }
-
-        // Toggle structure view if requested
-        if showStructure, let tabIndex = tabManager.selectedTabIndex {
-            tabManager.tabs[tabIndex].showStructure = true
-        }
-
-        if needsQuery {
+        // If no tabs exist (empty state), add a table tab directly
+        if tabManager.tabs.isEmpty {
+            tabManager.addTableTab(
+                tableName: tableName,
+                databaseType: connection.type,
+                databaseName: currentDatabase
+            )
+            if let tabIndex = tabManager.selectedTabIndex {
+                tabManager.tabs[tabIndex].isView = isView
+                tabManager.tabs[tabIndex].isEditable = !isView
+                tabManager.tabs[tabIndex].pagination.reset()
+                AppState.shared.isCurrentTabEditable = !isView && tableName.isEmpty == false
+                toolbarState.isTableTab = true
+            }
             runQuery()
-        } else if let tabId = tabManager.selectedTabId {
-            // Tab was already open and loaded — nothing more to do
+            return
         }
+
+        // If current tab has unsaved changes, open in a new native tab instead of replacing
+        if changeManager.hasChanges {
+            let payload = EditorTabPayload(
+                connectionId: connection.id,
+                tabType: .table,
+                tableName: tableName,
+                databaseName: currentDatabase,
+                isView: isView,
+                showStructure: showStructure
+            )
+            WindowOpener.shared.openNativeTab(payload)
+            return
+        }
+
+        // Default: open table in a new native tab
+        let payload = EditorTabPayload(
+            connectionId: connection.id,
+            tabType: .table,
+            tableName: tableName,
+            databaseName: currentDatabase,
+            isView: isView,
+            showStructure: showStructure
+        )
+        WindowOpener.shared.openNativeTab(payload)
     }
 
     func showAllTablesMetadata() {
@@ -128,24 +145,12 @@ extension MainContentCoordinator {
             """
         }
 
-        if let existingTab = tabManager.tabs.first(where: { $0.title == "Tables" }) {
-            if let index = tabManager.tabs.firstIndex(where: { $0.id == existingTab.id }) {
-                tabManager.tabs[index].query = sql
-            }
-            tabManager.selectedTabId = existingTab.id
-            runQuery()
-            return
-        }
-
-        let newTab = QueryTab(
-            title: "Tables",
-            query: sql,
-            tabType: .table,
-            tableName: nil
+        let payload = EditorTabPayload(
+            connectionId: connection.id,
+            tabType: .query,
+            initialQuery: sql
         )
-        tabManager.tabs.append(newTab)
-        tabManager.selectedTabId = newTab.id
-        runQuery()
+        WindowOpener.shared.openNativeTab(payload)
     }
 
     // MARK: - Database Switching
@@ -167,6 +172,7 @@ extension MainContentCoordinator {
                         var updatedConnection = session.connection
                         updatedConnection.database = database
                         session.connection = updatedConnection
+                        session.tables = []          // triggers SidebarView.loadTables() via onChange
                     }
                 }
 
@@ -185,13 +191,13 @@ extension MainContentCoordinator {
                     return updatedTab
                 }
 
-                // Reload schema for autocomplete
+                // Reload schema for autocomplete.
+                // session.tables was cleared above, which triggers SidebarView.loadTables() via onChange.
                 await loadSchema()
 
-                // Refresh tables list in sidebar
-                NotificationCenter.default.post(name: .refreshAll, object: nil)
-
-                // Re-execute current tab's query if it's a table tab
+                // Re-execute current tab if it's a table tab.
+                // Do NOT post .refreshAll here — that broadcasts to ALL windows and causes
+                // every window to re-execute its query against the wrong database.
                 if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
                     runQuery()
                 }
@@ -206,35 +212,6 @@ extension MainContentCoordinator {
                 message: error.localizedDescription,
                 window: NSApplication.shared.keyWindow
             )
-        }
-    }
-
-    /// Switch to a different database (legacy method - creates new connection)
-    func switchToDatabase(_ database: String) {
-        let newConnection = DatabaseConnection(
-            id: UUID(),
-            name: connection.name,
-            host: connection.host,
-            port: connection.port,
-            database: database,
-            username: connection.username,
-            type: connection.type,
-            sshConfig: connection.sshConfig,
-            color: connection.color,
-            tagId: connection.tagId
-        )
-
-        Task { @MainActor in
-            do {
-                try await DatabaseManager.shared.connectToSession(newConnection)
-            } catch {
-                navigationLogger.error("Failed to connect to database '\(database, privacy: .public)': \(error.localizedDescription, privacy: .public)")
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Connection Failed"),
-                    message: error.localizedDescription,
-                    window: NSApplication.shared.keyWindow
-                )
-            }
         }
     }
 }

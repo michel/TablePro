@@ -112,16 +112,19 @@ final class DatabaseManager: ObservableObject {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
-            // Update session with successful connection
-            activeSessions[connection.id]?.driver = driver
-            activeSessions[connection.id]?.status = driver.status
-            activeSessions[connection.id]?.effectiveConnection = effectiveConnection
+            // Batch all session mutations into a single write to fire objectWillChange once
+            if var session = activeSessions[connection.id] {
+                session.driver = driver
+                session.status = driver.status
+                session.effectiveConnection = effectiveConnection
 
-            // Restore tab state if it exists
-            if let tabState = TabStateStorage.shared.loadTabState(connectionId: connection.id) {
-                let restoredTabs = tabState.tabs.map { QueryTab(from: $0) }
-                activeSessions[connection.id]?.tabs = restoredTabs
-                activeSessions[connection.id]?.selectedTabId = tabState.selectedTabId
+                // Restore tab state if it exists
+                if let tabState = TabStateStorage.shared.loadTabState(connectionId: connection.id) {
+                    session.tabs = tabState.tabs.map { QueryTab(from: $0) }
+                    session.selectedTabId = tabState.selectedTabId
+                }
+
+                activeSessions[connection.id] = session  // Single write, single publish
             }
 
             // Save as last connection for "Reopen Last Session" feature
@@ -204,6 +207,9 @@ final class DatabaseManager: ObservableObject {
         session.metadataDriver?.disconnect()
         session.driver?.disconnect()
         activeSessions.removeValue(forKey: sessionId)
+
+        // Clean up shared schema cache for this connection
+        MainContentCoordinator.clearSharedSchema(for: sessionId)
 
         // If this was the current session, switch to another or clear
         if currentSessionId == sessionId {
@@ -409,8 +415,11 @@ final class DatabaseManager: ObservableObject {
                 await MainActor.run {
                     switch state {
                     case .healthy:
-                        self.updateSession(id) { session in
-                            session.status = .connected
+                        // Skip no-op write — avoid firing @Published when status is already .connected
+                        if let session = self.activeSessions[id], !session.isConnected {
+                            self.updateSession(id) { session in
+                                session.status = .connected
+                            }
                         }
                     case .reconnecting(let attempt):
                         Self.logger.info("Reconnecting session \(id) (attempt \(attempt)/3)")

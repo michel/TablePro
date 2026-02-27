@@ -8,10 +8,13 @@
 
 import Combine
 import Foundation
+import os
 
 /// Service for managing tab state persistence
 @MainActor
 final class TabPersistenceService: ObservableObject {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "TabPersistenceService")
+
     // MARK: - Constants
 
     private static let saveDebounceDelay: UInt64 = 500_000_000  // 500ms in nanoseconds
@@ -110,18 +113,6 @@ final class TabPersistenceService: ObservableObject {
         )
     }
 
-    /// Flush pending debounced save before tab switch.
-    /// Saves on a background thread to avoid blocking the main thread.
-    /// - Parameters:
-    ///   - tabs: Current tabs array
-    ///   - selectedTabId: Currently selected tab ID
-    func flushPendingSave(tabs: [QueryTab], selectedTabId: UUID?) {
-        guard let task = saveDebounceTask, !task.isCancelled else { return }
-
-        task.cancel()
-        saveTabsAsync(tabs: tabs, selectedTabId: selectedTabId)
-    }
-
     /// Save tabs asynchronously on a background thread to avoid blocking the main thread.
     /// Use this for tab-switch paths; use saveTabsImmediately only when the process is about to exit.
     /// - Parameters:
@@ -203,8 +194,6 @@ final class TabPersistenceService: ObservableObject {
 
             if let session = DatabaseManager.shared.currentSession,
                session.isConnected {
-                // Small delay to ensure everything is initialized
-                try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
                 await MainActor.run {
                     justRestoredTab = true
                     onReady()
@@ -214,6 +203,10 @@ final class TabPersistenceService: ObservableObject {
 
             try? await Task.sleep(nanoseconds: Self.connectionCheckDelay)
             retryCount += 1
+        }
+
+        if retryCount >= Self.maxConnectionRetries {
+            Self.logger.warning("waitForConnectionAndExecute: timed out after \(retryCount) retries")
         }
     }
 
@@ -230,23 +223,6 @@ final class TabPersistenceService: ObservableObject {
     /// Mark restoration as complete
     func endRestoration() {
         isRestoringTabs = false
-    }
-
-    // MARK: - Session Sync
-
-    /// Sync tabs to session for in-memory persistence
-    /// - Parameters:
-    ///   - tabs: Current tabs array
-    ///   - selectedTabId: Currently selected tab ID
-    func syncToSession(tabs: [QueryTab], selectedTabId: UUID?) {
-        guard !isRestoringTabs, !isDismissing else { return }
-
-        if let sessionId = DatabaseManager.shared.currentSessionId {
-            DatabaseManager.shared.updateSession(sessionId) { session in
-                session.tabs = tabs
-                session.selectedTabId = selectedTabId
-            }
-        }
     }
 
     /// Clear saved state when all tabs are closed

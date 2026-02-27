@@ -62,4 +62,18 @@ struct ConnectionSession: Identifiable {
         pendingDeletes = []
         tableOperationOptions = [:]
     }
+
+    /// Compares fields used by ContentView's body to avoid unnecessary SwiftUI re-renders.
+    /// Excludes: driver/metadataDriver (protocol, non-comparable), tabs/selectedTabId
+    /// (managed by MainContentView), lastActiveAt (volatile), lastError, effectiveConnection.
+    func isContentViewEquivalent(to other: ConnectionSession) -> Bool {
+        id == other.id
+            && status == other.status
+            && connection == other.connection
+            && tables == other.tables
+            && pendingTruncates == other.pendingTruncates
+            && pendingDeletes == other.pendingDeletes
+            && tableOperationOptions == other.tableOperationOptions
+            && selectedTables == other.selectedTables
+    }
 }

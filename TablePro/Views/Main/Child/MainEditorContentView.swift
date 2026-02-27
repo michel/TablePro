@@ -8,7 +8,10 @@
 
 import AppKit
 import CodeEditSourceEditor
+import os
 import SwiftUI
+
+private let editorContentLogger = Logger(subsystem: "com.TablePro", category: "MainEditorContentView")
 
 /// Cache for sorted query result rows to avoid re-sorting on every SwiftUI body evaluation
 private struct SortedRowsCache {
@@ -27,6 +30,8 @@ struct MainEditorContentView: View {
     @ObservedObject var changeManager: DataChangeManager
     @ObservedObject var filterStateManager: FilterStateManager
     let connection: DatabaseConnection
+    let windowId: UUID
+    let connectionId: UUID
 
     // MARK: - Bindings
 
@@ -59,12 +64,13 @@ struct MainEditorContentView: View {
 
     @State private var sortCache: [UUID: SortedRowsCache] = [:]
 
-    // Cached row provider — avoids recreation on every SwiftUI render.
-    @State private var cachedRowProvider: InMemoryRowProvider?
-    @State private var cachedProviderTabId: UUID?
-    @State private var cachedProviderVersion: Int = -1
-    @State private var cachedProviderMetadataVersion: Int = -1
+    // Per-tab row provider cache — avoids recreation on every SwiftUI render.
+    @State private var tabRowProviders: [UUID: InMemoryRowProvider] = [:]
+    @State private var tabProviderVersions: [UUID: Int] = [:]
+    @State private var tabProviderMetaVersions: [UUID: Int] = [:]
     @State private var cachedChangeManager: AnyChangeManager?
+
+    // Native macOS window tabs — no LRU tracking needed (single tab per window)
 
     // MARK: - Environment
 
@@ -84,18 +90,8 @@ struct MainEditorContentView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Tab bar - only show when there are tabs
-            if !tabManager.tabs.isEmpty {
-                EditorTabBar(
-                    tabManager: tabManager,
-                    onDirectSelect: { tab in
-                        performDirectTabSwitch(to: tab)
-                    }
-                )
-                Divider()
-            }
-
-            // Content for selected tab
+            // Native macOS window tabs replace the custom tab bar.
+            // Each window-tab contains a single tab — no ZStack keep-alive needed.
             if let tab = tabManager.selectedTab {
                 tabContent(for: tab)
             } else {
@@ -112,10 +108,13 @@ struct MainEditorContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: appState.isHistoryPanelVisible)
         .onChange(of: tabManager.tabs.count) {
-            // Clean up sort cache for closed tabs
+            // Clean up caches for closed tabs
             let openTabIds = Set(tabManager.tabs.map(\.id))
             sortCache = sortCache.filter { openTabIds.contains($0.key) }
             coordinator.cleanupSortCache(openTabIds: openTabIds)
+            tabRowProviders = tabRowProviders.filter { openTabIds.contains($0.key) }
+            tabProviderVersions = tabProviderVersions.filter { openTabIds.contains($0.key) }
+            tabProviderMetaVersions = tabProviderMetaVersions.filter { openTabIds.contains($0.key) }
         }
         .onChange(of: tabManager.selectedTabId) {
             updateHasQueryText()
@@ -125,38 +124,35 @@ struct MainEditorContentView: View {
             cachedChangeManager = AnyChangeManager(dataManager: changeManager)
             if let tab = tabManager.selectedTab {
                 let provider = makeRowProvider(for: tab)
-                cachedRowProvider = provider
-                cachedProviderTabId = tab.id
-                cachedProviderVersion = tab.resultVersion
-                cachedProviderMetadataVersion = tab.metadataVersion
+                tabRowProviders[tab.id] = provider
+                tabProviderVersions[tab.id] = tab.resultVersion
+                tabProviderMetaVersions[tab.id] = tab.metadataVersion
             }
         }
         .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
-            guard let tab = tabManager.selectedTab, let version = newVersion else { return }
-            // Skip if this fired due to tab switch — selectedTabId handler owns that
-            guard cachedProviderTabId == tab.id else { return }
+            guard let tab = tabManager.selectedTab, newVersion != nil else { return }
             let provider = makeRowProvider(for: tab)
-            cachedRowProvider = provider
-            cachedProviderTabId = tab.id
-            cachedProviderVersion = version
-            cachedProviderMetadataVersion = tab.metadataVersion
+            tabRowProviders[tab.id] = provider
+            tabProviderVersions[tab.id] = tab.resultVersion
+            tabProviderMetaVersions[tab.id] = tab.metadataVersion
         }
         .onChange(of: tabManager.selectedTab?.metadataVersion) { _, _ in
             guard let tab = tabManager.selectedTab else { return }
             let provider = makeRowProvider(for: tab)
-            cachedRowProvider = provider
-            cachedProviderTabId = tab.id
-            cachedProviderVersion = tab.resultVersion
-            cachedProviderMetadataVersion = tab.metadataVersion
+            tabRowProviders[tab.id] = provider
+            tabProviderVersions[tab.id] = tab.resultVersion
+            tabProviderMetaVersions[tab.id] = tab.metadataVersion
         }
         .onChange(of: tabManager.selectedTabId) { _, newId in
-            guard let tab = tabManager.selectedTab, let id = newId else { return }
-            if cachedProviderTabId != id {
+            guard let newId, let tab = tabManager.selectedTab else { return }
+
+            // Cache provider for new tab if not already cached
+            if tabProviderVersions[newId] != tab.resultVersion
+                || tabProviderMetaVersions[newId] != tab.metadataVersion {
                 let provider = makeRowProvider(for: tab)
-                cachedRowProvider = provider
-                cachedProviderTabId = id
-                cachedProviderVersion = tab.resultVersion
-                cachedProviderMetadataVersion = tab.metadataVersion
+                tabRowProviders[newId] = provider
+                tabProviderVersions[newId] = tab.resultVersion
+                tabProviderMetaVersions[newId] = tab.metadataVersion
             }
         }
     }
@@ -234,8 +230,14 @@ struct MainEditorContentView: View {
                 coordinator.tabPersistence.saveLastQueryDebounced(newValue)
 
                 if !coordinator.tabPersistence.isRestoringTabs && !coordinator.tabPersistence.isDismissing {
-                    coordinator.tabPersistence.saveTabsDebounced(
+                    NativeTabRegistry.shared.update(
+                        windowId: windowId,
                         tabs: tabManager.tabs,
+                        selectedTabId: tabManager.selectedTabId
+                    )
+                    let combinedTabs = NativeTabRegistry.shared.allTabs(for: connectionId)
+                    coordinator.tabPersistence.saveTabsDebounced(
+                        tabs: combinedTabs,
                         selectedTabId: tabManager.selectedTabId
                     )
                 }
@@ -259,8 +261,8 @@ struct MainEditorContentView: View {
                 options: createTableOptionsBinding(for: tab),
                 databaseType: connection.type,
                 onCancel: {
-                    // Close this tab
-                    tabManager.closeTab(tab)
+                    // Close the create-table window
+                    NSApp.keyWindow?.close()
                 },
                 onCreate: { options in
                     coordinator.createTable(options)
@@ -329,7 +331,7 @@ struct MainEditorContentView: View {
     @ViewBuilder
     private func dataGridView(tab: QueryTab) -> some View {
         DataGridView(
-            rowProvider: currentRowProvider,
+            rowProvider: rowProvider(for: tab),
             changeManager: currentChangeManager,
             resultVersion: tab.resultVersion,
             metadataVersion: tab.metadataVersion,
@@ -360,15 +362,11 @@ struct MainEditorContentView: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    private var currentRowProvider: InMemoryRowProvider {
-        if let cached = cachedRowProvider,
-           cachedProviderTabId == tabManager.selectedTabId,
-           cachedProviderVersion == tabManager.selectedTab?.resultVersion ?? -1,
-           cachedProviderMetadataVersion == tabManager.selectedTab?.metadataVersion ?? -1 {
+    private func rowProvider(for tab: QueryTab) -> InMemoryRowProvider {
+        if let cached = tabRowProviders[tab.id],
+           tabProviderVersions[tab.id] == tab.resultVersion,
+           tabProviderMetaVersions[tab.id] == tab.metadataVersion {
             return cached
-        }
-        guard let tab = tabManager.selectedTab else {
-            return InMemoryRowProvider(rows: [], columns: [])
         }
         return makeRowProvider(for: tab)
     }
@@ -496,14 +494,6 @@ struct MainEditorContentView: View {
                 }
             }
         )
-    }
-
-    // MARK: - Direct Tab Switch
-
-    private func performDirectTabSwitch(to tab: QueryTab) {
-        var indices = selectedRowIndices
-        coordinator.performDirectTabSwitch(to: tab, selectedRowIndices: &indices)
-        selectedRowIndices = indices
     }
 
     // MARK: - Empty State

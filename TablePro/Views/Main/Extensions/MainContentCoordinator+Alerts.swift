@@ -90,8 +90,6 @@ extension MainContentCoordinator {
         switch action {
         case .refresh, .refreshAll:
             return String(localized: "Refreshing will discard all unsaved changes.")
-        case .closeTab:
-            return String(localized: "Closing this tab will discard all unsaved changes.")
         }
     }
 

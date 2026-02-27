@@ -8,15 +8,8 @@
 import Combine
 import Foundation
 
-// MARK: - Notifications
-
-extension Notification.Name {
-    /// Posted when a table tab is closed, with tableName as object
-    static let tableTabClosed = Notification.Name("tableTabClosed")
-}
-
 /// Type of tab
-enum TabType: Equatable, Codable {
+enum TabType: Equatable, Codable, Hashable {
     case query       // SQL editor tab
     case table       // Direct table view tab
     case createTable // Table creation tab
@@ -27,7 +20,6 @@ struct PersistedTab: Codable {
     let id: UUID
     let title: String
     let query: String
-    let isPinned: Bool
     let tabType: TabType
     let tableName: String?
     var isView: Bool = false
@@ -266,7 +258,6 @@ struct QueryTab: Identifiable, Equatable {
     let id: UUID
     var title: String
     var query: String
-    var isPinned: Bool
     var lastExecutedAt: Date?
     var tabType: TabType
 
@@ -358,14 +349,12 @@ struct QueryTab: Identifiable, Equatable {
         id: UUID = UUID(),
         title: String = "Query",
         query: String = "",
-        isPinned: Bool = false,
         tabType: TabType = .query,
         tableName: String? = nil
     ) {
         self.id = id
         self.title = title
         self.query = query
-        self.isPinned = isPinned
         self.tabType = tabType
         self.lastExecutedAt = nil
         self.rowBuffer = RowBuffer()
@@ -396,7 +385,6 @@ struct QueryTab: Identifiable, Equatable {
         self.id = persisted.id
         self.title = persisted.title
         self.query = persisted.query
-        self.isPinned = persisted.isPinned
         self.tabType = persisted.tabType
         self.tableName = persisted.tableName
         self.primaryKeyColumn = nil
@@ -442,7 +430,6 @@ struct QueryTab: Identifiable, Equatable {
             id: id,
             title: title,
             query: persistedQuery,
-            isPinned: isPinned,
             tabType: tabType,
             tableName: tableName,
             isView: isView,
@@ -453,7 +440,6 @@ struct QueryTab: Identifiable, Equatable {
     static func == (lhs: QueryTab, rhs: QueryTab) -> Bool {
         lhs.id == rhs.id
             && lhs.title == rhs.title
-            && lhs.isPinned == rhs.isPinned
             && lhs.isExecuting == rhs.isExecuting
             && lhs.errorMessage == rhs.errorMessage
             && lhs.executionTime == rhs.executionTime
@@ -564,141 +550,51 @@ final class QueryTabManager: ObservableObject {
         selectedTabId = newTab.id
     }
 
-    /// Smart table tab opening (TablePlus-style behavior)
-    /// - If clicking the same table: just switch to it
-    /// - If current tab is a clean table tab (no changes): replace it
-    /// - If current tab has pending changes or is a query tab: create new tab
-    /// - Returns: true if query needs to be executed (new/replaced tab), false if just switching
+    /// Replace the currently selected tab's content with a new table.
+    /// - Returns: `true` if the replacement happened (caller should run the query),
+    ///   `false` if there is no selected tab.
     @discardableResult
-    func TableProTabSmart(
-        tableName: String, hasUnsavedChanges: Bool, databaseType: DatabaseType = .mysql,
+    func replaceTabContent(
+        tableName: String, databaseType: DatabaseType = .mysql,
         isView: Bool = false, databaseName: String = ""
     ) -> Bool {
-        // 1. If a tab for this table already exists, just switch to it
-        if let existingTab = tabs.first(where: {
-            $0.tabType == .table && $0.tableName == tableName && $0.databaseName == databaseName
-        }) {
-            if selectedTabId != existingTab.id {
-                selectedTabId = existingTab.id
-            }
-            return false  // No need to run query, data already loaded
+        guard let selectedId = selectedTabId,
+              let selectedIndex = tabs.firstIndex(where: { $0.id == selectedId })
+        else {
+            return false
         }
 
         let quotedName = databaseType.quoteIdentifier(tableName)
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
 
-        // 2. Try to reuse the current tab if it's a clean table tab (opt-in via Settings > Tabs)
-        if AppSettingsManager.shared.tabs.reuseCleanTableTab,
-           let selectedId = selectedTabId,
-           let selectedIndex = tabs.firstIndex(where: { $0.id == selectedId }),
-           tabs[selectedIndex].tabType == .table,
-           !tabs[selectedIndex].isPinned,
-           !hasUnsavedChanges,
-           !tabs[selectedIndex].hasUserInteraction
-        {
-            // Replace the current table tab instead of creating a new one.
-            // Build locally and write back once to avoid 14 CoW copies (UI-11).
-            var tab = tabs[selectedIndex]
-            tab.rowBuffer = RowBuffer()
-            tab.title = tableName
-            tab.tableName = tableName
-            tab.query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
-            tab.resultVersion += 1
-            tab.executionTime = nil
-            tab.errorMessage = nil
-            tab.lastExecutedAt = nil
-            tab.showStructure = false
-            tab.sortState = SortState()
-            tab.selectedRowIndices = []
-            tab.pendingChanges = TabPendingChanges()
-            tab.hasUserInteraction = false
-            tab.isView = isView
-            tab.isEditable = !isView
-            tab.filterState = TabFilterState()
-            tab.columnLayout = ColumnLayoutState()
-            tab.pagination = PaginationState(pageSize: pageSize)
-            tab.databaseName = databaseName
-            tabs[selectedIndex] = tab
-            return true  // Need to run query for new table
-        }
-
-        // 3. Otherwise, create a new tab
-        var newTab = QueryTab(
-            title: tableName,
-            query: "SELECT * FROM \(quotedName) LIMIT \(pageSize);",
-            tabType: .table,
-            tableName: tableName
-        )
-        newTab.isView = isView
-        newTab.isEditable = !isView
-        newTab.pagination = PaginationState(pageSize: pageSize)
-        newTab.databaseName = databaseName
-        tabs.append(newTab)
-        selectedTabId = newTab.id
-        return true  // Need to run query for new tab
-    }
-
-    func closeTab(_ tab: QueryTab) {
-        // Pinned tabs cannot be closed
-        guard !tab.isPinned else { return }
-
-        // Capture table info BEFORE removing
-        let isTableTab = tab.tabType == .table
-        let tableName = tab.tableName
-
-        if let index = tabs.firstIndex(of: tab) {
-            tabs.remove(at: index)
-
-            // Select another tab if we closed the selected one
-            if selectedTabId == tab.id {
-                if tabs.isEmpty {
-                    // No tabs left - clear selection (shows empty state)
-                    selectedTabId = nil
-                } else {
-                    // Select nearest remaining tab
-                    selectedTabId = tabs[max(0, index - 1)].id
-                }
-            }
-        }
-
-        // Notify when table tab is closed so sidebar selection can be cleared
-        if isTableTab, let name = tableName {
-            NotificationCenter.default.post(name: .tableTabClosed, object: name)
-        }
-    }
-
-    func selectTab(_ tab: QueryTab) {
-        selectedTabId = tab.id
+        // Build locally and write back once to avoid 14 CoW copies (UI-11).
+        var tab = tabs[selectedIndex]
+        tab.rowBuffer = RowBuffer()
+        tab.title = tableName
+        tab.tableName = tableName
+        tab.query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
+        tab.resultVersion += 1
+        tab.executionTime = nil
+        tab.errorMessage = nil
+        tab.lastExecutedAt = nil
+        tab.showStructure = false
+        tab.sortState = SortState()
+        tab.selectedRowIndices = []
+        tab.pendingChanges = TabPendingChanges()
+        tab.hasUserInteraction = false
+        tab.isView = isView
+        tab.isEditable = !isView
+        tab.filterState = TabFilterState()
+        tab.columnLayout = ColumnLayoutState()
+        tab.pagination = PaginationState(pageSize: pageSize)
+        tab.databaseName = databaseName
+        tabs[selectedIndex] = tab
+        return true
     }
 
     func updateTab(_ tab: QueryTab) {
         if let index = tabs.firstIndex(where: { $0.id == tab.id }) {
             tabs[index] = tab
         }
-    }
-
-    func togglePin(_ tab: QueryTab) {
-        if let index = tabs.firstIndex(of: tab) {
-            tabs[index].isPinned.toggle()
-        }
-    }
-
-    func duplicateTab(_ tab: QueryTab) {
-        // MEM-2 fix: Don't deep-copy result data — the duplicate tab starts with
-        // an empty RowBuffer. The user can re-execute the query if data is needed.
-        var newTab = QueryTab(
-            title: "\(tab.title) (copy)",
-            query: tab.query
-        )
-        newTab.tabType = tab.tabType
-        newTab.tableName = tab.tableName
-        newTab.databaseName = tab.databaseName
-
-        if let index = tabs.firstIndex(of: tab) {
-            tabs.insert(newTab, at: index + 1)
-        } else {
-            tabs.append(newTab)
-        }
-        selectedTabId = newTab.id
     }
 }

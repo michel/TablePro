@@ -7,13 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Refactored sidebar table list to MVVM architecture with testable SidebarViewModel
+- Extracted TableRow and context menu into separate files (TableRowView.swift, SidebarContextMenu.swift)
+- Migrated to native macOS window tabs (`NSWindow` tabbing) — tab bar is now rendered by macOS itself, identical to Finder/Safari/Xcode tabs with automatic dark/light mode support, drag-to-reorder, and "Merge All Windows" for free
+- Each tab is a full independent window with its own sidebar, editor, and state — no more shared tab manager or ZStack keep-alive pattern
+- New Tab (Cmd+T) creates a native macOS window tab; Close Tab (Cmd+W) closes the native tab
+- Tab switching (Cmd+Shift+[/], Cmd+1-9) now uses native macOS tab navigation
+- Sidebar table selection is per-window-tab (independent of other tabs)
+- Tab persistence now saves/restores combined state from all native window tabs via NativeTabRegistry; restored tabs reopen as individual native window tabs
+- Sidebar table click navigates in-place when no unsaved changes; opens new native tab when dirty
+- FK navigation follows the same in-place/new-tab behavior based on unsaved changes
+- "Show All Tables" now opens metadata query in a new native tab instead of appending to the current window
+- Create Table success closes the create-table window and opens the new table in a fresh native tab
+- Window title updates dynamically after navigate-in-place (sidebar click, FK navigation)
+
+### Fixed
+
+- Sidebar loses keyboard focus (arrow key navigation) after opening a second table tab
+- Sidebar active state flash and loss when clicking a table that opens in a new native window tab — removed the async revert; each window now re-syncs its sidebar via `NSWindow.didBecomeKeyNotification`, and programmatic syncs skip navigation via an early-return guard
+- Sidebar loses active state when opening a second table in a new native window tab — `handleTabSelectionChange` now calls `syncSidebarToCurrentTab()` so the new window's empty `localSelectedTables` is seeded from the restored tab
+- Sidebar now refreshes immediately after switching databases via Cmd+K — clears `session.tables` during the switch so `SidebarView.onChange` triggers `loadTables()` against the new database without requiring a manual refresh
+- Cmd+W in empty state (after all tabs are cleared) now closes the connection window and disconnects, instead of doing nothing
+- Fix Cmd+K database switch flooding all windows with error alerts — `.refreshAll` broadcast caused every window to re-execute its table query against the wrong database; now only the current tab re-executes, and only if its table exists in the new database
+- Fix clicking a table in the sidebar replacing the current tab instead of opening a new native tab
+- Fix clicking a table from a query tab overwriting the SQL editor instead of opening a separate table tab
+- Tab persistence no longer overwrites combined state from all windows when a single window saves — uses NativeTabRegistry for combined state
+- Query text editing in one window no longer corrupts other windows' persisted tab state
+- Fix Cmd+W on any tab disconnecting the session and showing welcome screen — now only disconnects when the last main window is closed
+- Fix Cmd+T from empty state creating two native tabs instead of one — now adds a query tab to the current window
+- Fix clicking a table in the sidebar from empty state not opening the table — now creates a table tab in the current window
+- Fix native tab title showing "SQL Query" instead of the table name when opening a table from empty state
+- Fix Cmd+W on the last tab disconnecting the session instead of returning to empty state
+
+### Removed
+
+- Removed broken SidebarFocusRestorer (non-functional NSViewRepresentable focus hack)
+- Removed dead code: unused onTablePro callback, single-table toggle methods
+- Custom AppKit tab bar (NativeTabBarView) — replaced by native macOS window tab bar
+- Removed vestigial multi-tab code: `performDirectTabSwitch`, `skipNextTabChangeOnChange`, `tabPendingChanges`, `tabSelectionCache`, `lastFlushTime`, `filterStateSavedExternally`, `flushSelectionCache`, `duplicateTab`, `togglePin`, `selectTab`, `switchToDatabase` (legacy)
+
+### Performance
+
+- Cache SQLSchemaProvider per connection so new native tabs reuse the already-loaded schema instead of re-fetching tables and columns from the database (saves 500ms-2s per tab)
+- Schema loading now runs in background, no longer blocks the data query from starting — table data appears immediately while autocomplete schema loads concurrently
+- Remove unconditional 100ms sleep in `waitForConnectionAndExecute` when connection is already established
+- Defer `loadTableMetadataIfNeeded` until after the tab's first query completes, avoiding a redundant DB round-trip during tab initialization
+- Replace `@ObservedObject dbManager` in ContentView with targeted `@State` + `onReceive` — eliminates O(N) view cascade where every window re-rendered on any DatabaseManager state change
+- Remove `@StateObject dbManager` from TableProApp — prevents app-level body re-evaluation on every DatabaseManager publish
+- Batch `connectToSession` session mutations into a single `activeSessions` write — reduces 5 separate `objectWillChange` publishes to 1
+- Remove redundant `DatabaseManager.updateSession` calls in tab change handlers — NativeTabRegistry already handles persistence, eliminating unnecessary `@Published` cascades
+- Add initialization guard to `initializeAndRestoreTabs` preventing duplicate query execution from racing `.task` and `onChange(of: selectedTabId)` paths
+- Replace `onChange(of: DatabaseManager.shared.currentSession?.*)` with per-window `onReceive` filtered by connection ID — stops SwiftUI from tracking the global DatabaseManager singleton as a dependency
+- Guard health monitor status writes to skip no-op `.connected` → `.connected` transitions — eliminates idle 30-second cascade on all windows
+- Extract all menu commands into `AppMenuCommands` struct — `AppState` changes now only re-evaluate menu items, not the Scene body / all WindowGroups
+- Add `isContentViewEquivalent(to:)` comparison on `ConnectionSession` — skips `@State` writes when only `tabs`, `selectedTabId`, or `lastActiveAt` changed, preventing O(N) MainContentView.init cascade across windows
+
 ## [0.7.0] - 2026-02-25
 
 ### Added
+
 - Quick search and filter rows can now be combined — when both are active, their WHERE conditions are joined with AND
 - Foreign key columns now show a navigation arrow icon in each cell — click to open the referenced table filtered by the FK value
 
 ### Changed
+
 - Metadata queries (columns, FKs, row count) now run on a dedicated parallel connection, eliminating 200-300ms delay for FK arrows and pagination count on initial table load
 - Approximate row count from database metadata displays instantly with data; exact count refines silently in the background
 - Show warning indicator on filter presets referencing columns not in current table
@@ -67,13 +126,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Autocomplete `detectFunctionContext` uses index tracking instead of character-by-character string building
 
 ### Fixed
+
 - Fix AND/OR filter logic mode ignored in query execution — preview showed correct OR logic but actual query always used AND
 - Fix filter panel state (filters, visibility, quick search, logic mode) not preserved when switching between tabs
 - Fix foreign key navigation filter being wiped when switching to a new tab (tab switch restore overwrote FK filter state)
 - Fix pagination count appearing 200-300ms after data loads — approximate row count from database metadata now displays instantly with data, exact count refines silently in the background
 - Fix foreign key navigation arrows and pagination count appearing with visible delay on initial table load — metadata now fetches on a dedicated parallel connection concurrent with the main query
 - Fix LibPQ parameterized query using Swift `deallocate()` for `strdup`-allocated memory instead of `free()`
-- FTS5 search input now sanitized to prevent parse errors from special characters like *, OR, AND
+- FTS5 search input now sanitized to prevent parse errors from special characters like \*, OR, AND
 - Fix SQL export corrupting newline/tab/backslash characters for PostgreSQL and SQLite (MySQL-style backslash escaping was incorrectly applied to all database types)
 - Fix PostgreSQL SQL export failing to import when types/sequences already exist (`DROP IF EXISTS` now always emitted for dependent types and sequences)
 - Fix PostgreSQL SQL export missing `CREATE TYPE` definitions for enum columns, causing import errors
@@ -85,33 +145,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.4] - 2026-02-23
 
 ### Fixed
+
 - Fix PostgreSQL SQL export failing to fetch DDL for tables (passed quoted identifier instead of raw table name to catalog queries)
 
 ## [0.6.3] - 2026-02-23
 
 ### Changed
+
 - Extract shared `performDirectTabSwitch` into `MainContentCoordinator` to eliminate duplicate tab-switch logic
 - Welcome window now uses native macOS frosted glass translucency (NSVisualEffectView with behind-window blending)
 
 ### Fixed
+
 - Auto-detect MySQL vs MariaDB server type from version string to use correct timeout variable (`max_execution_time` for MySQL, `max_statement_time` for MariaDB)
 - Improved tab switching performance by caching row providers and change managers across SwiftUI render cycles
 - Eliminated selection sync feedback loop causing redundant DataGridView updates during tab switch
 - Enabled NSTableView row view recycling to reduce heap allocations during scrolling
 - Reduced SwiftUI re-render cascades by batching @Published mutations during tab switch
 - Improved DataGrid scrolling performance:
-  - Row views now recycled via NSTableView's reuse pool instead of allocating new objects per scroll
-  - Replaced O(n) String.count with O(1) NSString.length for large cell value truncation
-  - Replaced expensive NSFontDescriptor.symbolicTraits checks with O(1) pointer equality on cached fonts
-  - Added layerContentsRedrawPolicy and canDrawSubviewsIntoLayer to reduce compositing overhead
-  - Cached NULL display string locally instead of per-cell singleton access
-  - Cached AnyChangeManager to avoid per-render allocation with Combine subscriptions
-  - Deferred accessibility label generation to when VoiceOver is active
-  - Removed unnecessary async dispatch in focusedColumn, collapsed two reloadData calls into one
+    - Row views now recycled via NSTableView's reuse pool instead of allocating new objects per scroll
+    - Replaced O(n) String.count with O(1) NSString.length for large cell value truncation
+    - Replaced expensive NSFontDescriptor.symbolicTraits checks with O(1) pointer equality on cached fonts
+    - Added layerContentsRedrawPolicy and canDrawSubviewsIntoLayer to reduce compositing overhead
+    - Cached NULL display string locally instead of per-cell singleton access
+    - Cached AnyChangeManager to avoid per-render allocation with Combine subscriptions
+    - Deferred accessibility label generation to when VoiceOver is active
+    - Removed unnecessary async dispatch in focusedColumn, collapsed two reloadData calls into one
 
 ## [0.6.2] - 2026-02-23
 
 ### Changed
+
 - Replace generic SwiftUI colors with native macOS system colors (`Color(nsColor: .system*)` instead of `Color.red/green/blue/orange`) for proper dark mode, vibrancy, and accessibility adaptation
 - Replace hardcoded opacity on semantic colors with `quaternaryLabelColor`/`tertiaryLabelColor`
 - Use `shadowColor` instead of `Color.black` for shadows
@@ -120,22 +184,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.1] - 2026-02-23
 
 ### Fixed
+
 - Fixed all 45 performance issues identified in PERFORMANCE.md audit:
-  - **Memory:** RowBuffer reference wrapper for QueryTab (MEM-1/2), index-based sort cache (MEM-3), streaming XLSX export with inline strings (MEM-4/15), driver-level row limits cap at 100K rows (MEM-5), removed redundant String deep copies (MEM-6), weak driver reference in SQLSchemaProvider (MEM-9), undo stack depth cap (MEM-10), dictionary-based tab pending changes (MEM-11), weak self in Task captures (MEM-12), clear cached data on disconnect (MEM-13), AI chat message cap (MEM-14)
-  - **CPU:** Removed unicodeScalars.map in MariaDB/PostgreSQL drivers (CPU-1/2), cached 100+ regex patterns in SQLFormatterService (CPU-3/5/8/9/10), async Keychain reads (CPU-4), cached stripLimitOffset/extractTableName/isDangerousQuery regex (CPU-6/13/14), cached CSV decimal regex (CPU-7), O(1) change lookup index (CPU-11), removed unused loadPassword call (CPU-12)
-  - **Data handling:** Auto-append LIMIT 10000 for unprotected queries (DAT-1), driver-level row limit cap for MySQL/PostgreSQL (DAT-2), SQLite row limit cap at 100K (DAT-3), batch fetchAllColumns via INFORMATION_SCHEMA (DAT-4), index permutation sort cache (DAT-5), cached InMemoryRowProvider in @State (DAT-6), clipboard 50K row cap (DAT-7), Int-based row IDs replacing UUID allocation (DAT-8)
-  - **Network:** Phase 2 metadata cache check (NET-1), connect_timeout for LibPQ (NET-2), driver-level cancelQuery via mysql_kill/PQcancel/sqlite3_interrupt (NET-3), isLoading guard for sidebar (NET-4), reuse cached schema for AI chat (NET-5)
-  - **I/O:** Throttled history cleanup (IO-1), async history storage migration (IO-2), consolidated onChange handlers (IO-3)
+    - **Memory:** RowBuffer reference wrapper for QueryTab (MEM-1/2), index-based sort cache (MEM-3), streaming XLSX export with inline strings (MEM-4/15), driver-level row limits cap at 100K rows (MEM-5), removed redundant String deep copies (MEM-6), weak driver reference in SQLSchemaProvider (MEM-9), undo stack depth cap (MEM-10), dictionary-based tab pending changes (MEM-11), weak self in Task captures (MEM-12), clear cached data on disconnect (MEM-13), AI chat message cap (MEM-14)
+    - **CPU:** Removed unicodeScalars.map in MariaDB/PostgreSQL drivers (CPU-1/2), cached 100+ regex patterns in SQLFormatterService (CPU-3/5/8/9/10), async Keychain reads (CPU-4), cached stripLimitOffset/extractTableName/isDangerousQuery regex (CPU-6/13/14), cached CSV decimal regex (CPU-7), O(1) change lookup index (CPU-11), removed unused loadPassword call (CPU-12)
+    - **Data handling:** Auto-append LIMIT 10000 for unprotected queries (DAT-1), driver-level row limit cap for MySQL/PostgreSQL (DAT-2), SQLite row limit cap at 100K (DAT-3), batch fetchAllColumns via INFORMATION_SCHEMA (DAT-4), index permutation sort cache (DAT-5), cached InMemoryRowProvider in @State (DAT-6), clipboard 50K row cap (DAT-7), Int-based row IDs replacing UUID allocation (DAT-8)
+    - **Network:** Phase 2 metadata cache check (NET-1), connect_timeout for LibPQ (NET-2), driver-level cancelQuery via mysql_kill/PQcancel/sqlite3_interrupt (NET-3), isLoading guard for sidebar (NET-4), reuse cached schema for AI chat (NET-5)
+    - **I/O:** Throttled history cleanup (IO-1), async history storage migration (IO-2), consolidated onChange handlers (IO-3)
 
 ## [0.6.0] - 2026-02-22
 
 ### Added
+
 - Inline AI suggestions (ghost text) in the SQL editor — auto-triggers on typing pause, Tab to accept, Escape to dismiss
 - Schema-aware inline suggestions — AI now uses actual table/column names from the connected database (cached with 30s TTL, respects `includeSchema` and `maxSchemaTables` settings)
 - AI feature highlight row on onboarding features page
 - Added VoiceOver accessibility labels to custom controls: data grid (table view, column headers, cells), filter panel (logic toggle, presets, action buttons, filter row controls), toolbar buttons (connection switcher, database switcher, refresh, export, import, filter toggle, history toggle, inspector toggle), editor tab bar (tab items, close buttons, add tab button), and sidebar (table/view rows, search clear button)
 
 ### Changed
+
 - Migrated notification observers in `MainContentCommandActions` from Combine publishers (`.publisher(for:).sink`) to async sequences (`for await` over `NotificationCenter.default.notifications(named:)`) — removes `AnyCancellable` storage in favor of `Task` handles with proper cancellation on deinit
 - Migrated tab state persistence from UserDefaults to file-based storage in Application Support — prevents large JSON payloads from bloating the plist loaded at app launch, with automatic one-time migration of existing data
 - Refactored menu and toolbar commands from NotificationCenter to `@FocusedObject` pattern — menu commands and toolbar buttons now call `MainContentCommandActions` methods directly instead of posting global notifications, with context-aware routing for structure view operations
@@ -146,6 +213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added async/await wrapper methods to `QueryHistoryStorage` — existing completion-handler API preserved for compatibility, new `async` overloads use `withCheckedContinuation` for modern Swift concurrency callers
 
 ### Fixed
+
 - Fixed TOCTOU race condition in `SQLiteDriver` — replaced `nonisolated(unsafe)` + DispatchQueue pattern with a dedicated actor (`SQLiteConnectionActor`) that serializes all sqlite3 handle access, preventing concurrent task races on the connection state
 - Consolidated multiple `.sheet(isPresented:)` modifiers in `MainContentView` into a single `.sheet(item:)` with an `ActiveSheet` enum — fixes SwiftUI anti-pattern where only the last `.sheet` modifier reliably activates
 - Replaced blocking `Process.waitUntilExit()` calls in `SSHTunnelManager` with async `withCheckedContinuation`-based waiting, and replaced the fixed 1.5s sleep with active port probing — SSH tunnel setup no longer blocks the actor thread, keeping the UI responsive during connection
@@ -165,6 +233,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - 2026-02-19
 
 ### Changed
+
 - AI chat panel — native macOS inspector styling: removed iOS-style chat bubbles, flattened message layout with role headers and compact spacing, reduced heading sizes for narrow sidebar, inline typing indicator without pill background
 - **AppKit → SwiftUI migration:** migrated 5 NSPopover controllers (Enum, Set, TypePicker, JSONEditor, ForeignKey) to SwiftUI content views with a shared `PopoverPresenter` utility — eliminates manual `NSEvent` monitors, `NSPopoverDelegate`, and singleton patterns
 - **AppKit → SwiftUI migration:** replaced `KeyEventHandler` NSViewRepresentable with native `.onKeyPress()` modifiers (macOS 14+) in DatabaseSwitcherSheet and WelcomeWindowView
@@ -173,6 +242,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Design tokens:** replaced hardcoded `Color.secondary.opacity(0.6)` with system `Color(nsColor: .tertiaryLabelColor)` in `DesignConstants` and `ToolbarDesignTokens` for proper semantic color
 
 ### Added
+
 - AI chat panel shows "Set Up AI Provider" empty state when no AI provider is configured, with a button to open Settings
 - AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
 - AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
@@ -194,7 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQL autocomplete: richer column metadata in suggestions (primary key, nullability, default value, comment)
 - SQL autocomplete: keyword documentation in completion popover
 - SQL autocomplete: expanded keyword and function coverage — window functions, PostgreSQL/MySQL-specific, transaction, DCL, aggregate, datetime, string, numeric, JSON
-- SQL autocomplete: context-aware suggestions for ALTER TABLE, INSERT INTO, CREATE TABLE, and COUNT(*)
+- SQL autocomplete: context-aware suggestions for ALTER TABLE, INSERT INTO, CREATE TABLE, and COUNT(\*)
 - SQL autocomplete: improved fuzzy match scoring — prefix and contains matches rank above fuzzy-only matches
 - Keyboard shortcut customization in Settings > Keyboard — rebind any menu shortcut via press-to-record UI, with conflict detection and "Reset to Defaults" support
 - Keyboard shortcut for Switch Connection (`⌘⌥C`) — quickly open the connection switcher popover from the menu or keyboard
@@ -287,6 +357,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-02-13
 
 ### Added
+
 - AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
 - AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
 - AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
@@ -294,7 +365,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
 - Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
 - Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
-
 
 - Anonymous usage analytics with opt-out toggle in Settings > General > Privacy — sends lightweight heartbeat (OS version, architecture, locale, database types) every 24 hours to help improve TablePro; no personal data or queries are collected
 - ENUM/SET column editor: double-click ENUM columns to select from a searchable dropdown popover, SET columns show a multi-select checkbox popover with OK/Cancel buttons
@@ -323,6 +393,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-02-11
 
 ### Added
+
 - AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
 - AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
 - AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
@@ -330,7 +401,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
 - Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
 - Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
-
 
 - SSL/TLS connection support for MySQL/MariaDB and PostgreSQL with configurable modes (Disabled, Preferred, Required, Verify CA, Verify Identity) and certificate file paths
 - RFC 4180-compliant CSV parser for clipboard paste with auto-detection of CSV vs TSV format
@@ -361,6 +431,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2026-02-09
 
 ### Added
+
 - AI chat panel — right-side panel for AI-assisted SQL queries with multi-provider support (Claude, OpenAI, OpenRouter, Ollama, custom endpoints)
 - AI provider settings — configure multiple AI providers in Settings > AI with API key management (Keychain), endpoint configuration, model selection, and connection testing
 - AI feature routing — map AI features (Chat, Explain Query, Fix Error, Inline Suggestions) to specific providers and models
@@ -368,7 +439,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI chat code blocks — SQL code blocks in AI responses include Copy and Insert to Editor buttons
 - Per-connection AI policy — control AI access per connection (Always Allow, Ask Each Time, Never) in the connection form
 - Toggle AI Chat keyboard shortcut (`⌘⇧L`) and toolbar button
-
 
 - Auto-update support via Sparkle 2 framework (EdDSA signed)
 - "Check for Updates..." menu item in TablePro menu
@@ -406,41 +476,41 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
 ### Features
 
 - **Database Support**
-  - MySQL/MariaDB connections
-  - PostgreSQL support
-  - SQLite database files
-  - SSH tunneling for secure remote connections
+    - MySQL/MariaDB connections
+    - PostgreSQL support
+    - SQLite database files
+    - SSH tunneling for secure remote connections
 
 - **SQL Editor**
-  - Syntax highlighting with TreeSitter
-  - Intelligent autocomplete for tables, columns, and SQL keywords
-  - Multi-tab editing support
-  - Query execution with result grid
+    - Syntax highlighting with TreeSitter
+    - Intelligent autocomplete for tables, columns, and SQL keywords
+    - Multi-tab editing support
+    - Query execution with result grid
 
 - **Data Management**
-  - Interactive data grid with sorting and filtering
-  - Inline editing capabilities
-  - Add, edit, and delete rows
-  - Pagination for large result sets
-  - Export data (CSV, JSON, SQL)
+    - Interactive data grid with sorting and filtering
+    - Inline editing capabilities
+    - Add, edit, and delete rows
+    - Pagination for large result sets
+    - Export data (CSV, JSON, SQL)
 
 - **Database Explorer**
-  - Browse tables, views, and schema
-  - View table structure and indexes
-  - Quick table information and statistics
-  - Search across database objects
+    - Browse tables, views, and schema
+    - View table structure and indexes
+    - Quick table information and statistics
+    - Search across database objects
 
 - **User Experience**
-  - Native macOS design with SwiftUI
-  - Dark mode support
-  - Customizable keyboard shortcuts
-  - Query history tracking
-  - Multiple database connections
+    - Native macOS design with SwiftUI
+    - Dark mode support
+    - Customizable keyboard shortcuts
+    - Query history tracking
+    - Multiple database connections
 
 - **Developer Features**
-  - Import/export connection configurations
-  - Custom SQL query templates
-  - Performance optimized for large datasets
+    - Import/export connection configurations
+    - Custom SQL query templates
+    - Performance optimized for large datasets
 
 [Unreleased]: https://github.com/datlechin/tablepro/compare/v0.7.0...HEAD
 [0.7.0]: https://github.com/datlechin/tablepro/compare/v0.6.4...v0.7.0
