@@ -24,8 +24,6 @@ struct VimCommandLineHandler {
             onExecuteQuery?()
         case "q":
             onCloseTab?()
-        case "wq":
-            onExecuteQuery?()
         default:
             break // Unknown commands are silently ignored
         }
