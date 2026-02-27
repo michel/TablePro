@@ -127,7 +127,21 @@ final class MainContentCoordinator: ObservableObject {
         Self.retainSchemaProvider(for: connection.id)
     }
 
+    /// Explicit cleanup called from `onDisappear`. Releases schema provider
+    /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
+    func teardown() {
+        currentQueryTask?.cancel()
+        currentQueryTask = nil
+        changeManagerUpdateTask?.cancel()
+        changeManagerUpdateTask = nil
+        for task in activeSortTasks.values { task.cancel() }
+        activeSortTasks.removeAll()
+
+        Self.releaseSchemaProvider(for: connection.id)
+    }
+
     deinit {
+        // Safety net: if teardown() was not called, schedule cleanup.
         let connectionId = connection.id
         Task { @MainActor in
             MainContentCoordinator.releaseSchemaProvider(for: connectionId)
