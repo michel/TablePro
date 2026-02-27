@@ -194,7 +194,8 @@ struct MainEditorContentView: View {
                     databaseType: coordinator.connection.type,
                     onCloseTab: {
                         NSApp.keyWindow?.close()
-                    }
+                    },
+                    onExecuteQuery: { coordinator.runQuery() }
                 )
             }
             .frame(minHeight: 100, idealHeight: 200)

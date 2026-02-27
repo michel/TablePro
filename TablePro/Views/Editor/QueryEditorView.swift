@@ -29,6 +29,7 @@ struct QueryEditorView: View {
     var schemaProvider: SQLSchemaProvider?
     var databaseType: DatabaseType?
     var onCloseTab: (() -> Void)?
+    var onExecuteQuery: (() -> Void)?
 
     @State private var vimMode: VimMode = .normal
     @State private var isVimEnabled = AppSettingsManager.shared.editor.vimModeEnabled
@@ -48,7 +49,8 @@ struct QueryEditorView: View {
                 schemaProvider: schemaProvider,
                 databaseType: databaseType,
                 vimMode: $vimMode,
-                onCloseTab: onCloseTab
+                onCloseTab: onCloseTab,
+                onExecuteQuery: onExecuteQuery
             )
             .frame(minHeight: 100)
             .clipped()

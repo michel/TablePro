@@ -35,6 +35,7 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     private var commandHandler = VimCommandLineHandler()
     private var vimCursorManager: VimCursorManager?
     var onCloseTab: (() -> Void)?
+    var onExecuteQuery: (() -> Void)?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -212,12 +213,8 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             self?.vimCursorManager?.updateMode(mode)
         }
 
-        commandHandler.onExecuteQuery = {
-            NSApp.sendAction(
-                #selector(TableProResponderActions.executeQuery(_:)),
-                to: nil,
-                from: nil
-            )
+        commandHandler.onExecuteQuery = { [weak self] in
+            self?.onExecuteQuery?()
         }
         commandHandler.onCloseTab = { [weak self] in
             self?.onCloseTab?()
