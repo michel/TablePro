@@ -18,6 +18,12 @@ extension MainContentCoordinator {
         isHandlingTabSwitch = true
         defer { isHandlingTabSwitch = false }
 
+        // Evict oldest inactive tab's data if we have many tabs open
+        // (only evict table tabs that have been executed and have data)
+        if tabManager.tabs.count > 3, let oldId = oldTabId {
+            evictOldestInactiveTab(excluding: oldId)
+        }
+
         if let newId = newTabId,
            let newIndex = tabManager.tabs.firstIndex(where: { $0.id == newId }) {
             let newTab = tabManager.tabs[newIndex]
@@ -84,10 +90,11 @@ extension MainContentCoordinator {
                 }
             }
 
+            let isEvicted = newTab.rowBuffer.isEvicted
             let needsLazyQuery = !shouldSkipLazyLoad
                 && newTab.tabType == .table
-                && newTab.resultRows.isEmpty
-                && newTab.lastExecutedAt == nil
+                && (newTab.resultRows.isEmpty || isEvicted)
+                && (newTab.lastExecutedAt == nil || isEvicted)
                 && !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
             if needsLazyQuery {
@@ -105,5 +112,26 @@ extension MainContentCoordinator {
             AppState.shared.isCurrentTabEditable = false
             toolbarState.isTableTab = false
         }
+    }
+
+    /// Evict the oldest inactive tab's row data to free memory.
+    /// Skips the tab being switched away from (it may be switched back to quickly).
+    private func evictOldestInactiveTab(excluding currentTabId: UUID) {
+        // Find table tabs with data that aren't the current tab
+        let candidates = tabManager.tabs.filter {
+            $0.id != currentTabId
+                && $0.tabType == .table
+                && !$0.rowBuffer.isEvicted
+                && !$0.resultRows.isEmpty
+                && $0.lastExecutedAt != nil
+        }
+
+        // Evict the one with the oldest execution time
+        guard let oldest = candidates.min(by: {
+            ($0.lastExecutedAt ?? .distantFuture) < ($1.lastExecutedAt ?? .distantFuture)
+        }) else { return }
+
+        oldest.rowBuffer.sourceQuery = oldest.query
+        oldest.rowBuffer.evict()
     }
 }

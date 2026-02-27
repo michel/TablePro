@@ -16,13 +16,15 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     // MARK: - Properties
 
     weak var controller: TextViewController?
+    /// Shared schema provider for inline AI suggestions (avoids duplicate schema fetches)
+    var schemaProvider: SQLSchemaProvider?
     private var contextMenu: AIEditorContextMenu?
-    private var rightClickMonitor: Any?
-    private var inlineSuggestionManager: InlineSuggestionManager?
-    private var editorSettingsObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var rightClickMonitor: Any?
+    private nonisolated(unsafe) var inlineSuggestionManager: InlineSuggestionManager?
+    private nonisolated(unsafe) var editorSettingsObserver: NSObjectProtocol?
     /// Debounce work item for frame-change notification to avoid
     /// triggering syntax highlight viewport recalculation on every keystroke.
-    private var frameChangeWorkItem: DispatchWorkItem?
+    private nonisolated(unsafe) var frameChangeWorkItem: DispatchWorkItem?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -32,6 +34,23 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     var isEditorFirstResponder: Bool {
         guard let textView = controller?.textView else { return false }
         return textView.window?.firstResponder === textView
+    }
+
+    deinit {
+        if let monitor = rightClickMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let observer = editorSettingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        frameChangeWorkItem?.cancel()
+
+        let suggestionManager = inlineSuggestionManager
+        if let manager = suggestionManager {
+            Task { @MainActor in
+                manager.uninstall()
+            }
+        }
     }
 
     // MARK: - TextViewCoordinator
@@ -144,7 +163,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
 
     private func installInlineSuggestionManager(controller: TextViewController) {
         let manager = InlineSuggestionManager()
-        manager.install(controller: controller)
+        manager.install(controller: controller, schemaProvider: schemaProvider)
         inlineSuggestionManager = manager
     }
 

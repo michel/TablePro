@@ -40,34 +40,17 @@ final class InlineSuggestionManager {
     /// Debounce interval in seconds before requesting a suggestion
     private let debounceInterval: TimeInterval = 0.5
 
-    /// Cached schema context to avoid re-fetching on every suggestion
-    private var schemaCache: SchemaCache?
-
-    /// Background task for refreshing the schema cache (non-blocking)
-    private var schemaRefreshTask: Task<Void, Never>?
-
-    /// Schema cache with TTL
-    private struct SchemaCache {
-        let databaseType: DatabaseType
-        let databaseName: String
-        let tables: [TableInfo]
-        let columnsByTable: [String: [ColumnInfo]]
-        let foreignKeysByTable: [String: [ForeignKeyInfo]]
-        let timestamp: Date
-
-        var isExpired: Bool {
-            Date().timeIntervalSince(timestamp) > 30
-        }
-    }
+    /// Shared schema provider (passed from coordinator, avoids duplicate schema fetches)
+    private var schemaProvider: SQLSchemaProvider?
 
     // MARK: - Install / Uninstall
 
     /// Install the manager on a TextViewController
-    func install(controller: TextViewController) {
+    func install(controller: TextViewController, schemaProvider: SQLSchemaProvider?) {
         self.controller = controller
+        self.schemaProvider = schemaProvider
         installKeyEventMonitor()
         installScrollObserver()
-        triggerSchemaRefresh()
     }
 
     /// Remove all observers and layers
@@ -76,8 +59,6 @@ final class InlineSuggestionManager {
         debounceTimer = nil
         currentTask?.cancel()
         currentTask = nil
-        schemaRefreshTask?.cancel()
-        schemaRefreshTask = nil
         removeGhostLayer()
 
         if let monitor = keyEventMonitor {
@@ -90,6 +71,7 @@ final class InlineSuggestionManager {
             scrollObserver = nil
         }
 
+        schemaProvider = nil
         controller = nil
     }
 
@@ -149,91 +131,21 @@ final class InlineSuggestionManager {
 
     // MARK: - Schema Context
 
-    /// Kick off a background schema refresh if the cache is stale or empty.
-    /// Does NOT block the caller — the AI request uses whatever cache is available now.
-    private func triggerSchemaRefresh() {
-        // Already fresh
-        if let cache = schemaCache, !cache.isExpired { return }
-
-        // Already fetching
-        if schemaRefreshTask != nil { return }
-
-        schemaRefreshTask = Task { [weak self] in
-            await self?.fetchSchemaCache()
-            self?.schemaRefreshTask = nil
-        }
-    }
-
-    private func fetchSchemaCache() async {
-        guard let session = DatabaseManager.shared.currentSession,
-              let driver = DatabaseManager.shared.activeDriver else {
-            schemaCache = nil
-            return
-        }
-
-        let settings = AppSettingsManager.shared.ai
-        guard settings.includeSchema else {
-            schemaCache = nil
-            return
-        }
-
-        let tablesToFetch = Array(session.tables.prefix(settings.maxSchemaTables))
-        var columns: [String: [ColumnInfo]] = [:]
-        var foreignKeys: [String: [ForeignKeyInfo]] = [:]
-
-        await withTaskGroup(of: (String, [ColumnInfo]?, [ForeignKeyInfo]?).self) { group in
-            for table in tablesToFetch {
-                group.addTask {
-                    do {
-                        let cols = try await driver.fetchColumns(table: table.name)
-                        let fks = try await driver.fetchForeignKeys(table: table.name)
-                        return (table.name, cols, fks)
-                    } catch {
-                        Self.logger.debug(
-                            "Failed to fetch schema for table '\(table.name)': \(error.localizedDescription)"
-                        )
-                        return (table.name, nil, nil)
-                    }
-                }
-            }
-
-            for await (name, cols, fks) in group {
-                if let cols { columns[name] = cols }
-                if let fks { foreignKeys[name] = fks }
-            }
-        }
-
-        guard !Task.isCancelled else { return }
-
-        schemaCache = SchemaCache(
-            databaseType: session.connection.type,
-            databaseName: session.connection.database,
-            tables: session.tables,
-            columnsByTable: columns,
-            foreignKeysByTable: foreignKeys,
-            timestamp: Date()
-        )
-    }
-
-    private func buildSystemPrompt() -> String {
+    private func buildSystemPrompt() async -> String {
         let settings = AppSettingsManager.shared.ai
 
-        guard settings.includeSchema, let cache = schemaCache else {
+        guard settings.includeSchema,
+              let provider = schemaProvider else {
             return AIPromptTemplates.inlineSuggestSystemPrompt()
         }
 
-        let schemaContext = AISchemaContext.buildSystemPrompt(
-            databaseType: cache.databaseType,
-            databaseName: cache.databaseName,
-            tables: cache.tables,
-            columnsByTable: cache.columnsByTable,
-            foreignKeys: cache.foreignKeysByTable,
-            currentQuery: nil,
-            queryResults: nil,
-            settings: settings
-        )
+        // Build schema context from shared provider's cached data
+        let schemaContext = await provider.buildSchemaContextForAI(settings: settings)
 
-        return AIPromptTemplates.inlineSuggestSystemPrompt(schemaContext: schemaContext)
+        if let schemaContext, !schemaContext.isEmpty {
+            return AIPromptTemplates.inlineSuggestSystemPrompt(schemaContext: schemaContext)
+        }
+        return AIPromptTemplates.inlineSuggestSystemPrompt()
     }
 
     // MARK: - AI Request
@@ -277,9 +189,6 @@ final class InlineSuggestionManager {
     }
 
     private func fetchSuggestion(textBefore: String, fullQuery: String) async throws -> String {
-        // Kick off background schema refresh if stale — don't block the AI request
-        triggerSchemaRefresh()
-
         let settings = AppSettingsManager.shared.ai
 
         guard let (config, apiKey) = resolveProvider(for: .inlineSuggest, settings: settings) else {
@@ -294,11 +203,13 @@ final class InlineSuggestionManager {
             AIChatMessage(role: .user, content: userMessage)
         ]
 
+        let systemPrompt = await buildSystemPrompt()
+
         var accumulated = ""
         let stream = provider.streamChat(
             messages: messages,
             model: model,
-            systemPrompt: buildSystemPrompt()
+            systemPrompt: systemPrompt
         )
 
         for try await event in stream {

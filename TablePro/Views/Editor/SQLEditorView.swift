@@ -81,6 +81,7 @@ struct SQLEditorView: View {
             if completionAdapter == nil {
                 completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)
             }
+            coordinator.schemaProvider = schemaProvider
         }
     }
 

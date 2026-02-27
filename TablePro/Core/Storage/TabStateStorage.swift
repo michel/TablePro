@@ -71,7 +71,7 @@ final class TabStateStorage {
     // MARK: - Public API
 
     /// Save tab state for a connection
-    func saveTabState(connectionId: UUID, tabs: [QueryTab], selectedTabId: UUID?) {
+    func saveTabState(connectionId: UUID, tabs: [TabSnapshot], selectedTabId: UUID?) {
         let persistedTabs = tabs.map { $0.toPersistedTab() }
         let tabState = TabState(tabs: persistedTabs, selectedTabId: selectedTabId)
 

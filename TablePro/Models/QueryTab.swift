@@ -26,6 +26,39 @@ struct PersistedTab: Codable {
     var databaseName: String = ""  // Database context for this tab (for multi-database restore)
 }
 
+/// Lightweight snapshot of a tab for registry storage.
+/// Unlike QueryTab, this does NOT hold a RowBuffer reference,
+/// preventing the registry from retaining large result data.
+struct TabSnapshot {
+    let id: UUID
+    let title: String
+    let query: String
+    let tabType: TabType
+    let tableName: String?
+    let isView: Bool
+    let databaseName: String
+
+    func toPersistedTab() -> PersistedTab {
+        // Truncate very large queries to prevent JSON encoding from blocking main thread
+        let persistedQuery: String
+        if (query as NSString).length > 500_000 {
+            persistedQuery = ""
+        } else {
+            persistedQuery = query
+        }
+
+        return PersistedTab(
+            id: id,
+            title: title,
+            query: persistedQuery,
+            tabType: tabType,
+            tableName: tableName,
+            isView: isView,
+            databaseName: databaseName
+        )
+    }
+}
+
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
 struct TabPendingChanges: Equatable {
     var changes: [RowChange]
@@ -251,6 +284,25 @@ final class RowBuffer {
             columnNullable: columnNullable
         )
     }
+
+    /// Whether this buffer's row data has been evicted to save memory
+    private(set) var isEvicted: Bool = false
+
+    /// The query that produced this data (used to re-fetch after eviction)
+    var sourceQuery: String?
+
+    /// Evict row data to free memory. Column metadata is preserved.
+    func evict() {
+        guard !isEvicted else { return }
+        rows = []
+        isEvicted = true
+    }
+
+    /// Restore row data after eviction
+    func restore(rows newRows: [QueryResultRow]) {
+        self.rows = newRows
+        isEvicted = false
+    }
 }
 
 /// Represents a single tab (query or table)
@@ -430,6 +482,19 @@ struct QueryTab: Identifiable, Equatable {
             id: id,
             title: title,
             query: persistedQuery,
+            tabType: tabType,
+            tableName: tableName,
+            isView: isView,
+            databaseName: databaseName
+        )
+    }
+
+    /// Create a lightweight snapshot for registry storage (no RowBuffer reference)
+    func toSnapshot() -> TabSnapshot {
+        TabSnapshot(
+            id: id,
+            title: title,
+            query: query,
             tabType: tabType,
             tableName: tableName,
             isView: isView,

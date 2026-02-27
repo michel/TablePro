@@ -122,6 +122,25 @@ actor SQLSchemaProvider {
         return nil
     }
 
+    // MARK: - AI Schema Context
+
+    /// Build schema context string for AI prompts using cached data.
+    /// Returns nil if no schema is loaded or settings disable schema inclusion.
+    func buildSchemaContextForAI(settings: AISettings) -> String? {
+        guard !tables.isEmpty, let connection = connectionInfo else { return nil }
+
+        return AISchemaContext.buildSystemPrompt(
+            databaseType: connection.type,
+            databaseName: connection.database,
+            tables: tables,
+            columnsByTable: columnCache,
+            foreignKeys: [:],
+            currentQuery: nil,
+            queryResults: nil,
+            settings: settings
+        )
+    }
+
     // MARK: - Completion Items
 
     /// Get completion items for tables

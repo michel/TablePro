@@ -15,7 +15,7 @@ private let editorContentLogger = Logger(subsystem: "com.TablePro", category: "M
 
 /// Cache for sorted query result rows to avoid re-sorting on every SwiftUI body evaluation
 private struct SortedRowsCache {
-    let rows: [QueryResultRow]
+    let sortedIndices: [Int]
     let columnIndex: Int
     let direction: SortDirection
     let resultVersion: Int
@@ -110,6 +110,14 @@ struct MainEditorContentView: View {
         .onChange(of: tabManager.tabs.count) {
             // Clean up caches for closed tabs
             let openTabIds = Set(tabManager.tabs.map(\.id))
+            sortCache = sortCache.filter { openTabIds.contains($0.key) }
+            coordinator.cleanupSortCache(openTabIds: openTabIds)
+            tabRowProviders = tabRowProviders.filter { openTabIds.contains($0.key) }
+            tabProviderVersions = tabProviderVersions.filter { openTabIds.contains($0.key) }
+            tabProviderMetaVersions = tabProviderMetaVersions.filter { openTabIds.contains($0.key) }
+        }
+        .onChange(of: tabManager.tabs.map(\.id)) { _, newIds in
+            let openTabIds = Set(newIds)
             sortCache = sortCache.filter { openTabIds.contains($0.key) }
             coordinator.cleanupSortCache(openTabIds: openTabIds)
             tabRowProviders = tabRowProviders.filter { openTabIds.contains($0.key) }
@@ -233,7 +241,7 @@ struct MainEditorContentView: View {
                     NativeTabRegistry.shared.update(
                         windowId: windowId,
                         connectionId: connectionId,
-                        tabs: tabManager.tabs,
+                        tabs: tabManager.tabs.map { $0.toSnapshot() },
                         selectedTabId: tabManager.selectedTabId
                     )
                     let combinedTabs = NativeTabRegistry.shared.allTabs(for: connectionId)
@@ -414,11 +422,14 @@ struct MainEditorContentView: View {
            cached.columnIndex == (tab.sortState.columnIndex ?? -1),
            cached.direction == tab.sortState.direction,
            cached.resultVersion == tab.resultVersion {
-            return cached.rows
+            return cached.sortedIndices.map { tab.resultRows[$0] }
         }
 
         let sortColumns = tab.sortState.columns
-        let sorted = tab.resultRows.sorted { row1, row2 in
+        let indices = Array(tab.resultRows.indices)
+        let sortedIndices = indices.sorted { idx1, idx2 in
+            let row1 = tab.resultRows[idx1]
+            let row2 = tab.resultRows[idx2]
             for sortCol in sortColumns {
                 let val1 = sortCol.columnIndex < row1.values.count
                     ? (row1.values[sortCol.columnIndex] ?? "") : ""
@@ -435,13 +446,13 @@ struct MainEditorContentView: View {
 
         // Cache the result
         sortCache[tab.id] = SortedRowsCache(
-            rows: sorted,
+            sortedIndices: sortedIndices,
             columnIndex: tab.sortState.columnIndex ?? -1,
             direction: tab.sortState.direction,
             resultVersion: tab.resultVersion
         )
 
-        return sorted
+        return sortedIndices.map { tab.resultRows[$0] }
     }
 
     private func sortStateBinding(for tab: QueryTab) -> Binding<SortState> {

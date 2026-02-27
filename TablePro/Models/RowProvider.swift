@@ -60,8 +60,8 @@ final class TableRowData {
 
 /// Row provider that keeps all data in memory (for existing QueryResultRow data).
 /// Uses lazy TableRowData creation to avoid O(n) heap allocations on init.
-/// Cache is bounded to `maxCacheSize` entries; evicted in full when exceeded
-/// since source data remains available in `sourceRows`.
+/// Cache is bounded to `maxCacheSize` entries; proximity-based eviction keeps
+/// the half closest to the current access point when the limit is exceeded.
 final class InMemoryRowProvider: RowProvider {
     private static let maxCacheSize = 5_000
 
@@ -171,15 +171,25 @@ final class InMemoryRowProvider: RowProvider {
         if let cached = rowCache[index] {
             return cached
         }
-        // Evict entire cache when it exceeds the threshold.
-        // This is safe because source data remains in sourceRows
-        // and entries will be re-materialized on demand.
+        // Evict distant entries when cache exceeds the threshold.
+        // Keeps entries closest to the current index for locality.
         if rowCache.count >= Self.maxCacheSize {
-            rowCache.removeAll(keepingCapacity: true)
+            evictCacheIfNeeded(nearIndex: index)
         }
         let rowData = TableRowData(index: index, values: sourceRows[index].values)
         rowCache[index] = rowData
         return rowData
+    }
+
+    /// Evict entries furthest from the current access point.
+    /// Keeps the half closest to `nearIndex` and discards the rest.
+    private func evictCacheIfNeeded(nearIndex: Int) {
+        guard rowCache.count > Self.maxCacheSize / 2 else { return }
+        let sorted = rowCache.keys.sorted(by: { abs($0 - nearIndex) > abs($1 - nearIndex) })
+        let evictCount = rowCache.count - Self.maxCacheSize / 2
+        for key in sorted.prefix(evictCount) {
+            rowCache.removeValue(forKey: key)
+        }
     }
 }
 

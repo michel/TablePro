@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix event monitor leaks in SQL editor — `deinit` now cleans up NSEvent monitors, notification observers, and work items that leaked when CodeEditSourceEditor never called `destroy()`
+- Fix unbounded memory growth from NativeTabRegistry holding full QueryTab objects (including RowBuffer references) — registry now stores lightweight TabSnapshot structs
+- Fix SortedRowsCache storing full row copies — now stores index permutations only, halving sorted-tab memory
+- Fix schema provider memory leak — shared providers are now reference-counted with 5s grace period removal when all windows for a connection close
+- Fix duplicate schema fetches in InlineSuggestionManager — now shares the coordinator's SQLSchemaProvider instead of maintaining a separate cache
+- Fix background tabs retaining full result data indefinitely — RowBuffer eviction frees memory for inactive tabs (re-fetched on switch back)
+- Fix InMemoryRowProvider bulk cache eviction — now uses proximity-based eviction keeping entries near current scroll position
+- Fix stale tabRowProviders entries when tab IDs change without count changing
+
 ## [0.8.0] - 2026-02-27
 
 ### Changed
