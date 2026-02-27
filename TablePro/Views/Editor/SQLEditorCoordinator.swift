@@ -280,10 +280,12 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
             case 8: // Cmd+C
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
+                return nil
             case 7: // Cmd+X
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
                 textView.replaceCharacters(in: range, with: "")
+                return nil
             default:
                 break
             }

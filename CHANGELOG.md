@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Vim keybindings for SQL editor (Normal/Insert/Visual modes, motions, operators, :w/:q commands) with toggle in Editor Settings
 - `^` and `_` motions (first non-blank character) in Vim normal, visual, and operator-pending modes
-- `:q` command to close current tab and `:wq` to execute query then close tab in Vim command-line mode
+- `:q` command to close current tab and `:wq` to execute query in Vim command-line mode
 - PostgreSQL schema switching via ⌘K database switcher (browse and switch between schemas like `public`, `auth`, custom schemas)
 
 ### Fixed
