@@ -43,6 +43,9 @@ final class InlineSuggestionManager {
     /// Shared schema provider (passed from coordinator, avoids duplicate schema fetches)
     private var schemaProvider: SQLSchemaProvider?
 
+    /// Guard against double-uninstall (deinit + destroy can both call uninstall)
+    private var isUninstalled = false
+
     // MARK: - Install / Uninstall
 
     /// Install the manager on a TextViewController
@@ -55,6 +58,9 @@ final class InlineSuggestionManager {
 
     /// Remove all observers and layers
     func uninstall() {
+        guard !isUninstalled else { return }
+        isUninstalled = true
+
         debounceTimer?.invalidate()
         debounceTimer = nil
         currentTask?.cancel()

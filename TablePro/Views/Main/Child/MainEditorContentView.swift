@@ -393,6 +393,8 @@ struct MainEditorContentView: View {
     }
 
     private func sortedRows(for tab: QueryTab) -> [QueryResultRow] {
+        guard !tab.rowBuffer.isEvicted else { return [] }
+
         // Table tabs: Don't apply client-side sorting (handled via SQL ORDER BY)
         if tab.tabType == .table {
             return tab.resultRows
