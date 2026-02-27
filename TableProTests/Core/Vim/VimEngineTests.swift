@@ -205,7 +205,7 @@ final class VimEngineTests: XCTestCase {
         // Move to near end, then w should clamp
         buffer.setSelectedRange(NSRange(location: 30, length: 0))
         keys("w")
-        XCTAssertTrue(cursorPos <= buffer.length)
+        XCTAssertEqual(cursorPos, buffer.length, "w at end of buffer should stay at buffer end")
     }
 
     func testBMovesToPreviousWordStart() {
@@ -370,10 +370,9 @@ final class VimEngineTests: XCTestCase {
         buffer.setSelectedRange(NSRange(location: 5, length: 0))
         keys("o")
         XCTAssertEqual(engine.mode, .insert)
-        // A new blank line should be inserted after line 0's newline
-        // "hello world\n" has newline at 11, so insert "\n" at offset 12
-        // Current line ends with newline, so cursor goes to offset 12 (the new line)
-        XCTAssertEqual(cursorPos, 12, "o should place cursor on the new blank line")
+        // "hello world\n" has lineEnd=12, insert "\n" at 12 → "hello world\n\nsecond..."
+        // Line ends with \n, so cursor at lineEnd=12 (the inserted \n = blank line)
+        XCTAssertEqual(cursorPos, 12, "Cursor should be on the new blank line")
         XCTAssertTrue(buffer.text.contains("hello world\n\n"), "Should insert a newline after current line")
     }
 
@@ -396,7 +395,8 @@ final class VimEngineTests: XCTestCase {
         XCTAssertEqual(engine.mode, .insert)
         // "line two" has no trailing newline; o inserts "\n" at offset 17 (end of buffer)
         // lineEndsWithNewline is false, so cursorPos = lineEnd + 1 = 17 + 1 = 18
-        XCTAssertTrue(buffer.text.contains("line two\n"), "Should append newline after last line")
+        XCTAssertEqual(buffer.text, "line one\nline two\n", "Should append newline after last line")
+        XCTAssertEqual(buffer.selectedRange().location, 18, "Cursor should be on the new blank line past the inserted newline")
     }
 
     func testEscapeReturnsToNormalMode() {
@@ -579,7 +579,8 @@ final class VimEngineTests: XCTestCase {
         keys("p")
         // Characterwise paste inserts after cursor position (pos+1)
         // "hello " inserted at offset 1
-        XCTAssertTrue(buffer.text.hasPrefix("h"))
+        XCTAssertEqual(buffer.text, "hhello ello world\nsecond line\nthird line\n",
+            "yw should yank 'hello ' and p should paste it after cursor position 0")
     }
 
     func testPUpperPastesBeforeCursor() {
@@ -663,7 +664,7 @@ final class VimEngineTests: XCTestCase {
         buffer.setSelectedRange(NSRange(location: 0, length: 0))
         keys("999999l")
         // Should not crash, cursor should be clamped to valid position
-        XCTAssertTrue(cursorPos >= 0 && cursorPos <= buffer.length)
+        XCTAssertEqual(cursorPos, 10, "Large count with l should clamp to last content char of line")
     }
 
     func testZeroAsMotionNotCount() {
@@ -937,7 +938,8 @@ final class VimEngineTests: XCTestCase {
         XCTAssertEqual(buffer.text, "ello world\nsecond line\nthird line\n")
         keys("p")  // Paste 'h' after cursor
         // 'h' pasted at offset 1
-        XCTAssertTrue(buffer.text.hasPrefix("eh"))
+        XCTAssertEqual(buffer.text, "ehllo world\nsecond line\nthird line\n",
+            "x deletes 'h', p pastes 'h' at offset 1")
     }
 
     func testGPendingCancelledByNonG() {
@@ -975,6 +977,18 @@ final class VimEngineTests: XCTestCase {
         // Actually dd overwrites the register. So p pastes "hello world\n"
         keys("p")
         XCTAssertEqual(buffer.text, "second line\nhello world\nthird line\n")
+    }
+
+    func testDDOverwritesYYRegister() {
+        buffer.setSelectedRange(NSRange(location: 0, length: 0))
+        keys("yy") // yank "hello world\n"
+        keys("j")  // move to second line
+        keys("dd") // delete "second line\n" — overwrites register
+        XCTAssertEqual(buffer.text, "hello world\nthird line\n")
+        // Cursor is on "third line\n" (offset 12). Linewise p inserts AFTER current line.
+        keys("p")
+        XCTAssertEqual(buffer.text, "hello world\nthird line\nsecond line\n",
+            "dd must overwrite the yy register; linewise paste goes after current line")
     }
 }
 

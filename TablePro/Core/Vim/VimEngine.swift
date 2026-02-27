@@ -269,6 +269,8 @@ final class VimEngine {
             let lineEndsWithNewline = lineEnd > lineRange.location
                 && buffer.character(at: lineEnd - 1) == 0x0A
             buffer.replaceCharacters(in: NSRange(location: lineEnd, length: 0), with: "\n")
+            // When line has trailing \n: lineEnd is past the \n, inserted \n sits at lineEnd = blank line
+            // When no trailing \n (last line): blank line starts at lineEnd + 1 (past inserted \n)
             let cursorPos = lineEndsWithNewline ? lineEnd : lineEnd + 1
             buffer.setSelectedRange(NSRange(location: cursorPos, length: 0))
             mode = .insert
@@ -787,13 +789,19 @@ final class VimEngine {
                 let lineRange = buffer.lineRange(forOffset: pos)
                 let insertPos = lineRange.location + lineRange.length
                 var text = register.text
-                if !text.hasSuffix("\n") { text += "\n" }
+                let nsText = text as NSString
+                if nsText.length == 0 || nsText.character(at: nsText.length - 1) != 0x0A {
+                    text += "\n"
+                }
                 buffer.replaceCharacters(in: NSRange(location: insertPos, length: 0), with: text)
                 buffer.setSelectedRange(NSRange(location: insertPos, length: 0))
             } else {
                 let lineRange = buffer.lineRange(forOffset: pos)
                 var text = register.text
-                if !text.hasSuffix("\n") { text += "\n" }
+                let nsText = text as NSString
+                if nsText.length == 0 || nsText.character(at: nsText.length - 1) != 0x0A {
+                    text += "\n"
+                }
                 buffer.replaceCharacters(in: NSRange(location: lineRange.location, length: 0), with: text)
                 buffer.setSelectedRange(NSRange(location: lineRange.location, length: 0))
             }
