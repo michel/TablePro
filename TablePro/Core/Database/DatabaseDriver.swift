@@ -105,6 +105,9 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch list of all databases on the server
     func fetchDatabases() async throws -> [String]
 
+    /// Fetch list of schemas in the current database (PostgreSQL only)
+    func fetchSchemas() async throws -> [String]
+
     /// Fetch metadata for a specific database (table count, size, etc.)
     func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata
 
@@ -168,6 +171,9 @@ extension DatabaseDriver {
     }
 
     func fetchApproximateRowCount(table: String) async throws -> Int? { nil }
+
+    /// Default: no schema support (MySQL/SQLite don't use schemas in the same way)
+    func fetchSchemas() async throws -> [String] { [] }
 
     /// Default no-op implementation for drivers that don't support query cancellation
     func cancelQuery() throws {

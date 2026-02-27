@@ -26,6 +26,7 @@ struct ConnectionSession: Identifiable {
     var pendingTruncates: Set<String> = []
     var pendingDeletes: Set<String> = []
     var tableOperationOptions: [String: TableOperationOptions] = [:]
+    var currentSchema: String?
 
     // Metadata
     let connectedAt: Date
@@ -75,5 +76,6 @@ struct ConnectionSession: Identifiable {
             && pendingDeletes == other.pendingDeletes
             && tableOperationOptions == other.tableOperationOptions
             && selectedTables == other.selectedTables
+            && currentSchema == other.currentSchema
     }
 }

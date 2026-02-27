@@ -21,6 +21,14 @@ final class PostgreSQLDriver: DatabaseDriver {
     /// Cached regex for stripping OFFSET clause
     private static let offsetRegex = try? NSRegularExpression(pattern: "(?i)\\s+OFFSET\\s+\\d+")
 
+    /// Current PostgreSQL schema (default: public)
+    private(set) var currentSchema: String = "public"
+
+    /// Escaped schema name for use in SQL string literals
+    var escapedSchema: String {
+        SQLEscaping.escapeStringLiteral(currentSchema, databaseType: .postgresql)
+    }
+
     /// Server version string (e.g., "16.1.0")
     var serverVersion: String? {
         libpqConnection?.serverVersion()
@@ -49,6 +57,12 @@ final class PostgreSQLDriver: DatabaseDriver {
             try await pqConn.connect()
             self.libpqConnection = pqConn
             status = .connected
+
+            // Detect current schema
+            if let schemaResult = try? await pqConn.executeQuery("SELECT current_schema()"),
+               let schema = schemaResult.rows.first?.first.flatMap({ $0 }) {
+                currentSchema = schema
+            }
         } catch {
             status = .error(error.localizedDescription)
             throw error
@@ -186,7 +200,7 @@ final class PostgreSQLDriver: DatabaseDriver {
         let query = """
                 SELECT table_name, table_type
                 FROM information_schema.tables
-                WHERE table_schema = 'public'
+                WHERE table_schema = '\(escapedSchema)'
                 ORDER BY table_name
             """
 
@@ -218,7 +232,7 @@ final class PostgreSQLDriver: DatabaseDriver {
                 LEFT JOIN pg_catalog.pg_description pgd
                     ON pgd.objoid = st.relid
                     AND pgd.objsubid = c.ordinal_position
-                WHERE c.table_schema = 'public' AND c.table_name = '\(SQLEscaping.escapeStringLiteral(table))'
+                WHERE c.table_schema = '\(escapedSchema)' AND c.table_name = '\(SQLEscaping.escapeStringLiteral(table))'
                 ORDER BY c.ordinal_position
             """
 
@@ -274,8 +288,7 @@ final class PostgreSQLDriver: DatabaseDriver {
 
     /// Bulk-fetch columns for all tables using a single information_schema query
     /// (avoids N+1 per-table queries).
-    /// Note: Scoped to `public` schema, matching `fetchTables()` and `fetchColumns()`.
-    /// Non-public schemas are not supported by the current PostgreSQL driver.
+    /// Scoped to the active schema, matching `fetchTables()` and `fetchColumns()`.
     func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
         let query = """
             SELECT
@@ -294,7 +307,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             LEFT JOIN pg_catalog.pg_description pgd
                 ON pgd.objoid = st.relid
                 AND pgd.objsubid = c.ordinal_position
-            WHERE c.table_schema = 'public'
+            WHERE c.table_schema = '\(escapedSchema)'
             ORDER BY c.table_name, c.ordinal_position
             """
 
@@ -376,7 +389,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             JOIN pg_type t ON t.oid = a.atttypid
             JOIN pg_enum e ON e.enumtypid = t.oid
             WHERE c.relname = '\(safeTable)'
-              AND n.nspname = 'public'
+              AND n.nspname = '\(escapedSchema)'
               AND a.attnum > 0
               AND NOT a.attisdropped
             GROUP BY t.typname
@@ -415,7 +428,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             JOIN pg_sequences s ON s.schemaname = n.nspname
                  AND ad.adsrc LIKE '%' || quote_ident(s.sequencename) || '%'
             WHERE c.relname = '\(safeTable)'
-              AND n.nspname = 'public'
+              AND n.nspname = '\(escapedSchema)'
               AND ad.adsrc LIKE '%nextval%'
             """
         let result = try await execute(query: query)
@@ -561,7 +574,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             JOIN pg_namespace n ON n.oid = c.relnamespace
             LEFT JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
             WHERE c.relname = '\(safeTable)'
-              AND n.nspname = 'public'
+              AND n.nspname = '\(escapedSchema)'
               AND a.attnum > 0
               AND NOT a.attisdropped
             ORDER BY a.attnum
@@ -575,7 +588,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             JOIN pg_class c ON c.oid = con.conrelid
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relname = '\(safeTable)'
-              AND n.nspname = 'public'
+              AND n.nspname = '\(escapedSchema)'
               AND con.contype IN ('p', 'u', 'c', 'f')
             ORDER BY
               CASE con.contype WHEN 'p' THEN 0 WHEN 'u' THEN 1 WHEN 'c' THEN 2 WHEN 'f' THEN 3 END
@@ -586,13 +599,13 @@ final class PostgreSQLDriver: DatabaseDriver {
             SELECT indexdef
             FROM pg_indexes
             WHERE tablename = '\(safeTable)'
-              AND schemaname = 'public'
+              AND schemaname = '\(escapedSchema)'
               AND indexname NOT IN (
                 SELECT conname FROM pg_constraint
                 JOIN pg_class ON pg_class.oid = conrelid
                 JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
                 WHERE pg_class.relname = '\(safeTable)'
-                  AND pg_namespace.nspname = 'public'
+                  AND pg_namespace.nspname = '\(escapedSchema)'
               )
             ORDER BY indexname
             """
@@ -618,7 +631,8 @@ final class PostgreSQLDriver: DatabaseDriver {
         var parts = columnDefs
         parts.append(contentsOf: constraints)
 
-        let ddl = "CREATE TABLE public.\(quotedTable) (\n  " +
+        let quotedSchema = "\"\(currentSchema.replacingOccurrences(of: "\"", with: "\"\""))\""
+        let ddl = "CREATE TABLE \(quotedSchema).\(quotedTable) (\n  " +
             parts.joined(separator: ",\n  ") +
             "\n);"
 
@@ -636,7 +650,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             SELECT 'CREATE OR REPLACE VIEW ' || quote_ident(schemaname) || '.' || quote_ident(viewname) || ' AS ' || E'\\n' || definition AS ddl
             FROM pg_views
             WHERE viewname = '\(SQLEscaping.escapeStringLiteral(view))'
-              AND schemaname = 'public'
+              AND schemaname = '\(escapedSchema)'
             """
 
         let result = try await execute(query: query)
@@ -679,7 +693,7 @@ final class PostgreSQLDriver: DatabaseDriver {
             FROM pg_class c
             JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relname = '\(SQLEscaping.escapeStringLiteral(tableName))'
-              AND n.nspname = 'public'
+              AND n.nspname = '\(escapedSchema)'
             """
 
         let result = try await execute(query: query)
@@ -742,6 +756,24 @@ final class PostgreSQLDriver: DatabaseDriver {
     func fetchDatabases() async throws -> [String] {
         let result = try await execute(query: "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname")
         return result.rows.compactMap { row in row.first.flatMap { $0 } }
+    }
+
+    /// Fetch list of schemas (excludes system schemas)
+    func fetchSchemas() async throws -> [String] {
+        let result = try await execute(query: """
+            SELECT schema_name FROM information_schema.schemata
+            WHERE schema_name NOT LIKE 'pg_%'
+              AND schema_name <> 'information_schema'
+            ORDER BY schema_name
+            """)
+        return result.rows.compactMap { row in row.first.flatMap { $0 } }
+    }
+
+    /// Switch to a different schema by setting search_path
+    func switchSchema(to schema: String) async throws {
+        let escapedName = schema.replacingOccurrences(of: "\"", with: "\"\"")
+        _ = try await execute(query: "SET search_path TO \"\(escapedName)\", public")
+        currentSchema = schema
     }
 
     /// Fetch metadata for a specific database

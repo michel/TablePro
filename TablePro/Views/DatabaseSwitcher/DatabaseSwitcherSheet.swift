@@ -21,6 +21,8 @@ struct DatabaseSwitcherSheet: View {
     @StateObject private var viewModel: DatabaseSwitcherViewModel
     @State private var showCreateDialog = false
 
+    private var isSchemaMode: Bool { databaseType == .postgresql }
+
     init(
         isPresented: Binding<Bool>, currentDatabase: String?, databaseType: DatabaseType,
         connectionId: UUID, onSelect: @escaping (String) -> Void
@@ -41,7 +43,9 @@ struct DatabaseSwitcherSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            Text("Open Database")
+            Text(isSchemaMode
+                ? String(localized: "Open Schema")
+                : String(localized: "Open Database"))
                 .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
                 .padding(.vertical, 12)
 
@@ -108,7 +112,10 @@ struct DatabaseSwitcherSheet: View {
                     .font(.system(size: DesignConstants.FontSize.body))
                     .foregroundStyle(.tertiary)
 
-                TextField("Search databases...", text: $viewModel.searchText)
+                TextField(isSchemaMode
+                    ? String(localized: "Search schemas...")
+                    : String(localized: "Search databases..."),
+                    text: $viewModel.searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: DesignConstants.FontSize.body))
 
@@ -136,7 +143,7 @@ struct DatabaseSwitcherSheet: View {
             .help("Refresh database list")
 
             // Create (only for non-SQLite)
-            if databaseType != .sqlite {
+            if databaseType != .sqlite && !isSchemaMode {
                 Button(action: { showCreateDialog = true }) {
                     Image(systemName: "plus")
                         .font(.system(size: 14))
@@ -176,7 +183,9 @@ struct DatabaseSwitcherSheet: View {
                     }
                 } header: {
                     if !viewModel.recentDatabaseMetadata.isEmpty {
-                        Text("ALL DATABASES")
+                        Text(isSchemaMode
+                            ? String(localized: "ALL SCHEMAS")
+                            : String(localized: "ALL DATABASES"))
                             .font(
                                 .system(size: DesignConstants.FontSize.caption, weight: .semibold)
                             )
@@ -255,7 +264,9 @@ struct DatabaseSwitcherSheet: View {
         VStack(spacing: 12) {
             ProgressView()
                 .scaleEffect(0.8)
-            Text("Loading databases...")
+            Text(isSchemaMode
+                ? String(localized: "Loading schemas...")
+                : String(localized: "Loading databases..."))
                 .font(.system(size: DesignConstants.FontSize.medium))
                 .foregroundStyle(.secondary)
         }
@@ -268,7 +279,9 @@ struct DatabaseSwitcherSheet: View {
                 .font(.system(size: DesignConstants.IconSize.extraLarge))
                 .foregroundStyle(.orange)
 
-            Text("Failed to load databases")
+            Text(isSchemaMode
+                ? String(localized: "Failed to load schemas")
+                : String(localized: "Failed to load databases"))
                 .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
 
             Text(message)
@@ -313,13 +326,19 @@ struct DatabaseSwitcherSheet: View {
                 .foregroundStyle(.secondary)
 
             if viewModel.searchText.isEmpty {
-                Text("No databases found")
+                Text(isSchemaMode
+                    ? String(localized: "No schemas found")
+                    : String(localized: "No databases found"))
                     .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
             } else {
-                Text("No matching databases")
+                Text(isSchemaMode
+                    ? String(localized: "No matching schemas")
+                    : String(localized: "No matching databases"))
                     .font(.system(size: DesignConstants.FontSize.body, weight: .medium))
 
-                Text("No databases match \"\(viewModel.searchText)\"")
+                Text(isSchemaMode
+                    ? String(localized: "No schemas match \"\(viewModel.searchText)\"")
+                    : String(localized: "No databases match \"\(viewModel.searchText)\""))
                     .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(.secondary)
             }

@@ -92,6 +92,12 @@ extension MainContentCoordinator {
         let sql: String
         switch connection.type {
         case .postgresql:
+            let schema: String
+            if let pgDriver = DatabaseManager.shared.activeDriver as? PostgreSQLDriver {
+                schema = pgDriver.escapedSchema
+            } else {
+                schema = "public"
+            }
             sql = """
             SELECT
                 schemaname as schema,
@@ -103,7 +109,7 @@ extension MainContentCoordinator {
                 pg_size_pretty(pg_indexes_size(schemaname||'.'||relname)) as index_size,
                 obj_description((schemaname||'.'||relname)::regclass) as comment
             FROM pg_stat_user_tables
-            WHERE schemaname = 'public'
+            WHERE schemaname = '\(schema)'
             ORDER BY relname
             """
         case .mysql, .mariadb:
@@ -201,9 +207,50 @@ extension MainContentCoordinator {
                 if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
                     runQuery()
                 }
-            } else {
-                // For PostgreSQL and SQLite, reconnect with new database
-                // (SQLite doesn't apply, but keeping for completeness)
+            } else if connection.type == .postgresql {
+                // PostgreSQL: switch schema (not database — PG database switching requires reconnection)
+                guard let pgDriver = driver as? PostgreSQLDriver else { return }
+                try await pgDriver.switchSchema(to: database)
+
+                // Also switch metadata driver's schema
+                if let metaDriver = DatabaseManager.shared.activeMetadataDriver as? PostgreSQLDriver {
+                    try? await metaDriver.switchSchema(to: database)
+                }
+
+                // Update session
+                if let sessionId = DatabaseManager.shared.currentSessionId {
+                    DatabaseManager.shared.updateSession(sessionId) { session in
+                        session.currentSchema = database
+                        session.tables = []  // triggers SidebarView.loadTables() via onChange
+                    }
+                }
+
+                // Update toolbar state
+                toolbarState.databaseName = database
+
+                // Clear tab results but keep tabs open
+                tabManager.tabs = tabManager.tabs.map { tab in
+                    var updatedTab = tab
+                    updatedTab.resultColumns = []
+                    updatedTab.resultRows = []
+                    updatedTab.resultVersion += 1
+                    updatedTab.errorMessage = nil
+                    updatedTab.executionTime = nil
+                    updatedTab.databaseName = database
+                    return updatedTab
+                }
+
+                // Reload schema for autocomplete
+                await loadSchema()
+
+                // Force sidebar reload — posting .refreshData ensures loadTables() runs
+                // even when session.tables was already [] (e.g. switching from empty schema back to public)
+                NotificationCenter.default.post(name: .refreshData, object: nil)
+
+                // Re-execute current tab if it's a table tab
+                if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
+                    runQuery()
+                }
             }
         } catch {
             navigationLogger.error("Failed to switch database: \(error.localizedDescription, privacy: .public)")

@@ -112,6 +112,11 @@ final class DatabaseManager: ObservableObject {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
+            // Initialize schema for PostgreSQL connections
+            if let pgDriver = driver as? PostgreSQLDriver {
+                activeSessions[connection.id]?.currentSchema = pgDriver.currentSchema
+            }
+
             // Batch all session mutations into a single write to fire objectWillChange once
             if var session = activeSessions[connection.id] {
                 session.driver = driver
@@ -154,6 +159,11 @@ final class DatabaseManager: ObservableObject {
                     try await metaDriver.connect()
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
+                    }
+                    // Sync schema on metadata driver for PostgreSQL
+                    if let pgMetaDriver = metaDriver as? PostgreSQLDriver,
+                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
+                        try? await pgMetaDriver.switchSchema(to: savedSchema)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
                 } catch {
@@ -464,6 +474,12 @@ final class DatabaseManager: ObservableObject {
             try await driver.applyQueryTimeout(timeoutSeconds)
         }
 
+        // Restore schema for PostgreSQL if session had a non-default schema
+        if let pgDriver = driver as? PostgreSQLDriver,
+           let savedSchema = session.currentSchema {
+            try? await pgDriver.switchSchema(to: savedSchema)
+        }
+
         return driver
     }
 
@@ -518,6 +534,12 @@ final class DatabaseManager: ObservableObject {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
+            // Restore schema for PostgreSQL if session had a non-default schema
+            if let pgDriver = driver as? PostgreSQLDriver,
+               let savedSchema = activeSessions[sessionId]?.currentSchema {
+                try? await pgDriver.switchSchema(to: savedSchema)
+            }
+
             // Update session
             updateSession(sessionId) { session in
                 session.driver = driver
@@ -536,6 +558,11 @@ final class DatabaseManager: ObservableObject {
                     try await metaDriver.connect()
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
+                    }
+                    // Restore schema on metadata driver too
+                    if let pgMetaDriver = metaDriver as? PostgreSQLDriver,
+                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
+                        try? await pgMetaDriver.switchSchema(to: savedSchema)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
                 } catch {
@@ -659,13 +686,14 @@ final class DatabaseManager: ObservableObject {
 
         // Query the actual constraint name from pg_constraint
         let escapedTable = tableName.replacingOccurrences(of: "'", with: "''")
+        let schema = (driver as? PostgreSQLDriver)?.escapedSchema ?? "public"
         let query = """
             SELECT con.conname
             FROM pg_constraint con
             JOIN pg_class rel ON rel.oid = con.conrelid
             JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
             WHERE rel.relname = '\(escapedTable)'
-              AND nsp.nspname = 'public'
+              AND nsp.nspname = '\(schema)'
               AND con.contype = 'p'
             LIMIT 1
             """

@@ -24,6 +24,9 @@ class DatabaseSwitcherViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showPreview = false
 
+    /// Whether we're switching schemas (PostgreSQL) or databases (MySQL)
+    var isSchemaMode: Bool { databaseType == .postgresql }
+
     // MARK: - Dependencies
 
     private let connectionId: UUID
@@ -65,7 +68,7 @@ class DatabaseSwitcherViewModel: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// Fetch databases and their metadata
+    /// Fetch databases (or schemas for PostgreSQL) and their metadata
     func fetchDatabases() async {
         isLoading = true
         errorMessage = nil
@@ -77,31 +80,38 @@ class DatabaseSwitcherViewModel: ObservableObject {
                 return
             }
 
-            // Fetch database names
-            let dbNames = try await driver.fetchDatabases()
+            if isSchemaMode {
+                // PostgreSQL: fetch schemas instead of databases
+                let schemaNames = try await driver.fetchSchemas()
+                databases = schemaNames.map { name in
+                    DatabaseMetadata.minimal(name: name, isSystem: isSystemItem(name))
+                }
+            } else {
+                // MySQL/MariaDB: fetch databases with metadata
+                let dbNames = try await driver.fetchDatabases()
 
-            // Fetch metadata for each database (in parallel for performance)
-            let metadataList = await withTaskGroup(of: DatabaseMetadata?.self) { group in
-                for dbName in dbNames {
-                    group.addTask {
-                        await self.fetchMetadata(for: dbName, driver: driver)
+                let metadataList = await withTaskGroup(of: DatabaseMetadata?.self) { group in
+                    for dbName in dbNames {
+                        group.addTask {
+                            await self.fetchMetadata(for: dbName, driver: driver)
+                        }
                     }
+
+                    var results: [DatabaseMetadata] = []
+                    for await metadata in group {
+                        if let metadata = metadata {
+                            results.append(metadata)
+                        }
+                    }
+                    return results
                 }
 
-                var results: [DatabaseMetadata] = []
-                for await metadata in group {
-                    if let metadata = metadata {
-                        results.append(metadata)
-                    }
-                }
-                return results
+                databases = metadataList.sorted { $0.name < $1.name }
             }
 
-            // Update state
-            databases = metadataList.sorted { $0.name < $1.name }
             isLoading = false
 
-            // Pre-select current database or first database
+            // Pre-select current database/schema or first item
             if let current = currentDatabase, databases.contains(where: { $0.name == current }) {
                 selectedDatabase = current
             } else {
@@ -144,17 +154,20 @@ class DatabaseSwitcherViewModel: ObservableObject {
         } catch {
             // If metadata fetch fails, return minimal metadata
             Self.logger.error("Failed to fetch metadata for \(database): \(error)")
-            return DatabaseMetadata.minimal(name: database, isSystem: isSystemDatabase(database))
+            return DatabaseMetadata.minimal(name: database, isSystem: isSystemItem(database))
         }
     }
 
-    /// Determine if a database is a system database
-    private func isSystemDatabase(_ database: String) -> Bool {
+    /// Determine if a database or schema is a system item
+    private func isSystemItem(_ name: String) -> Bool {
+        if isSchemaMode {
+            return name.hasPrefix("pg_")
+        }
         switch databaseType {
         case .mysql, .mariadb:
-            return ["information_schema", "mysql", "performance_schema", "sys"].contains(database)
+            return ["information_schema", "mysql", "performance_schema", "sys"].contains(name)
         case .postgresql:
-            return ["postgres", "template0", "template1"].contains(database)
+            return ["postgres", "template0", "template1"].contains(name)
         case .sqlite:
             return false
         }

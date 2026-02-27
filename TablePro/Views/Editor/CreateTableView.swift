@@ -695,7 +695,12 @@ struct CreateTableView: View {
                 guard let driver = DatabaseManager.shared.activeDriver else { return }
                 let query = switch databaseType {
                 case .mysql, .mariadb: "SHOW TABLES"
-                case .postgresql: "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+                case .postgresql:
+                    if let pgDriver = driver as? PostgreSQLDriver {
+                        "SELECT tablename FROM pg_tables WHERE schemaname = '\(pgDriver.escapedSchema)'"
+                    } else {
+                        "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+                    }
                 case .sqlite: "SELECT name FROM sqlite_master WHERE type='table'"
                 }
                 let result = try await driver.execute(query: query)
