@@ -89,9 +89,8 @@ final class MainContentCoordinator: ObservableObject {
 
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
-        let filteredSort = querySortCache.filter { openTabIds.contains($0.key) }
-        if filteredSort.count != querySortCache.count {
-            querySortCache = filteredSort
+        if querySortCache.keys.contains(where: { !openTabIds.contains($0) }) {
+            querySortCache = querySortCache.filter { openTabIds.contains($0.key) }
         }
         for (tabId, task) in activeSortTasks where !openTabIds.contains(tabId) {
             task.cancel()
