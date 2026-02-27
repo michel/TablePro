@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Vim keybindings for SQL editor (Normal/Insert/Visual modes, motions, operators, :w/:q commands) with toggle in Editor Settings
+
 ### Fixed
 
+- Vim visual mode selection now correctly includes cursor character (inclusive selection matching real Vim behavior)
+- Arrow keys now work in Vim visual/normal mode (mapped to h/j/k/l instead of bypassing the Vim engine)
+- Vim block cursor now follows the moving end of the selection in visual mode instead of staying at the anchor
+- Vim visual mode selection highlight now renders visibly (trigger needsDisplay after programmatic selection)
 - Fix event monitor leaks in SQL editor — `deinit` now cleans up NSEvent monitors, notification observers, and work items that leaked when CodeEditSourceEditor never called `destroy()`
 - Fix unbounded memory growth from NativeTabRegistry holding full QueryTab objects (including RowBuffer references) — registry now stores lightweight TabSnapshot structs
 - Fix SortedRowsCache storing full row copies — now stores index permutations only, halving sorted-tab memory

@@ -9,10 +9,11 @@
 import AppKit
 import CodeEditSourceEditor
 import CodeEditTextView
+import Combine
 
 /// Coordinator for the SQL editor — manages find panel, horizontal scrolling, and scroll-to-match
 @MainActor
-final class SQLEditorCoordinator: TextViewCoordinator {
+final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     // MARK: - Properties
 
     weak var controller: TextViewController?
@@ -25,6 +26,13 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     /// Debounce work item for frame-change notification to avoid
     /// triggering syntax highlight viewport recalculation on every keystroke.
     private nonisolated(unsafe) var frameChangeWorkItem: DispatchWorkItem?
+
+    /// Published Vim mode for UI observation
+    @Published private(set) var vimMode: VimMode = .normal
+    private var vimEngine: VimEngine?
+    private var vimKeyInterceptor: VimKeyInterceptor?
+    private var commandHandler = VimCommandLineHandler()
+    private var vimCursorManager: VimCursorManager?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -66,6 +74,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             self?.applyHorizontalScrollFix(controller: controller)
             self?.installAIContextMenu(controller: controller)
             self?.installInlineSuggestionManager(controller: controller)
+            self?.installVimModeIfEnabled(controller: controller)
         }
     }
 
@@ -73,6 +82,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         // Notify inline suggestion manager immediately (lightweight)
         DispatchQueue.main.async { [weak self] in
             self?.inlineSuggestionManager?.handleTextChange()
+            self?.vimCursorManager?.updatePosition(cursorOffset: self?.vimEngine?.cursorOffset)
         }
 
         // Throttle frame-change notification — during rapid typing, only the
@@ -95,6 +105,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
 
     func textViewDidChangeSelection(controller: TextViewController, newPositions: [CursorPosition]) {
         inlineSuggestionManager?.handleSelectionChange()
+        vimCursorManager?.updatePosition(cursorOffset: vimEngine?.cursorOffset)
 
         // When the find panel navigates to a match, it changes the selection
         // but the editor is not first responder. Scroll to the match manually
@@ -112,6 +123,8 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     func destroy() {
         frameChangeWorkItem?.cancel()
         frameChangeWorkItem = nil
+
+        uninstallVimKeyInterceptor()
 
         inlineSuggestionManager?.uninstall()
         inlineSuggestionManager = nil
@@ -167,6 +180,68 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         inlineSuggestionManager = manager
     }
 
+    // MARK: - Vim Mode
+
+    private func installVimModeIfEnabled(controller: TextViewController) {
+        guard AppSettingsManager.shared.editor.vimModeEnabled else { return }
+        installVimKeyInterceptor(controller: controller)
+    }
+
+    private func installVimKeyInterceptor(controller: TextViewController) {
+        guard let textView = controller.textView else { return }
+
+        let adapter = VimTextBufferAdapter(textView: textView)
+        let engine = VimEngine(buffer: adapter)
+
+        engine.onModeChange = { [weak self] mode in
+            self?.vimMode = mode
+            self?.vimCursorManager?.updateMode(mode)
+        }
+
+        commandHandler.onExecuteQuery = {
+            NSApp.sendAction(
+                #selector(TableProResponderActions.executeQuery(_:)),
+                to: nil,
+                from: nil
+            )
+        }
+        engine.onCommand = { [weak self] command in
+            self?.commandHandler.handle(command)
+        }
+
+        let interceptor = VimKeyInterceptor(engine: engine, inlineSuggestionManager: inlineSuggestionManager)
+        interceptor.install(controller: controller)
+
+        self.vimEngine = engine
+        self.vimKeyInterceptor = interceptor
+        self.vimMode = .normal
+
+        // Install block cursor for Normal mode
+        if let textView = controller.textView {
+            let cursorManager = VimCursorManager()
+            cursorManager.install(textView: textView)
+            self.vimCursorManager = cursorManager
+        }
+    }
+
+    private func uninstallVimKeyInterceptor() {
+        vimKeyInterceptor?.uninstall()
+        vimCursorManager?.uninstall()
+        vimCursorManager = nil
+        vimKeyInterceptor = nil
+        vimEngine = nil
+        vimMode = .normal
+    }
+
+    private func handleVimSettingsChange(controller: TextViewController) {
+        let enabled = AppSettingsManager.shared.editor.vimModeEnabled
+        if enabled && vimKeyInterceptor == nil {
+            installVimKeyInterceptor(controller: controller)
+        } else if !enabled && vimKeyInterceptor != nil {
+            uninstallVimKeyInterceptor()
+        }
+    }
+
     // MARK: - Horizontal Scrolling Fix
 
     /// Enable horizontal scrolling when word wrap is off.
@@ -201,6 +276,8 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             // Defer so it runs AFTER reloadUI() → styleTextView()
             DispatchQueue.main.async {
                 self.setHorizontalScrollProperties(controller: controller)
+                self.handleVimSettingsChange(controller: controller)
+                self.vimCursorManager?.updatePosition(cursorOffset: self.vimEngine?.cursorOffset)
             }
         }
 

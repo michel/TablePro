@@ -19,6 +19,7 @@ struct SQLEditorView: View {
     @Binding var cursorPositions: [CursorPosition]
     var schemaProvider: SQLSchemaProvider?
     var databaseType: DatabaseType?
+    @Binding var vimMode: VimMode
 
     @State private var editorState = SourceEditorState()
     @State private var completionAdapter: SQLCompletionAdapter?
@@ -83,6 +84,9 @@ struct SQLEditorView: View {
             }
             coordinator.schemaProvider = schemaProvider
         }
+        .onReceive(coordinator.$vimMode) { newMode in
+            vimMode = newMode
+        }
     }
 
     // MARK: - Configuration
@@ -116,7 +120,8 @@ struct SQLEditorView: View {
     SQLEditorView(
         text: .constant("SELECT * FROM users\nWHERE active = true;"),
         cursorPositions: .constant([]),
-        databaseType: .mysql
+        databaseType: .mysql,
+        vimMode: .constant(.normal)
     )
     .frame(width: 500, height: 200)
 }

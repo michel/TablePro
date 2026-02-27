@@ -29,6 +29,8 @@ struct QueryEditorView: View {
     var schemaProvider: SQLSchemaProvider?
     var databaseType: DatabaseType?
 
+    @State private var vimMode: VimMode = .normal
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Editor header with toolbar (above editor, higher z-index)
@@ -42,7 +44,8 @@ struct QueryEditorView: View {
                 text: $queryText,
                 cursorPositions: $cursorPositions,
                 schemaProvider: schemaProvider,
-                databaseType: databaseType
+                databaseType: databaseType,
+                vimMode: $vimMode
             )
             .frame(minHeight: 100)
             .clipped()
@@ -60,6 +63,10 @@ struct QueryEditorView: View {
             Text("Query")
                 .font(.headline)
                 .foregroundStyle(.secondary)
+
+            if AppSettingsManager.shared.editor.vimModeEnabled {
+                VimModeIndicatorView(mode: vimMode)
+            }
 
             Spacer()
 

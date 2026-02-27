@@ -248,6 +248,7 @@ struct EditorSettings: Codable, Equatable {
     var tabWidth: Int // 2, 4, or 8 spaces
     var autoIndent: Bool
     var wordWrap: Bool
+    var vimModeEnabled: Bool
 
     static let `default` = EditorSettings(
         fontFamily: .systemMono,
@@ -256,8 +257,41 @@ struct EditorSettings: Codable, Equatable {
         highlightCurrentLine: true,
         tabWidth: 4,
         autoIndent: true,
-        wordWrap: false
+        wordWrap: false,
+        vimModeEnabled: false
     )
+
+    init(
+        fontFamily: EditorFont = .systemMono,
+        fontSize: Int = 13,
+        showLineNumbers: Bool = true,
+        highlightCurrentLine: Bool = true,
+        tabWidth: Int = 4,
+        autoIndent: Bool = true,
+        wordWrap: Bool = false,
+        vimModeEnabled: Bool = false
+    ) {
+        self.fontFamily = fontFamily
+        self.fontSize = fontSize
+        self.showLineNumbers = showLineNumbers
+        self.highlightCurrentLine = highlightCurrentLine
+        self.tabWidth = tabWidth
+        self.autoIndent = autoIndent
+        self.wordWrap = wordWrap
+        self.vimModeEnabled = vimModeEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        fontFamily = try container.decode(EditorFont.self, forKey: .fontFamily)
+        fontSize = try container.decode(Int.self, forKey: .fontSize)
+        showLineNumbers = try container.decode(Bool.self, forKey: .showLineNumbers)
+        highlightCurrentLine = try container.decode(Bool.self, forKey: .highlightCurrentLine)
+        tabWidth = try container.decode(Int.self, forKey: .tabWidth)
+        autoIndent = try container.decode(Bool.self, forKey: .autoIndent)
+        wordWrap = try container.decode(Bool.self, forKey: .wordWrap)
+        vimModeEnabled = try container.decodeIfPresent(Bool.self, forKey: .vimModeEnabled) ?? false
+    }
 
     /// Clamped font size (11-18)
     var clampedFontSize: Int {
