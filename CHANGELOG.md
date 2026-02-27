@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix background tabs retaining full result data indefinitely — RowBuffer eviction frees memory for inactive tabs (re-fetched on switch back)
 - Fix InMemoryRowProvider bulk cache eviction — now uses proximity-based eviction keeping entries near current scroll position
 - Fix stale tabRowProviders entries when tab IDs change without count changing
+- Fix crash on macOS 14.x caused by `_strchrnul` symbol not found in libpq.5.dylib — switch libpq and OpenSSL from dynamic Homebrew linking to vendored static libraries built with MACOSX_DEPLOYMENT_TARGET=14.0
 
 ## [0.8.0] - 2026-02-27
 

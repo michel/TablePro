@@ -68,6 +68,38 @@ prepare_mariadb() {
     cd - > /dev/null || exit 1
 }
 
+# Ensure libpq + OpenSSL static libraries have correct architecture
+prepare_libpq() {
+    local target_arch=$1
+    echo "📦 Preparing libpq + OpenSSL static libraries for $target_arch..."
+
+    local all_ok=1
+    for lib in libpq libpgcommon libpgport libssl libcrypto; do
+        # If already present with the correct architecture, skip
+        if [ -f "Libs/${lib}.a" ] && lipo -info "Libs/${lib}.a" 2>/dev/null | grep -q "$target_arch"; then
+            continue
+        fi
+
+        if [ ! -f "Libs/${lib}_universal.a" ]; then
+            echo "❌ ERROR: Libs/${lib}_universal.a not found!"
+            echo "Run this first: ./scripts/build-libpq.sh both"
+            all_ok=0
+            continue
+        fi
+
+        if ! lipo "Libs/${lib}_universal.a" -thin "$target_arch" -output "Libs/${lib}.a"; then
+            echo "❌ FATAL: Failed to extract $target_arch slice from ${lib}_universal.a"
+            exit 1
+        fi
+    done
+
+    if [ "$all_ok" -eq 0 ]; then
+        exit 1
+    fi
+
+    echo "✅ libpq + OpenSSL libraries ready for $target_arch"
+}
+
 # Bundle non-system dynamic libraries into the app bundle
 # so the app runs without Homebrew on end-user machines.
 bundle_dylibs() {
@@ -206,8 +238,9 @@ build_for_arch() {
     echo ""
     echo "🔨 Building for $arch..."
 
-    # Prepare architecture-specific mariadb library
+    # Prepare architecture-specific libraries
     prepare_mariadb "$arch"
+    prepare_libpq "$arch"
 
     # Remove AppIcon.icon if present — Xcode 26's automatic icon format
     # uses SVG rendering with GPU effects (shadows, translucency) that
