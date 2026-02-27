@@ -146,6 +146,49 @@ bundle_dylibs() {
         done < <(otool -L "$target" 2>/dev/null | awk 'NR>1 {print $1}')
     done
 
+    # Verify bundled dylibs are compatible with the deployment target.
+    # Homebrew builds libraries targeting the *host* macOS version, so if
+    # the build machine runs macOS 26.0, libpq will require 26.0 symbols
+    # (e.g. strchrnul) that don't exist on earlier OS versions → launch crash.
+    echo "   Verifying deployment target compatibility..."
+    local deploy_target
+    deploy_target=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>/dev/null \
+        | grep -m 1 'MACOSX_DEPLOYMENT_TARGET' | awk '{print $3}')
+    if [ -n "$deploy_target" ]; then
+        local deploy_major
+        deploy_major=$(echo "$deploy_target" | cut -d. -f1)
+        local failed=0
+        for fw in "$frameworks_dir"/*.dylib; do
+            [ -f "$fw" ] || continue
+            local name min_ver min_major
+            name=$(basename "$fw")
+            # otool -l prints LC_BUILD_VERSION with minos field, or LC_VERSION_MIN_MACOSX with version field
+            min_ver=$(otool -l "$fw" 2>/dev/null | awk '/LC_BUILD_VERSION/{found=1} found && /minos/{print $2; exit}')
+            if [ -z "$min_ver" ]; then
+                min_ver=$(otool -l "$fw" 2>/dev/null | awk '/LC_VERSION_MIN_MACOSX/{found=1} found && /version/{print $2; exit}')
+            fi
+            if [ -n "$min_ver" ]; then
+                min_major=$(echo "$min_ver" | cut -d. -f1)
+                if [ "$min_major" -gt "$deploy_major" ]; then
+                    echo "   ❌ FATAL: $name requires macOS $min_ver but deployment target is $deploy_target"
+                    echo "      This library was built on a newer macOS. Rebuild libpq with:"
+                    echo "        MACOSX_DEPLOYMENT_TARGET=$deploy_target brew reinstall libpq --build-from-source"
+                    echo "      Or use a CI runner on macOS $deploy_target+"
+                    failed=1
+                fi
+            fi
+        done
+        if [ "$failed" -eq 1 ]; then
+            echo ""
+            echo "   Bundled dylibs target a newer macOS than the app's deployment target."
+            echo "   The app will crash at launch on macOS $deploy_target with 'Symbol not found'."
+            exit 1
+        fi
+        echo "   ✅ All dylibs compatible with macOS $deploy_target"
+    else
+        echo "   ⚠️  WARNING: Could not determine deployment target, skipping dylib version check"
+    fi
+
     # Ad-hoc sign everything (required on Apple Silicon)
     echo "   Signing bundled libraries..."
     for fw in "$frameworks_dir"/*.dylib; do

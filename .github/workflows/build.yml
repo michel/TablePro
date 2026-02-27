@@ -59,12 +59,11 @@ jobs:
             echo "✅ mariadb-connector-c already installed"
           fi
 
-          if ! brew list libpq &>/dev/null; then
-            echo "📦 Installing libpq..."
-            brew install libpq
-          else
-            echo "✅ libpq already installed"
-          fi
+          # Build libpq from source with deployment target matching the app (macOS 14.0).
+          # Homebrew bottles target the *host* OS, so on macOS 26.0 the bottle
+          # uses strchrnul (26.0-only) → crash at launch on older macOS.
+          echo "📦 Installing libpq (from source, targeting macOS 14.0)..."
+          HOMEBREW_MACOS_DEPLOYMENT_TARGET=14.0 brew install --build-from-source libpq
 
           # Link packages with --force and --overwrite (needed for keg-only formulas)
           brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
@@ -313,12 +312,11 @@ jobs:
             echo "✅ mariadb-connector-c (x86_64) already installed"
           fi
 
-          if ! arch -x86_64 /usr/local/bin/brew list libpq &>/dev/null; then
-            echo "📦 Installing libpq (x86_64)..."
-            arch -x86_64 /usr/local/bin/brew install libpq
-          else
-            echo "✅ libpq (x86_64) already installed"
-          fi
+          # Build libpq from source with deployment target matching the app (macOS 14.0).
+          # Homebrew bottles target the *host* OS, so on macOS 26.0 the bottle
+          # uses strchrnul (26.0-only) → crash at launch on older macOS.
+          echo "📦 Installing libpq (x86_64, from source, targeting macOS 14.0)..."
+          arch -x86_64 env HOMEBREW_MACOS_DEPLOYMENT_TARGET=14.0 /usr/local/bin/brew install --build-from-source libpq
 
           # Link packages with --force (needed for keg-only formulas)
           arch -x86_64 /usr/local/bin/brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
