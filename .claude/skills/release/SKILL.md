@@ -123,9 +123,9 @@ Make these edits to `CHANGELOG.md`:
 Stage the changed files and commit:
 
 ```bash
-git add TablePro.xcodeproj/project.pbxproj CHANGELOG.md
+git add TablePro.xcodeproj/project.pbxproj CHANGELOG.md docs/changelog.mdx docs/vi/changelog.mdx
 git commit -m "$(cat <<'EOF'
-Release v<version>
+release: v<version>
 EOF
 )"
 ```
@@ -156,11 +156,10 @@ automatically:
 - Generates and commits `appcast.xml`
 - Creates the GitHub Release with release notes extracted from CHANGELOG.md
 
-### Step 6: Update Documentation Changelogs (separate repo)
+### Step 6: Update Documentation Changelogs
 
-The documentation site lives in a **separate git repository** at
-`docs/` (relative to project root, mapped to the `tablepro.app` repo).
-Two changelog files need a new `<Update>` entry:
+The documentation lives in the main repo under `docs/`. Two changelog
+files need a new `<Update>` entry:
 
 - `docs/changelog.mdx` (English)
 - `docs/vi/changelog.mdx` (Vietnamese)
@@ -204,14 +203,8 @@ Same structure but with Vietnamese text. Use the date format
 feature names and descriptions to Vietnamese. Follow the style of
 existing Vietnamese entries in the file.
 
-**Commit and push in the docs repo:**
-
-```bash
-cd docs && git add changelog.mdx vi/changelog.mdx && git commit -m "$(cat <<'EOF'
-docs: update changelog for v<version>
-EOF
-)" && git push
-```
+**Important:** These changelog files are staged and committed together
+with the release in Step 3 — no separate commit needed.
 
 ## Post-release Summary
 
@@ -220,11 +213,7 @@ After all pushes, print a summary:
 ```
 Release v<version> (build <build-number>) pushed successfully.
 
-Main repo:
-  CI will now build arm64 + x86_64, create DMG/ZIP, update appcast.xml, create GitHub Release.
-  Monitor: https://github.com/datlechin/TablePro/actions
-  Release: https://github.com/datlechin/TablePro/releases/tag/v<version>
-
-Docs repo:
-  Changelog updated and pushed.
+CI will now build arm64 + x86_64, create DMG/ZIP, update appcast.xml, create GitHub Release.
+Monitor: https://github.com/datlechin/TablePro/actions
+Release: https://github.com/datlechin/TablePro/releases/tag/v<version>
 ```
