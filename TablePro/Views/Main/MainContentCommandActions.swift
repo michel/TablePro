@@ -386,6 +386,14 @@ final class MainContentCommandActions: ObservableObject {
 
     func importTables() {
         guard !connection.isReadOnly else { return }
+        guard connection.type != .mongodb else {
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Import Not Supported"),
+                message: String(localized: "SQL import is not supported for MongoDB connections."),
+                window: nil
+            )
+            return
+        }
         // Open file picker first, then show dialog with selected file
         let panel = NSOpenPanel()
         var contentTypes: [UTType] = []

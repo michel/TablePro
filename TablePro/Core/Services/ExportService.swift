@@ -183,11 +183,17 @@ final class ExportService: ObservableObject {
         var total = 0
         var failedCount = 0
         for table in tables {
-            let tableRef = qualifiedTableRef(for: table)
             do {
-                let result = try await driver.execute(query: "SELECT COUNT(*) FROM \(tableRef)")
-                if let countStr = result.rows.first?.first, let count = Int(countStr ?? "0") {
-                    total += count
+                if databaseType == .mongodb {
+                    if let count = try await driver.fetchApproximateRowCount(table: table.name) {
+                        total += count
+                    }
+                } else {
+                    let tableRef = qualifiedTableRef(for: table)
+                    let result = try await driver.execute(query: "SELECT COUNT(*) FROM \(tableRef)")
+                    if let countStr = result.rows.first?.first, let count = Int(countStr ?? "0") {
+                        total += count
+                    }
                 }
             } catch {
                 // Log the error but continue - progress will be less accurate
@@ -254,6 +260,20 @@ final class ExportService: ObservableObject {
         }
     }
 
+    private func fetchAllQuery(for table: ExportTableItem) -> String {
+        switch databaseType {
+        case .mongodb:
+            return "db.\(table.name).find({})"
+        default:
+            return "SELECT * FROM \(qualifiedTableRef(for: table))"
+        }
+    }
+
+    private func fetchBatch(for table: ExportTableItem, offset: Int, limit: Int) async throws -> QueryResult {
+        let query = fetchAllQuery(for: table)
+        return try await driver.fetchRows(query: query, offset: offset, limit: limit)
+    }
+
     /// Sanitize a name for use in SQL comments to prevent comment injection
     ///
     /// Removes characters that could break out of or nest SQL comments:
@@ -316,7 +336,6 @@ final class ExportService: ObservableObject {
             state.currentTableIndex = index + 1
             state.currentTable = table.qualifiedName
 
-            let tableRef = qualifiedTableRef(for: table)
             let batchSize = 5_000
             var offset = 0
             var columns: [String] = []
@@ -326,8 +345,7 @@ final class ExportService: ObservableObject {
                 try checkCancellation()
                 try Task.checkCancellation()
 
-                let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
-                let result = try await driver.execute(query: query)
+                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
 
                 if result.rows.isEmpty { break }
 
@@ -404,8 +422,6 @@ final class ExportService: ObservableObject {
                 try fileHandle.write(contentsOf: "# Table: \(sanitizedName)\n".toUTF8Data())
             }
 
-            // Fetch data from table in batches to avoid loading everything into memory
-            let tableRef = qualifiedTableRef(for: table)
             let batchSize = 10_000
             var offset = 0
             var isFirstBatch = true
@@ -414,8 +430,7 @@ final class ExportService: ObservableObject {
                 try checkCancellation()
                 try Task.checkCancellation()
 
-                let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
-                let result = try await driver.execute(query: query)
+                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
 
                 // No more rows to process
                 if result.rows.isEmpty {
@@ -575,13 +590,10 @@ final class ExportService: ObservableObject {
             state.currentTableIndex = tableIndex + 1
             state.currentTable = table.qualifiedName
 
-            let tableRef = qualifiedTableRef(for: table)
-
             // Write table key and opening bracket
             let escapedTableName = escapeJSONString(table.qualifiedName)
             try fileHandle.write(contentsOf: "\(indent)\"\(escapedTableName)\": [\(newline)".toUTF8Data())
 
-            // Stream rows in batches to avoid loading the entire table into memory
             let batchSize = 1_000
             var offset = 0
             var hasWrittenRow = false
@@ -591,9 +603,7 @@ final class ExportService: ObservableObject {
                 try checkCancellation()
                 try Task.checkCancellation()
 
-                let result = try await driver.execute(
-                    query: "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
-                )
+                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
 
                 if result.rows.isEmpty {
                     break batchLoop

@@ -28,6 +28,15 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .xlsx: return "xlsx"
         }
     }
+
+    static func availableCases(for databaseType: DatabaseType) -> [ExportFormat] {
+        switch databaseType {
+        case .mongodb:
+            return [.csv, .json, .xlsx]
+        default:
+            return allCases.map { $0 }
+        }
+    }
 }
 
 // MARK: - CSV Options

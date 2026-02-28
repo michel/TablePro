@@ -177,15 +177,17 @@ struct TableProToolbar: ViewModifier {
                         .help("Export Data (⌘⇧E)")
                         .disabled(state.connectionState != .connected)
 
-                        // Import
-                        Button {
-                            actions?.importTables()
-                        } label: {
-                            Image(systemName: "square.and.arrow.down")
+                        // Import (not available for MongoDB)
+                        if state.databaseType != .mongodb {
+                            Button {
+                                actions?.importTables()
+                            } label: {
+                                Image(systemName: "square.and.arrow.down")
+                            }
+                            .accessibilityLabel(String(localized: "Import data"))
+                            .help("Import Data (⌘⇧I)")
+                            .disabled(state.connectionState != .connected || state.isReadOnly)
                         }
-                        .accessibilityLabel(String(localized: "Import data"))
-                        .help("Import Data (⌘⇧I)")
-                        .disabled(state.connectionState != .connected || state.isReadOnly)
 
                         Divider()
                             .frame(height: 20)

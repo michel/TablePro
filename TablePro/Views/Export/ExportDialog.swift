@@ -61,6 +61,11 @@ struct ExportDialog: View {
         }
         .frame(width: dialogWidth)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            if connection.type == .mongodb && config.format == .sql {
+                config.format = .json
+            }
+        }
         .onExitCommand {
             if !isExporting {
                 isPresented = false
@@ -175,7 +180,7 @@ struct ExportDialog: View {
                     Spacer()
 
                     Picker("", selection: $config.format) {
-                        ForEach(ExportFormat.allCases) { format in
+                        ForEach(ExportFormat.availableCases(for: connection.type)) { format in
                             Text(format.rawValue).tag(format)
                         }
                     }

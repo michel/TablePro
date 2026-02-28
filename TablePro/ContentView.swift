@@ -95,7 +95,9 @@ struct ContentView: View {
                 currentSession = DatabaseManager.shared.currentSession
                 columnVisibility = newSessionId == nil ? .detailOnly : .all
                 AppState.shared.isConnected = newSessionId != nil
-                AppState.shared.isReadOnly = DatabaseManager.shared.activeSessions[newSessionId ?? UUID()]?.connection.isReadOnly ?? false
+                let session = DatabaseManager.shared.activeSessions[newSessionId ?? UUID()]
+                AppState.shared.isReadOnly = session?.connection.isReadOnly ?? false
+                AppState.shared.isMongoDB = session?.connection.type == .mongodb
             }
             .onReceive(DatabaseManager.shared.$activeSessions) { sessions in
                 guard let sid = DatabaseManager.shared.currentSessionId else {

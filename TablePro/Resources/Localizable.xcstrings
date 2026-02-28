@@ -4369,6 +4369,9 @@
         }
       }
     },
+    "Import Not Supported" : {
+
+    },
     "Import SQL" : {
       "localizations" : {
         "vi" : {
@@ -7497,6 +7500,9 @@
           }
         }
       }
+    },
+    "SQL import is not supported for MongoDB connections." : {
+
     },
     "SQL Preview" : {
       "localizations" : {

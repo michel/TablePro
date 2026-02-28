@@ -132,7 +132,10 @@ final class ImportService: ObservableObject {
 
             // 5. Begin transaction (if enabled)
             if config.wrapInTransaction {
-                _ = try await driver.execute(query: beginTransactionStatement(for: connection.type))
+                let beginStmt = beginTransactionStatement(for: connection.type)
+                if !beginStmt.isEmpty {
+                    _ = try await driver.execute(query: beginStmt)
+                }
             }
 
             // 6. Parse and execute statements (single pass — no prior counting pass)
@@ -170,7 +173,10 @@ final class ImportService: ObservableObject {
 
             // 7. Commit transaction (if enabled)
             if config.wrapInTransaction {
-                _ = try await driver.execute(query: commitStatement(for: connection.type))
+                let commitStmt = commitStatement(for: connection.type)
+                if !commitStmt.isEmpty {
+                    _ = try await driver.execute(query: commitStmt)
+                }
             }
 
             // 8. Re-enable FK checks (if enabled) - AFTER transaction
@@ -184,10 +190,11 @@ final class ImportService: ObservableObject {
             // Rollback on error - this is CRITICAL and must not fail silently
             if config.wrapInTransaction {
                 do {
-                    _ = try await driver.execute(query: rollbackStatement(for: connection.type))
+                    let rollbackStmt = rollbackStatement(for: connection.type)
+                    if !rollbackStmt.isEmpty {
+                        _ = try await driver.execute(query: rollbackStmt)
+                    }
                 } catch let rollbackError {
-                    // Rollback failed - database may be in inconsistent state
-                    // This is a critical error that MUST be reported to the user
                     throw ImportError.rollbackFailed(rollbackError.localizedDescription)
                 }
             }
@@ -316,10 +323,20 @@ final class ImportService: ObservableObject {
     }
 
     private func commitStatement(for dbType: DatabaseType) -> String {
-        "COMMIT"
+        switch dbType {
+        case .mongodb:
+            return ""
+        default:
+            return "COMMIT"
+        }
     }
 
     private func rollbackStatement(for dbType: DatabaseType) -> String {
-        "ROLLBACK"
+        switch dbType {
+        case .mongodb:
+            return ""
+        default:
+            return "ROLLBACK"
+        }
     }
 }
