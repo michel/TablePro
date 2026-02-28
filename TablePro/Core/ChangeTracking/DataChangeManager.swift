@@ -601,6 +601,32 @@ final class DataChangeManager: ObservableObject {
     // MARK: - SQL Generation
 
     func generateSQL() throws -> [ParameterizedStatement] {
+        // MongoDB uses its own statement generator (shell syntax instead of SQL)
+        if databaseType == .mongodb {
+            let generator = MongoDBStatementGenerator(
+                collectionName: tableName,
+                columns: columns
+            )
+            let statements = generator.generateStatements(
+                from: changes,
+                insertedRowData: insertedRowData,
+                deletedRowIndices: deletedRowIndices,
+                insertedRowIndices: insertedRowIndices
+            )
+
+            let expectedUpdates = changes.count(where: { $0.type == .update })
+            let actualUpdates = statements.count(where: { $0.sql.contains(".updateOne(") })
+
+            if expectedUpdates > 0 && actualUpdates < expectedUpdates {
+                throw DatabaseError.queryFailed(
+                    "Cannot save UPDATE changes to collection '\(tableName)' without an _id field. " +
+                        "Please ensure the collection has _id values."
+                )
+            }
+
+            return statements
+        }
+
         let generator = SQLStatementGenerator(
             tableName: tableName,
             columns: columns,
@@ -614,12 +640,9 @@ final class DataChangeManager: ObservableObject {
             insertedRowIndices: insertedRowIndices
         )
 
-        // Count expected UPDATE statements (DELETEs can work without PK using full row match)
         let expectedUpdates = changes.count(where: { $0.type == .update })
         let actualUpdates = statements.count(where: { $0.sql.hasPrefix("UPDATE") })
 
-        // Check if any UPDATE statements were skipped due to missing primary key
-        // Note: DELETEs are allowed without PK (they match all columns)
         if expectedUpdates > 0 && actualUpdates < expectedUpdates {
             throw DatabaseError.queryFailed(
                 "Cannot save UPDATE changes to table '\(tableName)' without a primary key. " +
