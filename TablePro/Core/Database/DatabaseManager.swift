@@ -366,6 +366,7 @@ final class DatabaseManager: ObservableObject {
             type: connection.type,
             sshConfig: SSHConfiguration(),
             sslConfig: tunnelSSL
+            sslConfig: connection.sslConfig
         )
     }
 

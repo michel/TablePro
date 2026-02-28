@@ -46,20 +46,18 @@ struct PasteboardCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .cut))
 
             Button("Copy") {
-                // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
-                if let firstResponder = NSApp.keyWindow?.firstResponder,
-                   firstResponder is NSTextView {
-                    // User is editing text - let standard copy handle selected text
+                let action = PasteboardActionRouter.resolveCopyAction(
+                    firstResponder: NSApp.keyWindow?.firstResponder,
+                    hasRowSelection: appState.hasRowSelection,
+                    hasTableSelection: appState.hasTableSelection
+                )
+                switch action {
+                case .textCopy:
                     NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
-                } else if appState.hasRowSelection {
-                    // Copy entire rows when rows are selected
+                case .copyRows:
                     actions?.copySelectedRows()
-                } else if appState.hasTableSelection {
-                    // Copy table names when tables are selected
+                case .copyTableNames:
                     NotificationCenter.default.post(name: .copyTableNames, object: nil)
-                } else {
-                    // Fallback to standard copy
-                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
                 }
             }
             .optionalKeyboardShortcut(shortcut(for: .copy))
@@ -71,17 +69,15 @@ struct PasteboardCommands: Commands {
             .disabled(!appState.hasRowSelection)
 
             Button("Paste") {
-                // Check if user is editing text in a cell (firstResponder is NSTextView field editor)
-                if let firstResponder = NSApp.keyWindow?.firstResponder,
-                   firstResponder is NSTextView {
-                    // User is editing text - let standard paste handle it
+                let action = PasteboardActionRouter.resolvePasteAction(
+                    firstResponder: NSApp.keyWindow?.firstResponder,
+                    isCurrentTabEditable: appState.isCurrentTabEditable
+                )
+                switch action {
+                case .textPaste:
                     NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
-                } else if appState.isCurrentTabEditable {
-                    // Paste rows when in editable table tab
+                case .pasteRows:
                     actions?.pasteRows()
-                } else {
-                    // Fallback to standard paste
-                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
                 }
             }
             .optionalKeyboardShortcut(shortcut(for: .paste))
