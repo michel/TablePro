@@ -396,27 +396,9 @@ final class SQLCompletionProvider {
 
         case .unknown:
             // Start of query - suggest statement keywords and tables
-            items = filterKeywords([
-                // DML
-                "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT",
-                // DDL
-                "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME",
-                // Database operations
-                "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "ANALYZE",
-                // Transaction control
-                "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "START TRANSACTION",
-                // CTEs and advanced
-                "WITH", "RECURSIVE",
-                // Database/schema
-                "USE", "SET", "GRANT", "REVOKE",
-                // Utility
-                "CALL", "EXECUTE", "PREPARE"
-            ])
-            items += await schemaProvider.tableCompletionItems()
-
-            // MongoDB-specific: add MQL method completions (case-sensitive, not uppercased)
             if databaseType == .mongodb {
-                items += [
+                // MongoDB: only MQL method completions, no SQL keywords
+                items = [
                     "db.", "db.runCommand", "db.adminCommand",
                     "db.createView", "db.createCollection",
                     "show dbs", "show collections",
@@ -435,7 +417,25 @@ final class SQLCompletionProvider {
                         insertText: mql
                     )
                 }
+            } else {
+                items = filterKeywords([
+                    // DML
+                    "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT",
+                    // DDL
+                    "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME",
+                    // Database operations
+                    "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "ANALYZE",
+                    // Transaction control
+                    "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "START TRANSACTION",
+                    // CTEs and advanced
+                    "WITH", "RECURSIVE",
+                    // Database/schema
+                    "USE", "SET", "GRANT", "REVOKE",
+                    // Utility
+                    "CALL", "EXECUTE", "PREPARE"
+                ])
             }
+            items += await schemaProvider.tableCompletionItems()
         }
 
         return items

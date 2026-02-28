@@ -602,6 +602,9 @@
         }
       }
     },
+    "1" : {
+
+    },
     "1 (no batching)" : {
       "localizations" : {
         "vi" : {
@@ -642,6 +645,9 @@
         }
       }
     },
+    "2" : {
+
+    },
     "2 spaces" : {
       "localizations" : {
         "vi" : {
@@ -651,6 +657,9 @@
           }
         }
       }
+    },
+    "3" : {
+
     },
     "4 spaces" : {
       "localizations" : {
@@ -4890,6 +4899,9 @@
         }
       }
     },
+    "Majority" : {
+
+    },
     "Manage Connections..." : {
       "localizations" : {
         "vi" : {
@@ -5043,6 +5055,9 @@
         }
       }
     },
+    "MongoDB" : {
+
+    },
     "Move Down" : {
       "localizations" : {
         "vi" : {
@@ -5100,6 +5115,9 @@
       }
     },
     "Navigate to referenced row" : {
+
+    },
+    "Nearest" : {
 
     },
     "Network error: %@" : {
@@ -6257,6 +6275,12 @@
         }
       }
     },
+    "Primary" : {
+
+    },
+    "Primary Preferred" : {
+
+    },
     "Privacy" : {
       "localizations" : {
         "vi" : {
@@ -6439,6 +6463,9 @@
           }
         }
       }
+    },
+    "Read Preference" : {
+
     },
     "Read-only" : {
       "localizations" : {
@@ -7115,6 +7142,12 @@
           }
         }
       }
+    },
+    "Secondary" : {
+
+    },
+    "Secondary Preferred" : {
+
     },
     "SELECT * FROM users WHERE id = 1;" : {
       "localizations" : {
@@ -8812,6 +8845,9 @@
           }
         }
       }
+    },
+    "Write Concern" : {
+
     },
     "Yellow" : {
       "localizations" : {
