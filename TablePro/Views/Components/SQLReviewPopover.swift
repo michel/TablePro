@@ -22,7 +22,25 @@ struct SQLReviewPopover: View {
 
     /// All statements joined for display
     private var combinedSQL: String {
-        statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        let joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        if databaseType == .mongodb {
+            return Self.convertExtendedJsonToShellSyntax(joined)
+        }
+        return joined
+    }
+
+    /// Convert MongoDB Extended JSON to shell-friendly syntax for display.
+    /// e.g. {"$oid": "abc123"} → ObjectId("abc123")
+    private static func convertExtendedJsonToShellSyntax(_ mql: String) -> String {
+        // Match {"$oid": "hexstring"} patterns
+        let pattern = #"\{"\$oid":\s*"([0-9a-fA-F]{24})"\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return mql }
+        let nsString = mql as NSString
+        return regex.stringByReplacingMatches(
+            in: mql,
+            range: NSRange(location: 0, length: nsString.length),
+            withTemplate: #"ObjectId("$1")"#
+        )
     }
 
     /// Calculate popover height based on content lines
@@ -174,7 +192,10 @@ struct SQLReviewPopover: View {
     // MARK: - Clipboard
 
     private func copyAllToClipboard() {
-        let joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        var joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        if databaseType == .mongodb {
+            joined = Self.convertExtendedJsonToShellSyntax(joined)
+        }
         ClipboardService.shared.writeText(joined)
         copied = true
 

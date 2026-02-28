@@ -169,7 +169,7 @@ struct MongoDBStatementGeneratorTests {
 
     // MARK: - UPDATE Tests
 
-    @Test("Simple update with ObjectId _id uses $oid wrapper")
+    @Test("Simple update with ObjectId _id uses $oid extended JSON")
     func testSimpleUpdateWithObjectId() {
         let generator = makeGenerator()
         let changes: [RowChange] = [
@@ -361,7 +361,7 @@ struct MongoDBStatementGeneratorTests {
 
     // MARK: - DELETE Tests
 
-    @Test("Delete with ObjectId _id uses $oid wrapper")
+    @Test("Delete with ObjectId _id uses $oid extended JSON")
     func testDeleteWithObjectId() {
         let generator = makeGenerator()
         let changes: [RowChange] = [

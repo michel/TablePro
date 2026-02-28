@@ -30,6 +30,7 @@ struct MongoDBStatementGenerator {
         insertedRowIndices: Set<Int>
     ) -> [ParameterizedStatement] {
         var statements: [ParameterizedStatement] = []
+        var deleteChanges: [RowChange] = []
 
         for change in changes {
             switch change.type {
@@ -44,6 +45,15 @@ struct MongoDBStatementGenerator {
                 }
             case .delete:
                 guard deletedRowIndices.contains(change.rowIndex) else { continue }
+                deleteChanges.append(change)
+            }
+        }
+
+        // Batch deletes into a single deleteMany when possible
+        if let bulkDelete = generateBulkDelete(from: deleteChanges) {
+            statements.append(bulkDelete)
+        } else {
+            for change in deleteChanges {
                 if let stmt = generateDelete(for: change) {
                     statements.append(stmt)
                 }
@@ -173,6 +183,33 @@ struct MongoDBStatementGenerator {
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 
+    // MARK: - DELETE MANY
+
+    /// Batch multiple deletes into a single deleteMany with $in when all rows have _id
+    private func generateBulkDelete(from changes: [RowChange]) -> ParameterizedStatement? {
+        guard changes.count > 1, let idIndex = idColumnIndex else { return nil }
+
+        var idValues: [String] = []
+        for change in changes {
+            guard let originalRow = change.originalRow,
+                  idIndex < originalRow.count,
+                  let idValue = originalRow[idIndex] else {
+                return nil
+            }
+            if isObjectIdString(idValue) {
+                idValues.append("{\"$oid\": \"\(idValue)\"}")
+            } else if Int64(idValue) != nil {
+                idValues.append(idValue)
+            } else {
+                idValues.append("\"\(escapeJsonString(idValue))\"")
+            }
+        }
+
+        let inList = idValues.joined(separator: ", ")
+        let shell = "db.\(collectionName).deleteMany({\"_id\": {\"$in\": [\(inList)]}})"
+        return ParameterizedStatement(sql: shell, parameters: [])
+    }
+
     // MARK: - DELETE
 
     private func generateDelete(for change: RowChange) -> ParameterizedStatement? {
@@ -205,18 +242,26 @@ struct MongoDBStatementGenerator {
 
     // MARK: - Helpers
 
-    /// Build a filter document for an _id value.
-    /// Handles ObjectId format: if the value looks like a 24-char hex string, wrap in ObjectId()
+    /// Build a filter document for an _id value (Extended JSON for driver execution).
     private func buildIdFilter(_ idValue: String) -> String {
         if isObjectIdString(idValue) {
             return "{\"_id\": {\"$oid\": \"\(idValue)\"}}"
         }
-        // Try as number
         if Int64(idValue) != nil {
             return "{\"_id\": \(idValue)}"
         }
-        // String _id
         return "{\"_id\": \"\(escapeJsonString(idValue))\"}"
+    }
+
+    /// Format an _id value for display in MQL preview (shell-friendly syntax).
+    private func formatIdValueForDisplay(_ idValue: String) -> String {
+        if isObjectIdString(idValue) {
+            return "ObjectId(\"\(idValue)\")"
+        }
+        if Int64(idValue) != nil {
+            return idValue
+        }
+        return "\"\(escapeJsonString(idValue))\""
     }
 
     /// Check if a string looks like a MongoDB ObjectId (24 hex characters)
