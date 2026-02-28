@@ -229,6 +229,11 @@ final class MainContentCoordinator: ObservableObject {
         options: []
     )
 
+    private static let mongoCollectionRegex = try? NSRegularExpression(
+        pattern: #"^\s*db\.(\w+)\."#,
+        options: []
+    )
+
     // MARK: - Query Execution
 
     func runQuery() {
@@ -581,12 +586,23 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - SQL Parsing
 
     func extractTableName(from sql: String) -> String? {
-        guard let regex = Self.tableNameRegex,
-              let match = regex.firstMatch(in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
-              let range = Range(match.range(at: 1), in: sql) else {
-            return nil
+        let nsRange = NSRange(sql.startIndex..., in: sql)
+
+        // SQL: SELECT ... FROM tableName
+        if let regex = Self.tableNameRegex,
+           let match = regex.firstMatch(in: sql, options: [], range: nsRange),
+           let range = Range(match.range(at: 1), in: sql) {
+            return String(sql[range])
         }
-        return String(sql[range])
+
+        // MQL: db.collectionName.find(...)
+        if let regex = Self.mongoCollectionRegex,
+           let match = regex.firstMatch(in: sql, options: [], range: nsRange),
+           let range = Range(match.range(at: 1), in: sql) {
+            return String(sql[range])
+        }
+
+        return nil
     }
 
     private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
