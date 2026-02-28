@@ -150,7 +150,12 @@ extension MainContentCoordinator {
             ORDER BY name
             """
         case .mongodb:
-            sql = "db.runCommand({\"listCollections\": 1, \"nameOnly\": false})"
+            tabManager.addTab(
+                initialQuery: "db.runCommand({\"listCollections\": 1, \"nameOnly\": false})",
+                databaseName: connection.database
+            )
+            runQuery()
+            return
         }
 
         let payload = EditorTabPayload(
