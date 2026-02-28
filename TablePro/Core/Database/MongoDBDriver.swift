@@ -532,135 +532,9 @@ private extension MongoDBDriver {
                 error: nil
             )
 
-        case .insertOne(let collection, let document):
-            let insertedId = try await conn.insertOne(database: db, collection: collection, document: document)
-            let idStr = insertedId ?? "null"
-            return QueryResult(
-                columns: ["insertedId"],
-                columnTypes: [.text(rawType: "ObjectId")],
-                rows: [[idStr]],
-                rowsAffected: 1,
-                executionTime: Date().timeIntervalSince(startTime),
-                error: nil
-            )
-
-        case .insertMany(let collection, let documents):
-            // insertMany is not directly on MongoDBConnection, use runCommand
-            let cmd = "{\"insert\": \"\(escapeJsonString(collection))\", \"documents\": \(documents)}"
-            let result = try await conn.runCommand(cmd, database: db)
-            let inserted = (result.first?["n"] as? Int) ?? 0
-            return QueryResult(
-                columns: ["insertedCount"],
-                columnTypes: [.integer(rawType: "Int32")],
-                rows: [[String(inserted)]],
-                rowsAffected: inserted,
-                executionTime: Date().timeIntervalSince(startTime),
-                error: nil
-            )
-
-        case .updateOne(let collection, let filter, let update):
-            let modified = try await conn.updateOne(database: db, collection: collection, filter: filter, update: update)
-            return QueryResult(
-                columns: ["modifiedCount"],
-                columnTypes: [.integer(rawType: "Int64")],
-                rows: [[String(modified)]],
-                rowsAffected: Int(modified),
-                executionTime: Date().timeIntervalSince(startTime),
-                error: nil
-            )
-
-        case .updateMany(let collection, let filter, let update):
-            // updateMany via runCommand
-            let cmd = """
-                {"update": "\(escapeJsonString(collection))", \
-                "updates": [{"q": \(filter), "u": \(update), "multi": true}]}
-                """
-            let result = try await conn.runCommand(cmd, database: db)
-            let modified = (result.first?["nModified"] as? Int64)
-                ?? (result.first?["nModified"] as? Int).map(Int64.init)
-                ?? 0
-            return QueryResult(
-                columns: ["modifiedCount"],
-                columnTypes: [.integer(rawType: "Int64")],
-                rows: [[String(modified)]],
-                rowsAffected: Int(modified),
-                executionTime: Date().timeIntervalSince(startTime),
-                error: nil
-            )
-
-        case .replaceOne(let collection, let filter, let replacement):
-            let modified = try await conn.updateOne(
-                database: db,
-                collection: collection,
-                filter: filter,
-                update: replacement
-            )
-            return QueryResult(
-                columns: ["modifiedCount"],
-                columnTypes: [.integer(rawType: "Int64")],
-                rows: [[String(modified)]],
-                rowsAffected: Int(modified),
-                executionTime: Date().timeIntervalSince(startTime),
-                error: nil
-            )
-
-        case .deleteOne(let collection, let filter):
-            let deleted = try await conn.deleteOne(database: db, collection: collection, filter: filter)
-            return QueryResult(
-                columns: ["deletedCount"],
-                columnTypes: [.integer(rawType: "Int64")],
-                rows: [[String(deleted)]],
-                rowsAffected: Int(deleted),
-                executionTime: Date().timeIntervalSince(startTime),
-                error: nil
-            )
-
-        case .deleteMany(let collection, let filter):
-            // deleteMany via runCommand
-            let cmd = """
-                {"delete": "\(escapeJsonString(collection))", \
-                "deletes": [{"q": \(filter), "limit": 0}]}
-                """
-            let result = try await conn.runCommand(cmd, database: db)
-            let deleted = (result.first?["n"] as? Int64)
-                ?? (result.first?["n"] as? Int).map(Int64.init)
-                ?? 0
-            return QueryResult(
-                columns: ["deletedCount"],
-                columnTypes: [.integer(rawType: "Int64")],
-                rows: [[String(deleted)]],
-                rowsAffected: Int(deleted),
-                executionTime: Date().timeIntervalSince(startTime),
-                error: nil
-            )
-
-        case .createIndex(let collection, let keys, let options):
-            var indexDoc = "{\"key\": \(keys)"
-            if let opts = options {
-                // Merge options into the index specification
-                indexDoc += ", " + String(opts.dropFirst()) // Drop leading '{'
-            } else {
-                indexDoc += "}"
-            }
-            let cmd = """
-                {"createIndexes": "\(escapeJsonString(collection))", \
-                "indexes": [\(indexDoc)]}
-                """
-            let result = try await conn.runCommand(cmd, database: db)
-            return buildQueryResult(from: result, startTime: startTime)
-
-        case .dropIndex(let collection, let indexName):
-            let cmd = """
-                {"dropIndexes": "\(escapeJsonString(collection))", \
-                "index": "\(escapeJsonString(indexName))"}
-                """
-            let result = try await conn.runCommand(cmd, database: db)
-            return buildQueryResult(from: result, startTime: startTime)
-
-        case .drop(let collection):
-            let cmd = "{\"drop\": \"\(escapeJsonString(collection))\"}"
-            let result = try await conn.runCommand(cmd, database: db)
-            return buildQueryResult(from: result, startTime: startTime)
+        case .insertOne, .insertMany, .updateOne, .updateMany, .replaceOne,
+             .deleteOne, .deleteMany, .createIndex, .dropIndex, .drop:
+            return try await executeWriteOperation(operation, connection: conn, database: db, startTime: startTime)
 
         case .runCommand(let command):
             let result = try await conn.runCommand(command, database: db)
@@ -698,6 +572,141 @@ private extension MongoDBDriver {
                 executionTime: Date().timeIntervalSince(startTime),
                 error: nil
             )
+        }
+    }
+
+    func executeWriteOperation(
+        _ operation: MongoOperation,
+        connection conn: MongoDBConnection,
+        database db: String,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
+        case .insertOne(let collection, let document):
+            let insertedId = try await conn.insertOne(database: db, collection: collection, document: document)
+            let idStr = insertedId ?? "null"
+            return QueryResult(
+                columns: ["insertedId"],
+                columnTypes: [.text(rawType: "ObjectId")],
+                rows: [[idStr]],
+                rowsAffected: 1,
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+
+        case .insertMany(let collection, let documents):
+            let cmd = "{\"insert\": \"\(escapeJsonString(collection))\", \"documents\": \(documents)}"
+            let result = try await conn.runCommand(cmd, database: db)
+            let inserted = (result.first?["n"] as? Int) ?? 0
+            return QueryResult(
+                columns: ["insertedCount"],
+                columnTypes: [.integer(rawType: "Int32")],
+                rows: [[String(inserted)]],
+                rowsAffected: inserted,
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+
+        case .updateOne(let collection, let filter, let update):
+            let modified = try await conn.updateOne(database: db, collection: collection, filter: filter, update: update)
+            return QueryResult(
+                columns: ["modifiedCount"],
+                columnTypes: [.integer(rawType: "Int64")],
+                rows: [[String(modified)]],
+                rowsAffected: Int(modified),
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+
+        case .updateMany(let collection, let filter, let update):
+            let cmd = """
+                {"update": "\(escapeJsonString(collection))", \
+                "updates": [{"q": \(filter), "u": \(update), "multi": true}]}
+                """
+            let result = try await conn.runCommand(cmd, database: db)
+            let modified = (result.first?["nModified"] as? Int64)
+                ?? (result.first?["nModified"] as? Int).map(Int64.init)
+                ?? 0
+            return QueryResult(
+                columns: ["modifiedCount"],
+                columnTypes: [.integer(rawType: "Int64")],
+                rows: [[String(modified)]],
+                rowsAffected: Int(modified),
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+
+        case .replaceOne(let collection, let filter, let replacement):
+            let modified = try await conn.updateOne(
+                database: db, collection: collection, filter: filter, update: replacement
+            )
+            return QueryResult(
+                columns: ["modifiedCount"],
+                columnTypes: [.integer(rawType: "Int64")],
+                rows: [[String(modified)]],
+                rowsAffected: Int(modified),
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+
+        case .deleteOne(let collection, let filter):
+            let deleted = try await conn.deleteOne(database: db, collection: collection, filter: filter)
+            return QueryResult(
+                columns: ["deletedCount"],
+                columnTypes: [.integer(rawType: "Int64")],
+                rows: [[String(deleted)]],
+                rowsAffected: Int(deleted),
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+
+        case .deleteMany(let collection, let filter):
+            let cmd = """
+                {"delete": "\(escapeJsonString(collection))", \
+                "deletes": [{"q": \(filter), "limit": 0}]}
+                """
+            let result = try await conn.runCommand(cmd, database: db)
+            let deleted = (result.first?["n"] as? Int64)
+                ?? (result.first?["n"] as? Int).map(Int64.init)
+                ?? 0
+            return QueryResult(
+                columns: ["deletedCount"],
+                columnTypes: [.integer(rawType: "Int64")],
+                rows: [[String(deleted)]],
+                rowsAffected: Int(deleted),
+                executionTime: Date().timeIntervalSince(startTime),
+                error: nil
+            )
+
+        case .createIndex(let collection, let keys, let options):
+            var indexDoc = "{\"key\": \(keys)"
+            if let opts = options {
+                indexDoc += ", " + String(opts.dropFirst())
+            } else {
+                indexDoc += "}"
+            }
+            let cmd = """
+                {"createIndexes": "\(escapeJsonString(collection))", \
+                "indexes": [\(indexDoc)]}
+                """
+            let result = try await conn.runCommand(cmd, database: db)
+            return buildQueryResult(from: result, startTime: startTime)
+
+        case .dropIndex(let collection, let indexName):
+            let cmd = """
+                {"dropIndexes": "\(escapeJsonString(collection))", \
+                "index": "\(escapeJsonString(indexName))"}
+                """
+            let result = try await conn.runCommand(cmd, database: db)
+            return buildQueryResult(from: result, startTime: startTime)
+
+        case .drop(let collection):
+            let cmd = "{\"drop\": \"\(escapeJsonString(collection))\"}"
+            let result = try await conn.runCommand(cmd, database: db)
+            return buildQueryResult(from: result, startTime: startTime)
+
+        default:
+            throw DatabaseError.queryFailed("Unexpected operation in write dispatch")
         }
     }
 }
