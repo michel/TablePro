@@ -431,6 +431,7 @@ struct ConnectionFormView: View {
         case .mysql, .mariadb: return "3306"
         case .postgresql: return "5432"
         case .sqlite: return ""
+        case .mongodb: return "27017"
         }
     }
 

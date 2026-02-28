@@ -149,6 +149,8 @@ extension MainContentCoordinator {
             AND name NOT LIKE 'sqlite_%'
             ORDER BY name
             """
+        case .mongodb:
+            sql = "// MongoDB does not support SQL metadata queries"
         }
 
         let payload = EditorTabPayload(

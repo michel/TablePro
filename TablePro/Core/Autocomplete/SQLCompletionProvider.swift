@@ -460,6 +460,11 @@ final class SQLCompletionProvider {
                 "BLOB",
             ]
 
+        case .mongodb:
+            types += [
+                "BLOB",
+            ]
+
         case .none:
             // Include all types if database type is unknown
             types += [

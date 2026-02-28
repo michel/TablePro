@@ -439,6 +439,25 @@ struct ExportDialog: View {
                     ))
                 }
 
+            case .mongodb:
+                // MongoDB: similar to SQLite, fetch collections directly
+                let tables = try await driver.fetchTables()
+                let tableItems = tables.map { table in
+                    ExportTableItem(
+                        name: table.name,
+                        databaseName: "",
+                        type: table.type,
+                        isSelected: preselectedTables.contains(table.name)
+                    )
+                }
+                if !tableItems.isEmpty {
+                    items.append(ExportDatabaseItem(
+                        name: connection.database.isEmpty ? "main" : connection.database,
+                        tables: tableItems,
+                        isExpanded: true
+                    ))
+                }
+
             case .mysql, .mariadb:
                 // MySQL/MariaDB: fetch all databases and their tables
                 let databases = try await driver.fetchDatabases()

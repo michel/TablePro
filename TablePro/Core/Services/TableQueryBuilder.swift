@@ -317,7 +317,7 @@ struct TableQueryBuilder {
             return "\(column)::TEXT LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mysql, .mariadb:
             return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%'"
-        case .sqlite:
+        case .sqlite, .mongodb:
             return "\(column) LIKE '%\(searchText)%' ESCAPE '\\'"
         }
     }

@@ -116,7 +116,7 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return ""
-        case .postgresql, .sqlite:
+        case .postgresql, .sqlite, .mongodb:
             return " ESCAPE '\\'"
         }
     }
@@ -141,7 +141,7 @@ struct FilterSQLGenerator {
             return "\(column) REGEXP '\(escapedPattern)'"
         case .postgresql:
             return "\(column) ~ '\(escapedPattern)'"
-        case .sqlite:
+        case .sqlite, .mongodb:
             // Should not reach here — filtered in generateCondition
             return "\(column) LIKE '%\(escapedPattern)%'"
         }

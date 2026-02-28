@@ -286,6 +286,8 @@ final class ImportService: ObservableObject {
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = OFF"]
+        case .mongodb:
+            return []
         }
     }
 
@@ -297,6 +299,8 @@ final class ImportService: ObservableObject {
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
+        case .mongodb:
+            return []
         }
     }
 
@@ -306,6 +310,8 @@ final class ImportService: ObservableObject {
             return "START TRANSACTION"
         case .postgresql, .sqlite:
             return "BEGIN"
+        case .mongodb:
+            return ""
         }
     }
 

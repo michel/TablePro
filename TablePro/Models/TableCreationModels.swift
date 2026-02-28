@@ -299,7 +299,7 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "BIT"]
             case .postgresql:
                 return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
-            case .sqlite:
+            case .sqlite, .mongodb:
                 return ["INTEGER", "REAL", "NUMERIC"]
             }
         case .string:
@@ -308,7 +308,7 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"]
             case .postgresql:
                 return ["CHAR", "VARCHAR", "TEXT"]
-            case .sqlite:
+            case .sqlite, .mongodb:
                 return ["TEXT"]
             }
         case .dateTime:
@@ -317,7 +317,7 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"]
             case .postgresql:
                 return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
-            case .sqlite:
+            case .sqlite, .mongodb:
                 return ["DATE", "DATETIME"]
             }
         case .binary:
@@ -326,7 +326,7 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"]
             case .postgresql:
                 return ["BYTEA"]
-            case .sqlite:
+            case .sqlite, .mongodb:
                 return ["BLOB"]
             }
         case .other:
@@ -335,7 +335,7 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BOOLEAN", "ENUM", "SET", "JSON"]
             case .postgresql:
                 return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
-            case .sqlite:
+            case .sqlite, .mongodb:
                 return ["BOOLEAN"]
             }
         }

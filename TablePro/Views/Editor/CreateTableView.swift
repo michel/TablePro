@@ -702,6 +702,7 @@ struct CreateTableView: View {
                         "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
                     }
                 case .sqlite: "SELECT name FROM sqlite_master WHERE type='table'"
+                case .mongodb: "SELECT name FROM sqlite_master WHERE type='table'"  // Placeholder until MongoDBDriver
                 }
                 let result = try await driver.execute(query: query)
                 await MainActor.run {
@@ -763,6 +764,9 @@ struct CreateTableView: View {
 
                 case .sqlite:
                     columnsQuery = "PRAGMA table_info('\(tableName)')"
+
+                case .mongodb:
+                    columnsQuery = ""  // MongoDB doesn't use SQL schema queries
                 }
 
                 let result = try await driver.execute(query: columnsQuery)
@@ -862,6 +866,9 @@ struct CreateTableView: View {
                             if isPk {
                                 newPrimaryKeys.append(columnName)
                             }
+
+                        case .mongodb:
+                            break  // MongoDB schema parsing not yet implemented
                         }
                     }
 

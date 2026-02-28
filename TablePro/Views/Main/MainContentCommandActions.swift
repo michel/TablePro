@@ -322,6 +322,8 @@ final class MainContentCommandActions: ObservableObject {
             template = "CREATE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         case .sqlite:
             template = "CREATE VIEW IF NOT EXISTS view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
+        case .mongodb:
+            template = "// MongoDB does not support SQL views"
         }
 
         let payload = EditorTabPayload(
@@ -611,6 +613,8 @@ final class MainContentCommandActions: ObservableObject {
                     fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
                 case .sqlite:
                     fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"
+                case .mongodb:
+                    fallbackSQL = "// MongoDB does not support SQL views"
                 }
 
                 let payload = EditorTabPayload(
