@@ -95,30 +95,6 @@ struct ConnectionURLParserTests {
         #expect(parsed.host == "host")
     }
 
-    // MARK: - MongoDB
-
-    @Test("MongoDB URL")
-    func testMongoDBURL() {
-        let result = ConnectionURLParser.parse("mongodb://admin:pass@mongo.example.com:27017/admin")
-        guard case .success(let parsed) = result else {
-            Issue.record("Expected success"); return
-        }
-        #expect(parsed.type == .mongodb)
-        #expect(parsed.host == "mongo.example.com")
-        #expect(parsed.port == 27017)
-        #expect(parsed.database == "admin")
-    }
-
-    @Test("MongoDB+SRV URL")
-    func testMongoDBSrvURL() {
-        let result = ConnectionURLParser.parse("mongodb+srv://user:pass@cluster.mongodb.net/mydb")
-        guard case .success(let parsed) = result else {
-            Issue.record("Expected success"); return
-        }
-        #expect(parsed.type == .mongodb)
-        #expect(parsed.host == "cluster.mongodb.net")
-    }
-
     // MARK: - SQLite
 
     @Test("SQLite absolute path")

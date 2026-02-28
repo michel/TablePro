@@ -67,8 +67,6 @@ struct ConnectionURLParser {
             dbType = .mysql
         case "mariadb":
             dbType = .mariadb
-        case "mongodb", "mongodb+srv":
-            dbType = .mongodb
         case "sqlite":
             dbType = .sqlite
         default:
