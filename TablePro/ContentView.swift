@@ -39,7 +39,16 @@ struct ContentView: View {
 
     init(payload: EditorTabPayload?) {
         self.payload = payload
-        _windowTitle = State(initialValue: payload?.tableName ?? "SQL Query")
+        let defaultTitle: String
+        if let tableName = payload?.tableName {
+            defaultTitle = tableName
+        } else if let connectionId = payload?.connectionId,
+                  let connection = ConnectionStorage.shared.loadConnections().first(where: { $0.id == connectionId }) {
+            defaultTitle = connection.type == .mongodb ? "MQL Query" : "SQL Query"
+        } else {
+            defaultTitle = "SQL Query"
+        }
+        _windowTitle = State(initialValue: defaultTitle)
     }
 
     var body: some View {
