@@ -826,7 +826,7 @@ private extension MongoDBConnection {
               let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             return [:]
         }
-        return dict
+        return Self.unwrapExtendedJson(dict) as? [String: Any] ?? dict
     }
 
     func bsonToJson(_ bson: OpaquePointer?) -> String? {
@@ -835,6 +835,57 @@ private extension MongoDBConnection {
         guard let jsonCStr = bson_as_canonical_extended_json(bson, &length) else { return nil }
         defer { bson_free(jsonCStr) }
         return String(cString: jsonCStr)
+    }
+
+    /// Recursively unwrap BSON Extended JSON wrappers into native Swift types.
+    /// e.g. {"$oid":"abc"} → "abc", {"$numberInt":"30"} → 30, {"$date":{...}} → Date
+    static func unwrapExtendedJson(_ value: Any) -> Any {
+        if let dict = value as? [String: Any] {
+            if dict.count == 1 {
+                if let oid = dict["$oid"] as? String { return oid }
+                if let s = dict["$numberInt"] as? String, let n = Int32(s) { return n }
+                if let s = dict["$numberLong"] as? String, let n = Int64(s) { return n }
+                if let s = dict["$numberDouble"] as? String, let n = Double(s) { return n }
+                if let s = dict["$numberDecimal"] as? String { return s }
+                if let b = dict["$regularExpression"] as? [String: Any],
+                   let pattern = b["pattern"] as? String,
+                   let options = b["options"] as? String {
+                    return "/\(pattern)/\(options)"
+                }
+                if let dateVal = dict["$date"] {
+                    if let ms = dateVal as? [String: Any],
+                       let msStr = ms["$numberLong"] as? String,
+                       let msInt = Int64(msStr) {
+                        return Date(timeIntervalSince1970: Double(msInt) / 1000.0)
+                    }
+                    if let isoStr = dateVal as? String {
+                        let fmt = ISO8601DateFormatter()
+                        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                        return fmt.date(from: isoStr) ?? isoStr
+                    }
+                    return dateVal
+                }
+                if let b = dict["$binary"] as? [String: Any],
+                   let base64 = b["base64"] as? String {
+                    return Data(base64Encoded: base64) ?? base64
+                }
+                if let ts = dict["$timestamp"] as? [String: Any],
+                   let t = ts["t"], let i = ts["i"] {
+                    return "Timestamp(\(t), \(i))"
+                }
+                if dict["$minKey"] != nil { return "MinKey" }
+                if dict["$maxKey"] != nil { return "MaxKey" }
+                if dict["$undefined"] != nil { return NSNull() }
+            }
+            // Recurse into non-Extended-JSON dicts
+            var result: [String: Any] = [:]
+            for (k, v) in dict { result[k] = unwrapExtendedJson(v) }
+            return result
+        }
+        if let arr = value as? [Any] {
+            return arr.map { unwrapExtendedJson($0) }
+        }
+        return value
     }
 }
 #endif
