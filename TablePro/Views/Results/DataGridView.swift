@@ -899,7 +899,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             isEditable: isEditable && !state.isDeleted,
             isLargeDataset: isLargeDataset,
             isFocused: isFocused,
-            isDropdown: isDropdown || isTypePicker,
+            isDropdown: isEditable && (isDropdown || isTypePicker),
             isFKColumn: isFKColumn && !isDropdown && !(typePickerColumns?.contains(columnIndex) == true),
             fkArrowTarget: self,
             fkArrowAction: #selector(handleFKArrowClick(_:)),
