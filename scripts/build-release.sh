@@ -221,19 +221,12 @@ bundle_dylibs() {
         echo "   ⚠️  WARNING: Could not determine deployment target, skipping dylib version check"
     fi
 
-    # Ad-hoc sign everything (required on Apple Silicon)
-    # Sign inner components first (dylibs, frameworks), then the app bundle last.
-    # Signing the bundle seals resources so Sparkle can validate the update.
-    echo "   Signing bundled libraries and frameworks..."
+    # Ad-hoc sign bundled dylibs (required on Apple Silicon)
+    echo "   Signing bundled libraries..."
     for fw in "$frameworks_dir"/*.dylib; do
         [ -f "$fw" ] || continue
         codesign -fs - --force "$fw" 2>/dev/null || true
     done
-    for fw in "$frameworks_dir"/*.framework; do
-        [ -d "$fw" ] || continue
-        codesign -fs - --force "$fw" 2>/dev/null || true
-    done
-    codesign -fs - --force "$app_path"
 
     echo "✅ Bundled $count dynamic libraries into Frameworks/"
     ls -lh "$frameworks_dir"/*.dylib 2>/dev/null
@@ -346,6 +339,16 @@ build_for_arch() {
 
     # Bundle non-system dynamic libraries (libpq, OpenSSL, etc.)
     bundle_dylibs "$BUILD_DIR/$OUTPUT_NAME"
+
+    # Ad-hoc sign the entire app bundle (required for Sparkle update validation).
+    # Sign inner frameworks first, then the app bundle last to seal resources.
+    echo "🔏 Signing app bundle..."
+    FRAMEWORKS_DIR="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks"
+    for fw in "$FRAMEWORKS_DIR"/*.framework; do
+        [ -d "$fw" ] || continue
+        codesign -fs - --force "$fw" 2>/dev/null || true
+    done
+    codesign -fs - --force "$BUILD_DIR/$OUTPUT_NAME"
 
     # Verify binary exists inside the copied bundle
     BINARY_PATH="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS/TablePro"
