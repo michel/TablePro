@@ -9,10 +9,11 @@
 import AppKit
 import SwiftUI
 
-/// Read-only text view that applies SQL syntax highlighting via regex
+/// Read-only text view that applies SQL/MQL syntax highlighting via regex
 struct HighlightedSQLTextView: NSViewRepresentable {
     let sql: String
     var fontSize: CGFloat = 13
+    var databaseType: DatabaseType = .mysql
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSTextView.scrollableTextView()
@@ -104,6 +105,58 @@ struct HighlightedSQLTextView: NSViewRepresentable {
         return patterns
     }()
 
+    // MARK: - Pre-compiled MQL Syntax Patterns
+
+    private static let mqlPatterns: [(regex: NSRegularExpression, color: NSColor)] = {
+        var patterns: [(NSRegularExpression, NSColor)] = []
+
+        // MongoDB methods (blue)
+        let methods = [
+            "find", "findOne", "insertOne", "insertMany", "updateOne", "updateMany",
+            "deleteOne", "deleteMany", "aggregate", "countDocuments", "estimatedDocumentCount",
+            "distinct", "createIndex", "dropIndex", "sort", "limit", "skip", "project",
+            "match", "group", "unwind", "lookup", "replaceOne", "drop"
+        ]
+        for method in methods {
+            if let regex = try? NSRegularExpression(pattern: "\\.(\(method))\\s*\\(", options: []) {
+                patterns.append((regex, .systemBlue))
+            }
+        }
+
+        // db. prefix (blue)
+        if let regex = try? NSRegularExpression(pattern: "\\bdb\\.", options: []) {
+            patterns.append((regex, .systemBlue))
+        }
+
+        // MongoDB operators $gt, $lt, $in, etc. (teal)
+        if let regex = try? NSRegularExpression(
+            pattern: "\"\\$(gt|gte|lt|lte|eq|ne|in|nin|and|or|not|nor|exists|type|regex|options|"
+                + "set|unset|inc|push|pull|addToSet|each|match|group|project|sort|limit|skip|"
+                + "unwind|lookup|count|sum|avg|min|max|first|last|dateToString|toString|toInt|"
+                + "oid|numberInt|numberLong|numberDouble|date|binary|timestamp|numberDecimal)\"",
+            options: []
+        ) {
+            patterns.append((regex, .systemTeal))
+        }
+
+        // Strings (red)
+        if let regex = try? NSRegularExpression(pattern: "\"[^\"]*\"", options: []) {
+            patterns.append((regex, .systemRed))
+        }
+
+        // Numbers (purple)
+        if let regex = try? NSRegularExpression(pattern: "\\b\\d+\\.?\\d*\\b", options: []) {
+            patterns.append((regex, .systemPurple))
+        }
+
+        // Booleans and null (orange)
+        if let regex = try? NSRegularExpression(pattern: "\\b(true|false|null)\\b", options: []) {
+            patterns.append((regex, .systemOrange))
+        }
+
+        return patterns
+    }()
+
     private func applyHighlighting(to textView: NSTextView) {
         guard let textStorage = textView.textStorage else { return }
         guard textStorage.length > 0 else { return }
@@ -118,8 +171,9 @@ struct HighlightedSQLTextView: NSViewRepresentable {
         textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
 
         // Apply pre-compiled patterns
+        let activePatterns = databaseType == .mongodb ? Self.mqlPatterns : Self.syntaxPatterns
         let text = textStorage.string
-        for (regex, color) in Self.syntaxPatterns {
+        for (regex, color) in activePatterns {
             let matches = regex.matches(in: text, options: [], range: fullRange)
             for match in matches {
                 textStorage.addAttribute(.foregroundColor, value: color, range: match.range)

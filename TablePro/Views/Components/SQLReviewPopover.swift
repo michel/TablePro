@@ -127,7 +127,7 @@ struct SQLReviewPopover: View {
         if isEditorReady {
             SourceEditor(
                 .constant(combinedSQL),
-                language: .sql,
+                language: databaseType == .mongodb ? .javascript : .sql,
                 configuration: Self.makeConfiguration(),
                 state: $editorState
             )
