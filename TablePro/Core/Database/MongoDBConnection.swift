@@ -818,8 +818,9 @@ private extension MongoDBConnection {
 
 // bsonToDict and bsonToJson take bson_t parameters (a CLibMongoc type),
 // so they must be gated at the extension level.
+// Internal (not private) so tests can access unwrapExtendedJson.
 #if canImport(CLibMongoc)
-private extension MongoDBConnection {
+extension MongoDBConnection {
     func bsonToDict(_ bson: OpaquePointer?) -> [String: Any] {
         guard let bson = bson, let jsonStr = bsonToJson(bson),
               let data = jsonStr.data(using: .utf8),
