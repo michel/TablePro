@@ -8,6 +8,7 @@
             <sparkle:version>20</sparkle:version>
             <sparkle:shortVersionString>0.9.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:releaseNotesLink>https://github.com/datlechin/TablePro/releases/tag/v0.9.3</sparkle:releaseNotesLink>
             <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.9.3/TablePro-0.9.3-arm64.zip" length="21594856" type="application/octet-stream" sparkle:edSignature="+i8FKtzE/ke7Tbjh/gbY4fBKfShSC8wbmS5mmVCR+1d6eVHjdk7J0pqawB75Hg6c8XY4yVw+D3fFEOG8DYoUBQ==" sparkle:architectures="arm64"/>
         </item>
         <item>
@@ -16,6 +17,7 @@
             <sparkle:version>20</sparkle:version>
             <sparkle:shortVersionString>0.9.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:releaseNotesLink>https://github.com/datlechin/TablePro/releases/tag/v0.9.3</sparkle:releaseNotesLink>
             <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.9.3/TablePro-0.9.3-x86_64.zip" length="22077259" type="application/octet-stream" sparkle:edSignature="wt59yu3zcluOy/rqtrH72bibC+t37Han7vqY25O+IqZevrdL7c+VOsKTnUCEfPyAfQAfWzY/1GIHK3Wx/K6/Aw==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
