@@ -122,7 +122,7 @@ final class VimEngine {
             let digit = char.wholeNumberValue ?? 0
             if countPrefix > 0 || digit > 0 {
                 // Cap at 99999 to prevent arithmetic overflow from rapid key repeat
-                guard countPrefix <= 99999 else { return true }
+                guard countPrefix <= 99_999 else { return true }
                 countPrefix = countPrefix * 10 + digit
                 return true
             }

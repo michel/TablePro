@@ -121,7 +121,7 @@ actor ConnectionHealthMonitor {
                     }
 
                     // Wait for whichever finishes first, cancel the other
-                    if let _ = await group.next() {
+                    if await group.next() != nil {
                         group.cancelAll()
                     }
                 }

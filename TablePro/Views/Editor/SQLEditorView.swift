@@ -101,7 +101,7 @@ struct SQLEditorView: View {
                     coordinator.onCloseTab = onCloseTab
                     coordinator.onExecuteQuery = onExecuteQuery
                     editorReady = true
-                        }
+                }
             }
         }
         .onDisappear {

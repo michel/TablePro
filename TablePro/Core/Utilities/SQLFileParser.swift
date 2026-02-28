@@ -60,6 +60,12 @@ final class SQLFileParser: Sendable {
         char == kSpace || char == kTab || char == kNewline || char == kCarriageReturn
     }
 
+    private static func markContent(
+        _ hasContent: Bool, _ startLine: Int, _ currentLine: Int
+    ) -> (Bool, Int) {
+        hasContent ? (true, startLine) : (true, currentLine)
+    }
+
     /// Append a single UTF-16 code unit to an NSMutableString. O(1) amortized.
     private static func appendChar(_ char: unichar, to string: NSMutableString?) {
         guard let string else { return }
@@ -146,24 +152,15 @@ final class SQLFileParser: Sendable {
                                     didManuallyAdvance = true
                                 } else if char == Self.kSingleQuote {
                                     state = .inSingleQuotedString
-                                    if !hasStatementContent {
-                                        statementStartLine = currentLine
-                                        hasStatementContent = true
-                                    }
+                                    (hasStatementContent, statementStartLine) = Self.markContent(hasStatementContent, statementStartLine, currentLine)
                                     Self.appendChar(char, to: currentStatement)
                                 } else if char == Self.kDoubleQuote {
                                     state = .inDoubleQuotedString
-                                    if !hasStatementContent {
-                                        statementStartLine = currentLine
-                                        hasStatementContent = true
-                                    }
+                                    (hasStatementContent, statementStartLine) = Self.markContent(hasStatementContent, statementStartLine, currentLine)
                                     Self.appendChar(char, to: currentStatement)
                                 } else if char == Self.kBacktick {
                                     state = .inBacktickQuotedString
-                                    if !hasStatementContent {
-                                        statementStartLine = currentLine
-                                        hasStatementContent = true
-                                    }
+                                    (hasStatementContent, statementStartLine) = Self.markContent(hasStatementContent, statementStartLine, currentLine)
                                     Self.appendChar(char, to: currentStatement)
                                 } else if char == Self.kSemicolon {
                                     if hasStatementContent {

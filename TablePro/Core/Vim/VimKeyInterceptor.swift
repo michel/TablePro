@@ -15,7 +15,7 @@ final class VimKeyInterceptor {
     private weak var inlineSuggestionManager: InlineSuggestionManager?
     private var monitor: Any?
     private weak var controller: TextViewController?
-    private nonisolated(unsafe) var popupCloseObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var popupCloseObserver: NSObjectProtocol?
 
     init(engine: VimEngine, inlineSuggestionManager: InlineSuggestionManager?) {
         self.engine = engine
