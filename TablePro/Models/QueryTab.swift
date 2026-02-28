@@ -568,11 +568,17 @@ final class QueryTabManager: ObservableObject {
             return
         }
 
-        let quotedName = databaseType.quoteIdentifier(tableName)
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+        let query: String
+        if databaseType == .mongodb {
+            query = "db.\(tableName).find({}).limit(\(pageSize))"
+        } else {
+            let quotedName = databaseType.quoteIdentifier(tableName)
+            query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
+        }
         var newTab = QueryTab(
             title: tableName,
-            query: "SELECT * FROM \(quotedName) LIMIT \(pageSize);",
+            query: query,
             tabType: .table,
             tableName: tableName
         )
@@ -629,15 +635,21 @@ final class QueryTabManager: ObservableObject {
             return false
         }
 
-        let quotedName = databaseType.quoteIdentifier(tableName)
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+        let query: String
+        if databaseType == .mongodb {
+            query = "db.\(tableName).find({}).limit(\(pageSize))"
+        } else {
+            let quotedName = databaseType.quoteIdentifier(tableName)
+            query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
+        }
 
         // Build locally and write back once to avoid 14 CoW copies (UI-11).
         var tab = tabs[selectedIndex]
         tab.rowBuffer = RowBuffer()
         tab.title = tableName
         tab.tableName = tableName
-        tab.query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
+        tab.query = query
         tab.resultVersion += 1
         tab.executionTime = nil
         tab.errorMessage = nil

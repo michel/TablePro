@@ -349,6 +349,13 @@ final class DatabaseManager: ObservableObject {
             remotePort: connection.port
         )
 
+        // Adapt SSL config for tunnel: certificate file paths reference the
+        // remote environment and aren't readable locally, so strip them and
+        // use at least .preferred so libpq negotiates SSL when the server
+        // requires it (SSH already authenticates the server itself).
+        var tunnelSSL = SSLConfiguration()
+        tunnelSSL.mode = connection.sslConfig.isEnabled ? .required : .preferred
+
         return DatabaseConnection(
             id: connection.id,
             name: connection.name,
@@ -358,7 +365,7 @@ final class DatabaseManager: ObservableObject {
             username: connection.username,
             type: connection.type,
             sshConfig: SSHConfiguration(),
-            sslConfig: connection.sslConfig
+            sslConfig: tunnelSSL
         )
     }
 

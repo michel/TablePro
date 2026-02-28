@@ -37,6 +37,13 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
+        if databaseType == .mongodb {
+            return buildMongoBaseQuery(
+                tableName: tableName, sortState: sortState,
+                columns: columns, limit: limit, offset: offset
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
 
@@ -68,6 +75,13 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
+        if databaseType == .mongodb {
+            return buildMongoBaseQuery(
+                tableName: tableName, sortState: sortState,
+                columns: columns, limit: limit, offset: offset
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
 
@@ -104,6 +118,13 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
+        if databaseType == .mongodb {
+            return buildMongoQuickSearchQuery(
+                tableName: tableName, searchText: searchText, columns: columns,
+                sortState: sortState, limit: limit, offset: offset
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
 
@@ -150,6 +171,19 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
+        if databaseType == .mongodb {
+            if !searchText.isEmpty, !searchColumns.isEmpty {
+                return buildMongoQuickSearchQuery(
+                    tableName: tableName, searchText: searchText, columns: searchColumns,
+                    sortState: sortState, limit: limit, offset: offset
+                )
+            }
+            return buildMongoBaseQuery(
+                tableName: tableName, sortState: sortState,
+                columns: columns, limit: limit, offset: offset
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
 
@@ -198,6 +232,13 @@ struct TableQueryBuilder {
         columnName: String,
         ascending: Bool
     ) -> String {
+        if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
+            let sortDoc = "\"\(escapeMongoString(columnName))\": \(ascending ? 1 : -1)"
+            return "db.\(parsed.collection).find(\(parsed.filter))"
+                + ".sort({\(sortDoc)})"
+                + ".limit(\(parsed.limit)).skip(\(parsed.skip))"
+        }
+
         var query = removeOrderBy(from: baseQuery)
         let direction = ascending ? "ASC" : "DESC"
         let quotedColumn = databaseType.quoteIdentifier(columnName)
@@ -232,6 +273,15 @@ struct TableQueryBuilder {
         sortState: SortState,
         columns: [String]
     ) -> String {
+        if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
+            if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
+                return "db.\(parsed.collection).find(\(parsed.filter))"
+                    + ".sort({\(sortDoc)})"
+                    + ".limit(\(parsed.limit)).skip(\(parsed.skip))"
+            }
+            return baseQuery
+        }
+
         var query = removeOrderBy(from: baseQuery)
 
         if let orderBy = buildOrderByClause(sortState: sortState, columns: columns) {
@@ -251,6 +301,124 @@ struct TableQueryBuilder {
         }
 
         return query
+    }
+
+    // MARK: - MongoDB Query Helpers
+
+    private func buildMongoBaseQuery(
+        tableName: String,
+        sortState: SortState? = nil,
+        columns: [String] = [],
+        limit: Int = 200,
+        offset: Int = 0
+    ) -> String {
+        var query = "db.\(tableName).find({})"
+
+        if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
+            query += ".sort({\(sortDoc)})"
+        }
+
+        query += ".limit(\(limit)).skip(\(offset))"
+        return query
+    }
+
+    private func buildMongoQuickSearchQuery(
+        tableName: String,
+        searchText: String,
+        columns: [String],
+        sortState: SortState? = nil,
+        limit: Int = 200,
+        offset: Int = 0
+    ) -> String {
+        let escaped = escapeMongoString(searchText)
+        let orConditions = columns.map { column in
+            "{\"" + escapeMongoString(column) + "\": {\"$regex\": \"" + escaped + "\", \"$options\": \"i\"}}"
+        }
+
+        let filter: String
+        if orConditions.isEmpty {
+            filter = "{}"
+        } else {
+            filter = "{\"$or\": [" + orConditions.joined(separator: ", ") + "]}"
+        }
+
+        var query = "db.\(tableName).find(\(filter))"
+
+        if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
+            query += ".sort({\(sortDoc)})"
+        }
+
+        query += ".limit(\(limit)).skip(\(offset))"
+        return query
+    }
+
+    private func buildMongoSortDoc(sortState: SortState?, columns: [String]) -> String? {
+        guard let state = sortState, state.isSorting else { return nil }
+
+        let parts = state.columns.compactMap { sortCol -> String? in
+            guard sortCol.columnIndex >= 0, sortCol.columnIndex < columns.count else { return nil }
+            let columnName = columns[sortCol.columnIndex]
+            let direction = sortCol.direction == .ascending ? 1 : -1
+            return "\"\(escapeMongoString(columnName))\": \(direction)"
+        }
+
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: ", ")
+    }
+
+    private struct MongoQueryParts {
+        let collection: String
+        let filter: String
+        let limit: Int
+        let skip: Int
+    }
+
+    private func parseMongoQuery(_ query: String) -> MongoQueryParts? {
+        let nsQuery = query as NSString
+        guard nsQuery.hasPrefix("db.") else { return nil }
+
+        let afterDb = nsQuery.substring(from: 3)
+        let nsAfterDb = afterDb as NSString
+
+        let findRange = nsAfterDb.range(of: ".find(")
+        guard findRange.location != NSNotFound else { return nil }
+
+        let collection = nsAfterDb.substring(to: findRange.location)
+
+        // Extract filter: content between .find( and the matching )
+        let filterStart = findRange.location + findRange.length
+        var depth = 1
+        var filterEnd = filterStart
+        while filterEnd < nsAfterDb.length, depth > 0 {
+            let ch = nsAfterDb.character(at: filterEnd)
+            if ch == 0x28 { depth += 1 } // (
+            if ch == 0x29 { depth -= 1 } // )
+            if depth > 0 { filterEnd += 1 }
+        }
+        let filter = nsAfterDb.substring(with: NSRange(location: filterStart, length: filterEnd - filterStart))
+
+        // Extract .limit(N)
+        var limit = 200
+        let limitPattern = try? NSRegularExpression(pattern: #"\.limit\((\d+)\)"#)
+        if let match = limitPattern?.firstMatch(in: afterDb, range: NSRange(location: 0, length: nsAfterDb.length)),
+           match.numberOfRanges > 1 {
+            limit = Int(nsAfterDb.substring(with: match.range(at: 1))) ?? 200
+        }
+
+        // Extract .skip(N)
+        var skip = 0
+        let skipPattern = try? NSRegularExpression(pattern: #"\.skip\((\d+)\)"#)
+        if let match = skipPattern?.firstMatch(in: afterDb, range: NSRange(location: 0, length: nsAfterDb.length)),
+           match.numberOfRanges > 1 {
+            skip = Int(nsAfterDb.substring(with: match.range(at: 1))) ?? 0
+        }
+
+        return MongoQueryParts(collection: collection, filter: filter, limit: limit, skip: skip)
+    }
+
+    private func escapeMongoString(_ text: String) -> String {
+        text.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     // MARK: - Private Helpers
