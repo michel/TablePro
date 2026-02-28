@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Custom About window with version info and links (Website, GitHub, Documentation)
+- Release notes in Sparkle update window
 
 ### Fixed
 

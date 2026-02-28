@@ -598,6 +598,7 @@ jobs:
                       <sparkle:version>${BUILD_NUMBER}</sparkle:version>
                       <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
                       <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
+                      <sparkle:releaseNotesLink>https://github.com/datlechin/TablePro/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
                       <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-arm64.zip" length="${ARM64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${ARM64_ED_SIG}" sparkle:architectures="arm64"/>
                   </item>
                   <item>
@@ -606,6 +607,7 @@ jobs:
                       <sparkle:version>${BUILD_NUMBER}</sparkle:version>
                       <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
                       <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
+                      <sparkle:releaseNotesLink>https://github.com/datlechin/TablePro/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
                       <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-x86_64.zip" length="${X86_64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${X86_64_ED_SIG}" sparkle:architectures="x86_64"/>
                   </item>
               </channel>
