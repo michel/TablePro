@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- MongoDB database support with collection browsing, document viewing, and MQL shell queries
 - Custom About window with version info and links (Website, GitHub, Documentation)
 - Build script and C bridge module for libmongoc (MongoDB C Driver) static libraries
 - MongoDB database type with BSON type mapping
