@@ -155,7 +155,7 @@ struct TableStructureView: View {
     // MARK: - Structure Grid (DataGridView)
 
     private var structureGrid: some View {
-        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab)
+        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab, databaseType: connection.type)
         let canEdit = connection.type.supportsSchemaEditing
 
         return DataGridView(
@@ -395,7 +395,7 @@ struct TableStructureView: View {
         }
 
         // Build TSV string for external paste
-        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab)
+        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab, databaseType: connection.type)
         var lines: [String] = []
         for row in rowIndices.sorted() {
             guard let rowData = provider.row(at: row) else { continue }

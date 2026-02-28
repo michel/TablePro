@@ -253,7 +253,7 @@ final class MongoDBDriver: DatabaseDriver {
             let columnType = ColumnType(fromBsonType: types[index])
             return ColumnInfo(
                 name: name,
-                dataType: columnType.displayName,
+                dataType: columnType.rawType ?? columnType.displayName,
                 isNullable: name != "_id",
                 isPrimaryKey: name == "_id",
                 defaultValue: nil,
