@@ -539,6 +539,9 @@
         }
       }
     },
+    "© 2026 Ngo Quoc Dat.\n%@" : {
+
+    },
     "<1ms" : {
       "localizations" : {
         "vi" : {
@@ -799,6 +802,9 @@
         }
       }
     },
+    "About TablePro" : {
+
+    },
     "Accent Color:" : {
       "localizations" : {
         "vi" : {
@@ -1048,6 +1054,9 @@
           }
         }
       }
+    },
+    "All rights reserved." : {
+
     },
     "ALL SCHEMAS" : {
 
@@ -3017,6 +3026,9 @@
           }
         }
       }
+    },
+    "Documentation" : {
+
     },
     "Don't Allow" : {
       "localizations" : {
@@ -8621,6 +8633,16 @@
         }
       }
     },
+    "Version %@ (Build %@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Version %1$@ (Build %2$@)"
+          }
+        }
+      }
+    },
     "View" : {
       "localizations" : {
         "vi" : {
@@ -8653,6 +8675,9 @@
           }
         }
       }
+    },
+    "Website" : {
+
     },
     "Welcome to TablePro" : {
       "localizations" : {
