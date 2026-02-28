@@ -123,8 +123,11 @@ struct AppMenuCommands: Commands {
     }
 
     var body: some Commands {
-        // Check for Updates menu item (after "About TablePro")
-        CommandGroup(after: .appInfo) {
+        // Custom About window + Check for Updates
+        CommandGroup(replacing: .appInfo) {
+            Button(String(localized: "About TablePro")) {
+                AboutWindowController.shared.showAboutPanel()
+            }
             CheckForUpdatesView(updaterBridge: updaterBridge)
         }
 
