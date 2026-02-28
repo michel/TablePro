@@ -242,7 +242,7 @@ enum DatabaseDriverFactory {
         case .postgresql:
             return PostgreSQLDriver(connection: connection)
         case .mongodb:
-            fatalError("MongoDBDriver not yet implemented")
+            return MongoDBDriver(connection: connection)
         }
     }
 }
