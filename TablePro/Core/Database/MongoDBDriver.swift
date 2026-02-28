@@ -344,7 +344,9 @@ final class MongoDBDriver: DatabaseDriver {
 
         let db = connection.database
 
-        // Fetch collection info with validator (schema validation)
+        var sections: [String] = ["// Collection: \(table)"]
+
+        // Fetch collection info (validator + options)
         do {
             let result = try await conn.runCommand(
                 "{\"listCollections\": 1, \"filter\": {\"name\": \"\(escapeJsonString(table))\"}}",
@@ -355,16 +357,63 @@ final class MongoDBDriver: DatabaseDriver {
                let cursor = firstDoc["cursor"] as? [String: Any],
                let firstBatch = cursor["firstBatch"] as? [[String: Any]],
                let collInfo = firstBatch.first,
-               let options = collInfo["options"] as? [String: Any],
-               let validator = options["validator"] {
-                let json = BsonDocumentFlattener.serializeToJson(validator)
-                return "// Collection: \(table)\n// Validator:\n\(json)"
+               let options = collInfo["options"] as? [String: Any] {
+
+                if let capped = options["capped"] as? Bool, capped {
+                    let size = options["size"] as? Int ?? 0
+                    let max = options["max"] as? Int
+                    var cappedInfo = "// Capped: true, size: \(size)"
+                    if let max { cappedInfo += ", max: \(max)" }
+                    sections.append(cappedInfo)
+                }
+
+                if let validator = options["validator"] {
+                    let json = Self.prettyJson(validator)
+                    sections.append(
+                        "\n// Validator\ndb.runCommand({\n  \"collMod\": \"\(table)\",\n  \"validator\": \(json)\n})"
+                    )
+                }
             }
         } catch {
-            Self.logger.debug("Failed to fetch validator for \(table): \(error.localizedDescription)")
+            Self.logger.debug("Failed to fetch collection info for \(table): \(error.localizedDescription)")
         }
 
-        return "// Collection: \(table)\n// No schema validator defined."
+        // Fetch indexes (skip default _id_ index)
+        do {
+            let indexes = try await conn.listIndexes(database: db, collection: table)
+            let customIndexes = indexes.filter { ($0["name"] as? String) != "_id_" }
+
+            if !customIndexes.isEmpty {
+                sections.append("\n// Indexes")
+                for indexDoc in customIndexes {
+                    guard let name = indexDoc["name"] as? String,
+                          let key = indexDoc["key"] as? [String: Any] else { continue }
+
+                    let keyJson = Self.prettyJson(key)
+                    var opts: [String] = []
+                    if (indexDoc["unique"] as? Bool) == true { opts.append("\"unique\": true") }
+                    if let ttl = indexDoc["expireAfterSeconds"] as? Int { opts.append("\"expireAfterSeconds\": \(ttl)") }
+                    if (indexDoc["sparse"] as? Bool) == true { opts.append("\"sparse\": true") }
+                    opts.append("\"name\": \"\(name)\"")
+
+                    let optsJson = "{\(opts.joined(separator: ", "))}"
+                    sections.append("db.\(table).createIndex(\(keyJson), \(optsJson))")
+                }
+            }
+        } catch {
+            Self.logger.debug("Failed to fetch indexes for \(table): \(error.localizedDescription)")
+        }
+
+        return sections.joined(separator: "\n")
+    }
+
+    /// Pretty-print a JSON value with 2-space indentation
+    private static func prettyJson(_ value: Any) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .prettyPrinted]),
+              let json = String(data: data, encoding: .utf8) else {
+            return String(describing: value)
+        }
+        return json.replacingOccurrences(of: "    ", with: "  ")
     }
 
     func fetchViewDefinition(view: String) async throws -> String {
