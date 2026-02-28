@@ -398,6 +398,9 @@
 					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
 					"/usr/local/opt/mariadb-connector-c/include/mariadb",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
 				);
 				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
@@ -423,6 +426,11 @@
 					"$(PROJECT_DIR)/Libs/libcrypto.a",
 					"-lz",
 					"-Wl,-w",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmongoc_arm64.a",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libbson_arm64.a",
+					"-lresolv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -440,7 +448,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ";
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.9;
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -478,6 +486,9 @@
 					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
 					"/usr/local/opt/mariadb-connector-c/include/mariadb",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
 				);
 				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
@@ -503,6 +514,11 @@
 					"$(PROJECT_DIR)/Libs/libcrypto.a",
 					"-lz",
 					"-Wl,-w",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmongoc_arm64.a",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libbson_arm64.a",
+					"-lresolv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -520,7 +536,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ";
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.9;
 				XROS_DEPLOYMENT_TARGET = 26.2;

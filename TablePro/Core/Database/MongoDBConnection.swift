@@ -759,7 +759,7 @@ private extension MongoDBConnection {
 
     func iterateCursor(_ cursor: OpaquePointer) throws -> [[String: Any]] {
         var results: [[String: Any]] = []
-        var docPtr: UnsafePointer<bson_t>?
+        var docPtr: OpaquePointer?
 
         while mongoc_cursor_next(cursor, &docPtr) {
             stateLock.lock()
@@ -815,7 +815,7 @@ private extension MongoDBConnection {
 // so they must be gated at the extension level.
 #if canImport(CLibMongoc)
 private extension MongoDBConnection {
-    func bsonToDict(_ bson: UnsafePointer<bson_t>?) -> [String: Any] {
+    func bsonToDict(_ bson: OpaquePointer?) -> [String: Any] {
         guard let bson = bson, let jsonStr = bsonToJson(bson),
               let data = jsonStr.data(using: .utf8),
               let dict = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
@@ -824,7 +824,7 @@ private extension MongoDBConnection {
         return dict
     }
 
-    func bsonToJson(_ bson: UnsafePointer<bson_t>?) -> String? {
+    func bsonToJson(_ bson: OpaquePointer?) -> String? {
         guard let bson = bson else { return nil }
         var length: Int = 0
         guard let jsonCStr = bson_as_canonical_extended_json(bson, &length) else { return nil }

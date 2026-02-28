@@ -6,7 +6,7 @@ run_quiet() {
     local logfile
     logfile=$(mktemp)
     if ! "$@" > "$logfile" 2>&1; then
-        tail -20 "$logfile"
+        tail -30 "$logfile"
         rm -f "$logfile"
         return 1
     fi
@@ -126,6 +126,15 @@ build_mongoc() {
     mkdir -p "$BUILD_DIR/mongo-c-driver-$MONGOC_VERSION-$arch"
     tar xzf "$BUILD_DIR/mongo-c-driver-$MONGOC_VERSION.tar.gz" -C "$BUILD_DIR/mongo-c-driver-$MONGOC_VERSION-$arch" --strip-components=1
 
+    # Patch deprecated cmake_policy(SET CMP0042 OLD) for CMake 4.x compatibility
+    local src_root="$BUILD_DIR/mongo-c-driver-$MONGOC_VERSION-$arch"
+    sed -i '' 's/cmake_policy (SET CMP0042 OLD)/cmake_policy (SET CMP0042 NEW)/' "$src_root/src/libbson/CMakeLists.txt" 2>/dev/null || true
+    sed -i '' 's/cmake_policy(SET CMP0042 OLD)/cmake_policy(SET CMP0042 NEW)/' "$src_root/src/libbson/CMakeLists.txt" 2>/dev/null || true
+    sed -i '' 's/cmake_policy (SET CMP0042 OLD)/cmake_policy (SET CMP0042 NEW)/' "$src_root/src/libmongoc/CMakeLists.txt" 2>/dev/null || true
+    sed -i '' 's/cmake_policy(SET CMP0042 OLD)/cmake_policy(SET CMP0042 NEW)/' "$src_root/src/libmongoc/CMakeLists.txt" 2>/dev/null || true
+    sed -i '' 's/cmake_policy (SET CMP0042 OLD)/cmake_policy (SET CMP0042 NEW)/' "$src_root/CMakeLists.txt" 2>/dev/null || true
+    sed -i '' 's/cmake_policy(SET CMP0042 OLD)/cmake_policy(SET CMP0042 NEW)/' "$src_root/CMakeLists.txt" 2>/dev/null || true
+
     local build_dir="$BUILD_DIR/mongo-c-driver-$MONGOC_VERSION-$arch/cmake-build"
     mkdir -p "$build_dir"
     cd "$build_dir"
@@ -136,7 +145,7 @@ build_mongoc() {
         openssl_lib_dir="$openssl_prefix/lib64"
     fi
 
-    MACOSX_DEPLOYMENT_TARGET=$DEPLOY_TARGET \
+    run_quiet env MACOSX_DEPLOYMENT_TARGET=$DEPLOY_TARGET \
     cmake .. \
         -DCMAKE_INSTALL_PREFIX="$prefix" \
         -DCMAKE_BUILD_TYPE=Release \
@@ -148,15 +157,15 @@ build_mongoc() {
         -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF \
         -DENABLE_SASL=OFF \
         -DENABLE_SRV=ON \
-        -DENABLE_ZLIB=BUNDLED \
+        -DENABLE_ZLIB=SYSTEM \
+        -DENABLE_ZSTD=OFF \
         -DENABLE_SSL=OPENSSL \
         -DENABLE_TESTS=OFF \
         -DENABLE_EXAMPLES=OFF \
         -DOPENSSL_ROOT_DIR="$openssl_prefix" \
         -DOPENSSL_INCLUDE_DIR="$openssl_prefix/include" \
         -DOPENSSL_SSL_LIBRARY="$openssl_lib_dir/libssl.a" \
-        -DOPENSSL_CRYPTO_LIBRARY="$openssl_lib_dir/libcrypto.a" \
-        > /dev/null 2>&1
+        -DOPENSSL_CRYPTO_LIBRARY="$openssl_lib_dir/libcrypto.a"
 
     run_quiet cmake --build . --parallel "$NCPU"
     run_quiet cmake --install .
