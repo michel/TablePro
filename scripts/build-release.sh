@@ -222,12 +222,18 @@ bundle_dylibs() {
     fi
 
     # Ad-hoc sign everything (required on Apple Silicon)
-    echo "   Signing bundled libraries..."
+    # Sign inner components first (dylibs, frameworks), then the app bundle last.
+    # Signing the bundle seals resources so Sparkle can validate the update.
+    echo "   Signing bundled libraries and frameworks..."
     for fw in "$frameworks_dir"/*.dylib; do
         [ -f "$fw" ] || continue
-        codesign -fs - "$fw" 2>/dev/null || true
+        codesign -fs - --force "$fw" 2>/dev/null || true
     done
-    codesign -fs - "$binary" 2>/dev/null || true
+    for fw in "$frameworks_dir"/*.framework; do
+        [ -d "$fw" ] || continue
+        codesign -fs - --force "$fw" 2>/dev/null || true
+    done
+    codesign -fs - --force "$app_path"
 
     echo "✅ Bundled $count dynamic libraries into Frameworks/"
     ls -lh "$frameworks_dir"/*.dylib 2>/dev/null

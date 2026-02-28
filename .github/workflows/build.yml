@@ -206,13 +206,15 @@ jobs:
 
           ls -lh build/Release/*.dmg
 
-      - name: Create ZIP archive (fallback)
+      - name: Create ZIP archive
         run: |
           echo "Creating ZIP archive..."
 
           cd build/Release
 
-          if ! zip -r TablePro-arm64.zip TablePro-arm64.app; then
+          # Use ditto to preserve framework symlinks (zip -r resolves them,
+          # which breaks code signature validation and Sparkle updates)
+          if ! ditto -c -k --sequesterRsrc --keepParent TablePro-arm64.app TablePro-arm64.zip; then
             echo "❌ ERROR: Failed to create ZIP archive"
             exit 1
           fi
@@ -455,13 +457,15 @@ jobs:
 
           ls -lh build/Release/*.dmg
 
-      - name: Create ZIP archive (fallback)
+      - name: Create ZIP archive
         run: |
           echo "Creating ZIP archive..."
 
           cd build/Release
 
-          if ! zip -r TablePro-x86_64.zip TablePro-x86_64.app; then
+          # Use ditto to preserve framework symlinks (zip -r resolves them,
+          # which breaks code signature validation and Sparkle updates)
+          if ! ditto -c -k --sequesterRsrc --keepParent TablePro-x86_64.app TablePro-x86_64.zip; then
             echo "❌ ERROR: Failed to create ZIP archive"
             exit 1
           fi
