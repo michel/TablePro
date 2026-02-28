@@ -87,8 +87,7 @@ struct BsonDocumentFlattener {
         case let date as Date:
             return ISO8601DateFormatter().string(from: date)
         case let data as Data:
-            // Raw binary data (subtype info lost during BSON->Swift conversion)
-            return "hex:" + data.map { String(format: "%02x", $0) }.joined()
+            return formatBinaryData(data)
         case let dict as [String: Any]:
             // Code type: {"$code": "function() {...}"}
             if let code = dict["$code"] as? String {
@@ -117,8 +116,9 @@ struct BsonDocumentFlattener {
 
     /// Serialize a dictionary or array to compact JSON string
     static func serializeToJson(_ value: Any) -> String {
+        let sanitized = sanitizeForJson(value)
         do {
-            let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
+            let data = try JSONSerialization.data(withJSONObject: sanitized, options: [.sortedKeys])
             if let json = String(data: data, encoding: .utf8) {
                 // Cap at 10k chars to prevent mega-document display issues
                 let nsJson = json as NSString
@@ -131,6 +131,36 @@ struct BsonDocumentFlattener {
             // Fall through to description
         }
         return String(describing: value)
+    }
+
+    /// Recursively convert non-JSON-safe types (Data, Date, etc.) to JSON-safe representations
+    private static func sanitizeForJson(_ value: Any) -> Any {
+        switch value {
+        case let dict as [String: Any]:
+            return dict.mapValues { sanitizeForJson($0) }
+        case let array as [Any]:
+            return array.map { sanitizeForJson($0) }
+        case let data as Data:
+            return formatBinaryData(data)
+        case let date as Date:
+            return ISO8601DateFormatter().string(from: date)
+        default:
+            return value
+        }
+    }
+
+    /// Format binary data: 16-byte values as UUID, otherwise as hex string
+    private static func formatBinaryData(_ data: Data) -> String {
+        if data.count == 16 {
+            let uuid = UUID(uuid: (
+                data[0], data[1], data[2], data[3],
+                data[4], data[5], data[6], data[7],
+                data[8], data[9], data[10], data[11],
+                data[12], data[13], data[14], data[15]
+            ))
+            return "UUID(\"\(uuid.uuidString.lowercased())\")"
+        }
+        return "BinData(\(data.count), \"\(data.base64EncodedString())\")"
     }
 
     // MARK: - Type Inference
