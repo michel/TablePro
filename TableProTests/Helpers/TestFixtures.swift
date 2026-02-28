@@ -174,4 +174,33 @@ enum TestFixtures {
             errorMessage: errorMessage
         )
     }
+
+    static func makeQueryResultRows(count: Int, columns: [String] = ["id", "name", "email"]) -> [QueryResultRow] {
+        (0..<count).map { i in
+            QueryResultRow(id: i, values: columns.indices.map { col in "\(columns[col])_\(i)" })
+        }
+    }
+
+    static func makeInMemoryRowProvider(rowCount: Int = 3, columns: [String] = ["id", "name", "email"]) -> InMemoryRowProvider {
+        let rows = makeQueryResultRows(count: rowCount, columns: columns)
+        return InMemoryRowProvider(rows: rows, columns: columns)
+    }
+
+    static func makeForeignKeyInfo(
+        name: String = "fk_user",
+        column: String = "user_id",
+        referencedTable: String = "users",
+        referencedColumn: String = "id",
+        onDelete: String = "CASCADE",
+        onUpdate: String = "NO ACTION"
+    ) -> ForeignKeyInfo {
+        ForeignKeyInfo(
+            name: name,
+            column: column,
+            referencedTable: referencedTable,
+            referencedColumn: referencedColumn,
+            onDelete: onDelete,
+            onUpdate: onUpdate
+        )
+    }
 }
