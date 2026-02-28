@@ -13,9 +13,14 @@ import CodeEditSourceEditor
 final class VimKeyInterceptor {
     private let engine: VimEngine
     private weak var inlineSuggestionManager: InlineSuggestionManager?
-    private var monitor: Any?
+    nonisolated(unsafe) private var monitor: Any?
     private weak var controller: TextViewController?
     nonisolated(unsafe) private var popupCloseObserver: NSObjectProtocol?
+
+    deinit {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        if let popupCloseObserver { NotificationCenter.default.removeObserver(popupCloseObserver) }
+    }
 
     init(engine: VimEngine, inlineSuggestionManager: InlineSuggestionManager?) {
         self.engine = engine
