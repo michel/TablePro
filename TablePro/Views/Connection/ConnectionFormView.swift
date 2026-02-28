@@ -526,9 +526,11 @@ struct ConnectionFormView: View {
         )
 
         // Apply defaults: localhost for empty host, default port for empty/invalid port, root for empty username
+        // MongoDB and SQLite commonly run without authentication, so skip the "root" default
         let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
         let finalPort = Int(port) ?? type.defaultPort
-        let finalUsername = username.trimmingCharacters(in: .whitespaces).isEmpty ? "root" : username
+        let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
+        let finalUsername = trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
 
         let connectionToSave = DatabaseConnection(
             id: connectionId ?? UUID(),
@@ -620,9 +622,11 @@ struct ConnectionFormView: View {
         )
 
         // Apply defaults: localhost for empty host, default port for empty/invalid port, root for empty username
+        // MongoDB and SQLite commonly run without authentication, so skip the "root" default
         let finalHost = host.trimmingCharacters(in: .whitespaces).isEmpty ? "localhost" : host
         let finalPort = Int(port) ?? type.defaultPort
-        let finalUsername = username.trimmingCharacters(in: .whitespaces).isEmpty ? "root" : username
+        let trimmedUsername = username.trimmingCharacters(in: .whitespaces)
+        let finalUsername = trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
 
         // Build connection from form values
         let testConn = DatabaseConnection(

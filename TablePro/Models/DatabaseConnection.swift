@@ -132,6 +132,16 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Whether this database type typically requires authentication credentials.
+    /// MySQL, MariaDB, and PostgreSQL default to "root" when no username is provided;
+    /// MongoDB and SQLite commonly run without authentication.
+    var requiresAuthentication: Bool {
+        switch self {
+        case .mysql, .mariadb, .postgresql: return true
+        case .sqlite, .mongodb: return false
+        }
+    }
+
     /// Quote character for identifiers (table/column names)
     /// MySQL/MariaDB/SQLite use backticks, PostgreSQL uses double quotes
     var identifierQuote: String {

@@ -39,6 +39,10 @@ final class MongoDBConnection: @unchecked Sendable {
     // MARK: - Properties
 
     #if canImport(CLibMongoc)
+    private static let initOnce: Void = {
+        mongoc_init()
+    }()
+
     private var client: OpaquePointer?
     #endif
 
@@ -161,6 +165,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func connect() async throws {
         #if canImport(CLibMongoc)
+        _ = Self.initOnce
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
                 let uriString = buildUri()
