@@ -3,20 +3,20 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.8.0</title>
-            <pubDate>Fri, 27 Feb 2026 04:44:18 +0000</pubDate>
-            <sparkle:version>16</sparkle:version>
-            <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
+            <title>0.9.0</title>
+            <pubDate>Sat, 28 Feb 2026 06:56:07 +0000</pubDate>
+            <sparkle:version>17</sparkle:version>
+            <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.8.0/TablePro-0.8.0-arm64.zip" length="24971342" type="application/octet-stream" sparkle:edSignature="9Y+eiKMRERsQFSK90zjkGOdn5uGAF59JtOpmXCfqVRydphsXJTYnB80veGcVaa0niL85zGbXiKQR/XPZiNbsDQ==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.9.0/TablePro-0.9.0-arm64.zip" length="23897028" type="application/octet-stream" sparkle:edSignature="bXgY4kFD9fH+IHCVpyZVfhGBXuc5CwPWh94HKlDNLUEvJuh00uZIXY9G3i1pEOuFXlPtHdseXUko0n6GU7enAA==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.8.0</title>
-            <pubDate>Fri, 27 Feb 2026 04:44:18 +0000</pubDate>
-            <sparkle:version>16</sparkle:version>
-            <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
+            <title>0.9.0</title>
+            <pubDate>Sat, 28 Feb 2026 06:56:07 +0000</pubDate>
+            <sparkle:version>17</sparkle:version>
+            <sparkle:shortVersionString>0.9.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.8.0/TablePro-0.8.0-x86_64.zip" length="23991874" type="application/octet-stream" sparkle:edSignature="Rffe4pxqYhzn37x2rvuLcnulmV8n/Nfss91azJFaSxkhd7qWFs7n4L5bIZ3bTJdUrOgETBD+BiIKa+FhbaBqBg==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.9.0/TablePro-0.9.0-x86_64.zip" length="22808616" type="application/octet-stream" sparkle:edSignature="/NfZbWf1d4wGvVWGsHv12vOXoeUpP2E8fUXVq2qQ4wIldO5AU+aoP4K83Rzbh0xXFvtIYm6fX9So1E4x4nw0CA==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
