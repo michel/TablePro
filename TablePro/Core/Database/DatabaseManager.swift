@@ -357,7 +357,8 @@ final class DatabaseManager: ObservableObject {
             database: connection.database,
             username: connection.username,
             type: connection.type,
-            sshConfig: SSHConfiguration()  // Disable SSH for actual driver
+            sshConfig: SSHConfiguration(),
+            sslConfig: connection.sslConfig
         )
     }
 

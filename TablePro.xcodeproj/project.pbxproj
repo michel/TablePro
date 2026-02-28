@@ -427,9 +427,9 @@
 					"-lz",
 					"-Wl,-w",
 					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmongoc_arm64.a",
+					"$(PROJECT_DIR)/Libs/libmongoc.a",
 					"-force_load",
-					"$(PROJECT_DIR)/Libs/libbson_arm64.a",
+					"$(PROJECT_DIR)/Libs/libbson.a",
 					"-lresolv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
@@ -515,9 +515,9 @@
 					"-lz",
 					"-Wl,-w",
 					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmongoc_arm64.a",
+					"$(PROJECT_DIR)/Libs/libmongoc.a",
 					"-force_load",
-					"$(PROJECT_DIR)/Libs/libbson_arm64.a",
+					"$(PROJECT_DIR)/Libs/libbson.a",
 					"-lresolv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
