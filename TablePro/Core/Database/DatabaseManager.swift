@@ -163,7 +163,8 @@ final class DatabaseManager: ObservableObject {
                     }
                     // Sync schema on metadata driver for PostgreSQL
                     if let pgMetaDriver = metaDriver as? PostgreSQLDriver,
-                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
+                        let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema
+                    {
                         try? await pgMetaDriver.switchSchema(to: savedSchema)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
@@ -287,7 +288,9 @@ final class DatabaseManager: ObservableObject {
     }
 
     /// Test a connection without keeping it open
-    func testConnection(_ connection: DatabaseConnection, sshPassword: String? = nil) async throws -> Bool {
+    func testConnection(_ connection: DatabaseConnection, sshPassword: String? = nil) async throws
+        -> Bool
+    {
         // Build effective connection (creates SSH tunnel if needed)
         let testConnection = try await buildEffectiveConnection(
             for: connection,
@@ -306,7 +309,6 @@ final class DatabaseManager: ObservableObject {
         let driver = DatabaseDriverFactory.createDriver(for: testConnection)
         return try await driver.testConnection()
     }
-
 
     // MARK: - SSH Tunnel Helper
 
@@ -349,12 +351,19 @@ final class DatabaseManager: ObservableObject {
             remotePort: connection.port
         )
 
-        // Adapt SSL config for tunnel: certificate file paths reference the
+        // Adapt SSL config for tunnel: SSH already authenticates the server,
         // remote environment and aren't readable locally, so strip them and
         // use at least .preferred so libpq negotiates SSL when the server
         // requires it (SSH already authenticates the server itself).
-        var tunnelSSL = SSLConfiguration()
-        tunnelSSL.mode = connection.sslConfig.isEnabled ? .required : .preferred
+        var tunnelSSL = connection.sslConfig
+        if tunnelSSL.isEnabled {
+            if tunnelSSL.verifiesCertificate {
+                tunnelSSL.mode = .required
+            }
+            tunnelSSL.caCertificatePath = ""
+            tunnelSSL.clientCertificatePath = ""
+            tunnelSSL.clientKeyPath = ""
+        }
 
         return DatabaseConnection(
             id: connection.id,
@@ -366,7 +375,6 @@ final class DatabaseManager: ObservableObject {
             type: connection.type,
             sshConfig: SSHConfiguration(),
             sslConfig: tunnelSSL
-            sslConfig: connection.sslConfig
         )
     }
 
@@ -386,7 +394,8 @@ final class DatabaseManager: ObservableObject {
                 try await dedicatedPingDriver.connect()
                 pingDrivers[connectionId] = dedicatedPingDriver
             } catch {
-                Self.logger.warning("Failed to create dedicated ping driver, will fall back to main driver")
+                Self.logger.warning(
+                    "Failed to create dedicated ping driver, will fall back to main driver")
             }
         }
 
@@ -451,13 +460,14 @@ final class DatabaseManager: ObservableObject {
                             session.status = .connecting
                         }
                     case .failed:
-                        Self.logger.error("Health monitoring failed for session \(id) after 3 retries")
+                        Self.logger.error(
+                            "Health monitoring failed for session \(id) after 3 retries")
                         self.updateSession(id) { session in
                             session.status = .error(String(localized: "Connection lost"))
                             session.clearCachedData()
                         }
                     case .checking:
-                        break // No UI update needed
+                        break  // No UI update needed
                     }
                 }
             }
@@ -486,7 +496,8 @@ final class DatabaseManager: ObservableObject {
 
         // Restore schema for PostgreSQL if session had a non-default schema
         if let pgDriver = driver as? PostgreSQLDriver,
-           let savedSchema = session.currentSchema {
+            let savedSchema = session.currentSchema
+        {
             try? await pgDriver.switchSchema(to: savedSchema)
         }
 
@@ -514,7 +525,8 @@ final class DatabaseManager: ObservableObject {
     /// Reconnect the current session (called from toolbar Reconnect button)
     func reconnectCurrentSession() async {
         guard let sessionId = currentSessionId,
-              let session = activeSessions[sessionId] else { return }
+            let session = activeSessions[sessionId]
+        else { return }
 
         Self.logger.info("Manual reconnect requested for: \(session.connection.name)")
 
@@ -546,7 +558,8 @@ final class DatabaseManager: ObservableObject {
 
             // Restore schema for PostgreSQL if session had a non-default schema
             if let pgDriver = driver as? PostgreSQLDriver,
-               let savedSchema = activeSessions[sessionId]?.currentSchema {
+                let savedSchema = activeSessions[sessionId]?.currentSchema
+            {
                 try? await pgDriver.switchSchema(to: savedSchema)
             }
 
@@ -571,12 +584,14 @@ final class DatabaseManager: ObservableObject {
                     }
                     // Restore schema on metadata driver too
                     if let pgMetaDriver = metaDriver as? PostgreSQLDriver,
-                       let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
+                        let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema
+                    {
                         try? await pgMetaDriver.switchSchema(to: savedSchema)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
                 } catch {
-                    Self.logger.warning("Metadata reconnection failed: \(error.localizedDescription)")
+                    Self.logger.warning(
+                        "Metadata reconnection failed: \(error.localizedDescription)")
                 }
             }
 
@@ -592,7 +607,8 @@ final class DatabaseManager: ObservableObject {
         } catch {
             Self.logger.error("Manual reconnect failed: \(error.localizedDescription)")
             updateSession(sessionId) { session in
-                session.status = .error(String(localized: "Reconnect failed: \(error.localizedDescription)"))
+                session.status = .error(
+                    String(localized: "Reconnect failed: \(error.localizedDescription)"))
                 session.clearCachedData()
             }
         }
@@ -612,7 +628,7 @@ final class DatabaseManager: ObservableObject {
         }
 
         // Wait a bit before attempting reconnection (give VPN time to reconnect)
-        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
 
         do {
             // Attempt to reconnect
@@ -687,10 +703,12 @@ final class DatabaseManager: ObservableObject {
     ) async -> String? {
         // Only needed for PostgreSQL PK modifications
         guard databaseType == .postgresql else { return nil }
-        guard changes.contains(where: {
-            if case .modifyPrimaryKey = $0 { return true }
-            return false
-        }) else {
+        guard
+            changes.contains(where: {
+                if case .modifyPrimaryKey = $0 { return true }
+                return false
+            })
+        else {
             return nil
         }
 
@@ -715,7 +733,9 @@ final class DatabaseManager: ObservableObject {
             }
         } catch {
             // Query failed - fall back to convention in SchemaStatementGenerator
-            Self.logger.warning("Failed to query PK constraint name for '\(tableName)': \(error.localizedDescription)")
+            Self.logger.warning(
+                "Failed to query PK constraint name for '\(tableName)': \(error.localizedDescription)"
+            )
         }
 
         return nil
