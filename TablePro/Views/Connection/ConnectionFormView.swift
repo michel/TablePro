@@ -30,6 +30,8 @@ struct ConnectionFormView: View {
     @State private var username: String = ""
     @State private var password: String = ""
     @State private var type: DatabaseType = .mysql
+    @State private var connectionURL: String = ""
+    @State private var urlParseError: String?
 
     // SSH Configuration
     @State private var sshEnabled: Bool = false
@@ -147,6 +149,34 @@ struct ConnectionFormView: View {
 
     private var generalForm: some View {
         Form {
+            Section(String(localized: "Import from URL")) {
+                HStack {
+                    TextField(
+                        String(localized: "Connection URL"),
+                        text: $connectionURL,
+                        prompt: Text("postgresql://user:password@host:5432/database")
+                    )
+                    if !connectionURL.isEmpty {
+                        Button {
+                            connectionURL = ""
+                            urlParseError = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                if let urlParseError {
+                    Text(urlParseError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            .onChange(of: connectionURL) {
+                parseConnectionURL()
+            }
+
             Section {
                 Picker(String(localized: "Type"), selection: $type) {
                     ForEach(DatabaseType.allCases) { t in
@@ -702,6 +732,35 @@ struct ConnectionFormView: View {
 
     private func loadSSHConfig() {
         sshConfigEntries = SSHConfigParser.parse()
+    }
+
+    private func parseConnectionURL() {
+        let trimmed = connectionURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            urlParseError = nil
+            return
+        }
+
+        switch ConnectionURLParser.parse(trimmed) {
+        case .success(let parsed):
+            urlParseError = nil
+            type = parsed.type
+            host = parsed.host
+            if let parsedPort = parsed.port {
+                port = String(parsedPort)
+            }
+            database = parsed.database
+            username = parsed.username
+            password = parsed.password
+            if let parsedSSLMode = parsed.sslMode {
+                sslMode = parsedSSLMode
+            }
+            if name.isEmpty {
+                name = parsed.suggestedName
+            }
+        case .failure(let error):
+            urlParseError = error.localizedDescription
+        }
     }
 
     private func applySSHConfigEntry(_ host: String) {

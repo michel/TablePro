@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Custom About window with version info and links (Website, GitHub, Documentation)
+- Import database connections from URL/connection string (e.g., `postgresql://user:pass@host:5432/db`)
 
 ### Fixed
 
