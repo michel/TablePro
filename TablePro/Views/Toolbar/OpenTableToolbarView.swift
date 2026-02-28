@@ -124,11 +124,13 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "eye")
                         }
-                        .accessibilityLabel(String(localized: "Preview SQL"))
-                        .help("Preview SQL (⌘⇧P)")
+                        .accessibilityLabel(state.databaseType == .mongodb
+                            ? String(localized: "Preview MQL")
+                            : String(localized: "Preview SQL"))
+                        .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)" : "Preview SQL (⌘⇧P)")
                         .disabled(!state.hasPendingChanges || state.connectionState != .connected)
                         .popover(isPresented: $state.showSQLReviewPopover) {
-                            SQLReviewPopover(statements: state.previewStatements)
+                            SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
                         }
                     }
                 }

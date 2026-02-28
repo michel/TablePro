@@ -13,6 +13,7 @@ import SwiftUI
 /// Popover view that displays SQL statements with tree-sitter syntax highlighting for review before commit.
 struct SQLReviewPopover: View {
     let statements: [String]
+    var databaseType: DatabaseType = .mysql
 
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
@@ -80,7 +81,7 @@ struct SQLReviewPopover: View {
 
     private var headerView: some View {
         HStack {
-            Text(String(localized: "SQL Preview"))
+            Text(databaseType == .mongodb ? String(localized: "MQL Preview") : String(localized: "SQL Preview"))
                 .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
             if !statements.isEmpty {
                 Text(
