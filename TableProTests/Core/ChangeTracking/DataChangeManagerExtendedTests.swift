@@ -334,7 +334,7 @@ struct DataChangeManagerExtendedTests {
         _ = manager1.undoLastChange()
         #expect(manager1.canRedo)
         manager1.discardChanges()
-        #expect(manager1.canUndo || manager1.canRedo)
+        #expect(manager1.canRedo)
 
         // clearChanges clears undo/redo
         let manager2 = makeManager()

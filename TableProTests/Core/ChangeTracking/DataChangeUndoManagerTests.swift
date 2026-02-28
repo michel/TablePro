@@ -204,10 +204,12 @@ struct DataChangeUndoManagerTests {
         )
 
         manager.push(action)
-        let popped = manager.popUndo()
-        #expect(popped != nil)
+        guard let popped = manager.popUndo() else {
+            Issue.record("Expected non-nil undo action")
+            return
+        }
 
-        manager.moveToRedo(popped!)
+        manager.moveToRedo(popped)
         let restored = manager.popRedo()
 
         if case .cellEdit(let rowIndex, let columnIndex, let columnName, let previousValue, let newValue) = restored {
@@ -230,13 +232,17 @@ struct DataChangeUndoManagerTests {
         manager.push(makeCellEditAction(row: 1))
         manager.push(makeCellEditAction(row: 2))
 
-        let action1 = manager.popUndo()
-        #expect(action1 != nil)
-        manager.moveToRedo(action1!)
+        guard let action1 = manager.popUndo() else {
+            Issue.record("Expected non-nil undo action")
+            return
+        }
+        manager.moveToRedo(action1)
 
-        let action2 = manager.popUndo()
-        #expect(action2 != nil)
-        manager.moveToRedo(action2!)
+        guard let action2 = manager.popUndo() else {
+            Issue.record("Expected non-nil undo action")
+            return
+        }
+        manager.moveToRedo(action2)
 
         #expect(manager.undoCount == 1)
         #expect(manager.redoCount == 2)
