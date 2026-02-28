@@ -193,7 +193,8 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .saveChanges))
             .disabled(!appState.isConnected || appState.isReadOnly)
 
-            Button("Preview SQL") {
+            Button(DatabaseManager.shared.currentSession?.connection.type == .mongodb
+                ? "Preview MQL" : "Preview SQL") {
                 actions?.previewSQL()
             }
             .optionalKeyboardShortcut(shortcut(for: .previewSQL))
