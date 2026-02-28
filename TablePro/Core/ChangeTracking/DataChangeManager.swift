@@ -474,6 +474,11 @@ final class DataChangeManager: ObservableObject {
                             oldValue: nil,
                             newValue: previousValue
                         )
+                        if var storedValues = insertedRowData[rowIndex],
+                           columnIndex < storedValues.count {
+                            storedValues[columnIndex] = previousValue
+                            insertedRowData[rowIndex] = storedValues
+                        }
                     }
                 }
             }

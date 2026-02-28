@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cell edit showing modified background but displaying original value until save (reloadData during active editing ignored by NSTableView, updateNSView blocked by editedRow guard)
+- Undo on inserted row cell edit not syncing insertedRowData (stale values after undo)
 - Vim Escape key not exiting Insert/Visual mode when autocomplete popup is visible (popup's event monitor consumed the key)
 - Copy (Cmd+C) and Cut (Cmd+X) not working in SQL editor — clipboard retained old value due to CodeEditTextView's copy: silently failing
 - Vim yank/delete operations not syncing to system clipboard (register only stored text internally)

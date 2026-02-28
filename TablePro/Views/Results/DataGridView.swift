@@ -217,6 +217,21 @@ struct DataGridView: NSViewRepresentable {
         let needsFullReload = structureChanged
 
         coordinator.rowProvider = rowProvider
+
+        // Re-apply pending cell edits to the new rowProvider instance.
+        // SwiftUI may supply a cached rowProvider that doesn't reflect
+        // in-flight edits tracked by the changeManager.
+        for change in changeManager.changes {
+            guard let rowChange = change as? RowChange else { continue }
+            for cellChange in rowChange.cellChanges {
+                coordinator.rowProvider.updateValue(
+                    cellChange.newValue,
+                    at: rowChange.rowIndex,
+                    columnIndex: cellChange.columnIndex
+                )
+            }
+        }
+
         coordinator.updateCache()
         coordinator.changeManager = changeManager
         coordinator.isEditable = isEditable
