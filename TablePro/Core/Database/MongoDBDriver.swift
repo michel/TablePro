@@ -72,7 +72,7 @@ final class MongoDBDriver: DatabaseDriver {
     // MARK: - Configuration
 
     func applyQueryTimeout(_ seconds: Int) async throws {
-        // MongoDB timeouts are handled per-operation at the connection level
+        mongoConnection?.setQueryTimeout(seconds)
     }
 
     // MARK: - Query Execution
@@ -260,6 +260,36 @@ final class MongoDBDriver: DatabaseDriver {
                 collation: nil,
                 comment: nil
             )
+        }
+    }
+
+    func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
+        guard mongoConnection != nil else {
+            throw DatabaseError.notConnected
+        }
+
+        let tables = try await fetchTables()
+
+        return try await withThrowingTaskGroup(of: (String, [ColumnInfo])?.self) { group in
+            for table in tables {
+                group.addTask {
+                    do {
+                        let columns = try await self.fetchColumns(table: table.name)
+                        return (table.name, columns)
+                    } catch {
+                        Self.logger.debug("Skipping columns for \(table.name): \(error.localizedDescription)")
+                        return nil
+                    }
+                }
+            }
+
+            var result: [String: [ColumnInfo]] = [:]
+            for try await pair in group {
+                if let (name, columns) = pair {
+                    result[name] = columns
+                }
+            }
+            return result
         }
     }
 

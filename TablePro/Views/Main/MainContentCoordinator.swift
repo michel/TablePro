@@ -353,8 +353,10 @@ final class MainContentCoordinator: ObservableObject {
         switch connection.type {
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .mongodb:
+        case .mysql, .mariadb, .postgresql:
             explainSQL = "EXPLAIN \(stmt)"
+        case .mongodb:
+            explainSQL = Self.buildMongoExplain(for: stmt)
         }
 
         Task { @MainActor in
@@ -942,7 +944,7 @@ final class MainContentCoordinator: ObservableObject {
         for tableName in sortedDeletes {
             let quotedName = dbType.quoteIdentifier(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
-            statements.append(dropTableStatement(quotedName: quotedName, isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType))
+            statements.append(dropTableStatement(tableName: tableName, quotedName: quotedName, isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType))
         }
 
         if needsTransaction {
@@ -1001,18 +1003,21 @@ final class MainContentCoordinator: ObservableObject {
                 // This DELETE will succeed silently if the table isn't in sqlite_sequence.
                 "DELETE FROM sqlite_sequence WHERE name = '\(escapedName)'"
             ]
-        case .mongodb: return []
+        case .mongodb:
+            return ["db.\(tableName).deleteMany({})"]
         }
     }
 
     /// Generates DROP TABLE/VIEW statement with optional CASCADE.
-    private func dropTableStatement(quotedName: String, isView: Bool, options: TableOperationOptions, dbType: DatabaseType) -> String {
+    private func dropTableStatement(tableName: String, quotedName: String, isView: Bool, options: TableOperationOptions, dbType: DatabaseType) -> String {
         let keyword = isView ? "VIEW" : "TABLE"
         switch dbType {
         case .postgresql:
             return "DROP \(keyword) \(quotedName)\(options.cascade ? " CASCADE" : "")"
-        case .mysql, .mariadb, .sqlite, .mongodb:
+        case .mysql, .mariadb, .sqlite:
             return "DROP \(keyword) \(quotedName)"
+        case .mongodb:
+            return "db.\(tableName).drop()"
         }
     }
 

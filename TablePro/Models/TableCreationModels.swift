@@ -299,8 +299,10 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "BIT"]
             case .postgresql:
                 return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
-            case .sqlite, .mongodb:
+            case .sqlite:
                 return ["INTEGER", "REAL", "NUMERIC"]
+            case .mongodb:
+                return ["Int32", "Int64", "Double", "Decimal128"]
             }
         case .string:
             switch dbType {
@@ -308,8 +310,10 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"]
             case .postgresql:
                 return ["CHAR", "VARCHAR", "TEXT"]
-            case .sqlite, .mongodb:
+            case .sqlite:
                 return ["TEXT"]
+            case .mongodb:
+                return ["String", "ObjectId", "UUID"]
             }
         case .dateTime:
             switch dbType {
@@ -317,8 +321,10 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"]
             case .postgresql:
                 return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
-            case .sqlite, .mongodb:
+            case .sqlite:
                 return ["DATE", "DATETIME"]
+            case .mongodb:
+                return ["Date", "Timestamp"]
             }
         case .binary:
             switch dbType {
@@ -326,8 +332,10 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"]
             case .postgresql:
                 return ["BYTEA"]
-            case .sqlite, .mongodb:
+            case .sqlite:
                 return ["BLOB"]
+            case .mongodb:
+                return ["BinData"]
             }
         case .other:
             switch dbType {
@@ -335,8 +343,10 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BOOLEAN", "ENUM", "SET", "JSON"]
             case .postgresql:
                 return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
-            case .sqlite, .mongodb:
+            case .sqlite:
                 return ["BOOLEAN"]
+            case .mongodb:
+                return ["Boolean", "Object", "Array", "Null", "Regex"]
             }
         }
     }

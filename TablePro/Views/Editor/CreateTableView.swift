@@ -702,11 +702,20 @@ struct CreateTableView: View {
                         "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
                     }
                 case .sqlite: "SELECT name FROM sqlite_master WHERE type='table'"
-                case .mongodb: "SELECT name FROM sqlite_master WHERE type='table'"  // Placeholder until MongoDBDriver
+                case .mongodb: ""
                 }
-                let result = try await driver.execute(query: query)
+
+                let tableNames: [String]
+                if databaseType == .mongodb {
+                    let tables = try await driver.fetchTables()
+                    tableNames = tables.map(\.name)
+                } else {
+                    let result = try await driver.execute(query: query)
+                    tableNames = result.rows.compactMap { $0.first.flatMap { $0 } }
+                }
+
                 await MainActor.run {
-                    availableTables = result.rows.compactMap { $0.first.flatMap { $0 } }
+                    availableTables = tableNames
                 }
             } catch {
                 await MainActor.run {
@@ -723,6 +732,11 @@ struct CreateTableView: View {
                     await MainActor.run {
                         validationError = String(localized: "No database connection")
                     }
+                    return
+                }
+
+                if databaseType == .mongodb {
+                    try await duplicateMongoCollection(tableName, driver: driver)
                     return
                 }
 
@@ -766,7 +780,7 @@ struct CreateTableView: View {
                     columnsQuery = "PRAGMA table_info('\(tableName)')"
 
                 case .mongodb:
-                    columnsQuery = ""  // MongoDB doesn't use SQL schema queries
+                    columnsQuery = ""
                 }
 
                 let result = try await driver.execute(query: columnsQuery)
@@ -868,7 +882,7 @@ struct CreateTableView: View {
                             }
 
                         case .mongodb:
-                            break  // MongoDB schema parsing not yet implemented
+                            break  // Handled by duplicateMongoCollection above
                         }
                     }
 
@@ -908,9 +922,62 @@ struct CreateTableView: View {
                 }
             } catch {
                 await MainActor.run {
-                    validationError = String(localized: "Failed to fetch table structure: \(error.localizedDescription)")
+                    validationError = String(localized: "Failed to duplicate table: \(error.localizedDescription)")
                 }
             }
+        }
+    }
+
+    private func duplicateMongoCollection(_ collectionName: String, driver: DatabaseDriver) async throws {
+        // Find a unique name for the new collection
+        let existingTables = try await driver.fetchTables()
+        let existingNames = Set(existingTables.map(\.name))
+        var newName = "\(collectionName)_copy"
+        var suffix = 2
+        while existingNames.contains(newName) {
+            newName = "\(collectionName)_copy_\(suffix)"
+            suffix += 1
+        }
+
+        // Escape collection name for safe JSON embedding
+        let escapedSource = collectionName
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedTarget = newName
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+
+        // Use aggregate with $out to copy all documents to the new collection
+        let aggregateQuery = "db.\(escapedSource).aggregate([{\"$out\": \"\(escapedTarget)\"}])"
+        _ = try await driver.execute(query: aggregateQuery)
+
+        // Copy indexes (skip the default _id index)
+        let indexes = try await driver.fetchIndexes(table: collectionName)
+        for index in indexes where !index.isPrimary {
+            let keys = index.columns.map { "\"\($0)\": 1" }.joined(separator: ", ")
+            var createIndexQuery = "db.\(escapedTarget).createIndex({\(keys)}"
+            if index.isUnique {
+                createIndexQuery += ", {\"unique\": true}"
+            }
+            createIndexQuery += ")"
+            do {
+                _ = try await driver.execute(query: createIndexQuery)
+            } catch {
+                Self.logger.warning(
+                    "Failed to copy index '\(index.name)' to '\(newName)': \(error.localizedDescription)"
+                )
+            }
+        }
+
+        Self.logger.info("Duplicated MongoDB collection '\(collectionName)' to '\(newName)'")
+
+        await MainActor.run {
+            // Prefill the create table form with the new collection name
+            var newOptions = TableCreationOptions()
+            newOptions.databaseName = options.databaseName
+            newOptions.tableName = newName
+            options = newOptions
+            validationError = nil
         }
     }
 

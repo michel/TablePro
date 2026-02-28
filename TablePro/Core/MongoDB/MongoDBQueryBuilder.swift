@@ -93,6 +93,42 @@ struct MongoDBQueryBuilder {
         return query
     }
 
+    /// Build a query combining filter rows AND quick search with $and
+    func buildCombinedQuery(
+        collection: String,
+        filters: [TableFilter],
+        logicMode: FilterLogicMode = .and,
+        searchText: String,
+        searchColumns: [String],
+        sortState: SortState? = nil,
+        columns: [String] = [],
+        limit: Int = 200,
+        offset: Int = 0
+    ) -> String {
+        let filterDoc = buildFilterDocument(from: filters, logicMode: logicMode)
+
+        let escaped = escapeRegexChars(searchText)
+        let searchConditions = searchColumns.map { column in
+            "{\"" + column + "\": {\"$regex\": \"" + escaped + "\", \"$options\": \"i\"}}"
+        }
+        let searchDoc = searchConditions.isEmpty ? "{}" : "{\"$or\": [" + searchConditions.joined(separator: ", ") + "]}"
+
+        let combinedFilter = "{\"$and\": [\(filterDoc), \(searchDoc)]}"
+
+        var query = "db.\(collection).find(\(combinedFilter))"
+
+        if let sort = buildSortDocument(sortState: sortState, columns: columns) {
+            query += ".sort(\(sort))"
+        }
+
+        if offset > 0 {
+            query += ".skip(\(offset))"
+        }
+
+        query += ".limit(\(limit))"
+        return query
+    }
+
     // MARK: - Count Query
 
     /// Build: db.collection.countDocuments({filter})

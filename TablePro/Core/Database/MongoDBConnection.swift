@@ -59,6 +59,7 @@ final class MongoDBConnection: @unchecked Sendable {
     private var _isShuttingDown: Bool = false
     private var _cachedServerVersion: String?
     private var _isCancelled: Bool = false
+    private var _queryTimeoutMS: Int32 = 0
 
     var isConnected: Bool {
         stateLock.lock()
@@ -77,6 +78,18 @@ final class MongoDBConnection: @unchecked Sendable {
             _isShuttingDown = newValue
             stateLock.unlock()
         }
+    }
+
+    private var queryTimeoutMS: Int32 {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _queryTimeoutMS
+    }
+
+    func setQueryTimeout(_ seconds: Int) {
+        stateLock.lock()
+        _queryTimeoutMS = Int32(seconds * 1_000)
+        stateLock.unlock()
     }
 
     // MARK: - Initialization
@@ -229,6 +242,8 @@ final class MongoDBConnection: @unchecked Sendable {
         #endif
         _isConnected = false
         _cachedServerVersion = nil
+        _queryTimeoutMS = 0
+        _isCancelled = false
         stateLock.unlock()
 
         #if canImport(CLibMongoc)
@@ -243,6 +258,25 @@ final class MongoDBConnection: @unchecked Sendable {
     func cancelCurrentQuery() {
         stateLock.lock()
         _isCancelled = true
+        stateLock.unlock()
+    }
+
+    /// Throws if cancellation was requested, resetting the flag atomically.
+    /// Safe to call from any thread.
+    private func checkCancelled() throws {
+        stateLock.lock()
+        let cancelled = _isCancelled
+        if cancelled { _isCancelled = false }
+        stateLock.unlock()
+        if cancelled {
+            throw MongoDBError(code: 0, message: String(localized: "Query cancelled"))
+        }
+    }
+
+    /// Clears any stale cancellation flag so the next operation starts clean.
+    private func resetCancellation() {
+        stateLock.lock()
+        _isCancelled = false
         stateLock.unlock()
     }
 
@@ -290,6 +324,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func runCommand(_ command: String, database: String? = nil) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -297,7 +332,9 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let result = try runCommandSync(client: client, command: command, database: database)
+                    try checkCancelled()
                     cont.resume(returning: result)
                 } catch {
                     cont.resume(throwing: error)
@@ -321,6 +358,7 @@ final class MongoDBConnection: @unchecked Sendable {
         limit: Int
     ) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -328,6 +366,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let result = try findSync(
                         client: client, database: database, collection: collection,
                         filter: filter, sort: sort, projection: projection, skip: skip, limit: limit
@@ -343,6 +382,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func aggregate(database: String, collection: String, pipeline: String) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -350,6 +390,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let result = try aggregateSync(
                         client: client, database: database, collection: collection, pipeline: pipeline
                     )
@@ -364,6 +405,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func countDocuments(database: String, collection: String, filter: String) async throws -> Int64 {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<Int64, Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -371,9 +413,11 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let count = try countDocumentsSync(
                         client: client, database: database, collection: collection, filter: filter
                     )
+                    try checkCancelled()
                     cont.resume(returning: count)
                 } catch { cont.resume(throwing: error) }
             }
@@ -385,6 +429,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func insertOne(database: String, collection: String, document: String) async throws -> String? {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<String?, Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -392,6 +437,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let id = try insertOneSync(
                         client: client, database: database, collection: collection, document: document
                     )
@@ -406,6 +452,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func updateOne(database: String, collection: String, filter: String, update: String) async throws -> Int64 {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<Int64, Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -413,6 +460,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let modified = try updateOneSync(
                         client: client, database: database, collection: collection, filter: filter, update: update
                     )
@@ -427,6 +475,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func deleteOne(database: String, collection: String, filter: String) async throws -> Int64 {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<Int64, Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -434,6 +483,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let deleted = try deleteOneSync(
                         client: client, database: database, collection: collection, filter: filter
                     )
@@ -448,6 +498,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func listDatabases() async throws -> [String] {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[String], Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -455,6 +506,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let dbs = try listDatabasesSync(client: client)
                     cont.resume(returning: dbs)
                 } catch { cont.resume(throwing: error) }
@@ -467,6 +519,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func listCollections(database: String) async throws -> [String] {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[String], Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -474,6 +527,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let cols = try listCollectionsSync(client: client, database: database)
                     cont.resume(returning: cols)
                 } catch { cont.resume(throwing: error) }
@@ -486,6 +540,7 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func listIndexes(database: String, collection: String) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
+        resetCancellation()
         return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, let client = self.client else {
@@ -493,6 +548,7 @@ final class MongoDBConnection: @unchecked Sendable {
                     return
                 }
                 do {
+                    try checkCancelled()
                     let indexes = try listIndexesSync(
                         client: client, database: database, collection: collection
                     )
@@ -551,8 +607,23 @@ private extension MongoDBConnection {
     func runCommandSync(
         client: OpaquePointer, command: String, database: String?
     ) throws -> [[String: Any]] {
-        guard let bsonCmd = jsonToBson(command) else {
-            throw MongoDBError(code: 0, message: "Invalid JSON command: \(command)")
+        try checkCancelled()
+
+        let timeoutMS = queryTimeoutMS
+        let effectiveCommand: String
+        if timeoutMS > 0, !command.contains("\"maxTimeMS\"") {
+            let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasSuffix("}") {
+                effectiveCommand = String(trimmed.dropLast()) + ", \"maxTimeMS\": \(timeoutMS)}"
+            } else {
+                effectiveCommand = command
+            }
+        } else {
+            effectiveCommand = command
+        }
+
+        guard let bsonCmd = jsonToBson(effectiveCommand) else {
+            throw MongoDBError(code: 0, message: "Invalid JSON command: \(effectiveCommand)")
         }
         defer { bson_destroy(bsonCmd) }
 
@@ -562,6 +633,8 @@ private extension MongoDBConnection {
 
         let effectiveDb = (database ?? self.database).isEmpty ? "admin" : (database ?? self.database)
         let ok = effectiveDb.withCString { mongoc_client_command_simple(client, $0, bsonCmd, nil, reply, &error) }
+
+        try checkCancelled()
         guard ok else { throw makeError(error) }
 
         return [bsonToDict(reply)]
@@ -571,6 +644,8 @@ private extension MongoDBConnection {
         client: OpaquePointer, database: String, collection: String,
         filter: String, sort: String?, projection: String?, skip: Int, limit: Int
     ) throws -> [[String: Any]] {
+        try checkCancelled()
+
         guard let filterBson = jsonToBson(filter) else {
             throw MongoDBError(code: 0, message: "Invalid JSON filter: \(filter)")
         }
@@ -586,6 +661,11 @@ private extension MongoDBConnection {
             optsJson["projection"] = obj
         }
 
+        let timeoutMS = queryTimeoutMS
+        if timeoutMS > 0 {
+            optsJson["maxTimeMS"] = timeoutMS
+        }
+
         let optsData = try JSONSerialization.data(withJSONObject: optsJson)
         guard let optsStr = String(data: optsData, encoding: .utf8),
               let optsBson = jsonToBson(optsStr) else {
@@ -595,6 +675,8 @@ private extension MongoDBConnection {
 
         let col = try getCollection(client, database: database, collection: collection)
         defer { mongoc_collection_destroy(col) }
+
+        try checkCancelled()
 
         guard let cursor = mongoc_collection_find_with_opts(col, filterBson, optsBson, nil) else {
             throw MongoDBError(code: 0, message: "Failed to create find cursor")
@@ -607,6 +689,8 @@ private extension MongoDBConnection {
     func aggregateSync(
         client: OpaquePointer, database: String, collection: String, pipeline: String
     ) throws -> [[String: Any]] {
+        try checkCancelled()
+
         guard let pipelineBson = jsonToBson(pipeline) else {
             throw MongoDBError(code: 0, message: "Invalid JSON pipeline: \(pipeline)")
         }
@@ -615,7 +699,18 @@ private extension MongoDBConnection {
         let col = try getCollection(client, database: database, collection: collection)
         defer { mongoc_collection_destroy(col) }
 
-        guard let cursor = mongoc_collection_aggregate(col, MONGOC_QUERY_NONE, pipelineBson, nil, nil) else {
+        let timeoutMS = queryTimeoutMS
+        var optsBson: OpaquePointer?
+        if timeoutMS > 0 {
+            optsBson = jsonToBson("{\"maxTimeMS\": \(timeoutMS)}")
+        }
+        defer { if let opts = optsBson { bson_destroy(opts) } }
+
+        try checkCancelled()
+
+        guard let cursor = mongoc_collection_aggregate(
+            col, MONGOC_QUERY_NONE, pipelineBson, optsBson, nil
+        ) else {
             throw MongoDBError(code: 0, message: "Failed to create aggregation cursor")
         }
         defer { mongoc_cursor_destroy(cursor) }
@@ -626,6 +721,8 @@ private extension MongoDBConnection {
     func countDocumentsSync(
         client: OpaquePointer, database: String, collection: String, filter: String
     ) throws -> Int64 {
+        try checkCancelled()
+
         guard let filterBson = jsonToBson(filter) else {
             throw MongoDBError(code: 0, message: "Invalid JSON filter: \(filter)")
         }
@@ -634,8 +731,17 @@ private extension MongoDBConnection {
         let col = try getCollection(client, database: database, collection: collection)
         defer { mongoc_collection_destroy(col) }
 
+        let timeoutMS = queryTimeoutMS
+        var optsBson: OpaquePointer?
+        if timeoutMS > 0 {
+            optsBson = jsonToBson("{\"maxTimeMS\": \(timeoutMS)}")
+        }
+        defer { if let opts = optsBson { bson_destroy(opts) } }
+
         var error = bson_error_t()
-        let count = mongoc_collection_count_documents(col, filterBson, nil, nil, nil, &error)
+        let count = mongoc_collection_count_documents(col, filterBson, optsBson, nil, nil, &error)
+
+        try checkCancelled()
         guard count >= 0 else { throw makeError(error) }
         return count
     }
@@ -643,6 +749,8 @@ private extension MongoDBConnection {
     func insertOneSync(
         client: OpaquePointer, database: String, collection: String, document: String
     ) throws -> String? {
+        try checkCancelled()
+
         guard let docBson = jsonToBson(document) else {
             throw MongoDBError(code: 0, message: "Invalid JSON document: \(document)")
         }
@@ -666,6 +774,8 @@ private extension MongoDBConnection {
     func updateOneSync(
         client: OpaquePointer, database: String, collection: String, filter: String, update: String
     ) throws -> Int64 {
+        try checkCancelled()
+
         guard let filterBson = jsonToBson(filter) else {
             throw MongoDBError(code: 0, message: "Invalid JSON filter: \(filter)")
         }
@@ -692,6 +802,8 @@ private extension MongoDBConnection {
     func deleteOneSync(
         client: OpaquePointer, database: String, collection: String, filter: String
     ) throws -> Int64 {
+        try checkCancelled()
+
         guard let filterBson = jsonToBson(filter) else {
             throw MongoDBError(code: 0, message: "Invalid JSON filter: \(filter)")
         }
@@ -711,6 +823,8 @@ private extension MongoDBConnection {
     }
 
     func listDatabasesSync(client: OpaquePointer) throws -> [String] {
+        try checkCancelled()
+
         guard let command = jsonToBson("{\"listDatabases\": 1, \"nameOnly\": true}") else {
             throw MongoDBError(code: 0, message: "Failed to create listDatabases command")
         }
@@ -721,6 +835,8 @@ private extension MongoDBConnection {
         var error = bson_error_t()
 
         let ok = "admin".withCString { mongoc_client_command_simple(client, $0, command, nil, reply, &error) }
+
+        try checkCancelled()
         guard ok else { throw makeError(error) }
 
         guard let databases = bsonToDict(reply)["databases"] as? [[String: Any]] else { return [] }
@@ -728,6 +844,8 @@ private extension MongoDBConnection {
     }
 
     func listCollectionsSync(client: OpaquePointer, database: String) throws -> [String] {
+        try checkCancelled()
+
         guard let mongocDb = database.withCString({ mongoc_client_get_database(client, $0) }) else {
             throw MongoDBError(code: 0, message: "Failed to get database \(database)")
         }
@@ -737,6 +855,8 @@ private extension MongoDBConnection {
         guard let names = mongoc_database_get_collection_names_with_opts(mongocDb, nil, &error) else {
             throw makeError(error)
         }
+
+        try checkCancelled()
 
         var collections: [String] = []
         var index = 0
@@ -751,6 +871,8 @@ private extension MongoDBConnection {
     func listIndexesSync(
         client: OpaquePointer, database: String, collection: String
     ) throws -> [[String: Any]] {
+        try checkCancelled()
+
         let col = try getCollection(client, database: database, collection: collection)
         defer { mongoc_collection_destroy(col) }
 
@@ -763,17 +885,13 @@ private extension MongoDBConnection {
     }
 
     func iterateCursor(_ cursor: OpaquePointer) throws -> [[String: Any]] {
+        try checkCancelled()
+
         var results: [[String: Any]] = []
         var docPtr: OpaquePointer?
 
         while mongoc_cursor_next(cursor, &docPtr) {
-            stateLock.lock()
-            let shouldCancel = _isCancelled
-            if shouldCancel { _isCancelled = false }
-            stateLock.unlock()
-            if shouldCancel {
-                throw MongoDBError(code: 0, message: "Query cancelled")
-            }
+            try checkCancelled()
 
             if let doc = docPtr {
                 results.append(bsonToDict(doc))
@@ -857,7 +975,7 @@ extension MongoDBConnection {
                     if let ms = dateVal as? [String: Any],
                        let msStr = ms["$numberLong"] as? String,
                        let msInt = Int64(msStr) {
-                        return Date(timeIntervalSince1970: Double(msInt) / 1000.0)
+                        return Date(timeIntervalSince1970: Double(msInt) / 1_000.0)
                     }
                     if let isoStr = dateVal as? String {
                         let fmt = ISO8601DateFormatter()

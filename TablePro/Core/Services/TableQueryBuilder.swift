@@ -76,9 +76,15 @@ struct TableQueryBuilder {
         offset: Int = 0
     ) -> String {
         if databaseType == .mongodb {
-            return buildMongoBaseQuery(
-                tableName: tableName, sortState: sortState,
-                columns: columns, limit: limit, offset: offset
+            let mongoBuilder = MongoDBQueryBuilder()
+            return mongoBuilder.buildFilteredQuery(
+                collection: tableName,
+                filters: filters,
+                logicMode: logicMode,
+                sortState: sortState,
+                columns: columns,
+                limit: limit,
+                offset: offset
             )
         }
 
@@ -172,16 +178,50 @@ struct TableQueryBuilder {
         offset: Int = 0
     ) -> String {
         if databaseType == .mongodb {
-            if !searchText.isEmpty, !searchColumns.isEmpty {
-                return buildMongoQuickSearchQuery(
-                    tableName: tableName, searchText: searchText, columns: searchColumns,
-                    sortState: sortState, limit: limit, offset: offset
+            let mongoBuilder = MongoDBQueryBuilder()
+            let hasFilters = !filters.isEmpty
+            let hasSearch = !searchText.isEmpty && !searchColumns.isEmpty
+
+            if hasFilters && hasSearch {
+                return mongoBuilder.buildCombinedQuery(
+                    collection: tableName,
+                    filters: filters,
+                    logicMode: logicMode,
+                    searchText: searchText,
+                    searchColumns: searchColumns,
+                    sortState: sortState,
+                    columns: columns,
+                    limit: limit,
+                    offset: offset
+                )
+            } else if hasSearch {
+                return mongoBuilder.buildQuickSearchQuery(
+                    collection: tableName,
+                    searchText: searchText,
+                    columns: searchColumns,
+                    sortState: sortState,
+                    limit: limit,
+                    offset: offset
+                )
+            } else if hasFilters {
+                return mongoBuilder.buildFilteredQuery(
+                    collection: tableName,
+                    filters: filters,
+                    logicMode: logicMode,
+                    sortState: sortState,
+                    columns: columns,
+                    limit: limit,
+                    offset: offset
+                )
+            } else {
+                return mongoBuilder.buildBaseQuery(
+                    collection: tableName,
+                    sortState: sortState,
+                    columns: columns,
+                    limit: limit,
+                    offset: offset
                 )
             }
-            return buildMongoBaseQuery(
-                tableName: tableName, sortState: sortState,
-                columns: columns, limit: limit, offset: offset
-            )
         }
 
         let quotedTable = databaseType.quoteIdentifier(tableName)
