@@ -3689,7 +3689,11 @@
         }
       }
     },
+    "Failed to duplicate table: %@" : {
+
+    },
     "Failed to fetch table structure: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6312,6 +6316,9 @@
           }
         }
       }
+    },
+    "Query cancelled" : {
+
     },
     "Query executed successfully" : {
       "localizations" : {

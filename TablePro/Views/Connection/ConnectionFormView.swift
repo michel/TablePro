@@ -59,6 +59,10 @@ struct ConnectionFormView: View {
     // AI policy
     @State private var aiPolicy: AIConnectionPolicy?
 
+    // MongoDB-specific settings
+    @State private var mongoReadPreference: String = ""
+    @State private var mongoWriteConcern: String = ""
+
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
 
@@ -344,6 +348,26 @@ struct ConnectionFormView: View {
 
     private var advancedForm: some View {
         Form {
+            if type == .mongodb {
+                Section("MongoDB") {
+                    Picker(String(localized: "Read Preference"), selection: $mongoReadPreference) {
+                        Text(String(localized: "Default")).tag("")
+                        Text("Primary").tag("primary")
+                        Text("Primary Preferred").tag("primaryPreferred")
+                        Text("Secondary").tag("secondary")
+                        Text("Secondary Preferred").tag("secondaryPreferred")
+                        Text("Nearest").tag("nearest")
+                    }
+                    Picker(String(localized: "Write Concern"), selection: $mongoWriteConcern) {
+                        Text(String(localized: "Default")).tag("")
+                        Text("Majority").tag("majority")
+                        Text("1").tag("1")
+                        Text("2").tag("2")
+                        Text("3").tag("3")
+                    }
+                }
+            }
+
             Section(String(localized: "AI")) {
                 Picker(String(localized: "AI Policy"), selection: $aiPolicy) {
                     Text(String(localized: "Use Default"))
@@ -494,6 +518,10 @@ struct ConnectionFormView: View {
             isReadOnly = existing.isReadOnly
             aiPolicy = existing.aiPolicy
 
+            // Load MongoDB settings
+            mongoReadPreference = existing.mongoReadPreference ?? ""
+            mongoWriteConcern = existing.mongoWriteConcern ?? ""
+
             // Load passwords from Keychain
             if let savedSSHPassword = storage.loadSSHPassword(for: existing.id) {
                 sshPassword = savedSSHPassword
@@ -545,7 +573,9 @@ struct ConnectionFormView: View {
             color: connectionColor,
             tagId: selectedTagId,
             isReadOnly: isReadOnly,
-            aiPolicy: aiPolicy
+            aiPolicy: aiPolicy,
+            mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
+            mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern
         )
 
         // Save passwords to Keychain
@@ -639,7 +669,9 @@ struct ConnectionFormView: View {
             sshConfig: sshConfig,
             sslConfig: sslConfig,
             color: connectionColor,
-            tagId: selectedTagId
+            tagId: selectedTagId,
+            mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
+            mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern
         )
 
         Task {

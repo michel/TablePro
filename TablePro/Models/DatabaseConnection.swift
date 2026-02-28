@@ -142,6 +142,26 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// Whether this database type supports foreign key constraints
+    var supportsForeignKeys: Bool {
+        switch self {
+        case .mysql, .mariadb, .postgresql, .sqlite:
+            return true
+        case .mongodb:
+            return false
+        }
+    }
+
+    /// Whether this database type supports SQL-based schema editing (ALTER TABLE etc.)
+    var supportsSchemaEditing: Bool {
+        switch self {
+        case .mysql, .mariadb, .postgresql, .sqlite:
+            return true
+        case .mongodb:
+            return false
+        }
+    }
+
     /// Quote character for identifiers (table/column names)
     /// MySQL/MariaDB/SQLite use backticks, PostgreSQL uses double quotes
     var identifierQuote: String {
@@ -230,6 +250,8 @@ struct DatabaseConnection: Identifiable, Hashable {
     var tagId: UUID?
     var isReadOnly: Bool
     var aiPolicy: AIConnectionPolicy?
+    var mongoReadPreference: String?
+    var mongoWriteConcern: String?
 
     init(
         id: UUID = UUID(),
@@ -244,7 +266,9 @@ struct DatabaseConnection: Identifiable, Hashable {
         color: ConnectionColor = .none,
         tagId: UUID? = nil,
         isReadOnly: Bool = false,
-        aiPolicy: AIConnectionPolicy? = nil
+        aiPolicy: AIConnectionPolicy? = nil,
+        mongoReadPreference: String? = nil,
+        mongoWriteConcern: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -259,6 +283,8 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.tagId = tagId
         self.isReadOnly = isReadOnly
         self.aiPolicy = aiPolicy
+        self.mongoReadPreference = mongoReadPreference
+        self.mongoWriteConcern = mongoWriteConcern
     }
 
     /// Returns the display color (custom color or database type color)

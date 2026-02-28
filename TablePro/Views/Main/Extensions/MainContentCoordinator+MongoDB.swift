@@ -54,6 +54,18 @@ extension MainContentCoordinator {
         case .updateMany(let collection, let filter, let update):
             return "db.runCommand({\"explain\": {\"update\": \"\(collection)\", \"updates\": [{\"q\": \(filter), \"u\": \(update), \"multi\": true}]}, \"verbosity\": \"executionStats\"})"
 
+        case .findOneAndUpdate(let collection, let filter, let update):
+            let cmd = "\"findAndModify\": \"\(collection)\", \"query\": \(filter), \"update\": \(update)"
+            return "db.runCommand({\"explain\": {\(cmd)}, \"verbosity\": \"executionStats\"})"
+
+        case .findOneAndReplace(let collection, let filter, let replacement):
+            let cmd = "\"findAndModify\": \"\(collection)\", \"query\": \(filter), \"update\": \(replacement)"
+            return "db.runCommand({\"explain\": {\(cmd)}, \"verbosity\": \"executionStats\"})"
+
+        case .findOneAndDelete(let collection, let filter):
+            let cmd = "\"findAndModify\": \"\(collection)\", \"query\": \(filter), \"remove\": true"
+            return "db.runCommand({\"explain\": {\(cmd)}, \"verbosity\": \"executionStats\"})"
+
         default:
             return "db.runCommand({\"explain\": \"\(query)\", \"verbosity\": \"executionStats\"})"
         }

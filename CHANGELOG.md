@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- MongoDB database support with collection browsing, document viewing, collection duplication, and MQL shell queries
+- MongoDB database support with collection browsing, document viewing, collection duplication, MQL shell queries, database switching, read preference, write concern, findOneAndUpdate/Replace/Delete, view creation, and MQL autocomplete
 - Custom About window with version info and links (Website, GitHub, Documentation)
 
 ### Fixed

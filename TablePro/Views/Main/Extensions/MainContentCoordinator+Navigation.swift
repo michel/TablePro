@@ -150,7 +150,7 @@ extension MainContentCoordinator {
             ORDER BY name
             """
         case .mongodb:
-            sql = "// MongoDB does not support SQL metadata queries"
+            sql = "db.runCommand({\"listCollections\": 1, \"nameOnly\": false})"
         }
 
         let payload = EditorTabPayload(
@@ -250,6 +250,35 @@ extension MainContentCoordinator {
                 NotificationCenter.default.post(name: .refreshData, object: nil)
 
                 // Re-execute current tab if it's a table tab
+                if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
+                    runQuery()
+                }
+            } else if connection.type == .mongodb {
+                // MongoDB: just update the database name — driver reads it for every operation
+                if let sessionId = DatabaseManager.shared.currentSessionId {
+                    DatabaseManager.shared.updateSession(sessionId) { session in
+                        var updatedConnection = session.connection
+                        updatedConnection.database = database
+                        session.connection = updatedConnection
+                        session.tables = []
+                    }
+                }
+
+                toolbarState.databaseName = database
+
+                tabManager.tabs = tabManager.tabs.map { tab in
+                    var updatedTab = tab
+                    updatedTab.resultColumns = []
+                    updatedTab.resultRows = []
+                    updatedTab.resultVersion += 1
+                    updatedTab.errorMessage = nil
+                    updatedTab.executionTime = nil
+                    updatedTab.databaseName = database
+                    return updatedTab
+                }
+
+                await loadSchema()
+
                 if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
                     runQuery()
                 }

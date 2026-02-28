@@ -87,8 +87,24 @@ struct BsonDocumentFlattener {
         case let date as Date:
             return ISO8601DateFormatter().string(from: date)
         case let data as Data:
+            // Raw binary data (subtype info lost during BSON->Swift conversion)
             return "hex:" + data.map { String(format: "%02x", $0) }.joined()
         case let dict as [String: Any]:
+            // Code type: {"$code": "function() {...}"}
+            if let code = dict["$code"] as? String {
+                if let scope = dict["$scope"] as? [String: Any] {
+                    return "Code(\"\(code)\", \(serializeToJson(scope)))"
+                }
+                return "Code(\"\(code)\")"
+            }
+            // DBRef convention: {"$ref": "collection", "$id": "..."}
+            if let ref = dict["$ref"] as? String, let id = dict["$id"] {
+                let idStr = stringValue(for: id) ?? String(describing: id)
+                if let db = dict["$db"] as? String {
+                    return "DBRef(\"\(ref)\", \(idStr), \"\(db)\")"
+                }
+                return "DBRef(\"\(ref)\", \(idStr))"
+            }
             return serializeToJson(dict)
         case let array as [Any]:
             return serializeToJson(array)

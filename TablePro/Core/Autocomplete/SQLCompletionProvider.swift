@@ -413,6 +413,22 @@ final class SQLCompletionProvider {
                 "CALL", "EXECUTE", "PREPARE"
             ])
             items += await schemaProvider.tableCompletionItems()
+
+            // MongoDB-specific: add MQL method completions
+            if databaseType == .mongodb {
+                items += filterKeywords([
+                    "db.", "db.runCommand", "db.adminCommand",
+                    "db.createView", "db.createCollection",
+                    "show dbs", "show collections",
+                    ".find", ".findOne", ".aggregate",
+                    ".insertOne", ".insertMany",
+                    ".updateOne", ".updateMany",
+                    ".deleteOne", ".deleteMany",
+                    ".replaceOne",
+                    ".countDocuments", ".count",
+                    ".createIndex", ".dropIndex", ".drop",
+                ])
+            }
         }
 
         return items
@@ -462,7 +478,9 @@ final class SQLCompletionProvider {
 
         case .mongodb:
             types += [
-                "BLOB",
+                "ObjectId", "String", "Int32", "Int64", "Double", "Decimal128",
+                "Boolean", "Date", "Timestamp", "BinData", "Array", "Object",
+                "Null", "Regex", "UUID",
             ]
 
         case .none:

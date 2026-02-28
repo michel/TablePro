@@ -250,7 +250,7 @@ struct MongoDBStatementGeneratorTests {
         #expect(stmt.sql.contains("{\"_id\": \"some-string\"}"))
     }
 
-    @Test("Update setting value to null produces null in $set")
+    @Test("Update setting value to null uses $unset to remove the field")
     func testUpdateSetValueToNull() {
         let generator = makeGenerator()
         let changes: [RowChange] = [
@@ -273,7 +273,36 @@ struct MongoDBStatementGeneratorTests {
 
         #expect(statements.count == 1)
         let stmt = statements[0]
-        #expect(stmt.sql.contains("\"email\": null"))
+        #expect(stmt.sql.contains("\"$unset\": {\"email\": \"\"}"))
+        #expect(!stmt.sql.contains("\"$set\""))
+    }
+
+    @Test("Update with mixed null and non-null values uses both $set and $unset")
+    func testUpdateMixedSetAndUnset() {
+        let generator = makeGenerator()
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .update,
+                cellChanges: [
+                    CellChange(rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Jane"),
+                    CellChange(rowIndex: 0, columnIndex: 2, columnName: "email", oldValue: "john@test.com", newValue: nil)
+                ],
+                originalRow: ["abc123def456abc123def456", "John", "john@test.com"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("\"$set\": {\"name\": \"Jane\"}"))
+        #expect(stmt.sql.contains("\"$unset\": {\"email\": \"\"}"))
     }
 
     @Test("Update without _id column returns no statement")
@@ -601,6 +630,102 @@ struct MongoDBStatementGeneratorTests {
         #expect(statements.count == 1)
         let stmt = statements[0]
         #expect(stmt.sql.contains("\"name\": \"hello world\""))
+    }
+
+    // MARK: - Bulk Insert Tests
+
+    @Test("Bulk insert with multiple rows generates insertMany")
+    func testBulkInsertMultipleRows() {
+        let generator = makeGenerator()
+        let insertedRowData: [Int: [String?]] = [
+            0: [nil, "John", "john@test.com"],
+            1: [nil, "Jane", "jane@test.com"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil),
+            RowChange(rowIndex: 1, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let stmt = generator.generateBulkInsert(
+            from: changes,
+            insertedRowData: insertedRowData,
+            insertedRowIndices: [0, 1]
+        )
+
+        #expect(stmt != nil)
+        #expect(stmt?.sql.contains("insertMany") == true)
+        #expect(stmt?.sql.contains("\"name\": \"John\"") == true)
+        #expect(stmt?.sql.contains("\"name\": \"Jane\"") == true)
+        #expect(stmt?.parameters.isEmpty == true)
+    }
+
+    @Test("Bulk insert with single row returns nil")
+    func testBulkInsertSingleRowReturnsNil() {
+        let generator = makeGenerator()
+        let insertedRowData: [Int: [String?]] = [
+            0: [nil, "John", "john@test.com"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let stmt = generator.generateBulkInsert(
+            from: changes,
+            insertedRowData: insertedRowData,
+            insertedRowIndices: [0]
+        )
+
+        #expect(stmt == nil)
+    }
+
+    @Test("Bulk insert skips _id and __DEFAULT__ values")
+    func testBulkInsertSkipsIdAndDefault() {
+        let generator = makeGenerator()
+        let insertedRowData: [Int: [String?]] = [
+            0: ["some_id", "John", "__DEFAULT__"],
+            1: [nil, "Jane", "jane@test.com"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil),
+            RowChange(rowIndex: 1, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let stmt = generator.generateBulkInsert(
+            from: changes,
+            insertedRowData: insertedRowData,
+            insertedRowIndices: [0, 1]
+        )
+
+        #expect(stmt != nil)
+        #expect(stmt?.sql.contains("_id") == false)
+        #expect(stmt?.sql.contains("__DEFAULT__") == false)
+    }
+
+    @Test("Bulk insert filters out non-insert changes")
+    func testBulkInsertFiltersNonInsertChanges() {
+        let generator = makeGenerator()
+        let insertedRowData: [Int: [String?]] = [
+            0: [nil, "John", "john@test.com"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil),
+            RowChange(
+                rowIndex: 1,
+                type: .update,
+                cellChanges: [
+                    CellChange(rowIndex: 1, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Jane")
+                ],
+                originalRow: ["abc123def456abc123def456", "John", "john@test.com"]
+            )
+        ]
+
+        let stmt = generator.generateBulkInsert(
+            from: changes,
+            insertedRowData: insertedRowData,
+            insertedRowIndices: [0]
+        )
+
+        #expect(stmt == nil)
     }
 
     // MARK: - Parameters Always Empty

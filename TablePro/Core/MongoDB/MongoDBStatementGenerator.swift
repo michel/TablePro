@@ -91,12 +91,48 @@ struct MongoDBStatementGenerator {
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 
-    // MARK: - UPDATE (updateOne with $set)
+    // MARK: - INSERT MANY
+
+    /// Generate an insertMany statement from multiple inserted rows
+    func generateBulkInsert(
+        from changes: [RowChange],
+        insertedRowData: [Int: [String?]],
+        insertedRowIndices: Set<Int>
+    ) -> ParameterizedStatement? {
+        let insertChanges = changes.filter { $0.type == .insert && insertedRowIndices.contains($0.rowIndex) }
+        guard insertChanges.count > 1 else { return nil }
+
+        var docs: [String] = []
+        for change in insertChanges {
+            var doc: [String: String] = [:]
+            if let values = insertedRowData[change.rowIndex] {
+                for (index, value) in values.enumerated() {
+                    guard index < columns.count else { continue }
+                    let column = columns[index]
+                    if column == "_id" { continue }
+                    if value == "__DEFAULT__" { continue }
+                    if let val = value {
+                        doc[column] = val
+                    }
+                }
+            }
+            if !doc.isEmpty {
+                docs.append(serializeDocument(doc))
+            }
+        }
+
+        guard docs.count > 1 else { return nil }
+
+        let docsArray = "[\(docs.joined(separator: ", "))]"
+        let shell = "db.\(collectionName).insertMany(\(docsArray))"
+        return ParameterizedStatement(sql: shell, parameters: [])
+    }
+
+    // MARK: - UPDATE (updateOne with $set/$unset)
 
     private func generateUpdate(for change: RowChange) -> ParameterizedStatement? {
         guard !change.cellChanges.isEmpty else { return nil }
 
-        // Get _id value for the filter
         guard let idIndex = idColumnIndex,
               let originalRow = change.originalRow,
               idIndex < originalRow.count,
@@ -105,22 +141,35 @@ struct MongoDBStatementGenerator {
             return nil
         }
 
-        // Build $set document with only changed fields
         var setDoc: [String: String] = [:]
+        var unsetFields: [String] = []
+
         for cellChange in change.cellChanges {
             if cellChange.columnName == "_id" { continue }
             if let val = cellChange.newValue {
                 setDoc[cellChange.columnName] = val
             } else {
-                setDoc[cellChange.columnName] = "null"
+                unsetFields.append(cellChange.columnName)
             }
         }
 
-        guard !setDoc.isEmpty else { return nil }
+        guard !setDoc.isEmpty || !unsetFields.isEmpty else { return nil }
 
         let filterJson = buildIdFilter(idValue)
-        let setJson = serializeDocument(setDoc)
-        let shell = "db.\(collectionName).updateOne(\(filterJson), {\"$set\": \(setJson)})"
+
+        // Build update document with $set and/or $unset
+        var updateParts: [String] = []
+        if !setDoc.isEmpty {
+            let setJson = serializeDocument(setDoc)
+            updateParts.append("\"$set\": \(setJson)")
+        }
+        if !unsetFields.isEmpty {
+            let unsetDoc = unsetFields.sorted().map { "\"\(escapeJsonString($0))\": \"\"" }.joined(separator: ", ")
+            updateParts.append("\"$unset\": {\(unsetDoc)}")
+        }
+
+        let updateJson = "{\(updateParts.joined(separator: ", "))}"
+        let shell = "db.\(collectionName).updateOne(\(filterJson), \(updateJson))"
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 

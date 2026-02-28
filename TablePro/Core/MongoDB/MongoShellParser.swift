@@ -20,6 +20,9 @@ enum MongoOperation {
     case updateOne(collection: String, filter: String, update: String)
     case updateMany(collection: String, filter: String, update: String)
     case replaceOne(collection: String, filter: String, replacement: String)
+    case findOneAndUpdate(collection: String, filter: String, update: String)
+    case findOneAndReplace(collection: String, filter: String, replacement: String)
+    case findOneAndDelete(collection: String, filter: String)
     case deleteOne(collection: String, filter: String)
     case deleteMany(collection: String, filter: String)
     case createIndex(collection: String, keys: String, options: String?)
@@ -194,6 +197,18 @@ struct MongoShellParser {
 
         case "dropIndex":
             operation = .dropIndex(collection: collection, indexName: arg)
+
+        case "findOneAndUpdate":
+            let (filter, update) = try parseTwoArgs(arg, method: "findOneAndUpdate")
+            operation = .findOneAndUpdate(collection: collection, filter: filter, update: update)
+
+        case "findOneAndReplace":
+            let (filter, replacement) = try parseTwoArgs(arg, method: "findOneAndReplace")
+            operation = .findOneAndReplace(collection: collection, filter: filter, replacement: replacement)
+
+        case "findOneAndDelete":
+            let filter = arg.isEmpty ? "{}" : arg
+            operation = .findOneAndDelete(collection: collection, filter: filter)
 
         case "drop":
             operation = .drop(collection: collection)

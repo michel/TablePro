@@ -43,7 +43,9 @@ final class MongoDBDriver: DatabaseDriver {
             user: connection.username,
             password: password,
             database: connection.database,
-            sslConfig: connection.sslConfig
+            sslConfig: connection.sslConfig,
+            readPreference: connection.mongoReadPreference,
+            writeConcern: connection.mongoWriteConcern
         )
 
         do {
@@ -216,7 +218,7 @@ final class MongoDBDriver: DatabaseDriver {
 
         let db = connection.database
 
-        // Sample first 100 documents to discover schema
+        // Sample first 500 documents to discover schema (covers common variations)
         let docs = try await conn.find(
             database: db,
             collection: table,
@@ -224,7 +226,7 @@ final class MongoDBDriver: DatabaseDriver {
             sort: nil,
             projection: nil,
             skip: 0,
-            limit: 100
+            limit: 500
         )
 
         if docs.isEmpty {
@@ -563,6 +565,7 @@ private extension MongoDBDriver {
             )
 
         case .insertOne, .insertMany, .updateOne, .updateMany, .replaceOne,
+             .findOneAndUpdate, .findOneAndReplace, .findOneAndDelete,
              .deleteOne, .deleteMany, .createIndex, .dropIndex, .drop:
             return try await executeWriteOperation(operation, connection: conn, database: db, startTime: startTime)
 
@@ -734,6 +737,21 @@ private extension MongoDBDriver {
                 """
             let result = try await conn.runCommand(cmd, database: db)
             return buildQueryResult(from: result, startTime: startTime)
+
+        case .findOneAndUpdate(let collection, let filter, let update):
+            let cmd = "{\"findAndModify\": \"\(escapeJsonString(collection))\", \"query\": \(filter), \"update\": \(update), \"new\": true}"
+            let docs = try await conn.runCommand(cmd, database: db)
+            return buildQueryResult(from: docs.isEmpty ? [] : [docs[0]], startTime: startTime)
+
+        case .findOneAndReplace(let collection, let filter, let replacement):
+            let cmd = "{\"findAndModify\": \"\(escapeJsonString(collection))\", \"query\": \(filter), \"update\": \(replacement), \"new\": true}"
+            let docs = try await conn.runCommand(cmd, database: db)
+            return buildQueryResult(from: docs.isEmpty ? [] : [docs[0]], startTime: startTime)
+
+        case .findOneAndDelete(let collection, let filter):
+            let cmd = "{\"findAndModify\": \"\(escapeJsonString(collection))\", \"query\": \(filter), \"remove\": true}"
+            let docs = try await conn.runCommand(cmd, database: db)
+            return buildQueryResult(from: docs.isEmpty ? [] : [docs[0]], startTime: startTime)
 
         case .drop(let collection):
             let cmd = "{\"drop\": \"\(escapeJsonString(collection))\"}"

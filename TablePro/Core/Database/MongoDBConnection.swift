@@ -53,6 +53,8 @@ final class MongoDBConnection: @unchecked Sendable {
     private let password: String?
     private let database: String
     private let sslConfig: SSLConfiguration
+    private let readPreference: String?
+    private let writeConcern: String?
 
     private let stateLock = NSLock()
     private var _isConnected: Bool = false
@@ -100,7 +102,9 @@ final class MongoDBConnection: @unchecked Sendable {
         user: String,
         password: String?,
         database: String,
-        sslConfig: SSLConfiguration = SSLConfiguration()
+        sslConfig: SSLConfiguration = SSLConfiguration(),
+        readPreference: String? = nil,
+        writeConcern: String? = nil
     ) {
         self.host = host
         self.port = port
@@ -108,6 +112,8 @@ final class MongoDBConnection: @unchecked Sendable {
         self.password = password
         self.database = database
         self.sslConfig = sslConfig
+        self.readPreference = readPreference
+        self.writeConcern = writeConcern
     }
 
     deinit {
@@ -168,6 +174,13 @@ final class MongoDBConnection: @unchecked Sendable {
             if !sslConfig.clientCertificatePath.isEmpty {
                 params.append("tlsCertificateKeyFile=\(sslConfig.clientCertificatePath)")
             }
+        }
+
+        if let rp = readPreference, !rp.isEmpty {
+            params.append("readPreference=\(rp)")
+        }
+        if let wc = writeConcern, !wc.isEmpty {
+            params.append("w=\(wc)")
         }
 
         uri += "?" + params.joined(separator: "&")
