@@ -84,7 +84,18 @@ struct MainContentView: View {
         let tabMgr = QueryTabManager()
         let changeMgr = DataChangeManager()
         let filterMgr = FilterStateManager()
-        let toolbarSt = ConnectionToolbarState()
+        let toolbarSt = ConnectionToolbarState(connection: connection)
+
+        // Eagerly populate version + state from existing session to avoid flash
+        if let session = DatabaseManager.shared.session(for: connection.id) {
+            toolbarSt.updateConnectionState(from: session.status)
+            if let driver = session.driver {
+                toolbarSt.databaseVersion = driver.serverVersion
+            }
+        } else if let driver = DatabaseManager.shared.driver(for: connection.id) {
+            toolbarSt.connectionState = .connected
+            toolbarSt.databaseVersion = driver.serverVersion
+        }
 
         // Initialize single tab based on payload
         if let payload, !payload.isConnectionOnly {

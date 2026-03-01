@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Toolbar briefly showing "MySQL" and missing version (e.g., "MongoDB" instead of "MongoDB 8.2.5") when opening a new tab
+
 ## [0.10.0] - 2026-03-01
 
 ### Added
