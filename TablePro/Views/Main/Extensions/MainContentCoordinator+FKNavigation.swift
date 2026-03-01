@@ -31,8 +31,7 @@ extension MainContentCoordinator {
 
         // Get current database context
         let currentDatabase: String
-        if let sessionId = DatabaseManager.shared.currentSessionId,
-           let session = DatabaseManager.shared.activeSessions[sessionId] {
+        if let session = DatabaseManager.shared.session(for: connectionId) {
             currentDatabase = session.connection.database
         } else {
             currentDatabase = connection.database

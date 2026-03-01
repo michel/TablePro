@@ -17,20 +17,36 @@ extension MainContentCoordinator {
     func openTableTab(_ tableName: String, showStructure: Bool = false, isView: Bool = false) {
         // Get current database name from active session (may differ from connection default after Cmd+K switch)
         let currentDatabase: String
-        if let sessionId = DatabaseManager.shared.currentSessionId,
-           let session = DatabaseManager.shared.activeSessions[sessionId] {
+        if let session = DatabaseManager.shared.session(for: connectionId) {
             currentDatabase = session.connection.database
         } else {
             currentDatabase = connection.database
         }
+
+        print("[openTableTab] table=\(tableName) db=\(currentDatabase) isSwitching=\(self.isSwitchingDatabase) tabCount=\(self.tabManager.tabs.count) selectedTab=\(self.tabManager.selectedTab?.tableName ?? "nil")")
 
         // Fast path: if this table is already the active tab in the same database, skip all work
         if let current = tabManager.selectedTab,
            current.tabType == .table,
            current.tableName == tableName,
            current.databaseName == currentDatabase {
+            print("[openTableTab] FAST PATH: same table+db, skipping")
             if showStructure, let idx = tabManager.selectedTabIndex {
                 tabManager.tabs[idx].showStructure = true
+            }
+            return
+        }
+
+        // During database switch, update the existing tab in-place instead of
+        // opening a new native window tab.
+        if isSwitchingDatabase {
+            print("[openTableTab] SWITCH GUARD: returning early (isSwitchingDatabase=true)")
+            if tabManager.tabs.isEmpty {
+                tabManager.addTableTab(
+                    tableName: tableName,
+                    databaseType: connection.type,
+                    databaseName: currentDatabase
+                )
             }
             return
         }
@@ -39,6 +55,7 @@ extension MainContentCoordinator {
         if let keyWindow = NSApp.keyWindow {
             let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
             for window in tabbedWindows where window.title == tableName {
+                print("[openTableTab] FOUND EXISTING WINDOW TAB for \(tableName)")
                 window.makeKeyAndOrderFront(nil)
                 return
             }
@@ -64,6 +81,7 @@ extension MainContentCoordinator {
 
         // If current tab has unsaved changes, open in a new native tab instead of replacing
         if changeManager.hasChanges {
+            print("[openTableTab] UNSAVED CHANGES: opening new native tab for \(tableName)")
             let payload = EditorTabPayload(
                 connectionId: connection.id,
                 tabType: .table,
@@ -77,6 +95,7 @@ extension MainContentCoordinator {
         }
 
         // Default: open table in a new native tab
+        print("[openTableTab] DEFAULT: opening new native tab for \(tableName)")
         let payload = EditorTabPayload(
             connectionId: connection.id,
             tabType: .table,
@@ -93,7 +112,7 @@ extension MainContentCoordinator {
         switch connection.type {
         case .postgresql:
             let schema: String
-            if let pgDriver = DatabaseManager.shared.activeDriver as? PostgreSQLDriver {
+            if let pgDriver = DatabaseManager.shared.driver(for: connectionId) as? PostgreSQLDriver {
                 schema = pgDriver.escapedSchema
             } else {
                 schema = "public"
@@ -170,7 +189,15 @@ extension MainContentCoordinator {
 
     /// Switch to a different database (called from database switcher)
     func switchDatabase(to database: String) async {
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        print("[switchDatabase] START db=\(database) connId=\(self.connectionId.uuidString.prefix(8)) currentTab=\(self.tabManager.selectedTab?.tableName ?? "nil")")
+        isSwitchingDatabase = true
+        defer {
+            isSwitchingDatabase = false
+            print("[switchDatabase] END — isSwitchingDatabase reset to false")
+        }
+
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
+            print("[switchDatabase] NO DRIVER — returning early")
             return
         }
 
@@ -180,13 +207,11 @@ extension MainContentCoordinator {
                 _ = try await driver.execute(query: "USE `\(database)`")
 
                 // Update session with new database
-                if let sessionId = DatabaseManager.shared.currentSessionId {
-                    DatabaseManager.shared.updateSession(sessionId) { session in
-                        var updatedConnection = session.connection
-                        updatedConnection.database = database
-                        session.connection = updatedConnection
-                        session.tables = []          // triggers SidebarView.loadTables() via onChange
-                    }
+                DatabaseManager.shared.updateSession(connectionId) { session in
+                    var updatedConnection = session.connection
+                    updatedConnection.database = database
+                    session.connection = updatedConnection
+                    session.tables = []          // triggers SidebarView.loadTables() via onChange
                 }
 
                 // Update toolbar state
@@ -220,16 +245,14 @@ extension MainContentCoordinator {
                 try await pgDriver.switchSchema(to: database)
 
                 // Also switch metadata driver's schema
-                if let metaDriver = DatabaseManager.shared.activeMetadataDriver as? PostgreSQLDriver {
+                if let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) as? PostgreSQLDriver {
                     try? await metaDriver.switchSchema(to: database)
                 }
 
                 // Update session
-                if let sessionId = DatabaseManager.shared.currentSessionId {
-                    DatabaseManager.shared.updateSession(sessionId) { session in
-                        session.currentSchema = database
-                        session.tables = []  // triggers SidebarView.loadTables() via onChange
-                    }
+                DatabaseManager.shared.updateSession(connectionId) { session in
+                    session.currentSchema = database
+                    session.tables = []  // triggers SidebarView.loadTables() via onChange
                 }
 
                 // Update toolbar state
@@ -260,13 +283,11 @@ extension MainContentCoordinator {
                 }
             } else if connection.type == .mongodb {
                 // MongoDB: just update the database name — driver reads it for every operation
-                if let sessionId = DatabaseManager.shared.currentSessionId {
-                    DatabaseManager.shared.updateSession(sessionId) { session in
-                        var updatedConnection = session.connection
-                        updatedConnection.database = database
-                        session.connection = updatedConnection
-                        session.tables = []
-                    }
+                DatabaseManager.shared.updateSession(connectionId) { session in
+                    var updatedConnection = session.connection
+                    updatedConnection.database = database
+                    session.connection = updatedConnection
+                    session.tables = []
                 }
 
                 toolbarState.databaseName = database

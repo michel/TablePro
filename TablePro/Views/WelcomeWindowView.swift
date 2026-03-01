@@ -7,8 +7,8 @@
 //
 
 import AppKit
-import os
 import SwiftUI
+import os
 
 // MARK: - WelcomeWindowView
 
@@ -35,9 +35,9 @@ struct WelcomeWindowView: View {
             return connections
         }
         return connections.filter { connection in
-            connection.name.localizedCaseInsensitiveContains(searchText) ||
-                connection.host.localizedCaseInsensitiveContains(searchText) ||
-                connection.database.localizedCaseInsensitiveContains(searchText)
+            connection.name.localizedCaseInsensitiveContains(searchText)
+                || connection.host.localizedCaseInsensitiveContains(searchText)
+                || connection.database.localizedCaseInsensitiveContains(searchText)
         }
     }
 
@@ -116,7 +116,10 @@ struct WelcomeWindowView: View {
 
                 VStack(spacing: 6) {
                     Text("TablePro")
-                        .font(.system(size: DesignConstants.IconSize.extraLarge, weight: .semibold, design: .rounded))
+                        .font(
+                            .system(
+                                size: DesignConstants.IconSize.extraLarge, weight: .semibold,
+                                design: .rounded))
 
                     Text("Version \(Bundle.main.appVersion)")
                         .font(.system(size: DesignConstants.FontSize.medium))
@@ -161,7 +164,10 @@ struct WelcomeWindowView: View {
                     Image(systemName: "plus")
                         .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .frame(width: DesignConstants.IconSize.extraLarge, height: DesignConstants.IconSize.extraLarge)
+                        .frame(
+                            width: DesignConstants.IconSize.extraLarge,
+                            height: DesignConstants.IconSize.extraLarge
+                        )
                         .background(
                             RoundedRectangle(cornerRadius: 6)
                                 .fill(Color(nsColor: .quaternaryLabelColor))
@@ -242,7 +248,8 @@ struct WelcomeWindowView: View {
         .environment(\.defaultMinListRowHeight, 44)
         .onKeyPress(.return) {
             if let id = selectedConnectionId,
-               let connection = connections.first(where: { $0.id == id }) {
+                let connection = connections.first(where: { $0.id == id })
+            {
                 connectToDatabase(connection)
             }
             return .handled
@@ -292,7 +299,7 @@ struct WelcomeWindowView: View {
 
     private func connectToDatabase(_ connection: DatabaseConnection) {
         // Open main window first, then connect in background
-        openWindow(id: "main")
+        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
         NSApplication.shared.closeWindows(withId: "welcome")
 
         // Connect in background - main window shows loading state
@@ -309,7 +316,8 @@ struct WelcomeWindowView: View {
                     )
                     openWindow(id: "welcome")
                 }
-                Self.logger.error("Failed to connect: \(error.localizedDescription, privacy: .public)")
+                Self.logger.error(
+                    "Failed to connect: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -337,8 +345,9 @@ struct WelcomeWindowView: View {
         // Poll rapidly until window is found (much faster than fixed delay)
         func attemptFocus(remainingAttempts: Int = 10) {
             for window in NSApp.windows {
-                if window.identifier?.rawValue.contains("connection-form") == true ||
-                    window.title == "Connection" {
+                if window.identifier?.rawValue.contains("connection-form") == true
+                    || window.title == "Connection"
+                {
                     window.makeKeyAndOrderFront(nil)
                     return
                 }
@@ -378,7 +387,8 @@ private struct ConnectionRow: View {
                 .renderingMode(.template)
                 .font(.system(size: DesignConstants.IconSize.medium))
                 .foregroundStyle(connection.displayColor)
-                .frame(width: DesignConstants.IconSize.medium, height: DesignConstants.IconSize.medium)
+                .frame(
+                    width: DesignConstants.IconSize.medium, height: DesignConstants.IconSize.medium)
 
             // Connection info
             VStack(alignment: .leading, spacing: 2) {
@@ -394,7 +404,9 @@ private struct ConnectionRow: View {
                             .foregroundStyle(tag.color.color)
                             .padding(.horizontal, DesignConstants.Spacing.xxs)
                             .padding(.vertical, DesignConstants.Spacing.xxxs)
-                            .background(RoundedRectangle(cornerRadius: 4).fill(tag.color.color.opacity(0.15)))
+                            .background(
+                                RoundedRectangle(cornerRadius: 4).fill(
+                                    tag.color.color.opacity(0.15)))
                     }
                 }
 
@@ -488,7 +500,10 @@ private struct WelcomeButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(nsColor: configuration.isPressed ? .controlBackgroundColor : .quaternaryLabelColor))
+                    .fill(
+                        Color(
+                            nsColor: configuration.isPressed
+                                ? .controlBackgroundColor : .quaternaryLabelColor))
             )
     }
 }
@@ -516,8 +531,8 @@ private struct KeyboardHint: View {
 
 // MARK: - ConnectionEnvironment Extension
 
-private extension ConnectionEnvironment {
-    var badgeColor: Color {
+extension ConnectionEnvironment {
+    fileprivate var badgeColor: Color {
         switch self {
         case .local:
             return Color(nsColor: .systemGreen)

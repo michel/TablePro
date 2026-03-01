@@ -61,8 +61,7 @@ extension MainContentCoordinator {
 
             if !newTab.databaseName.isEmpty {
                 let currentDatabase: String
-                if let sessionId = DatabaseManager.shared.currentSessionId,
-                   let session = DatabaseManager.shared.activeSessions[sessionId] {
+                if let session = DatabaseManager.shared.session(for: connectionId) {
                     currentDatabase = session.connection.database
                 } else {
                     currentDatabase = connection.database
@@ -98,7 +97,7 @@ extension MainContentCoordinator {
                 && !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
             if needsLazyQuery {
-                if let session = DatabaseManager.shared.currentSession, session.isConnected {
+                if let session = DatabaseManager.shared.session(for: connectionId), session.isConnected {
                     executeTableTabQueryDirectly()
                 } else {
                     changeManager.reloadVersion += 1

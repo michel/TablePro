@@ -676,7 +676,7 @@ struct ConnectionFormView: View {
     }
 
     private func connectToDatabase(_ connection: DatabaseConnection) {
-        openWindow(id: "main")
+        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
         NSApplication.shared.closeWindows(withId: "welcome")
 
         Task {

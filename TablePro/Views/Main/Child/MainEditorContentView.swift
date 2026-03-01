@@ -272,6 +272,7 @@ struct MainEditorContentView: View {
         if tab.tableCreationOptions != nil {
             CreateTableView(
                 options: createTableOptionsBinding(for: tab),
+                connectionId: connection.id,
                 databaseType: connection.type,
                 onCancel: {
                     // Close the create-table window
@@ -367,6 +368,7 @@ struct MainEditorContentView: View {
             onNavigateFK: { [coordinator] value, fkInfo in
                 coordinator.navigateToFKReference(value: value, fkInfo: fkInfo)
             },
+            connectionId: connection.id,
             databaseType: connection.type,
             selectedRowIndices: $selectedRowIndices,
             sortState: sortStateBinding(for: tab),

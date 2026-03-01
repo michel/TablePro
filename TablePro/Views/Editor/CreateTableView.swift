@@ -14,6 +14,7 @@ struct CreateTableView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "CreateTableView")
 
     @Binding var options: TableCreationOptions
+    let connectionId: UUID
     let databaseType: DatabaseType
     let onCancel: () -> Void
     let onCreate: (TableCreationOptions) -> Void
@@ -40,11 +41,13 @@ struct CreateTableView: View {
 
     init(
         options: Binding<TableCreationOptions>,
+        connectionId: UUID,
         databaseType: DatabaseType,
         onCancel: @escaping () -> Void,
         onCreate: @escaping (TableCreationOptions) -> Void
     ) {
         self._options = options
+        self.connectionId = connectionId
         self.databaseType = databaseType
         self.onCancel = onCancel
         self.onCreate = onCreate
@@ -692,7 +695,7 @@ struct CreateTableView: View {
     private func loadAvailableTables() {
         Task {
             do {
-                guard let driver = DatabaseManager.shared.activeDriver else { return }
+                guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
                 let query = switch databaseType {
                 case .mysql, .mariadb: "SHOW TABLES"
                 case .postgresql:
@@ -728,7 +731,7 @@ struct CreateTableView: View {
     private func duplicateTable(_ tableName: String) {
         Task {
             do {
-                guard let driver = DatabaseManager.shared.activeDriver else {
+                guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
                     await MainActor.run {
                         validationError = String(localized: "No database connection")
                     }

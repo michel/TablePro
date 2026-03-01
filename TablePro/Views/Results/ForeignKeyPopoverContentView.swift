@@ -11,6 +11,7 @@ import SwiftUI
 struct ForeignKeyPopoverContentView: View {
     let currentValue: String?
     let fkInfo: ForeignKeyInfo
+    let connectionId: UUID
     let databaseType: DatabaseType
     let onCommit: (String) -> Void
     let onDismiss: () -> Void
@@ -108,7 +109,7 @@ struct ForeignKeyPopoverContentView: View {
     // MARK: - Data Fetching
 
     private func fetchForeignKeyValues() async {
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
             Self.logger.error("No active driver for FK lookup")
             isLoading = false
             return
@@ -139,7 +140,7 @@ struct ForeignKeyPopoverContentView: View {
         }
 
         do {
-            let result = try await DatabaseManager.shared.execute(query: query)
+            let result = try await driver.execute(query: query)
             var values: [FKValue] = []
             for row in result.rows {
                 guard let idVal = row.first ?? nil else { continue }

@@ -48,6 +48,7 @@ struct ContentView: View {
         } else {
             defaultTitle = "SQL Query"
         }
+        print("[ContentView.init] payload=\(payload != nil ? "YES" : "nil") tabType=\(payload.map { String(describing: $0.tabType) } ?? "nil") tableName=\(payload?.tableName ?? "nil") connId=\(payload?.connectionId.uuidString.prefix(8) ?? "nil") → title=\(defaultTitle)")
         _windowTitle = State(initialValue: defaultTitle)
     }
 
@@ -73,8 +74,8 @@ struct ContentView: View {
                 openWindow(id: "connection-form", value: nil as UUID?)
             }
             .onReceive(NotificationCenter.default.publisher(for: .deselectConnection)) { _ in
-                if let sessionId = DatabaseManager.shared.currentSessionId {
-                    // Always confirm before disconnecting
+                let sessionId = payload?.connectionId ?? DatabaseManager.shared.currentSessionId
+                if let sessionId {
                     Task { @MainActor in
                         let confirmed = await AlertHelper.confirmDestructive(
                             title: String(localized: "Disconnect"),
@@ -92,25 +93,54 @@ struct ContentView: View {
             // Right sidebar toggle is handled by MainContentView (has the binding)
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
             .onReceive(DatabaseManager.shared.$currentSessionId) { newSessionId in
-                currentSession = DatabaseManager.shared.currentSession
-                columnVisibility = newSessionId == nil ? .detailOnly : .all
-                AppState.shared.isConnected = newSessionId != nil
-                let session = DatabaseManager.shared.activeSessions[newSessionId ?? UUID()]
-                AppState.shared.isReadOnly = session?.connection.isReadOnly ?? false
-                AppState.shared.isMongoDB = session?.connection.type == .mongodb
+                let ourConnectionId = payload?.connectionId
+                // Windows with a payload only react to their own connection
+                if ourConnectionId != nil {
+                    guard newSessionId == ourConnectionId else { return }
+                } else {
+                    // No payload (legacy path): only pick up the initial connection,
+                    // don't switch once we already have one
+                    guard currentSession == nil else { return }
+                }
+
+                if let connectionId = ourConnectionId ?? newSessionId {
+                    currentSession = DatabaseManager.shared.activeSessions[connectionId]
+                    columnVisibility = currentSession != nil ? .all : .detailOnly
+                } else {
+                    currentSession = nil
+                    columnVisibility = .detailOnly
+                }
             }
             .onReceive(DatabaseManager.shared.$activeSessions) { sessions in
-                guard let sid = DatabaseManager.shared.currentSessionId else {
+                // Use our payload's connectionId, or our current session's id if already connected,
+                // or lastly the global currentSessionId (only for initial bootstrap)
+                let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
+                guard let sid = connectionId else {
                     if currentSession != nil { currentSession = nil }
                     return
                 }
-                guard let newSession = sessions[sid] else { return }
-                // Skip update if fields ContentView uses haven't changed
+                guard let newSession = sessions[sid] else {
+                    // Session was removed (disconnected)
+                    if currentSession?.id == sid {
+                        currentSession = nil
+                        columnVisibility = .detailOnly
+                    }
+                    return
+                }
                 if let existing = currentSession,
                    existing.isContentViewEquivalent(to: newSession) {
                     return
                 }
                 currentSession = newSession
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+                // Sync AppState flags from this window's session when it becomes focused
+                if let connectionId = payload?.connectionId,
+                   let session = DatabaseManager.shared.activeSessions[connectionId] {
+                    AppState.shared.isConnected = true
+                    AppState.shared.isReadOnly = session.connection.isReadOnly
+                    AppState.shared.isMongoDB = session.connection.type == .mongodb
+                }
             }
     }
 
@@ -132,7 +162,8 @@ struct ContentView: View {
                         pendingTruncates: sessionPendingTruncatesBinding,
                         pendingDeletes: sessionPendingDeletesBinding,
                         tableOperationOptions: sessionTableOperationOptionsBinding,
-                        databaseType: currentSession.connection.type
+                        databaseType: currentSession.connection.type,
+                        connectionId: currentSession.connection.id
                     )
                 }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 600)
@@ -164,7 +195,6 @@ struct ContentView: View {
                 .inspectorColumnWidth(min: 280, ideal: 320, max: 500)
             }
         } else {
-            // No active session yet - show loading while connecting
             VStack(spacing: 16) {
                 ProgressView()
                     .scaleEffect(1.5)
@@ -197,7 +227,7 @@ struct ContentView: View {
                 return get(session)
             },
             set: { newValue in
-                guard let sessionId = DatabaseManager.shared.currentSessionId else { return }
+                guard let sessionId = payload?.connectionId ?? currentSession?.id else { return }
                 Task { @MainActor in
                     DatabaseManager.shared.updateSession(sessionId) { session in
                         set(&session, newValue)

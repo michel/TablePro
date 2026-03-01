@@ -155,7 +155,7 @@ extension MainContentCoordinator {
             var failedSQL: String?
 
             do {
-                guard let driver = DatabaseManager.shared.activeDriver else {
+                guard let driver = DatabaseManager.shared.driver(for: conn.id) else {
                     throw DatabaseError.notConnected
                 }
 
@@ -257,7 +257,7 @@ extension MainContentCoordinator {
                 }
             } catch {
                 // Rollback on failure
-                if let driver = DatabaseManager.shared.activeDriver {
+                if let driver = DatabaseManager.shared.driver(for: conn.id) {
                     _ = try? await driver.execute(query: "ROLLBACK")
                 }
 

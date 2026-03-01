@@ -349,7 +349,7 @@ struct AIChatPanelView: View {
     private func fetchSchemaContext() async {
         let settings = AppSettingsManager.shared.ai
         guard settings.includeSchema,
-              let driver = DatabaseManager.shared.activeDriver
+              let driver = DatabaseManager.shared.driver(for: connection.id)
         else { return }
 
         let tablesToFetch = Array(tables.prefix(settings.maxSchemaTables))
