@@ -48,7 +48,6 @@ struct ContentView: View {
         } else {
             defaultTitle = "SQL Query"
         }
-        print("[ContentView.init] payload=\(payload != nil ? "YES" : "nil") tabType=\(payload.map { String(describing: $0.tabType) } ?? "nil") tableName=\(payload?.tableName ?? "nil") connId=\(payload?.connectionId.uuidString.prefix(8) ?? "nil") → title=\(defaultTitle)")
         _windowTitle = State(initialValue: defaultTitle)
     }
 

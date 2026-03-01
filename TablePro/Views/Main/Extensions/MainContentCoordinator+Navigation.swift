@@ -23,14 +23,11 @@ extension MainContentCoordinator {
             currentDatabase = connection.database
         }
 
-        print("[openTableTab] table=\(tableName) db=\(currentDatabase) isSwitching=\(self.isSwitchingDatabase) tabCount=\(self.tabManager.tabs.count) selectedTab=\(self.tabManager.selectedTab?.tableName ?? "nil")")
-
         // Fast path: if this table is already the active tab in the same database, skip all work
         if let current = tabManager.selectedTab,
            current.tabType == .table,
            current.tableName == tableName,
            current.databaseName == currentDatabase {
-            print("[openTableTab] FAST PATH: same table+db, skipping")
             if showStructure, let idx = tabManager.selectedTabIndex {
                 tabManager.tabs[idx].showStructure = true
             }
@@ -40,7 +37,6 @@ extension MainContentCoordinator {
         // During database switch, update the existing tab in-place instead of
         // opening a new native window tab.
         if isSwitchingDatabase {
-            print("[openTableTab] SWITCH GUARD: returning early (isSwitchingDatabase=true)")
             if tabManager.tabs.isEmpty {
                 tabManager.addTableTab(
                     tableName: tableName,
@@ -55,7 +51,6 @@ extension MainContentCoordinator {
         if let keyWindow = NSApp.keyWindow {
             let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
             for window in tabbedWindows where window.title == tableName {
-                print("[openTableTab] FOUND EXISTING WINDOW TAB for \(tableName)")
                 window.makeKeyAndOrderFront(nil)
                 return
             }
@@ -81,7 +76,6 @@ extension MainContentCoordinator {
 
         // If current tab has unsaved changes, open in a new native tab instead of replacing
         if changeManager.hasChanges {
-            print("[openTableTab] UNSAVED CHANGES: opening new native tab for \(tableName)")
             let payload = EditorTabPayload(
                 connectionId: connection.id,
                 tabType: .table,
@@ -95,7 +89,6 @@ extension MainContentCoordinator {
         }
 
         // Default: open table in a new native tab
-        print("[openTableTab] DEFAULT: opening new native tab for \(tableName)")
         let payload = EditorTabPayload(
             connectionId: connection.id,
             tabType: .table,
@@ -189,15 +182,12 @@ extension MainContentCoordinator {
 
     /// Switch to a different database (called from database switcher)
     func switchDatabase(to database: String) async {
-        print("[switchDatabase] START db=\(database) connId=\(self.connectionId.uuidString.prefix(8)) currentTab=\(self.tabManager.selectedTab?.tableName ?? "nil")")
         isSwitchingDatabase = true
         defer {
             isSwitchingDatabase = false
-            print("[switchDatabase] END — isSwitchingDatabase reset to false")
         }
 
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
-            print("[switchDatabase] NO DRIVER — returning early")
             return
         }
 

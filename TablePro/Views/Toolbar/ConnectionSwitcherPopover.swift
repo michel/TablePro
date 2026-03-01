@@ -301,20 +301,16 @@ struct ConnectionSwitcherPopover: View {
     }
 
     private func switchToSession(_ sessionId: UUID) {
-        print("[ConnectionSwitcher] switchToSession connId=\(sessionId.uuidString.prefix(8))")
         onDismiss?()
         // Try to bring existing window for this connection to front
         if let existingWindow = findWindow(for: sessionId) {
-            print("[ConnectionSwitcher] FOUND existing window: \(existingWindow) title=\(existingWindow.title) subtitle=\(existingWindow.subtitle)")
             existingWindow.makeKeyAndOrderFront(nil)
         } else {
-            print("[ConnectionSwitcher] NO window found — creating new window")
             openWindowForDifferentConnection(EditorTabPayload(connectionId: sessionId))
         }
     }
 
     private func connectToSaved(_ connection: DatabaseConnection) {
-        print("[ConnectionSwitcher] connectToSaved name=\(connection.name) connId=\(connection.id.uuidString.prefix(8))")
         isConnecting = connection.id
         onDismiss?()
         // Open a new window, then connect — window shows "Connecting..." until ready
