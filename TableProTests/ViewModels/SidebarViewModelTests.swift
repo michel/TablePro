@@ -67,6 +67,7 @@ private func makeSUT(
         pendingDeletes: deletesBinding,
         tableOperationOptions: optionsBinding,
         databaseType: databaseType,
+        connectionId: UUID(),
         tableFetcher: fetcher
     )
 

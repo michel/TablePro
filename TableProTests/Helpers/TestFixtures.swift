@@ -175,6 +175,20 @@ enum TestFixtures {
         )
     }
 
+    static func makeConnection(
+        id: UUID = UUID(),
+        name: String = "Test",
+        database: String = "testdb",
+        type: DatabaseType = .mysql
+    ) -> DatabaseConnection {
+        DatabaseConnection(
+            id: id,
+            name: name,
+            database: database,
+            type: type
+        )
+    }
+
     static func makeQueryResultRows(count: Int, columns: [String] = ["id", "name", "email"]) -> [QueryResultRow] {
         (0..<count).map { i in
             QueryResultRow(id: i, values: columns.indices.map { col in "\(columns[col])_\(i)" })

@@ -1,0 +1,158 @@
+//
+//  SwitchDatabaseTests.swift
+//  TableProTests
+//
+//  Tests for the "switch database" flow: verifies that switching databases
+//  (Cmd+K) does NOT create new macOS windows. The coordinator must set
+//  isSwitchingDatabase so downstream code skips window creation.
+//
+
+import Foundation
+import Testing
+
+@testable import TablePro
+
+@Suite("SwitchDatabase")
+struct SwitchDatabaseTests {
+    // MARK: - isSwitchingDatabase flag
+
+    @Test("isSwitchingDatabase defaults to false")
+    @MainActor
+    func flagDefaultsToFalse() {
+        let connection = TestFixtures.makeConnection()
+        let tabManager = QueryTabManager()
+        let changeManager = DataChangeManager()
+        let filterStateManager = FilterStateManager()
+        let toolbarState = ConnectionToolbarState()
+
+        let coordinator = MainContentCoordinator(
+            connection: connection,
+            tabManager: tabManager,
+            changeManager: changeManager,
+            filterStateManager: filterStateManager,
+            toolbarState: toolbarState
+        )
+        defer { coordinator.teardown() }
+
+        #expect(coordinator.isSwitchingDatabase == false)
+    }
+
+    @Test("isSwitchingDatabase can be set to true")
+    @MainActor
+    func flagCanBeSetToTrue() {
+        let connection = TestFixtures.makeConnection()
+        let tabManager = QueryTabManager()
+        let changeManager = DataChangeManager()
+        let filterStateManager = FilterStateManager()
+        let toolbarState = ConnectionToolbarState()
+
+        let coordinator = MainContentCoordinator(
+            connection: connection,
+            tabManager: tabManager,
+            changeManager: changeManager,
+            filterStateManager: filterStateManager,
+            toolbarState: toolbarState
+        )
+        defer { coordinator.teardown() }
+
+        coordinator.isSwitchingDatabase = true
+        #expect(coordinator.isSwitchingDatabase == true)
+    }
+
+    // MARK: - openTableTab behavior during database switch
+
+    @Test("openTableTab skips new window when switching database with existing tabs")
+    @MainActor
+    func openTableTabSkipsNewWindowDuringSwitch() {
+        let connection = TestFixtures.makeConnection(database: "db_a")
+        let tabManager = QueryTabManager()
+        let changeManager = DataChangeManager()
+        let filterStateManager = FilterStateManager()
+        let toolbarState = ConnectionToolbarState()
+
+        let coordinator = MainContentCoordinator(
+            connection: connection,
+            tabManager: tabManager,
+            changeManager: changeManager,
+            filterStateManager: filterStateManager,
+            toolbarState: toolbarState
+        )
+        defer { coordinator.teardown() }
+
+        // Set up: one existing tab
+        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
+        let tabCountBefore = tabManager.tabs.count
+
+        // Simulate database switch in progress
+        coordinator.isSwitchingDatabase = true
+
+        // Opening a different table during switch should NOT add more tabs
+        // (because the guard returns early without calling WindowOpener)
+        coordinator.openTableTab("orders")
+
+        // Tab count should remain unchanged — no new tab was added
+        // (isSwitchingDatabase guard returns early when tabs exist)
+        #expect(tabManager.tabs.count == tabCountBefore)
+    }
+
+    @Test("openTableTab adds tab in-place when switching database with empty tabs")
+    @MainActor
+    func openTableTabAddsInPlaceWhenSwitchingWithEmptyTabs() {
+        let connection = TestFixtures.makeConnection(database: "db_a")
+        let tabManager = QueryTabManager()
+        let changeManager = DataChangeManager()
+        let filterStateManager = FilterStateManager()
+        let toolbarState = ConnectionToolbarState()
+
+        let coordinator = MainContentCoordinator(
+            connection: connection,
+            tabManager: tabManager,
+            changeManager: changeManager,
+            filterStateManager: filterStateManager,
+            toolbarState: toolbarState
+        )
+        defer { coordinator.teardown() }
+
+        // No existing tabs
+        #expect(tabManager.tabs.isEmpty)
+
+        // Simulate database switch in progress
+        coordinator.isSwitchingDatabase = true
+
+        // Opening a table during switch with empty tabs should add in-place
+        coordinator.openTableTab("users")
+
+        #expect(tabManager.tabs.count == 1)
+        #expect(tabManager.tabs.first?.tableName == "users")
+    }
+
+    // MARK: - openTableTab fast path (same table + same database)
+
+    @Test("openTableTab skips when table is already active tab in same database")
+    @MainActor
+    func openTableTabSkipsForSameTableSameDatabase() {
+        let connection = TestFixtures.makeConnection(database: "db_a")
+        let tabManager = QueryTabManager()
+        let changeManager = DataChangeManager()
+        let filterStateManager = FilterStateManager()
+        let toolbarState = ConnectionToolbarState()
+
+        let coordinator = MainContentCoordinator(
+            connection: connection,
+            tabManager: tabManager,
+            changeManager: changeManager,
+            filterStateManager: filterStateManager,
+            toolbarState: toolbarState
+        )
+        defer { coordinator.teardown() }
+
+        // Add a tab for "users" in "db_a"
+        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
+        let tabCountBefore = tabManager.tabs.count
+
+        // Opening "users" again in same database should be a no-op (fast path)
+        coordinator.openTableTab("users")
+
+        #expect(tabManager.tabs.count == tabCountBefore)
+    }
+}
