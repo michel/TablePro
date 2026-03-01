@@ -23,6 +23,14 @@ struct AIChatPanelView: View {
         settingsManager.ai.providers.contains(where: { $0.isEnabled })
     }
 
+    private var queryLanguage: String {
+        connection.type == .mongodb ? "javascript" : "sql"
+    }
+
+    private var queryTypeName: String {
+        connection.type == .mongodb ? "MongoDB query" : "SQL query"
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -67,7 +75,7 @@ struct AIChatPanelView: View {
                   let error = userInfo["error"] as? String else { return }
             viewModel.startNewConversation()
             updateContext()
-            let prompt = "Fix this SQL query error:\n\nQuery:\n```sql\n\(query)\n```\n\nError: \(error)"
+            let prompt = "Fix this \(queryTypeName) error:\n\nQuery:\n```\(queryLanguage)\n\(query)\n```\n\nError: \(error)"
             viewModel.sendWithContext(prompt: prompt, feature: .fixError)
         }
         .onReceive(NotificationCenter.default.publisher(for: .aiExplainSelection)) { notification in
@@ -75,7 +83,7 @@ struct AIChatPanelView: View {
             guard !selectedText.isEmpty else { return }
             viewModel.startNewConversation()
             updateContext()
-            let prompt = "Explain this SQL:\n```sql\n\(selectedText)\n```"
+            let prompt = "Explain this \(queryTypeName):\n```\(queryLanguage)\n\(selectedText)\n```"
             viewModel.sendWithContext(prompt: prompt, feature: .explainQuery)
         }
         .onReceive(NotificationCenter.default.publisher(for: .aiOptimizeSelection)) { notification in
@@ -83,7 +91,7 @@ struct AIChatPanelView: View {
             guard !selectedText.isEmpty else { return }
             viewModel.startNewConversation()
             updateContext()
-            let prompt = "Optimize this SQL query:\n```sql\n\(selectedText)\n```"
+            let prompt = "Optimize this \(queryTypeName):\n```\(queryLanguage)\n\(selectedText)\n```"
             viewModel.sendWithContext(prompt: prompt, feature: .optimizeQuery)
         }
         .alert(
