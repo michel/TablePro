@@ -313,6 +313,17 @@ struct MainContentView: View {
                     syncSidebarToCurrentTab()
                 }
             }
+            .onChange(of: tables) { _, newTables in
+                let syncAction = SidebarSyncAction.resolveOnTablesLoad(
+                    newTables: newTables,
+                    selectedTables: selectedTables,
+                    currentTabTableName: tabManager.selectedTab?.tableName
+                )
+                if case let .select(tableName) = syncAction,
+                   let match = newTables.first(where: { $0.name == tableName }) {
+                    selectedTables = [match]
+                }
+            }
             .onChange(of: selectedRowIndices) { _, newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
                 scheduleInspectorUpdate()
@@ -652,30 +663,29 @@ struct MainContentView: View {
     private func handleTableSelectionChange(
         from oldTables: Set<TableInfo>, to newTables: Set<TableInfo>
     ) {
-        guard let table = newTables.subtracting(oldTables).first else {
+        let action = TableSelectionAction.resolve(oldTables: oldTables, newTables: newTables)
+
+        guard case let .navigate(tableName, isView) = action else {
             AppState.shared.hasTableSelection = !newTables.isEmpty
             return
         }
 
         let result = SidebarNavigationResult.resolve(
-            clickedTableName: table.name,
+            clickedTableName: tableName,
             currentTabTableName: tabManager.selectedTab?.tableName,
             hasExistingTabs: !tabManager.tabs.isEmpty
         )
 
         switch result {
         case .skip:
-            // Programmatic sync — selection already reflects the active tab.
             AppState.shared.hasTableSelection = !newTables.isEmpty
             return
         case .openInPlace:
             selectedRowIndices = []
-            coordinator.openTableTab(table.name, isView: table.type == .view)
+            coordinator.openTableTab(tableName, isView: isView)
         case .revertAndOpenNewWindow:
-            // Revert sidebar SYNCHRONOUSLY so SwiftUI coalesces [B]→[A] into one
-            // render pass — the source window never visually flashes the new table.
             syncSidebarToCurrentTab()
-            coordinator.openTableTab(table.name, isView: table.type == .view)
+            coordinator.openTableTab(tableName, isView: isView)
         }
 
         AppState.shared.hasTableSelection = !newTables.isEmpty
