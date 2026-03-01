@@ -13,6 +13,7 @@ struct ParsedConnectionURL {
     let username: String
     let password: String
     let sslMode: SSLMode?
+    let authSource: String?
 
     var suggestedName: String {
         let typeName = type.rawValue
@@ -69,6 +70,8 @@ struct ConnectionURLParser {
             dbType = .mariadb
         case "sqlite":
             dbType = .sqlite
+        case "mongodb", "mongodb+srv":
+            dbType = .mongodb
         default:
             return .failure(.unsupportedScheme(scheme))
         }
@@ -82,7 +85,8 @@ struct ConnectionURLParser {
                 database: path,
                 username: "",
                 password: "",
-                sslMode: nil
+                sslMode: nil,
+                authSource: nil
             ))
         }
 
@@ -109,10 +113,14 @@ struct ConnectionURLParser {
         }
 
         var sslMode: SSLMode?
+        var authSource: String?
         if let queryItems = components.queryItems {
-            for item in queryItems where item.name == "sslmode" {
-                if let value = item.value {
+            for item in queryItems {
+                if item.name == "sslmode", let value = item.value {
                     sslMode = parseSSLMode(value)
+                }
+                if item.name == "authSource" || item.name == "authsource" {
+                    authSource = item.value
                 }
             }
         }
@@ -124,7 +132,8 @@ struct ConnectionURLParser {
             database: database,
             username: username,
             password: password,
-            sslMode: sslMode
+            sslMode: sslMode,
+            authSource: authSource
         ))
     }
 

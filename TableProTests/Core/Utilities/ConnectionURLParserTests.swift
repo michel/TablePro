@@ -266,4 +266,50 @@ struct ConnectionURLParserTests {
         }
         #expect(parsed.type == .mysql)
     }
+
+    // MARK: - MongoDB
+
+    @Test("Full MongoDB URL")
+    func testFullMongoDBURL() {
+        let result = ConnectionURLParser.parse("mongodb://admin:secret@mongo.example.com:27017/mydb")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .mongodb)
+        #expect(parsed.host == "mongo.example.com")
+        #expect(parsed.port == 27017)
+        #expect(parsed.database == "mydb")
+        #expect(parsed.username == "admin")
+        #expect(parsed.password == "secret")
+    }
+
+    @Test("MongoDB+SRV scheme")
+    func testMongoDBSrvScheme() {
+        let result = ConnectionURLParser.parse("mongodb+srv://user:pass@cluster.mongodb.net/db")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .mongodb)
+        #expect(parsed.port == nil)
+    }
+
+    @Test("MongoDB with authSource")
+    func testMongoDBWithAuthSource() {
+        let result = ConnectionURLParser.parse("mongodb://user:pass@host/db?authSource=admin")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.authSource == "admin")
+    }
+
+    // MARK: - Multiple Query Parameters
+
+    @Test("Multiple query parameters")
+    func testMultipleQueryParameters() {
+        let result = ConnectionURLParser.parse("postgresql://user:pass@host/db?sslmode=require&connect_timeout=10")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.sslMode == .required)
+    }
 }

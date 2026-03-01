@@ -783,15 +783,11 @@ struct ConnectionFormView: View {
             urlParseError = nil
             type = parsed.type
             host = parsed.host
-            if let parsedPort = parsed.port {
-                port = String(parsedPort)
-            }
+            port = parsed.port.map(String.init) ?? String(parsed.type.defaultPort)
             database = parsed.database
             username = parsed.username
             password = parsed.password
-            if let parsedSSLMode = parsed.sslMode {
-                sslMode = parsedSSLMode
-            }
+            sslMode = parsed.sslMode ?? .disabled
             if name.isEmpty {
                 name = parsed.suggestedName
             }
