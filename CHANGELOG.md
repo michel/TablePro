@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- New row (Cmd+I) and duplicated row not appearing in datagrid until manual refresh
 - PostgreSQL SSH tunnel connections failing with "no encryption" due to SSL config not being preserved
 
 ## [0.9.2] - 2026-02-28
