@@ -55,7 +55,7 @@ struct WelcomeWindowView: View {
                     .transition(.move(edge: .trailing))
             }
         }
-        .background(VisualEffectView())
+        .background(.background)
         .ignoresSafeArea()
         .frame(minWidth: 650, minHeight: 400)
         .onAppear {
