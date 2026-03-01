@@ -3648,6 +3648,9 @@
         }
       }
     },
+    "Exports data as mongosh-compatible scripts. Drop, Indexes, and Data options are configured per collection in the collection list." : {
+
+    },
     "Expression (e.g., age >= 0)" : {
       "localizations" : {
         "vi" : {
@@ -4491,6 +4494,9 @@
           }
         }
       }
+    },
+    "Indexes" : {
+
     },
     "Inline Suggestions" : {
       "localizations" : {
@@ -5779,6 +5785,9 @@
         }
       }
     },
+    "Number of documents per insertMany statement. Higher values create fewer statements." : {
+
+    },
     "Offset" : {
       "localizations" : {
         "vi" : {
@@ -6902,6 +6911,9 @@
           }
         }
       }
+    },
+    "Rows per insertMany" : {
+
     },
     "Run a query to see execution time" : {
       "localizations" : {

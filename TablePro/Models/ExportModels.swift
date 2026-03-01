@@ -15,6 +15,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     case csv = "CSV"
     case json = "JSON"
     case sql = "SQL"
+    case mql = "MQL"
     case xlsx = "XLSX"
 
     var id: String { rawValue }
@@ -25,6 +26,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         case .csv: return "csv"
         case .json: return "json"
         case .sql: return "sql"
+        case .mql: return "js"
         case .xlsx: return "xlsx"
         }
     }
@@ -32,9 +34,9 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     static func availableCases(for databaseType: DatabaseType) -> [ExportFormat] {
         switch databaseType {
         case .mongodb:
-            return [.csv, .json, .xlsx]
+            return [.csv, .json, .mql, .xlsx]
         default:
-            return allCases.map { $0 }
+            return allCases.filter { $0 != .mql }
         }
     }
 }
@@ -150,12 +152,30 @@ struct SQLTableExportOptions: Equatable {
     }
 }
 
+/// Per-collection MQL export options (Drop, Data, Indexes checkboxes)
+struct MQLTableExportOptions: Equatable {
+    var includeDrop: Bool = true
+    var includeData: Bool = true
+    var includeIndexes: Bool = true
+
+    var hasAnyOption: Bool {
+        includeDrop || includeData || includeIndexes
+    }
+}
+
 /// Global options for SQL export
 struct SQLExportOptions: Equatable {
     var compressWithGzip: Bool = false
     /// Number of rows per INSERT statement. Default 500.
     /// Higher values = fewer statements, smaller file, faster import.
     /// Set to 1 for single-row INSERT statements (legacy behavior).
+    var batchSize: Int = 500
+}
+
+// MARK: - MQL Options
+
+/// Options for MQL (MongoDB Query Language) export
+struct MQLExportOptions: Equatable {
     var batchSize: Int = 500
 }
 
@@ -176,6 +196,7 @@ struct ExportConfiguration {
     var csvOptions = CSVExportOptions()
     var jsonOptions = JSONExportOptions()
     var sqlOptions = SQLExportOptions()
+    var mqlOptions = MQLExportOptions()
     var xlsxOptions = XLSXExportOptions()
 
     /// Full file name including extension
@@ -202,6 +223,7 @@ struct ExportTableItem: Identifiable, Hashable {
     let type: TableInfo.TableType
     var isSelected: Bool = false
     var sqlOptions = SQLTableExportOptions()
+    var mqlOptions = MQLTableExportOptions()
 
     init(
         id: UUID = UUID(),
@@ -209,7 +231,8 @@ struct ExportTableItem: Identifiable, Hashable {
         databaseName: String = "",
         type: TableInfo.TableType,
         isSelected: Bool = false,
-        sqlOptions: SQLTableExportOptions = SQLTableExportOptions()
+        sqlOptions: SQLTableExportOptions = SQLTableExportOptions(),
+        mqlOptions: MQLTableExportOptions = MQLTableExportOptions()
     ) {
         self.id = id
         self.name = name
@@ -217,6 +240,7 @@ struct ExportTableItem: Identifiable, Hashable {
         self.type = type
         self.isSelected = isSelected
         self.sqlOptions = sqlOptions
+        self.mqlOptions = mqlOptions
     }
 
     /// Fully qualified table name (database.table)

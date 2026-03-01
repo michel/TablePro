@@ -63,7 +63,7 @@ struct ExportDialog: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             if connection.type == .mongodb && config.format == .sql {
-                config.format = .json
+                config.format = .mql
             }
         }
         .onExitCommand {
@@ -105,7 +105,7 @@ struct ExportDialog: View {
     // MARK: - Layout Constants
 
     private var leftPanelWidth: CGFloat {
-        config.format == .sql ? 380 : 240
+        (config.format == .sql || config.format == .mql) ? 380 : 240
     }
 
     private var dialogWidth: CGFloat {
@@ -124,7 +124,6 @@ struct ExportDialog: View {
 
                 Spacer()
 
-                // Format-specific column headers for SQL
                 if config.format == .sql {
                     Text("Structure")
                         .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
@@ -132,6 +131,21 @@ struct ExportDialog: View {
                         .frame(width: 56, alignment: .center)
 
                     Text("Drop")
+                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .center)
+
+                    Text("Data")
+                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .center)
+                } else if config.format == .mql {
+                    Text("Drop")
+                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, alignment: .center)
+
+                    Text("Indexes")
                         .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 44, alignment: .center)
@@ -197,8 +211,7 @@ struct ExportDialog: View {
                         .font(.system(size: DesignConstants.FontSize.small))
                         .foregroundStyle(.secondary)
 
-                    // Show warning if some selected tables will be skipped (SQL format only)
-                    if config.format == .sql && exportableCount < selectedCount {
+                    if (config.format == .sql || config.format == .mql) && exportableCount < selectedCount {
                         Text("\(selectedCount - exportableCount) skipped (no options)")
                             .font(.system(size: DesignConstants.FontSize.small))
                             .foregroundStyle(.orange)
@@ -222,6 +235,8 @@ struct ExportDialog: View {
                         ExportJSONOptionsView(options: $config.jsonOptions)
                     case .sql:
                         ExportSQLOptionsView(options: $config.sqlOptions)
+                    case .mql:
+                        ExportMQLOptionsView(options: $config.mqlOptions)
                     case .xlsx:
                         ExportXLSXOptionsView(options: $config.xlsxOptions)
                     }
@@ -309,12 +324,13 @@ struct ExportDialog: View {
         databaseItems.flatMap { $0.selectedTables }
     }
 
-    /// Tables that will actually be exported (filters out SQL tables with no options enabled)
     private var exportableTables: [ExportTableItem] {
         let tables = selectedTables
-        // For SQL format, filter out tables with all options disabled (no output would be generated)
         if config.format == .sql {
             return tables.filter { $0.sqlOptions.hasAnyOption }
+        }
+        if config.format == .mql {
+            return tables.filter { $0.mqlOptions.hasAnyOption }
         }
         return tables
     }
