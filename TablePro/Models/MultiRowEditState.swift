@@ -14,7 +14,8 @@ struct FieldEditState {
     let columnIndex: Int
     let columnName: String
     let columnType: String
-    let isLongText: Bool  // NEW: Whether to use multi-line editor
+    let columnTypeEnum: ColumnType
+    let isLongText: Bool
 
     /// Original values from all selected rows (nil if multiple different values)
     let originalValue: String?
@@ -118,6 +119,7 @@ class MultiRowEditState: ObservableObject {
                 columnIndex: colIndex,
                 columnName: columnName,
                 columnType: columnType,
+                columnTypeEnum: columnTypeEnum,
                 isLongText: isLongText,
                 originalValue: originalValue,
                 hasMultipleValues: hasMultipleValues,
@@ -158,6 +160,14 @@ class MultiRowEditState: ObservableObject {
     func setFieldToFunction(at index: Int, function: String) {
         guard index < fields.count else { return }
         fields[index].pendingValue = function
+        fields[index].isPendingNull = false
+        fields[index].isPendingDefault = false
+    }
+
+    /// Set a field to empty string
+    func setFieldToEmpty(at index: Int) {
+        guard index < fields.count else { return }
+        fields[index].pendingValue = ""
         fields[index].isPendingNull = false
         fields[index].isPendingDefault = false
     }

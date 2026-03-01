@@ -134,20 +134,41 @@ struct RightSidebarView: View {
                 ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
 
-        return Form {
-            Section {
-                ForEach(filtered, id: \.columnName) { field in
-                    if contentMode == .editRow {
-                        editableFieldRow(field, at: field.columnIndex)
-                    } else {
-                        readonlyFieldRow(field)
+        return VStack(spacing: 0) {
+            // Inline search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.tertiary)
+                    .font(.system(size: DesignConstants.FontSize.small))
+                TextField("Search for field...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: DesignConstants.FontSize.small))
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                            .font(.system(size: DesignConstants.FontSize.small))
                     }
+                    .buttonStyle(.plain)
                 }
-            } header: {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let name = tableName {
-                        Text(name)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+
+            Divider()
+
+            Form {
+                Section {
+                    ForEach(filtered, id: \.columnName) { field in
+                        if contentMode == .editRow {
+                            editableFieldRow(field, at: field.columnIndex)
+                        } else {
+                            readonlyFieldRow(field)
+                        }
                     }
+                } header: {
                     HStack {
                         Text("FIELDS")
                         Spacer()
@@ -155,22 +176,21 @@ struct RightSidebarView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-            }
 
-            if contentMode == .editRow && editState.hasEdits {
-                Section {
-                    Button(action: onSave) {
-                        Text("Save Changes")
-                            .frame(maxWidth: .infinity)
+                if contentMode == .editRow && editState.hasEdits {
+                    Section {
+                        Button(action: onSave) {
+                            Text("Save Changes")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .keyboardShortcut("s", modifiers: .command)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .keyboardShortcut("s", modifiers: .command)
                 }
             }
+            .formStyle(.grouped)
         }
-        .formStyle(.grouped)
-        .searchable(text: $searchText, prompt: "Filter")
     }
 
     @ViewBuilder
@@ -178,6 +198,7 @@ struct RightSidebarView: View {
         EditableFieldView(
             columnName: field.columnName,
             columnType: field.columnType,
+            columnTypeEnum: field.columnTypeEnum,
             isLongText: field.isLongText,
             value: Binding(
                 get: { field.pendingValue ?? field.originalValue ?? "" },
@@ -190,7 +211,9 @@ struct RightSidebarView: View {
             isModified: field.hasEdit,
             onSetNull: { editState.setFieldToNull(at: index) },
             onSetDefault: { editState.setFieldToDefault(at: index) },
-            onSetFunction: { editState.setFieldToFunction(at: index, function: $0) }
+            onSetEmpty: { editState.setFieldToEmpty(at: index) },
+            onSetFunction: { editState.setFieldToFunction(at: index, function: $0) },
+            onUpdateValue: { editState.updateField(at: index, value: $0) }
         )
     }
 
@@ -199,6 +222,7 @@ struct RightSidebarView: View {
         ReadOnlyFieldView(
             columnName: field.columnName,
             columnType: field.columnType,
+            columnTypeEnum: field.columnTypeEnum,
             isLongText: field.isLongText,
             value: field.originalValue
         )
