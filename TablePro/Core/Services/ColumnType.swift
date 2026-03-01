@@ -288,6 +288,27 @@ enum ColumnType: Equatable {
         }
     }
 
+    var isBooleanType: Bool {
+        switch self {
+        case .boolean: return true
+        default: return false
+        }
+    }
+
+    /// Compact lowercase badge label for sidebar
+    var badgeLabel: String {
+        switch self {
+        case .boolean: return "bool"
+        case .json: return "json"
+        case .date, .timestamp, .datetime: return "date"
+        case .enumType: return "enum"
+        case .set: return "set"
+        case .integer, .decimal: return "number"
+        case .blob: return "binary"
+        case .text: return "string"
+        }
+    }
+
     /// The allowed enum/set values, if known
     var enumValues: [String]? {
         switch self {

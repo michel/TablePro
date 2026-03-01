@@ -2,198 +2,262 @@
 //  EditableFieldView.swift
 //  TablePro
 //
-//  Reusable editable field component for right sidebar.
-//  Native macOS form-style field with menu button.
+//  Compact, type-aware field editor for right sidebar.
+//  Two-line layout: field name + type badge, then native editor + menu.
 //
 
 import SwiftUI
 
-/// Editable field view with native macOS styling
+/// Compact editable field view using native macOS components
 struct EditableFieldView: View {
     let columnName: String
-    let columnType: String
-    let isLongText: Bool  // NEW: Whether to use multi-line editor
+    let columnTypeEnum: ColumnType
+    let isLongText: Bool
     @Binding var value: String
     let originalValue: String?
-    let hasMultipleValues: Bool  // Whether multiple selected rows have different values
+    let hasMultipleValues: Bool
     let isPendingNull: Bool
     let isPendingDefault: Bool
     let isModified: Bool
 
     let onSetNull: () -> Void
     let onSetDefault: () -> Void
+    let onSetEmpty: () -> Void
     let onSetFunction: (String) -> Void
 
     @FocusState private var isFocused: Bool
-
-    private var displayValue: String {
-        if isPendingNull {
-            return "NULL"
-        } else if isPendingDefault {
-            return "DEFAULT"
-        } else {
-            return value
-        }
-    }
+    @State private var isHovered = false
 
     private var placeholderText: String {
         if hasMultipleValues {
-            return "Multiple values"
-        } else if isPendingNull {
-            return "NULL"
-        } else if isPendingDefault {
-            return "DEFAULT"
+            return String(localized: "Multiple values")
         } else if let original = originalValue {
             return original
         } else {
-            return ""
+            return "NULL"
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            // Line 1: modified indicator + field name + type badge
             HStack(spacing: 4) {
-                Text(columnName)
-                    .font(.system(size: DesignConstants.FontSize.small))
-                    .foregroundStyle(.secondary)
-
-                Text(columnType)
-                    .font(.system(size: DesignConstants.FontSize.tiny))
-                    .foregroundStyle(.tertiary)
-
                 if isModified {
                     Circle()
                         .fill(Color.accentColor)
                         .frame(width: 6, height: 6)
                 }
+
+                Text(columnName)
+                    .font(.system(size: DesignConstants.FontSize.small))
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text(columnTypeEnum.badgeLabel)
+                    .font(.system(size: DesignConstants.FontSize.tiny, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(.quaternary)
+                    .clipShape(Capsule())
             }
 
-            HStack(spacing: 4) {
-                if isLongText {
-                    TextEditor(text: $value)
-                        .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
-                        .disabled(isPendingNull || isPendingDefault)
-                        .focused($isFocused)
-                        .frame(height: 120)
-                        .scrollContentBackground(.hidden)
-                        .padding(4)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Color(NSColor.separatorColor).opacity(0.5))
-                        )
-                } else {
-                    TextField(placeholderText, text: $value)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: DesignConstants.FontSize.small))
-                        .disabled(isPendingNull || isPendingDefault)
-                        .focused($isFocused)
+            // Line 2: full-width editor with inline menu overlay
+            typeAwareEditor
+                .overlay(alignment: .topTrailing) {
+                    fieldMenu
+                        .opacity(isHovered ? 1 : 0)
+                        .padding(.trailing, 4)
                 }
+        }
+        .onHover { isHovered = $0 }
+    }
 
-                Menu {
-                    Button("Set NULL") {
-                        onSetNull()
-                    }
+    // MARK: - Type-Aware Editor
 
-                    Button("Set DEFAULT") {
-                        onSetDefault()
-                    }
-
-                    Divider()
-
-                    Menu("SQL Functions") {
-                        Button("NOW()") {
-                            onSetFunction("NOW()")
-                        }
-                        Button("CURRENT_TIMESTAMP()") {
-                            onSetFunction("CURRENT_TIMESTAMP()")
-                        }
-                        Button("CURDATE()") {
-                            onSetFunction("CURDATE()")
-                        }
-                        Button("CURTIME()") {
-                            onSetFunction("CURTIME()")
-                        }
-                        Button("UTC_TIMESTAMP()") {
-                            onSetFunction("UTC_TIMESTAMP()")
-                        }
-                    }
-
-                    if isPendingNull || isPendingDefault {
-                        Divider()
-                        Button("Clear") {
-                            value = originalValue ?? ""
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .imageScale(.small)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 20, height: 20)
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help("Set special value")
-            }
+    @ViewBuilder
+    private var typeAwareEditor: some View {
+        if isPendingNull || isPendingDefault {
+            TextField(isPendingNull ? "NULL" : "DEFAULT", text: .constant(""))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: DesignConstants.FontSize.small))
+                .disabled(true)
+        } else if columnTypeEnum.isBooleanType {
+            booleanPicker
+        } else if columnTypeEnum.isEnumType, let values = columnTypeEnum.enumValues, !values.isEmpty {
+            enumPicker(values: values)
+        } else if isLongText || columnTypeEnum.isJsonType {
+            multiLineEditor
+        } else {
+            singleLineEditor
         }
     }
+
+    private var booleanPicker: some View {
+        Picker("", selection: Binding(
+            get: { normalizeBooleanValue(value) },
+            set: { value = $0 }
+        )) {
+            Text("true").tag("1")
+            Text("false").tag("0")
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func enumPicker(values: [String]) -> some View {
+        Picker("", selection: Binding(
+            get: { value },
+            set: { value = $0 }
+        )) {
+            ForEach(values, id: \.self) { val in
+                Text(val).tag(val)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var multiLineEditor: some View {
+        TextField(placeholderText, text: $value, axis: .vertical)
+            .textFieldStyle(.roundedBorder)
+            .font(.system(size: DesignConstants.FontSize.small))
+            .lineLimit(3...6)
+            .focused($isFocused)
+    }
+
+    private var singleLineEditor: some View {
+        TextField(placeholderText, text: $value)
+            .textFieldStyle(.roundedBorder)
+            .font(.system(size: DesignConstants.FontSize.small))
+            .focused($isFocused)
+    }
+
+    // MARK: - Field Menu
+
+    private var fieldMenu: some View {
+        Menu {
+            Button("Set NULL") {
+                onSetNull()
+            }
+
+            Button("Set DEFAULT") {
+                onSetDefault()
+            }
+
+            Button("Set EMPTY") {
+                onSetEmpty()
+            }
+
+            Divider()
+
+            if columnTypeEnum.isJsonType {
+                Button("Pretty Print") {
+                    if let formatted = value.prettyPrintedAsJson() {
+                        value = formatted
+                    }
+                }
+            }
+
+            Button("Copy Value") {
+                ClipboardService.shared.writeText(value)
+            }
+
+            Divider()
+
+            Menu("SQL Functions") {
+                Button("NOW()") { onSetFunction("NOW()") }
+                Button("CURRENT_TIMESTAMP()") { onSetFunction("CURRENT_TIMESTAMP()") }
+                Button("CURDATE()") { onSetFunction("CURDATE()") }
+                Button("CURTIME()") { onSetFunction("CURTIME()") }
+                Button("UTC_TIMESTAMP()") { onSetFunction("UTC_TIMESTAMP()") }
+            }
+
+            if isPendingNull || isPendingDefault {
+                Divider()
+                Button("Clear") {
+                    value = originalValue ?? ""
+                }
+            }
+        } label: {
+            Image(systemName: "chevron.down")
+                .font(.system(size: 10))
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    // MARK: - Helpers
+
+    private func normalizeBooleanValue(_ val: String) -> String {
+        let lower = val.lowercased()
+        if lower == "true" || lower == "1" || lower == "t" || lower == "yes" {
+            return "1"
+        }
+        return "0"
+    }
+
 }
 
-/// Read-only field view (for readonly mode or deleted rows)
+/// Read-only field view using native macOS components
 struct ReadOnlyFieldView: View {
     let columnName: String
-    let columnType: String
-    let isLongText: Bool  // NEW: Whether to use multi-line display
+    let columnTypeEnum: ColumnType
+    let isLongText: Bool
     let value: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            // Line 1: field name + type badge
             HStack(spacing: 4) {
                 Text(columnName)
                     .font(.system(size: DesignConstants.FontSize.small))
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
 
-                Text(columnType)
-                    .font(.system(size: DesignConstants.FontSize.tiny))
+                Spacer()
+
+                Text(columnTypeEnum.badgeLabel)
+                    .font(.system(size: DesignConstants.FontSize.tiny, weight: .medium))
                     .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(.quaternary)
+                    .clipShape(Capsule())
             }
 
-            Group {
+            // Line 2: value in disabled native text field
+            if let value {
                 if isLongText {
-                    if let value = value {
-                        Text(value)
-                            .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, maxHeight: 120, alignment: .topLeading)
-                            .clipped()
-                    } else {
-                        Text("NULL")
-                            .font(.system(size: DesignConstants.FontSize.small))
-                            .foregroundStyle(.tertiary)
-                            .italic()
-                            .frame(maxWidth: .infinity, maxHeight: 120, alignment: .topLeading)
-                    }
+                    Text(value)
+                        .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, maxHeight: 80, alignment: .topLeading)
                 } else {
-                    if let value = value {
-                        Text(value)
-                            .font(.system(size: DesignConstants.FontSize.small))
-                            .textSelection(.enabled)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        Text("NULL")
-                            .font(.system(size: DesignConstants.FontSize.small))
-                            .foregroundStyle(.tertiary)
-                            .italic()
-                    }
+                    TextField("", text: .constant(value))
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: DesignConstants.FontSize.small))
+                        .disabled(true)
+                }
+            } else {
+                TextField("NULL", text: .constant(""))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: DesignConstants.FontSize.small))
+                    .disabled(true)
+            }
+        }
+        .contextMenu {
+            if let value {
+                Button("Copy Value") {
+                    ClipboardService.shared.writeText(value)
                 }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-            .background(Color(NSColor.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 5))
         }
     }
 }

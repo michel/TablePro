@@ -13,8 +13,8 @@ import Foundation
 struct FieldEditState {
     let columnIndex: Int
     let columnName: String
-    let columnType: String
-    let isLongText: Bool  // NEW: Whether to use multi-line editor
+    let columnTypeEnum: ColumnType
+    let isLongText: Bool
 
     /// Original values from all selected rows (nil if multiple different values)
     let originalValue: String?
@@ -51,6 +51,8 @@ struct FieldEditState {
 class MultiRowEditState: ObservableObject {
     @Published var fields: [FieldEditState] = []
 
+    var onFieldChanged: ((Int, String?) -> Void)?
+
     private(set) var selectedRowIndices: Set<Int> = []
     private(set) var allRows: [[String?]] = []
     private(set) var columns: [String] = []
@@ -68,7 +70,8 @@ class MultiRowEditState: ObservableObject {
         columnTypes: [ColumnType]  // Changed from [String] to [ColumnType]
     ) {
         // Check if the underlying data has changed (not just edits)
-        let dataChanged = self.allRows != allRows || self.columns != columns
+        let columnsChanged = self.columns != columns
+        let selectionChanged = self.selectedRowIndices != selectedRowIndices
 
         self.selectedRowIndices = selectedRowIndices
         self.allRows = allRows
@@ -80,7 +83,6 @@ class MultiRowEditState: ObservableObject {
 
         for (colIndex, columnName) in columns.enumerated() {
             let columnTypeEnum = colIndex < columnTypes.count ? columnTypes[colIndex] : ColumnType.text(rawType: nil)
-            let columnType = columnTypeEnum.displayName
             let isLongText = columnTypeEnum.isLongText
 
             // Gather values from all selected rows
@@ -107,17 +109,19 @@ class MultiRowEditState: ObservableObject {
             var isPendingNull = false
             var isPendingDefault = false
 
-            if !dataChanged, colIndex < fields.count {
+            if !columnsChanged, !selectionChanged, colIndex < fields.count {
                 let oldField = fields[colIndex]
-                pendingValue = oldField.pendingValue
-                isPendingNull = oldField.isPendingNull
-                isPendingDefault = oldField.isPendingDefault
+                if oldField.originalValue == originalValue && oldField.hasMultipleValues == hasMultipleValues {
+                    pendingValue = oldField.pendingValue
+                    isPendingNull = oldField.isPendingNull
+                    isPendingDefault = oldField.isPendingDefault
+                }
             }
 
             newFields.append(FieldEditState(
                 columnIndex: colIndex,
                 columnName: columnName,
-                columnType: columnType,
+                columnTypeEnum: columnTypeEnum,
                 isLongText: isLongText,
                 originalValue: originalValue,
                 hasMultipleValues: hasMultipleValues,
@@ -133,9 +137,18 @@ class MultiRowEditState: ObservableObject {
     /// Update a field's pending value
     func updateField(at index: Int, value: String?) {
         guard index < fields.count else { return }
-        fields[index].pendingValue = value
+        let hadPendingEdit = fields[index].hasEdit
+        let original = fields[index].originalValue
+        if value == original || (original == nil && value == "") {
+            fields[index].pendingValue = nil
+        } else {
+            fields[index].pendingValue = value
+        }
         fields[index].isPendingNull = false
         fields[index].isPendingDefault = false
+        if fields[index].pendingValue != nil || hadPendingEdit {
+            onFieldChanged?(index, value)
+        }
     }
 
     /// Set a field to NULL
@@ -144,6 +157,7 @@ class MultiRowEditState: ObservableObject {
         fields[index].pendingValue = nil
         fields[index].isPendingNull = true
         fields[index].isPendingDefault = false
+        onFieldChanged?(index, nil)
     }
 
     /// Set a field to DEFAULT
@@ -152,6 +166,7 @@ class MultiRowEditState: ObservableObject {
         fields[index].pendingValue = nil
         fields[index].isPendingNull = false
         fields[index].isPendingDefault = true
+        onFieldChanged?(index, "__DEFAULT__")
     }
 
     /// Set a field to a SQL function (e.g., NOW())
@@ -160,6 +175,23 @@ class MultiRowEditState: ObservableObject {
         fields[index].pendingValue = function
         fields[index].isPendingNull = false
         fields[index].isPendingDefault = false
+        onFieldChanged?(index, function)
+    }
+
+    /// Set a field to empty string
+    func setFieldToEmpty(at index: Int) {
+        guard index < fields.count else { return }
+        let hadPendingEdit = fields[index].hasEdit
+        if fields[index].originalValue == "" {
+            fields[index].pendingValue = nil
+        } else {
+            fields[index].pendingValue = ""
+        }
+        fields[index].isPendingNull = false
+        fields[index].isPendingDefault = false
+        if fields[index].pendingValue != nil || hadPendingEdit {
+            onFieldChanged?(index, "")
+        }
     }
 
     /// Clear all pending edits

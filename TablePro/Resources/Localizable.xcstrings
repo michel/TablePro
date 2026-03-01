@@ -2311,6 +2311,9 @@
         }
       }
     },
+    "Copy Value" : {
+
+    },
     "Copy with Headers" : {
       "localizations" : {
         "vi" : {
@@ -2795,6 +2798,9 @@
           }
         }
       }
+    },
+    "DEFAULT" : {
+
     },
     "Default Column" : {
       "localizations" : {
@@ -3922,6 +3928,9 @@
           }
         }
       }
+    },
+    "false" : {
+
     },
     "FALSE" : {
       "extractionState" : "stale",
@@ -5226,6 +5235,9 @@
     "MQL Preview" : {
 
     },
+    "Multiple values" : {
+
+    },
     "Name" : {
       "localizations" : {
         "vi" : {
@@ -5549,6 +5561,9 @@
           }
         }
       }
+    },
+    "No matching fields" : {
+
     },
     "No Matching Queries" : {
       "localizations" : {
@@ -6304,6 +6319,9 @@
           }
         }
       }
+    },
+    "Pretty Print" : {
+
     },
     "Pretty print (formatted output)" : {
       "localizations" : {
@@ -7235,6 +7253,9 @@
         }
       }
     },
+    "Search for field..." : {
+
+    },
     "Search or type..." : {
       "localizations" : {
         "vi" : {
@@ -7421,6 +7442,9 @@
         }
       }
     },
+    "Set EMPTY" : {
+
+    },
     "Set NULL" : {
       "localizations" : {
         "vi" : {
@@ -7432,6 +7456,7 @@
       }
     },
     "Set special value" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8569,6 +8594,9 @@
           }
         }
       }
+    },
+    "true" : {
+
     },
     "TRUE" : {
       "extractionState" : "stale",

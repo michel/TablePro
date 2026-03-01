@@ -65,9 +65,15 @@ struct RightSidebarView: View {
     private func tableInfoContent(_ metadata: TableMetadata) -> some View {
         Form {
             Section {
-                LabeledContent(String(localized: "Data Size"), value: TableMetadata.formatSize(metadata.dataSize))
-                LabeledContent(String(localized: "Index Size"), value: TableMetadata.formatSize(metadata.indexSize))
-                LabeledContent(String(localized: "Total Size"), value: TableMetadata.formatSize(metadata.totalSize))
+                LabeledContent(
+                    String(localized: "Data Size"),
+                    value: TableMetadata.formatSize(metadata.dataSize))
+                LabeledContent(
+                    String(localized: "Index Size"),
+                    value: TableMetadata.formatSize(metadata.indexSize))
+                LabeledContent(
+                    String(localized: "Total Size"),
+                    value: TableMetadata.formatSize(metadata.totalSize))
             } header: {
                 Text("SIZE")
             }
@@ -129,55 +135,88 @@ struct RightSidebarView: View {
     private func rowDetailForm(
         _ rowData: [(column: String, value: String?, type: String)]
     ) -> some View {
-        let filtered = searchText.isEmpty ? editState.fields : editState.fields.filter {
-            $0.columnName.localizedCaseInsensitiveContains(searchText) ||
-                ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
+        let filtered =
+            searchText.isEmpty
+            ? editState.fields
+            : editState.fields.filter {
+                $0.columnName.localizedCaseInsensitiveContains(searchText)
+                    || ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
 
-        return Form {
-            Section {
-                ForEach(filtered, id: \.columnName) { field in
-                    if contentMode == .editRow {
-                        editableFieldRow(field, at: field.columnIndex)
-                    } else {
-                        readonlyFieldRow(field)
+        return VStack(spacing: 0) {
+            // Inline search field
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.tertiary)
+                    .font(.system(size: DesignConstants.FontSize.small))
+                TextField("Search for field...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: DesignConstants.FontSize.small))
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                            .font(.system(size: DesignConstants.FontSize.small))
                     }
+                    .buttonStyle(.plain)
                 }
-            } header: {
-                VStack(alignment: .leading, spacing: 2) {
-                    if let name = tableName {
-                        Text(name)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+
+            Divider()
+
+            List {
+                Section {
+                    if filtered.isEmpty && !searchText.isEmpty {
+                        Text("No matching fields")
+                            .font(.system(size: DesignConstants.FontSize.small))
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        ForEach(filtered, id: \.columnIndex) { field in
+                            if contentMode == .editRow {
+                                editableFieldRow(field, at: field.columnIndex)
+                            } else {
+                                readonlyFieldRow(field)
+                            }
+                        }
                     }
+                } header: {
                     HStack {
                         Text("FIELDS")
                         Spacer()
                         Text("\(filtered.count)")
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.trailing, 15)
                 }
+
             }
+            .listStyle(.sidebar)
 
             if contentMode == .editRow && editState.hasEdits {
-                Section {
-                    Button(action: onSave) {
-                        Text("Save Changes")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .keyboardShortcut("s", modifiers: .command)
+                Divider()
+                Button(action: onSave) {
+                    Text("Save Changes")
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .keyboardShortcut("s", modifiers: .command)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
             }
         }
-        .formStyle(.grouped)
-        .searchable(text: $searchText, prompt: "Filter")
     }
 
     @ViewBuilder
     private func editableFieldRow(_ field: FieldEditState, at index: Int) -> some View {
         EditableFieldView(
             columnName: field.columnName,
-            columnType: field.columnType,
+            columnTypeEnum: field.columnTypeEnum,
             isLongText: field.isLongText,
             value: Binding(
                 get: { field.pendingValue ?? field.originalValue ?? "" },
@@ -190,6 +229,7 @@ struct RightSidebarView: View {
             isModified: field.hasEdit,
             onSetNull: { editState.setFieldToNull(at: index) },
             onSetDefault: { editState.setFieldToDefault(at: index) },
+            onSetEmpty: { editState.setFieldToEmpty(at: index) },
             onSetFunction: { editState.setFieldToFunction(at: index, function: $0) }
         )
     }
@@ -198,7 +238,7 @@ struct RightSidebarView: View {
     private func readonlyFieldRow(_ field: FieldEditState) -> some View {
         ReadOnlyFieldView(
             columnName: field.columnName,
-            columnType: field.columnType,
+            columnTypeEnum: field.columnTypeEnum,
             isLongText: field.isLongText,
             value: field.originalValue
         )
