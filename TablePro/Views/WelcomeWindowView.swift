@@ -7,8 +7,8 @@
 //
 
 import AppKit
-import SwiftUI
 import os
+import SwiftUI
 
 // MARK: - WelcomeWindowView
 

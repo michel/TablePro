@@ -370,7 +370,6 @@ final class MongoDBDriver: DatabaseDriver {
                let firstBatch = cursor["firstBatch"] as? [[String: Any]],
                let collInfo = firstBatch.first,
                let options = collInfo["options"] as? [String: Any] {
-
                 if let capped = options["capped"] as? Bool, capped {
                     let size = options["size"] as? Int ?? 0
                     let max = options["max"] as? Int
