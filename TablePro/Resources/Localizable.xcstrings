@@ -2085,6 +2085,36 @@
         }
       }
     },
+    "Connection URL" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL kết nối"
+          }
+        }
+      }
+    },
+    "Connection URL cannot be empty" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL kết nối không được để trống"
+          }
+        }
+      }
+    },
+    "Connection URL must include a host" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL kết nối phải bao gồm host"
+          }
+        }
+      }
+    },
     "Constraint name" : {
       "localizations" : {
         "vi" : {
@@ -3618,6 +3648,16 @@
         }
       }
     },
+    "Export failed: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xuất thất bại: %@"
+          }
+        }
+      }
+    },
     "Export multiple tables" : {
       "localizations" : {
         "vi" : {
@@ -3671,6 +3711,16 @@
         }
       }
     },
+    "Failed to compress data" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể nén dữ liệu"
+          }
+        }
+      }
+    },
     "Failed to decompress .gz file" : {
       "localizations" : {
         "vi" : {
@@ -3703,6 +3753,16 @@
     },
     "Failed to duplicate table: %@" : {
 
+    },
+    "Failed to encode content as UTF-8" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể mã hóa nội dung thành UTF-8"
+          }
+        }
+      }
     },
     "Failed to fetch table structure: %@" : {
       "extractionState" : "stale",
@@ -3840,6 +3900,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lưu mẫu thất bại: %@"
+          }
+        }
+      }
+    },
+    "Failed to write file: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể ghi tệp: %@"
           }
         }
       }
@@ -4372,6 +4442,16 @@
         }
       }
     },
+    "Import from URL" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhập từ URL"
+          }
+        }
+      }
+    },
     "Import Not Supported" : {
 
     },
@@ -4525,6 +4605,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Thanh kiểm tra"
+          }
+        }
+      }
+    },
+    "Invalid connection URL format" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Định dạng URL kết nối không hợp lệ"
           }
         }
       }
@@ -5605,6 +5695,16 @@
         }
       }
     },
+    "No tables selected for export" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có bảng nào được chọn để xuất"
+          }
+        }
+      }
+    },
     "No tabs open" : {
       "localizations" : {
         "vi" : {
@@ -6061,6 +6161,16 @@
         }
       }
     },
+    "Paste a connection URL to auto-fill the form fields." : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dán URL kết nối để tự động điền các trường trong biểu mẫu."
+          }
+        }
+      }
+    },
     "Paste your CREATE TABLE statement below:" : {
       "localizations" : {
         "vi" : {
@@ -6120,6 +6230,9 @@
           }
         }
       }
+    },
+    "postgresql://user:password@host:5432/database" : {
+
     },
     "Potentially Dangerous Queries" : {
       "localizations" : {
@@ -8579,6 +8692,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không dấu"
+          }
+        }
+      }
+    },
+    "Unsupported database scheme: %@" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scheme cơ sở dữ liệu không được hỗ trợ: %@"
           }
         }
       }
