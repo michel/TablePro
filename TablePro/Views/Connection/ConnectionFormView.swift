@@ -259,8 +259,6 @@ struct ConnectionFormView: View {
 
             HStack {
                 Button(String(localized: "Cancel")) {
-                    connectionURL = ""
-                    urlParseError = nil
                     showURLImport = false
                 }
                 .keyboardShortcut(.cancelAction)
@@ -270,6 +268,8 @@ struct ConnectionFormView: View {
                 Button(String(localized: "Import")) {
                     parseConnectionURL()
                     if urlParseError == nil && !connectionURL.isEmpty {
+                        connectionURL = ""
+                        urlParseError = nil
                         showURLImport = false
                     }
                 }
