@@ -11,9 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Custom About window with version info and links (Website, GitHub, Documentation)
 - Import database connections from URL/connection string (e.g., `postgresql://user:pass@host:5432/db`)
+- Release notes in Sparkle update window
 
 ### Fixed
 
+- New row (Cmd+I) and duplicated row not appearing in datagrid until manual refresh
 - PostgreSQL SSH tunnel connections failing with "no encryption" due to SSL config not being preserved
 
 ## [0.9.2] - 2026-02-28

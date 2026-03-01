@@ -27,6 +27,7 @@ extension MainContentCoordinator {
         selectedRowIndices = [result.rowIndex]
         editingCell = CellPosition(row: result.rowIndex, column: 0)
         tabManager.tabs[tabIndex].hasUserInteraction = true
+        tabManager.tabs[tabIndex].resultVersion += 1
     }
 
     func deleteSelectedRows(indices: Set<Int>, selectedRowIndices: inout Set<Int>) {
@@ -48,6 +49,7 @@ extension MainContentCoordinator {
         }
 
         tabManager.tabs[tabIndex].hasUserInteraction = true
+        tabManager.tabs[tabIndex].resultVersion += 1
     }
 
     func duplicateSelectedRow(index: Int, selectedRowIndices: inout Set<Int>, editingCell: inout CellPosition?) {
@@ -68,6 +70,7 @@ extension MainContentCoordinator {
         selectedRowIndices = [result.rowIndex]
         editingCell = CellPosition(row: result.rowIndex, column: 0)
         tabManager.tabs[tabIndex].hasUserInteraction = true
+        tabManager.tabs[tabIndex].resultVersion += 1
     }
 
     func undoInsertRow(at rowIndex: Int, selectedRowIndices: inout Set<Int>) {
@@ -79,6 +82,7 @@ extension MainContentCoordinator {
             resultRows: &tabManager.tabs[tabIndex].resultRows,
             selectedIndices: selectedRowIndices
         )
+        tabManager.tabs[tabIndex].resultVersion += 1
     }
 
     func undoLastChange(selectedRowIndices: inout Set<Int>) {
@@ -92,6 +96,7 @@ extension MainContentCoordinator {
         }
 
         tabManager.tabs[tabIndex].hasUserInteraction = true
+        tabManager.tabs[tabIndex].resultVersion += 1
     }
 
     func redoLastChange() {
@@ -105,6 +110,7 @@ extension MainContentCoordinator {
         )
 
         tabManager.tabs[tabIndex].hasUserInteraction = true
+        tabManager.tabs[tabIndex].resultVersion += 1
     }
 
     func copySelectedRowsToClipboard(indices: Set<Int>) {
