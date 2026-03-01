@@ -480,11 +480,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Must be synchronous — tabbingMode must be set before the window
         // is displayed so macOS merges it into the existing tab group.
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
-            // Default to .disallowed for new windows — MainContentView.onAppear
-            // sets .preferred with the correct per-connection tabbingIdentifier
-            // once the connection ID is known from the payload.
-            window.tabbingMode = .disallowed
-            window.tabbingIdentifier = "com.TablePro.main"
+            window.tabbingMode = .preferred
+            // Use the pending connectionId from WindowOpener (set by openNativeTab)
+            // to assign the correct per-connection tabbingIdentifier immediately,
+            // so macOS merges the window into the right tab group.
+            let pendingId = MainActor.assumeIsolated { WindowOpener.shared.consumePendingConnectionId() }
+            let existingIdentifier = NSApp.windows
+                .first { $0 !== window && isMainWindow($0) && $0.isVisible }?
+                .tabbingIdentifier
+            window.tabbingIdentifier = TabbingIdentifierResolver.resolve(
+                pendingConnectionId: pendingId,
+                existingIdentifier: existingIdentifier
+            )
             configuredWindows.insert(windowId)
         }
 

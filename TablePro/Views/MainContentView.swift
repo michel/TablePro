@@ -241,18 +241,22 @@ struct MainContentView: View {
             .onDisappear {
                 NativeTabRegistry.shared.unregister(windowId: windowId)
 
-                // Only disconnect when no windows remain for this connection.
-                // Check both the registry AND visible windows to avoid false positives
-                // from SwiftUI firing onDisappear during view body re-evaluations.
-                if !NativeTabRegistry.shared.hasWindows(for: connection.id) {
-                    let connectionId = connection.id
+                // Defer the disconnect check — SwiftUI fires onDisappear+onAppear in
+                // rapid succession during body re-evaluations (e.g., when session status
+                // changes from .connecting to .connected). The short delay lets the
+                // re-registration from onAppear fire first, preventing false disconnects.
+                let connectionId = connection.id
+                let connectionName = connection.name
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(200))
+
+                    // After the delay, check if any windows re-registered for this connection
+                    guard !NativeTabRegistry.shared.hasWindows(for: connectionId) else { return }
                     let hasVisibleWindow = NSApp.windows.contains { window in
-                        window.isVisible && window.subtitle == connection.name
+                        window.isVisible && window.subtitle == connectionName
                     }
                     if !hasVisibleWindow {
-                        Task { @MainActor in
-                            await DatabaseManager.shared.disconnectSession(connectionId)
-                        }
+                        await DatabaseManager.shared.disconnectSession(connectionId)
                     }
                 }
 
