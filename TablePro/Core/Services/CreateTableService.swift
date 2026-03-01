@@ -70,7 +70,7 @@ struct CreateTableService {
         case .sqlite:
             return try generateSQLite(options)
         case .mongodb:
-            throw CreateTableError.invalidSQL("MongoDB does not support CREATE TABLE SQL")
+            return "db.createCollection(\"\(options.tableName)\")"
         }
     }
 
@@ -81,6 +81,11 @@ struct CreateTableService {
         // Table name validation
         guard !options.tableName.trimmingCharacters(in: .whitespaces).isEmpty else {
             throw CreateTableError.emptyTableName
+        }
+
+        // MongoDB collections are schema-less — skip column/database validation
+        if databaseType == .mongodb {
+            return
         }
 
         // Database name validation (not required for SQLite)

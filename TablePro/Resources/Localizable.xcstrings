@@ -52,6 +52,7 @@
       }
     },
     "''" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -553,6 +554,7 @@
       }
     },
     "=" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -593,6 +595,7 @@
       }
     },
     "0" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -895,6 +898,7 @@
       }
     },
     "Add columns first" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1301,6 +1305,7 @@
       }
     },
     "AUTO" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1331,6 +1336,7 @@
       }
     },
     "Auto Increment" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1491,6 +1497,7 @@
       }
     },
     "Charset (e.g., utf8mb4)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1764,6 +1771,7 @@
       }
     },
     "Close (ESC)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1803,6 +1811,9 @@
           }
         }
       }
+    },
+    "Collection Name" : {
+
     },
     "Collections" : {
 
@@ -1844,6 +1855,7 @@
       }
     },
     "Column Details" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1864,6 +1876,7 @@
       }
     },
     "Column Name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1894,6 +1907,7 @@
       }
     },
     "Columns (comma-separated)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2116,6 +2130,7 @@
       }
     },
     "Constraint name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2345,6 +2360,9 @@
           }
         }
       }
+    },
+    "Create Collection" : {
+
     },
     "Create connection..." : {
       "localizations" : {
@@ -2619,6 +2637,7 @@
       }
     },
     "Data Type:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2720,6 +2739,7 @@
       }
     },
     "Database/Schema:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2850,6 +2870,7 @@
       }
     },
     "Default value" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2860,6 +2881,7 @@
       }
     },
     "Default Value" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2870,6 +2892,7 @@
       }
     },
     "Default:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2900,6 +2923,7 @@
       }
     },
     "Delete (⌫)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2910,6 +2934,7 @@
       }
     },
     "Delete Check Constraint" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2920,6 +2945,7 @@
       }
     },
     "Delete Column" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2940,6 +2966,7 @@
       }
     },
     "Delete Foreign Key" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2950,6 +2977,7 @@
       }
     },
     "Delete Index" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3123,6 +3151,7 @@
       }
     },
     "Duplicate Existing Table" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3163,6 +3192,7 @@
       }
     },
     "Duplicate Table Structure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3203,6 +3233,7 @@
       }
     },
     "Edit Details (Double-click)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3354,6 +3385,7 @@
       }
     },
     "Engine (e.g., InnoDB)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3692,6 +3724,7 @@
 
     },
     "Expression (e.g., age >= 0)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3742,6 +3775,7 @@
       }
     },
     "Failed to delete template: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3750,9 +3784,6 @@
           }
         }
       }
-    },
-    "Failed to duplicate table: %@" : {
-
     },
     "Failed to encode content as UTF-8" : {
       "localizations" : {
@@ -3776,6 +3807,7 @@
       }
     },
     "Failed to import DDL: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3829,6 +3861,7 @@
 
     },
     "Failed to load tables: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3839,6 +3872,7 @@
       }
     },
     "Failed to load template: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3849,6 +3883,7 @@
       }
     },
     "Failed to parse any columns from table '%@'. Check console for debug info." : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3895,6 +3930,7 @@
       }
     },
     "Failed to save template: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3915,6 +3951,7 @@
       }
     },
     "FALSE" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4433,6 +4470,7 @@
       }
     },
     "Import from DDL" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4546,6 +4584,7 @@
       }
     },
     "INDEX" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4556,6 +4595,7 @@
       }
     },
     "Index name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4836,6 +4876,7 @@
       }
     },
     "Length:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4916,6 +4957,7 @@
       }
     },
     "Load" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4936,6 +4978,7 @@
       }
     },
     "Load Table Template" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4946,6 +4989,7 @@
       }
     },
     "Load Template" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4969,6 +5013,7 @@
 
     },
     "Loading tables..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5158,6 +5203,7 @@
 
     },
     "Move Down" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5168,6 +5214,7 @@
       }
     },
     "Move Down (⌘↓)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5178,6 +5225,7 @@
       }
     },
     "Move Up" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5188,6 +5236,7 @@
       }
     },
     "Move Up (⌘↑)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5390,6 +5439,9 @@
         }
       }
     },
+    "NN" : {
+
+    },
     "No AI provider configured. Go to Settings > AI to add one." : {
       "localizations" : {
         "vi" : {
@@ -5454,6 +5506,7 @@
       }
     },
     "No database connection" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5600,6 +5653,7 @@
       }
     },
     "No primary key selected (not recommended)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5650,6 +5704,7 @@
       }
     },
     "No saved templates" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5806,6 +5861,7 @@
       }
     },
     "NOT NULL" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6046,6 +6102,7 @@
       }
     },
     "Optional description" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6172,6 +6229,7 @@
       }
     },
     "Paste your CREATE TABLE statement below:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6210,6 +6268,9 @@
           }
         }
       }
+    },
+    "PK" : {
+
     },
     "Please select a column" : {
       "localizations" : {
@@ -6255,6 +6316,7 @@
       }
     },
     "Precision" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6265,6 +6327,7 @@
       }
     },
     "Precision:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6735,6 +6798,7 @@
       }
     },
     "Referenced columns (comma-separated)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6745,6 +6809,7 @@
       }
     },
     "Referenced table" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7109,6 +7174,7 @@
       }
     },
     "Save as Template" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7149,6 +7215,7 @@
       }
     },
     "Save Table Template" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7179,6 +7246,7 @@
       }
     },
     "Scale" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7189,6 +7257,7 @@
       }
     },
     "Scale:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7308,6 +7377,7 @@
       }
     },
     "Select a table to copy its structure:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8021,6 +8091,7 @@
       }
     },
     "Table '%@' has no columns or does not exist" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8092,6 +8163,7 @@
       }
     },
     "Tablespace" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8152,6 +8224,7 @@
       }
     },
     "Template Name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8547,6 +8620,7 @@
       }
     },
     "TRUE" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8637,6 +8711,7 @@
       }
     },
     "UNIQUE" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8687,6 +8762,7 @@
       }
     },
     "Unsigned" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -9061,6 +9137,7 @@
       }
     },
     "Zero Fill" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
