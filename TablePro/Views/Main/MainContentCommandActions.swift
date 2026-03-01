@@ -179,7 +179,6 @@ final class MainContentCommandActions: ObservableObject {
             self.editingCell.wrappedValue = cell
         }
 
-        observeKeyWindowOnly(.createTable) { [weak self] _ in self?.createTable() }
         observeKeyWindowOnly(.createView) { [weak self] _ in self?.createView() }
         observeKeyWindowOnly(.exportTables) { [weak self] _ in self?.exportTables() }
         observeKeyWindowOnly(.importTables) { [weak self] _ in self?.importTables() }
@@ -298,17 +297,6 @@ final class MainContentCommandActions: ObservableObject {
             AppState.shared.isCurrentTabEditable = false
             coordinator?.toolbarState.isTableTab = false
         }
-    }
-
-    func createTable() {
-        guard !connection.isReadOnly else { return }
-
-        let payload = EditorTabPayload(
-            connectionId: connection.id,
-            tabType: .createTable,
-            databaseName: connection.database
-        )
-        WindowOpener.shared.openNativeTab(payload)
     }
 
     func createView() {

@@ -159,12 +159,6 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .newTab))
             .disabled(!appState.isConnected)
 
-            Button("New Table...") {
-                actions?.createTable()
-            }
-            .optionalKeyboardShortcut(shortcut(for: .newTable))
-            .disabled(!appState.isConnected || appState.isReadOnly)
-
             Button("New View...") {
                 actions?.createView()
             }
@@ -477,7 +471,6 @@ extension Notification.Name {
     static let openDatabaseSwitcher = Notification.Name("openDatabaseSwitcher")
 
     // Structure view / sidebar operations (still posted by SidebarView, QueryEditorView)
-    static let createTable = Notification.Name("createTable")
     static let createView = Notification.Name("createView")
     static let explainQuery = Notification.Name("explainQuery")
     static let saveStructureChanges = Notification.Name("saveStructureChanges")

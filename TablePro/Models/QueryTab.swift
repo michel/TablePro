@@ -12,7 +12,6 @@ import Foundation
 enum TabType: Equatable, Codable, Hashable {
     case query       // SQL editor tab
     case table       // Direct table view tab
-    case createTable // Table creation tab
 }
 
 /// Minimal representation of a tab for persistence
@@ -394,9 +393,6 @@ struct QueryTab: Identifiable, Equatable {
     // Version counter incremented when FK/metadata arrives (Phase 2), used to invalidate caches
     var metadataVersion: Int
 
-    // Table creation options (for .createTable tabs only)
-    var tableCreationOptions: TableCreationOptions?
-
     init(
         id: UUID = UUID(),
         title: String = "Query",
@@ -429,7 +425,6 @@ struct QueryTab: Identifiable, Equatable {
         self.columnLayout = ColumnLayoutState()
         self.resultVersion = 0
         self.metadataVersion = 0
-        self.tableCreationOptions = nil
     }
 
     /// Initialize from persisted tab state (used when restoring tabs)
@@ -461,7 +456,6 @@ struct QueryTab: Identifiable, Equatable {
         self.columnLayout = ColumnLayoutState()
         self.resultVersion = 0
         self.metadataVersion = 0
-        self.tableCreationOptions = nil
     }
 
     /// Maximum query size to persist (500KB). Queries larger than this are typically
@@ -584,39 +578,6 @@ final class QueryTabManager: ObservableObject {
         )
         newTab.pagination = PaginationState(pageSize: pageSize)
         newTab.databaseName = databaseName
-        tabs.append(newTab)
-        selectedTabId = newTab.id
-    }
-
-    /// Add a new "Create Table" tab
-    /// - Parameters:
-    ///   - databaseName: The database/schema name to create the table in
-    ///   - databaseType: The type of database (MySQL, PostgreSQL, SQLite)
-    func addCreateTableTab(databaseName: String, databaseType: DatabaseType) {
-        let createTableCount = tabs.count(where: { $0.tabType == .createTable })
-
-        // Initialize with one default column (id INT AUTO_INCREMENT PRIMARY KEY)
-        var options = TableCreationOptions()
-        options.databaseName = databaseName
-        options.tableName = "new_table"
-
-        // Add default ID column
-        let idColumn = ColumnDefinition(
-            name: "id",
-            dataType: "INT",
-            notNull: true,
-            autoIncrement: true
-        )
-        options.columns = [idColumn]
-        options.primaryKeyColumns = ["id"]
-
-        var newTab = QueryTab(
-            title: "New Table \(createTableCount + 1)",
-            tabType: .createTable
-        )
-        newTab.tableCreationOptions = options
-        newTab.hasUserInteraction = false  // Not yet interacted with
-
         tabs.append(newTab)
         selectedTabId = newTab.id
     }

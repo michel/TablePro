@@ -1812,9 +1812,6 @@
         }
       }
     },
-    "Collection Name" : {
-
-    },
     "Collections" : {
 
     },
@@ -1866,6 +1863,7 @@
       }
     },
     "Column name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2292,6 +2290,7 @@
       }
     },
     "Copy SQL" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2361,9 +2360,6 @@
         }
       }
     },
-    "Create Collection" : {
-
-    },
     "Create connection..." : {
       "localizations" : {
         "vi" : {
@@ -2394,26 +2390,6 @@
         }
       }
     },
-    "Create New Table" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo bảng mới"
-          }
-        }
-      }
-    },
-    "Create New Table..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo bảng mới..."
-          }
-        }
-      }
-    },
     "Create New Tag" : {
       "localizations" : {
         "vi" : {
@@ -2440,16 +2416,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tạo view mới..."
-          }
-        }
-      }
-    },
-    "Create Table" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo bảng"
           }
         }
       }
@@ -4866,6 +4832,7 @@
       }
     },
     "Length" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5379,26 +5346,6 @@
         }
       }
     },
-    "New Table" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng mới"
-          }
-        }
-      }
-    },
-    "New Table..." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bảng mới..."
-          }
-        }
-      }
-    },
     "New View..." : {
       "localizations" : {
         "vi" : {
@@ -5438,9 +5385,6 @@
           }
         }
       }
-    },
-    "NN" : {
-
     },
     "No AI provider configured. Go to Settings > AI to add one." : {
       "localizations" : {
@@ -6268,9 +6212,6 @@
           }
         }
       }
-    },
-    "PK" : {
-
     },
     "Please select a column" : {
       "localizations" : {
@@ -8102,6 +8043,7 @@
       }
     },
     "Table creation options not available" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8123,6 +8065,7 @@
       }
     },
     "Table Name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8214,6 +8157,7 @@
       }
     },
     "Template" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {

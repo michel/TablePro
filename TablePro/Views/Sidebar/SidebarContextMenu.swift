@@ -24,12 +24,6 @@ struct SidebarContextMenu: View {
     }
 
     var body: some View {
-        Button("Create New Table...") {
-            NotificationCenter.default.post(name: .createTable, object: nil)
-        }
-        .keyboardShortcut("n", modifiers: .command)
-        .disabled(isReadOnly)
-
         Button("Create New View...") {
             NotificationCenter.default.post(name: .createView, object: nil)
         }
