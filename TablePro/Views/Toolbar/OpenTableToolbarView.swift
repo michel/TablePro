@@ -71,67 +71,53 @@ struct TableProToolbar: ViewModifier {
         content
             .toolbar {
                 // MARK: - Navigation (Left)
-                ToolbarItem(placement: .navigation) {
-                    HStack(spacing: 8) {
-                        // Connection switcher button
-                        Button {
-                            showConnectionSwitcher.toggle()
-                        } label: {
-                            Image(systemName: "network")
+                // Separate items so macOS can overflow them individually with labels
+                ToolbarItemGroup(placement: .navigation) {
+                    Button {
+                        showConnectionSwitcher.toggle()
+                    } label: {
+                        Label("Connection", systemImage: "network")
+                    }
+                    .help("Switch Connection (⌘⌥C)")
+                    .popover(isPresented: $showConnectionSwitcher) {
+                        ConnectionSwitcherPopover {
+                            showConnectionSwitcher = false
                         }
-                        .accessibilityLabel(String(localized: "Switch connection"))
-                        .help("Switch Connection (⌘⌥C)")
-                        .popover(isPresented: $showConnectionSwitcher) {
-                            ConnectionSwitcherPopover {
-                                showConnectionSwitcher = false
-                            }
-                        }
+                    }
 
-                        Divider()
-                            .frame(height: 20)
+                    Button {
+                        actions?.openDatabaseSwitcher()
+                    } label: {
+                        Label("Database", systemImage: "cylinder")
+                    }
+                    .help("Open Database (⌘K)")
+                    .disabled(
+                        state.connectionState != .connected || state.databaseType == .sqlite)
 
-                        // Database switcher button
-                        Button {
-                            actions?.openDatabaseSwitcher()
-                        } label: {
-                            Image(systemName: "cylinder")
-                        }
-                        .accessibilityLabel(String(localized: "Open database"))
-                        .help("Open Database (⌘K)")
-                        .disabled(
-                            state.connectionState != .connected || state.databaseType == .sqlite)
+                    Button(state.databaseType == .mongodb ? "MQL" : "SQL") {
+                        actions?.newTab()
+                    }
+                    .help("New Query Tab (⌘T)")
 
-                        // Query tab button
-                        Button(state.databaseType == .mongodb ? "MQL" : "SQL") {
-                            actions?.newTab()
-                        }
-                        .accessibilityLabel(String(localized: "New query tab"))
-                        .help("New Query Tab (⌘T)")
+                    Button {
+                        NotificationCenter.default.post(name: .refreshData, object: nil)
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .help("Refresh (⌘R)")
+                    .disabled(state.connectionState != .connected)
 
-                        // Refresh button
-                        Button {
-                            NotificationCenter.default.post(name: .refreshData, object: nil)
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .accessibilityLabel(String(localized: "Refresh data"))
-                        .help("Refresh (⌘R)")
-                        .disabled(state.connectionState != .connected)
-
-                        // SQL Preview button
-                        Button {
-                            actions?.previewSQL()
-                        } label: {
-                            Image(systemName: "eye")
-                        }
-                        .accessibilityLabel(state.databaseType == .mongodb
-                            ? String(localized: "Preview MQL")
-                            : String(localized: "Preview SQL"))
-                        .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)" : "Preview SQL (⌘⇧P)")
-                        .disabled(!state.hasPendingChanges || state.connectionState != .connected)
-                        .popover(isPresented: $state.showSQLReviewPopover) {
-                            SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
-                        }
+                    Button {
+                        actions?.previewSQL()
+                    } label: {
+                        Label(
+                            state.databaseType == .mongodb ? "Preview MQL" : "Preview SQL",
+                            systemImage: "eye")
+                    }
+                    .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)" : "Preview SQL (⌘⇧P)")
+                    .disabled(!state.hasPendingChanges || state.connectionState != .connected)
+                    .popover(isPresented: $state.showSQLReviewPopover) {
+                        SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
                     }
                 }
 
@@ -142,65 +128,47 @@ struct TableProToolbar: ViewModifier {
                 }
 
                 // MARK: - Primary Action (Right)
-                // Action buttons
-                ToolbarItem(placement: .primaryAction) {
-                    HStack(spacing: 8) {
-                        // Filter toggle
-                        Button {
-                            actions?.toggleFilterPanel()
-                        } label: {
-                            Image(systemName: "line.3.horizontal.decrease.circle")
-                        }
-                        .accessibilityLabel(String(localized: "Toggle filters"))
-                        .help("Toggle Filters (⌘F)")
-                        .disabled(state.connectionState != .connected || !state.isTableTab)
-
-                        // History toggle
-                        Button {
-                            actions?.toggleHistoryPanel()
-                        } label: {
-                            Image(systemName: "clock")
-                        }
-                        .accessibilityLabel(String(localized: "Toggle query history"))
-                        .help("Toggle Query History (⌘Y)")
-
-                        Divider()
-                            .frame(height: 20)
-
-                        // Export
-                        Button {
-                            actions?.exportTables()
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                        .accessibilityLabel(String(localized: "Export data"))
-                        .help("Export Data (⌘⇧E)")
-                        .disabled(state.connectionState != .connected)
-
-                        // Import (not available for MongoDB)
-                        if state.databaseType != .mongodb {
-                            Button {
-                                actions?.importTables()
-                            } label: {
-                                Image(systemName: "square.and.arrow.down")
-                            }
-                            .accessibilityLabel(String(localized: "Import data"))
-                            .help("Import Data (⌘⇧I)")
-                            .disabled(state.connectionState != .connected || state.isReadOnly)
-                        }
-
-                        Divider()
-                            .frame(height: 20)
-
-                        // Inspector toggle
-                        Button {
-                            actions?.toggleRightSidebar()
-                        } label: {
-                            Image(systemName: "sidebar.trailing")
-                        }
-                        .accessibilityLabel(String(localized: "Toggle inspector"))
-                        .help("Toggle Inspector (⌘⌥B)")
+                // Separate items so macOS can overflow them individually with labels
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        actions?.toggleFilterPanel()
+                    } label: {
+                        Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
                     }
+                    .help("Toggle Filters (⌘F)")
+                    .disabled(state.connectionState != .connected || !state.isTableTab)
+
+                    Button {
+                        actions?.toggleHistoryPanel()
+                    } label: {
+                        Label("History", systemImage: "clock")
+                    }
+                    .help("Toggle Query History (⌘Y)")
+
+                    Button {
+                        actions?.exportTables()
+                    } label: {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                    .help("Export Data (⌘⇧E)")
+                    .disabled(state.connectionState != .connected)
+
+                    if state.databaseType != .mongodb {
+                        Button {
+                            actions?.importTables()
+                        } label: {
+                            Label("Import", systemImage: "square.and.arrow.down")
+                        }
+                        .help("Import Data (⌘⇧I)")
+                        .disabled(state.connectionState != .connected || state.isReadOnly)
+                    }
+
+                    Button {
+                        actions?.toggleRightSidebar()
+                    } label: {
+                        Label("Inspector", systemImage: "sidebar.trailing")
+                    }
+                    .help("Toggle Inspector (⌘⌥B)")
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openConnectionSwitcher)) { _ in

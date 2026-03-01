@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Toolbar briefly showing "MySQL" and missing version (e.g., "MongoDB" instead of "MongoDB 8.2.5") when opening a new tab
 - Keyboard shortcuts not working (beep sound) after connecting from welcome screen until a second tab is opened
+- Toolbar overflow menu showing only one item and missing all other buttons when window is narrow
 
 ### Changed
 
