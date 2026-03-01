@@ -29,7 +29,7 @@ struct TagBadgeView: View {
                 Capsule()
                     .fill(tag.color.color.opacity(ToolbarDesignTokens.Tag.backgroundOpacity))
             )
-            .padding(.leading, ToolbarDesignTokens.Spacing.tagPadding)
+            .padding(.leading, DesignConstants.Spacing.xs)
             .help("Tag: \(tag.name)")
             .accessibilityLabel("Tag: \(tag.name)")
     }
