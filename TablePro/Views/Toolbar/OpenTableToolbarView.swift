@@ -43,7 +43,7 @@ struct ToolbarPrincipalContent: View {
             )
         }
         .animation(.spring(), value: state.tagId)
-        .animation(.easeInOut, value: state.connectionState)
+        .animation(state.hasCompletedSetup ? .easeInOut : nil, value: state.connectionState)
     }
 }
 
