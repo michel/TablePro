@@ -174,8 +174,6 @@ struct MainEditorContentView: View {
             queryTabContent(tab: tab)
         case .table:
             tableTabContent(tab: tab)
-        case .createTable:
-            createTableTabContent(tab: tab)
         }
     }
 
@@ -263,43 +261,6 @@ struct MainEditorContentView: View {
     @ViewBuilder
     private func tableTabContent(tab: QueryTab) -> some View {
         resultsSection(tab: tab)
-    }
-
-    // MARK: - Create Table Tab Content
-
-    @ViewBuilder
-    private func createTableTabContent(tab: QueryTab) -> some View {
-        if tab.tableCreationOptions != nil {
-            CreateTableView(
-                options: createTableOptionsBinding(for: tab),
-                connectionId: connectionId,
-                databaseType: connection.type,
-                onCancel: {
-                    // Close the create-table window
-                    NSApp.keyWindow?.close()
-                },
-                onCreate: { options in
-                    coordinator.createTable(options)
-                }
-            )
-        } else {
-            // Fallback if options are missing
-            Text("Table creation options not available")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    private func createTableOptionsBinding(for tab: QueryTab) -> Binding<TableCreationOptions> {
-        Binding(
-            get: { tab.tableCreationOptions ?? TableCreationOptions() },
-            set: { newValue in
-                guard let index = tabManager.selectedTabIndex,
-                      index < tabManager.tabs.count else { return }
-
-                tabManager.tabs[index].tableCreationOptions = newValue
-            }
-        )
     }
 
     // MARK: - Results Section

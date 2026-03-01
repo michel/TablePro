@@ -1105,66 +1105,6 @@ final class MainContentCoordinator: ObservableObject {
         }
     }
 
-    // MARK: - Table Creation
-
-    /// Creates a new table from the provided options
-    /// - Parameter options: Table creation configuration
-    func createTable(_ options: TableCreationOptions) {
-        let service = CreateTableService(databaseType: connection.type)
-
-        // Generate SQL
-        let sql: String
-        do {
-            sql = try service.generateSQL(options)
-        } catch {
-            // Show error in current tab
-            if let index = tabManager.selectedTabIndex {
-                tabManager.tabs[index].errorMessage = error.localizedDescription
-            }
-            return
-        }
-
-        // Execute the CREATE TABLE statement
-        Task { @MainActor in
-            let startTime = Date()
-
-            do {
-                guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
-                    if let index = tabManager.selectedTabIndex {
-                        tabManager.tabs[index].errorMessage = "Not connected to database"
-                    }
-                    throw DatabaseError.notConnected
-                }
-
-                // Execute CREATE TABLE
-                _ = try await driver.execute(query: sql)
-
-                _ = Date().timeIntervalSince(startTime)
-
-                // Refresh schema to show new table (outside MainActor)
-                await schemaProvider.invalidateCache()
-                await loadSchema()
-
-                // Refresh sidebar to show new table
-                NotificationCenter.default.post(name: .refreshData, object: nil)
-
-                // Close the create-table window and open the new table in a native tab
-                NSApp.keyWindow?.close()
-                let tablePayload = EditorTabPayload(
-                    connectionId: connection.id,
-                    tabType: .table,
-                    tableName: options.tableName,
-                    databaseName: options.databaseName
-                )
-                WindowOpener.shared.openNativeTab(tablePayload)
-            } catch {
-                if let index = tabManager.selectedTabIndex {
-                    tabManager.tabs[index].errorMessage = "Failed to create table: \(error.localizedDescription)"
-                }
-            }
-        }
-    }
-
     // MARK: - Discard Handling
 
     func handleDiscard(

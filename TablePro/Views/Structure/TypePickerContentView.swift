@@ -7,6 +7,75 @@
 
 import SwiftUI
 
+/// Data type categories for type picker
+enum DataTypeCategory: String, CaseIterable {
+    case numeric = "Numeric"
+    case string = "String"
+    case dateTime = "Date & Time"
+    case binary = "Binary"
+    case other = "Other"
+
+    func types(for dbType: DatabaseType) -> [String] {
+        switch self {
+        case .numeric:
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "BIT"]
+            case .postgresql:
+                return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
+            case .sqlite:
+                return ["INTEGER", "REAL", "NUMERIC"]
+            case .mongodb:
+                return ["Int32", "Int64", "Double", "Decimal128"]
+            }
+        case .string:
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"]
+            case .postgresql:
+                return ["CHAR", "VARCHAR", "TEXT"]
+            case .sqlite:
+                return ["TEXT"]
+            case .mongodb:
+                return ["String", "ObjectId", "UUID"]
+            }
+        case .dateTime:
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"]
+            case .postgresql:
+                return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
+            case .sqlite:
+                return ["DATE", "DATETIME"]
+            case .mongodb:
+                return ["Date", "Timestamp"]
+            }
+        case .binary:
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"]
+            case .postgresql:
+                return ["BYTEA"]
+            case .sqlite:
+                return ["BLOB"]
+            case .mongodb:
+                return ["BinData"]
+            }
+        case .other:
+            switch dbType {
+            case .mysql, .mariadb:
+                return ["BOOLEAN", "ENUM", "SET", "JSON"]
+            case .postgresql:
+                return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
+            case .sqlite:
+                return ["BOOLEAN"]
+            case .mongodb:
+                return ["Boolean", "Object", "Array", "Null", "Regex"]
+            }
+        }
+    }
+}
+
 struct TypePickerContentView: View {
     let databaseType: DatabaseType
     let currentValue: String

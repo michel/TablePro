@@ -111,11 +111,6 @@ struct MainContentView: View {
                     initialQuery: payload.initialQuery,
                     databaseName: payload.databaseName ?? connection.database
                 )
-            case .createTable:
-                tabMgr.addCreateTableTab(
-                    databaseName: payload.databaseName ?? connection.database,
-                    databaseType: connection.type
-                )
             }
         }
         // If payload is nil or connection-only, tab restoration handles it in initializeAndRestoreTabs()
