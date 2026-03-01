@@ -129,8 +129,8 @@ struct QueryEditorView: View {
     // MARK: - Helpers
 
     private func formatQuery() {
-        // Get current database type from active session
-        let dbType = DatabaseManager.shared.currentSession?.connection.type ?? .mysql
+        // Get current database type
+        let dbType = databaseType ?? .mysql
 
         // Create formatter service
         let formatter = SQLFormatterService()

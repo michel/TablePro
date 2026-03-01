@@ -252,4 +252,26 @@ struct SidebarNavigationResultTests {
         #expect(currentTableName == "users")
         // syncSidebarToCurrentTab will find "users" in tables and set selectedTables = [users]
     }
+
+    // MARK: - Database switch scenarios
+
+    @Test("Skip when table matches current tab during database switch")
+    func skipWhenTableMatchesDuringDatabaseSwitch() {
+        let result = SidebarNavigationResult.resolve(
+            clickedTableName: "users",
+            currentTabTableName: "users",
+            hasExistingTabs: true
+        )
+        #expect(result == .skip)
+    }
+
+    @Test("Open in-place when no existing tabs during database switch")
+    func openInPlaceWhenNoTabsDuringSwitch() {
+        let result = SidebarNavigationResult.resolve(
+            clickedTableName: "orders",
+            currentTabTableName: nil,
+            hasExistingTabs: false
+        )
+        #expect(result == .openInPlace)
+    }
 }

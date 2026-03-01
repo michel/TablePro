@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support for multiple independent database connections in separate windows with per-window session isolation
 - MongoDB database support with collection browsing, document viewing, collection duplication, MQL shell queries, database switching, read preference, write concern, findOneAndUpdate/Replace/Delete, view creation, and MQL autocomplete
 - MQL export format for MongoDB — generates `mongosh` scripts with per-collection Drop, Indexes, and Data options
 - Custom About window with version info and links (Website, GitHub, Documentation)
@@ -23,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New row (Cmd+I) and duplicated row not appearing in datagrid until manual refresh
 - PostgreSQL SSH tunnel connections failing with "no encryption" due to SSL config not being preserved
+- PostgreSQL SSL `sslrootcert` passed unconditionally to libpq, causing certificate verification failure even in `Required` mode
 
 ## [0.9.2] - 2026-02-28
 

@@ -6,6 +6,7 @@
 //  Used to collect combined tab state for persistence.
 //
 
+import AppKit
 import Foundation
 import os
 
@@ -22,13 +23,14 @@ internal final class NativeTabRegistry {
         let connectionId: UUID
         var tabs: [TabSnapshot]
         var selectedTabId: UUID?
+        weak var window: NSWindow?
     }
 
     private var entries: [UUID: WindowEntry] = [:]
 
     /// Register a window's tabs in the registry
-    internal func register(windowId: UUID, connectionId: UUID, tabs: [TabSnapshot], selectedTabId: UUID?) {
-        entries[windowId] = WindowEntry(connectionId: connectionId, tabs: tabs, selectedTabId: selectedTabId)
+    internal func register(windowId: UUID, connectionId: UUID, tabs: [TabSnapshot], selectedTabId: UUID?, window: NSWindow? = nil) {
+        entries[windowId] = WindowEntry(connectionId: connectionId, tabs: tabs, selectedTabId: selectedTabId, window: window)
     }
 
     /// Update a window's tabs (call when tabs or selection changes).
@@ -42,6 +44,26 @@ internal final class NativeTabRegistry {
             // Auto-register: .onChange can fire before .onAppear
             entries[windowId] = WindowEntry(connectionId: connectionId, tabs: tabs, selectedTabId: selectedTabId)
         }
+    }
+
+    /// Set the NSWindow reference for a registered window.
+    /// If the entry was removed by SwiftUI's onDisappear re-evaluation,
+    /// re-creates a minimal entry so the window can still be found.
+    internal func setWindow(_ window: NSWindow, for windowId: UUID, connectionId: UUID) {
+        if entries[windowId] != nil {
+            entries[windowId]?.window = window
+        } else {
+            // Re-create entry — SwiftUI's onDisappear may have removed it during body re-evaluation
+            entries[windowId] = WindowEntry(connectionId: connectionId, tabs: [], selectedTabId: nil, window: window)
+        }
+    }
+
+    /// Find any visible NSWindow for a given connection
+    internal func findWindow(for connectionId: UUID) -> NSWindow? {
+        entries.values
+            .filter { $0.connectionId == connectionId }
+            .compactMap(\.window)
+            .first { $0.isVisible }
     }
 
     /// Remove a window from the registry (call on window close/disappear)

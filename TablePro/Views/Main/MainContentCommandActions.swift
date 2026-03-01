@@ -591,7 +591,7 @@ final class MainContentCommandActions: ObservableObject {
     private func handleEditViewDefinition(_ viewName: String) {
         Task { @MainActor in
             do {
-                guard let driver = DatabaseManager.shared.activeDriver else { return }
+                guard let driver = DatabaseManager.shared.driver(for: self.connection.id) else { return }
                 let definition = try await driver.fetchViewDefinition(view: viewName)
 
                 let payload = EditorTabPayload(
@@ -632,7 +632,7 @@ final class MainContentCommandActions: ObservableObject {
     private func handleDatabaseDidConnect() {
         Task { @MainActor in
             await coordinator?.loadSchema()
-            if let driver = DatabaseManager.shared.activeDriver {
+            if let driver = DatabaseManager.shared.driver(for: self.connection.id) {
                 coordinator?.toolbarState.databaseVersion = driver.serverVersion
             }
         }
@@ -707,7 +707,7 @@ final class MainContentCommandActions: ObservableObject {
 
     private func handleReconnect() {
         Task { @MainActor in
-            await DatabaseManager.shared.reconnectCurrentSession()
+            await DatabaseManager.shared.reconnectSession(self.connection.id)
         }
     }
 }

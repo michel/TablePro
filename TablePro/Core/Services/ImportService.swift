@@ -112,7 +112,7 @@ final class ImportService: ObservableObject {
         try checkCancellation()
 
         // 3. Get database driver
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
             throw DatabaseError.notConnected
         }
 

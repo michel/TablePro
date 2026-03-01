@@ -399,7 +399,7 @@ struct ExportDialog: View {
 
     @MainActor
     private func loadDatabaseItems() async {
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
             isLoading = false
             AlertHelper.showErrorSheet(
                 title: String(localized: "Export Error"),
@@ -613,7 +613,7 @@ struct ExportDialog: View {
 
     @MainActor
     private func startExport(to url: URL) async {
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
             AlertHelper.showErrorSheet(
                 title: String(localized: "Export Error"),
                 message: String(localized: "Not connected to database"),
