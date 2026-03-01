@@ -77,16 +77,9 @@ struct OnboardingContentView: View {
 
     private var welcomePage: some View {
         VStack(spacing: DesignConstants.Spacing.md) {
-            ZStack {
-                Circle()
-                    .fill(Color(nsColor: .systemOrange).opacity(0.30))
-                    .frame(width: 100, height: 100)
-                    .blur(radius: 25)
-
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 80, height: 80)
-            }
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 80, height: 80)
 
             Text("Welcome to TablePro")
                 .font(.system(size: 24, weight: .bold, design: .rounded))

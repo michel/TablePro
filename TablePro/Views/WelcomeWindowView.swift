@@ -102,17 +102,9 @@ struct WelcomeWindowView: View {
 
             // App branding
             VStack(spacing: 16) {
-                // Logo with glow
-                ZStack {
-                    Circle()
-                        .fill(Color(nsColor: .systemOrange).opacity(0.30))
-                        .frame(width: 100, height: 100)
-                        .blur(radius: 25)
-
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable()
-                        .frame(width: 80, height: 80)
-                }
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 80, height: 80)
 
                 VStack(spacing: 6) {
                     Text("TablePro")

@@ -3,9 +3,9 @@
 //  TablePro
 //
 //  NSViewRepresentable wrapper for NSVisualEffectView.
-//  Provides native macOS frosted glass translucency with behind-window blending.
 //
 
+import AppKit
 import SwiftUI
 
 struct VisualEffectView: NSViewRepresentable {
