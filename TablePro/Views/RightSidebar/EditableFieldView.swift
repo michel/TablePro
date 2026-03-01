@@ -3,13 +3,13 @@
 //  TablePro
 //
 //  Compact, type-aware field editor for right sidebar.
-//  Two-line layout: field name + type badge, then editor + menu.
+//  Two-line layout: field name + type badge, then native editor + menu.
 //
 
 import AppKit
 import SwiftUI
 
-/// Compact editable field view with type-aware editors
+/// Compact editable field view using native macOS components
 struct EditableFieldView: View {
     let columnName: String
     let columnType: String
@@ -29,6 +29,7 @@ struct EditableFieldView: View {
     let onUpdateValue: (String) -> Void
 
     @FocusState private var isFocused: Bool
+    @State private var isHovered = false
 
     private var placeholderText: String {
         if hasMultipleValues {
@@ -36,12 +37,12 @@ struct EditableFieldView: View {
         } else if let original = originalValue {
             return original
         } else {
-            return ""
+            return "NULL"
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             // Line 1: modified indicator + field name + type badge
             HStack(spacing: 4) {
                 if isModified {
@@ -51,27 +52,29 @@ struct EditableFieldView: View {
                 }
 
                 Text(columnName)
-                    .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .lineLimit(1)
 
                 Spacer()
 
                 Text(columnTypeEnum.badgeLabel)
-                    .font(.system(size: DesignConstants.FontSize.tiny))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: DesignConstants.FontSize.tiny, weight: .medium))
+                    .foregroundStyle(.tertiary)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
-                    .background(Color(NSColor.quaternaryLabelColor).opacity(0.3))
+                    .background(.quaternary)
                     .clipShape(Capsule())
             }
 
-            // Line 2: type-aware editor + menu button
-            HStack(spacing: 4) {
-                typeAwareEditor
-
-                fieldMenu
-            }
+            // Line 2: full-width editor with inline menu overlay
+            typeAwareEditor
+                .overlay(alignment: .topTrailing) {
+                    fieldMenu
+                        .opacity(isHovered ? 1 : 0)
+                        .padding(.trailing, 4)
+                }
         }
+        .onHover { isHovered = $0 }
     }
 
     // MARK: - Type-Aware Editor
@@ -79,30 +82,24 @@ struct EditableFieldView: View {
     @ViewBuilder
     private var typeAwareEditor: some View {
         if isPendingNull {
-            specialValueLabel("NULL")
+            TextField("NULL", text: .constant(""))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: DesignConstants.FontSize.small))
+                .disabled(true)
         } else if isPendingDefault {
-            specialValueLabel("DEFAULT")
+            TextField("DEFAULT", text: .constant(""))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: DesignConstants.FontSize.small))
+                .disabled(true)
         } else if columnTypeEnum.isBooleanType {
             booleanPicker
         } else if columnTypeEnum.isEnumType, let values = columnTypeEnum.enumValues, !values.isEmpty {
             enumPicker(values: values)
-        } else if isLongText || columnTypeEnum.isJsonType {
+        } else if isLongText {
             multiLineEditor
         } else {
             singleLineEditor
         }
-    }
-
-    private func specialValueLabel(_ label: String) -> some View {
-        Text(label)
-            .font(.system(size: DesignConstants.FontSize.small))
-            .foregroundStyle(.secondary)
-            .italic()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-            .background(Color(NSColor.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 
     private var booleanPicker: some View {
@@ -133,18 +130,11 @@ struct EditableFieldView: View {
     }
 
     private var multiLineEditor: some View {
-        TextEditor(text: $value)
-            .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
+        TextField(placeholderText, text: $value, axis: .vertical)
+            .textFieldStyle(.roundedBorder)
+            .font(.system(size: DesignConstants.FontSize.small))
+            .lineLimit(3...6)
             .focused($isFocused)
-            .frame(height: 80)
-            .scrollContentBackground(.hidden)
-            .padding(4)
-            .background(Color(NSColor.textBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 5))
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .strokeBorder(Color(NSColor.separatorColor).opacity(0.5))
-            )
     }
 
     private var singleLineEditor: some View {
@@ -203,11 +193,12 @@ struct EditableFieldView: View {
             }
         } label: {
             Image(systemName: "chevron.down")
-                .imageScale(.small)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 10))
                 .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
+        .menuStyle(.button)
+        .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
     }
@@ -236,7 +227,7 @@ struct EditableFieldView: View {
     }
 }
 
-/// Read-only field view with compact layout
+/// Read-only field view using native macOS components
 struct ReadOnlyFieldView: View {
     let columnName: String
     let columnType: String
@@ -245,58 +236,49 @@ struct ReadOnlyFieldView: View {
     let value: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             // Line 1: field name + type badge
             HStack(spacing: 4) {
                 Text(columnName)
-                    .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .lineLimit(1)
 
                 Spacer()
 
                 Text(columnTypeEnum.badgeLabel)
-                    .font(.system(size: DesignConstants.FontSize.tiny))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: DesignConstants.FontSize.tiny, weight: .medium))
+                    .foregroundStyle(.tertiary)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
-                    .background(Color(NSColor.quaternaryLabelColor).opacity(0.3))
+                    .background(.quaternary)
                     .clipShape(Capsule())
             }
 
-            // Line 2: value display
-            Group {
-                if let value {
-                    if isLongText || columnTypeEnum.isJsonType {
-                        Text(value)
-                            .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, maxHeight: 80, alignment: .topLeading)
-                            .clipped()
-                    } else {
-                        Text(value)
-                            .font(.system(size: DesignConstants.FontSize.small))
-                            .textSelection(.enabled)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+            // Line 2: value in disabled native text field
+            if let value {
+                if isLongText {
+                    Text(value)
+                        .font(.system(size: DesignConstants.FontSize.small, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, maxHeight: 80, alignment: .topLeading)
                 } else {
-                    Text("NULL")
+                    TextField("", text: .constant(value))
+                        .textFieldStyle(.roundedBorder)
                         .font(.system(size: DesignConstants.FontSize.small))
-                        .foregroundStyle(.tertiary)
-                        .italic()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .disabled(true)
                 }
+            } else {
+                TextField("NULL", text: .constant(""))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: DesignConstants.FontSize.small))
+                    .disabled(true)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 4)
-            .background(Color(NSColor.controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 5))
-            .contextMenu {
-                if let value {
-                    Button("Copy Value") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(value, forType: .string)
-                    }
+        }
+        .contextMenu {
+            if let value {
+                Button("Copy Value") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(value, forType: .string)
                 }
             }
         }

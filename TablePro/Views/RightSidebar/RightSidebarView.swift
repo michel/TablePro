@@ -159,30 +159,33 @@ struct RightSidebarView: View {
 
             Divider()
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    // Section header
-                    HStack {
-                        Text("FIELDS")
-                            .font(.system(size: DesignConstants.FontSize.tiny, weight: .medium))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("\(filtered.count)")
-                            .font(.system(size: DesignConstants.FontSize.tiny))
+            List {
+                Section {
+                    if filtered.isEmpty && !searchText.isEmpty {
+                        Text("No matching fields")
+                            .font(.system(size: DesignConstants.FontSize.small))
                             .foregroundStyle(.tertiary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-
-                    ForEach(filtered, id: \.columnName) { field in
-                        if contentMode == .editRow {
-                            editableFieldRow(field, at: field.columnIndex)
-                        } else {
-                            readonlyFieldRow(field)
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        ForEach(filtered, id: \.columnName) { field in
+                            if contentMode == .editRow {
+                                editableFieldRow(field, at: field.columnIndex)
+                            } else {
+                                readonlyFieldRow(field)
+                            }
                         }
                     }
+                } header: {
+                    HStack {
+                        Text("FIELDS")
+                        Spacer()
+                        Text("\(filtered.count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-                    if contentMode == .editRow && editState.hasEdits {
+                if contentMode == .editRow && editState.hasEdits {
+                    Section {
                         Button(action: onSave) {
                             Text("Save Changes")
                                 .frame(maxWidth: .infinity)
@@ -190,61 +193,46 @@ struct RightSidebarView: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
                         .keyboardShortcut("s", modifiers: .command)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
                     }
                 }
             }
+            .listStyle(.sidebar)
         }
     }
 
     @ViewBuilder
     private func editableFieldRow(_ field: FieldEditState, at index: Int) -> some View {
-        VStack(spacing: 0) {
-            EditableFieldView(
-                columnName: field.columnName,
-                columnType: field.columnType,
-                columnTypeEnum: field.columnTypeEnum,
-                isLongText: field.isLongText,
-                value: Binding(
-                    get: { field.pendingValue ?? field.originalValue ?? "" },
-                    set: { editState.updateField(at: index, value: $0) }
-                ),
-                originalValue: field.originalValue,
-                hasMultipleValues: field.hasMultipleValues,
-                isPendingNull: field.isPendingNull,
-                isPendingDefault: field.isPendingDefault,
-                isModified: field.hasEdit,
-                onSetNull: { editState.setFieldToNull(at: index) },
-                onSetDefault: { editState.setFieldToDefault(at: index) },
-                onSetEmpty: { editState.setFieldToEmpty(at: index) },
-                onSetFunction: { editState.setFieldToFunction(at: index, function: $0) },
-                onUpdateValue: { editState.updateField(at: index, value: $0) }
-            )
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-
-            Divider()
-                .padding(.leading, 12)
-        }
+        EditableFieldView(
+            columnName: field.columnName,
+            columnType: field.columnType,
+            columnTypeEnum: field.columnTypeEnum,
+            isLongText: field.isLongText,
+            value: Binding(
+                get: { field.pendingValue ?? field.originalValue ?? "" },
+                set: { editState.updateField(at: index, value: $0) }
+            ),
+            originalValue: field.originalValue,
+            hasMultipleValues: field.hasMultipleValues,
+            isPendingNull: field.isPendingNull,
+            isPendingDefault: field.isPendingDefault,
+            isModified: field.hasEdit,
+            onSetNull: { editState.setFieldToNull(at: index) },
+            onSetDefault: { editState.setFieldToDefault(at: index) },
+            onSetEmpty: { editState.setFieldToEmpty(at: index) },
+            onSetFunction: { editState.setFieldToFunction(at: index, function: $0) },
+            onUpdateValue: { editState.updateField(at: index, value: $0) }
+        )
     }
 
     @ViewBuilder
     private func readonlyFieldRow(_ field: FieldEditState) -> some View {
-        VStack(spacing: 0) {
-            ReadOnlyFieldView(
-                columnName: field.columnName,
-                columnType: field.columnType,
-                columnTypeEnum: field.columnTypeEnum,
-                isLongText: field.isLongText,
-                value: field.originalValue
-            )
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-
-            Divider()
-                .padding(.leading, 12)
-        }
+        ReadOnlyFieldView(
+            columnName: field.columnName,
+            columnType: field.columnType,
+            columnTypeEnum: field.columnTypeEnum,
+            isLongText: field.isLongText,
+            value: field.originalValue
+        )
     }
 }
 

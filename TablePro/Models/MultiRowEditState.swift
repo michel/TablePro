@@ -135,7 +135,12 @@ class MultiRowEditState: ObservableObject {
     /// Update a field's pending value
     func updateField(at index: Int, value: String?) {
         guard index < fields.count else { return }
-        fields[index].pendingValue = value
+        let original = fields[index].originalValue
+        if value == original || (original == nil && value == "") {
+            fields[index].pendingValue = nil
+        } else {
+            fields[index].pendingValue = value
+        }
         fields[index].isPendingNull = false
         fields[index].isPendingDefault = false
     }
