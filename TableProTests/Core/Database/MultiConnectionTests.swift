@@ -16,15 +16,17 @@ struct DatabaseManagerMultiSessionTests {
     func multipleSessionsCoexist() {
         let id1 = UUID()
         let id2 = UUID()
-        DatabaseManager.shared.activeSessions[id1] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id1, name: "Alpha")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id1, name: "Alpha")),
+            for: id1
         )
-        DatabaseManager.shared.activeSessions[id2] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id2, name: "Beta")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id2, name: "Beta")),
+            for: id2
         )
         defer {
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id1)
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id2)
+            DatabaseManager.shared.removeSession(for: id1)
+            DatabaseManager.shared.removeSession(for: id2)
         }
 
         #expect(DatabaseManager.shared.activeSessions[id1] != nil)
@@ -35,15 +37,17 @@ struct DatabaseManagerMultiSessionTests {
     func driverForReturnsNilWithoutDriver() {
         let id1 = UUID()
         let id2 = UUID()
-        DatabaseManager.shared.activeSessions[id1] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id1, name: "Conn1")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id1, name: "Conn1")),
+            for: id1
         )
-        DatabaseManager.shared.activeSessions[id2] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id2, name: "Conn2")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id2, name: "Conn2")),
+            for: id2
         )
         defer {
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id1)
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id2)
+            DatabaseManager.shared.removeSession(for: id1)
+            DatabaseManager.shared.removeSession(for: id2)
         }
 
         #expect(DatabaseManager.shared.driver(for: id1) == nil)
@@ -54,15 +58,17 @@ struct DatabaseManagerMultiSessionTests {
     func sessionForReturnsCorrectSession() {
         let id1 = UUID()
         let id2 = UUID()
-        DatabaseManager.shared.activeSessions[id1] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id1, name: "First")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id1, name: "First")),
+            for: id1
         )
-        DatabaseManager.shared.activeSessions[id2] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id2, name: "Second")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id2, name: "Second")),
+            for: id2
         )
         defer {
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id1)
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id2)
+            DatabaseManager.shared.removeSession(for: id1)
+            DatabaseManager.shared.removeSession(for: id2)
         }
 
         let name1 = DatabaseManager.shared.session(for: id1)?.connection.name
@@ -76,15 +82,17 @@ struct DatabaseManagerMultiSessionTests {
     func updateSessionIsScoped() {
         let id1 = UUID()
         let id2 = UUID()
-        DatabaseManager.shared.activeSessions[id1] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id1, name: "Conn1")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id1, name: "Conn1")),
+            for: id1
         )
-        DatabaseManager.shared.activeSessions[id2] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id2, name: "Conn2")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id2, name: "Conn2")),
+            for: id2
         )
         defer {
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id1)
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id2)
+            DatabaseManager.shared.removeSession(for: id1)
+            DatabaseManager.shared.removeSession(for: id2)
         }
 
         let table = TestFixtures.makeTableInfo(name: "users")
@@ -100,18 +108,20 @@ struct DatabaseManagerMultiSessionTests {
     func removingOneSessionLeavesOtherIntact() {
         let id1 = UUID()
         let id2 = UUID()
-        DatabaseManager.shared.activeSessions[id1] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id1, name: "Conn1")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id1, name: "Conn1")),
+            for: id1
         )
-        DatabaseManager.shared.activeSessions[id2] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: id2, name: "Conn2")
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: id2, name: "Conn2")),
+            for: id2
         )
         defer {
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id1)
-            DatabaseManager.shared.activeSessions.removeValue(forKey: id2)
+            DatabaseManager.shared.removeSession(for: id1)
+            DatabaseManager.shared.removeSession(for: id2)
         }
 
-        DatabaseManager.shared.activeSessions.removeValue(forKey: id1)
+        DatabaseManager.shared.removeSession(for: id1)
 
         #expect(DatabaseManager.shared.activeSessions[id1] == nil)
         #expect(DatabaseManager.shared.activeSessions[id2] != nil)
@@ -133,12 +143,13 @@ struct DatabaseManagerMultiSessionTests {
     @Test("driver(for:) returns nil after session is removed")
     func driverReturnsNilAfterSessionRemoved() {
         let connId = UUID()
-        DatabaseManager.shared.activeSessions[connId] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: connId)
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: connId)),
+            for: connId
         )
-        defer { DatabaseManager.shared.activeSessions.removeValue(forKey: connId) }
+        defer { DatabaseManager.shared.removeSession(for: connId) }
 
-        DatabaseManager.shared.activeSessions.removeValue(forKey: connId)
+        DatabaseManager.shared.removeSession(for: connId)
 
         #expect(DatabaseManager.shared.driver(for: connId) == nil)
     }
@@ -146,12 +157,13 @@ struct DatabaseManagerMultiSessionTests {
     @Test("session(for:) returns nil after session is removed")
     func sessionReturnsNilAfterSessionRemoved() {
         let connId = UUID()
-        DatabaseManager.shared.activeSessions[connId] = ConnectionSession(
-            connection: TestFixtures.makeConnection(id: connId)
+        DatabaseManager.shared.injectSession(
+            ConnectionSession(connection: TestFixtures.makeConnection(id: connId)),
+            for: connId
         )
-        defer { DatabaseManager.shared.activeSessions.removeValue(forKey: connId) }
+        defer { DatabaseManager.shared.removeSession(for: connId) }
 
-        DatabaseManager.shared.activeSessions.removeValue(forKey: connId)
+        DatabaseManager.shared.removeSession(for: connId)
 
         #expect(DatabaseManager.shared.session(for: connId) == nil)
     }

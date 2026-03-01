@@ -20,7 +20,7 @@ final class DatabaseManager: ObservableObject {
     private static let logger = Logger(subsystem: "com.TablePro", category: "DatabaseManager")
 
     /// All active connection sessions
-    @Published internal(set) var activeSessions: [UUID: ConnectionSession] = [:]
+    @Published private(set) var activeSessions: [UUID: ConnectionSession] = [:]
 
     /// Currently selected session ID (displayed in UI)
     @Published private(set) var currentSessionId: UUID?
@@ -272,6 +272,18 @@ final class DatabaseManager: ObservableObject {
         update(&session)
         activeSessions[sessionId] = session
     }
+
+    #if DEBUG
+    /// Test-only: inject a session for unit testing without real database connections
+    internal func injectSession(_ session: ConnectionSession, for connectionId: UUID) {
+        activeSessions[connectionId] = session
+    }
+
+    /// Test-only: remove an injected session
+    internal func removeSession(for connectionId: UUID) {
+        activeSessions.removeValue(forKey: connectionId)
+    }
+    #endif
 
     // MARK: - Query Execution (uses current session)
 

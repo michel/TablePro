@@ -97,24 +97,7 @@ struct MultiConnectionNavigationTests {
         #expect(tab.databaseName == "primary_db")
     }
 
-    // MARK: - openTableTab: switch guard does not modify existing tabs
-
-    @Test("isSwitchingDatabase guard leaves existing tabs unchanged")
-    @MainActor
-    func switchingDatabaseGuardLeavesExistingTabsUnchanged() {
-        let (coordinator, tabManager) = makeCoordinator(database: "db_a")
-        defer { coordinator.teardown() }
-
-        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
-        let tabsBefore = tabManager.tabs.map { $0.tableName }
-
-        coordinator.isSwitchingDatabase = true
-        coordinator.openTableTab("orders")
-
-        let tabsAfter = tabManager.tabs.map { $0.tableName }
-        #expect(tabsAfter == tabsBefore)
-        #expect(tabManager.tabs.first?.tableName == "users")
-    }
+    // Note: isSwitchingDatabase guard test lives in SwitchDatabaseTests.swift
 
     // MARK: - openTableTab: different database types create correct tab
 

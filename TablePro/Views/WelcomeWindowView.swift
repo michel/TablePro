@@ -531,8 +531,8 @@ private struct KeyboardHint: View {
 
 // MARK: - ConnectionEnvironment Extension
 
-extension ConnectionEnvironment {
-    fileprivate var badgeColor: Color {
+private extension ConnectionEnvironment {
+    var badgeColor: Color {
         switch self {
         case .local:
             return Color(nsColor: .systemGreen)

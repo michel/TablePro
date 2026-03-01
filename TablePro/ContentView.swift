@@ -123,6 +123,9 @@ struct ContentView: View {
                     if currentSession?.id == sid {
                         currentSession = nil
                         columnVisibility = .detailOnly
+                        AppState.shared.isConnected = false
+                        AppState.shared.isReadOnly = false
+                        AppState.shared.isMongoDB = false
                     }
                     return
                 }
@@ -139,6 +142,10 @@ struct ContentView: View {
                     AppState.shared.isConnected = true
                     AppState.shared.isReadOnly = session.connection.isReadOnly
                     AppState.shared.isMongoDB = session.connection.type == .mongodb
+                } else if payload?.connectionId != nil {
+                    AppState.shared.isConnected = false
+                    AppState.shared.isReadOnly = false
+                    AppState.shared.isMongoDB = false
                 }
             }
     }

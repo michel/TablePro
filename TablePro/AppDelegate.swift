@@ -480,13 +480,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Must be synchronous — tabbingMode must be set before the window
         // is displayed so macOS merges it into the existing tab group.
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
-            window.tabbingMode = .preferred
-            let connId = MainActor.assumeIsolated { DatabaseManager.shared.currentSessionId }
-            if let connId {
-                window.tabbingIdentifier = "com.TablePro.main.\(connId.uuidString)"
-            } else {
-                window.tabbingIdentifier = "com.TablePro.main"
-            }
+            // Default to .disallowed for new windows — MainContentView.onAppear
+            // sets .preferred with the correct per-connection tabbingIdentifier
+            // once the connection ID is known from the payload.
+            window.tabbingMode = .disallowed
+            window.tabbingIdentifier = "com.TablePro.main"
             configuredWindows.insert(windowId)
         }
 

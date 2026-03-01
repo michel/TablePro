@@ -226,20 +226,33 @@ struct MainContentView: View {
 
                 // Register NSWindow reference and set per-connection tab grouping
                 DispatchQueue.main.async {
-                    guard let window = NSApp.keyWindow else { return }
+                    // Find our window by title rather than keyWindow to avoid races
+                    // when multiple windows open simultaneously
+                    let targetTitle = windowTitle
+                    let window = NSApp.keyWindow
+                        ?? NSApp.windows.first { $0.isVisible && $0.title == targetTitle }
+                    guard let window else { return }
                     window.subtitle = connection.name
                     window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
+                    window.tabbingMode = .preferred
                     NativeTabRegistry.shared.setWindow(window, for: windowId, connectionId: connection.id)
                 }
             }
             .onDisappear {
                 NativeTabRegistry.shared.unregister(windowId: windowId)
 
-                // If no more windows exist for this connection, disconnect just this session
+                // Only disconnect when no windows remain for this connection.
+                // Check both the registry AND visible windows to avoid false positives
+                // from SwiftUI firing onDisappear during view body re-evaluations.
                 if !NativeTabRegistry.shared.hasWindows(for: connection.id) {
                     let connectionId = connection.id
-                    Task { @MainActor in
-                        await DatabaseManager.shared.disconnectSession(connectionId)
+                    let hasVisibleWindow = NSApp.windows.contains { window in
+                        window.isVisible && window.subtitle == connection.name
+                    }
+                    if !hasVisibleWindow {
+                        Task { @MainActor in
+                            await DatabaseManager.shared.disconnectSession(connectionId)
+                        }
                     }
                 }
 

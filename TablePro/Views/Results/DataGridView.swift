@@ -644,8 +644,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     private static let rowViewIdentifier = NSUserInterfaceItemIdentifier("TableRowView")
-    var pendingDropdownRow: Int = 0
-    var pendingDropdownColumn: Int = 0
+    internal var pendingDropdownRow: Int = 0
+    internal var pendingDropdownColumn: Int = 0
     private var rowVisualStateCache: [Int: RowVisualState] = [:]
     private var lastVisualStateCacheVersion: Int = 0
     private let largeDatasetThreshold = 5_000
