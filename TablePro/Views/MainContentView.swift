@@ -88,11 +88,9 @@ struct MainContentView: View {
 
         // Initialize single tab based on payload
         if let payload, !payload.isConnectionOnly {
-            print("[MainContentView.init] payload: tabType=\(payload.tabType) tableName=\(payload.tableName ?? "nil") initialQuery=\(payload.initialQuery?.prefix(50) ?? "nil") connId=\(payload.connectionId.uuidString.prefix(8))")
             switch payload.tabType {
             case .table:
                 if let tableName = payload.tableName {
-                    print("[MainContentView.init] → addTableTab tableName=\(tableName)")
                     tabMgr.addTableTab(
                         tableName: tableName,
                         databaseType: connection.type,
@@ -106,11 +104,9 @@ struct MainContentView: View {
                         }
                     }
                 } else {
-                    print("[MainContentView.init] → addTab (table type but no tableName)")
                     tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
                 }
             case .query:
-                print("[MainContentView.init] → addTab (query type with initialQuery)")
                 tabMgr.addTab(
                     initialQuery: payload.initialQuery,
                     databaseName: payload.databaseName ?? connection.database
@@ -121,10 +117,8 @@ struct MainContentView: View {
                     databaseType: connection.type
                 )
             }
-        } else {
-            print("[MainContentView.init] payload is \(payload == nil ? "nil" : "connection-only") — will restore tabs later")
         }
-        // If payload is nil or connection-only, tab restoration will add tabs in initializeAndRestoreTabs()
+        // If payload is nil or connection-only, tab restoration handles it in initializeAndRestoreTabs()
 
         _tabManager = StateObject(wrappedValue: tabMgr)
         _changeManager = StateObject(wrappedValue: changeMgr)
@@ -230,24 +224,25 @@ struct MainContentView: View {
                     selectedTabId: tabManager.selectedTabId
                 )
 
-                // Register NSWindow reference in the registry so
-                // ConnectionSwitcherPopover can find it for connection switching
+                // Register NSWindow reference and set per-connection tab grouping
                 DispatchQueue.main.async {
-                    if let window = NSApp.keyWindow {
-                        print("[MainContentView.onAppear] setting window subtitle=\(connection.name) and registering NSWindow for windowId=\(windowId.uuidString.prefix(8)) connId=\(connection.id.uuidString.prefix(8))")
-                        window.subtitle = connection.name
-                        NativeTabRegistry.shared.setWindow(window, for: windowId, connectionId: connection.id)
-                    } else {
-                        print("[MainContentView.onAppear] WARNING: NSApp.keyWindow is nil! Cannot register window for connId=\(connection.id.uuidString.prefix(8))")
-                    }
+                    guard let window = NSApp.keyWindow else { return }
+                    window.subtitle = connection.name
+                    window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
+                    NativeTabRegistry.shared.setWindow(window, for: windowId, connectionId: connection.id)
                 }
             }
             .onDisappear {
-                // Only unregister + teardown. Do NOT disconnect here —
-                // SwiftUI fires onDisappear during view updates (e.g. when
-                // currentSession changes), not just on window close.
-                // Window-close disconnect is handled by AppDelegate.windowWillClose.
                 NativeTabRegistry.shared.unregister(windowId: windowId)
+
+                // If no more windows exist for this connection, disconnect just this session
+                if !NativeTabRegistry.shared.hasWindows(for: connection.id) {
+                    let connectionId = connection.id
+                    Task { @MainActor in
+                        await DatabaseManager.shared.disconnectSession(connectionId)
+                    }
+                }
+
                 coordinator.teardown()
             }
             .onChange(of: pendingChangeTrigger) {
@@ -272,7 +267,6 @@ struct MainContentView: View {
             .onReceive(DatabaseManager.shared.$activeSessions) { sessions in
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {
-                    print("[activeSessions] lazyLoad triggered — tab.db=\(tabManager.selectedTab?.databaseName ?? "nil") session.db=\(session.connection.database)")
                     coordinator.needsLazyLoad = false
                     coordinator.tabPersistence.markJustRestored()
                     if let selectedTab = tabManager.selectedTab,
@@ -380,7 +374,6 @@ struct MainContentView: View {
     private func initializeAndRestoreTabs() async {
         guard !hasInitialized else { return }
         hasInitialized = true
-        print("[MainContentView] initializeAndRestoreTabs START connId=\(connection.id.uuidString.prefix(8)) tabCount=\(tabManager.tabs.count) payload=\(payload != nil ? "YES" : "nil")")
         // Sync toolbar setup (fast, no I/O)
         coordinator.initializeToolbar()
         // Schema load runs in background — doesn't block data query
@@ -388,7 +381,6 @@ struct MainContentView: View {
 
         // If payload provided a specific tab (not connection-only), execute its query immediately
         if let payload, !payload.isConnectionOnly {
-            print("[MainContentView] initializeAndRestoreTabs: payload has content, selectedTab=\(tabManager.selectedTab?.tableName ?? "nil") tabType=\(tabManager.selectedTab.map { String(describing: $0.tabType) } ?? "nil")")
             if let selectedTab = tabManager.selectedTab,
                selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -410,7 +402,6 @@ struct MainContentView: View {
                     coordinator.needsLazyLoad = true
                 }
             }
-            print("[MainContentView] initializeAndRestoreTabs: payload has content — returning (tab already set up in init)")
             return
         }
 
@@ -418,13 +409,11 @@ struct MainContentView: View {
         // If other windows already exist for this connection, this is a "new tab"
         // from the native macOS "+" button — just add a single empty query tab.
         if NativeTabRegistry.shared.hasWindows(for: connection.id) {
-            print("[MainContentView] initializeAndRestoreTabs: hasWindows=true → adding empty query tab (new tab button)")
             tabManager.addTab(databaseName: connection.database)
             return
         }
 
         // No existing windows — restore tabs from storage (first window on connection)
-        print("[MainContentView] initializeAndRestoreTabs: restoring tabs from storage for connId=\(connection.id.uuidString.prefix(8))")
         let result = await coordinator.tabPersistence.restoreTabs()
         if !result.tabs.isEmpty {
             coordinator.tabPersistence.beginRestoration()
@@ -526,10 +515,8 @@ struct MainContentView: View {
     // MARK: - Database Switcher
 
     private func switchDatabase(to database: String) {
-        print("[switchDatabase] switching to db=\(database) connId=\(connection.id.uuidString.prefix(8))")
         Task {
             await coordinator.switchDatabase(to: database)
-            print("[switchDatabase] COMPLETED for db=\(database)")
         }
     }
 
@@ -641,8 +628,6 @@ struct MainContentView: View {
     private func handleTableSelectionChange(
         from oldTables: Set<TableInfo>, to newTables: Set<TableInfo>
     ) {
-        print("[handleTableSelectionChange] old=\(oldTables.map(\.name)) new=\(newTables.map(\.name)) isSwitching=\(coordinator.isSwitchingDatabase) tabCount=\(tabManager.tabs.count)")
-
         guard let table = newTables.subtracting(oldTables).first else {
             AppState.shared.hasTableSelection = !newTables.isEmpty
             return
@@ -653,7 +638,6 @@ struct MainContentView: View {
             currentTabTableName: tabManager.selectedTab?.tableName,
             hasExistingTabs: !tabManager.tabs.isEmpty
         )
-        print("[handleTableSelectionChange] table=\(table.name) result=\(String(describing: result)) currentTab=\(tabManager.selectedTab?.tableName ?? "nil")")
 
         switch result {
         case .skip:

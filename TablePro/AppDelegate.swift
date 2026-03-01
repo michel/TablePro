@@ -366,13 +366,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }.count
 
             if remainingMainWindows == 0 {
-                // Last tab closing → disconnect and return to welcome screen
+                // Last main window closing → save tabs and return to welcome screen.
+                // Per-connection disconnect is handled by each MainContentView's
+                // onDisappear (via NativeTabRegistry check), so we don't disconnectAll here.
                 NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
-
-                // Disconnect sessions asynchronously
-                Task { @MainActor in
-                    await DatabaseManager.shared.disconnectAll()
-                }
 
                 // Reopen welcome window on next run loop after the close finishes
                 DispatchQueue.main.async {
@@ -484,7 +481,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // is displayed so macOS merges it into the existing tab group.
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
             window.tabbingMode = .preferred
-            window.tabbingIdentifier = "com.TablePro.main"
+            let connId = MainActor.assumeIsolated { DatabaseManager.shared.currentSessionId }
+            if let connId {
+                window.tabbingIdentifier = "com.TablePro.main.\(connId.uuidString)"
+            } else {
+                window.tabbingIdentifier = "com.TablePro.main"
+            }
             configuredWindows.insert(windowId)
         }
 

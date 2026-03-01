@@ -30,7 +30,6 @@ internal final class NativeTabRegistry {
 
     /// Register a window's tabs in the registry
     internal func register(windowId: UUID, connectionId: UUID, tabs: [TabSnapshot], selectedTabId: UUID?, window: NSWindow? = nil) {
-        print("[NativeTabRegistry] REGISTER windowId=\(windowId.uuidString.prefix(8)) connId=\(connectionId.uuidString.prefix(8)) tabs=\(tabs.count) window=\(window != nil ? "YES" : "nil")")
         entries[windowId] = WindowEntry(connectionId: connectionId, tabs: tabs, selectedTabId: selectedTabId, window: window)
     }
 
@@ -51,8 +50,6 @@ internal final class NativeTabRegistry {
     /// If the entry was removed by SwiftUI's onDisappear re-evaluation,
     /// re-creates a minimal entry so the window can still be found.
     internal func setWindow(_ window: NSWindow, for windowId: UUID, connectionId: UUID) {
-        let hasEntry = entries[windowId] != nil
-        print("[NativeTabRegistry] SET_WINDOW windowId=\(windowId.uuidString.prefix(8)) hasEntry=\(hasEntry) connId=\(connectionId.uuidString.prefix(8)) window=\(window) title=\(window.title) subtitle=\(window.subtitle)")
         if entries[windowId] != nil {
             entries[windowId]?.window = window
         } else {
@@ -63,24 +60,14 @@ internal final class NativeTabRegistry {
 
     /// Find any visible NSWindow for a given connection
     internal func findWindow(for connectionId: UUID) -> NSWindow? {
-        let matching = entries.filter { $0.value.connectionId == connectionId }
-        print("[NativeTabRegistry] FIND_WINDOW connId=\(connectionId.uuidString.prefix(8)) totalEntries=\(entries.count) matchingEntries=\(matching.count)")
-        for (wid, entry) in matching {
-            let hasWindow = entry.window != nil
-            let isVisible = entry.window?.isVisible ?? false
-            print("[NativeTabRegistry]   entry windowId=\(wid.uuidString.prefix(8)) hasWindow=\(hasWindow) isVisible=\(isVisible) tabs=\(entry.tabs.count)")
-        }
-        let result = matching.values
+        entries.values
+            .filter { $0.connectionId == connectionId }
             .compactMap(\.window)
             .first { $0.isVisible }
-        print("[NativeTabRegistry] FIND_WINDOW result=\(result != nil ? "FOUND \(result!)" : "nil")")
-        return result
     }
 
     /// Remove a window from the registry (call on window close/disappear)
     internal func unregister(windowId: UUID) {
-        let entry = entries[windowId]
-        print("[NativeTabRegistry] UNREGISTER windowId=\(windowId.uuidString.prefix(8)) connId=\(entry?.connectionId.uuidString.prefix(8) ?? "nil")")
         entries.removeValue(forKey: windowId)
     }
 
