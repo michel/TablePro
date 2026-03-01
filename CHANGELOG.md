@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import database connections from URL/connection string (e.g., `postgresql://user:pass@host:5432/db`)
 - Release notes in Sparkle update window
 
+### Changed
+
+- Simplified Create Table UI to a clean inline grid with direct editing, replacing the multi-panel layout
+
 ### Fixed
 
 - New row (Cmd+I) and duplicated row not appearing in datagrid until manual refresh

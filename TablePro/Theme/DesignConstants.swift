@@ -203,19 +203,19 @@ enum DesignConstants {
         /// Drag handle column (24pt)
         static let dragHandle: CGFloat = 24
 
-        /// Actions column (80pt)
-        static let actions: CGFloat = 80
+        /// Name column (minimum 120pt, flexible)
+        static let nameMin: CGFloat = 120
 
-        /// Name column (minimum 140pt, flexible)
-        static let nameMin: CGFloat = 140
+        /// Type column (minimum 110pt, flexible)
+        static let typeMin: CGFloat = 110
 
-        /// Type column (minimum 120pt, flexible)
-        static let typeMin: CGFloat = 120
+        /// Length column (60pt, fixed)
+        static let length: CGFloat = 60
 
-        /// Attributes column (minimum 100pt, flexible)
-        static let attributesMin: CGFloat = 100
+        /// Default column (minimum 80pt, flexible)
+        static let defaultMin: CGFloat = 80
 
-        /// Default column (minimum 100pt, flexible)
-        static let defaultMin: CGFloat = 100
+        /// Checkbox column (28pt, fixed)
+        static let checkbox: CGFloat = 28
     }
 }

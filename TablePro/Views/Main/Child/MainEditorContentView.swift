@@ -272,6 +272,7 @@ struct MainEditorContentView: View {
         if tab.tableCreationOptions != nil {
             CreateTableView(
                 options: createTableOptionsBinding(for: tab),
+                connectionId: connectionId,
                 databaseType: connection.type,
                 onCancel: {
                     // Close the create-table window
