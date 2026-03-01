@@ -162,6 +162,14 @@ These have caused real production bugs — be aware when working in editor/autoc
 - **SQL dumps can have single lines with millions of characters** — cap regex/highlight ranges at 10k chars.
 - **Tab persistence**: `QueryTab.toPersistedTab()` truncates queries >500KB to prevent JSON freeze. `TabStateStorage.saveLastQuery()` skips writes >500KB.
 
+## Writing Style (Docs & Marketing Copy)
+
+Write like a developer, not a marketing AI. Be specific (numbers, tech names) over generic adjectives. Vary sentence rhythm. Cut filler.
+
+**Banned words**: seamless, robust, comprehensive, intuitive, effortless, powerful (as filler), streamlined, leverage, elevate, harness, supercharge, unlock, unleash, dive into, game-changer, empower, delve. No "Absolutely!" / "Ready to dive in?" openers.
+
+**Em dashes**: minimize; use colons or periods instead. Use hyphens (-) in `<title>` tags, never em dashes (—).
+
 ## CI/CD
 
 GitHub Actions (`.github/workflows/build.yml`) triggered by `v*` tags: lint → build arm64 → build x86_64 → release (DMG/ZIP + Sparkle signatures). Release notes auto-extracted from `CHANGELOG.md`.

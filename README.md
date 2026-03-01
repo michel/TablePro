@@ -36,8 +36,8 @@ Full documentation is available at [docs.tablepro.app](https://docs.tablepro.app
 
 Thanks to these amazing people for supporting TablePro:
 
-- **[Mr Huy TQ](https://github.com/imhuytq)** — Apple Developer Program sponsor
-- **[Unikorn](https://unikorn.vn)**
+- **[Huy TQ](https://github.com/imhuytq)** — Apple Developer Program sponsor
+- **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
 ## License
 

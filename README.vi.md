@@ -32,8 +32,8 @@ Tài liệu đầy đủ tại [docs.tablepro.app](https://docs.tablepro.app).
 
 Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
-- **[Anh Huy TQ](https://github.com/imhuytq)** — Tài trợ Apple Developer Program
-- **[Unikorn](https://unikorn.vn)**
+- **[Huy TQ](https://github.com/imhuytq)** — Tài trợ Apple Developer Program
+- **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
 ## Giấy phép
 
