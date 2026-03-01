@@ -22,8 +22,13 @@ final class InlineSuggestionManager {
     private weak var controller: TextViewController?
     private var debounceTimer: Timer?
     private var currentTask: Task<Void, Never>?
-    private var keyEventMonitor: Any?
-    private var scrollObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var keyEventMonitor: Any?
+    nonisolated(unsafe) private var scrollObserver: NSObjectProtocol?
+
+    deinit {
+        if let keyEventMonitor { NSEvent.removeMonitor(keyEventMonitor) }
+        if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
+    }
 
     /// The currently displayed suggestion text, nil when no suggestion is active
     private(set) var currentSuggestion: String?

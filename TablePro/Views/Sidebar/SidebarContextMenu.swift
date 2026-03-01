@@ -80,7 +80,7 @@ struct SidebarContextMenu: View {
         .keyboardShortcut("e", modifiers: [.command, .shift])
         .disabled(!hasSelection)
 
-        if !isView {
+        if !isView && !AppState.shared.isMongoDB {
             Button("Import...") {
                 NotificationCenter.default.post(name: .importTables, object: nil)
             }

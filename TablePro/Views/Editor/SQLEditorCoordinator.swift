@@ -65,10 +65,6 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
         if let monitor = clipboardMonitor {
             NSEvent.removeMonitor(monitor)
         }
-
-        if !didDestroy {
-            Self.logger.warning("SQLEditorCoordinator deallocated without destroy() being called")
-        }
     }
 
     // MARK: - TextViewCoordinator

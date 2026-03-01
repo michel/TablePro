@@ -170,6 +170,8 @@ class DatabaseSwitcherViewModel: ObservableObject {
             return ["postgres", "template0", "template1"].contains(name)
         case .sqlite:
             return false
+        case .mongodb:
+            return false
         }
     }
 }

@@ -13,13 +13,21 @@ import Foundation
 final class StructureRowProvider {
     private let changeManager: StructureChangeManager
     private let tab: StructureTab
+    private let databaseType: DatabaseType
 
     // Computed properties that match InMemoryRowProvider interface
     var rows: [QueryResultRow] {
         switch tab {
         case .columns:
             return changeManager.workingColumns.enumerated().map { index, column in
-                QueryResultRow(id: index, values: [
+                if databaseType == .mongodb {
+                    return QueryResultRow(id: index, values: [
+                        column.name,
+                        column.dataType,
+                        column.isNullable ? "YES" : "NO",
+                    ])
+                }
+                return QueryResultRow(id: index, values: [
                     column.name,
                     column.dataType,
                     column.isNullable ? "YES" : "NO",
@@ -56,6 +64,13 @@ final class StructureRowProvider {
     var columns: [String] {
         switch tab {
         case .columns:
+            if databaseType == .mongodb {
+                return [
+                    String(localized: "Name"),
+                    String(localized: "Type"),
+                    String(localized: "Nullable"),
+                ]
+            }
             return [
                 String(localized: "Name"),
                 String(localized: "Type"),
@@ -94,6 +109,9 @@ final class StructureRowProvider {
     var dropdownColumns: Set<Int> {
         switch tab {
         case .columns:
+            if databaseType == .mongodb {
+                return [2] // Nullable (index 2) only
+            }
             return [2, 4] // Nullable (index 2), Auto Inc (index 4)
         case .indexes:
             return [3] // Unique (index 3)
@@ -118,9 +136,10 @@ final class StructureRowProvider {
         rows.count
     }
 
-    init(changeManager: StructureChangeManager, tab: StructureTab) {
+    init(changeManager: StructureChangeManager, tab: StructureTab, databaseType: DatabaseType = .mysql) {
         self.changeManager = changeManager
         self.tab = tab
+        self.databaseType = databaseType
     }
 
     // MARK: - InMemoryRowProvider-compatible methods

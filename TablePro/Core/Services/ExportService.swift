@@ -24,17 +24,17 @@ enum ExportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConnected:
-            return "Not connected to database"
+            return String(localized: "Not connected to database")
         case .noTablesSelected:
-            return "No tables selected for export"
+            return String(localized: "No tables selected for export")
         case .exportFailed(let message):
-            return "Export failed: \(message)"
+            return String(localized: "Export failed: \(message)")
         case .compressionFailed:
-            return "Failed to compress data"
+            return String(localized: "Failed to compress data")
         case .fileWriteFailed(let path):
-            return "Failed to write file: \(path)"
+            return String(localized: "Failed to write file: \(path)")
         case .encodingFailed:
-            return "Failed to encode content as UTF-8"
+            return String(localized: "Failed to encode content as UTF-8")
         }
     }
 }
@@ -167,6 +167,8 @@ final class ExportService: ObservableObject {
                 try await exportToSQL(tables: tables, config: config, to: url)
             case .xlsx:
                 try await exportToXLSX(tables: tables, config: config, to: url)
+            case .mql:
+                try await exportToMQL(tables: tables, config: config, to: url)
             }
         } catch {
             // Clean up partial file on cancellation or error
@@ -183,11 +185,17 @@ final class ExportService: ObservableObject {
         var total = 0
         var failedCount = 0
         for table in tables {
-            let tableRef = qualifiedTableRef(for: table)
             do {
-                let result = try await driver.execute(query: "SELECT COUNT(*) FROM \(tableRef)")
-                if let countStr = result.rows.first?.first, let count = Int(countStr ?? "0") {
-                    total += count
+                if databaseType == .mongodb {
+                    if let count = try await driver.fetchApproximateRowCount(table: table.name) {
+                        total += count
+                    }
+                } else {
+                    let tableRef = qualifiedTableRef(for: table)
+                    let result = try await driver.execute(query: "SELECT COUNT(*) FROM \(tableRef)")
+                    if let countStr = result.rows.first?.first, let count = Int(countStr ?? "0") {
+                        total += count
+                    }
                 }
             } catch {
                 // Log the error but continue - progress will be less accurate
@@ -254,6 +262,24 @@ final class ExportService: ObservableObject {
         }
     }
 
+    private func fetchAllQuery(for table: ExportTableItem) -> String {
+        switch databaseType {
+        case .mongodb:
+            let escaped = escapeJSIdentifier(table.name)
+            if escaped.hasPrefix("[") {
+                return "db\(escaped).find({})"
+            }
+            return "db.\(escaped).find({})"
+        default:
+            return "SELECT * FROM \(qualifiedTableRef(for: table))"
+        }
+    }
+
+    private func fetchBatch(for table: ExportTableItem, offset: Int, limit: Int) async throws -> QueryResult {
+        let query = fetchAllQuery(for: table)
+        return try await driver.fetchRows(query: query, offset: offset, limit: limit)
+    }
+
     /// Sanitize a name for use in SQL comments to prevent comment injection
     ///
     /// Removes characters that could break out of or nest SQL comments:
@@ -316,7 +342,6 @@ final class ExportService: ObservableObject {
             state.currentTableIndex = index + 1
             state.currentTable = table.qualifiedName
 
-            let tableRef = qualifiedTableRef(for: table)
             let batchSize = 5_000
             var offset = 0
             var columns: [String] = []
@@ -326,8 +351,7 @@ final class ExportService: ObservableObject {
                 try checkCancellation()
                 try Task.checkCancellation()
 
-                let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
-                let result = try await driver.execute(query: query)
+                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
 
                 if result.rows.isEmpty { break }
 
@@ -404,8 +428,6 @@ final class ExportService: ObservableObject {
                 try fileHandle.write(contentsOf: "# Table: \(sanitizedName)\n".toUTF8Data())
             }
 
-            // Fetch data from table in batches to avoid loading everything into memory
-            let tableRef = qualifiedTableRef(for: table)
             let batchSize = 10_000
             var offset = 0
             var isFirstBatch = true
@@ -414,8 +436,7 @@ final class ExportService: ObservableObject {
                 try checkCancellation()
                 try Task.checkCancellation()
 
-                let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
-                let result = try await driver.execute(query: query)
+                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
 
                 // No more rows to process
                 if result.rows.isEmpty {
@@ -575,13 +596,10 @@ final class ExportService: ObservableObject {
             state.currentTableIndex = tableIndex + 1
             state.currentTable = table.qualifiedName
 
-            let tableRef = qualifiedTableRef(for: table)
-
             // Write table key and opening bracket
             let escapedTableName = escapeJSONString(table.qualifiedName)
             try fileHandle.write(contentsOf: "\(indent)\"\(escapedTableName)\": [\(newline)".toUTF8Data())
 
-            // Stream rows in batches to avoid loading the entire table into memory
             let batchSize = 1_000
             var offset = 0
             var hasWrittenRow = false
@@ -591,9 +609,7 @@ final class ExportService: ObservableObject {
                 try checkCancellation()
                 try Task.checkCancellation()
 
-                let result = try await driver.execute(
-                    query: "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
-                )
+                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
 
                 if result.rows.isEmpty {
                     break batchLoop
@@ -989,6 +1005,217 @@ final class ExportService: ObservableObject {
 
         // Ensure final count is shown
         await finalizeTableProgress()
+    }
+
+    // MARK: - MQL Export
+
+    private func exportToMQL(
+        tables: [ExportTableItem],
+        config: ExportConfiguration,
+        to url: URL
+    ) async throws {
+        let fileHandle = try createFileHandle(at: url)
+        defer { closeFileHandle(fileHandle) }
+
+        let dateFormatter = ISO8601DateFormatter()
+        try fileHandle.write(contentsOf: "// TablePro MQL Export\n".toUTF8Data())
+        try fileHandle.write(contentsOf: "// Generated: \(dateFormatter.string(from: Date()))\n".toUTF8Data())
+
+        let dbName = tables.first?.databaseName ?? ""
+        if !dbName.isEmpty {
+            try fileHandle.write(contentsOf: "// Database: \(sanitizeForJSComment(dbName))\n".toUTF8Data())
+        }
+        try fileHandle.write(contentsOf: "\n".toUTF8Data())
+
+        let batchSize = config.mqlOptions.batchSize
+
+        for (index, table) in tables.enumerated() {
+            try checkCancellation()
+
+            state.currentTableIndex = index + 1
+            state.currentTable = table.qualifiedName
+
+            let mqlOpts = table.mqlOptions
+            let escapedCollection = escapeJSIdentifier(table.name)
+            let collectionAccessor: String
+            if escapedCollection.hasPrefix("[") {
+                collectionAccessor = "db\(escapedCollection)"
+            } else {
+                collectionAccessor = "db.\(escapedCollection)"
+            }
+
+            try fileHandle.write(contentsOf: "// Collection: \(sanitizeForJSComment(table.name))\n".toUTF8Data())
+
+            if mqlOpts.includeDrop {
+                try fileHandle.write(contentsOf: "\(collectionAccessor).drop();\n".toUTF8Data())
+            }
+
+            if mqlOpts.includeData {
+                let fetchBatchSize = 5_000
+                var offset = 0
+                var columns: [String] = []
+                var documentBatch: [String] = []
+
+                while true {
+                    try checkCancellation()
+                    try Task.checkCancellation()
+
+                    let result = try await fetchBatch(for: table, offset: offset, limit: fetchBatchSize)
+
+                    if result.rows.isEmpty { break }
+
+                    if columns.isEmpty {
+                        columns = result.columns
+                    }
+
+                    for row in result.rows {
+                        try checkCancellation()
+
+                        var fields: [String] = []
+                        for (colIndex, column) in columns.enumerated() {
+                            guard colIndex < row.count else { continue }
+                            guard let value = row[colIndex] else { continue }
+                            let jsonValue = mqlJsonValue(for: value)
+                            fields.append("\"\(escapeJSONString(column))\": \(jsonValue)")
+                        }
+                        documentBatch.append("  {\(fields.joined(separator: ", "))}")
+
+                        if documentBatch.count >= batchSize {
+                            try writeMQLInsertMany(
+                                collection: table.name,
+                                documents: documentBatch,
+                                to: fileHandle
+                            )
+                            documentBatch.removeAll(keepingCapacity: true)
+                        }
+
+                        await incrementProgress()
+                    }
+
+                    offset += fetchBatchSize
+                }
+
+                if !documentBatch.isEmpty {
+                    try writeMQLInsertMany(
+                        collection: table.name,
+                        documents: documentBatch,
+                        to: fileHandle
+                    )
+                }
+            }
+
+            // Indexes after data for performance
+            if mqlOpts.includeIndexes {
+                try await writeMQLIndexes(
+                    collection: table.name,
+                    collectionAccessor: collectionAccessor,
+                    to: fileHandle
+                )
+            }
+
+            await finalizeTableProgress()
+
+            if index < tables.count - 1 {
+                try fileHandle.write(contentsOf: "\n".toUTF8Data())
+            }
+        }
+
+        try checkCancellation()
+        state.progress = 1.0
+    }
+
+    private func writeMQLInsertMany(
+        collection: String,
+        documents: [String],
+        to fileHandle: FileHandle
+    ) throws {
+        let escapedCollection = escapeJSIdentifier(collection)
+        var statement: String
+        if escapedCollection.hasPrefix("[") {
+            statement = "db\(escapedCollection).insertMany([\n"
+        } else {
+            statement = "db.\(escapedCollection).insertMany([\n"
+        }
+        statement += documents.joined(separator: ",\n")
+        statement += "\n]);\n"
+        try fileHandle.write(contentsOf: statement.toUTF8Data())
+    }
+
+    private func writeMQLIndexes(
+        collection: String,
+        collectionAccessor: String,
+        to fileHandle: FileHandle
+    ) async throws {
+        let ddl = try await driver.fetchTableDDL(table: collection)
+
+        let lines = ddl.components(separatedBy: "\n")
+        var indexLines: [String] = []
+        var foundHeader = false
+
+        for line in lines {
+            if line.hasPrefix("// Collection:") {
+                foundHeader = true
+                continue
+            }
+            if foundHeader {
+                var processedLine = line
+                let ddlAccessor = "db.\(collection)"
+                if processedLine.hasPrefix(ddlAccessor) {
+                    processedLine = collectionAccessor + processedLine.dropFirst(ddlAccessor.count)
+                }
+                indexLines.append(processedLine)
+            }
+        }
+
+        let indexContent = indexLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !indexContent.isEmpty {
+            try fileHandle.write(contentsOf: "\(indexContent)\n".toUTF8Data())
+        }
+    }
+
+    /// Convert a string value to its MQL/JSON representation with auto-detected type
+    private func mqlJsonValue(for value: String) -> String {
+        if value == "true" || value == "false" {
+            return value
+        }
+        if value == "null" {
+            return "null"
+        }
+        if Int64(value) != nil {
+            return value
+        }
+        if Double(value) != nil, value.contains(".") {
+            return value
+        }
+        // JSON object or array -- pass through if valid (no unescaped control chars)
+        if (value.hasPrefix("{") && value.hasSuffix("}")) ||
+            (value.hasPrefix("[") && value.hasSuffix("]")) {
+            let hasControlChars = value.utf8.contains(where: { $0 < 0x20 })
+            if hasControlChars {
+                return "\"\(escapeJSONString(value))\""
+            }
+            return value
+        }
+        return "\"\(escapeJSONString(value))\""
+    }
+
+    /// Escape a collection name for use as a JavaScript property identifier.
+    /// Names with special characters use bracket notation instead of dot notation.
+    private func escapeJSIdentifier(_ name: String) -> String {
+        guard let firstChar = name.first,
+              !firstChar.isNumber,
+              name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
+            return "[\"\(escapeJSONString(name))\"]"
+        }
+        return name
+    }
+
+    /// Sanitize a name for use in JavaScript single-line comments
+    private func sanitizeForJSComment(_ name: String) -> String {
+        var result = name
+        result = result.replacingOccurrences(of: "\n", with: " ")
+        result = result.replacingOccurrences(of: "\r", with: " ")
+        return result
     }
 
     // MARK: - Compression

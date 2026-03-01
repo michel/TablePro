@@ -13,6 +13,7 @@ import SwiftUI
 /// Popover view that displays SQL statements with tree-sitter syntax highlighting for review before commit.
 struct SQLReviewPopover: View {
     let statements: [String]
+    var databaseType: DatabaseType = .mysql
 
     @Environment(\.dismiss) private var dismiss
     @State private var copied = false
@@ -21,7 +22,25 @@ struct SQLReviewPopover: View {
 
     /// All statements joined for display
     private var combinedSQL: String {
-        statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        let joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        if databaseType == .mongodb {
+            return Self.convertExtendedJsonToShellSyntax(joined)
+        }
+        return joined
+    }
+
+    /// Convert MongoDB Extended JSON to shell-friendly syntax for display.
+    /// e.g. {"$oid": "abc123"} → ObjectId("abc123")
+    private static func convertExtendedJsonToShellSyntax(_ mql: String) -> String {
+        // Match {"$oid": "hexstring"} patterns
+        let pattern = #"\{"\$oid":\s*"([0-9a-fA-F]{24})"\}"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return mql }
+        let nsString = mql as NSString
+        return regex.stringByReplacingMatches(
+            in: mql,
+            range: NSRange(location: 0, length: nsString.length),
+            withTemplate: #"ObjectId("$1")"#
+        )
     }
 
     /// Calculate popover height based on content lines
@@ -80,7 +99,7 @@ struct SQLReviewPopover: View {
 
     private var headerView: some View {
         HStack {
-            Text(String(localized: "SQL Preview"))
+            Text(databaseType == .mongodb ? String(localized: "MQL Preview") : String(localized: "SQL Preview"))
                 .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
             if !statements.isEmpty {
                 Text(
@@ -126,7 +145,7 @@ struct SQLReviewPopover: View {
         if isEditorReady {
             SourceEditor(
                 .constant(combinedSQL),
-                language: .sql,
+                language: databaseType == .mongodb ? .javascript : .sql,
                 configuration: Self.makeConfiguration(),
                 state: $editorState
             )
@@ -173,7 +192,10 @@ struct SQLReviewPopover: View {
     // MARK: - Clipboard
 
     private func copyAllToClipboard() {
-        let joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        var joined = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n\n")
+        if databaseType == .mongodb {
+            joined = Self.convertExtendedJsonToShellSyntax(joined)
+        }
         ClipboardService.shared.writeText(joined)
         copied = true
 

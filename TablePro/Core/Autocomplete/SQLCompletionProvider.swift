@@ -396,22 +396,45 @@ final class SQLCompletionProvider {
 
         case .unknown:
             // Start of query - suggest statement keywords and tables
-            items = filterKeywords([
-                // DML
-                "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT",
-                // DDL
-                "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME",
-                // Database operations
-                "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "ANALYZE",
-                // Transaction control
-                "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "START TRANSACTION",
-                // CTEs and advanced
-                "WITH", "RECURSIVE",
-                // Database/schema
-                "USE", "SET", "GRANT", "REVOKE",
-                // Utility
-                "CALL", "EXECUTE", "PREPARE"
-            ])
+            if databaseType == .mongodb {
+                // MongoDB: only MQL method completions, no SQL keywords
+                items = [
+                    "db.", "db.runCommand", "db.adminCommand",
+                    "db.createView", "db.createCollection",
+                    "show dbs", "show collections",
+                    ".find", ".findOne", ".aggregate",
+                    ".insertOne", ".insertMany",
+                    ".updateOne", ".updateMany",
+                    ".deleteOne", ".deleteMany",
+                    ".replaceOne",
+                    ".findOneAndUpdate", ".findOneAndReplace", ".findOneAndDelete",
+                    ".countDocuments", ".count",
+                    ".createIndex", ".dropIndex", ".drop",
+                ].map { mql in
+                    SQLCompletionItem(
+                        label: mql,
+                        kind: .keyword,
+                        insertText: mql
+                    )
+                }
+            } else {
+                items = filterKeywords([
+                    // DML
+                    "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "MERGE", "UPSERT",
+                    // DDL
+                    "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME",
+                    // Database operations
+                    "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "ANALYZE",
+                    // Transaction control
+                    "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT", "START TRANSACTION",
+                    // CTEs and advanced
+                    "WITH", "RECURSIVE",
+                    // Database/schema
+                    "USE", "SET", "GRANT", "REVOKE",
+                    // Utility
+                    "CALL", "EXECUTE", "PREPARE"
+                ])
+            }
             items += await schemaProvider.tableCompletionItems()
         }
 
@@ -459,6 +482,23 @@ final class SQLCompletionProvider {
             types += [
                 "BLOB",
             ]
+
+        case .mongodb:
+            // MongoDB types are case-sensitive — return directly without uppercasing
+            let mongoTypes = [
+                "ObjectId", "String", "Int32", "Int64", "Double", "Decimal128",
+                "Boolean", "Date", "Timestamp", "BinData", "Array", "Object",
+                "Null", "Regex", "UUID",
+            ]
+            return mongoTypes.map { typeName in
+                var item = SQLCompletionItem(
+                    label: typeName,
+                    kind: .keyword,
+                    insertText: typeName
+                )
+                item.sortPriority = 380
+                return item
+            }
 
         case .none:
             // Include all types if database type is unknown

@@ -172,6 +172,43 @@ enum ColumnType: Equatable {
         }
     }
 
+    // MARK: - MongoDB BSON Type Mapping
+
+    /// Initialize from BSON type integer code
+    /// Reference: https://www.mongodb.com/docs/manual/reference/bson-types/
+    init(fromBsonType type: Int32) {
+        switch type {
+        case 1:   // Double
+            self = .decimal(rawType: "Double")
+        case 2:   // String
+            self = .text(rawType: "String")
+        case 3:   // Document (embedded)
+            self = .json(rawType: "Object")
+        case 4:   // Array
+            self = .json(rawType: "Array")
+        case 5:   // Binary
+            self = .blob(rawType: "Binary")
+        case 7:   // ObjectId
+            self = .text(rawType: "ObjectId")
+        case 8:   // Boolean
+            self = .boolean(rawType: "Boolean")
+        case 9:   // Date
+            self = .datetime(rawType: "Date")
+        case 10:  // Null
+            self = .text(rawType: "Null")
+        case 16:  // Int32
+            self = .integer(rawType: "Int32")
+        case 17:  // Timestamp
+            self = .timestamp(rawType: "Timestamp")
+        case 18:  // Int64
+            self = .integer(rawType: "Int64")
+        case 19:  // Decimal128
+            self = .decimal(rawType: "Decimal128")
+        default:
+            self = .text(rawType: nil)
+        }
+    }
+
     // MARK: - Display Properties
 
     /// Human-readable name for this column type

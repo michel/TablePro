@@ -203,7 +203,9 @@ private extension HistoryPanelView {
             VStack(spacing: 0) {
                 // Query text with syntax highlighting
                 HighlightedSQLTextView(
-                    sql: entry.query.hasSuffix(";") ? entry.query : entry.query + ";"
+                    sql: entry.query.hasSuffix(";") ? entry.query : entry.query + ";",
+                    databaseType: entry.query.trimmingCharacters(in: .whitespaces)
+                        .hasPrefix("db.") ? .mongodb : .mysql
                 )
                 .background(Color(nsColor: SQLEditorTheme.background))
 

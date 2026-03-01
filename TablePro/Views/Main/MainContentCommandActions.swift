@@ -322,6 +322,8 @@ final class MainContentCommandActions: ObservableObject {
             template = "CREATE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         case .sqlite:
             template = "CREATE VIEW IF NOT EXISTS view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
+        case .mongodb:
+            template = "db.createView(\"view_name\", \"source_collection\", [\n  {\"$match\": {}},\n  {\"$project\": {\"_id\": 1}}\n])"
         }
 
         let payload = EditorTabPayload(
@@ -384,6 +386,14 @@ final class MainContentCommandActions: ObservableObject {
 
     func importTables() {
         guard !connection.isReadOnly else { return }
+        guard connection.type != .mongodb else {
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Import Not Supported"),
+                message: String(localized: "SQL import is not supported for MongoDB connections."),
+                window: nil
+            )
+            return
+        }
         // Open file picker first, then show dialog with selected file
         let panel = NSOpenPanel()
         var contentTypes: [UTType] = []
@@ -611,6 +621,8 @@ final class MainContentCommandActions: ObservableObject {
                     fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
                 case .sqlite:
                     fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"
+                case .mongodb:
+                    fallbackSQL = "db.runCommand({\"collMod\": \"\(viewName)\", \"viewOn\": \"source_collection\", \"pipeline\": [{\"$match\": {}}]})"
                 }
 
                 let payload = EditorTabPayload(

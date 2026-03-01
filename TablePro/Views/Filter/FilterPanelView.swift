@@ -231,7 +231,7 @@ struct FilterPanelView: View {
             .controlSize(.small)
             .disabled(!filterState.hasAppliedFilters)
 
-            Button("SQL") {
+            Button(databaseType == .mongodb ? "MQL" : "SQL") {
                 generatedSQL = filterState.generatePreviewSQL(databaseType: databaseType)
                 showSQLSheet = true
             }

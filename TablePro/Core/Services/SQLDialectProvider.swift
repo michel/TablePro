@@ -228,6 +228,8 @@ struct SQLDialectFactory {
             return PostgreSQLDialect()
         case .sqlite:
             return SQLiteDialect()
+        case .mongodb:
+            return SQLiteDialect()  // Placeholder until MongoDB dialect is implemented
         }
     }
 }

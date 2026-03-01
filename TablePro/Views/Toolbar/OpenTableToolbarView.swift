@@ -101,8 +101,8 @@ struct TableProToolbar: ViewModifier {
                         .disabled(
                             state.connectionState != .connected || state.databaseType == .sqlite)
 
-                        // SQL query tab button
-                        Button("SQL") {
+                        // Query tab button
+                        Button(state.databaseType == .mongodb ? "MQL" : "SQL") {
                             actions?.newTab()
                         }
                         .accessibilityLabel(String(localized: "New query tab"))
@@ -124,11 +124,13 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Image(systemName: "eye")
                         }
-                        .accessibilityLabel(String(localized: "Preview SQL"))
-                        .help("Preview SQL (⌘⇧P)")
+                        .accessibilityLabel(state.databaseType == .mongodb
+                            ? String(localized: "Preview MQL")
+                            : String(localized: "Preview SQL"))
+                        .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)" : "Preview SQL (⌘⇧P)")
                         .disabled(!state.hasPendingChanges || state.connectionState != .connected)
                         .popover(isPresented: $state.showSQLReviewPopover) {
-                            SQLReviewPopover(statements: state.previewStatements)
+                            SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
                         }
                     }
                 }
@@ -175,15 +177,17 @@ struct TableProToolbar: ViewModifier {
                         .help("Export Data (⌘⇧E)")
                         .disabled(state.connectionState != .connected)
 
-                        // Import
-                        Button {
-                            actions?.importTables()
-                        } label: {
-                            Image(systemName: "square.and.arrow.down")
+                        // Import (not available for MongoDB)
+                        if state.databaseType != .mongodb {
+                            Button {
+                                actions?.importTables()
+                            } label: {
+                                Image(systemName: "square.and.arrow.down")
+                            }
+                            .accessibilityLabel(String(localized: "Import data"))
+                            .help("Import Data (⌘⇧I)")
+                            .disabled(state.connectionState != .connected || state.isReadOnly)
                         }
-                        .accessibilityLabel(String(localized: "Import data"))
-                        .help("Import Data (⌘⇧I)")
-                        .disabled(state.connectionState != .connected || state.isReadOnly)
 
                         Divider()
                             .frame(height: 20)

@@ -69,6 +69,8 @@ struct CreateTableService {
             return try generatePostgreSQL(options)
         case .sqlite:
             return try generateSQLite(options)
+        case .mongodb:
+            throw CreateTableError.invalidSQL("MongoDB does not support CREATE TABLE SQL")
         }
     }
 
