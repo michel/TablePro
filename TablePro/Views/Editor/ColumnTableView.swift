@@ -2,8 +2,7 @@
 //  ColumnTableView.swift
 //  TablePro
 //
-//  Table-style column editor with sticky headers, inline editing,
-//  and TablePlus-inspired professional UI.
+//  Table-style column editor with sticky header and inline editing.
 //
 
 import SwiftUI
@@ -12,109 +11,122 @@ import UniformTypeIdentifiers
 struct ColumnTableView: View {
     @Binding var columns: [ColumnDefinition]
     @Binding var primaryKeyColumns: [String]
-    @Binding var selectedColumnId: UUID?
     let databaseType: DatabaseType
     let onDelete: (ColumnDefinition) -> Void
-    let onMoveUp: (ColumnDefinition) -> Void
-    let onMoveDown: (ColumnDefinition) -> Void
-    let onEdit: (ColumnDefinition) -> Void
 
     @State private var draggedColumn: ColumnDefinition?
 
+    private var showAutoIncrement: Bool {
+        databaseType == .mysql || databaseType == .mariadb || databaseType == .sqlite
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header row (sticky)
             headerRow
 
             Divider()
 
-            // Column rows
             if columns.isEmpty {
                 EmptyStateView.columns {
                     addColumn()
                 }
             } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(columns) { column in
-                            ColumnTableRow(
-                                column: Binding(
-                                    get: { column },
-                                    set: { newValue in
-                                        if let idx = columns.firstIndex(where: { $0.id == column.id }) {
-                                            columns[idx] = newValue
-                                        }
-                                    }
-                                ),
-                                isPrimaryKey: primaryKeyColumns.contains(column.name),
-                                isSelected: selectedColumnId == column.id,
-                                onSelect: {
-                                    selectedColumnId = column.id
-                                },
-                                onDelete: {
-                                    onDelete(column)
-                                },
-                                onMoveUp: {
-                                    onMoveUp(column)
-                                },
-                                onMoveDown: {
-                                    onMoveDown(column)
-                                },
-                                onEdit: {
-                                    onEdit(column)
-                                }
-                            )
-                            .onDrag {
-                                draggedColumn = column
-                                return NSItemProvider(object: column.id.uuidString as NSString)
-                            }
-                            .onDrop(of: [.text], delegate: ColumnTableDropDelegate(
-                                column: column,
-                                columns: $columns,
-                                draggedColumn: $draggedColumn
-                            ))
-
-                            if column.id != columns.last?.id {
-                                Divider()
-                            }
+                List {
+                    ForEach(columns) { column in
+                        ColumnTableRow(
+                            column: columnBinding(for: column),
+                            isPrimaryKey: primaryKeyBinding(for: column),
+                            databaseType: databaseType,
+                            showAutoIncrement: showAutoIncrement,
+                            onDelete: { onDelete(column) }
+                        )
+                        .onDrag {
+                            draggedColumn = column
+                            return NSItemProvider(object: column.id.uuidString as NSString)
                         }
+                        .onDrop(of: [.text], delegate: ColumnTableDropDelegate(
+                            column: column,
+                            columns: $columns,
+                            draggedColumn: $draggedColumn
+                        ))
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                     }
                 }
+                .listStyle(.inset(alternatesRowBackgrounds: true))
             }
         }
-        .background(DesignConstants.Colors.cardBackground)
-        .cornerRadius(DesignConstants.CornerRadius.medium)
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium)
-                .stroke(DesignConstants.Colors.border, lineWidth: 0.5)
-        )
     }
 
     // MARK: - Header Row
 
     private var headerRow: some View {
         HStack(spacing: 0) {
-            // Drag handle column (fixed)
-            HeaderCell(title: "", width: DesignConstants.ColumnWidth.dragHandle, isFixed: true)
+            Text("")
+                .frame(width: DesignConstants.ColumnWidth.dragHandle)
 
-            // Name column (flexible)
-            HeaderCell(title: "Name", width: DesignConstants.ColumnWidth.nameMin, isFixed: false)
+            Text("Name")
+                .frame(minWidth: DesignConstants.ColumnWidth.nameMin, maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, DesignConstants.Spacing.xxs)
 
-            // Type column (flexible)
-            HeaderCell(title: "Type", width: DesignConstants.ColumnWidth.typeMin, isFixed: false)
+            Text("Type")
+                .frame(minWidth: DesignConstants.ColumnWidth.typeMin, maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, DesignConstants.Spacing.xxs)
 
-            // Attributes column (flexible)
-            HeaderCell(title: "Attributes", width: DesignConstants.ColumnWidth.attributesMin, isFixed: false)
+            Text("Length")
+                .frame(width: DesignConstants.ColumnWidth.length, alignment: .leading)
+                .padding(.horizontal, DesignConstants.Spacing.xxs)
 
-            // Default column (flexible)
-            HeaderCell(title: "Default", width: DesignConstants.ColumnWidth.defaultMin, isFixed: false)
+            Text("Default")
+                .frame(minWidth: DesignConstants.ColumnWidth.defaultMin, maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, DesignConstants.Spacing.xxs)
 
-            // Actions column (fixed)
-            HeaderCell(title: "", width: DesignConstants.ColumnWidth.actions, isFixed: true)
+            Text("PK")
+                .frame(width: DesignConstants.ColumnWidth.checkbox, alignment: .center)
+
+            Text("NN")
+                .frame(width: DesignConstants.ColumnWidth.checkbox, alignment: .center)
+
+            if showAutoIncrement {
+                Text("AI")
+                    .frame(width: DesignConstants.ColumnWidth.checkbox, alignment: .center)
+            }
+
+            Text("")
+                .frame(width: DesignConstants.ColumnWidth.checkbox)
         }
+        .font(.system(size: DesignConstants.FontSize.small, weight: .semibold))
+        .foregroundStyle(DesignConstants.Colors.secondaryText)
         .frame(height: DesignConstants.RowHeight.table)
         .frame(maxWidth: .infinity)
         .background(DesignConstants.Colors.sectionBackground.opacity(0.5))
+    }
+
+    // MARK: - Bindings
+
+    private func columnBinding(for column: ColumnDefinition) -> Binding<ColumnDefinition> {
+        Binding(
+            get: { column },
+            set: { newValue in
+                if let idx = columns.firstIndex(where: { $0.id == column.id }) {
+                    columns[idx] = newValue
+                }
+            }
+        )
+    }
+
+    private func primaryKeyBinding(for column: ColumnDefinition) -> Binding<Bool> {
+        Binding(
+            get: { primaryKeyColumns.contains(column.name) },
+            set: { isOn in
+                if isOn {
+                    if !primaryKeyColumns.contains(column.name) {
+                        primaryKeyColumns.append(column.name)
+                    }
+                } else {
+                    primaryKeyColumns.removeAll { $0 == column.name }
+                }
+            }
+        )
     }
 
     // MARK: - Actions
@@ -126,33 +138,6 @@ struct ColumnTableView: View {
             length: 255
         )
         columns.append(newColumn)
-        selectedColumnId = newColumn.id
-    }
-}
-
-// MARK: - Header Cell
-
-private struct HeaderCell: View {
-    let title: String
-    let width: CGFloat
-    let isFixed: Bool
-
-    var body: some View {
-        Group {
-            if isFixed {
-                Text(title)
-                    .font(.system(size: DesignConstants.FontSize.small, weight: .semibold))
-                    .foregroundStyle(DesignConstants.Colors.secondaryText)
-                    .frame(width: width, alignment: .leading)
-                    .padding(.horizontal, DesignConstants.Spacing.xs)
-            } else {
-                Text(title)
-                    .font(.system(size: DesignConstants.FontSize.small, weight: .semibold))
-                    .foregroundStyle(DesignConstants.Colors.secondaryText)
-                    .frame(minWidth: width, maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, DesignConstants.Spacing.xs)
-            }
-        }
     }
 }
 
@@ -177,7 +162,10 @@ struct ColumnTableDropDelegate: DropDelegate {
         }
 
         withAnimation(.easeInOut(duration: DesignConstants.AnimationDuration.normal)) {
-            columns.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+            columns.move(
+                fromOffsets: IndexSet(integer: fromIndex),
+                toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex
+            )
         }
     }
 }
