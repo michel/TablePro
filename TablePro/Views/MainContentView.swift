@@ -791,12 +791,12 @@ struct MainContentView: View {
         )
 
         let capturedCoordinator = coordinator
-        let capturedIndices = selectedRowIndices
+        let capturedEditState = rightPanelState.editState
         rightPanelState.editState.onFieldChanged = { columnIndex, newValue in
             guard let tab = capturedCoordinator.tabManager.selectedTab else { return }
             let columnName = columnIndex < tab.resultColumns.count ? tab.resultColumns[columnIndex] : ""
 
-            for rowIndex in capturedIndices {
+            for rowIndex in capturedEditState.selectedRowIndices {
                 guard rowIndex < tab.resultRows.count else { continue }
                 let originalRow = tab.resultRows[rowIndex].values
                 let oldValue = columnIndex < originalRow.count ? originalRow[columnIndex] : nil

@@ -181,10 +181,17 @@ class MultiRowEditState: ObservableObject {
     /// Set a field to empty string
     func setFieldToEmpty(at index: Int) {
         guard index < fields.count else { return }
-        fields[index].pendingValue = ""
+        let hadPendingEdit = fields[index].hasEdit
+        if fields[index].originalValue == "" {
+            fields[index].pendingValue = nil
+        } else {
+            fields[index].pendingValue = ""
+        }
         fields[index].isPendingNull = false
         fields[index].isPendingDefault = false
-        onFieldChanged?(index, "")
+        if fields[index].pendingValue != nil || hadPendingEdit {
+            onFieldChanged?(index, "")
+        }
     }
 
     /// Clear all pending edits

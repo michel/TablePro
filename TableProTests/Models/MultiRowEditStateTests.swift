@@ -469,6 +469,15 @@ struct MultiRowEditStateTests {
             #expect(sut.fields[0].isPendingDefault == false)
         }
 
+        @Test("setFieldToEmpty does not create edit when original is already empty string")
+        func setFieldToEmptyNoOpWhenOriginalEmpty() {
+            let sut = makeSUT(columns: ["name"], rows: [[""]])
+            sut.setFieldToEmpty(at: 0)
+            #expect(sut.fields[0].pendingValue == nil)
+            #expect(sut.fields[0].hasEdit == false)
+            #expect(sut.hasEdits == false)
+        }
+
         @Test("Each special set method makes hasEdit true")
         func specialSetMethodsMakeHasEditTrue() {
             let sut = makeSUT()

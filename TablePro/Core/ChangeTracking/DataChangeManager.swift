@@ -168,15 +168,10 @@ final class DataChangeManager: ObservableObject {
                     modifiedCells[rowIndex]?.remove(columnIndex)
                     if modifiedCells[rowIndex]?.isEmpty == true { modifiedCells.removeValue(forKey: rowIndex) }
                     if changes[existingIndex].cellChanges.isEmpty { removeChangeAt(existingIndex) }
-                } else {
-                    changes[existingIndex].cellChanges[cellIndex] = CellChange(
-                        rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName,
-                        oldValue: originalOldValue, newValue: newValue
-                    )
+                    changedRowIndices.insert(rowIndex)
+                    hasChanges = !changes.isEmpty
+                    reloadVersion += 1
                 }
-                changedRowIndices.insert(rowIndex)
-                hasChanges = !changes.isEmpty
-                reloadVersion += 1
             }
             return
         }

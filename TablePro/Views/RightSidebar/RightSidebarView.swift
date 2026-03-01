@@ -176,7 +176,7 @@ struct RightSidebarView: View {
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity)
                     } else {
-                        ForEach(filtered, id: \.columnName) { field in
+                        ForEach(filtered, id: \.columnIndex) { field in
                             if contentMode == .editRow {
                                 editableFieldRow(field, at: field.columnIndex)
                             } else {
