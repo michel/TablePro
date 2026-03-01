@@ -32,6 +32,7 @@ struct ConnectionFormView: View {
     @State private var type: DatabaseType = .mysql
     @State private var connectionURL: String = ""
     @State private var urlParseError: String?
+    @State private var showURLImport = false
 
     // SSH Configuration
     @State private var sshEnabled: Bool = false
@@ -153,34 +154,6 @@ struct ConnectionFormView: View {
 
     private var generalForm: some View {
         Form {
-            Section(String(localized: "Import from URL")) {
-                HStack {
-                    TextField(
-                        String(localized: "Connection URL"),
-                        text: $connectionURL,
-                        prompt: Text("postgresql://user:password@host:5432/database")
-                    )
-                    if !connectionURL.isEmpty {
-                        Button {
-                            connectionURL = ""
-                            urlParseError = nil
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                if let urlParseError {
-                    Text(urlParseError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-            }
-            .onChange(of: connectionURL) {
-                parseConnectionURL()
-            }
-
             Section {
                 Picker(String(localized: "Type"), selection: $type) {
                     ForEach(DatabaseType.allCases) { t in
@@ -192,6 +165,11 @@ struct ConnectionFormView: View {
                     text: $name,
                     prompt: Text("Connection name")
                 )
+                Button {
+                    showURLImport = true
+                } label: {
+                    Label(String(localized: "Import from URL"), systemImage: "link")
+                }
             }
 
             if type == .sqlite {
@@ -250,6 +228,57 @@ struct ConnectionFormView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .sheet(isPresented: $showURLImport) {
+            connectionURLImportSheet
+        }
+    }
+
+    // MARK: - Import from URL Sheet
+
+    private var connectionURLImportSheet: some View {
+        VStack(spacing: 16) {
+            Text(String(localized: "Import from URL"))
+                .font(.headline)
+
+            Text(String(localized: "Paste a connection URL to auto-fill the form fields."))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            TextField(
+                String(localized: "Connection URL"),
+                text: $connectionURL,
+                prompt: Text("postgresql://user:password@host:5432/database")
+            )
+            .textFieldStyle(.roundedBorder)
+
+            if let urlParseError {
+                Text(urlParseError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            HStack {
+                Button(String(localized: "Cancel")) {
+                    connectionURL = ""
+                    urlParseError = nil
+                    showURLImport = false
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Spacer()
+
+                Button(String(localized: "Import")) {
+                    parseConnectionURL()
+                    if urlParseError == nil && !connectionURL.isEmpty {
+                        showURLImport = false
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(connectionURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 420)
     }
 
     // MARK: - SSH Tunnel Tab
