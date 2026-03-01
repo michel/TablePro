@@ -336,6 +336,7 @@ struct MainContentView: View {
             onCellEdit: { rowIndex, colIndex, value in
                 coordinator.updateCellInTab(
                     rowIndex: rowIndex, columnIndex: colIndex, value: value)
+                scheduleInspectorUpdate()
             },
             onSort: { columnIndex, ascending, isMultiSort in
                 coordinator.handleSort(
@@ -771,6 +772,7 @@ struct MainContentView: View {
               !selectedRowIndices.isEmpty
         else {
             rightPanelState.editState.fields = []
+            rightPanelState.editState.onFieldChanged = nil
             return
         }
 
@@ -787,6 +789,28 @@ struct MainContentView: View {
             columns: tab.resultColumns,
             columnTypes: tab.columnTypes
         )
+
+        let capturedCoordinator = coordinator
+        let capturedIndices = selectedRowIndices
+        rightPanelState.editState.onFieldChanged = { columnIndex, newValue in
+            guard let tab = capturedCoordinator.tabManager.selectedTab else { return }
+            let columnName = columnIndex < tab.resultColumns.count ? tab.resultColumns[columnIndex] : ""
+
+            for rowIndex in capturedIndices {
+                guard rowIndex < tab.resultRows.count else { continue }
+                let originalRow = tab.resultRows[rowIndex].values
+                let oldValue = columnIndex < originalRow.count ? originalRow[columnIndex] : nil
+
+                capturedCoordinator.changeManager.recordCellChange(
+                    rowIndex: rowIndex,
+                    columnIndex: columnIndex,
+                    columnName: columnName,
+                    oldValue: oldValue,
+                    newValue: newValue,
+                    originalRow: originalRow
+                )
+            }
+        }
     }
 
     // MARK: - Inspector Context

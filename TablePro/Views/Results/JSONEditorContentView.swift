@@ -24,7 +24,7 @@ struct JSONEditorContentView: View {
         self.initialValue = initialValue
         self.onCommit = onCommit
         self.onDismiss = onDismiss
-        self._text = State(initialValue: Self.prettyPrint(initialValue) ?? initialValue ?? "")
+        self._text = State(initialValue: initialValue?.prettyPrintedAsJson() ?? initialValue ?? "")
     }
 
     var body: some View {
@@ -78,19 +78,6 @@ struct JSONEditorContentView: View {
     }
 
     // MARK: - JSON Helpers
-
-    private static func prettyPrint(_ jsonString: String?) -> String? {
-        guard let data = jsonString?.data(using: .utf8),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data),
-              let prettyData = try? JSONSerialization.data(
-                  withJSONObject: jsonObject,
-                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-              ),
-              let prettyString = String(data: prettyData, encoding: .utf8) else {
-            return nil
-        }
-        return prettyString
-    }
 
     private static func compact(_ jsonString: String?) -> String? {
         guard let data = jsonString?.data(using: .utf8),

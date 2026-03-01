@@ -158,7 +158,28 @@ final class DataChangeManager: ObservableObject {
         newValue: String?,
         originalRow: [String?]? = nil
     ) {
-        guard oldValue != newValue else { return }
+        if oldValue == newValue {
+            let updateKey = RowChangeKey(rowIndex: rowIndex, type: .update)
+            if let existingIndex = changeIndex[updateKey],
+               let cellIndex = changes[existingIndex].cellChanges.firstIndex(where: { $0.columnIndex == columnIndex }) {
+                let originalOldValue = changes[existingIndex].cellChanges[cellIndex].oldValue
+                if originalOldValue == newValue {
+                    changes[existingIndex].cellChanges.remove(at: cellIndex)
+                    modifiedCells[rowIndex]?.remove(columnIndex)
+                    if modifiedCells[rowIndex]?.isEmpty == true { modifiedCells.removeValue(forKey: rowIndex) }
+                    if changes[existingIndex].cellChanges.isEmpty { removeChangeAt(existingIndex) }
+                } else {
+                    changes[existingIndex].cellChanges[cellIndex] = CellChange(
+                        rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName,
+                        oldValue: originalOldValue, newValue: newValue
+                    )
+                }
+                changedRowIndices.insert(rowIndex)
+                hasChanges = !changes.isEmpty
+                reloadVersion += 1
+            }
+            return
+        }
 
         // New changes invalidate redo history (standard undo/redo behavior)
         if !isRedoing { undoManager.clearRedo() }

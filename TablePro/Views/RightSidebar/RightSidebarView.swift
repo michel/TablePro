@@ -65,9 +65,15 @@ struct RightSidebarView: View {
     private func tableInfoContent(_ metadata: TableMetadata) -> some View {
         Form {
             Section {
-                LabeledContent(String(localized: "Data Size"), value: TableMetadata.formatSize(metadata.dataSize))
-                LabeledContent(String(localized: "Index Size"), value: TableMetadata.formatSize(metadata.indexSize))
-                LabeledContent(String(localized: "Total Size"), value: TableMetadata.formatSize(metadata.totalSize))
+                LabeledContent(
+                    String(localized: "Data Size"),
+                    value: TableMetadata.formatSize(metadata.dataSize))
+                LabeledContent(
+                    String(localized: "Index Size"),
+                    value: TableMetadata.formatSize(metadata.indexSize))
+                LabeledContent(
+                    String(localized: "Total Size"),
+                    value: TableMetadata.formatSize(metadata.totalSize))
             } header: {
                 Text("SIZE")
             }
@@ -129,10 +135,13 @@ struct RightSidebarView: View {
     private func rowDetailForm(
         _ rowData: [(column: String, value: String?, type: String)]
     ) -> some View {
-        let filtered = searchText.isEmpty ? editState.fields : editState.fields.filter {
-            $0.columnName.localizedCaseInsensitiveContains(searchText) ||
-                ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
-        }
+        let filtered =
+            searchText.isEmpty
+            ? editState.fields
+            : editState.fields.filter {
+                $0.columnName.localizedCaseInsensitiveContains(searchText)
+                    || ($0.originalValue?.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
 
         return VStack(spacing: 0) {
             // Inline search field
@@ -182,21 +191,24 @@ struct RightSidebarView: View {
                         Text("\(filtered.count)")
                             .foregroundStyle(.secondary)
                     }
+                    .padding(.trailing, 15)
                 }
 
-                if contentMode == .editRow && editState.hasEdits {
-                    Section {
-                        Button(action: onSave) {
-                            Text("Save Changes")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .keyboardShortcut("s", modifiers: .command)
-                    }
-                }
             }
             .listStyle(.sidebar)
+
+            if contentMode == .editRow && editState.hasEdits {
+                Divider()
+                Button(action: onSave) {
+                    Text("Save Changes")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .keyboardShortcut("s", modifiers: .command)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
         }
     }
 
@@ -204,7 +216,6 @@ struct RightSidebarView: View {
     private func editableFieldRow(_ field: FieldEditState, at index: Int) -> some View {
         EditableFieldView(
             columnName: field.columnName,
-            columnType: field.columnType,
             columnTypeEnum: field.columnTypeEnum,
             isLongText: field.isLongText,
             value: Binding(
@@ -219,8 +230,7 @@ struct RightSidebarView: View {
             onSetNull: { editState.setFieldToNull(at: index) },
             onSetDefault: { editState.setFieldToDefault(at: index) },
             onSetEmpty: { editState.setFieldToEmpty(at: index) },
-            onSetFunction: { editState.setFieldToFunction(at: index, function: $0) },
-            onUpdateValue: { editState.updateField(at: index, value: $0) }
+            onSetFunction: { editState.setFieldToFunction(at: index, function: $0) }
         )
     }
 
@@ -228,7 +238,6 @@ struct RightSidebarView: View {
     private func readonlyFieldRow(_ field: FieldEditState) -> some View {
         ReadOnlyFieldView(
             columnName: field.columnName,
-            columnType: field.columnType,
             columnTypeEnum: field.columnTypeEnum,
             isLongText: field.isLongText,
             value: field.originalValue

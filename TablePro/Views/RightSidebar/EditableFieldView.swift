@@ -6,13 +6,11 @@
 //  Two-line layout: field name + type badge, then native editor + menu.
 //
 
-import AppKit
 import SwiftUI
 
 /// Compact editable field view using native macOS components
 struct EditableFieldView: View {
     let columnName: String
-    let columnType: String
     let columnTypeEnum: ColumnType
     let isLongText: Bool
     @Binding var value: String
@@ -26,7 +24,6 @@ struct EditableFieldView: View {
     let onSetDefault: () -> Void
     let onSetEmpty: () -> Void
     let onSetFunction: (String) -> Void
-    let onUpdateValue: (String) -> Void
 
     @FocusState private var isFocused: Bool
     @State private var isHovered = false
@@ -81,13 +78,8 @@ struct EditableFieldView: View {
 
     @ViewBuilder
     private var typeAwareEditor: some View {
-        if isPendingNull {
-            TextField("NULL", text: .constant(""))
-                .textFieldStyle(.roundedBorder)
-                .font(.system(size: DesignConstants.FontSize.small))
-                .disabled(true)
-        } else if isPendingDefault {
-            TextField("DEFAULT", text: .constant(""))
+        if isPendingNull || isPendingDefault {
+            TextField(isPendingNull ? "NULL" : "DEFAULT", text: .constant(""))
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: DesignConstants.FontSize.small))
                 .disabled(true)
@@ -105,7 +97,7 @@ struct EditableFieldView: View {
     private var booleanPicker: some View {
         Picker("", selection: Binding(
             get: { normalizeBooleanValue(value) },
-            set: { onUpdateValue($0) }
+            set: { value = $0 }
         )) {
             Text("true").tag("1")
             Text("false").tag("0")
@@ -118,7 +110,7 @@ struct EditableFieldView: View {
     private func enumPicker(values: [String]) -> some View {
         Picker("", selection: Binding(
             get: { value },
-            set: { onUpdateValue($0) }
+            set: { value = $0 }
         )) {
             ForEach(values, id: \.self) { val in
                 Text(val).tag(val)
@@ -164,15 +156,14 @@ struct EditableFieldView: View {
 
             if columnTypeEnum.isJsonType {
                 Button("Pretty Print") {
-                    if let formatted = prettyPrintJson(value) {
-                        onUpdateValue(formatted)
+                    if let formatted = value.prettyPrintedAsJson() {
+                        value = formatted
                     }
                 }
             }
 
             Button("Copy Value") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(value, forType: .string)
+                ClipboardService.shared.writeText(value)
             }
 
             Divider()
@@ -188,7 +179,7 @@ struct EditableFieldView: View {
             if isPendingNull || isPendingDefault {
                 Divider()
                 Button("Clear") {
-                    onUpdateValue(originalValue ?? "")
+                    value = originalValue ?? ""
                 }
             }
         } label: {
@@ -213,24 +204,11 @@ struct EditableFieldView: View {
         return "0"
     }
 
-    private func prettyPrintJson(_ jsonString: String) -> String? {
-        guard let data = jsonString.data(using: .utf8),
-              let jsonObject = try? JSONSerialization.jsonObject(with: data),
-              let prettyData = try? JSONSerialization.data(
-                  withJSONObject: jsonObject,
-                  options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-              ),
-              let prettyString = String(data: prettyData, encoding: .utf8) else {
-            return nil
-        }
-        return prettyString
-    }
 }
 
 /// Read-only field view using native macOS components
 struct ReadOnlyFieldView: View {
     let columnName: String
-    let columnType: String
     let columnTypeEnum: ColumnType
     let isLongText: Bool
     let value: String?
@@ -277,8 +255,7 @@ struct ReadOnlyFieldView: View {
         .contextMenu {
             if let value {
                 Button("Copy Value") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(value, forType: .string)
+                    ClipboardService.shared.writeText(value)
                 }
             }
         }
