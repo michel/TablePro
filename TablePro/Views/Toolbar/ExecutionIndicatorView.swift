@@ -14,7 +14,7 @@ struct ExecutionIndicatorView: View {
     let lastDuration: TimeInterval?
 
     var body: some View {
-        HStack(spacing: ToolbarDesignTokens.Spacing.iconTextSpacing) {
+        HStack(spacing: 5) {
             if isExecuting {
                 ProgressView()
                     .controlSize(.small)
@@ -37,8 +37,8 @@ struct ExecutionIndicatorView: View {
                     .help("Run a query to see execution time")
             }
         }
-        .padding(.trailing, ToolbarDesignTokens.Spacing.tagPadding)
-        .animation(.easeInOut(duration: ToolbarDesignTokens.Animation.hover), value: isExecuting)
+        .padding(.trailing, DesignConstants.Spacing.xs)
+        .animation(.easeInOut(duration: DesignConstants.AnimationDuration.normal), value: isExecuting)
     }
 
     // MARK: - Helpers

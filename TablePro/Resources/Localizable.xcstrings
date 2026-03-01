@@ -3619,6 +3619,7 @@
       }
     },
     "Export data" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4395,6 +4396,7 @@
       }
     },
     "Import data" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4621,7 +4623,6 @@
       }
     },
     "Inspector" : {
-      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5325,6 +5326,7 @@
       }
     },
     "New query tab" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5981,6 +5983,7 @@
       }
     },
     "Open database" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6806,6 +6809,7 @@
       }
     },
     "Refresh data" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7962,6 +7966,7 @@
       }
     },
     "Switch connection" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8465,6 +8470,7 @@
       }
     },
     "Toggle filters" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8515,6 +8521,7 @@
       }
     },
     "Toggle inspector" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8545,6 +8552,7 @@
       }
     },
     "Toggle query history" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {

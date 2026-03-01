@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refactored toolbar to use individual `ToolbarItem` entries with `Label` for native macOS overflow behavior, and moved History/Export/Import to `.secondaryAction` overflow menu
 - Redesigned right sidebar detail pane with compact field layout and type-aware editors
 
 ## [0.10.0] - 2026-03-01

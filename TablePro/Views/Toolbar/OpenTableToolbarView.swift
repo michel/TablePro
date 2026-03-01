@@ -19,18 +19,13 @@ struct ToolbarPrincipalContent: View {
     @ObservedObject var state: ConnectionToolbarState
 
     var body: some View {
-        HStack(spacing: ToolbarDesignTokens.Spacing.betweenSections) {
-            // Tag badge (if tag is assigned)
+        HStack(spacing: 10) {
             if let tagId = state.tagId,
                let tag = TagStorage.shared.tag(for: tagId)
             {
                 TagBadgeView(tag: tag)
-
-                Divider()
-                    .frame(height: ToolbarDesignTokens.Spacing.dividerHeight)
             }
 
-            // Main connection status display
             ConnectionStatusView(
                 databaseType: state.databaseType,
                 databaseVersion: state.databaseVersion,
@@ -42,20 +37,12 @@ struct ToolbarPrincipalContent: View {
                 isReadOnly: state.isReadOnly
             )
 
-            Divider()
-                .frame(height: ToolbarDesignTokens.Spacing.dividerHeight)
-
-            // Execution indicator (spinner or duration)
             ExecutionIndicatorView(
                 isExecuting: state.isExecuting,
                 lastDuration: state.lastQueryDuration
             )
         }
-        .animation(
-            .spring(
-                response: ToolbarDesignTokens.Animation.springResponse,
-                dampingFraction: ToolbarDesignTokens.Animation.springDamping), value: state.tagId
-        )
+        .animation(.spring(), value: state.tagId)
         .animation(.easeInOut, value: state.connectionState)
     }
 }
@@ -71,8 +58,8 @@ struct TableProToolbar: ViewModifier {
         content
             .toolbar {
                 // MARK: - Navigation (Left)
-                // Separate items so macOS can overflow them individually with labels
-                ToolbarItemGroup(placement: .navigation) {
+
+                ToolbarItem(placement: .navigation) {
                     Button {
                         showConnectionSwitcher.toggle()
                     } label: {
@@ -84,7 +71,9 @@ struct TableProToolbar: ViewModifier {
                             showConnectionSwitcher = false
                         }
                     }
+                }
 
+                ToolbarItem(placement: .navigation) {
                     Button {
                         actions?.openDatabaseSwitcher()
                     } label: {
@@ -93,12 +82,9 @@ struct TableProToolbar: ViewModifier {
                     .help("Open Database (⌘K)")
                     .disabled(
                         state.connectionState != .connected || state.databaseType == .sqlite)
+                }
 
-                    Button(state.databaseType == .mongodb ? "MQL" : "SQL") {
-                        actions?.newTab()
-                    }
-                    .help("New Query Tab (⌘T)")
-
+                ToolbarItem(placement: .navigation) {
                     Button {
                         NotificationCenter.default.post(name: .refreshData, object: nil)
                     } label: {
@@ -106,7 +92,36 @@ struct TableProToolbar: ViewModifier {
                     }
                     .help("Refresh (⌘R)")
                     .disabled(state.connectionState != .connected)
+                }
 
+                // MARK: - Principal (Center)
+
+                ToolbarItem(placement: .principal) {
+                    ToolbarPrincipalContent(state: state)
+                }
+
+                // MARK: - Primary Action (Right)
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        actions?.newTab()
+                    } label: {
+                        Label("New Tab", systemImage: "plus.rectangle")
+                    }
+                    .help("New Query Tab (⌘T)")
+                }
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        actions?.toggleFilterPanel()
+                    } label: {
+                        Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
+                    }
+                    .help("Toggle Filters (⌘F)")
+                    .disabled(state.connectionState != .connected || !state.isTableTab)
+                }
+
+                ToolbarItem(placement: .primaryAction) {
                     Button {
                         actions?.previewSQL()
                     } label: {
@@ -116,28 +131,20 @@ struct TableProToolbar: ViewModifier {
                     }
                     .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)" : "Preview SQL (⌘⇧P)")
                     .disabled(!state.hasPendingChanges || state.connectionState != .connected)
-                    .popover(isPresented: $state.showSQLReviewPopover) {
-                        SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
-                    }
                 }
 
-                // MARK: - Principal (Center)
-                // Main connection information display with execution indicator
-                ToolbarItem(placement: .principal) {
-                    ToolbarPrincipalContent(state: state)
-                }
-
-                // MARK: - Primary Action (Right)
-                // Separate items so macOS can overflow them individually with labels
-                ToolbarItemGroup(placement: .primaryAction) {
+                ToolbarItem(placement: .primaryAction) {
                     Button {
-                        actions?.toggleFilterPanel()
+                        actions?.toggleRightSidebar()
                     } label: {
-                        Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
+                        Label("Inspector", systemImage: "sidebar.trailing")
                     }
-                    .help("Toggle Filters (⌘F)")
-                    .disabled(state.connectionState != .connected || !state.isTableTab)
+                    .help("Toggle Inspector (⌘⌥B)")
+                }
 
+                // MARK: - Secondary Action (Overflow)
+
+                ToolbarItemGroup(placement: .secondaryAction) {
                     Button {
                         actions?.toggleHistoryPanel()
                     } label: {
@@ -162,14 +169,10 @@ struct TableProToolbar: ViewModifier {
                         .help("Import Data (⌘⇧I)")
                         .disabled(state.connectionState != .connected || state.isReadOnly)
                     }
-
-                    Button {
-                        actions?.toggleRightSidebar()
-                    } label: {
-                        Label("Inspector", systemImage: "sidebar.trailing")
-                    }
-                    .help("Toggle Inspector (⌘⌥B)")
                 }
+            }
+            .popover(isPresented: $state.showSQLReviewPopover) {
+                SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
             }
             .onReceive(NotificationCenter.default.publisher(for: .openConnectionSwitcher)) { _ in
                 showConnectionSwitcher = true

@@ -20,14 +20,13 @@ struct ConnectionStatusView: View {
     var isReadOnly: Bool = false
 
     var body: some View {
-        HStack(spacing: ToolbarDesignTokens.Spacing.betweenSections) {
+        HStack(spacing: 10) {
             // Database type icon + version
             databaseInfoSection
 
             // Vertical separator
             Divider()
-                .frame(height: ToolbarDesignTokens.Spacing.dividerHeight)
-                .background(ToolbarDesignTokens.Colors.divider)
+                .frame(height: DesignConstants.Spacing.sm)
 
             // Database name (clickable to switch databases)
             if !databaseName.isEmpty {
@@ -75,7 +74,7 @@ struct ConnectionStatusView: View {
     private var databaseNameLabel: some View {
         HStack(spacing: 4) {
             Image(systemName: "cylinder")
-                .font(.system(size: ToolbarDesignTokens.Spacing.iconSize))
+                .font(.system(size: 13))
                 .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
                 .overlay(alignment: .bottomTrailing) {
                     if isReadOnly {
