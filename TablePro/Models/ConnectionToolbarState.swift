@@ -191,6 +191,8 @@ final class ConnectionToolbarState: ObservableObject {
     /// Replication lag in seconds (for replicated databases)
     @Published var replicationLagSeconds: Int?
 
+    var hasCompletedSetup = false
+
     // MARK: - Computed Properties
 
     /// Formatted database version with type

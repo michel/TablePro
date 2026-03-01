@@ -96,6 +96,7 @@ struct MainContentView: View {
             toolbarSt.connectionState = .connected
             toolbarSt.databaseVersion = driver.serverVersion
         }
+        toolbarSt.hasCompletedSetup = true
 
         // Initialize single tab based on payload
         if let payload, !payload.isConnectionOnly {
@@ -301,7 +302,10 @@ struct MainContentView: View {
                         coordinator.runQuery()
                     }
                 }
-                toolbarState.connectionState = mapSessionStatus(session.status)
+                let mappedState = mapSessionStatus(session.status)
+                if mappedState != toolbarState.connectionState {
+                    toolbarState.connectionState = mappedState
+                }
             }
 
             .onChange(of: selectedTables) { _, newTables in
@@ -409,9 +413,6 @@ struct MainContentView: View {
     private func initializeAndRestoreTabs() async {
         guard !hasInitialized else { return }
         hasInitialized = true
-        // Sync toolbar setup (fast, no I/O)
-        coordinator.initializeToolbar()
-        // Schema load runs in background — doesn't block data query
         Task { await coordinator.loadSchemaIfNeeded() }
 
         // If payload provided a specific tab (not connection-only), execute its query immediately
