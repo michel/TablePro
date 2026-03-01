@@ -105,6 +105,11 @@ struct ContentView: View {
                 if let connectionId = ourConnectionId ?? newSessionId {
                     currentSession = DatabaseManager.shared.activeSessions[connectionId]
                     columnVisibility = currentSession != nil ? .all : .detailOnly
+                    if let session = currentSession {
+                        AppState.shared.isConnected = true
+                        AppState.shared.isReadOnly = session.connection.isReadOnly
+                        AppState.shared.isMongoDB = session.connection.type == .mongodb
+                    }
                 } else {
                     currentSession = nil
                     columnVisibility = .detailOnly
@@ -134,6 +139,9 @@ struct ContentView: View {
                     return
                 }
                 currentSession = newSession
+                AppState.shared.isConnected = true
+                AppState.shared.isReadOnly = newSession.connection.isReadOnly
+                AppState.shared.isMongoDB = newSession.connection.type == .mongodb
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
                 // Sync AppState flags from this window's session when it becomes focused
