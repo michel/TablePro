@@ -7,6 +7,29 @@
 
 import SwiftUI
 
+/// Extracted logic from SidebarContextMenu for testability
+enum SidebarContextMenuLogic {
+    static func hasSelection(selectedTables: Set<TableInfo>, clickedTable: TableInfo?) -> Bool {
+        !selectedTables.isEmpty || clickedTable != nil
+    }
+
+    static func isView(clickedTable: TableInfo?) -> Bool {
+        clickedTable?.type == .view
+    }
+
+    static func importVisible(isView: Bool, isMongoDB: Bool) -> Bool {
+        !isView && !isMongoDB
+    }
+
+    static func truncateVisible(isView: Bool) -> Bool {
+        !isView
+    }
+
+    static func deleteLabel(isView: Bool) -> String {
+        isView ? String(localized: "Drop View") : String(localized: "Delete")
+    }
+}
+
 /// Unified context menu for sidebar — used for both table rows and empty space
 struct SidebarContextMenu: View {
     let clickedTable: TableInfo?
@@ -16,11 +39,11 @@ struct SidebarContextMenu: View {
     let onBatchToggleDelete: () -> Void
 
     private var hasSelection: Bool {
-        !selectedTables.isEmpty || clickedTable != nil
+        SidebarContextMenuLogic.hasSelection(selectedTables: selectedTables, clickedTable: clickedTable)
     }
 
     private var isView: Bool {
-        clickedTable?.type == .view
+        SidebarContextMenuLogic.isView(clickedTable: clickedTable)
     }
 
     var body: some View {

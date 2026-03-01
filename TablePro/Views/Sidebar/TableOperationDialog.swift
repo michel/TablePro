@@ -17,6 +17,7 @@ struct TableOperationDialog: View {
 
     @Binding var isPresented: Bool
     let tableName: String
+    let tableCount: Int
     let operationType: TableOperationType
     let databaseType: DatabaseType
     let onConfirm: (TableOperationOptions) -> Void
@@ -31,9 +32,13 @@ struct TableOperationDialog: View {
     private var title: String {
         switch operationType {
         case .drop:
-            return "Drop table '\(tableName)'"
+            return tableCount > 1
+                ? String(localized: "Drop \(tableCount) tables")
+                : String(localized: "Drop table '\(tableName)'")
         case .truncate:
-            return "Truncate table '\(tableName)'"
+            return tableCount > 1
+                ? String(localized: "Truncate \(tableCount) tables")
+                : String(localized: "Truncate table '\(tableName)'")
         }
     }
 
@@ -49,7 +54,7 @@ struct TableOperationDialog: View {
     }
 
     private var isMultipleTables: Bool {
-        tableName.contains("tables")
+        tableCount > 1
     }
 
     private var cascadeDescription: String {
@@ -195,6 +200,7 @@ private let previewLogger = Logger(subsystem: "com.TablePro", category: "TableOp
     TableOperationDialog(
         isPresented: .constant(true),
         tableName: "users",
+        tableCount: 1,
         operationType: .drop,
         databaseType: .mysql
     )        { options in
@@ -206,6 +212,7 @@ private let previewLogger = Logger(subsystem: "com.TablePro", category: "TableOp
     TableOperationDialog(
         isPresented: .constant(true),
         tableName: "orders",
+        tableCount: 1,
         operationType: .truncate,
         databaseType: .postgresql
     )        { options in
@@ -217,6 +224,7 @@ private let previewLogger = Logger(subsystem: "com.TablePro", category: "TableOp
     TableOperationDialog(
         isPresented: .constant(true),
         tableName: "products",
+        tableCount: 1,
         operationType: .drop,
         databaseType: .sqlite
     )        { options in

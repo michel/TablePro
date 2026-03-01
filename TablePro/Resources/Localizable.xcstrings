@@ -467,6 +467,7 @@
       }
     },
     "%lld tables" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -3095,6 +3096,12 @@
           }
         }
       }
+    },
+    "Drop %lld tables" : {
+
+    },
+    "Drop table '%@'" : {
+
     },
     "Drop View" : {
       "localizations" : {
@@ -8584,6 +8591,9 @@
         }
       }
     },
+    "Truncate %lld tables" : {
+
+    },
     "Truncate Table" : {
       "localizations" : {
         "vi" : {
@@ -8593,6 +8603,9 @@
           }
         }
       }
+    },
+    "Truncate table '%@'" : {
+
     },
     "Try adjusting your search terms\nor date filter." : {
       "localizations" : {

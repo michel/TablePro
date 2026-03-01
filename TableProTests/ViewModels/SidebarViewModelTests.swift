@@ -178,9 +178,9 @@ struct SidebarViewModelTests {
 
     // MARK: - Selection Restoration
 
-    @Test("restores previous selection after refresh")
+    @Test("preserves selection when table still exists after refresh")
     @MainActor
-    func restoresPreviousSelection() async throws {
+    func preservesSelectionAfterRefresh() async throws {
         let usersTable = TestFixtures.makeTableInfo(name: "users")
         let fetchedUsers = TestFixtures.makeTableInfo(name: "users")
 
@@ -356,6 +356,7 @@ struct SidebarViewModelTests {
         let t2 = TestFixtures.makeTableInfo(name: "alpha")
         let (vm, _, _, _, _, _) = makeSUT(selectedTables: [t1, t2])
 
+        NSPasteboard.general.clearContents()
         vm.copySelectedTableNames()
 
         // Verify clipboard contains sorted names

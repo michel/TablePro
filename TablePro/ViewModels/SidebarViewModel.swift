@@ -38,7 +38,14 @@ final class SidebarViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var searchText = ""
-    @Published var isTablesExpanded = true
+    @Published var debouncedSearchText = ""
+    @Published var isTablesExpanded: Bool = {
+        let key = "sidebar.isTablesExpanded"
+        if UserDefaults.standard.object(forKey: key) != nil {
+            return UserDefaults.standard.bool(forKey: key)
+        }
+        return true
+    }()
     @Published var showOperationDialog = false
     @Published var pendingOperationType: TableOperationType?
     @Published var pendingOperationTables: [String] = []
@@ -111,6 +118,15 @@ final class SidebarViewModel: ObservableObject {
         self.databaseType = databaseType
         self.connectionId = connectionId
         self.tableFetcher = tableFetcher ?? LiveTableFetcher(connectionId: connectionId)
+
+        $searchText
+            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
+            .assign(to: &$debouncedSearchText)
+
+        $isTablesExpanded
+            .dropFirst()
+            .sink { UserDefaults.standard.set($0, forKey: "sidebar.isTablesExpanded") }
+            .store(in: &cancellables)
     }
 
     // MARK: - Lifecycle

@@ -27,8 +27,8 @@ struct SidebarView: View {
     /// Computed on the view (not ViewModel) so SwiftUI tracks both
     /// `@Binding var tables` and `@Published var searchText` as dependencies.
     private var filteredTables: [TableInfo] {
-        guard !viewModel.searchText.isEmpty else { return tables }
-        return tables.filter { $0.name.localizedCaseInsensitiveContains(viewModel.searchText) }
+        guard !viewModel.debouncedSearchText.isEmpty else { return tables }
+        return tables.filter { $0.name.localizedCaseInsensitiveContains(viewModel.debouncedSearchText) }
     }
 
     init(
@@ -83,13 +83,10 @@ struct SidebarView: View {
             if let operationType = viewModel.pendingOperationType {
                 let dialogTables = viewModel.pendingOperationTables
                 if let firstTable = dialogTables.first {
-                    let tableName =
-                        dialogTables.count > 1
-                        ? String(localized: "\(dialogTables.count) tables")
-                        : firstTable
                     TableOperationDialog(
                         isPresented: $viewModel.showOperationDialog,
-                        tableName: tableName,
+                        tableName: firstTable,
+                        tableCount: dialogTables.count,
                         operationType: operationType,
                         databaseType: viewModel.databaseType
                     ) { options in
