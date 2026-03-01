@@ -54,7 +54,8 @@ struct AISchemaContext {
         if settings.includeCurrentQuery,
            let query = currentQuery,
            !query.isEmpty {
-            parts.append("\n## Current Query\n```sql\n\(query)\n```")
+            let lang = databaseType == .mongodb ? "javascript" : "sql"
+            parts.append("\n## Current Query\n```\(lang)\n\(query)\n```")
         }
 
         if settings.includeQueryResults,
@@ -63,14 +64,23 @@ struct AISchemaContext {
             parts.append("\n## Recent Query Results\n\(results)")
         }
 
-        parts.append(
-            "\nProvide SQL queries appropriate for"
-            + " \(databaseType.rawValue) syntax when applicable."
-        )
-        parts.append(
-            "When writing SQL, use the correct identifier quoting"
-            + " for \(databaseType.rawValue)."
-        )
+        if databaseType == .mongodb {
+            parts.append(
+                "\nProvide MongoDB shell queries using `javascript` fenced code blocks."
+            )
+            parts.append(
+                "Use MongoDB shell syntax (db.collection.find(), etc.), not SQL."
+            )
+        } else {
+            parts.append(
+                "\nProvide SQL queries appropriate for"
+                + " \(databaseType.rawValue) syntax when applicable."
+            )
+            parts.append(
+                "When writing SQL, use the correct identifier quoting"
+                + " for \(databaseType.rawValue)."
+            )
+        }
 
         return parts.joined(separator: "\n")
     }

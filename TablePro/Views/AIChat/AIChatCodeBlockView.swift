@@ -55,7 +55,7 @@ struct AIChatCodeBlockView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
 
-            if isSQL {
+            if isInsertable {
                 Button {
                     NotificationCenter.default.post(
                         name: .insertQueryFromAI,
@@ -77,6 +77,10 @@ struct AIChatCodeBlockView: View {
                 Text(highlightedSQL(code))
                     .textSelection(.enabled)
                     .padding(10)
+            } else if isMongoDB {
+                Text(highlightedJavaScript(code))
+                    .textSelection(.enabled)
+                    .padding(10)
             } else {
                 Text(code)
                     .font(.system(size: 12, design: .monospaced))
@@ -90,6 +94,16 @@ struct AIChatCodeBlockView: View {
         guard let language else { return false }
         let sqlLanguages = ["sql", "mysql", "postgresql", "postgres", "sqlite"]
         return sqlLanguages.contains(language.lowercased())
+    }
+
+    private var isMongoDB: Bool {
+        guard let language else { return false }
+        let mongoLanguages = ["javascript", "js", "mongodb", "mongo"]
+        return mongoLanguages.contains(language.lowercased())
+    }
+
+    private var isInsertable: Bool {
+        isSQL || isMongoDB
     }
 
     // MARK: - Static SQL Regex Patterns (compiled once)
@@ -186,6 +200,117 @@ struct AIChatCodeBlockView: View {
         for match in SQLPatterns.keyword.matches(in: code, range: fullRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemBlue)
+        }
+
+        return result
+    }
+
+    // MARK: - Static JavaScript Regex Patterns (compiled once)
+
+    private enum JSPatterns {
+        // swiftlint:disable force_try
+        static let singleLineComment = try! NSRegularExpression(pattern: "//[^\r\n]*")
+        static let multiLineComment = try! NSRegularExpression(pattern: "/\\*[\\s\\S]*?\\*/")
+        static let doubleQuoteString = try! NSRegularExpression(pattern: "\"(?:[^\"\\\\]|\\\\.)*\"")
+        static let singleQuoteString = try! NSRegularExpression(pattern: "'(?:[^'\\\\]|\\\\.)*'")
+        static let number = try! NSRegularExpression(pattern: "\\b\\d+(\\.\\d+)?\\b")
+        static let boolNull = try! NSRegularExpression(
+            pattern: "\\b(true|false|null|undefined|NaN|Infinity)\\b"
+        )
+        static let keyword: NSRegularExpression = {
+            let keywords = [
+                "var", "let", "const", "function", "return", "if", "else", "for", "while",
+                "do", "switch", "case", "break", "continue", "new", "this", "typeof",
+                "instanceof", "in", "of", "try", "catch", "throw", "finally", "async", "await"
+            ]
+            let pattern = "\\b(" + keywords.joined(separator: "|") + ")\\b"
+            return try! NSRegularExpression(pattern: pattern)
+        }()
+        static let method: NSRegularExpression = {
+            let methods = [
+                "find", "findOne", "insertOne", "insertMany", "updateOne", "updateMany",
+                "deleteOne", "deleteMany", "aggregate", "countDocuments", "distinct",
+                "createIndex", "dropIndex", "explain", "limit", "skip", "sort", "project",
+                "match", "group", "unwind", "lookup", "replaceOne", "bulkWrite"
+            ]
+            let pattern = "\\.(" + methods.joined(separator: "|") + ")\\b"
+            return try! NSRegularExpression(pattern: pattern)
+        }()
+        static let property = try! NSRegularExpression(pattern: "\\b(db)\\b")
+        // swiftlint:enable force_try
+    }
+
+    private func highlightedJavaScript(_ code: String) -> AttributedString {
+        var result = AttributedString(code)
+        result.font = .system(size: 12, design: .monospaced)
+
+        var protectedRanges: [Range<AttributedString.Index>] = []
+
+        func applyColor(_ nsRange: NSRange, color: NSColor, protect: Bool = false) {
+            guard let stringRange = Range(nsRange, in: code),
+                  let attrStart = AttributedString.Index(stringRange.lowerBound, within: result),
+                  let attrEnd = AttributedString.Index(stringRange.upperBound, within: result) else {
+                return
+            }
+            let range = attrStart..<attrEnd
+            result[range].foregroundColor = Color(nsColor: color)
+            if protect {
+                protectedRanges.append(range)
+            }
+        }
+
+        func isProtected(_ nsRange: NSRange) -> Bool {
+            guard let stringRange = Range(nsRange, in: code),
+                  let attrStart = AttributedString.Index(stringRange.lowerBound, within: result),
+                  let attrEnd = AttributedString.Index(stringRange.upperBound, within: result) else {
+                return false
+            }
+            let range = attrStart..<attrEnd
+            return protectedRanges.contains { $0.overlaps(range) }
+        }
+
+        let nsCode = code as NSString
+        let fullRange = NSRange(location: 0, length: nsCode.length)
+
+        for match in JSPatterns.singleLineComment.matches(in: code, range: fullRange) {
+            applyColor(match.range, color: .systemGreen, protect: true)
+        }
+
+        for match in JSPatterns.multiLineComment.matches(in: code, range: fullRange) {
+            applyColor(match.range, color: .systemGreen, protect: true)
+        }
+
+        for match in JSPatterns.doubleQuoteString.matches(in: code, range: fullRange) {
+            applyColor(match.range, color: .systemRed, protect: true)
+        }
+
+        for match in JSPatterns.singleQuoteString.matches(in: code, range: fullRange) {
+            applyColor(match.range, color: .systemRed, protect: true)
+        }
+
+        for match in JSPatterns.number.matches(in: code, range: fullRange) {
+            guard !isProtected(match.range) else { continue }
+            applyColor(match.range, color: .systemPurple)
+        }
+
+        for match in JSPatterns.boolNull.matches(in: code, range: fullRange) {
+            guard !isProtected(match.range) else { continue }
+            applyColor(match.range, color: .systemOrange)
+        }
+
+        for match in JSPatterns.keyword.matches(in: code, range: fullRange) {
+            guard !isProtected(match.range) else { continue }
+            applyColor(match.range, color: .systemPink)
+        }
+
+        for match in JSPatterns.method.matches(in: code, range: fullRange) {
+            guard !isProtected(match.range) else { continue }
+            applyColor(match.range, color: .systemBlue)
+        }
+
+        for match in JSPatterns.property.matches(in: code, range: fullRange) {
+            guard !isProtected(match.range) else { continue }
+            applyColor(match.range, color: .systemTeal)
         }
 
         return result
