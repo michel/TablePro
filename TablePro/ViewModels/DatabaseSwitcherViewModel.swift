@@ -74,7 +74,7 @@ class DatabaseSwitcherViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            guard let driver = DatabaseManager.shared.activeDriver else {
+            guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
                 errorMessage = "No active connection"
                 isLoading = false
                 return
@@ -130,7 +130,7 @@ class DatabaseSwitcherViewModel: ObservableObject {
 
     /// Create a new database
     func createDatabase(name: String, charset: String, collation: String?) async throws {
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
             throw DatabaseError.notConnected
         }
 

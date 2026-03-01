@@ -172,8 +172,7 @@ final class TabPersistenceService: ObservableObject {
         }
 
         // Fallback to session (persists during app session only)
-        if let sessionId = DatabaseManager.shared.currentSessionId,
-           let session = DatabaseManager.shared.activeSessions[sessionId],
+        if let session = DatabaseManager.shared.session(for: connectionId),
            !session.tabs.isEmpty {
             return RestoreResult(
                 tabs: session.tabs,

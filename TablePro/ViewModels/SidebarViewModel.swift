@@ -19,8 +19,10 @@ protocol TableFetcher: Sendable {
 
 /// Production implementation that uses DatabaseManager
 struct LiveTableFetcher: TableFetcher {
+    let connectionId: UUID
+
     func fetchTables() async throws -> [TableInfo] {
-        guard let driver = await DatabaseManager.shared.activeDriver else { return [] }
+        guard let driver = await DatabaseManager.shared.driver(for: connectionId) else { return [] }
         return try await driver.fetchTables()
     }
 }
@@ -57,6 +59,7 @@ final class SidebarViewModel: ObservableObject {
 
     // MARK: - Dependencies
 
+    private let connectionId: UUID
     private let tableFetcher: TableFetcher
     private var cancellables = Set<AnyCancellable>()
     private var hasSetupNotifications = false
@@ -97,7 +100,8 @@ final class SidebarViewModel: ObservableObject {
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
         databaseType: DatabaseType,
-        tableFetcher: TableFetcher = LiveTableFetcher()
+        connectionId: UUID,
+        tableFetcher: TableFetcher? = nil
     ) {
         self.tablesBinding = tables
         self.selectedTablesBinding = selectedTables
@@ -105,7 +109,8 @@ final class SidebarViewModel: ObservableObject {
         self.pendingDeletesBinding = pendingDeletes
         self.tableOperationOptionsBinding = tableOperationOptions
         self.databaseType = databaseType
-        self.tableFetcher = tableFetcher
+        self.connectionId = connectionId
+        self.tableFetcher = tableFetcher ?? LiveTableFetcher(connectionId: connectionId)
     }
 
     // MARK: - Lifecycle
@@ -113,7 +118,7 @@ final class SidebarViewModel: ObservableObject {
     func onAppear() {
         guard tables.isEmpty else { return }
         Task { @MainActor in
-            if DatabaseManager.shared.activeDriver != nil {
+            if DatabaseManager.shared.driver(for: connectionId) != nil {
                 loadTables()
             }
         }

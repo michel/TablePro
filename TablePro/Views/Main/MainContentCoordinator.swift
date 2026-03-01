@@ -50,6 +50,7 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Dependencies
 
     nonisolated(unsafe) let connection: DatabaseConnection
+    var connectionId: UUID { connection.id }
     let tabManager: QueryTabManager
     let changeManager: DataChangeManager
     let filterStateManager: FilterStateManager
@@ -85,6 +86,10 @@ final class MainContentCoordinator: ObservableObject {
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
+
+    /// True while a database switch is in progress. Guards against
+    /// side-effect window creation during the switch cascade.
+    var isSwitchingDatabase = false
 
     /// Tracks whether teardown() was called; used by deinit to log missed teardowns
     private var didTeardown = false
@@ -161,12 +166,12 @@ final class MainContentCoordinator: ObservableObject {
     func initializeToolbar() {
         toolbarState.update(from: connection)
 
-        if let session = DatabaseManager.shared.currentSession {
+        if let session = DatabaseManager.shared.session(for: connectionId) {
             toolbarState.connectionState = mapSessionStatus(session.status)
             if let driver = session.driver {
                 toolbarState.databaseVersion = driver.serverVersion
             }
-        } else if let driver = DatabaseManager.shared.activeDriver {
+        } else if let driver = DatabaseManager.shared.driver(for: connectionId) {
             toolbarState.connectionState = .connected
             toolbarState.databaseVersion = driver.serverVersion
         }
@@ -199,12 +204,12 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - Schema Loading
 
     func loadSchema() async {
-        guard let driver = DatabaseManager.shared.activeDriver else { return }
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
         await schemaProvider.loadSchema(using: driver, connection: connection)
     }
 
     func loadTableMetadata(tableName: String) async {
-        guard let driver = DatabaseManager.shared.activeDriver else { return }
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
         do {
             let metadata = try await driver.fetchTableMetadata(tableName: tableName)
@@ -412,7 +417,7 @@ final class MainContentCoordinator: ObservableObject {
                     // If metadata is NOT cached and a dedicated metadata driver exists,
                     // start fetching columns+FKs on the separate connection so it runs
                     // in parallel with the main query.
-                    if needsMetadataFetch, let metaDriver = DatabaseManager.shared.activeMetadataDriver {
+                    if needsMetadataFetch, let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) {
                         parallelSchemaTask = Task {
                             async let cols = metaDriver.fetchColumns(table: tableName)
                             async let fks = metaDriver.fetchForeignKeys(table: tableName)
@@ -424,7 +429,10 @@ final class MainContentCoordinator: ObservableObject {
                 }
 
                 // Main data query (on primary driver — runs concurrently with metadata)
-                let result = try await DatabaseManager.shared.execute(query: effectiveSQL)
+                guard let queryDriver = DatabaseManager.shared.driver(for: connectionId) else {
+                    throw DatabaseError.notConnected
+                }
+                let result = try await queryDriver.execute(query: effectiveSQL)
 
                 let safeColumns = result.columns
                 let safeColumnTypes = result.columnTypes
@@ -892,135 +900,6 @@ final class MainContentCoordinator: ObservableObject {
         )
     }
 
-    /// Generates SQL statements for table truncate/drop operations.
-    /// - Parameters:
-    ///   - truncates: Set of table names to truncate
-    ///   - deletes: Set of table names to drop
-    ///   - options: Per-table options for FK and cascade handling
-    ///   - wrapInTransaction: Whether to wrap statements in BEGIN/COMMIT
-    ///   - includeFKHandling: Whether to include FK disable/enable statements (set false when caller handles FK)
-    /// - Returns: Array of SQL statements to execute
-    internal func generateTableOperationSQL(
-        truncates: Set<String>,
-        deletes: Set<String>,
-        options: [String: TableOperationOptions],
-        wrapInTransaction: Bool = true,
-        includeFKHandling: Bool = true
-    ) -> [String] {
-        var statements: [String] = []
-        let dbType = connection.type
-
-        // Sort tables for consistent execution order
-        let sortedTruncates = truncates.sorted()
-        let sortedDeletes = deletes.sorted()
-
-        // Check if any operation needs FK disabled (not applicable to PostgreSQL)
-        let needsDisableFK = includeFKHandling && dbType != .postgresql && truncates.union(deletes).contains { tableName in
-            options[tableName]?.ignoreForeignKeys == true
-        }
-
-        // FK disable must be OUTSIDE transaction to ensure it takes effect even on rollback
-        if needsDisableFK {
-            statements.append(contentsOf: fkDisableStatements(for: dbType))
-        }
-
-        // Wrap in transaction for atomicity
-        let needsTransaction = wrapInTransaction && (sortedTruncates.count + sortedDeletes.count) > 1
-        if needsTransaction {
-            statements.append("BEGIN")
-        }
-
-        for tableName in sortedTruncates {
-            let quotedName = dbType.quoteIdentifier(tableName)
-            let tableOptions = options[tableName] ?? TableOperationOptions()
-            statements.append(contentsOf: truncateStatements(tableName: tableName, quotedName: quotedName, options: tableOptions, dbType: dbType))
-        }
-
-        let viewNames: Set<String> = {
-            guard let session = DatabaseManager.shared.currentSession else { return [] }
-            return Set(session.tables.filter { $0.type == .view }.map(\.name))
-        }()
-
-        for tableName in sortedDeletes {
-            let quotedName = dbType.quoteIdentifier(tableName)
-            let tableOptions = options[tableName] ?? TableOperationOptions()
-            statements.append(dropTableStatement(tableName: tableName, quotedName: quotedName, isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType))
-        }
-
-        if needsTransaction {
-            statements.append("COMMIT")
-        }
-
-        // FK re-enable must be OUTSIDE transaction to ensure it runs even on rollback
-        if needsDisableFK {
-            statements.append(contentsOf: fkEnableStatements(for: dbType))
-        }
-
-        return statements
-    }
-
-    /// Returns SQL statements to disable foreign key checks for the database type.
-    /// - Note: PostgreSQL doesn't support globally disabling FK checks; use CASCADE instead.
-    internal func fkDisableStatements(for dbType: DatabaseType) -> [String] {
-        switch dbType {
-        case .mysql, .mariadb: return ["SET FOREIGN_KEY_CHECKS=0"]
-        case .postgresql, .mongodb: return []
-        case .sqlite: return ["PRAGMA foreign_keys = OFF"]
-        }
-    }
-
-    /// Returns SQL statements to re-enable foreign key checks for the database type.
-    internal func fkEnableStatements(for dbType: DatabaseType) -> [String] {
-        switch dbType {
-        case .mysql, .mariadb:
-            return ["SET FOREIGN_KEY_CHECKS=1"]
-        case .postgresql, .mongodb:
-            return []
-        case .sqlite:
-            return ["PRAGMA foreign_keys = ON"]
-        }
-    }
-
-    /// Generates TRUNCATE/DELETE statements for a table.
-    /// - Note: SQLite uses DELETE and resets auto-increment via sqlite_sequence.
-    private func truncateStatements(tableName: String, quotedName: String, options: TableOperationOptions, dbType: DatabaseType) -> [String] {
-        switch dbType {
-        case .mysql, .mariadb:
-            return ["TRUNCATE TABLE \(quotedName)"]
-        case .postgresql:
-            let cascade = options.cascade ? " CASCADE" : ""
-            return ["TRUNCATE TABLE \(quotedName)\(cascade)"]
-        case .sqlite:
-            // DELETE FROM + reset auto-increment counter for true TRUNCATE semantics.
-            // Note: quotedName uses backticks (via quoteIdentifier) for SQL identifiers,
-            // while escapedName uses single-quote escaping for string literals in the
-            // sqlite_sequence query. These are different SQL quoting mechanisms for
-            // different purposes (identifier vs string literal).
-            let escapedName = tableName.replacingOccurrences(of: "'", with: "''")
-            return [
-                "DELETE FROM \(quotedName)",
-                // sqlite_sequence may not exist if no table has AUTOINCREMENT.
-                // This DELETE will succeed silently if the table isn't in sqlite_sequence.
-                "DELETE FROM sqlite_sequence WHERE name = '\(escapedName)'"
-            ]
-        case .mongodb:
-            return ["db.\(tableName).deleteMany({})"]
-        }
-    }
-
-    /// Generates DROP TABLE/VIEW statement with optional CASCADE.
-    private func dropTableStatement(tableName: String, quotedName: String, isView: Bool, options: TableOperationOptions, dbType: DatabaseType) -> String {
-        let keyword = isView ? "VIEW" : "TABLE"
-        switch dbType {
-        case .postgresql:
-            return "DROP \(keyword) \(quotedName)\(options.cascade ? " CASCADE" : "")"
-        case .mysql, .mariadb, .sqlite:
-            return "DROP \(keyword) \(quotedName)"
-        case .mongodb:
-            return "db.\(tableName).drop()"
-        }
-    }
-
     /// Executes an array of SQL statements sequentially.
     /// This approach prevents SQL injection by avoiding semicolon-based string splitting.
     /// - Parameters:
@@ -1073,7 +952,7 @@ final class MainContentCoordinator: ObservableObject {
             let overallStartTime = Date()
 
             do {
-                guard let driver = DatabaseManager.shared.activeDriver else {
+                guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].errorMessage = "Not connected to database"
                     }
@@ -1129,7 +1008,7 @@ final class MainContentCoordinator: ObservableObject {
                 let executionTime = Date().timeIntervalSince(overallStartTime)
 
                 // Try to re-enable FK checks if they were disabled
-                if fkWasDisabled, let driver = DatabaseManager.shared.activeDriver {
+                if fkWasDisabled, let driver = DatabaseManager.shared.driver(for: connectionId) {
                     for statement in self.fkEnableStatements(for: dbType) {
                         do {
                             _ = try await driver.execute(query: statement)
@@ -1191,7 +1070,7 @@ final class MainContentCoordinator: ObservableObject {
 
     /// Execute sidebar changes immediately (single transaction)
     func executeSidebarChanges(statements: [String]) async throws {
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
             throw DatabaseError.notConnected
         }
 
@@ -1250,7 +1129,7 @@ final class MainContentCoordinator: ObservableObject {
             let startTime = Date()
 
             do {
-                guard let driver = DatabaseManager.shared.activeDriver else {
+                guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].errorMessage = "Not connected to database"
                     }
@@ -1423,7 +1302,7 @@ private extension MainContentCoordinator {
         if let parallelTask {
             return try? await parallelTask.value
         }
-        guard let driver = DatabaseManager.shared.activeDriver else { return nil }
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return nil }
         do {
             async let cols = driver.fetchColumns(table: tableName)
             async let fks = driver.fetchForeignKeys(table: tableName)
@@ -1526,7 +1405,7 @@ private extension MainContentCoordinator {
         let quotedTable = connectionType.quoteIdentifier(tableName)
         Task { [weak self] in
             guard let self else { return }
-            guard let mainDriver = DatabaseManager.shared.activeDriver else { return }
+            guard let mainDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
             let countResult = try? await mainDriver.execute(
                 query: "SELECT COUNT(*) FROM \(quotedTable)"
             )
@@ -1546,8 +1425,8 @@ private extension MainContentCoordinator {
 
         // Phase 2b: Fetch enum/set values
         guard let schema = schemaResult else { return }
-        let enumDriver = DatabaseManager.shared.activeMetadataDriver
-            ?? DatabaseManager.shared.activeDriver
+        let enumDriver = DatabaseManager.shared.metadataDriver(for: connectionId)
+            ?? DatabaseManager.shared.driver(for: connectionId)
         guard let enumDriver else { return }
 
         Task { [weak self] in

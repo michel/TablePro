@@ -179,6 +179,7 @@ struct TableStructureView: View {
             },
             dropdownColumns: provider.dropdownColumns,
             typePickerColumns: provider.typePickerColumns,
+            connectionId: connection.id,
             databaseType: getDatabaseType(),
             selectedRowIndices: $selectedRows,
             sortState: $sortState,
@@ -543,7 +544,7 @@ struct TableStructureView: View {
             await loadColumns()
 
             // Load indexes and foreign keys (needed for complete schema state)
-            guard let driver = DatabaseManager.shared.activeDriver else {
+            guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
                 isReloadingAfterSave = false
                 return
             }
@@ -580,7 +581,7 @@ struct TableStructureView: View {
     }
 
     private func getDatabaseType() -> DatabaseType {
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
             return .mysql
         }
 
@@ -684,7 +685,7 @@ struct TableStructureView: View {
         isLoading = true
         errorMessage = nil
 
-        guard let driver = DatabaseManager.shared.activeDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
             errorMessage = String(localized: "Not connected")
             isLoading = false
             return
@@ -702,7 +703,7 @@ struct TableStructureView: View {
 
     private func loadTabDataIfNeeded(_ tab: StructureTab) async {
         guard !loadedTabs.contains(tab) else { return }
-        guard let driver = DatabaseManager.shared.activeDriver else { return }
+        guard let driver = DatabaseManager.shared.driver(for: connection.id) else { return }
 
         do {
             switch tab {

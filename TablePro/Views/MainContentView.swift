@@ -87,7 +87,7 @@ struct MainContentView: View {
         let toolbarSt = ConnectionToolbarState()
 
         // Initialize single tab based on payload
-        if let payload {
+        if let payload, !payload.isConnectionOnly {
             switch payload.tabType {
             case .table:
                 if let tableName = payload.tableName {
@@ -118,7 +118,7 @@ struct MainContentView: View {
                 )
             }
         }
-        // If payload is nil, tab restoration will add tabs in initializeAndRestoreTabs()
+        // If payload is nil or connection-only, tab restoration handles it in initializeAndRestoreTabs()
 
         _tabManager = StateObject(wrappedValue: tabMgr)
         _changeManager = StateObject(wrappedValue: changeMgr)
@@ -223,9 +223,43 @@ struct MainContentView: View {
                     tabs: tabManager.tabs.map { $0.toSnapshot() },
                     selectedTabId: tabManager.selectedTabId
                 )
+
+                // Register NSWindow reference and set per-connection tab grouping
+                DispatchQueue.main.async {
+                    // Find our window by title rather than keyWindow to avoid races
+                    // when multiple windows open simultaneously
+                    let targetTitle = windowTitle
+                    let window = NSApp.keyWindow
+                        ?? NSApp.windows.first { $0.isVisible && $0.title == targetTitle }
+                    guard let window else { return }
+                    window.subtitle = connection.name
+                    window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
+                    window.tabbingMode = .preferred
+                    NativeTabRegistry.shared.setWindow(window, for: windowId, connectionId: connection.id)
+                }
             }
             .onDisappear {
                 NativeTabRegistry.shared.unregister(windowId: windowId)
+
+                // Defer the disconnect check — SwiftUI fires onDisappear+onAppear in
+                // rapid succession during body re-evaluations (e.g., when session status
+                // changes from .connecting to .connected). The short delay lets the
+                // re-registration from onAppear fire first, preventing false disconnects.
+                let connectionId = connection.id
+                let connectionName = connection.name
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(200))
+
+                    // After the delay, check if any windows re-registered for this connection
+                    guard !NativeTabRegistry.shared.hasWindows(for: connectionId) else { return }
+                    let hasVisibleWindow = NSApp.windows.contains { window in
+                        window.isVisible && window.subtitle == connectionName
+                    }
+                    if !hasVisibleWindow {
+                        await DatabaseManager.shared.disconnectSession(connectionId)
+                    }
+                }
+
                 coordinator.teardown()
             }
             .onChange(of: pendingChangeTrigger) {
@@ -362,8 +396,8 @@ struct MainContentView: View {
         // Schema load runs in background — doesn't block data query
         Task { await coordinator.loadSchemaIfNeeded() }
 
-        // If payload provided a tab, execute its query immediately
-        if payload != nil {
+        // If payload provided a specific tab (not connection-only), execute its query immediately
+        if let payload, !payload.isConnectionOnly {
             if let selectedTab = tabManager.selectedTab,
                selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -388,6 +422,7 @@ struct MainContentView: View {
             return
         }
 
+        // Connection-only payload or nil payload — restore tabs from storage
         // If other windows already exist for this connection, this is a "new tab"
         // from the native macOS "+" button — just add a single empty query tab.
         if NativeTabRegistry.shared.hasWindows(for: connection.id) {
@@ -395,7 +430,7 @@ struct MainContentView: View {
             return
         }
 
-        // No payload — restore tabs from storage (first window on connection)
+        // No existing windows — restore tabs from storage (first window on connection)
         let result = await coordinator.tabPersistence.restoreTabs()
         if !result.tabs.isEmpty {
             coordinator.tabPersistence.beginRestoration()
@@ -615,11 +650,13 @@ struct MainContentView: View {
             return
         }
 
-        switch SidebarNavigationResult.resolve(
+        let result = SidebarNavigationResult.resolve(
             clickedTableName: table.name,
             currentTabTableName: tabManager.selectedTab?.tableName,
             hasExistingTabs: !tabManager.tabs.isEmpty
-        ) {
+        )
+
+        switch result {
         case .skip:
             // Programmatic sync — selection already reflects the active tab.
             AppState.shared.hasTableSelection = !newTables.isEmpty
@@ -661,7 +698,7 @@ struct MainContentView: View {
 
         Task {
             do {
-                guard let driver = DatabaseManager.shared.activeDriver else {
+                guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
                     if let index = tabManager.selectedTabIndex {
                         tabManager.tabs[index].errorMessage = "Not connected to database"
                     }

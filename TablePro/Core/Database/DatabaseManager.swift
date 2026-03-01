@@ -49,6 +49,21 @@ final class DatabaseManager: ObservableObject {
         currentSession?.metadataDriver
     }
 
+    /// Resolve the driver for a specific connection (session-scoped, no global state)
+    func driver(for connectionId: UUID) -> DatabaseDriver? {
+        activeSessions[connectionId]?.driver
+    }
+
+    /// Resolve the metadata driver for a specific connection
+    func metadataDriver(for connectionId: UUID) -> DatabaseDriver? {
+        activeSessions[connectionId]?.metadataDriver
+    }
+
+    /// Resolve a session by explicit connection ID
+    func session(for connectionId: UUID) -> ConnectionSession? {
+        activeSessions[connectionId]
+    }
+
     /// Current connection status
     var status: ConnectionStatus {
         currentSession?.status ?? .disconnected
@@ -257,6 +272,18 @@ final class DatabaseManager: ObservableObject {
         update(&session)
         activeSessions[sessionId] = session
     }
+
+    #if DEBUG
+    /// Test-only: inject a session for unit testing without real database connections
+    internal func injectSession(_ session: ConnectionSession, for connectionId: UUID) {
+        activeSessions[connectionId] = session
+    }
+
+    /// Test-only: remove an injected session
+    internal func removeSession(for connectionId: UUID) {
+        activeSessions.removeValue(forKey: connectionId)
+    }
+    #endif
 
     // MARK: - Query Execution (uses current session)
 
@@ -524,9 +551,13 @@ final class DatabaseManager: ObservableObject {
 
     /// Reconnect the current session (called from toolbar Reconnect button)
     func reconnectCurrentSession() async {
-        guard let sessionId = currentSessionId,
-            let session = activeSessions[sessionId]
-        else { return }
+        guard let sessionId = currentSessionId else { return }
+        await reconnectSession(sessionId)
+    }
+
+    /// Reconnect a specific session by ID
+    func reconnectSession(_ sessionId: UUID) async {
+        guard let session = activeSessions[sessionId] else { return }
 
         Self.logger.info("Manual reconnect requested for: \(session.connection.name)")
 
@@ -653,7 +684,25 @@ final class DatabaseManager: ObservableObject {
         changes: [SchemaChange],
         databaseType: DatabaseType
     ) async throws {
-        guard let driver = activeDriver else {
+        guard let sessionId = currentSessionId else {
+            throw DatabaseError.notConnected
+        }
+        try await executeSchemaChanges(
+            tableName: tableName,
+            changes: changes,
+            databaseType: databaseType,
+            connectionId: sessionId
+        )
+    }
+
+    /// Execute schema changes using an explicit connection ID (session-scoped)
+    func executeSchemaChanges(
+        tableName: String,
+        changes: [SchemaChange],
+        databaseType: DatabaseType,
+        connectionId: UUID
+    ) async throws {
+        guard let driver = driver(for: connectionId) else {
             throw DatabaseError.notConnected
         }
 

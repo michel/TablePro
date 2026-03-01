@@ -22,6 +22,7 @@ struct SidebarView: View {
 
     var activeTableName: String?
     var onShowAllTables: (() -> Void)?
+    var connectionId: UUID
 
     /// Computed on the view (not ViewModel) so SwiftUI tracks both
     /// `@Binding var tables` and `@Published var searchText` as dependencies.
@@ -38,7 +39,8 @@ struct SidebarView: View {
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
-        databaseType: DatabaseType
+        databaseType: DatabaseType,
+        connectionId: UUID
     ) {
         _tables = tables
         _selectedTables = selectedTables
@@ -50,10 +52,12 @@ struct SidebarView: View {
             pendingTruncates: pendingTruncates,
             pendingDeletes: pendingDeletes,
             tableOperationOptions: tableOperationOptions,
-            databaseType: databaseType
+            databaseType: databaseType,
+            connectionId: connectionId
         ))
         self.activeTableName = activeTableName
         self.onShowAllTables = onShowAllTables
+        self.connectionId = connectionId
     }
 
     // MARK: - Body
@@ -67,7 +71,7 @@ struct SidebarView: View {
         }
         .frame(minWidth: 280)
         .onChange(of: tables) { _, newTables in
-            if newTables.isEmpty && DatabaseManager.shared.status != .disconnected && !viewModel.isLoading {
+            if newTables.isEmpty && DatabaseManager.shared.activeSessions[connectionId] != nil && !viewModel.isLoading {
                 viewModel.loadTables()
             }
         }
@@ -257,7 +261,8 @@ struct SidebarView: View {
         pendingTruncates: .constant([]),
         pendingDeletes: .constant([]),
         tableOperationOptions: .constant([:]),
-        databaseType: .mysql
+        databaseType: .mysql,
+        connectionId: UUID()
     )
     .frame(width: 250, height: 400)
 }
