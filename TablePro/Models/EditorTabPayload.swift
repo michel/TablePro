@@ -60,6 +60,13 @@ internal struct EditorTabPayload: Codable, Hashable {
         showStructure = try container.decodeIfPresent(Bool.self, forKey: .showStructure) ?? false
     }
 
+    /// Whether this payload is a "connection-only" payload — just a connectionId
+    /// with no specific tab content. Used by MainContentView to decide whether
+    /// to create a default tab or restore tabs from storage.
+    internal var isConnectionOnly: Bool {
+        tabType == .query && tableName == nil && initialQuery == nil
+    }
+
     /// Create a payload from a persisted QueryTab for restoration
     internal init(from tab: QueryTab, connectionId: UUID) {
         self.id = UUID()

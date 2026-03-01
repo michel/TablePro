@@ -16,6 +16,8 @@ struct ConnectionSwitcherPopover: View {
     @State private var selectedIndex: Int = 0
     @State private var keyMonitor: Any?
 
+    @Environment(\.openWindow) private var openWindow
+
     /// Callback when the popover should dismiss
     var onDismiss: (() -> Void)?
 
@@ -299,18 +301,48 @@ struct ConnectionSwitcherPopover: View {
     }
 
     private func switchToSession(_ sessionId: UUID) {
+        print("[ConnectionSwitcher] switchToSession connId=\(sessionId.uuidString.prefix(8))")
         onDismiss?()
-        DatabaseManager.shared.switchToSession(sessionId)
+        // Try to bring existing window for this connection to front
+        if let existingWindow = findWindow(for: sessionId) {
+            print("[ConnectionSwitcher] FOUND existing window: \(existingWindow) title=\(existingWindow.title) subtitle=\(existingWindow.subtitle)")
+            existingWindow.makeKeyAndOrderFront(nil)
+        } else {
+            print("[ConnectionSwitcher] NO window found — creating new window")
+            openWindowForDifferentConnection(EditorTabPayload(connectionId: sessionId))
+        }
     }
 
     private func connectToSaved(_ connection: DatabaseConnection) {
+        print("[ConnectionSwitcher] connectToSaved name=\(connection.name) connId=\(connection.id.uuidString.prefix(8))")
         isConnecting = connection.id
         onDismiss?()
+        // Open a new window, then connect — window shows "Connecting..." until ready
+        openWindowForDifferentConnection(EditorTabPayload(connectionId: connection.id))
         Task {
             try? await DatabaseManager.shared.connectToSession(connection)
             await MainActor.run {
                 isConnecting = nil
             }
+        }
+    }
+
+    /// Find an existing visible window for the given connection ID
+    private func findWindow(for connectionId: UUID) -> NSWindow? {
+        NativeTabRegistry.shared.findWindow(for: connectionId)
+    }
+
+    /// Open a new window for a different connection, ensuring it doesn't
+    /// merge as a tab with the current connection's window group.
+    private func openWindowForDifferentConnection(_ payload: EditorTabPayload) {
+        // Temporarily disable tab merging so the new window opens independently
+        let currentWindow = NSApp.keyWindow
+        let previousMode = currentWindow?.tabbingMode ?? .preferred
+        currentWindow?.tabbingMode = .disallowed
+        openWindow(id: "main", value: payload)
+        // Restore after the next run loop to let window creation complete
+        DispatchQueue.main.async {
+            currentWindow?.tabbingMode = previousMode
         }
     }
 }
