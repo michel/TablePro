@@ -580,6 +580,42 @@ jobs:
           fi
           rm -rf "$TEMP_DIR"
 
+          # Extract release notes from CHANGELOG.md and convert to HTML for appcast
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if ($0 ~ "\\[" ver "\\]") { found=1; next }
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          if [ -z "$NOTES" ]; then
+            RELEASE_HTML="<li>Bug fixes and improvements</li>"
+          else
+            # Convert markdown to simple HTML:
+            #   ### Header -> <h3>Header</h3>
+            #   - item    -> <li>item</li>
+            #   Wrap consecutive <li> runs in <ul>...</ul>
+            RELEASE_HTML=$(echo "$NOTES" | sed -E \
+              -e 's/^### (.+)$/<h3>\1<\/h3>/' \
+              -e 's/^- (.+)$/<li>\1<\/li>/' \
+              -e '/^[[:space:]]*$/d' \
+            | awk '
+              /<li>/ {
+                if (!in_list) { print "<ul>"; in_list=1 }
+                print; next
+              }
+              {
+                if (in_list) { print "</ul>"; in_list=0 }
+                print
+              }
+              END { if (in_list) print "</ul>" }
+            ')
+          fi
+
+          # Wrap in a styled HTML body
+          DESCRIPTION_HTML="<body style=\"font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;\">${RELEASE_HTML}</body>"
+
           # Build appcast.xml with architecture-specific items (Sparkle 2 convention)
           # Each item has sparkle:architectures on the enclosure so the client
           # automatically picks the matching architecture
@@ -598,7 +634,7 @@ jobs:
                       <sparkle:version>${BUILD_NUMBER}</sparkle:version>
                       <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
                       <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
-                      <sparkle:releaseNotesLink>https://github.com/datlechin/TablePro/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+                      <description><![CDATA[${DESCRIPTION_HTML}]]></description>
                       <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-arm64.zip" length="${ARM64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${ARM64_ED_SIG}" sparkle:architectures="arm64"/>
                   </item>
                   <item>
@@ -607,7 +643,7 @@ jobs:
                       <sparkle:version>${BUILD_NUMBER}</sparkle:version>
                       <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
                       <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
-                      <sparkle:releaseNotesLink>https://github.com/datlechin/TablePro/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+                      <description><![CDATA[${DESCRIPTION_HTML}]]></description>
                       <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-x86_64.zip" length="${X86_64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${X86_64_ED_SIG}" sparkle:architectures="x86_64"/>
                   </item>
               </channel>
