@@ -19,7 +19,7 @@ struct MongoDBQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
-        var query = "db.\(collection).find({})"
+        var query = "\(Self.mongoCollectionAccessor(collection)).find({})"
 
         if let sort = buildSortDocument(sortState: sortState, columns: columns) {
             query += ".sort(\(sort))"
@@ -44,7 +44,7 @@ struct MongoDBQueryBuilder {
         offset: Int = 0
     ) -> String {
         let filterDoc = buildFilterDocument(from: filters, logicMode: logicMode)
-        var query = "db.\(collection).find(\(filterDoc))"
+        var query = "\(Self.mongoCollectionAccessor(collection)).find(\(filterDoc))"
 
         if let sort = buildSortDocument(sortState: sortState, columns: columns) {
             query += ".sort(\(sort))"
@@ -69,7 +69,7 @@ struct MongoDBQueryBuilder {
     ) -> String {
         let escaped = escapeRegexChars(searchText)
         let conditions = columns.map { column in
-            "\"\(column)\": {\"$regex\": \"\(escaped)\", \"$options\": \"i\"}"
+            "\"\(Self.escapeJsonString(column))\": {\"$regex\": \"\(escaped)\", \"$options\": \"i\"}"
         }
 
         let filter: String
@@ -79,7 +79,7 @@ struct MongoDBQueryBuilder {
             filter = "{\"$or\": [{\(conditions.joined(separator: "}, {"))}]}"
         }
 
-        var query = "db.\(collection).find(\(filter))"
+        var query = "\(Self.mongoCollectionAccessor(collection)).find(\(filter))"
 
         if let sort = buildSortDocument(sortState: sortState, columns: columns) {
             query += ".sort(\(sort))"
@@ -109,13 +109,13 @@ struct MongoDBQueryBuilder {
 
         let escaped = escapeRegexChars(searchText)
         let searchConditions = searchColumns.map { column in
-            "{\"" + column + "\": {\"$regex\": \"" + escaped + "\", \"$options\": \"i\"}}"
+            "{\"" + Self.escapeJsonString(column) + "\": {\"$regex\": \"" + escaped + "\", \"$options\": \"i\"}}"
         }
         let searchDoc = searchConditions.isEmpty ? "{}" : "{\"$or\": [" + searchConditions.joined(separator: ", ") + "]}"
 
         let combinedFilter = "{\"$and\": [\(filterDoc), \(searchDoc)]}"
 
-        var query = "db.\(collection).find(\(combinedFilter))"
+        var query = "\(Self.mongoCollectionAccessor(collection)).find(\(combinedFilter))"
 
         if let sort = buildSortDocument(sortState: sortState, columns: columns) {
             query += ".sort(\(sort))"
@@ -133,7 +133,7 @@ struct MongoDBQueryBuilder {
 
     /// Build: db.collection.countDocuments({filter})
     func buildCountQuery(collection: String, filterJson: String = "{}") -> String {
-        "db.\(collection).countDocuments(\(filterJson))"
+        "\(Self.mongoCollectionAccessor(collection)).countDocuments(\(filterJson))"
     }
 
     // MARK: - Filter Document
@@ -160,8 +160,17 @@ struct MongoDBQueryBuilder {
 
     // MARK: - Private Helpers
 
+    private static func mongoCollectionAccessor(_ name: String) -> String {
+        guard let firstChar = name.first,
+              !firstChar.isNumber,
+              name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
+            return "db[\"\(escapeJsonString(name))\"]"
+        }
+        return "db.\(name)"
+    }
+
     private func buildCondition(from filter: TableFilter) -> String? {
-        let field = filter.columnName
+        let field = Self.escapeJsonString(filter.columnName)
         let value = filter.value
 
         switch filter.filterOperator {
@@ -215,7 +224,7 @@ struct MongoDBQueryBuilder {
 
         let parts = state.columns.compactMap { sortCol -> String? in
             guard sortCol.columnIndex >= 0, sortCol.columnIndex < columns.count else { return nil }
-            let columnName = columns[sortCol.columnIndex]
+            let columnName = Self.escapeJsonString(columns[sortCol.columnIndex])
             let direction = sortCol.direction == .ascending ? 1 : -1
             return "\"\(columnName)\": \(direction)"
         }
@@ -230,15 +239,28 @@ struct MongoDBQueryBuilder {
         if value == "null" { return value }
         if Int64(value) != nil { return value }
         if Double(value) != nil, value.contains(".") { return value }
-        return "\"\(escapeJsonString(value))\""
+        return "\"\(Self.escapeJsonString(value))\""
     }
 
-    private func escapeJsonString(_ str: String) -> String {
-        str.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
-            .replacingOccurrences(of: "\t", with: "\\t")
+    static func escapeJsonString(_ value: String) -> String {
+        var result = ""
+        result.reserveCapacity((value as NSString).length)
+        for char in value {
+            switch char {
+            case "\\": result += "\\\\"
+            case "\"": result += "\\\""
+            case "\n": result += "\\n"
+            case "\r": result += "\\r"
+            case "\t": result += "\\t"
+            default:
+                if let ascii = char.asciiValue, ascii < 0x20 {
+                    result += String(format: "\\u%04X", ascii)
+                } else {
+                    result.append(char)
+                }
+            }
+        }
+        return result
     }
 
     private func escapeRegexChars(_ str: String) -> String {

@@ -301,12 +301,25 @@ struct MongoDBStatementGenerator {
         return "\"\(escapeJsonString(value))\""
     }
 
-    /// Escape special characters for JSON strings
-    private func escapeJsonString(_ str: String) -> String {
-        str.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\r", with: "\\r")
-            .replacingOccurrences(of: "\t", with: "\\t")
+    /// Escape special characters for JSON strings (handles Unicode control chars U+0000–U+001F)
+    private func escapeJsonString(_ value: String) -> String {
+        var result = ""
+        result.reserveCapacity((value as NSString).length)
+        for char in value {
+            switch char {
+            case "\\": result += "\\\\"
+            case "\"": result += "\\\""
+            case "\n": result += "\\n"
+            case "\r": result += "\\r"
+            case "\t": result += "\\t"
+            default:
+                if let ascii = char.asciiValue, ascii < 0x20 {
+                    result += String(format: "\\u%04X", ascii)
+                } else {
+                    result.append(char)
+                }
+            }
+        }
+        return result
     }
 }

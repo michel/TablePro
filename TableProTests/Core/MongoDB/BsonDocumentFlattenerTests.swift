@@ -281,11 +281,21 @@ struct BsonDocumentFlattenerTests {
             #expect(result == expected)
         }
 
-        @Test("Data returns hex-encoded string")
+        @Test("Data returns BinData format string")
         func dataValue() {
             let data = Data([0xDE, 0xAD, 0xBE, 0xEF])
             let result = BsonDocumentFlattener.stringValue(for: data)
-            #expect(result == "hex:deadbeef")
+            #expect(result == "BinData(4, \"3q2+7w==\")")
+        }
+
+        @Test("16-byte Data returns UUID format string")
+        func uuidDataValue() {
+            let data = Data([
+                0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+                0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10
+            ])
+            let result = BsonDocumentFlattener.stringValue(for: data)
+            #expect(result == "UUID(\"01020304-0506-0708-090a-0b0c0d0e0f10\")")
         }
 
         @Test("Dictionary returns compact sorted-key JSON")

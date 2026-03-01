@@ -24,17 +24,17 @@ enum ExportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConnected:
-            return "Not connected to database"
+            return String(localized: "Not connected to database")
         case .noTablesSelected:
-            return "No tables selected for export"
+            return String(localized: "No tables selected for export")
         case .exportFailed(let message):
-            return "Export failed: \(message)"
+            return String(localized: "Export failed: \(message)")
         case .compressionFailed:
-            return "Failed to compress data"
+            return String(localized: "Failed to compress data")
         case .fileWriteFailed(let path):
-            return "Failed to write file: \(path)"
+            return String(localized: "Failed to write file: \(path)")
         case .encodingFailed:
-            return "Failed to encode content as UTF-8"
+            return String(localized: "Failed to encode content as UTF-8")
         }
     }
 }
@@ -265,7 +265,11 @@ final class ExportService: ObservableObject {
     private func fetchAllQuery(for table: ExportTableItem) -> String {
         switch databaseType {
         case .mongodb:
-            return "db.\(table.name).find({})"
+            let escaped = escapeJSIdentifier(table.name)
+            if escaped.hasPrefix("[") {
+                return "db\(escaped).find({})"
+            }
+            return "db.\(escaped).find({})"
         default:
             return "SELECT * FROM \(qualifiedTableRef(for: table))"
         }
@@ -1183,9 +1187,13 @@ final class ExportService: ObservableObject {
         if Double(value) != nil, value.contains(".") {
             return value
         }
-        // JSON object or array -- pass through as-is
+        // JSON object or array -- pass through if valid (no unescaped control chars)
         if (value.hasPrefix("{") && value.hasSuffix("}")) ||
             (value.hasPrefix("[") && value.hasSuffix("]")) {
+            let hasControlChars = value.utf8.contains(where: { $0 < 0x20 })
+            if hasControlChars {
+                return "\"\(escapeJSONString(value))\""
+            }
             return value
         }
         return "\"\(escapeJSONString(value))\""

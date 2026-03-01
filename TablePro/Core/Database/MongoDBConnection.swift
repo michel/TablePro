@@ -151,17 +151,17 @@ final class MongoDBConnection: @unchecked Sendable {
             }
         }
 
-        uri += "\(host):\(port)"
-        uri += database.isEmpty ? "/" : "/\(database)"
+        let encodedHost = host.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? host
+        let encodedDb = database.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? database
+
+        uri += "\(encodedHost):\(port)"
+        uri += database.isEmpty ? "/" : "/\(encodedDb)"
 
         var params: [String] = [
             "connectTimeoutMS=10000",
-            "serverSelectionTimeoutMS=10000"
+            "serverSelectionTimeoutMS=10000",
+            "authSource=admin"
         ]
-
-        if database.isEmpty {
-            params.append("authSource=admin")
-        }
 
         if sslConfig.isEnabled {
             params.append("tls=true")
@@ -169,10 +169,16 @@ final class MongoDBConnection: @unchecked Sendable {
                 params.append("tlsAllowInvalidCertificates=true")
             }
             if !sslConfig.caCertificatePath.isEmpty {
-                params.append("tlsCAFile=\(sslConfig.caCertificatePath)")
+                let encodedCaPath = sslConfig.caCertificatePath
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                    ?? sslConfig.caCertificatePath
+                params.append("tlsCAFile=\(encodedCaPath)")
             }
             if !sslConfig.clientCertificatePath.isEmpty {
-                params.append("tlsCertificateKeyFile=\(sslConfig.clientCertificatePath)")
+                let encodedCertPath = sslConfig.clientCertificatePath
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                    ?? sslConfig.clientCertificatePath
+                params.append("tlsCertificateKeyFile=\(encodedCertPath)")
             }
         }
 
@@ -622,23 +628,15 @@ private extension MongoDBConnection {
     ) throws -> [[String: Any]] {
         try checkCancelled()
 
-        let timeoutMS = queryTimeoutMS
-        let effectiveCommand: String
-        if timeoutMS > 0, !command.contains("\"maxTimeMS\"") {
-            let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.hasSuffix("}") {
-                effectiveCommand = String(trimmed.dropLast()) + ", \"maxTimeMS\": \(timeoutMS)}"
-            } else {
-                effectiveCommand = command
-            }
-        } else {
-            effectiveCommand = command
-        }
-
-        guard let bsonCmd = jsonToBson(effectiveCommand) else {
-            throw MongoDBError(code: 0, message: "Invalid JSON command: \(effectiveCommand)")
+        guard let bsonCmd = jsonToBson(command) else {
+            throw MongoDBError(code: 0, message: "Invalid JSON command: \(command)")
         }
         defer { bson_destroy(bsonCmd) }
+
+        let timeoutMS = queryTimeoutMS
+        if timeoutMS > 0, !bson_has_field(bsonCmd, "maxTimeMS") {
+            bson_append_int32(bsonCmd, "maxTimeMS", -1, timeoutMS)
+        }
 
         let reply = bson_new()
         defer { bson_destroy(reply) }
@@ -868,6 +866,7 @@ private extension MongoDBConnection {
         guard let names = mongoc_database_get_collection_names_with_opts(mongocDb, nil, &error) else {
             throw makeError(error)
         }
+        defer { bson_strfreev(names) }
 
         try checkCancelled()
 
@@ -877,7 +876,6 @@ private extension MongoDBConnection {
             collections.append(String(cString: namePtr))
             index += 1
         }
-        bson_strfreev(names)
         return collections
     }
 

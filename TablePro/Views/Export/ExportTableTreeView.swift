@@ -158,6 +158,9 @@ struct ExportTableTreeView: View {
                     .disabled(!table.wrappedValue.isSelected)
                     .opacity(table.wrappedValue.isSelected ? 1.0 : 0.4)
                     .frame(width: 44, alignment: .center)
+                    .onChange(of: table.wrappedValue.mqlOptions) { _, newOptions in
+                        table.isSelected.wrappedValue = newOptions.hasAnyOption
+                    }
 
                 Toggle("Data", isOn: table.mqlOptions.includeData)
                     .toggleStyle(.checkbox)
@@ -165,6 +168,9 @@ struct ExportTableTreeView: View {
                     .disabled(!table.wrappedValue.isSelected)
                     .opacity(table.wrappedValue.isSelected ? 1.0 : 0.4)
                     .frame(width: 44, alignment: .center)
+                    .onChange(of: table.wrappedValue.mqlOptions) { _, newOptions in
+                        table.isSelected.wrappedValue = newOptions.hasAnyOption
+                    }
             }
         }
     }

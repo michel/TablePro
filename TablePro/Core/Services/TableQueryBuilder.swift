@@ -273,8 +273,8 @@ struct TableQueryBuilder {
         ascending: Bool
     ) -> String {
         if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
-            let sortDoc = "\"\(escapeMongoString(columnName))\": \(ascending ? 1 : -1)"
-            return "db.\(parsed.collection).find(\(parsed.filter))"
+            let sortDoc = "\"\(Self.escapeMongoString(columnName))\": \(ascending ? 1 : -1)"
+            return "\(Self.mongoCollectionAccessor(parsed.collection)).find(\(parsed.filter))"
                 + ".sort({\(sortDoc)})"
                 + ".limit(\(parsed.limit)).skip(\(parsed.skip))"
         }
@@ -315,7 +315,7 @@ struct TableQueryBuilder {
     ) -> String {
         if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
             if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
-                return "db.\(parsed.collection).find(\(parsed.filter))"
+                return "\(Self.mongoCollectionAccessor(parsed.collection)).find(\(parsed.filter))"
                     + ".sort({\(sortDoc)})"
                     + ".limit(\(parsed.limit)).skip(\(parsed.skip))"
             }
@@ -352,7 +352,7 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
-        var query = "db.\(tableName).find({})"
+        var query = "\(Self.mongoCollectionAccessor(tableName)).find({})"
 
         if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
             query += ".sort({\(sortDoc)})"
@@ -370,9 +370,9 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
-        let escaped = escapeMongoString(searchText)
+        let escaped = Self.escapeMongoString(searchText)
         let orConditions = columns.map { column in
-            "{\"" + escapeMongoString(column) + "\": {\"$regex\": \"" + escaped + "\", \"$options\": \"i\"}}"
+            "{\"" + Self.escapeMongoString(column) + "\": {\"$regex\": \"" + escaped + "\", \"$options\": \"i\"}}"
         }
 
         let filter: String
@@ -382,7 +382,7 @@ struct TableQueryBuilder {
             filter = "{\"$or\": [" + orConditions.joined(separator: ", ") + "]}"
         }
 
-        var query = "db.\(tableName).find(\(filter))"
+        var query = "\(Self.mongoCollectionAccessor(tableName)).find(\(filter))"
 
         if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
             query += ".sort({\(sortDoc)})"
@@ -399,7 +399,7 @@ struct TableQueryBuilder {
             guard sortCol.columnIndex >= 0, sortCol.columnIndex < columns.count else { return nil }
             let columnName = columns[sortCol.columnIndex]
             let direction = sortCol.direction == .ascending ? 1 : -1
-            return "\"\(escapeMongoString(columnName))\": \(direction)"
+            return "\"\(Self.escapeMongoString(columnName))\": \(direction)"
         }
 
         guard !parts.isEmpty else { return nil }
@@ -456,9 +456,36 @@ struct TableQueryBuilder {
         return MongoQueryParts(collection: collection, filter: filter, limit: limit, skip: skip)
     }
 
-    private func escapeMongoString(_ text: String) -> String {
-        text.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
+    /// Escape special characters for MongoDB string values (handles Unicode control chars U+0000–U+001F)
+    private static func escapeMongoString(_ value: String) -> String {
+        var result = ""
+        result.reserveCapacity((value as NSString).length)
+        for char in value {
+            switch char {
+            case "\\": result += "\\\\"
+            case "\"": result += "\\\""
+            case "\n": result += "\\n"
+            case "\r": result += "\\r"
+            case "\t": result += "\\t"
+            default:
+                if let ascii = char.asciiValue, ascii < 0x20 {
+                    result += String(format: "\\u%04X", ascii)
+                } else {
+                    result.append(char)
+                }
+            }
+        }
+        return result
+    }
+
+    /// Access a MongoDB collection, using bracket notation for names with special chars
+    private static func mongoCollectionAccessor(_ name: String) -> String {
+        guard let firstChar = name.first,
+              !firstChar.isNumber,
+              name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
+            return "db[\"\(escapeMongoString(name))\"]"
+        }
+        return "db.\(name)"
     }
 
     // MARK: - Private Helpers

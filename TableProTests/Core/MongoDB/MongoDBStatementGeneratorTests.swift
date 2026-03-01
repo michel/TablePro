@@ -728,6 +728,98 @@ struct MongoDBStatementGeneratorTests {
         #expect(stmt == nil)
     }
 
+    // MARK: - Bulk Delete Tests
+
+    @Test("Bulk delete with ObjectId _ids generates deleteMany with $in")
+    func testBulkDeleteWithObjectIds() {
+        let generator = makeGenerator()
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .delete,
+                cellChanges: [],
+                originalRow: ["abc123def456abc123def456", "John", "john@test.com"]
+            ),
+            RowChange(
+                rowIndex: 1,
+                type: .delete,
+                cellChanges: [],
+                originalRow: ["def456abc123def456abc123", "Jane", "jane@test.com"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [0, 1],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("deleteMany"))
+        #expect(stmt.sql.contains("\"$in\""))
+        #expect(stmt.sql.contains("{\"$oid\": \"abc123def456abc123def456\"}"))
+        #expect(stmt.sql.contains("{\"$oid\": \"def456abc123def456abc123\"}"))
+    }
+
+    @Test("Bulk delete without _id falls back to individual deleteOne statements")
+    func testBulkDeleteWithoutIdFallsBackToIndividual() {
+        let generator = makeGenerator(columns: ["name", "email", "age"])
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .delete,
+                cellChanges: [],
+                originalRow: ["John", "john@test.com", "30"]
+            ),
+            RowChange(
+                rowIndex: 1,
+                type: .delete,
+                cellChanges: [],
+                originalRow: ["Jane", "jane@test.com", "25"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [0, 1],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 2)
+        #expect(statements[0].sql.contains("deleteOne"))
+        #expect(statements[1].sql.contains("deleteOne"))
+    }
+
+    // MARK: - JSON String Escaping Tests
+
+    @Test("escapeJsonString handles special characters and control chars")
+    func testEscapeJsonStringSpecialChars() {
+        let generator = makeGenerator(columns: ["_id", "text"])
+        let insertedRowData: [Int: [String?]] = [
+            0: [nil, "line1\nline2\ttab\\slash\"quote"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: insertedRowData,
+            deletedRowIndices: [],
+            insertedRowIndices: [0]
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("\\n"))
+        #expect(stmt.sql.contains("\\t"))
+        #expect(stmt.sql.contains("\\\\"))
+        #expect(stmt.sql.contains("\\\""))
+    }
+
     // MARK: - Parameters Always Empty
 
     @Test("All MongoDB statements have empty parameters array")

@@ -131,6 +131,24 @@ struct MongoDBQueryBuilderTests {
         #expect(query == "db.users.find({\"name\": \"John\"}).limit(200)")
     }
 
+    // MARK: - buildCombinedQuery
+
+    @Test("Combined query with filter and search uses $and wrapper")
+    func combinedQueryUsesAndWrapper() {
+        let filter = TableFilter(columnName: "status", filterOperator: .equal, value: "active")
+        let query = builder.buildCombinedQuery(
+            collection: "users",
+            filters: [filter],
+            searchText: "john",
+            searchColumns: ["name", "email"]
+        )
+        #expect(query.contains("\"$and\""))
+        #expect(query.contains("\"status\": \"active\""))
+        #expect(query.contains("\"$or\""))
+        #expect(query.contains("\"$regex\": \"john\""))
+        #expect(query.contains(".limit(200)"))
+    }
+
     // MARK: - buildQuickSearchQuery with sort and offset
 
     @Test("Quick search with sort and offset includes all clauses")

@@ -226,6 +226,43 @@ struct MongoShellParserTests {
         }
     }
 
+    // MARK: - FindOneAnd Operations
+
+    @Test("findOneAndUpdate operation")
+    func testFindOneAndUpdate() throws {
+        let op = try MongoShellParser.parse("db.users.findOneAndUpdate({\"_id\": 1}, {\"$set\": {\"name\": \"Jane\"}})")
+        if case .findOneAndUpdate(let collection, let filter, let update) = op {
+            #expect(collection == "users")
+            #expect(filter == "{\"_id\": 1}")
+            #expect(update == "{\"$set\": {\"name\": \"Jane\"}}")
+        } else {
+            Issue.record("Expected .findOneAndUpdate operation")
+        }
+    }
+
+    @Test("findOneAndReplace operation")
+    func testFindOneAndReplace() throws {
+        let op = try MongoShellParser.parse("db.users.findOneAndReplace({\"_id\": 1}, {\"name\": \"Jane\", \"age\": 30})")
+        if case .findOneAndReplace(let collection, let filter, let replacement) = op {
+            #expect(collection == "users")
+            #expect(filter == "{\"_id\": 1}")
+            #expect(replacement == "{\"name\": \"Jane\", \"age\": 30}")
+        } else {
+            Issue.record("Expected .findOneAndReplace operation")
+        }
+    }
+
+    @Test("findOneAndDelete operation")
+    func testFindOneAndDelete() throws {
+        let op = try MongoShellParser.parse("db.users.findOneAndDelete({\"_id\": 1})")
+        if case .findOneAndDelete(let collection, let filter) = op {
+            #expect(collection == "users")
+            #expect(filter == "{\"_id\": 1}")
+        } else {
+            Issue.record("Expected .findOneAndDelete operation")
+        }
+    }
+
     // MARK: - Index Operations
 
     @Test("createIndex with keys only")

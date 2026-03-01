@@ -271,28 +271,40 @@ final class MongoDBDriver: DatabaseDriver {
         }
 
         let tables = try await fetchTables()
+        let concurrencyLimit = 4
 
-        return try await withThrowingTaskGroup(of: (String, [ColumnInfo])?.self) { group in
-            for table in tables {
-                group.addTask {
-                    do {
-                        let columns = try await self.fetchColumns(table: table.name)
-                        return (table.name, columns)
-                    } catch {
-                        Self.logger.debug("Skipping columns for \(table.name): \(error.localizedDescription)")
-                        return nil
+        var result: [String: [ColumnInfo]] = [:]
+
+        for batchStart in stride(from: 0, to: tables.count, by: concurrencyLimit) {
+            let batchEnd = min(batchStart + concurrencyLimit, tables.count)
+            let batch = tables[batchStart..<batchEnd]
+
+            let batchResult = try await withThrowingTaskGroup(of: (String, [ColumnInfo])?.self) { group in
+                for table in batch {
+                    group.addTask {
+                        do {
+                            let columns = try await self.fetchColumns(table: table.name)
+                            return (table.name, columns)
+                        } catch {
+                            Self.logger.debug("Skipping columns for \(table.name): \(error.localizedDescription)")
+                            return nil
+                        }
                     }
                 }
+
+                var pairs: [(String, [ColumnInfo])] = []
+                for try await pair in group {
+                    if let pair { pairs.append(pair) }
+                }
+                return pairs
             }
 
-            var result: [String: [ColumnInfo]] = [:]
-            for try await pair in group {
-                if let (name, columns) = pair {
-                    result[name] = columns
-                }
+            for (name, columns) in batchResult {
+                result[name] = columns
             }
-            return result
         }
+
+        return result
     }
 
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
@@ -848,10 +860,10 @@ private extension MongoDBDriver {
 
 private extension MongoDBDriver {
     /// Escape a string for safe embedding inside a JSON string value.
-    /// Handles quotes, backslashes, and control characters.
+    /// Handles quotes, backslashes, and Unicode control characters (U+0000–U+001F).
     func escapeJsonString(_ value: String) -> String {
         var result = ""
-        result.reserveCapacity(value.count)
+        result.reserveCapacity((value as NSString).length)
         for char in value {
             switch char {
             case "\"": result += "\\\""
@@ -859,7 +871,12 @@ private extension MongoDBDriver {
             case "\n": result += "\\n"
             case "\r": result += "\\r"
             case "\t": result += "\\t"
-            default: result.append(char)
+            default:
+                if let ascii = char.asciiValue, ascii < 0x20 {
+                    result += String(format: "\\u%04x", ascii)
+                } else {
+                    result.append(char)
+                }
             }
         }
         return result

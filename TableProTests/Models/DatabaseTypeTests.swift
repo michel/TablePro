@@ -32,6 +32,11 @@ struct DatabaseTypeTests {
         #expect(DatabaseType.sqlite.defaultPort == 0)
     }
 
+    @Test("MongoDB default port is 27017")
+    func testMongoDBDefaultPort() {
+        #expect(DatabaseType.mongodb.defaultPort == 27_017)
+    }
+
     @Test("MySQL identifier quote is backtick")
     func testMySQLIdentifierQuote() {
         #expect(DatabaseType.mysql.identifierQuote == "`")
@@ -75,7 +80,8 @@ struct DatabaseTypeTests {
         (DatabaseType.mysql, "MySQL"),
         (DatabaseType.mariadb, "MariaDB"),
         (DatabaseType.postgresql, "PostgreSQL"),
-        (DatabaseType.sqlite, "SQLite")
+        (DatabaseType.sqlite, "SQLite"),
+        (DatabaseType.mongodb, "MongoDB")
     ])
     func testRawValueMatchesDisplayName(dbType: DatabaseType, expectedRawValue: String) {
         #expect(dbType.rawValue == expectedRawValue)
