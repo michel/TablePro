@@ -169,11 +169,13 @@ struct SidebarView: View {
                 .font(.system(size: 28, weight: .thin))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
-            Text("No Tables")
+            Text(viewModel.databaseType == .mongodb ? "No Collections" : "No Tables")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Color(nsColor: .secondaryLabelColor))
 
-            Text("This database has no tables yet.")
+            Text(viewModel.databaseType == .mongodb
+                ? "This database has no collections yet."
+                : "This database has no tables yet.")
                 .font(.system(size: 11))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
         }
@@ -185,7 +187,7 @@ struct SidebarView: View {
             Image(systemName: "magnifyingglass")
                 .font(.title)
                 .foregroundStyle(.tertiary)
-            Text("No matching tables")
+            Text(viewModel.databaseType == .mongodb ? "No matching collections" : "No matching tables")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -216,10 +218,14 @@ struct SidebarView: View {
                     }
                 }
             } header: {
-                Text("Tables")
-                    .help("Right-click to show all tables")
+                Text(viewModel.databaseType == .mongodb ? "Collections" : "Tables")
+                    .help(viewModel.databaseType == .mongodb
+                        ? "Right-click to show all collections"
+                        : "Right-click to show all tables")
                     .contextMenu {
-                        Button(String(localized: "Show All Tables")) {
+                        Button(viewModel.databaseType == .mongodb
+                            ? String(localized: "Show All Collections")
+                            : String(localized: "Show All Tables")) {
                             onShowAllTables?()
                         }
                     }

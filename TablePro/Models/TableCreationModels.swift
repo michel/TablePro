@@ -301,6 +301,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
             case .sqlite:
                 return ["INTEGER", "REAL", "NUMERIC"]
+            case .mongodb:
+                return ["Int32", "Int64", "Double", "Decimal128"]
             }
         case .string:
             switch dbType {
@@ -310,6 +312,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["CHAR", "VARCHAR", "TEXT"]
             case .sqlite:
                 return ["TEXT"]
+            case .mongodb:
+                return ["String", "ObjectId", "UUID"]
             }
         case .dateTime:
             switch dbType {
@@ -319,6 +323,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
             case .sqlite:
                 return ["DATE", "DATETIME"]
+            case .mongodb:
+                return ["Date", "Timestamp"]
             }
         case .binary:
             switch dbType {
@@ -328,6 +334,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BYTEA"]
             case .sqlite:
                 return ["BLOB"]
+            case .mongodb:
+                return ["BinData"]
             }
         case .other:
             switch dbType {
@@ -337,6 +345,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
             case .sqlite:
                 return ["BOOLEAN"]
+            case .mongodb:
+                return ["Boolean", "Object", "Array", "Null", "Regex"]
             }
         }
     }

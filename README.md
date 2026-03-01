@@ -32,6 +32,13 @@ TablePro is a lightweight alternative to TablePlus, built entirely with Apple-na
 
 Full documentation is available at [docs.tablepro.app](https://docs.tablepro.app).
 
+## Sponsors
+
+Thanks to these amazing people for supporting TablePro:
+
+- **[Mr Huy TQ](https://github.com/imhuytq)** — Apple Developer Program sponsor
+- **[Unikorn](https://unikorn.vn)**
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).

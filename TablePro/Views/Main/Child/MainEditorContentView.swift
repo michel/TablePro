@@ -367,6 +367,7 @@ struct MainEditorContentView: View {
             onNavigateFK: { [coordinator] value, fkInfo in
                 coordinator.navigateToFKReference(value: value, fkInfo: fkInfo)
             },
+            databaseType: connection.type,
             selectedRowIndices: $selectedRowIndices,
             sortState: sortStateBinding(for: tab),
             editingCell: $editingCell,
@@ -541,7 +542,7 @@ struct MainEditorContentView: View {
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(Color(nsColor: .quaternaryLabelColor))
                         )
-                    Text("Open SQL Editor")
+                    Text(connection.type == .mongodb ? "Open MQL Editor" : "Open SQL Editor")
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                 }

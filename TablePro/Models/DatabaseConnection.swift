@@ -102,6 +102,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     case mariadb = "MariaDB"
     case postgresql = "PostgreSQL"
     case sqlite = "SQLite"
+    case mongodb = "MongoDB"
 
     var id: String { rawValue }
 
@@ -116,6 +117,8 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return "postgresql-icon"
         case .sqlite:
             return "sqlite-icon"
+        case .mongodb:
+            return "mongodb-icon"
         }
     }
 
@@ -125,6 +128,37 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .mysql, .mariadb: return 3_306
         case .postgresql: return 5_432
         case .sqlite: return 0
+        case .mongodb: return 27_017
+        }
+    }
+
+    /// Whether this database type typically requires authentication credentials.
+    /// MySQL, MariaDB, and PostgreSQL default to "root" when no username is provided;
+    /// MongoDB and SQLite commonly run without authentication.
+    var requiresAuthentication: Bool {
+        switch self {
+        case .mysql, .mariadb, .postgresql: return true
+        case .sqlite, .mongodb: return false
+        }
+    }
+
+    /// Whether this database type supports foreign key constraints
+    var supportsForeignKeys: Bool {
+        switch self {
+        case .mysql, .mariadb, .postgresql, .sqlite:
+            return true
+        case .mongodb:
+            return false
+        }
+    }
+
+    /// Whether this database type supports SQL-based schema editing (ALTER TABLE etc.)
+    var supportsSchemaEditing: Bool {
+        switch self {
+        case .mysql, .mariadb, .postgresql, .sqlite:
+            return true
+        case .mongodb:
+            return false
         }
     }
 
@@ -134,7 +168,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .sqlite:
             return "`"
-        case .postgresql:
+        case .postgresql, .mongodb:
             return "\""
         }
     }
@@ -142,6 +176,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// Quote an identifier (table or column name) for this database type.
     /// Escapes embedded quote characters to prevent SQL injection.
     func quoteIdentifier(_ name: String) -> String {
+        guard self != .mongodb else { return name }
         let q = identifierQuote
         // Escape embedded quotes by doubling them (SQL standard)
         let escaped = name.replacingOccurrences(of: q, with: q + q)
@@ -215,6 +250,8 @@ struct DatabaseConnection: Identifiable, Hashable {
     var tagId: UUID?
     var isReadOnly: Bool
     var aiPolicy: AIConnectionPolicy?
+    var mongoReadPreference: String?
+    var mongoWriteConcern: String?
 
     init(
         id: UUID = UUID(),
@@ -229,7 +266,9 @@ struct DatabaseConnection: Identifiable, Hashable {
         color: ConnectionColor = .none,
         tagId: UUID? = nil,
         isReadOnly: Bool = false,
-        aiPolicy: AIConnectionPolicy? = nil
+        aiPolicy: AIConnectionPolicy? = nil,
+        mongoReadPreference: String? = nil,
+        mongoWriteConcern: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -244,6 +283,8 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.tagId = tagId
         self.isReadOnly = isReadOnly
         self.aiPolicy = aiPolicy
+        self.mongoReadPreference = mongoReadPreference
+        self.mongoWriteConcern = mongoWriteConcern
     }
 
     /// Returns the display color (custom color or database type color)

@@ -602,6 +602,9 @@
         }
       }
     },
+    "1" : {
+
+    },
     "1 (no batching)" : {
       "localizations" : {
         "vi" : {
@@ -642,6 +645,9 @@
         }
       }
     },
+    "2" : {
+
+    },
     "2 spaces" : {
       "localizations" : {
         "vi" : {
@@ -651,6 +657,9 @@
           }
         }
       }
+    },
+    "3" : {
+
     },
     "4 spaces" : {
       "localizations" : {
@@ -1794,6 +1803,9 @@
           }
         }
       }
+    },
+    "Collections" : {
+
     },
     "Color" : {
       "localizations" : {
@@ -3636,6 +3648,9 @@
         }
       }
     },
+    "Exports data as mongosh-compatible scripts. Drop, Indexes, and Data options are configured per collection in the collection list." : {
+
+    },
     "Expression (e.g., age >= 0)" : {
       "localizations" : {
         "vi" : {
@@ -3686,7 +3701,11 @@
         }
       }
     },
+    "Failed to duplicate table: %@" : {
+
+    },
     "Failed to fetch table structure: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -4353,6 +4372,9 @@
         }
       }
     },
+    "Import Not Supported" : {
+
+    },
     "Import SQL" : {
       "localizations" : {
         "vi" : {
@@ -4473,6 +4495,9 @@
         }
       }
     },
+    "Indexes" : {
+
+    },
     "Inline Suggestions" : {
       "localizations" : {
         "vi" : {
@@ -4543,6 +4568,12 @@
           }
         }
       }
+    },
+    "Invalid JSON: %@" : {
+
+    },
+    "Invalid MongoDB syntax: %@" : {
+
     },
     "Invalid username or password" : {
       "localizations" : {
@@ -4877,6 +4908,9 @@
         }
       }
     },
+    "Majority" : {
+
+    },
     "Manage Connections..." : {
       "localizations" : {
         "vi" : {
@@ -5007,6 +5041,9 @@
         }
       }
     },
+    "Missing argument: %@" : {
+
+    },
     "Model" : {
       "localizations" : {
         "vi" : {
@@ -5026,6 +5063,9 @@
           }
         }
       }
+    },
+    "MongoDB" : {
+
     },
     "Move Down" : {
       "localizations" : {
@@ -5067,6 +5107,12 @@
         }
       }
     },
+    "MQL" : {
+
+    },
+    "MQL Preview" : {
+
+    },
     "Name" : {
       "localizations" : {
         "vi" : {
@@ -5078,6 +5124,9 @@
       }
     },
     "Navigate to referenced row" : {
+
+    },
+    "Nearest" : {
 
     },
     "Network error: %@" : {
@@ -5291,6 +5340,9 @@
         }
       }
     },
+    "No Collections" : {
+
+    },
     "No Columns Defined" : {
       "localizations" : {
         "vi" : {
@@ -5380,6 +5432,9 @@
           }
         }
       }
+    },
+    "No matching collections" : {
+
     },
     "No matching connections" : {
       "localizations" : {
@@ -5730,6 +5785,9 @@
         }
       }
     },
+    "Number of documents per insertMany statement. Higher values create fewer statements." : {
+
+    },
     "Offset" : {
       "localizations" : {
         "vi" : {
@@ -5839,6 +5897,9 @@
           }
         }
       }
+    },
+    "Open MQL Editor" : {
+
     },
     "Open Schema" : {
 
@@ -6160,6 +6221,12 @@
         }
       }
     },
+    "Preview MQL" : {
+
+    },
+    "Preview MQL (⌘⇧P)" : {
+
+    },
     "Preview Schema Changes" : {
       "localizations" : {
         "vi" : {
@@ -6220,6 +6287,12 @@
         }
       }
     },
+    "Primary" : {
+
+    },
+    "Primary Preferred" : {
+
+    },
     "Privacy" : {
       "localizations" : {
         "vi" : {
@@ -6279,6 +6352,9 @@
           }
         }
       }
+    },
+    "Query cancelled" : {
+
     },
     "Query executed successfully" : {
       "localizations" : {
@@ -6399,6 +6475,9 @@
           }
         }
       }
+    },
+    "Read Preference" : {
+
     },
     "Read-only" : {
       "localizations" : {
@@ -6733,6 +6812,9 @@
         }
       }
     },
+    "Right-click to show all collections" : {
+
+    },
     "Right-click to show all tables" : {
       "localizations" : {
         "vi" : {
@@ -6829,6 +6911,9 @@
           }
         }
       }
+    },
+    "Rows per insertMany" : {
+
     },
     "Run a query to see execution time" : {
       "localizations" : {
@@ -7073,6 +7158,12 @@
         }
       }
     },
+    "Secondary" : {
+
+    },
+    "Secondary Preferred" : {
+
+    },
     "SELECT * FROM users WHERE id = 1;" : {
       "localizations" : {
         "vi" : {
@@ -7269,6 +7360,9 @@
         }
       }
     },
+    "Show All Collections" : {
+
+    },
     "Show All Tables" : {
       "localizations" : {
         "vi" : {
@@ -7418,6 +7512,9 @@
           }
         }
       }
+    },
+    "SQL import is not supported for MongoDB connections." : {
+
     },
     "SQL Preview" : {
       "localizations" : {
@@ -8007,6 +8104,9 @@
         }
       }
     },
+    "This database has no collections yet." : {
+
+    },
     "This database has no tables yet." : {
       "localizations" : {
         "vi" : {
@@ -8483,6 +8583,9 @@
         }
       }
     },
+    "Unsupported MongoDB method: %@" : {
+
+    },
     "Untitled" : {
       "localizations" : {
         "vi" : {
@@ -8760,6 +8863,9 @@
           }
         }
       }
+    },
+    "Write Concern" : {
+
     },
     "Yellow" : {
       "localizations" : {

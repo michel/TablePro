@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     static let shared = AppState()
     @Published var isConnected: Bool = false
     @Published var isReadOnly: Bool = false  // True when current connection is read-only
+    @Published var isMongoDB: Bool = false
     @Published var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
     @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
     @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
@@ -189,7 +190,8 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .saveChanges))
             .disabled(!appState.isConnected || appState.isReadOnly)
 
-            Button("Preview SQL") {
+            Button(DatabaseManager.shared.currentSession?.connection.type == .mongodb
+                ? "Preview MQL" : "Preview SQL") {
                 actions?.previewSQL()
             }
             .optionalKeyboardShortcut(shortcut(for: .previewSQL))
@@ -226,11 +228,13 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .export))
             .disabled(!appState.isConnected)
 
-            Button("Import...") {
-                actions?.importTables()
+            if !appState.isMongoDB {
+                Button("Import...") {
+                    actions?.importTables()
+                }
+                .optionalKeyboardShortcut(shortcut(for: .importData))
+                .disabled(!appState.isConnected || appState.isReadOnly)
             }
-            .optionalKeyboardShortcut(shortcut(for: .importData))
-            .disabled(!appState.isConnected || appState.isReadOnly)
         }
 
         // Edit menu - Undo/Redo (smart handling for both text editor and data grid)

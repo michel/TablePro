@@ -194,6 +194,8 @@ extension DatabaseDriver {
                 _ = try await execute(query: "SET statement_timeout = '\(ms)'")
             case .sqlite:
                 break  // SQLite busy_timeout handled by driver directly
+            case .mongodb:
+                break  // MongoDB timeout handled per-operation by MongoDBDriver
             }
         } catch {
             Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
@@ -213,7 +215,10 @@ extension DatabaseDriver {
             sql = "BEGIN"
         case .sqlite:
             sql = "BEGIN"
+        case .mongodb:
+            sql = ""  // MongoDB transactions not supported in default impl
         }
+        guard !sql.isEmpty else { return }
         _ = try await execute(query: sql)
     }
 
@@ -236,6 +241,8 @@ enum DatabaseDriverFactory {
             return MySQLDriver(connection: connection)
         case .postgresql:
             return PostgreSQLDriver(connection: connection)
+        case .mongodb:
+            return MongoDBDriver(connection: connection)
         }
     }
 }

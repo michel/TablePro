@@ -899,7 +899,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             isEditable: isEditable && !state.isDeleted,
             isLargeDataset: isLargeDataset,
             isFocused: isFocused,
-            isDropdown: isDropdown || isTypePicker,
+            isDropdown: isEditable && (isDropdown || isTypePicker),
             isFKColumn: isFKColumn && !isDropdown && !(typePickerColumns?.contains(columnIndex) == true),
             fkArrowTarget: self,
             fkArrowAction: #selector(handleFKArrowClick(_:)),
@@ -975,6 +975,13 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
         let columnIndex = column - 1
         guard !changeManager.isRowDeleted(row) else { return }
+
+        // MongoDB _id is immutable — block editing
+        if databaseType == .mongodb,
+           columnIndex < rowProvider.columns.count,
+           rowProvider.columns[columnIndex] == "_id" {
+            return
+        }
 
         // Dropdown columns already handled by single click
         if let dropdownCols = dropdownColumns, dropdownCols.contains(columnIndex) {
@@ -1072,6 +1079,15 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let columnId = tableColumn.identifier.rawValue
         guard columnId != "__rowNumber__",
               !changeManager.isRowDeleted(row) else { return false }
+
+        // MongoDB _id is immutable — block editing
+        if databaseType == .mongodb,
+           columnId.hasPrefix("col_"),
+           let columnIndex = Int(columnId.dropFirst(4)),
+           columnIndex < rowProvider.columns.count,
+           rowProvider.columns[columnIndex] == "_id" {
+            return false
+        }
 
         // Popover-editor columns (date/FK/JSON) are only editable via
         // double-click (handleDoubleClick). Block inline editing for them.

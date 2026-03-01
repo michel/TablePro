@@ -106,13 +106,20 @@ struct TableStructureView: View {
 
     // MARK: - Toolbar
 
+    private var availableTabs: [StructureTab] {
+        if !connection.type.supportsForeignKeys {
+            return StructureTab.allCases.filter { $0 != .foreignKeys }
+        }
+        return StructureTab.allCases
+    }
+
     private var toolbar: some View {
         HStack {
             Spacer()
 
             // Tab picker
             Picker("", selection: $selectedTab) {
-                ForEach(StructureTab.allCases, id: \.self) { tab in
+                ForEach(availableTabs, id: \.self) { tab in
                     Text(tab.rawValue).tag(tab)
                 }
             }
@@ -148,12 +155,13 @@ struct TableStructureView: View {
     // MARK: - Structure Grid (DataGridView)
 
     private var structureGrid: some View {
-        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab)
+        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab, databaseType: connection.type)
+        let canEdit = connection.type.supportsSchemaEditing
 
         return DataGridView(
             rowProvider: provider.asInMemoryProvider(),
             changeManager: wrappedChangeManager,
-            isEditable: true,
+            isEditable: canEdit,
             onCommit: nil,
             onRefresh: nil,
             onCellEdit: handleCellEdit,
@@ -163,7 +171,7 @@ struct TableStructureView: View {
             onUndo: handleUndo,
             onRedo: handleRedo,
             onSort: nil,
-            onAddRow: addNewRow,
+            onAddRow: canEdit ? { addNewRow() } : nil,
             onUndoInsert: nil,
             onFilterColumn: nil,
             getVisualState: { row in
@@ -387,7 +395,7 @@ struct TableStructureView: View {
         }
 
         // Build TSV string for external paste
-        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab)
+        let provider = StructureRowProvider(changeManager: structureChangeManager, tab: selectedTab, databaseType: connection.type)
         var lines: [String] = []
         for row in rowIndices.sorted() {
             guard let rowData = provider.row(at: row) else { continue }

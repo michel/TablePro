@@ -229,6 +229,11 @@ final class MainContentCoordinator: ObservableObject {
         options: []
     )
 
+    private static let mongoCollectionRegex = try? NSRegularExpression(
+        pattern: #"^\s*db\.(\w+)\."#,
+        options: []
+    )
+
     // MARK: - Query Execution
 
     func runQuery() {
@@ -350,6 +355,8 @@ final class MainContentCoordinator: ObservableObject {
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
         case .mysql, .mariadb, .postgresql:
             explainSQL = "EXPLAIN \(stmt)"
+        case .mongodb:
+            explainSQL = Self.buildMongoExplain(for: stmt)
         }
 
         Task { @MainActor in
@@ -581,12 +588,23 @@ final class MainContentCoordinator: ObservableObject {
     // MARK: - SQL Parsing
 
     func extractTableName(from sql: String) -> String? {
-        guard let regex = Self.tableNameRegex,
-              let match = regex.firstMatch(in: sql, options: [], range: NSRange(sql.startIndex..., in: sql)),
-              let range = Range(match.range(at: 1), in: sql) else {
-            return nil
+        let nsRange = NSRange(sql.startIndex..., in: sql)
+
+        // SQL: SELECT ... FROM tableName
+        if let regex = Self.tableNameRegex,
+           let match = regex.firstMatch(in: sql, options: [], range: nsRange),
+           let range = Range(match.range(at: 1), in: sql) {
+            return String(sql[range])
         }
-        return String(sql[range])
+
+        // MQL: db.collectionName.find(...)
+        if let regex = Self.mongoCollectionRegex,
+           let match = regex.firstMatch(in: sql, options: [], range: nsRange),
+           let range = Range(match.range(at: 1), in: sql) {
+            return String(sql[range])
+        }
+
+        return nil
     }
 
     private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
@@ -926,7 +944,7 @@ final class MainContentCoordinator: ObservableObject {
         for tableName in sortedDeletes {
             let quotedName = dbType.quoteIdentifier(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
-            statements.append(dropTableStatement(quotedName: quotedName, isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType))
+            statements.append(dropTableStatement(tableName: tableName, quotedName: quotedName, isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType))
         }
 
         if needsTransaction {
@@ -945,14 +963,9 @@ final class MainContentCoordinator: ObservableObject {
     /// - Note: PostgreSQL doesn't support globally disabling FK checks; use CASCADE instead.
     internal func fkDisableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
-        case .mysql, .mariadb:
-            return ["SET FOREIGN_KEY_CHECKS=0"]
-        case .postgresql:
-            // PostgreSQL doesn't support globally disabling non-deferrable FKs.
-            // Use CASCADE option for reliable FK handling.
-            return []
-        case .sqlite:
-            return ["PRAGMA foreign_keys = OFF"]
+        case .mysql, .mariadb: return ["SET FOREIGN_KEY_CHECKS=0"]
+        case .postgresql, .mongodb: return []
+        case .sqlite: return ["PRAGMA foreign_keys = OFF"]
         }
     }
 
@@ -961,7 +974,7 @@ final class MainContentCoordinator: ObservableObject {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]
-        case .postgresql:
+        case .postgresql, .mongodb:
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
@@ -990,17 +1003,21 @@ final class MainContentCoordinator: ObservableObject {
                 // This DELETE will succeed silently if the table isn't in sqlite_sequence.
                 "DELETE FROM sqlite_sequence WHERE name = '\(escapedName)'"
             ]
+        case .mongodb:
+            return ["db.\(tableName).deleteMany({})"]
         }
     }
 
     /// Generates DROP TABLE/VIEW statement with optional CASCADE.
-    private func dropTableStatement(quotedName: String, isView: Bool, options: TableOperationOptions, dbType: DatabaseType) -> String {
+    private func dropTableStatement(tableName: String, quotedName: String, isView: Bool, options: TableOperationOptions, dbType: DatabaseType) -> String {
         let keyword = isView ? "VIEW" : "TABLE"
         switch dbType {
         case .postgresql:
             return "DROP \(keyword) \(quotedName)\(options.cascade ? " CASCADE" : "")"
         case .mysql, .mariadb, .sqlite:
             return "DROP \(keyword) \(quotedName)"
+        case .mongodb:
+            return "db.\(tableName).drop()"
         }
     }
 

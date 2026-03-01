@@ -101,8 +101,9 @@ struct FilterSQLGenerator {
             return "\(quotedColumn) BETWEEN \(escapeValue(filter.value)) AND \(escapeValue(secondValue))"
 
         case .regex:
-            // SQLite doesn't support REGEXP without a custom function
-            if databaseType == .sqlite { return nil }
+            // SQLite doesn't support REGEXP without a custom function;
+            // MongoDB filters are handled natively by MongoDBQueryBuilder
+            if databaseType == .sqlite || databaseType == .mongodb { return nil }
             return generateRegexCondition(column: quotedColumn, pattern: filter.value)
         }
     }
@@ -116,7 +117,7 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return ""
-        case .postgresql, .sqlite:
+        case .postgresql, .sqlite, .mongodb:
             return " ESCAPE '\\'"
         }
     }
@@ -141,8 +142,7 @@ struct FilterSQLGenerator {
             return "\(column) REGEXP '\(escapedPattern)'"
         case .postgresql:
             return "\(column) ~ '\(escapedPattern)'"
-        case .sqlite:
-            // Should not reach here — filtered in generateCondition
+        case .sqlite, .mongodb:
             return "\(column) LIKE '%\(escapedPattern)%'"
         }
     }
@@ -217,8 +217,17 @@ struct FilterSQLGenerator {
 // MARK: - Preview/Display Helpers
 
 extension FilterSQLGenerator {
-    /// Generate a preview-friendly SQL string (for display, not execution)
+    /// Generate a preview-friendly query string (for display, not execution)
     func generatePreviewSQL(tableName: String, filters: [TableFilter], limit: Int = 1_000) -> String {
+        if databaseType == .mongodb {
+            let mongoBuilder = MongoDBQueryBuilder()
+            return mongoBuilder.buildFilteredQuery(
+                collection: tableName,
+                filters: filters,
+                limit: limit
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var sql = "SELECT * FROM \(quotedTable)"
 
