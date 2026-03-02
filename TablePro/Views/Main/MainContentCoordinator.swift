@@ -149,6 +149,12 @@ final class MainContentCoordinator: ObservableObject {
         for task in activeSortTasks.values { task.cancel() }
         activeSortTasks.removeAll()
 
+        // Release heavy data so memory drops even if SwiftUI delays deallocation
+        for tab in tabManager.tabs {
+            tab.rowBuffer.evict()
+        }
+        querySortCache.removeAll()
+
         Self.releaseSchemaProvider(for: connection.id)
         Self.purgeUnusedSchemaProviders()
     }
