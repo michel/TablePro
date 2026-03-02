@@ -203,7 +203,6 @@ struct EditableFieldView: View {
         }
         return "0"
     }
-
 }
 
 /// Read-only field view using native macOS components

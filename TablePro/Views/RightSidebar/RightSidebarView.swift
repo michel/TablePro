@@ -193,7 +193,6 @@ struct RightSidebarView: View {
                     }
                     .padding(.trailing, 15)
                 }
-
             }
             .listStyle(.sidebar)
 
