@@ -197,6 +197,15 @@ struct WelcomeWindowView: View {
             }
         }
         .frame(minWidth: 350)
+        .contentShape(Rectangle())
+        .contextMenu { newConnectionContextMenu }
+    }
+
+    @ViewBuilder
+    private var newConnectionContextMenu: some View {
+        Button(action: { openWindow(id: "connection-form") }) {
+            Label("New Connection...", systemImage: "plus")
+        }
     }
 
     // MARK: - Connection List
