@@ -36,7 +36,7 @@ extension MainContentView {
     var isSidebarEditable: Bool {
         guard !coordinator.connection.isReadOnly,
               let tab = coordinator.tabManager.selectedTab,
-              tab.tabType == .table,
+              tab.tabType == .table || tab.tableName != nil,
               !selectedRowIndices.isEmpty else {
             return false
         }

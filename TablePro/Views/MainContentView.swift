@@ -778,8 +778,7 @@ struct MainContentView: View {
     // MARK: - Sidebar Edit Handling
 
     private func updateSidebarEditState() {
-        guard isSidebarEditable,
-              let tab = coordinator.tabManager.selectedTab,
+        guard let tab = coordinator.tabManager.selectedTab,
               !selectedRowIndices.isEmpty
         else {
             rightPanelState.editState.fields = []
@@ -800,6 +799,11 @@ struct MainContentView: View {
             columns: tab.resultColumns,
             columnTypes: tab.columnTypes
         )
+
+        guard isSidebarEditable else {
+            rightPanelState.editState.onFieldChanged = nil
+            return
+        }
 
         let capturedCoordinator = coordinator
         let capturedEditState = rightPanelState.editState
