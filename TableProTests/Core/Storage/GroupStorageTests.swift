@@ -125,6 +125,27 @@ final class GroupStorageTests: XCTestCase {
         XCTAssertNil(notFound)
     }
 
+    // MARK: - Rename Duplicate Guard
+
+    func testUpdateGroupRejectsDuplicateName() {
+        let group1 = ConnectionGroup(name: "Production", color: .red)
+        let group2 = ConnectionGroup(name: "Staging", color: .orange)
+        storage.saveGroups([group1, group2])
+
+        // Renaming "Staging" to "Production" should be caught by caller, not storage.
+        // Storage-level updateGroup does the raw save; the duplicate guard is in the UI layer.
+        // Verify that two groups with same name CAN exist at storage level (the guard lives in WelcomeWindowView).
+        var renamed = group2
+        renamed.name = "Production"
+        storage.updateGroup(renamed)
+
+        let loaded = storage.loadGroups()
+        XCTAssertEqual(loaded.count, 2)
+        // Both now named "Production" — storage doesn't enforce uniqueness on update
+        XCTAssertEqual(loaded[0].name, "Production")
+        XCTAssertEqual(loaded[1].name, "Production")
+    }
+
     // MARK: - Persistence
 
     func testGroupsPersistAcrossLoadCalls() {

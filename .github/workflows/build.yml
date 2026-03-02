@@ -734,14 +734,13 @@ jobs:
           # Build message with release notes
           NOTES=$(cat release_notes.md 2>/dev/null || echo "Bug fixes and improvements")
 
-          TEXT=$(cat <<MSG_EOF
-          *TablePro v${VERSION} Released*
+          read -r -d '' TEXT <<MSG_EOF || true
+*TablePro v${VERSION} Released*
 
-          ${NOTES}
+${NOTES}
 
-          [View Release](${RELEASE_URL})
-          MSG_EOF
-          )
+[View Release](${RELEASE_URL})
+MSG_EOF
 
           PAYLOAD=$(jq -n \
             --arg chat_id "$TELEGRAM_CHAT_ID" \

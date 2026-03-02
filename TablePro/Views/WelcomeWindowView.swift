@@ -29,7 +29,10 @@ struct WelcomeWindowView: View {
     @State private var selectedConnectionId: UUID?  // For keyboard navigation
     @State private var showOnboarding = !AppSettingsStorage.shared.hasCompletedOnboarding()
     @State private var groups: [ConnectionGroup] = []
-    @State private var collapsedGroupIds: Set<UUID> = []
+    @State private var collapsedGroupIds: Set<UUID> = {
+        let strings = UserDefaults.standard.stringArray(forKey: "com.TablePro.collapsedGroupIds") ?? []
+        return Set(strings.compactMap { UUID(uuidString: $0) })
+    }()
     @State private var showNewGroupSheet = false
 
     @Environment(\.openWindow) private var openWindow
@@ -103,7 +106,7 @@ struct WelcomeWindowView: View {
             loadConnections()
         }
         .sheet(isPresented: $showNewGroupSheet) {
-            NewGroupSheet { name, color in
+            CreateGroupSheet { name, color in
                 let group = ConnectionGroup(name: name, color: color)
                 groupStorage.addGroup(group)
                 groups = groupStorage.loadGroups()
@@ -339,6 +342,10 @@ struct WelcomeWindowView: View {
                 } else {
                     collapsedGroupIds.insert(group.id)
                 }
+                UserDefaults.standard.set(
+                    Array(collapsedGroupIds.map(\.uuidString)),
+                    forKey: "com.TablePro.collapsedGroupIds"
+                )
             }
         }
         .contextMenu {
@@ -493,6 +500,10 @@ struct WelcomeWindowView: View {
         if alert.runModal() == .alertFirstButtonReturn {
             let newName = textField.stringValue.trimmingCharacters(in: .whitespaces)
             guard !newName.isEmpty else { return }
+            let isDuplicate = groups.contains {
+                $0.id != group.id && $0.name.lowercased() == newName.lowercased()
+            }
+            guard !isDuplicate else { return }
             var updated = group
             updated.name = newName
             groupStorage.updateGroup(updated)
@@ -502,11 +513,18 @@ struct WelcomeWindowView: View {
 
     private func moveUngroupedConnections(from source: IndexSet, to destination: Int) {
         let ungroupedIndices = connections.indices.filter { connections[$0].groupId == nil }
-        var ungroupedConns = ungroupedIndices.map { connections[$0] }
-        ungroupedConns.move(fromOffsets: source, toOffset: destination)
 
-        let groupedConns = connections.filter { $0.groupId != nil }
-        connections = ungroupedConns + groupedConns
+        let globalSource = IndexSet(source.map { ungroupedIndices[$0] })
+        let globalDestination: Int
+        if destination < ungroupedIndices.count {
+            globalDestination = ungroupedIndices[destination]
+        } else if let last = ungroupedIndices.last {
+            globalDestination = last + 1
+        } else {
+            globalDestination = 0
+        }
+
+        connections.move(fromOffsets: globalSource, toOffset: globalDestination)
         storage.saveConnections(connections)
     }
 
@@ -532,66 +550,6 @@ struct WelcomeWindowView: View {
         // Start immediately on next run loop
         DispatchQueue.main.async {
             attemptFocus()
-        }
-    }
-}
-
-// MARK: - NewGroupSheet
-
-private struct NewGroupSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var groupName: String = ""
-    @State private var groupColor: ConnectionColor = .none
-    let onSave: (String, ConnectionColor) -> Void
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("New Group")
-                .font(.headline)
-
-            TextField("Group name", text: $groupName)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 200)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Color")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 6) {
-                    ForEach(ConnectionColor.allCases) { color in
-                        Circle()
-                            .fill(color == .none ? Color(nsColor: .quaternaryLabelColor) : color.color)
-                            .frame(width: 14, height: 14)
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.primary, lineWidth: groupColor == color ? 2 : 0)
-                                    .frame(width: 18, height: 18)
-                            )
-                            .onTapGesture {
-                                groupColor = color
-                            }
-                    }
-                }
-            }
-
-            HStack {
-                Button("Cancel") {
-                    dismiss()
-                }
-
-                Button("Create") {
-                    onSave(groupName, groupColor)
-                    dismiss()
-                }
-                .keyboardShortcut(.return)
-                .buttonStyle(.borderedProminent)
-                .disabled(groupName.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-        }
-        .padding(20)
-        .frame(width: 300)
-        .onExitCommand {
-            dismiss()
         }
     }
 }

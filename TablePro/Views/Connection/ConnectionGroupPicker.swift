@@ -17,7 +17,7 @@ struct ConnectionGroupPicker: View {
 
     private var selectedGroup: ConnectionGroup? {
         guard let id = selectedGroupId else { return nil }
-        return groupStorage.group(for: id)
+        return allGroups.first { $0.id == id }
     }
 
     var body: some View {
@@ -107,7 +107,7 @@ struct ConnectionGroupPicker: View {
 
 // MARK: - Create Group Sheet
 
-private struct CreateGroupSheet: View {
+struct CreateGroupSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var groupName: String = ""
     @State private var groupColor: ConnectionColor = .none
