@@ -15,6 +15,7 @@ import SwiftUI
 struct WelcomeWindowView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "WelcomeWindowView")
     private let storage = ConnectionStorage.shared
+    private let groupStorage = GroupStorage.shared
     @ObservedObject private var dbManager = DatabaseManager.shared
 
     @State private var connections: [DatabaseConnection] = []
@@ -27,6 +28,12 @@ struct WelcomeWindowView: View {
     @State private var hoveredConnectionId: UUID?
     @State private var selectedConnectionId: UUID?  // For keyboard navigation
     @State private var showOnboarding = !AppSettingsStorage.shared.hasCompletedOnboarding()
+    @State private var groups: [ConnectionGroup] = []
+    @State private var collapsedGroupIds: Set<UUID> = {
+        let strings = UserDefaults.standard.stringArray(forKey: "com.TablePro.collapsedGroupIds") ?? []
+        return Set(strings.compactMap { UUID(uuidString: $0) })
+    }()
+    @State private var showNewGroupSheet = false
 
     @Environment(\.openWindow) private var openWindow
 
@@ -38,7 +45,26 @@ struct WelcomeWindowView: View {
             connection.name.localizedCaseInsensitiveContains(searchText)
                 || connection.host.localizedCaseInsensitiveContains(searchText)
                 || connection.database.localizedCaseInsensitiveContains(searchText)
+                || groupName(for: connection.groupId)?.localizedCaseInsensitiveContains(searchText) == true
         }
+    }
+
+    private func groupName(for groupId: UUID?) -> String? {
+        guard let groupId else { return nil }
+        return groups.first { $0.id == groupId }?.name
+    }
+
+    private var ungroupedConnections: [DatabaseConnection] {
+        filteredConnections.filter { $0.groupId == nil }
+    }
+
+    private var activeGroups: [ConnectionGroup] {
+        let groupIds = Set(filteredConnections.compactMap(\.groupId))
+        return groups.filter { groupIds.contains($0.id) }
+    }
+
+    private func connections(in group: ConnectionGroup) -> [DatabaseConnection] {
+        filteredConnections.filter { $0.groupId == group.id }
     }
 
     var body: some View {
@@ -78,6 +104,13 @@ struct WelcomeWindowView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .connectionUpdated)) { _ in
             loadConnections()
+        }
+        .sheet(isPresented: $showNewGroupSheet) {
+            CreateGroupSheet { name, color in
+                let group = ConnectionGroup(name: name, color: color)
+                groupStorage.addGroup(group)
+                groups = groupStorage.loadGroups()
+            }
         }
     }
 
@@ -168,6 +201,22 @@ struct WelcomeWindowView: View {
                 .buttonStyle(.plain)
                 .help("New Connection (⌘N)")
 
+                Button(action: { showNewGroupSheet = true }) {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: DesignConstants.FontSize.medium, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(
+                            width: DesignConstants.IconSize.extraLarge,
+                            height: DesignConstants.IconSize.extraLarge
+                        )
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(nsColor: .quaternaryLabelColor))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(String(localized: "New Group"))
+
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: DesignConstants.FontSize.medium))
@@ -217,31 +266,24 @@ struct WelcomeWindowView: View {
     /// - Arrow keys: native keyboard navigation
     private var connectionList: some View {
         List(selection: $selectedConnectionId) {
-            ForEach(filteredConnections) { connection in
-                ConnectionRow(
-                    connection: connection,
-                    onConnect: { connectToDatabase(connection) },
-                    onEdit: {
-                        openWindow(id: "connection-form", value: connection.id as UUID?)
-                        focusConnectionFormWindow()
-                    },
-                    onDuplicate: {
-                        duplicateConnection(connection)
-                    },
-                    onDelete: {
-                        connectionToDelete = connection
-                        showDeleteConfirmation = true
-                    }
-                )
-                .tag(connection.id)
-                .listRowInsets(DesignConstants.swiftUIListRowInsets)
-                .listRowSeparator(.hidden)
+            ForEach(ungroupedConnections) { connection in
+                connectionRow(for: connection)
             }
-            // Reorder only when not searching to prevent index mapping issues
             .onMove { from, to in
                 guard searchText.isEmpty else { return }
-                connections.move(fromOffsets: from, toOffset: to)
-                storage.saveConnections(connections)
+                moveUngroupedConnections(from: from, to: to)
+            }
+
+            ForEach(activeGroups) { group in
+                Section {
+                    if !collapsedGroupIds.contains(group.id) {
+                        ForEach(connections(in: group)) { connection in
+                            connectionRow(for: connection)
+                        }
+                    }
+                } header: {
+                    groupHeader(for: group)
+                }
             }
         }
         .listStyle(.inset)
@@ -254,6 +296,104 @@ struct WelcomeWindowView: View {
                 connectToDatabase(connection)
             }
             return .handled
+        }
+    }
+
+    private func connectionRow(for connection: DatabaseConnection) -> some View {
+        ConnectionRow(
+            connection: connection,
+            onConnect: { connectToDatabase(connection) },
+            onEdit: {
+                openWindow(id: "connection-form", value: connection.id as UUID?)
+                focusConnectionFormWindow()
+            },
+            onDuplicate: {
+                duplicateConnection(connection)
+            },
+            onDelete: {
+                connectionToDelete = connection
+                showDeleteConfirmation = true
+            }
+        )
+        .tag(connection.id)
+        .listRowInsets(DesignConstants.swiftUIListRowInsets)
+        .listRowSeparator(.hidden)
+    }
+
+    private func groupHeader(for group: ConnectionGroup) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: collapsedGroupIds.contains(group.id) ? "chevron.right" : "chevron.down")
+                .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                .foregroundStyle(.tertiary)
+                .frame(width: 12)
+
+            if !group.color.isDefault {
+                Circle()
+                    .fill(group.color.color)
+                    .frame(width: 8, height: 8)
+            }
+
+            Text(group.name)
+                .font(.system(size: DesignConstants.FontSize.small, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text("\(connections(in: group).count)")
+                .font(.system(size: DesignConstants.FontSize.tiny))
+                .foregroundStyle(.tertiary)
+
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                if collapsedGroupIds.contains(group.id) {
+                    collapsedGroupIds.remove(group.id)
+                } else {
+                    collapsedGroupIds.insert(group.id)
+                }
+                UserDefaults.standard.set(
+                    Array(collapsedGroupIds.map(\.uuidString)),
+                    forKey: "com.TablePro.collapsedGroupIds"
+                )
+            }
+        }
+        .contextMenu {
+            Button {
+                renameGroup(group)
+            } label: {
+                Label(String(localized: "Rename"), systemImage: "pencil")
+            }
+
+            Menu(String(localized: "Change Color")) {
+                ForEach(ConnectionColor.allCases) { color in
+                    Button {
+                        var updated = group
+                        updated.color = color
+                        groupStorage.updateGroup(updated)
+                        groups = groupStorage.loadGroups()
+                    } label: {
+                        HStack {
+                            if color != .none {
+                                Image(systemName: "circle.fill")
+                                    .foregroundStyle(color.color)
+                            }
+                            Text(color.displayName)
+                            if group.color == color {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                deleteGroup(group)
+            } label: {
+                Label(String(localized: "Delete Group"), systemImage: "trash")
+            }
         }
     }
 
@@ -296,6 +436,7 @@ struct WelcomeWindowView: View {
         } else {
             connections = saved
         }
+        loadGroups()
     }
 
     private func connectToDatabase(_ connection: DatabaseConnection) {
@@ -339,6 +480,61 @@ struct WelcomeWindowView: View {
         // Open edit form for the duplicate so user can rename
         openWindow(id: "connection-form", value: duplicate.id as UUID?)
         focusConnectionFormWindow()
+    }
+
+    private func loadGroups() {
+        groups = groupStorage.loadGroups()
+    }
+
+    private func deleteGroup(_ group: ConnectionGroup) {
+        for i in connections.indices where connections[i].groupId == group.id {
+            connections[i].groupId = nil
+        }
+        storage.saveConnections(connections)
+        groupStorage.deleteGroup(group)
+        groups = groupStorage.loadGroups()
+    }
+
+    private func renameGroup(_ group: ConnectionGroup) {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Rename Group")
+        alert.informativeText = String(localized: "Enter a new name for the group.")
+        alert.addButton(withTitle: String(localized: "Rename"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+
+        let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        textField.stringValue = group.name
+        alert.accessoryView = textField
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            let newName = textField.stringValue.trimmingCharacters(in: .whitespaces)
+            guard !newName.isEmpty else { return }
+            let isDuplicate = groups.contains {
+                $0.id != group.id && $0.name.lowercased() == newName.lowercased()
+            }
+            guard !isDuplicate else { return }
+            var updated = group
+            updated.name = newName
+            groupStorage.updateGroup(updated)
+            groups = groupStorage.loadGroups()
+        }
+    }
+
+    private func moveUngroupedConnections(from source: IndexSet, to destination: Int) {
+        let ungroupedIndices = connections.indices.filter { connections[$0].groupId == nil }
+
+        let globalSource = IndexSet(source.map { ungroupedIndices[$0] })
+        let globalDestination: Int
+        if destination < ungroupedIndices.count {
+            globalDestination = ungroupedIndices[destination]
+        } else if let last = ungroupedIndices.last {
+            globalDestination = last + 1
+        } else {
+            globalDestination = 0
+        }
+
+        connections.move(fromOffsets: globalSource, toOffset: globalDestination)
+        storage.saveConnections(connections)
     }
 
     /// Focus the connection form window as soon as it's available

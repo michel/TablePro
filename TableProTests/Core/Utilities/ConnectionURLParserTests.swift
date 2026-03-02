@@ -426,4 +426,36 @@ struct ConnectionURLParserTests {
         #expect(parsed.type == .mysql)
         #expect(parsed.sshHost == "host")
     }
+
+    @Test("SSH URL with percent-encoded password")
+    func testSSHURLPercentEncodedPassword() {
+        let result = ConnectionURLParser.parse("mysql+ssh://root@host:22/dbuser:p%40ss%23word@localhost/db")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.username == "dbuser")
+        #expect(parsed.password == "p@ss#word")
+        #expect(parsed.sshUsername == "root")
+    }
+
+    @Test("SSH URL with percent-encoded SSH username")
+    func testSSHURLPercentEncodedSSHUsername() {
+        let result = ConnectionURLParser.parse("mysql+ssh://user%40domain@host:22/dbuser:pass@localhost/db")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.sshUsername == "user@domain")
+    }
+
+    @Test("SSH URL with IPv6 host in brackets")
+    func testSSHURLIPv6Host() {
+        let result = ConnectionURLParser.parse("mysql+ssh://root@[::1]:22/dbuser:pass@[fe80::1]:3306/db")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.sshHost == "::1")
+        #expect(parsed.sshPort == 22)
+        #expect(parsed.host == "fe80::1")
+        #expect(parsed.port == 3306)
+    }
 }

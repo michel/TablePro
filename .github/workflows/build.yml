@@ -721,6 +721,43 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Notify Telegram
+        if: success() && env.TELEGRAM_BOT_TOKEN != ''
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          RELEASE_URL="https://github.com/datlechin/TablePro/releases/tag/v${VERSION}"
+
+          # Build message with release notes
+          NOTES=$(cat release_notes.md 2>/dev/null || echo "Bug fixes and improvements")
+
+          read -r -d '' TEXT <<MSG_EOF || true
+*TablePro v${VERSION} Released*
+
+${NOTES}
+
+[View Release](${RELEASE_URL})
+MSG_EOF
+
+          PAYLOAD=$(jq -n \
+            --arg chat_id "$TELEGRAM_CHAT_ID" \
+            --arg text "$TEXT" \
+            --arg parse_mode "Markdown" \
+            --arg topic_id "$TELEGRAM_TOPIC_ID" \
+            '{
+              chat_id: $chat_id,
+              text: $text,
+              parse_mode: $parse_mode,
+              disable_web_page_preview: true
+            } + (if $topic_id != "" then {message_thread_id: ($topic_id | tonumber)} else {} end)')
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
+
       - name: Clean up staging directory
         if: always()
         run: rm -rf "/tmp/tablepro-artifacts-${{ github.sha }}" || true

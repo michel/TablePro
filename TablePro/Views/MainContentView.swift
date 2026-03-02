@@ -242,6 +242,7 @@ struct MainContentView: View {
                     window.subtitle = connection.name
                     window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
                     window.tabbingMode = .preferred
+
                     NativeTabRegistry.shared.setWindow(window, for: windowId, connectionId: connection.id)
                 }
             }
@@ -277,6 +278,7 @@ struct MainContentView: View {
     private var bodyContentCore: some View {
         mainContentView
             .openTableToolbar(state: toolbarState)
+            .modifier(ToolbarTintModifier(connectionColor: connection.color))
             .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { _, newTabId in
                 handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
@@ -892,6 +894,24 @@ struct MainContentView: View {
         }
 
         return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - Toolbar Tint Modifier
+
+/// Applies a subtle color tint to the window toolbar when a connection color is set.
+private struct ToolbarTintModifier: ViewModifier {
+    let connectionColor: ConnectionColor
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if connectionColor.isDefault {
+            content
+        } else {
+            content
+                .toolbarBackground(connectionColor.color.opacity(0.12), for: .windowToolbar)
+                .toolbarBackground(.visible, for: .windowToolbar)
+        }
     }
 }
 

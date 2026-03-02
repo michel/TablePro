@@ -192,6 +192,7 @@ struct ConnectionURLParser {
         var sshHostPort: String
         if let atIndex = sshPart.firstIndex(of: "@") {
             sshUsername = String(sshPart[sshPart.startIndex..<atIndex])
+                .removingPercentEncoding
             sshHostPort = String(sshPart[sshPart.index(after: atIndex)...])
         } else {
             sshHostPort = sshPart
@@ -203,9 +204,9 @@ struct ConnectionURLParser {
 
         var sshHost: String
         var sshPort: Int?
-        if let colonIndex = sshHostPort.firstIndex(of: ":") {
-            sshHost = String(sshHostPort[sshHostPort.startIndex..<colonIndex])
-            sshPort = Int(sshHostPort[sshHostPort.index(after: colonIndex)...])
+        if let (h, p) = parseHostPort(sshHostPort) {
+            sshHost = h
+            sshPort = p
         } else {
             sshHost = sshHostPort
         }
@@ -221,9 +222,11 @@ struct ConnectionURLParser {
 
             if let colonIndex = credentials.firstIndex(of: ":") {
                 dbUsername = String(credentials[credentials.startIndex..<colonIndex])
+                    .removingPercentEncoding ?? ""
                 dbPassword = String(credentials[credentials.index(after: colonIndex)...])
+                    .removingPercentEncoding ?? ""
             } else {
-                dbUsername = credentials
+                dbUsername = credentials.removingPercentEncoding ?? credentials
             }
 
             if let slashIndex = afterAt.firstIndex(of: "/") {
@@ -243,9 +246,9 @@ struct ConnectionURLParser {
 
         var host: String
         var port: Int?
-        if let colonIndex = dbHostPort.lastIndex(of: ":") {
-            host = String(dbHostPort[dbHostPort.startIndex..<colonIndex])
-            port = Int(dbHostPort[dbHostPort.index(after: colonIndex)...])
+        if let (h, p) = parseHostPort(dbHostPort) {
+            host = h
+            port = p
         } else {
             host = dbHostPort
         }
@@ -300,6 +303,30 @@ struct ConnectionURLParser {
             usePrivateKey: usePrivateKey,
             connectionName: connectionName
         ))
+    }
+
+    /// Parse a host:port string, handling IPv6 bracket notation ([::1]:port).
+    /// Returns nil if the string is empty or contains only a bare host with no port.
+    private static func parseHostPort(_ hostPort: String) -> (host: String, port: Int?)? {
+        guard !hostPort.isEmpty else { return nil }
+
+        if hostPort.hasPrefix("["), let closeBracket = hostPort.firstIndex(of: "]") {
+            let host = String(hostPort[hostPort.index(after: hostPort.startIndex)..<closeBracket])
+            let afterBracket = hostPort.index(after: closeBracket)
+            if afterBracket < hostPort.endIndex, hostPort[afterBracket] == ":" {
+                let port = Int(hostPort[hostPort.index(after: afterBracket)...])
+                return (host, port)
+            }
+            return (host, nil)
+        }
+
+        if let colonIndex = hostPort.lastIndex(of: ":") {
+            let host = String(hostPort[hostPort.startIndex..<colonIndex])
+            let port = Int(hostPort[hostPort.index(after: colonIndex)...])
+            return (host, port)
+        }
+
+        return (hostPort, nil)
     }
 
     private static func parseSSLMode(_ value: String) -> SSLMode? {

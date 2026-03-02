@@ -116,7 +116,8 @@ final class ConnectionStorage {
             type: connection.type,
             sshConfig: connection.sshConfig,
             color: connection.color,
-            tagId: connection.tagId
+            tagId: connection.tagId,
+            groupId: connection.groupId
         )
 
         // Save the duplicate connection
@@ -346,9 +347,10 @@ private struct StoredConnection: Codable {
     let sslClientCertificatePath: String
     let sslClientKeyPath: String
 
-    // Color and Tag
+    // Color, Tag, and Group
     let color: String
     let tagId: String?
+    let groupId: String?
 
     // Read-only mode
     let isReadOnly: Bool
@@ -380,9 +382,10 @@ private struct StoredConnection: Codable {
         self.sslClientCertificatePath = connection.sslConfig.clientCertificatePath
         self.sslClientKeyPath = connection.sslConfig.clientKeyPath
 
-        // Color and Tag
+        // Color, Tag, and Group
         self.color = connection.color.rawValue
         self.tagId = connection.tagId?.uuidString
+        self.groupId = connection.groupId?.uuidString
 
         // Read-only mode
         self.isReadOnly = connection.isReadOnly
@@ -422,6 +425,7 @@ private struct StoredConnection: Codable {
         // Migration: use defaults if fields are missing
         color = try container.decodeIfPresent(String.self, forKey: .color) ?? ConnectionColor.none.rawValue
         tagId = try container.decodeIfPresent(String.self, forKey: .tagId)
+        groupId = try container.decodeIfPresent(String.self, forKey: .groupId)
         isReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
         aiPolicy = try container.decodeIfPresent(String.self, forKey: .aiPolicy)
     }
@@ -446,6 +450,7 @@ private struct StoredConnection: Codable {
 
         let parsedColor = ConnectionColor(rawValue: color) ?? .none
         let parsedTagId = tagId.flatMap { UUID(uuidString: $0) }
+        let parsedGroupId = groupId.flatMap { UUID(uuidString: $0) }
         let parsedAIPolicy = aiPolicy.flatMap { AIConnectionPolicy(rawValue: $0) }
 
         return DatabaseConnection(
@@ -460,6 +465,7 @@ private struct StoredConnection: Codable {
             sslConfig: sslConfig,
             color: parsedColor,
             tagId: parsedTagId,
+            groupId: parsedGroupId,
             isReadOnly: isReadOnly,
             aiPolicy: parsedAIPolicy
         )
