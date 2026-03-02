@@ -7,7 +7,6 @@
 //
 
 import Combine
-import os
 import SwiftUI
 
 // MARK: - TableFetcher Protocol
@@ -34,7 +33,9 @@ struct LiveTableFetcher: TableFetcher {
                 return cached
             }
         }
-        guard let driver = await DatabaseManager.shared.driver(for: connectionId) else { return [] }
+        guard let driver = await DatabaseManager.shared.driver(for: connectionId) else {
+            return []
+        }
         return try await driver.fetchTables()
     }
 }
@@ -43,8 +44,6 @@ struct LiveTableFetcher: TableFetcher {
 
 @MainActor
 final class SidebarViewModel: ObservableObject {
-    private static let logger = Logger(subsystem: "com.TablePro", category: "SidebarViewModel")
-
     // MARK: - Published State
 
     @Published var isLoading = false
@@ -82,6 +81,7 @@ final class SidebarViewModel: ObservableObject {
     private let tableFetcher: TableFetcher
     private var cancellables = Set<AnyCancellable>()
     private var hasSetupNotifications = false
+    private var loadTask: Task<Void, Never>?
 
     // MARK: - Convenience Accessors
 
@@ -167,7 +167,7 @@ final class SidebarViewModel: ObservableObject {
         .receive(on: DispatchQueue.main)
         .sink { [weak self] _ in
             Task { @MainActor in
-                self?.loadTables()
+                self?.forceLoadTables()
             }
         }
         .store(in: &cancellables)
@@ -201,9 +201,16 @@ final class SidebarViewModel: ObservableObject {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
-        Task {
+        loadTask = Task {
             await loadTablesAsync()
         }
+    }
+
+    func forceLoadTables() {
+        loadTask?.cancel()
+        loadTask = nil
+        isLoading = false
+        loadTables()
     }
 
     private func loadTablesAsync() async {

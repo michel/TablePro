@@ -1159,7 +1159,8 @@ final class ExportService: ObservableObject {
             }
             if foundHeader {
                 var processedLine = line
-                let ddlAccessor = "db.\(collection)"
+                let escapedForDDL = collection.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+                let ddlAccessor = "db[\"\(escapedForDDL)\"]"
                 if processedLine.hasPrefix(ddlAccessor) {
                     processedLine = collectionAccessor + processedLine.dropFirst(ddlAccessor.count)
                 }

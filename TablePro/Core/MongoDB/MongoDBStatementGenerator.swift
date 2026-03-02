@@ -15,6 +15,11 @@ struct MongoDBStatementGenerator {
     let collectionName: String
     let columns: [String]
 
+    /// Collection accessor using bracket notation for safety with dotted names
+    private var collectionAccessor: String {
+        "db[\"\(escapeJsonString(collectionName))\"]"
+    }
+
     /// Index of "_id" field in the columns array (used as primary key equivalent)
     var idColumnIndex: Int? {
         columns.firstIndex(of: "_id")
@@ -97,7 +102,7 @@ struct MongoDBStatementGenerator {
         guard !doc.isEmpty else { return nil }
 
         let docJson = serializeDocument(doc)
-        let shell = "db.\(collectionName).insertOne(\(docJson))"
+        let shell = "\(collectionAccessor).insertOne(\(docJson))"
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 
@@ -134,7 +139,7 @@ struct MongoDBStatementGenerator {
         guard docs.count > 1 else { return nil }
 
         let docsArray = "[\(docs.joined(separator: ", "))]"
-        let shell = "db.\(collectionName).insertMany(\(docsArray))"
+        let shell = "\(collectionAccessor).insertMany(\(docsArray))"
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 
@@ -179,7 +184,7 @@ struct MongoDBStatementGenerator {
         }
 
         let updateJson = "{\(updateParts.joined(separator: ", "))}"
-        let shell = "db.\(collectionName).updateOne(\(filterJson), \(updateJson))"
+        let shell = "\(collectionAccessor).updateOne(\(filterJson), \(updateJson))"
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 
@@ -206,7 +211,7 @@ struct MongoDBStatementGenerator {
         }
 
         let inList = idValues.joined(separator: ", ")
-        let shell = "db.\(collectionName).deleteMany({\"_id\": {\"$in\": [\(inList)]}})"
+        let shell = "\(collectionAccessor).deleteMany({\"_id\": {\"$in\": [\(inList)]}})"
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 
@@ -220,7 +225,7 @@ struct MongoDBStatementGenerator {
            idIndex < originalRow.count,
            let idValue = originalRow[idIndex] {
             let filterJson = buildIdFilter(idValue)
-            let shell = "db.\(collectionName).deleteOne(\(filterJson))"
+            let shell = "\(collectionAccessor).deleteOne(\(filterJson))"
             return ParameterizedStatement(sql: shell, parameters: [])
         }
 
@@ -236,7 +241,7 @@ struct MongoDBStatementGenerator {
         guard !filter.isEmpty else { return nil }
 
         let filterJson = serializeDocument(filter)
-        let shell = "db.\(collectionName).deleteOne(\(filterJson))"
+        let shell = "\(collectionAccessor).deleteOne(\(filterJson))"
         return ParameterizedStatement(sql: shell, parameters: [])
     }
 

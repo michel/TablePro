@@ -565,7 +565,8 @@ final class QueryTabManager: ObservableObject {
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
         let query: String
         if databaseType == .mongodb {
-            query = "db.\(tableName).find({}).limit(\(pageSize))"
+            let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            query = "db[\"\(escaped)\"].find({}).limit(\(pageSize))"
         } else {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
@@ -599,7 +600,8 @@ final class QueryTabManager: ObservableObject {
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
         let query: String
         if databaseType == .mongodb {
-            query = "db.\(tableName).find({}).limit(\(pageSize))"
+            let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            query = "db[\"\(escaped)\"].find({}).limit(\(pageSize))"
         } else {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"

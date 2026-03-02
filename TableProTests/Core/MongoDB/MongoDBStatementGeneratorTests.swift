@@ -42,7 +42,7 @@ struct MongoDBStatementGeneratorTests {
 
         #expect(statements.count == 1)
         let stmt = statements[0]
-        #expect(stmt.sql == "db.users.insertOne({\"email\": \"john@test.com\", \"name\": \"John\"})")
+        #expect(stmt.sql == "db[\"users\"].insertOne({\"email\": \"john@test.com\", \"name\": \"John\"})")
         #expect(stmt.parameters.isEmpty)
     }
 
@@ -192,7 +192,7 @@ struct MongoDBStatementGeneratorTests {
 
         #expect(statements.count == 1)
         let stmt = statements[0]
-        #expect(stmt.sql.contains("db.users.updateOne("))
+        #expect(stmt.sql.contains("db[\"users\"].updateOne("))
         #expect(stmt.sql.contains("{\"_id\": {\"$oid\": \"abc123def456abc123def456\"}}"))
         #expect(stmt.sql.contains("{\"$set\": {\"name\": \"Jane\"}}"))
         #expect(stmt.parameters.isEmpty)
@@ -382,7 +382,7 @@ struct MongoDBStatementGeneratorTests {
 
         #expect(statements.count == 1)
         let stmt = statements[0]
-        #expect(stmt.sql.contains("db.users.deleteOne("))
+        #expect(stmt.sql.contains("db[\"users\"].deleteOne("))
         #expect(stmt.sql.contains("{\"_id\": {\"$oid\": \"abc123def456abc123def456\"}}"))
         #expect(stmt.parameters.isEmpty)
     }

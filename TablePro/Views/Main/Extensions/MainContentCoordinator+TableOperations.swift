@@ -126,7 +126,8 @@ extension MainContentCoordinator {
                 "DELETE FROM sqlite_sequence WHERE name = '\(escapedName)'"
             ]
         case .mongodb:
-            return ["db.\(tableName).deleteMany({})"]
+            let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            return ["db[\"\(escaped)\"].deleteMany({})"]
         }
     }
 
@@ -139,7 +140,8 @@ extension MainContentCoordinator {
         case .mysql, .mariadb, .sqlite:
             return "DROP \(keyword) \(quotedName)"
         case .mongodb:
-            return "db.\(tableName).drop()"
+            let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            return "db[\"\(escaped)\"].drop()"
         }
     }
 }

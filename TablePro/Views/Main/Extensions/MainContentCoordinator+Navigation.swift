@@ -272,7 +272,16 @@ extension MainContentCoordinator {
                     runQuery()
                 }
             } else if connection.type == .mongodb {
-                // MongoDB: just update the database name — driver reads it for every operation
+                // MongoDB: update the driver's connection so fetchTables/execute use the new database
+                if let mongoDriver = driver as? MongoDBDriver {
+                    mongoDriver.switchDatabase(to: database)
+                }
+
+                // Also update metadata driver if present
+                if let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) as? MongoDBDriver {
+                    metaDriver.switchDatabase(to: database)
+                }
+
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     var updatedConnection = session.connection
                     updatedConnection.database = database
@@ -294,6 +303,8 @@ extension MainContentCoordinator {
                 }
 
                 await loadSchema()
+
+                NotificationCenter.default.post(name: .refreshData, object: nil)
 
                 if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
                     runQuery()
