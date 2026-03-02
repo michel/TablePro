@@ -106,6 +106,7 @@ struct MainEditorContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .animation(.easeInOut(duration: 0.2), value: appState.isHistoryPanelVisible)
         .onChange(of: tabManager.tabs.count) {
             // Clean up caches for closed tabs

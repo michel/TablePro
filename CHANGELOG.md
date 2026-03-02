@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Environment color indicator: subtle toolbar tint based on connection color for at-a-glance environment identification
 - Import database connections from SSH tunnel URLs (e.g., `mysql+ssh://`, `postgresql+ssh://`)
+- Connection groups for organizing database connections into folders with colored headers
 
 ### Fixed
 

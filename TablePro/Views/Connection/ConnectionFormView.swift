@@ -55,6 +55,7 @@ struct ConnectionFormView: View {
     // Color and Tag
     @State private var connectionColor: ConnectionColor = .none
     @State private var selectedTagId: UUID?
+    @State private var selectedGroupId: UUID?
 
     // Read-only mode
     @State private var isReadOnly: Bool = false
@@ -221,6 +222,9 @@ struct ConnectionFormView: View {
                 }
                 LabeledContent(String(localized: "Tag")) {
                     ConnectionTagEditor(selectedTagId: $selectedTagId)
+                }
+                LabeledContent(String(localized: "Group")) {
+                    ConnectionGroupPicker(selectedGroupId: $selectedGroupId)
                 }
                 Toggle(String(localized: "Read-Only"), isOn: $isReadOnly)
                     .help("Prevent write operations (INSERT, UPDATE, DELETE, DROP, etc.)")
@@ -574,6 +578,7 @@ struct ConnectionFormView: View {
             // Load color and tag
             connectionColor = existing.color
             selectedTagId = existing.tagId
+            selectedGroupId = existing.groupId
             isReadOnly = existing.isReadOnly
             aiPolicy = existing.aiPolicy
 
@@ -631,6 +636,7 @@ struct ConnectionFormView: View {
             sslConfig: sslConfig,
             color: connectionColor,
             tagId: selectedTagId,
+            groupId: selectedGroupId,
             isReadOnly: isReadOnly,
             aiPolicy: aiPolicy,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
@@ -729,6 +735,7 @@ struct ConnectionFormView: View {
             sslConfig: sslConfig,
             color: connectionColor,
             tagId: selectedTagId,
+            groupId: selectedGroupId,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern
         )

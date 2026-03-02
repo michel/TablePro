@@ -1467,6 +1467,9 @@
         }
       }
     },
+    "Change Color" : {
+
+    },
     "Change File" : {
       "localizations" : {
         "vi" : {
@@ -2394,6 +2397,12 @@
         }
       }
     },
+    "Create New Group" : {
+
+    },
+    "Create New Group..." : {
+
+    },
     "Create New Tag" : {
       "localizations" : {
         "vi" : {
@@ -2949,6 +2958,9 @@
         }
       }
     },
+    "Delete Group" : {
+
+    },
     "Delete Index" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -3383,6 +3395,9 @@
           }
         }
       }
+    },
+    "Enter a new name for the group." : {
+
     },
     "Enter database name" : {
       "localizations" : {
@@ -4294,6 +4309,12 @@
           }
         }
       }
+    },
+    "Group" : {
+
+    },
+    "Group name" : {
+
     },
     "Help improve TablePro by sharing anonymous usage statistics (no personal data or queries)." : {
       "localizations" : {
@@ -5324,6 +5345,9 @@
           }
         }
       }
+    },
+    "New Group" : {
+
     },
     "New query tab" : {
       "extractionState" : "stale",
@@ -6878,6 +6902,12 @@
           }
         }
       }
+    },
+    "Rename" : {
+
+    },
+    "Rename Group" : {
+
     },
     "Reopen Last Session" : {
       "localizations" : {

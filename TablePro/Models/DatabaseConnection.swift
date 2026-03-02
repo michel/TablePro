@@ -248,6 +248,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var sslConfig: SSLConfiguration
     var color: ConnectionColor
     var tagId: UUID?
+    var groupId: UUID?
     var isReadOnly: Bool
     var aiPolicy: AIConnectionPolicy?
     var mongoReadPreference: String?
@@ -265,6 +266,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         sslConfig: SSLConfiguration = SSLConfiguration(),
         color: ConnectionColor = .none,
         tagId: UUID? = nil,
+        groupId: UUID? = nil,
         isReadOnly: Bool = false,
         aiPolicy: AIConnectionPolicy? = nil,
         mongoReadPreference: String? = nil,
@@ -281,6 +283,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.sslConfig = sslConfig
         self.color = color
         self.tagId = tagId
+        self.groupId = groupId
         self.isReadOnly = isReadOnly
         self.aiPolicy = aiPolicy
         self.mongoReadPreference = mongoReadPreference
