@@ -35,6 +35,10 @@ Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 - **[Huy TQ](https://github.com/imhuytq)** — Tài trợ Apple Developer Program
 - **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
+## Lịch sử Star
+
+[![Star History Chart](https://api.star-history.com/svg?repos=datlechin/TablePro&type=Date)](https://star-history.com/#datlechin/TablePro&Date)
+
 ## Giấy phép
 
 Dự án này được cấp phép theo [GNU General Public License v3.0](LICENSE).

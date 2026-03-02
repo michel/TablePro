@@ -39,6 +39,10 @@ Thanks to these amazing people for supporting TablePro:
 - **[Huy TQ](https://github.com/imhuytq)** — Apple Developer Program sponsor
 - **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=datlechin/TablePro&type=Date)](https://star-history.com/#datlechin/TablePro&Date)
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
