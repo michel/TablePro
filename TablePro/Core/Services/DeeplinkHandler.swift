@@ -21,13 +21,14 @@ enum DeeplinkHandler {
     static func parse(_ url: URL) -> DeeplinkAction? {
         guard url.scheme == "tablepro" else { return nil }
 
-        switch url.host {
+        let host = url.host(percentEncoded: false)
+        switch host {
         case "connect":
             return parseConnect(url)
         case "import":
             return parseImport(url)
         default:
-            logger.warning("Unknown deep link host: \(url.host ?? "nil", privacy: .public)")
+            logger.warning("Unknown deep link host: \(host ?? "nil", privacy: .public)")
             return nil
         }
     }

@@ -197,7 +197,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     private func connectViaDeeplink(
         connectionName: String,
-        makePayload: ((UUID) -> EditorTabPayload)? = nil
+        makePayload: (@Sendable (UUID) -> EditorTabPayload)? = nil
     ) {
         guard let connection = DeeplinkHandler.resolveConnection(named: connectionName) else {
             Self.logger.error("Deep link: no connection named '\(connectionName, privacy: .public)'")
@@ -261,10 +261,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         ConnectionStorage.shared.addConnection(connection)
         NotificationCenter.default.post(name: .connectionUpdated, object: nil)
 
-        DispatchQueue.main.async {
-            if let openWindow = WindowOpener.shared.openWindow {
-                openWindow(id: "connection-form", value: connection.id)
-            }
+        if let openWindow = WindowOpener.shared.openWindow {
+            openWindow(id: "connection-form", value: connection.id)
         }
     }
 
