@@ -3,60 +3,56 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.10.0</title>
-            <pubDate>Sun, 01 Mar 2026 13:27:04 +0000</pubDate>
-            <sparkle:version>21</sparkle:version>
-            <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
+            <title>0.11.0</title>
+            <pubDate>Mon, 02 Mar 2026 12:46:29 +0000</pubDate>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[
-<html>
-<body style="font-family: -apple-system, sans-serif; font-size: 13px;">
-<h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Support for multiple independent database connections in separate windows with per-window session isolation</li>
-<li>MongoDB database support</li>
-<li>Custom About window with version info and links (Website, GitHub, Documentation)</li>
-<li>Import database connections from URL/connection string (e.g., postgresql://user:pass@host:5432/db)</li>
-<li>Release notes in Sparkle update window</li>
+<li>Environment color indicator: subtle toolbar tint based on connection color for at-a-glance environment identification</li>
+<li>Import database connections from SSH tunnel URLs (e.g., `mysql+ssh://`, `postgresql+ssh://`)</li>
+<li>Connection groups for organizing database connections into folders with colored headers</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>New row (Cmd+I) and duplicated row not appearing in datagrid until manual refresh</li>
-<li>PostgreSQL SSH tunnel connections failing with "no encryption" due to SSL config not being preserved</li>
-<li>PostgreSQL SSL sslrootcert passed unconditionally to libpq, causing certificate verification failure even in Required mode</li>
+<li>Toolbar briefly showing "MySQL" and missing version (e.g., "MongoDB" instead of "MongoDB 8.2.5") when opening a new tab</li>
+<li>Keyboard shortcuts not working (beep sound) after connecting from welcome screen until a second tab is opened</li>
+<li>Toolbar overflow menu showing only one item and missing all other buttons when window is narrow</li>
+<li>AI chat showing "SQL" language label and missing syntax highlighting for MongoDB code blocks</li>
 </ul>
-</body>
-</html>
-            ]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.10.0/TablePro-0.10.0-arm64.zip" length="21845325" type="application/octet-stream" sparkle:edSignature="SFnYcZG0uoQpZLmOk1fyzyymvVQhhF0PEi6qba0MpnT6l9lPvp5BkRQMg3A5zsu5PkW0euZUYWAivvKmeLv/Aw==" sparkle:architectures="arm64"/>
+<h3>Changed</h3>
+<ul>
+<li>Refactored toolbar to use individual `ToolbarItem` entries with `Label` for native macOS overflow behavior, and moved History/Export/Import to `.secondaryAction` overflow menu</li>
+<li>Redesigned right sidebar detail pane with compact field layout and type-aware editors</li>
+</ul></body>]]></description>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.11.0/TablePro-0.11.0-arm64.zip" length="21912737" type="application/octet-stream" sparkle:edSignature="ZduQ7BOI3Cl3HUr1gOFmmKPc5jGxIyDrmGyodK5wGjKQv0E2FAPbmw74PCnSDggDcLPOEYX8tCD9VUTvSygjBA==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.10.0</title>
-            <pubDate>Sun, 01 Mar 2026 13:27:04 +0000</pubDate>
-            <sparkle:version>21</sparkle:version>
-            <sparkle:shortVersionString>0.10.0</sparkle:shortVersionString>
+            <title>0.11.0</title>
+            <pubDate>Mon, 02 Mar 2026 12:46:29 +0000</pubDate>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[
-<html>
-<body style="font-family: -apple-system, sans-serif; font-size: 13px;">
-<h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Support for multiple independent database connections in separate windows with per-window session isolation</li>
-<li>MongoDB database support</li>
-<li>Custom About window with version info and links (Website, GitHub, Documentation)</li>
-<li>Import database connections from URL/connection string (e.g., postgresql://user:pass@host:5432/db)</li>
-<li>Release notes in Sparkle update window</li>
+<li>Environment color indicator: subtle toolbar tint based on connection color for at-a-glance environment identification</li>
+<li>Import database connections from SSH tunnel URLs (e.g., `mysql+ssh://`, `postgresql+ssh://`)</li>
+<li>Connection groups for organizing database connections into folders with colored headers</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>New row (Cmd+I) and duplicated row not appearing in datagrid until manual refresh</li>
-<li>PostgreSQL SSH tunnel connections failing with "no encryption" due to SSL config not being preserved</li>
-<li>PostgreSQL SSL sslrootcert passed unconditionally to libpq, causing certificate verification failure even in Required mode</li>
+<li>Toolbar briefly showing "MySQL" and missing version (e.g., "MongoDB" instead of "MongoDB 8.2.5") when opening a new tab</li>
+<li>Keyboard shortcuts not working (beep sound) after connecting from welcome screen until a second tab is opened</li>
+<li>Toolbar overflow menu showing only one item and missing all other buttons when window is narrow</li>
+<li>AI chat showing "SQL" language label and missing syntax highlighting for MongoDB code blocks</li>
 </ul>
-</body>
-</html>
-            ]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.10.0/TablePro-0.10.0-x86_64.zip" length="22371195" type="application/octet-stream" sparkle:edSignature="/AbGXZzCbotTf6iFnVF3eWUdmziq5+SjaiJbSdAqhIiQQsBOvvMvXD1NzIsqG+r15n/IVOKBE6DdAoI2SmtEBw==" sparkle:architectures="x86_64"/>
+<h3>Changed</h3>
+<ul>
+<li>Refactored toolbar to use individual `ToolbarItem` entries with `Label` for native macOS overflow behavior, and moved History/Export/Import to `.secondaryAction` overflow menu</li>
+<li>Redesigned right sidebar detail pane with compact field layout and type-aware editors</li>
+</ul></body>]]></description>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.11.0/TablePro-0.11.0-x86_64.zip" length="22444241" type="application/octet-stream" sparkle:edSignature="3fYMdf37fJxiuX0aU5lwk2jGPSbZ6gmcWAAsyozePfJtgmCHPdv7ctw17hkl2rIuCznPZaj06ZH/F/uqUEhjCA==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
