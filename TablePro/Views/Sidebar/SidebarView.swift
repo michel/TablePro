@@ -73,7 +73,8 @@ struct SidebarView: View {
         }
         .frame(minWidth: 280)
         .onChange(of: tables) { _, newTables in
-            if newTables.isEmpty && DatabaseManager.shared.activeSessions[connectionId] != nil && !viewModel.isLoading {
+            let hasSession = DatabaseManager.shared.activeSessions[connectionId] != nil
+            if newTables.isEmpty && hasSession && !viewModel.isLoading {
                 viewModel.loadTables()
             }
         }

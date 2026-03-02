@@ -13,7 +13,7 @@ import OSLog
 /// Parses mongo shell syntax (db.collection.find/insert/update/delete)
 /// and dispatches to MongoDBConnection for execution.
 final class MongoDBDriver: DatabaseDriver {
-    let connection: DatabaseConnection
+    private(set) var connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 
     private var mongoConnection: MongoDBConnection?
@@ -22,6 +22,10 @@ final class MongoDBDriver: DatabaseDriver {
 
     init(connection: DatabaseConnection) {
         self.connection = connection
+    }
+
+    func switchDatabase(to database: String) {
+        connection.database = database
     }
 
     // MARK: - Server Version
@@ -408,7 +412,8 @@ final class MongoDBDriver: DatabaseDriver {
                     opts.append("\"name\": \"\(name)\"")
 
                     let optsJson = "{\(opts.joined(separator: ", "))}"
-                    sections.append("db.\(table).createIndex(\(keyJson), \(optsJson))")
+                    let escapedTable = table.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+                    sections.append("db[\"\(escapedTable)\"].createIndex(\(keyJson), \(optsJson))")
                 }
             }
         } catch {

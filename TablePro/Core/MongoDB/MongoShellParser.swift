@@ -100,6 +100,11 @@ struct MongoShellParser {
             return .runCommand(command: arg)
         }
 
+        // db["collection"].method(args) bracket notation
+        if trimmed.hasPrefix("db[") {
+            return try parseBracketExpression(trimmed)
+        }
+
         // db.collection.method(args) pattern
         guard trimmed.hasPrefix("db.") else {
             throw MongoShellParseError.invalidSyntax("Query must start with 'db.' or be a JSON command")
@@ -110,21 +115,131 @@ struct MongoShellParser {
 
     // MARK: - Private Parsing
 
+    /// Parse db["collection"].method(args) bracket notation.
+    /// Supports both double and single quotes around the collection name.
+    private static func parseBracketExpression(_ input: String) throws -> MongoOperation {
+        // input starts with db[
+        let afterBracket = String(input.dropFirst(3)) // drop "db["
+
+        // Determine quote character (" or ')
+        guard let quoteChar = afterBracket.first, quoteChar == "\"" || quoteChar == "'" else {
+            throw MongoShellParseError.invalidSyntax("Expected quoted collection name in db[...]")
+        }
+
+        // Find closing quote (handle escaped quotes)
+        var collectionName = ""
+        var i = afterBracket.index(after: afterBracket.startIndex)
+        var escapeNext = false
+        while i < afterBracket.endIndex {
+            let ch = afterBracket[i]
+            if escapeNext {
+                collectionName.append(ch)
+                escapeNext = false
+                i = afterBracket.index(after: i)
+                continue
+            }
+            if ch == "\\" {
+                escapeNext = true
+                i = afterBracket.index(after: i)
+                continue
+            }
+            if ch == quoteChar {
+                break
+            }
+            collectionName.append(ch)
+            i = afterBracket.index(after: i)
+        }
+
+        guard i < afterBracket.endIndex else {
+            throw MongoShellParseError.invalidSyntax("Unterminated string in db[...]")
+        }
+
+        // Move past closing quote and expect "]"
+        i = afterBracket.index(after: i)
+        guard i < afterBracket.endIndex, afterBracket[i] == "]" else {
+            throw MongoShellParseError.invalidSyntax("Expected ']' after collection name in db[...]")
+        }
+        i = afterBracket.index(after: i)
+
+        let remaining = String(afterBracket[i...]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // No method chain — treat as find all
+        if remaining.isEmpty {
+            return .find(collection: collectionName, filter: "{}", options: MongoFindOptions())
+        }
+
+        // Expect ".method(args)" after db["collection"]
+        guard remaining.hasPrefix(".") else {
+            throw MongoShellParseError.invalidSyntax("Expected '.method()' after db[\"...\"]")
+        }
+
+        let methodChain = String(remaining.dropFirst())
+        return try parseMethodChain(collection: collectionName, chain: methodChain)
+    }
+
     private static func parseDbExpression(_ input: String) throws -> MongoOperation {
         // Remove "db." prefix
         let afterDb = String(input.dropFirst(3))
 
-        // Find the collection name (everything before the first ".")
-        guard let dotIndex = afterDb.firstIndex(of: ".") else {
-            // Just "db.collectionName" -- treat as find all
+        guard let firstParen = afterDb.firstIndex(of: "(") else {
+            // No parentheses at all — "db.collectionName" or "db.system.version" — treat as find all
             let collection = afterDb.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !collection.isEmpty else {
+                throw MongoShellParseError.invalidSyntax("Missing collection name after 'db.'")
+            }
             return .find(collection: collection, filter: "{}", options: MongoFindOptions())
         }
 
-        let collection = String(afterDb[afterDb.startIndex..<dotIndex])
-        let remainder = String(afterDb[afterDb.index(after: dotIndex)...])
+        // Find the last "." before the first "(". Everything before it is the collection name,
+        // and everything from it onward is the method chain.
+        // This correctly handles dotted collection names like "system.version".
+        let beforeParen = afterDb[afterDb.startIndex..<firstParen]
+        guard let lastDot = beforeParen.lastIndex(of: ".") else {
+            // No dot before paren — db-level method call like db.getCollectionNames()
+            return try parseDbLevelMethod(afterDb)
+        }
+
+        let collection = String(afterDb[afterDb.startIndex..<lastDot])
+        let remainder = String(afterDb[afterDb.index(after: lastDot)...])
 
         return try parseMethodChain(collection: collection, chain: remainder)
+    }
+
+    /// Parse a db-level method call like db.getCollectionNames(), db.stats(), etc.
+    /// Input is the string after "db." — e.g. "getCollectionNames()" or "createCollection(\"test\")"
+    private static func parseDbLevelMethod(_ input: String) throws -> MongoOperation {
+        guard let parenIndex = input.firstIndex(of: "(") else {
+            throw MongoShellParseError.invalidSyntax("Expected method call with parentheses")
+        }
+
+        let methodName = String(input[input.startIndex..<parenIndex])
+        let argAndRest = try extractParenthesizedArgAndRemainder(from: input, startingAt: parenIndex)
+        let arg = argAndRest.arg
+
+        switch methodName {
+        case "getCollectionNames", "listCollections":
+            return .listCollections
+
+        case "createCollection":
+            let name = arg.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            guard !name.isEmpty else {
+                throw MongoShellParseError.missingArgument("createCollection requires a collection name")
+            }
+            return .runCommand(command: "{ \"create\": \"\(name)\" }")
+
+        case "dropDatabase":
+            return .runCommand(command: "{ \"dropDatabase\": 1 }")
+
+        case "version":
+            return .runCommand(command: "{ \"buildInfo\": 1 }")
+
+        case "stats":
+            return .runCommand(command: "{ \"dbStats\": 1 }")
+
+        default:
+            throw MongoShellParseError.unsupportedMethod(methodName)
+        }
     }
 
     private static func parseMethodChain(collection: String, chain: String) throws -> MongoOperation {
