@@ -7,7 +7,6 @@
 //
 
 import Combine
-import os
 import SwiftUI
 
 /// Main content view - thin presentation layer
@@ -54,8 +53,6 @@ struct MainContentView: View {
     @EnvironmentObject private var appState: AppState
 
     // MARK: - Initialization
-
-    private static let initLogger = Logger(subsystem: "com.TablePro", category: "MainContentView")
 
     init(
         connection: DatabaseConnection,
@@ -249,16 +246,21 @@ struct MainContentView: View {
             .onDisappear {
                 NativeTabRegistry.shared.unregister(windowId: windowId)
 
-                // Defer the disconnect check — SwiftUI fires onDisappear+onAppear in
-                // rapid succession during body re-evaluations (e.g., when session status
-                // changes from .connecting to .connected). The short delay lets the
-                // re-registration from onAppear fire first, preventing false disconnects.
+                let capturedWindowId = windowId
                 let connectionId = connection.id
                 let connectionName = connection.name
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(200))
 
-                    // After the delay, check if any windows re-registered for this connection
+                    // If this window re-registered (temporary disappear during tab group merge), skip cleanup
+                    if NativeTabRegistry.shared.isRegistered(windowId: capturedWindowId) {
+                        return
+                    }
+
+                    // Window truly closed — teardown coordinator
+                    coordinator.teardown()
+
+                    // If no more windows for this connection, disconnect
                     guard !NativeTabRegistry.shared.hasWindows(for: connectionId) else { return }
                     let hasVisibleWindow = NSApp.windows.contains { window in
                         window.isVisible && window.subtitle == connectionName
@@ -267,8 +269,6 @@ struct MainContentView: View {
                         await DatabaseManager.shared.disconnectSession(connectionId)
                     }
                 }
-
-                coordinator.teardown()
             }
             .onChange(of: pendingChangeTrigger) {
                 updateToolbarPendingState()

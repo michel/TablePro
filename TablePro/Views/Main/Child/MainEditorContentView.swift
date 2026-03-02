@@ -8,10 +8,7 @@
 
 import AppKit
 import CodeEditSourceEditor
-import os
 import SwiftUI
-
-private let editorContentLogger = Logger(subsystem: "com.TablePro", category: "MainEditorContentView")
 
 /// Cache for sorted query result rows to avoid re-sorting on every SwiftUI body evaluation
 private struct SortedRowsCache {
@@ -139,7 +136,9 @@ struct MainEditorContentView: View {
             }
         }
         .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
-            guard let tab = tabManager.selectedTab, newVersion != nil else { return }
+            guard let tab = tabManager.selectedTab, newVersion != nil else {
+                return
+            }
             let provider = makeRowProvider(for: tab)
             tabRowProviders[tab.id] = provider
             tabProviderVersions[tab.id] = tab.resultVersion

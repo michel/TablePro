@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Deep link support via `tablepro://` URL scheme for opening connections, tables, queries, and importing connections
+- 
+### Fixed
+
+- MySQL second tab showing empty rows due to premature coordinator teardown during native macOS tab group merging
+- MongoDB tab name showing "MQL Query" instead of collection name when using bracket notation `db["collection"].find()`
 
 ## [0.11.0] - 2026-03-02
 
