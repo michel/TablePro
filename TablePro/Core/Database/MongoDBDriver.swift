@@ -600,6 +600,16 @@ private extension MongoDBDriver {
                 skip: options.skip ?? 0,
                 limit: options.limit ?? DriverRowLimits.defaultMax
             )
+            if docs.isEmpty {
+                return QueryResult(
+                    columns: ["_id"],
+                    columnTypes: [.text(rawType: "ObjectId")],
+                    rows: [],
+                    rowsAffected: 0,
+                    executionTime: Date().timeIntervalSince(startTime),
+                    error: nil
+                )
+            }
             return buildQueryResult(from: docs, startTime: startTime)
 
         case .findOne(let collection, let filter):
