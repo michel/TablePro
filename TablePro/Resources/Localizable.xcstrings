@@ -2059,6 +2059,9 @@
         }
       }
     },
+    "Connection Not Found" : {
+
+    },
     "Connection Status" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -5694,6 +5697,9 @@
           }
         }
       }
+    },
+    "No saved connection named \"%@\"." : {
+
     },
     "No saved templates" : {
       "extractionState" : "stale",

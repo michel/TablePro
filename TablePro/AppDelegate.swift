@@ -127,6 +127,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        // Handle deep links
+        let deeplinkURLs = urls.filter { $0.scheme == "tablepro" }
+        if !deeplinkURLs.isEmpty {
+            Task { @MainActor in
+                for url in deeplinkURLs {
+                    self.handleDeeplink(url)
+                }
+            }
+        }
+
+        // Handle SQL files (existing logic unchanged)
         let sqlURLs = urls.filter { $0.pathExtension.lowercased() == "sql" }
         guard !sqlURLs.isEmpty else { return }
 
@@ -154,6 +165,106 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             // Not connected — queue and show welcome window
             queuedFileURLs.append(contentsOf: sqlURLs)
             openWelcomeWindow()
+        }
+    }
+
+    @MainActor
+    private func handleDeeplink(_ url: URL) {
+        guard let action = DeeplinkHandler.parse(url) else { return }
+
+        switch action {
+        case .connect(let name):
+            connectViaDeeplink(connectionName: name)
+
+        case .openTable(let name, let table, let database):
+            connectViaDeeplink(connectionName: name) { connectionId in
+                EditorTabPayload(connectionId: connectionId, tabType: .table,
+                                 tableName: table, databaseName: database)
+            }
+
+        case .openQuery(let name, let sql):
+            connectViaDeeplink(connectionName: name) { connectionId in
+                EditorTabPayload(connectionId: connectionId, tabType: .query,
+                                 initialQuery: sql)
+            }
+
+        case .importConnection(let name, let host, let port, let type, let username, let database):
+            handleImportDeeplink(name: name, host: host, port: port, type: type,
+                                 username: username, database: database)
+        }
+    }
+
+    @MainActor
+    private func connectViaDeeplink(
+        connectionName: String,
+        makePayload: ((UUID) -> EditorTabPayload)? = nil
+    ) {
+        guard let connection = DeeplinkHandler.resolveConnection(named: connectionName) else {
+            Self.logger.error("Deep link: no connection named '\(connectionName, privacy: .public)'")
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Connection Not Found"),
+                message: String(localized: "No saved connection named \"\(connectionName)\"."),
+                window: NSApp.keyWindow
+            )
+            return
+        }
+
+        // Already connected — open tab directly
+        if DatabaseManager.shared.activeSessions[connection.id]?.driver != nil {
+            if let payload = makePayload?(connection.id) {
+                WindowOpener.shared.openNativeTab(payload)
+            } else {
+                for window in NSApp.windows where isMainWindow(window) {
+                    window.makeKeyAndOrderFront(nil)
+                    return
+                }
+            }
+            return
+        }
+
+        // Not connected — same pattern as connectFromDock
+        NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
+
+        Task { @MainActor in
+            do {
+                try await DatabaseManager.shared.connectToSession(connection)
+                for window in NSApp.windows where self.isWelcomeWindow(window) {
+                    window.close()
+                }
+                if let payload = makePayload?(connection.id) {
+                    WindowOpener.shared.openNativeTab(payload)
+                }
+            } catch {
+                Self.logger.error("Deep link connect failed: \(error.localizedDescription)")
+                for window in NSApp.windows where self.isMainWindow(window) {
+                    window.close()
+                }
+                self.openWelcomeWindow()
+                AlertHelper.showErrorSheet(
+                    title: String(localized: "Connection Failed"),
+                    message: error.localizedDescription,
+                    window: NSApp.keyWindow
+                )
+            }
+        }
+    }
+
+    @MainActor
+    private func handleImportDeeplink(
+        name: String, host: String, port: Int,
+        type: DatabaseType, username: String, database: String
+    ) {
+        let connection = DatabaseConnection(
+            name: name, host: host, port: port,
+            database: database, username: username, type: type
+        )
+        ConnectionStorage.shared.addConnection(connection)
+        NotificationCenter.default.post(name: .connectionUpdated, object: nil)
+
+        DispatchQueue.main.async {
+            if let openWindow = WindowOpener.shared.openWindow {
+                openWindow(id: "connection-form", value: connection.id)
+            }
         }
     }
 

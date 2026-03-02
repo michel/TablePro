@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Deep link support via `tablepro://` URL scheme for opening connections, tables, queries, and importing connections
+
 ## [0.11.0] - 2026-03-02
 
 ### Added
