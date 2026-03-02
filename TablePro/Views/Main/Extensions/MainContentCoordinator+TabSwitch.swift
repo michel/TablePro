@@ -103,7 +103,6 @@ extension MainContentCoordinator {
                     needsLazyLoad = true
                 }
             } else {
-                // Data already cached or not a table tab — bump reload and finish
                 changeManager.reloadVersion += 1
             }
         } else {

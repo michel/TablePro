@@ -249,6 +249,11 @@ final class MainContentCoordinator: ObservableObject {
         options: []
     )
 
+    private static let mongoBracketCollectionRegex = try? NSRegularExpression(
+        pattern: #"^\s*db\["([^"]+)"\]"#,
+        options: []
+    )
+
     // MARK: - Query Execution
 
     func runQuery() {
@@ -621,7 +626,14 @@ final class MainContentCoordinator: ObservableObject {
             return String(sql[range])
         }
 
-        // MQL: db.collectionName.find(...)
+        // MQL bracket notation: db["collectionName"].find(...)
+        if let regex = Self.mongoBracketCollectionRegex,
+           let match = regex.firstMatch(in: sql, options: [], range: nsRange),
+           let range = Range(match.range(at: 1), in: sql) {
+            return String(sql[range])
+        }
+
+        // MQL dot notation: db.collectionName.find(...)
         if let regex = Self.mongoCollectionRegex,
            let match = regex.firstMatch(in: sql, options: [], range: nsRange),
            let range = Range(match.range(at: 1), in: sql) {
