@@ -221,7 +221,7 @@ final class SidebarViewModel {
     }
 
     private func loadTablesAsync() async {
-        let previousSelectedName = selectedTables.first?.name
+        let previousSelectedName: String? = tables.isEmpty ? nil : selectedTables.first?.name
 
         do {
             let fetchedTables = try await tableFetcher.fetchTables()
