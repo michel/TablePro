@@ -333,6 +333,12 @@ struct MainContentView: View {
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
+                if !newIndices.isEmpty,
+                   AppSettingsManager.shared.dataGrid.autoShowInspector,
+                   tabManager.selectedTab?.tabType == .table
+                {
+                    rightPanelState.isPresented = true
+                }
                 scheduleInspectorUpdate()
             }
     }

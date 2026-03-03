@@ -357,14 +357,35 @@ struct DataGridSettings: Codable, Equatable {
     var nullDisplay: String
     var defaultPageSize: Int
     var showAlternateRows: Bool
+    var autoShowInspector: Bool
 
-    static let `default` = DataGridSettings(
-        rowHeight: .normal,
-        dateFormat: .iso8601,
-        nullDisplay: "NULL",
-        defaultPageSize: 1_000,
-        showAlternateRows: true
-    )
+    static let `default` = DataGridSettings()
+
+    init(
+        rowHeight: DataGridRowHeight = .normal,
+        dateFormat: DateFormatOption = .iso8601,
+        nullDisplay: String = "NULL",
+        defaultPageSize: Int = 1_000,
+        showAlternateRows: Bool = true,
+        autoShowInspector: Bool = false
+    ) {
+        self.rowHeight = rowHeight
+        self.dateFormat = dateFormat
+        self.nullDisplay = nullDisplay
+        self.defaultPageSize = defaultPageSize
+        self.showAlternateRows = showAlternateRows
+        self.autoShowInspector = autoShowInspector
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rowHeight = try container.decode(DataGridRowHeight.self, forKey: .rowHeight)
+        dateFormat = try container.decode(DateFormatOption.self, forKey: .dateFormat)
+        nullDisplay = try container.decode(String.self, forKey: .nullDisplay)
+        defaultPageSize = try container.decode(Int.self, forKey: .defaultPageSize)
+        showAlternateRows = try container.decode(Bool.self, forKey: .showAlternateRows)
+        autoShowInspector = try container.decodeIfPresent(Bool.self, forKey: .autoShowInspector) ?? false
+    }
 
     // MARK: - Validated Properties
 

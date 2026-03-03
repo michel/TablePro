@@ -41,6 +41,8 @@ struct DataGridSettingsView: View {
                 }
 
                 Toggle("Show alternate row backgrounds", isOn: $settings.showAlternateRows)
+
+                Toggle("Auto-show inspector on row select", isOn: $settings.autoShowInspector)
             }
 
             Section("Pagination") {

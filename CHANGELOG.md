@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Deep link support via `tablepro://` URL scheme for opening connections, tables, queries, and importing connections
 - "Copy as URL" context menu action on connections to copy connection details as a URL string (e.g., `mysql://user:pass@host/db`)
+- Auto-show inspector option: automatically open the right sidebar when selecting a row (Settings > Data Grid)
 
 ### Fixed
 
 - "Table not found" error when switching databases within the same connection (Cmd+K) while a table tab is open
+- Right sidebar state now persists across native window-tabs instead of resetting to closed
 
 ## [0.11.1] - 2026-03-02
 
