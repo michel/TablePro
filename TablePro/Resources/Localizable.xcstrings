@@ -2256,6 +2256,9 @@
         }
       }
     },
+    "Copy as URL" : {
+
+    },
     "Copy Cell Value" : {
       "localizations" : {
         "vi" : {
