@@ -70,22 +70,8 @@ jobs:
 
           echo "✅ ARM64 dependencies installed"
 
-      - name: Prepare libmariadb
-        run: |
-          echo "📦 Preparing libmariadb.a for arm64..."
-          cp Libs/libmariadb_arm64.a Libs/libmariadb.a
-          echo "✅ libmariadb.a ready"
-          lipo -info Libs/libmariadb.a
-          ls -lh Libs/libmariadb.a
-
-      - name: Prepare libpq
-        run: |
-          echo "📦 Preparing libpq + OpenSSL static libraries for arm64..."
-          for lib in libpq libpgcommon libpgport libssl libcrypto; do
-            cp "Libs/${lib}_arm64.a" "Libs/${lib}.a"
-          done
-          echo "✅ libpq + OpenSSL libraries ready"
-          ls -lh Libs/lib{pq,pgcommon,pgport,ssl,crypto}.a
+      - name: Prepare libraries
+        run: scripts/ci/prepare-libs.sh arm64
 
       - name: Verify Xcode
         run: |
@@ -106,130 +92,10 @@ jobs:
           scripts/build-release.sh arm64
 
       - name: Verify build
-        run: |
-          echo "Verifying build output..."
+        run: scripts/ci/verify-build.sh arm64
 
-          BINARY_PATH="build/Release/TablePro-arm64.app/Contents/MacOS/TablePro"
-
-          # Check binary exists
-          if [ ! -f "$BINARY_PATH" ]; then
-            echo "❌ ERROR: Built binary not found at: $BINARY_PATH"
-            echo "Build may have failed silently"
-            exit 1
-          fi
-
-          # Check it's not empty
-          if [ ! -s "$BINARY_PATH" ]; then
-            echo "❌ ERROR: Binary file is empty"
-            exit 1
-          fi
-
-          # Check architecture
-          ARCH_INFO=$(lipo -info "$BINARY_PATH")
-          echo "Architecture: $ARCH_INFO"
-
-          if ! echo "$ARCH_INFO" | grep -q "arm64"; then
-            echo "❌ ERROR: Binary does not contain arm64 architecture"
-            echo "Expected: arm64 only"
-            echo "Got: $ARCH_INFO"
-            exit 1
-          fi
-
-          if echo "$ARCH_INFO" | grep -q "x86_64"; then
-            echo "❌ ERROR: Binary contains x86_64 but should be arm64 only"
-            exit 1
-          fi
-
-          # Check it's executable
-          if [ ! -x "$BINARY_PATH" ]; then
-            echo "❌ ERROR: Binary is not executable"
-            exit 1
-          fi
-
-          # Verify bundled dylibs
-          FRAMEWORKS_DIR="build/Release/TablePro-arm64.app/Contents/Frameworks"
-          if [ -d "$FRAMEWORKS_DIR" ]; then
-            echo "Bundled dynamic libraries:"
-            ls -lh "$FRAMEWORKS_DIR"/*.dylib 2>/dev/null || echo "  (none)"
-
-            # Verify no Homebrew paths remain in the binary
-            if otool -L "$BINARY_PATH" | grep -q '/opt/homebrew/\|/usr/local/opt/'; then
-              echo "❌ ERROR: Binary still references Homebrew paths:"
-              otool -L "$BINARY_PATH" | grep '/opt/homebrew/\|/usr/local/opt/'
-              exit 1
-            fi
-            echo "✅ No Homebrew path references in binary"
-          else
-            echo "⚠️  WARNING: No Frameworks directory found — dylibs may not be bundled"
-          fi
-
-          # Display info
-          echo "✅ Build verified successfully"
-          echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
-          echo "App bundle size: $(du -sh build/Release/TablePro-arm64.app | awk '{print $1}')"
-
-      - name: Create DMG installer
-        run: |
-          echo "Creating DMG installer..."
-
-          # Install create-dmg tool for proper icon handling in CI
-          echo "📦 Installing create-dmg tool..."
-          brew list create-dmg &>/dev/null || brew install create-dmg
-
-          # Make DMG creation script executable
-          chmod +x scripts/create-dmg.sh
-
-          # Create DMG with version from git tag or use default
-          # The script handles app renaming internally
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
-          echo "📌 Using version: $VERSION"
-          scripts/create-dmg.sh "$VERSION" "arm64" "build/Release/TablePro-arm64.app"
-
-          # Verify DMG was created - check for the specific file or any arm64 DMG
-          DMG_FILE="build/Release/TablePro-${VERSION}-arm64.dmg"
-          if [ -f "$DMG_FILE" ]; then
-            echo "✅ DMG installer created successfully: $DMG_FILE"
-          else
-            echo "⚠️  Expected DMG not found at: $DMG_FILE"
-            echo "📂 Checking for any DMG files in build/Release/:"
-            ls -la build/Release/*.dmg 2>/dev/null || echo "   No DMG files found"
-
-            # Check if any arm64 DMG was created (version might differ)
-            if ls build/Release/*-arm64.dmg 1>/dev/null 2>&1; then
-              echo "✅ Found arm64 DMG file(s):"
-              ls -lh build/Release/*-arm64.dmg
-            else
-              echo "❌ ERROR: No arm64 DMG file was created"
-              exit 1
-            fi
-          fi
-
-          ls -lh build/Release/*.dmg
-
-      - name: Create ZIP archive
-        run: |
-          echo "Creating ZIP archive..."
-
-          cd build/Release
-
-          # Use ditto to preserve framework symlinks (zip -r resolves them,
-          # which breaks code signature validation and Sparkle updates)
-          if ! ditto -c -k --sequesterRsrc --keepParent TablePro-arm64.app TablePro-arm64.zip; then
-            echo "❌ ERROR: Failed to create ZIP archive"
-            exit 1
-          fi
-
-          echo "✅ ZIP archive created"
-          ls -lh TablePro-arm64.zip
-
-      - name: Stage artifacts for release job
-        run: |
-          STAGING="/tmp/tablepro-artifacts-${{ github.sha }}"
-          mkdir -p "$STAGING"
-          cp build/Release/*.dmg "$STAGING/" 2>/dev/null || true
-          cp build/Release/TablePro-arm64.zip "$STAGING/" 2>/dev/null || true
-          echo "✅ ARM64 artifacts staged to $STAGING"
-          ls -lh "$STAGING"
+      - name: Package artifacts
+        run: scripts/ci/package-artifacts.sh arm64 "/tmp/tablepro-artifacts-${{ github.sha }}"
 
   build-x86_64:
     name: Build x86_64
@@ -322,22 +188,8 @@ jobs:
 
           echo "✅ x86_64 dependencies installed"
 
-      - name: Prepare libmariadb
-        run: |
-          echo "📦 Preparing libmariadb.a for x86_64..."
-          cp Libs/libmariadb_x86_64.a Libs/libmariadb.a
-          echo "✅ libmariadb.a ready"
-          lipo -info Libs/libmariadb.a
-          ls -lh Libs/libmariadb.a
-
-      - name: Prepare libpq
-        run: |
-          echo "📦 Preparing libpq + OpenSSL static libraries for x86_64..."
-          for lib in libpq libpgcommon libpgport libssl libcrypto; do
-            cp "Libs/${lib}_x86_64.a" "Libs/${lib}.a"
-          done
-          echo "✅ libpq + OpenSSL libraries ready"
-          ls -lh Libs/lib{pq,pgcommon,pgport,ssl,crypto}.a
+      - name: Prepare libraries
+        run: scripts/ci/prepare-libs.sh x86_64
 
       - name: Verify Xcode
         run: |
@@ -358,129 +210,10 @@ jobs:
           scripts/build-release.sh x86_64
 
       - name: Verify build
-        run: |
-          echo "Verifying build output..."
+        run: scripts/ci/verify-build.sh x86_64
 
-          BINARY_PATH="build/Release/TablePro-x86_64.app/Contents/MacOS/TablePro"
-
-          # Check binary exists
-          if [ ! -f "$BINARY_PATH" ]; then
-            echo "❌ ERROR: Built binary not found at: $BINARY_PATH"
-            exit 1
-          fi
-
-          # Check it's not empty
-          if [ ! -s "$BINARY_PATH" ]; then
-            echo "❌ ERROR: Binary file is empty"
-            exit 1
-          fi
-
-          # Check architecture
-          ARCH_INFO=$(lipo -info "$BINARY_PATH")
-          echo "Architecture: $ARCH_INFO"
-
-          if ! echo "$ARCH_INFO" | grep -q "x86_64"; then
-            echo "❌ ERROR: Binary does not contain x86_64 architecture"
-            echo "Expected: x86_64 only"
-            echo "Got: $ARCH_INFO"
-            exit 1
-          fi
-
-          if echo "$ARCH_INFO" | grep -q "arm64"; then
-            echo "❌ ERROR: Binary contains arm64 but should be x86_64 only"
-            exit 1
-          fi
-
-          # Check it's executable
-          if [ ! -x "$BINARY_PATH" ]; then
-            echo "❌ ERROR: Binary is not executable"
-            exit 1
-          fi
-
-          # Verify bundled dylibs
-          FRAMEWORKS_DIR="build/Release/TablePro-x86_64.app/Contents/Frameworks"
-          if [ -d "$FRAMEWORKS_DIR" ]; then
-            echo "Bundled dynamic libraries:"
-            ls -lh "$FRAMEWORKS_DIR"/*.dylib 2>/dev/null || echo "  (none)"
-
-            # Verify no Homebrew paths remain in the binary
-            if otool -L "$BINARY_PATH" | grep -q '/opt/homebrew/\|/usr/local/opt/'; then
-              echo "❌ ERROR: Binary still references Homebrew paths:"
-              otool -L "$BINARY_PATH" | grep '/opt/homebrew/\|/usr/local/opt/'
-              exit 1
-            fi
-            echo "✅ No Homebrew path references in binary"
-          else
-            echo "⚠️  WARNING: No Frameworks directory found — dylibs may not be bundled"
-          fi
-
-          # Display info
-          echo "✅ Build verified successfully"
-          echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
-          echo "App bundle size: $(du -sh build/Release/TablePro-x86_64.app | awk '{print $1}')"
-
-      - name: Create DMG installer
-        run: |
-          echo "Creating DMG installer..."
-
-          # Install create-dmg tool for proper icon handling in CI
-          echo "📦 Installing create-dmg tool..."
-          brew list create-dmg &>/dev/null || brew install create-dmg
-
-          # Make DMG creation script executable
-          chmod +x scripts/create-dmg.sh
-
-          # Create DMG with version from git tag or use default
-          # The script handles app renaming internally
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.1.13")
-          echo "📌 Using version: $VERSION"
-          scripts/create-dmg.sh "$VERSION" "x86_64" "build/Release/TablePro-x86_64.app"
-
-          # Verify DMG was created - check for the specific file or any x86_64 DMG
-          DMG_FILE="build/Release/TablePro-${VERSION}-x86_64.dmg"
-          if [ -f "$DMG_FILE" ]; then
-            echo "✅ DMG installer created successfully: $DMG_FILE"
-          else
-            echo "⚠️  Expected DMG not found at: $DMG_FILE"
-            echo "📂 Checking for any DMG files in build/Release/:"
-            ls -la build/Release/*.dmg 2>/dev/null || echo "   No DMG files found"
-
-            # Check if any x86_64 DMG was created (version might differ)
-            if ls build/Release/*-x86_64.dmg 1>/dev/null 2>&1; then
-              echo "✅ Found x86_64 DMG file(s):"
-              ls -lh build/Release/*-x86_64.dmg
-            else
-              echo "❌ ERROR: No x86_64 DMG file was created"
-              exit 1
-            fi
-          fi
-
-          ls -lh build/Release/*.dmg
-
-      - name: Create ZIP archive
-        run: |
-          echo "Creating ZIP archive..."
-
-          cd build/Release
-
-          # Use ditto to preserve framework symlinks (zip -r resolves them,
-          # which breaks code signature validation and Sparkle updates)
-          if ! ditto -c -k --sequesterRsrc --keepParent TablePro-x86_64.app TablePro-x86_64.zip; then
-            echo "❌ ERROR: Failed to create ZIP archive"
-            exit 1
-          fi
-
-          echo "✅ ZIP archive created"
-          ls -lh TablePro-x86_64.zip
-
-      - name: Stage artifacts for release job
-        run: |
-          STAGING="/tmp/tablepro-artifacts-${{ github.sha }}"
-          mkdir -p "$STAGING"
-          cp build/Release/*.dmg "$STAGING/" 2>/dev/null || true
-          cp build/Release/TablePro-x86_64.zip "$STAGING/" 2>/dev/null || true
-          echo "✅ x86_64 artifacts staged to $STAGING"
-          ls -lh "$STAGING"
+      - name: Package artifacts
+        run: scripts/ci/package-artifacts.sh x86_64 "/tmp/tablepro-artifacts-${{ github.sha }}"
 
   release:
     name: Create GitHub Release
@@ -538,120 +271,7 @@ jobs:
         if: env.SPARKLE_PRIVATE_KEY != ''
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-
-          # Install Sparkle tools (Cask — binaries in Caskroom, not on PATH)
-          brew list --cask sparkle &>/dev/null || brew install --cask sparkle
-          SPARKLE_BIN="$(brew --caskroom)/sparkle/$(ls "$(brew --caskroom)/sparkle" | head -1)/bin"
-
-          ARM64_ZIP="artifacts/TablePro-${VERSION}-arm64.zip"
-          X86_64_ZIP="artifacts/TablePro-${VERSION}-x86_64.zip"
-
-          # Sign each ZIP with EdDSA using sign_update
-          KEY_FILE=$(mktemp)
-          echo "$SPARKLE_PRIVATE_KEY" > "$KEY_FILE"
-          ARM64_SIG=$("$SPARKLE_BIN/sign_update" "$ARM64_ZIP" -f "$KEY_FILE")
-          X86_64_SIG=$("$SPARKLE_BIN/sign_update" "$X86_64_ZIP" -f "$KEY_FILE")
-          rm -f "$KEY_FILE"
-
-          # Parse signature and length from sign_update output
-          # Output format: sparkle:edSignature="..." length="..."
-          ARM64_ED_SIG=$(echo "$ARM64_SIG" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
-          ARM64_LENGTH=$(echo "$ARM64_SIG" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
-          X86_64_ED_SIG=$(echo "$X86_64_SIG" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
-          X86_64_LENGTH=$(echo "$X86_64_SIG" | sed -n 's/.*length="\([^"]*\)".*/\1/p')
-
-          # Extract version info from the top-level app's Info.plist inside the ZIP
-          # Use -maxdepth 3 to avoid nested framework plists (e.g. Sparkle.framework)
-          TEMP_DIR=$(mktemp -d)
-          unzip -q "$ARM64_ZIP" -d "$TEMP_DIR"
-          INFO_PLIST=$(find "$TEMP_DIR" -maxdepth 3 -path "*/Contents/Info.plist" | head -1)
-
-          if [ -n "$INFO_PLIST" ] && [ -f "$INFO_PLIST" ]; then
-            BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "1")
-            SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$INFO_PLIST" 2>/dev/null || echo "$VERSION")
-            MIN_OS=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$INFO_PLIST" 2>/dev/null || echo "13.5")
-          else
-            echo "⚠️  Could not find app Info.plist in ZIP, using defaults from tag"
-            BUILD_NUMBER="1"
-            SHORT_VERSION="$VERSION"
-            MIN_OS="13.5"
-          fi
-          rm -rf "$TEMP_DIR"
-
-          # Extract release notes from CHANGELOG.md and convert to HTML for appcast
-          NOTES=$(awk -v ver="$VERSION" '
-            /^## \[/ {
-              if (found) exit
-              if ($0 ~ "\\[" ver "\\]") { found=1; next }
-            }
-            found { print }
-          ' CHANGELOG.md)
-
-          if [ -z "$NOTES" ]; then
-            RELEASE_HTML="<li>Bug fixes and improvements</li>"
-          else
-            # Convert markdown to simple HTML:
-            #   ### Header -> <h3>Header</h3>
-            #   - item    -> <li>item</li>
-            #   Wrap consecutive <li> runs in <ul>...</ul>
-            RELEASE_HTML=$(echo "$NOTES" | sed -E \
-              -e 's/^### (.+)$/<h3>\1<\/h3>/' \
-              -e 's/^- (.+)$/<li>\1<\/li>/' \
-              -e '/^[[:space:]]*$/d' \
-            | awk '
-              /<li>/ {
-                if (!in_list) { print "<ul>"; in_list=1 }
-                print; next
-              }
-              {
-                if (in_list) { print "</ul>"; in_list=0 }
-                print
-              }
-              END { if (in_list) print "</ul>" }
-            ')
-          fi
-
-          # Wrap in a styled HTML body
-          DESCRIPTION_HTML="<body style=\"font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;\">${RELEASE_HTML}</body>"
-
-          # Build appcast.xml with architecture-specific items (Sparkle 2 convention)
-          # Each item has sparkle:architectures on the enclosure so the client
-          # automatically picks the matching architecture
-          DOWNLOAD_PREFIX="https://github.com/datlechin/TablePro/releases/download/v${VERSION}"
-          PUB_DATE=$(date -u '+%a, %d %b %Y %H:%M:%S +0000')
-
-          mkdir -p appcast
-          cat > appcast/appcast.xml << APPCAST_EOF
-          <?xml version="1.0" standalone="yes"?>
-          <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
-              <channel>
-                  <title>TablePro</title>
-                  <item>
-                      <title>${SHORT_VERSION}</title>
-                      <pubDate>${PUB_DATE}</pubDate>
-                      <sparkle:version>${BUILD_NUMBER}</sparkle:version>
-                      <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
-                      <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
-                      <description><![CDATA[${DESCRIPTION_HTML}]]></description>
-                      <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-arm64.zip" length="${ARM64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${ARM64_ED_SIG}" sparkle:architectures="arm64"/>
-                  </item>
-                  <item>
-                      <title>${SHORT_VERSION}</title>
-                      <pubDate>${PUB_DATE}</pubDate>
-                      <sparkle:version>${BUILD_NUMBER}</sparkle:version>
-                      <sparkle:shortVersionString>${SHORT_VERSION}</sparkle:shortVersionString>
-                      <sparkle:minimumSystemVersion>${MIN_OS}</sparkle:minimumSystemVersion>
-                      <description><![CDATA[${DESCRIPTION_HTML}]]></description>
-                      <enclosure url="${DOWNLOAD_PREFIX}/TablePro-${VERSION}-x86_64.zip" length="${X86_64_LENGTH}" type="application/octet-stream" sparkle:edSignature="${X86_64_ED_SIG}" sparkle:architectures="x86_64"/>
-                  </item>
-              </channel>
-          </rss>
-          APPCAST_EOF
-
-          echo "✅ Appcast generated with architecture-specific items:"
-          cat appcast/appcast.xml
+        run: scripts/ci/sign-and-appcast.sh "${GITHUB_REF#refs/tags/v}"
 
       - name: Upload appcast artifact
         if: env.SPARKLE_PRIVATE_KEY != ''
@@ -685,29 +305,7 @@ jobs:
           git push origin main
 
       - name: Extract release notes from CHANGELOG.md
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "Extracting release notes for version: $VERSION"
-
-          # Extract the section for this version from CHANGELOG.md
-          # Matches from "## [X.Y.Z]" until the next "## [" or end of file
-          NOTES=$(awk -v ver="$VERSION" '
-            /^## \[/ {
-              if (found) exit
-              if ($0 ~ "\\[" ver "\\]") { found=1; next }
-            }
-            found { print }
-          ' CHANGELOG.md)
-
-          if [ -z "$NOTES" ]; then
-            echo "⚠️  No changelog entry found for version $VERSION, using fallback"
-            echo "- Bug fixes and improvements" > release_notes.md
-          else
-            echo "$NOTES" > release_notes.md
-          fi
-
-          echo "✅ Release notes extracted"
-          cat release_notes.md
+        run: scripts/ci/extract-release-notes.sh "${GITHUB_REF#refs/tags/v}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -727,34 +325,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TELEGRAM_TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          RELEASE_URL="https://github.com/datlechin/TablePro/releases/tag/v${VERSION}"
-          NOTES=$(cat release_notes.md 2>/dev/null || echo "Bug fixes and improvements")
-
-          # Convert CHANGELOG markdown to Telegram HTML:
-          #   ### Header  → <b>Header</b>
-          #   - item      → • item
-          #   `code`      → <code>code</code>
-          #   blank lines → removed
-          FORMATTED=$(echo "$NOTES" | sed -E \
-            -e 's/^### (.+)$/<b>\1<\/b>/' \
-            -e 's/^- /• /' \
-            -e 's/`([^`]+)`/<code>\1<\/code>/g' \
-            -e '/^[[:space:]]*$/d')
-
-          TEXT=$(printf '<b>TablePro v%s Released</b>\n\n%s\n\n<a href="%s">View Release</a>' "$VERSION" "$FORMATTED" "$RELEASE_URL")
-
-          PAYLOAD=$(jq -n \
-            --arg chat_id "$TELEGRAM_CHAT_ID" \
-            --arg text "$TEXT" \
-            --arg topic_id "$TELEGRAM_TOPIC_ID" \
-            '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_web_page_preview: true}
-            + (if $topic_id != "" then {message_thread_id: ($topic_id | tonumber)} else {} end)')
-
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD"
+        run: scripts/ci/notify-telegram.sh "${GITHUB_REF#refs/tags/v}"
 
       - name: Clean up staging directory
         if: always()
@@ -768,54 +339,11 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Update Homebrew cask formula
         if: env.HOMEBREW_TAP_TOKEN != ''
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "Updating Homebrew tap for TablePro v${VERSION}..."
-
-          STAGING="/tmp/tablepro-artifacts-${{ github.sha }}"
-          ARM64_DMG="${STAGING}/TablePro-${VERSION}-arm64.dmg"
-          X86_64_DMG="${STAGING}/TablePro-${VERSION}-x86_64.dmg"
-
-          # Download DMGs if not in staging (fallback)
-          if [ ! -f "$ARM64_DMG" ]; then
-            echo "Downloading arm64 DMG from release..."
-            mkdir -p "$STAGING"
-            curl -fsSL -o "$ARM64_DMG" "https://github.com/datlechin/TablePro/releases/download/v${VERSION}/TablePro-${VERSION}-arm64.dmg"
-          fi
-          if [ ! -f "$X86_64_DMG" ]; then
-            echo "Downloading x86_64 DMG from release..."
-            mkdir -p "$STAGING"
-            curl -fsSL -o "$X86_64_DMG" "https://github.com/datlechin/TablePro/releases/download/v${VERSION}/TablePro-${VERSION}-x86_64.dmg"
-          fi
-
-          # Compute SHA256
-          ARM64_SHA=$(shasum -a 256 "$ARM64_DMG" | awk '{print $1}')
-          X86_64_SHA=$(shasum -a 256 "$X86_64_DMG" | awk '{print $1}')
-          echo "ARM64 SHA256: $ARM64_SHA"
-          echo "x86_64 SHA256: $X86_64_SHA"
-
-          # Clone tap repo
-          HOMEBREW_TAP_DIR=$(mktemp -d)
-          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/datlechin/homebrew-tap.git" "$HOMEBREW_TAP_DIR"
-          cd "$HOMEBREW_TAP_DIR"
-
-          # Update cask formula
-          sed -i '' "s/version \".*\"/version \"${VERSION}\"/" Casks/tablepro.rb
-          sed -i '' "s/sha256 arm:   \"[a-f0-9]*\"/sha256 arm:   \"${ARM64_SHA}\"/" Casks/tablepro.rb
-          sed -i '' "s/intel: \"[a-f0-9]*\"/intel: \"${X86_64_SHA}\"/" Casks/tablepro.rb
-
-          # Commit and push
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/tablepro.rb
-          git diff --cached --quiet && echo "No changes to cask formula" && exit 0
-          git commit -m "Update TablePro to v${VERSION}"
-          git push origin main
-
-          # Cleanup
-          rm -rf "$HOMEBREW_TAP_DIR"
-          echo "✅ Homebrew tap updated to v${VERSION}"
+        run: scripts/ci/update-homebrew.sh "${GITHUB_REF#refs/tags/v}" "/tmp/tablepro-artifacts-${{ github.sha }}"
