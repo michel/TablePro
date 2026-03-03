@@ -1022,4 +1022,214 @@ struct SQLStatementGeneratorTests {
         #expect(emailIndex != nil)
         #expect(whereIndex != nil)
     }
+
+    // MARK: - Redshift Tests
+
+    @Test("Redshift insert uses $1, $2 placeholders")
+    func testInsertRedshiftPlaceholders() {
+        let generator = makeGenerator(databaseType: .redshift)
+        let insertedRowData: [Int: [String?]] = [
+            0: ["1", "John", "john@example.com"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: insertedRowData,
+            deletedRowIndices: [],
+            insertedRowIndices: [0]
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("$1"))
+        #expect(stmt.sql.contains("$2"))
+        #expect(stmt.sql.contains("$3"))
+        #expect(!stmt.sql.contains("?"))
+    }
+
+    @Test("Redshift insert uses double-quote identifier quoting")
+    func testInsertRedshiftQuoting() {
+        let generator = makeGenerator(databaseType: .redshift)
+        let insertedRowData: [Int: [String?]] = [
+            0: ["1", "John", "john@example.com"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: insertedRowData,
+            deletedRowIndices: [],
+            insertedRowIndices: [0]
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("\"users\""))
+        #expect(stmt.sql.contains("\"id\""))
+        #expect(stmt.sql.contains("\"name\""))
+        #expect(stmt.sql.contains("\"email\""))
+        #expect(!stmt.sql.contains("`"))
+    }
+
+    @Test("Redshift update uses $1, $2 placeholders in order")
+    func testUpdateRedshiftPlaceholders() {
+        let generator = makeGenerator(databaseType: .redshift)
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .update,
+                cellChanges: [
+                    CellChange(rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Johnny")
+                ],
+                originalRow: ["1", "John", "john@example.com"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("$1"))
+        #expect(stmt.sql.contains("$2"))
+        #expect(!stmt.sql.contains("?"))
+    }
+
+    @Test("Redshift update does NOT add LIMIT 1")
+    func testUpdateRedshiftNoLimit() {
+        let generator = makeGenerator(databaseType: .redshift)
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .update,
+                cellChanges: [
+                    CellChange(rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Johnny")
+                ],
+                originalRow: ["1", "John", "john@example.com"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        #expect(!statements[0].sql.contains("LIMIT"))
+    }
+
+    @Test("Redshift delete uses $N placeholders")
+    func testDeleteRedshiftPlaceholders() {
+        let generator = makeGenerator(databaseType: .redshift)
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .delete, cellChanges: [], originalRow: ["1", "John", "john@example.com"]),
+            RowChange(rowIndex: 1, type: .delete, cellChanges: [], originalRow: ["2", "Jane", "jane@example.com"])
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [0, 1],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("$1"))
+        #expect(stmt.sql.contains("$2"))
+        #expect(!stmt.sql.contains("?"))
+    }
+
+    @Test("Redshift delete no LIMIT 1")
+    func testDeleteRedshiftNoLimit() {
+        let generator = makeGenerator(primaryKeyColumn: nil, databaseType: .redshift)
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .delete,
+                cellChanges: [],
+                originalRow: ["1", "John", "john@example.com"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [0],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        #expect(!statements[0].sql.contains("LIMIT"))
+    }
+
+    @Test("Redshift uses $1, $2, $3 sequentially for insert")
+    func testRedshiftSequentialPlaceholders() {
+        let generator = makeGenerator(databaseType: .redshift)
+        let insertedRowData: [Int: [String?]] = [
+            0: ["1", "John", "john@example.com"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: insertedRowData,
+            deletedRowIndices: [],
+            insertedRowIndices: [0]
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("$1"))
+        #expect(stmt.sql.contains("$2"))
+        #expect(stmt.sql.contains("$3"))
+        #expect(!stmt.sql.contains("?"))
+    }
+
+    @Test("Redshift parameter order matches placeholder order")
+    func testRedshiftParameterOrder() {
+        let generator = makeGenerator(databaseType: .redshift)
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .update,
+                cellChanges: [
+                    CellChange(rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Johnny"),
+                    CellChange(rowIndex: 0, columnIndex: 2, columnName: "email", oldValue: "john@example.com", newValue: "johnny@example.com")
+                ],
+                originalRow: ["1", "John", "john@example.com"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.parameters.count == 3)
+        #expect(stmt.parameters[0] as? String == "Johnny")
+        #expect(stmt.parameters[1] as? String == "johnny@example.com")
+        #expect(stmt.parameters[2] as? String == "1")
+
+        #expect(stmt.sql.range(of: "\"name\" = $1") != nil)
+        #expect(stmt.sql.range(of: "\"email\" = $2") != nil)
+        #expect(stmt.sql.range(of: "\"id\" = $3") != nil)
+    }
 }

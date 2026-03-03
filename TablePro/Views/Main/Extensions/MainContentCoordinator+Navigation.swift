@@ -124,6 +124,27 @@ extension MainContentCoordinator {
             WHERE schemaname = '\(schema)'
             ORDER BY relname
             """
+        case .redshift:
+            let schema: String
+            if let rsDriver = DatabaseManager.shared.driver(for: connectionId) as? RedshiftDriver {
+                schema = rsDriver.escapedSchema
+            } else {
+                schema = "public"
+            }
+            sql = """
+            SELECT
+                schema,
+                "table" as name,
+                'TABLE' as kind,
+                tbl_rows as estimated_rows,
+                size as size_mb,
+                pct_used,
+                unsorted,
+                stats_off
+            FROM svv_table_info
+            WHERE schema = '\(schema)'
+            ORDER BY "table"
+            """
         case .mysql, .mariadb:
             sql = """
             SELECT
@@ -228,14 +249,21 @@ extension MainContentCoordinator {
                 // Reload schema for autocomplete.
                 // session.tables was cleared above, which triggers SidebarView.loadTables() via onChange.
                 await loadSchema()
-            } else if connection.type == .postgresql {
+            } else if connection.type == .postgresql || connection.type == .redshift {
                 // PostgreSQL: switch schema (not database — PG database switching requires reconnection)
-                guard let pgDriver = driver as? PostgreSQLDriver else { return }
-                try await pgDriver.switchSchema(to: database)
+                if let pgDriver = driver as? PostgreSQLDriver {
+                    try await pgDriver.switchSchema(to: database)
+                } else if let rsDriver = driver as? RedshiftDriver {
+                    try await rsDriver.switchSchema(to: database)
+                } else {
+                    return
+                }
 
                 // Also switch metadata driver's schema
-                if let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) as? PostgreSQLDriver {
-                    try? await metaDriver.switchSchema(to: database)
+                if let pgMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? PostgreSQLDriver {
+                    try? await pgMeta.switchSchema(to: database)
+                } else if let rsMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedshiftDriver {
+                    try? await rsMeta.switchSchema(to: database)
                 }
 
                 // Update session

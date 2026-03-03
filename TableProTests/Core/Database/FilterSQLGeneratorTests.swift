@@ -856,4 +856,149 @@ struct FilterSQLGeneratorTests {
         let result = generator.generateCondition(from: filter)
         #expect(result == "\"active\" = FALSE")
     }
+
+    // MARK: - Redshift Tests
+
+    @Test("Redshift uses double-quote identifier quoting")
+    func testRedshiftQuoting() {
+        let generator = FilterSQLGenerator(databaseType: .redshift)
+        let filter = TableFilter(
+            id: UUID(),
+            columnName: "name",
+            filterOperator: .equal,
+            value: "test",
+            secondValue: nil,
+            isSelected: true,
+            isEnabled: true,
+            rawSQL: nil
+        )
+        let result = generator.generateCondition(from: filter)
+        #expect(result == "\"name\" = 'test'")
+    }
+
+    @Test("Redshift regex uses tilde operator")
+    func testRedshiftRegex() {
+        let generator = FilterSQLGenerator(databaseType: .redshift)
+        let filter = TableFilter(
+            id: UUID(),
+            columnName: "email",
+            filterOperator: .regex,
+            value: "^[a-z]+@",
+            secondValue: nil,
+            isSelected: true,
+            isEnabled: true,
+            rawSQL: nil
+        )
+        let result = generator.generateCondition(from: filter)
+        #expect(result == "\"email\" ~ '^[a-z]+@'")
+    }
+
+    @Test("Redshift TRUE literal generates TRUE")
+    func testTrueLiteralRedshift() {
+        let generator = FilterSQLGenerator(databaseType: .redshift)
+        let filter = TableFilter(
+            id: UUID(),
+            columnName: "active",
+            filterOperator: .equal,
+            value: "TRUE",
+            secondValue: nil,
+            isSelected: true,
+            isEnabled: true,
+            rawSQL: nil
+        )
+        let result = generator.generateCondition(from: filter)
+        #expect(result == "\"active\" = TRUE")
+    }
+
+    @Test("Redshift FALSE literal generates FALSE")
+    func testFalseLiteralRedshift() {
+        let generator = FilterSQLGenerator(databaseType: .redshift)
+        let filter = TableFilter(
+            id: UUID(),
+            columnName: "active",
+            filterOperator: .equal,
+            value: "FALSE",
+            secondValue: nil,
+            isSelected: true,
+            isEnabled: true,
+            rawSQL: nil
+        )
+        let result = generator.generateCondition(from: filter)
+        #expect(result == "\"active\" = FALSE")
+    }
+
+    @Test("Redshift LIKE uses ESCAPE clause")
+    func testRedshiftLikeEscape() {
+        let generator = FilterSQLGenerator(databaseType: .redshift)
+        let filter = TableFilter(
+            id: UUID(),
+            columnName: "name",
+            filterOperator: .contains,
+            value: "50%",
+            secondValue: nil,
+            isSelected: true,
+            isEnabled: true,
+            rawSQL: nil
+        )
+        let result = generator.generateCondition(from: filter)
+        #expect(result?.contains("ESCAPE") == true)
+    }
+
+    @Test("Redshift AND mode with 2 filters generates AND clause")
+    func testRedshiftAndMode() {
+        let generator = FilterSQLGenerator(databaseType: .redshift)
+        let filters = [
+            TableFilter(
+                id: UUID(),
+                columnName: "age",
+                filterOperator: .greaterThan,
+                value: "18",
+                secondValue: nil,
+                isSelected: true,
+                isEnabled: true,
+                rawSQL: nil
+            ),
+            TableFilter(
+                id: UUID(),
+                columnName: "status",
+                filterOperator: .equal,
+                value: "active",
+                secondValue: nil,
+                isSelected: true,
+                isEnabled: true,
+                rawSQL: nil
+            )
+        ]
+        let result = generator.generateWhereClause(from: filters, logicMode: .and)
+        #expect(result == "WHERE \"age\" > 18 AND \"status\" = 'active'")
+    }
+
+    @Test("Redshift OR mode with 2 filters generates OR clause")
+    func testRedshiftOrMode() {
+        let generator = FilterSQLGenerator(databaseType: .redshift)
+        let filters = [
+            TableFilter(
+                id: UUID(),
+                columnName: "age",
+                filterOperator: .greaterThan,
+                value: "18",
+                secondValue: nil,
+                isSelected: true,
+                isEnabled: true,
+                rawSQL: nil
+            ),
+            TableFilter(
+                id: UUID(),
+                columnName: "status",
+                filterOperator: .equal,
+                value: "active",
+                secondValue: nil,
+                isSelected: true,
+                isEnabled: true,
+                rawSQL: nil
+            )
+        ]
+        let result = generator.generateWhereClause(from: filters, logicMode: .or)
+        #expect(result == "WHERE \"age\" > 18 OR \"status\" = 'active'")
+    }
 }

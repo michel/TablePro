@@ -78,6 +78,8 @@ struct ConnectionURLParser {
         switch scheme {
         case "postgresql", "postgres":
             dbType = .postgresql
+        case "redshift":
+            dbType = .redshift
         case "mysql":
             dbType = .mysql
         case "mariadb":

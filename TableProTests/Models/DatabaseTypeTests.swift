@@ -71,9 +71,9 @@ struct DatabaseTypeTests {
         #expect(result == "\"user\"\"s\"")
     }
 
-    @Test("CaseIterable count is 5")
+    @Test("CaseIterable count is 6")
     func testCaseIterableCount() {
-        #expect(DatabaseType.allCases.count == 5)
+        #expect(DatabaseType.allCases.count == 6)
     }
 
     @Test("Raw value matches display name", arguments: [

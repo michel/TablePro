@@ -19,6 +19,7 @@ enum Theme {
     static let sqliteColor = Color(nsColor: .systemGreen)
     static let mariadbColor = Color(nsColor: .systemCyan)
     static let mongodbColor = Color(red: 0.0, green: 0.93, blue: 0.39)
+    static let redshiftColor = Color(red: 0.83, green: 0.15, blue: 0.15)
 
     // MARK: - Semantic Colors
 
@@ -103,6 +104,8 @@ extension DatabaseType {
             return Theme.postgresqlColor
         case .sqlite:
             return Theme.sqliteColor
+        case .redshift:
+            return Theme.redshiftColor
         case .mongodb:
             return Theme.mongodbColor
         }

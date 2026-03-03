@@ -458,4 +458,72 @@ struct ConnectionURLParserTests {
         #expect(parsed.host == "fe80::1")
         #expect(parsed.port == 3306)
     }
+
+    // MARK: - Redshift
+
+    @Test("Full Redshift URL")
+    func testFullRedshiftURL() {
+        let result = ConnectionURLParser.parse("redshift://admin:secret@cluster.us-east-1.redshift.amazonaws.com:5439/mydb")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redshift)
+        #expect(parsed.host == "cluster.us-east-1.redshift.amazonaws.com")
+        #expect(parsed.port == 5439)
+        #expect(parsed.database == "mydb")
+        #expect(parsed.username == "admin")
+        #expect(parsed.password == "secret")
+    }
+
+    @Test("Redshift without port")
+    func testRedshiftWithoutPort() {
+        let result = ConnectionURLParser.parse("redshift://user:pass@host/db")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redshift)
+        #expect(parsed.port == nil)
+        #expect(parsed.host == "host")
+        #expect(parsed.database == "db")
+    }
+
+    @Test("Redshift with SSL mode")
+    func testRedshiftWithSSL() {
+        let result = ConnectionURLParser.parse("redshift://user:pass@host:5439/db?sslmode=require")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redshift)
+        #expect(parsed.sslMode == .required)
+        #expect(parsed.port == 5439)
+    }
+
+    @Test("Redshift suggested name includes host and database")
+    func testRedshiftSuggestedName() {
+        let result = ConnectionURLParser.parse("redshift://user:pass@cluster.example.com/analytics")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.suggestedName == "Redshift cluster.example.com/analytics")
+    }
+
+    @Test("Redshift without user")
+    func testRedshiftWithoutUser() {
+        let result = ConnectionURLParser.parse("redshift://host:5439/db")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.username == "")
+        #expect(parsed.password == "")
+        #expect(parsed.host == "host")
+    }
+
+    @Test("Case-insensitive Redshift scheme")
+    func testCaseInsensitiveRedshiftScheme() {
+        let result = ConnectionURLParser.parse("REDSHIFT://user:pass@host/db")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redshift)
+    }
 }

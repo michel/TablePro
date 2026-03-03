@@ -21,7 +21,7 @@ struct DatabaseSwitcherSheet: View {
     @State private var viewModel: DatabaseSwitcherViewModel
     @State private var showCreateDialog = false
 
-    private var isSchemaMode: Bool { databaseType == .postgresql }
+    private var isSchemaMode: Bool { databaseType == .postgresql || databaseType == .redshift }
 
     init(
         isPresented: Binding<Bool>, currentDatabase: String?, databaseType: DatabaseType,

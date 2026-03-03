@@ -25,7 +25,7 @@ class DatabaseSwitcherViewModel {
     var showPreview = false
 
     /// Whether we're switching schemas (PostgreSQL) or databases (MySQL)
-    var isSchemaMode: Bool { databaseType == .postgresql }
+    var isSchemaMode: Bool { databaseType == .postgresql || databaseType == .redshift }
 
     // MARK: - Dependencies
 
@@ -168,6 +168,8 @@ class DatabaseSwitcherViewModel {
             return ["information_schema", "mysql", "performance_schema", "sys"].contains(name)
         case .postgresql:
             return ["postgres", "template0", "template1"].contains(name)
+        case .redshift:
+            return ["dev", "padb_harvest"].contains(name)
         case .sqlite:
             return false
         case .mongodb:

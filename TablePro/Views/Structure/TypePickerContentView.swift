@@ -21,7 +21,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "BIT"]
-            case .postgresql:
+            case .postgresql, .redshift:
                 return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
             case .sqlite:
                 return ["INTEGER", "REAL", "NUMERIC"]
@@ -32,7 +32,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"]
-            case .postgresql:
+            case .postgresql, .redshift:
                 return ["CHAR", "VARCHAR", "TEXT"]
             case .sqlite:
                 return ["TEXT"]
@@ -43,7 +43,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"]
-            case .postgresql:
+            case .postgresql, .redshift:
                 return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
             case .sqlite:
                 return ["DATE", "DATETIME"]
@@ -54,7 +54,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"]
-            case .postgresql:
+            case .postgresql, .redshift:
                 return ["BYTEA"]
             case .sqlite:
                 return ["BLOB"]
@@ -65,7 +65,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["BOOLEAN", "ENUM", "SET", "JSON"]
-            case .postgresql:
+            case .postgresql, .redshift:
                 return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
             case .sqlite:
                 return ["BOOLEAN"]

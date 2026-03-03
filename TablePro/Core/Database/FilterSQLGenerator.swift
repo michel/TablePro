@@ -117,7 +117,7 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return ""
-        case .postgresql, .sqlite, .mongodb:
+        case .postgresql, .redshift, .sqlite, .mongodb:
             return " ESCAPE '\\'"
         }
     }
@@ -140,7 +140,7 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return "\(column) REGEXP '\(escapedPattern)'"
-        case .postgresql:
+        case .postgresql, .redshift:
             return "\(column) ~ '\(escapedPattern)'"
         case .sqlite, .mongodb:
             return "\(column) LIKE '%\(escapedPattern)%'"
@@ -160,10 +160,10 @@ struct FilterSQLGenerator {
 
         // Check for boolean literals
         if trimmed.caseInsensitiveCompare("TRUE") == .orderedSame {
-            return databaseType == .postgresql ? "TRUE" : "1"
+            return databaseType == .postgresql || databaseType == .redshift ? "TRUE" : "1"
         }
         if trimmed.caseInsensitiveCompare("FALSE") == .orderedSame {
-            return databaseType == .postgresql ? "FALSE" : "0"
+            return databaseType == .postgresql || databaseType == .redshift ? "FALSE" : "0"
         }
 
         // Try to detect numeric values
