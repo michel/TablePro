@@ -29,11 +29,11 @@ struct MainContentView: View {
 
     // MARK: - State Objects
 
-    @StateObject private var tabManager: QueryTabManager
-    @StateObject private var changeManager: DataChangeManager
-    @StateObject private var filterStateManager: FilterStateManager
-    @StateObject private var toolbarState: ConnectionToolbarState
-    @StateObject var coordinator: MainContentCoordinator
+    @State private var tabManager: QueryTabManager
+    @State private var changeManager: DataChangeManager
+    @State private var filterStateManager: FilterStateManager
+    @State private var toolbarState: ConnectionToolbarState
+    @State var coordinator: MainContentCoordinator
 
     // MARK: - Local State
 
@@ -50,7 +50,7 @@ struct MainContentView: View {
 
     // MARK: - Environment
 
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     // MARK: - Initialization
 
@@ -124,13 +124,13 @@ struct MainContentView: View {
         }
         // If payload is nil or connection-only, tab restoration handles it in initializeAndRestoreTabs()
 
-        _tabManager = StateObject(wrappedValue: tabMgr)
-        _changeManager = StateObject(wrappedValue: changeMgr)
-        _filterStateManager = StateObject(wrappedValue: filterMgr)
-        _toolbarState = StateObject(wrappedValue: toolbarSt)
+        _tabManager = State(wrappedValue: tabMgr)
+        _changeManager = State(wrappedValue: changeMgr)
+        _filterStateManager = State(wrappedValue: filterMgr)
+        _toolbarState = State(wrappedValue: toolbarSt)
 
         // Create coordinator with all dependencies
-        _coordinator = StateObject(
+        _coordinator = State(
             wrappedValue: MainContentCoordinator(
                 connection: connection,
                 tabManager: tabMgr,
@@ -290,7 +290,8 @@ struct MainContentView: View {
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
-            .onReceive(DatabaseManager.shared.$activeSessions) { sessions in
+            .onChange(of: DatabaseManager.shared.sessionVersion, initial: true) { _, _ in
+                let sessions = DatabaseManager.shared.activeSessions
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {
                     coordinator.needsLazyLoad = false
@@ -446,7 +447,7 @@ struct MainContentView: View {
         // Connection-only payload or nil payload — restore tabs from storage
         // If other windows already exist for this connection, this is a "new tab"
         // from the native macOS "+" button — just add a single empty query tab.
-        if NativeTabRegistry.shared.hasWindows(for: connection.id) {
+        if NativeTabRegistry.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
             tabManager.addTab(databaseName: connection.database)
             return
         }
@@ -917,15 +918,15 @@ private struct ToolbarTintModifier: ViewModifier {
 
 // MARK: - Focused Command Actions Modifier
 
-/// Conditionally publishes `MainContentCommandActions` as a focused scene object.
-/// `focusedSceneObject` requires a non-optional value, so this modifier
+/// Conditionally publishes `MainContentCommandActions` as a focused scene value.
+/// `focusedSceneValue` requires a non-optional value, so this modifier
 /// only applies it when the actions object has been created.
 private struct FocusedCommandActionsModifier: ViewModifier {
     let actions: MainContentCommandActions?
 
     func body(content: Content) -> some View {
         if let actions {
-            content.focusedSceneObject(actions)
+            content.focusedSceneValue(\.commandActions, actions)
         } else {
             content
         }

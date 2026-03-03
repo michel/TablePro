@@ -7,8 +7,8 @@
 //
 
 import CodeEditSourceEditor
-import Combine
 import Foundation
+import Observation
 import os
 import SwiftUI
 
@@ -36,8 +36,8 @@ enum ActiveSheet: Identifiable {
 }
 
 /// Coordinator managing MainContentView business logic
-@MainActor
-final class MainContentCoordinator: ObservableObject {
+@MainActor @Observable
+final class MainContentCoordinator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
 
     /// Per-connection shared schema providers so new tabs skip redundant schema loads
@@ -64,29 +64,29 @@ final class MainContentCoordinator: ObservableObject {
 
     internal let queryBuilder: TableQueryBuilder
     let tabPersistence: TabPersistenceService
-    internal lazy var rowOperationsManager: RowOperationsManager = {
+    @ObservationIgnored internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
     }()
 
     // MARK: - Published State
 
-    @Published var schemaProvider: SQLSchemaProvider
-    @Published var cursorPositions: [CursorPosition] = []
-    @Published var tableMetadata: TableMetadata?
+    var schemaProvider: SQLSchemaProvider
+    var cursorPositions: [CursorPosition] = []
+    var tableMetadata: TableMetadata?
     // Removed: showErrorAlert and errorAlertMessage - errors now display inline
-    @Published var activeSheet: ActiveSheet?
-    @Published var importFileURL: URL?
-    @Published var needsLazyLoad = false
+    var activeSheet: ActiveSheet?
+    var importFileURL: URL?
+    var needsLazyLoad = false
 
     /// Cache for async-sorted query tab rows (large datasets sorted on background thread)
-    @Published private(set) var querySortCache: [UUID: QuerySortCacheEntry] = [:]
+    private(set) var querySortCache: [UUID: QuerySortCacheEntry] = [:]
 
     // MARK: - Internal State
 
-    internal var queryGeneration: Int = 0
-    internal var currentQueryTask: Task<Void, Never>?
-    private var changeManagerUpdateTask: Task<Void, Never>?
-    private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored internal var queryGeneration: Int = 0
+    @ObservationIgnored internal var currentQueryTask: Task<Void, Never>?
+    @ObservationIgnored private var changeManagerUpdateTask: Task<Void, Never>?
+    @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
@@ -96,7 +96,7 @@ final class MainContentCoordinator: ObservableObject {
     var isSwitchingDatabase = false
 
     /// Tracks whether teardown() was called; used by deinit to log missed teardowns
-    private var didTeardown = false
+    @ObservationIgnored private var didTeardown = false
 
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {

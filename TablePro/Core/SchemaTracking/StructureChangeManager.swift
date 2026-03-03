@@ -6,16 +6,16 @@
 //  Mirrors DataChangeManager architecture for schema modifications.
 //
 
-import Combine
 import Foundation
+import Observation
 
 /// Manager for tracking and applying schema changes
-@MainActor
-final class StructureChangeManager: ObservableObject {
-    @Published private(set) var pendingChanges: [SchemaChangeIdentifier: SchemaChange] = [:]
-    @Published private(set) var validationErrors: [SchemaChangeIdentifier: String] = [:]
-    @Published var hasChanges: Bool = false
-    @Published var reloadVersion: Int = 0  // Incremented to trigger table reload
+@MainActor @Observable
+final class StructureChangeManager {
+    private(set) var pendingChanges: [SchemaChangeIdentifier: SchemaChange] = [:]
+    private(set) var validationErrors: [SchemaChangeIdentifier: String] = [:]
+    var hasChanges: Bool = false
+    var reloadVersion: Int = 0  // Incremented to trigger table reload
 
     // Track which rows changed since last reload for granular updates
     private(set) var changedRowIndices: Set<Int> = []
@@ -27,10 +27,10 @@ final class StructureChangeManager: ObservableObject {
     private(set) var currentPrimaryKey: [String] = []
 
     // Working state (includes uncommitted changes + placeholders)
-    @Published var workingColumns: [EditableColumnDefinition] = []
-    @Published var workingIndexes: [EditableIndexDefinition] = []
-    @Published var workingForeignKeys: [EditableForeignKeyDefinition] = []
-    @Published var workingPrimaryKey: [String] = []
+    var workingColumns: [EditableColumnDefinition] = []
+    var workingIndexes: [EditableIndexDefinition] = []
+    var workingForeignKeys: [EditableForeignKeyDefinition] = []
+    var workingPrimaryKey: [String] = []
 
     var tableName: String?
     var databaseType: DatabaseType = .mysql

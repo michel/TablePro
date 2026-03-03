@@ -14,9 +14,9 @@
 //     - Context-aware: First responder handles action appropriately
 //     - Commands send via `NSApp.sendAction(#selector(...), to: nil, from: nil)`
 //
-//  2. **@FocusedObject** (Menu/Toolbar → single handler):
+//  2. **@FocusedValue** (Menu/Toolbar → single handler):
 //     - Most menu commands call `MainContentCommandActions` directly
-//     - Toolbar buttons also use `@FocusedObject` for direct calls
+//     - Toolbar buttons also use `@FocusedValue` for direct calls
 //     - Clean method calls, no global event bus
 //     - Commands are automatically nil (disabled) when no connection is active
 //

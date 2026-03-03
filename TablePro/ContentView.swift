@@ -33,7 +33,7 @@ struct ContentView: View {
 
     @Environment(\.openWindow)
     private var openWindow
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     private let storage = ConnectionStorage.shared
 
@@ -91,7 +91,7 @@ struct ContentView: View {
             }
             // Right sidebar toggle is handled by MainContentView (has the binding)
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
-            .onReceive(DatabaseManager.shared.$currentSessionId) { newSessionId in
+            .onChange(of: DatabaseManager.shared.currentSessionId, initial: true) { _, newSessionId in
                 let ourConnectionId = payload?.connectionId
                 // Windows with a payload only react to their own connection
                 if ourConnectionId != nil {
@@ -115,7 +115,8 @@ struct ContentView: View {
                     columnVisibility = .detailOnly
                 }
             }
-            .onReceive(DatabaseManager.shared.$activeSessions) { sessions in
+            .onChange(of: DatabaseManager.shared.sessionVersion, initial: true) { _, _ in
+                let sessions = DatabaseManager.shared.activeSessions
                 // Use our payload's connectionId, or our current session's id if already connected,
                 // or lastly the global currentSessionId (only for initial bootstrap)
                 let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId

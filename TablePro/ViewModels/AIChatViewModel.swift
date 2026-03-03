@@ -5,25 +5,25 @@
 //  View model for AI chat panel - manages conversation, streaming, and provider resolution.
 //
 
-import Combine
 import Foundation
+import Observation
 import os
 
 /// View model for the AI chat panel
-@MainActor
-final class AIChatViewModel: ObservableObject {
+@MainActor @Observable
+final class AIChatViewModel {
     private static let logger = Logger(subsystem: "com.TablePro", category: "AIChatViewModel")
 
     // MARK: - Published State
 
-    @Published var messages: [AIChatMessage] = []
-    @Published var inputText: String = ""
-    @Published var isStreaming: Bool = false
-    @Published var errorMessage: String?
-    @Published var lastMessageFailed: Bool = false
-    @Published var conversations: [AIConversation] = []
-    @Published var activeConversationID: UUID?
-    @Published var showAIAccessConfirmation = false
+    var messages: [AIChatMessage] = []
+    var inputText: String = ""
+    var isStreaming: Bool = false
+    var errorMessage: String?
+    var lastMessageFailed: Bool = false
+    var conversations: [AIConversation] = []
+    var activeConversationID: UUID?
+    var showAIAccessConfirmation = false
 
     // MARK: - Context Properties
 

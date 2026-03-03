@@ -5,28 +5,28 @@
 //  Orchestrates license activation, offline verification, and periodic re-validation
 //
 
-import Combine
 import Foundation
+import Observation
 import os
 
 /// Manages the app's license state with offline-first verification
-@MainActor
-final class LicenseManager: ObservableObject {
+@MainActor @Observable
+final class LicenseManager {
     static let shared = LicenseManager()
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "LicenseManager")
 
     /// Current cached license (nil = unlicensed)
-    @Published private(set) var license: License?
+    private(set) var license: License?
 
     /// Current license status
-    @Published private(set) var status: LicenseStatus = .unlicensed
+    private(set) var status: LicenseStatus = .unlicensed
 
     /// Whether a network operation is in progress
-    @Published private(set) var isValidating: Bool = false
+    private(set) var isValidating: Bool = false
 
     /// Last error from an operation (cleared on success)
-    @Published private(set) var lastError: LicenseError?
+    private(set) var lastError: LicenseError?
 
     private let storage = LicenseStorage.shared
     private let apiClient = LicenseAPIClient.shared
@@ -38,7 +38,7 @@ final class LicenseManager: ObservableObject {
     /// Grace period: 30 days without server contact before forcing re-validation
     private let gracePeriodDays = 30
 
-    private var revalidationTask: Task<Void, Never>?
+    @ObservationIgnored private var revalidationTask: Task<Void, Never>?
 
     private init() {
         loadCachedLicense()

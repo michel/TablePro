@@ -21,7 +21,7 @@ extension Notification.Name {
 struct QueryEditorView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
 
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     @Binding var queryText: String
     @Binding var cursorPositions: [CursorPosition]

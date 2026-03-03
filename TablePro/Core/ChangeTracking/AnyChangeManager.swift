@@ -6,28 +6,37 @@
 //  Allows DataGridView to work with both DataChangeManager and StructureChangeManager.
 //
 
-import Combine
 import Foundation
+import Observation
 
 /// Type-erased change manager wrapper
+@Observable
 @MainActor
-final class AnyChangeManager: ObservableObject {
-    @Published var hasChanges: Bool = false
-    @Published var reloadVersion: Int = 0
+final class AnyChangeManager {
+    @ObservationIgnored private var dataManager: DataChangeManager?
+    @ObservationIgnored private var structureManager: StructureChangeManager?
 
-    private var cancellables: Set<AnyCancellable> = []
-    private let _isRowDeleted: (Int) -> Bool
-    private let _getChanges: () -> [Any]
-    private let _canRedo: () -> Bool
-    private let _recordCellChange: ((Int, Int, String, String?, String?, [String?]) -> Void)?
-    private let _undoRowDeletion: ((Int) -> Void)?
-    private let _undoRowInsertion: ((Int) -> Void)?
-    private let _consumeChangedRowIndices: (() -> Set<Int>)?
+    var hasChanges: Bool {
+        dataManager?.hasChanges ?? structureManager?.hasChanges ?? false
+    }
+
+    var reloadVersion: Int {
+        dataManager?.reloadVersion ?? structureManager?.reloadVersion ?? 0
+    }
+
+    @ObservationIgnored private let _isRowDeleted: (Int) -> Bool
+    @ObservationIgnored private let _getChanges: () -> [Any]
+    @ObservationIgnored private let _canRedo: () -> Bool
+    @ObservationIgnored private let _recordCellChange: ((Int, Int, String, String?, String?, [String?]) -> Void)?
+    @ObservationIgnored private let _undoRowDeletion: ((Int) -> Void)?
+    @ObservationIgnored private let _undoRowInsertion: ((Int) -> Void)?
+    @ObservationIgnored private let _consumeChangedRowIndices: (() -> Set<Int>)?
 
     // MARK: - Initializers
 
     /// Wrap a DataChangeManager
     init(dataManager: DataChangeManager) {
+        self.dataManager = dataManager
         self._isRowDeleted = { rowIndex in
             dataManager.isRowDeleted(rowIndex)
         }
@@ -56,19 +65,11 @@ final class AnyChangeManager: ObservableObject {
         self._consumeChangedRowIndices = {
             dataManager.consumeChangedRowIndices()
         }
-
-        // Sync published properties — use .sink with [weak self] instead of .assign(to:on:)
-        // because .assign retains the target, creating a cycle: self -> cancellables -> subscription -> self
-        dataManager.$hasChanges
-            .sink { [weak self] in self?.hasChanges = $0 }
-            .store(in: &cancellables)
-        dataManager.$reloadVersion
-            .sink { [weak self] in self?.reloadVersion = $0 }
-            .store(in: &cancellables)
     }
 
     /// Wrap a StructureChangeManager
     init(structureManager: StructureChangeManager) {
+        self.structureManager = structureManager
         self._isRowDeleted = { _ in false } // Structure doesn't track row deletions
         self._getChanges = {
             Array(structureManager.pendingChanges.values)
@@ -82,14 +83,6 @@ final class AnyChangeManager: ObservableObject {
         self._consumeChangedRowIndices = {
             structureManager.consumeChangedRowIndices()
         }
-
-        // Sync published properties — use .sink with [weak self] to avoid retain cycle
-        structureManager.$hasChanges
-            .sink { [weak self] in self?.hasChanges = $0 }
-            .store(in: &cancellables)
-        structureManager.$reloadVersion
-            .sink { [weak self] in self?.reloadVersion = $0 }
-            .store(in: &cancellables)
     }
 
     // MARK: - Public API

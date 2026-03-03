@@ -6,8 +6,8 @@
 //  Supports configurable options for each format including compression.
 //
 
-import Combine
 import Foundation
+import Observation
 import os
 
 // MARK: - Export Error
@@ -71,14 +71,14 @@ struct ExportState {
 // MARK: - Export Service
 
 /// Service responsible for exporting table data to various formats
-@MainActor
-final class ExportService: ObservableObject {
+@MainActor @Observable
+final class ExportService {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
     // swiftlint:disable:next force_try
     private static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
     // MARK: - Published State
 
-    @Published var state = ExportState()
+    var state = ExportState()
 
     // MARK: - DDL Failure Tracking
 

@@ -37,7 +37,7 @@ struct DataGridIdentity: Equatable {
 /// High-performance table view using AppKit NSTableView
 struct DataGridView: NSViewRepresentable {
     let rowProvider: InMemoryRowProvider
-    @ObservedObject var changeManager: AnyChangeManager
+    var changeManager: AnyChangeManager
     var resultVersion: Int = 0
     var metadataVersion: Int = 0
     let isEditable: Bool

@@ -16,7 +16,7 @@ import SwiftUI
 /// Content for the principal (center) toolbar area
 /// Displays environment badge, connection status, and execution indicator in a unified card
 struct ToolbarPrincipalContent: View {
-    @ObservedObject var state: ConnectionToolbarState
+    var state: ConnectionToolbarState
 
     var body: some View {
         HStack(spacing: 10) {
@@ -50,8 +50,8 @@ struct ToolbarPrincipalContent: View {
 /// Toolbar modifier that composes all toolbar items
 /// Apply this to a view to add the production toolbar
 struct TableProToolbar: ViewModifier {
-    @ObservedObject var state: ConnectionToolbarState
-    @FocusedObject private var actions: MainContentCommandActions?
+    @Bindable var state: ConnectionToolbarState
+    @FocusedValue(\.commandActions) private var actions: MainContentCommandActions?
     @State private var showConnectionSwitcher = false
 
     func body(content: Content) -> some View {

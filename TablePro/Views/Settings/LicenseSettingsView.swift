@@ -9,7 +9,7 @@ import AppKit
 import SwiftUI
 
 struct LicenseSettingsView: View {
-    @ObservedObject private var licenseManager = LicenseManager.shared
+    private let licenseManager = LicenseManager.shared
 
     @State private var licenseKeyInput = ""
     @State private var isActivating = false

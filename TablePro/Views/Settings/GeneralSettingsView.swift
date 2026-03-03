@@ -10,7 +10,7 @@ import SwiftUI
 
 struct GeneralSettingsView: View {
     @Binding var settings: GeneralSettings
-    @ObservedObject var updaterBridge: UpdaterBridge
+    var updaterBridge: UpdaterBridge
     @State private var initialLanguage: AppLanguage?
 
     private static let standardTimeouts = [10, 20, 30, 40, 50, 60, 90, 120, 180, 300, 600]

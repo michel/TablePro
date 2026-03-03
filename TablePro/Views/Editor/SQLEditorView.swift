@@ -107,7 +107,7 @@ struct SQLEditorView: View {
         .onDisappear {
             coordinator.destroy()
         }
-        .onReceive(coordinator.$vimMode) { newMode in
+        .onChange(of: coordinator.vimMode) { _, newMode in
             vimMode = newMode
         }
     }

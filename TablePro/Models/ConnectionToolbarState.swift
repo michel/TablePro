@@ -7,7 +7,7 @@
 //
 
 import AppKit
-import Combine
+import Observation
 import SwiftUI
 
 // MARK: - Connection Environment
@@ -105,41 +105,39 @@ enum ToolbarConnectionState: Equatable {
 // MARK: - Toolbar State
 
 /// Observable state container for the connection toolbar.
-/// Uses ObservableObject (could migrate to @Observable since macOS 14 is now the minimum).
 /// This is the single source of truth for all toolbar UI state.
+@Observable
 @MainActor
-final class ConnectionToolbarState: ObservableObject {
+final class ConnectionToolbarState {
     // MARK: - Connection Info
 
     /// The tag assigned to this connection (optional)
-    @Published var tagId: UUID?
+    var tagId: UUID?
 
     /// Database type (MySQL, MariaDB, PostgreSQL, SQLite)
-    @Published var databaseType: DatabaseType = .mysql
+    var databaseType: DatabaseType = .mysql
 
     /// Server version string (e.g., "11.1.2")
-    @Published var databaseVersion: String?
+    var databaseVersion: String?
 
     /// Connection name for display
-    @Published var connectionName: String = ""
+    var connectionName: String = ""
 
     /// Current database name
-    @Published var databaseName: String = ""
+    var databaseName: String = ""
 
     /// Custom display color for the connection (uses database type color if not set)
-    @Published var displayColor: Color = .init(nsColor: .systemOrange)
+    var displayColor: Color = .init(nsColor: .systemOrange)
 
     /// Current connection state
-    @Published var connectionState: ToolbarConnectionState = .disconnected
+    var connectionState: ToolbarConnectionState = .disconnected
 
     // MARK: - Query Execution
 
     /// Whether a query is currently executing.
-    /// Not @Published — use `setExecuting(_:)` to update, which batches
-    /// the connectionState side-effect into a single objectWillChange.
     private(set) var isExecuting: Bool = false
 
-    /// Set execution state and update connectionState in one publish cycle.
+    /// Set execution state and update connectionState atomically.
     func setExecuting(_ executing: Bool) {
         let newState: ToolbarConnectionState
         if executing && connectionState == .connected {
@@ -150,46 +148,37 @@ final class ConnectionToolbarState: ObservableObject {
             newState = connectionState
         }
 
-        // Only fire objectWillChange if something actually changes
         guard executing != isExecuting || newState != connectionState else { return }
 
-        // Set isExecuting first (non-Published, no notification).
-        // Then set connectionState — its @Published wrapper fires
-        // objectWillChange once, covering both mutations.
-        // If connectionState is unchanged, send manually for isExecuting.
         isExecuting = executing
-        if newState != connectionState {
-            connectionState = newState
-        } else {
-            objectWillChange.send()
-        }
+        connectionState = newState
     }
 
     /// Duration of the last completed query
-    @Published var lastQueryDuration: TimeInterval?
+    var lastQueryDuration: TimeInterval?
 
     // MARK: - Future Expansion
 
     /// Whether the connection is read-only
-    @Published var isReadOnly: Bool = false
+    var isReadOnly: Bool = false
 
     /// Whether the current tab is a table tab (enables filter/sort actions)
-    @Published var isTableTab: Bool = false
+    var isTableTab: Bool = false
 
     /// Whether there are pending changes to preview
-    @Published var hasPendingChanges: Bool = false
+    var hasPendingChanges: Bool = false
 
     /// Whether the SQL review popover is showing
-    @Published var showSQLReviewPopover: Bool = false
+    var showSQLReviewPopover: Bool = false
 
     /// SQL statements to display in the review popover
-    @Published var previewStatements: [String] = []
+    var previewStatements: [String] = []
 
     /// Network latency in milliseconds (for SSH connections)
-    @Published var latencyMs: Int?
+    var latencyMs: Int?
 
     /// Replication lag in seconds (for replicated databases)
-    @Published var replicationLagSeconds: Int?
+    var replicationLagSeconds: Int?
 
     var hasCompletedSetup = false
 

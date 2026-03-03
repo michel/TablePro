@@ -6,7 +6,7 @@
 //
 
 import AppKit
-import Combine
+import Observation
 import os
 import SwiftUI
 import UniformTypeIdentifiers
@@ -42,7 +42,7 @@ struct ImportDialog: View {
 
     // MARK: - Import Service
 
-    @StateObject private var importServiceState = ImportServiceState()
+    @State private var importServiceState = ImportServiceState()
 
     // MARK: - Body
 
@@ -439,19 +439,10 @@ struct ImportDialog: View {
 
 // MARK: - Import Service State
 
+@Observable
 @MainActor
-final class ImportServiceState: ObservableObject {
-    private var cancellable: AnyCancellable?
-
-    private(set) var service: ImportService? {
-        didSet {
-            cancellable?.cancel()
-            guard let service else { return }
-            cancellable = service.objectWillChange
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        }
-    }
+final class ImportServiceState {
+    private(set) var service: ImportService?
 
     func setService(_ service: ImportService) {
         self.service = service

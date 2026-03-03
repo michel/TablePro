@@ -15,8 +15,8 @@ struct AIChatPanelView: View {
     var currentQuery: String?
     var queryResults: String?
 
-    @ObservedObject var viewModel: AIChatViewModel
-    @ObservedObject private var settingsManager = AppSettingsManager.shared
+    @Bindable var viewModel: AIChatViewModel
+    private let settingsManager = AppSettingsManager.shared
     @State private var isNearBottom: Bool = true
 
     private var hasConfiguredProvider: Bool {
