@@ -99,6 +99,7 @@ extension MainContentView {
         InspectorTrigger(
             tableName: currentTab?.tableName,
             resultVersion: currentTab?.resultVersion ?? -1,
+            metadataVersion: currentTab?.metadataVersion ?? -1,
             metadataTableName: coordinator.tableMetadata?.tableName
         )
     }
@@ -112,6 +113,7 @@ extension MainContentView {
 struct InspectorTrigger: Equatable {
     let tableName: String?
     let resultVersion: Int
+    let metadataVersion: Int
     let metadataTableName: String?
 }
 

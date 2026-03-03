@@ -48,6 +48,7 @@ struct TableTabContentView: View {
     // Recreated only when tab.resultVersion changes (data refresh, sort, filter, pagination).
     @State private var rowProvider: InMemoryRowProvider?
     @State private var lastResultVersion: Int = -1
+    @State private var lastMetadataVersion: Int = -1
     @State private var cachedChangeManager: AnyChangeManager?
 
     /// Creates a new InMemoryRowProvider from the current tab and row data.
@@ -72,7 +73,9 @@ struct TableTabContentView: View {
 
     /// Returns the current row provider, creating it on first access.
     private var currentRowProvider: InMemoryRowProvider {
-        if let existing = rowProvider, lastResultVersion == tab.resultVersion {
+        if let existing = rowProvider,
+           lastResultVersion == tab.resultVersion,
+           lastMetadataVersion == tab.metadataVersion {
             return existing
         }
         // First render or version mismatch — create inline and schedule state update
@@ -106,6 +109,7 @@ struct TableTabContentView: View {
                     rowProvider: currentRowProvider,
                     changeManager: currentChangeManager,
                     resultVersion: tab.resultVersion,
+                    metadataVersion: tab.metadataVersion,
                     isEditable: tab.isEditable && !tab.isView,
                     onCommit: onCommit,
                     onRefresh: onRefresh,
@@ -144,12 +148,19 @@ struct TableTabContentView: View {
             let provider = makeRowProvider()
             rowProvider = provider
             lastResultVersion = tab.resultVersion
+            lastMetadataVersion = tab.metadataVersion
             cachedChangeManager = AnyChangeManager(dataManager: changeManager)
         }
         .onChange(of: tab.resultVersion) { _, newVersion in
             let provider = makeRowProvider()
             rowProvider = provider
             lastResultVersion = newVersion
+            lastMetadataVersion = tab.metadataVersion
+        }
+        .onChange(of: tab.metadataVersion) { _, _ in
+            let provider = makeRowProvider()
+            rowProvider = provider
+            lastMetadataVersion = tab.metadataVersion
         }
     }
 }
