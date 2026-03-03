@@ -8,21 +8,23 @@
 
 import Combine
 import Foundation
+import Observation
 
 /// Type-erased change manager wrapper
+@Observable
 @MainActor
-final class AnyChangeManager: ObservableObject {
-    @Published var hasChanges: Bool = false
-    @Published var reloadVersion: Int = 0
+final class AnyChangeManager {
+    var hasChanges: Bool = false
+    var reloadVersion: Int = 0
 
-    private var cancellables: Set<AnyCancellable> = []
-    private let _isRowDeleted: (Int) -> Bool
-    private let _getChanges: () -> [Any]
-    private let _canRedo: () -> Bool
-    private let _recordCellChange: ((Int, Int, String, String?, String?, [String?]) -> Void)?
-    private let _undoRowDeletion: ((Int) -> Void)?
-    private let _undoRowInsertion: ((Int) -> Void)?
-    private let _consumeChangedRowIndices: (() -> Set<Int>)?
+    @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
+    @ObservationIgnored private let _isRowDeleted: (Int) -> Bool
+    @ObservationIgnored private let _getChanges: () -> [Any]
+    @ObservationIgnored private let _canRedo: () -> Bool
+    @ObservationIgnored private let _recordCellChange: ((Int, Int, String, String?, String?, [String?]) -> Void)?
+    @ObservationIgnored private let _undoRowDeletion: ((Int) -> Void)?
+    @ObservationIgnored private let _undoRowInsertion: ((Int) -> Void)?
+    @ObservationIgnored private let _consumeChangedRowIndices: (() -> Set<Int>)?
 
     // MARK: - Initializers
 

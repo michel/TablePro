@@ -8,6 +8,7 @@
 
 import AppKit
 import Combine
+import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -34,7 +35,7 @@ struct ExportDialog: View {
 
     // MARK: - Export Service
 
-    @StateObject private var exportServiceState = ExportServiceState()
+    @State private var exportServiceState = ExportServiceState()
 
     // MARK: - Body
 
@@ -671,32 +672,31 @@ struct ExportDialog: View {
 // MARK: - Export Service State
 
 /// Observable wrapper that forwards ExportService updates to SwiftUI.
-/// Instead of mirroring individual @Published properties, this forwards
-/// objectWillChange from the underlying service for automatic view updates.
+/// Subscribes to the underlying service's objectWillChange to mirror state updates.
+@Observable
 @MainActor
-final class ExportServiceState: ObservableObject {
-    private var cancellable: AnyCancellable?
+final class ExportServiceState {
+    @ObservationIgnored private var cancellable: AnyCancellable?
 
-    private(set) var service: ExportService? {
-        didSet {
-            cancellable?.cancel()
-            guard let service else { return }
-            cancellable = service.objectWillChange
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        }
-    }
+    @ObservationIgnored private(set) var service: ExportService?
 
     func setService(_ service: ExportService) {
+        cancellable?.cancel()
         self.service = service
+        cancellable = service.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.serviceVersion += 1 }
     }
 
-    var currentTable: String { service?.state.currentTable ?? "" }
-    var currentTableIndex: Int { service?.state.currentTableIndex ?? 0 }
-    var totalTables: Int { service?.state.totalTables ?? 0 }
-    var processedRows: Int { service?.state.processedRows ?? 0 }
-    var totalRows: Int { service?.state.totalRows ?? 0 }
-    var statusMessage: String { service?.state.statusMessage ?? "" }
+    /// Bumped whenever the underlying service publishes a change, triggering @Observable invalidation.
+    private var serviceVersion: Int = 0
+
+    var currentTable: String { _ = serviceVersion; return service?.state.currentTable ?? "" }
+    var currentTableIndex: Int { _ = serviceVersion; return service?.state.currentTableIndex ?? 0 }
+    var totalTables: Int { _ = serviceVersion; return service?.state.totalTables ?? 0 }
+    var processedRows: Int { _ = serviceVersion; return service?.state.processedRows ?? 0 }
+    var totalRows: Int { _ = serviceVersion; return service?.state.totalRows ?? 0 }
+    var statusMessage: String { _ = serviceVersion; return service?.state.statusMessage ?? "" }
 }
 
 // MARK: - Preview

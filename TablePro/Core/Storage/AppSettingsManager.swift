@@ -7,18 +7,19 @@
 //
 
 import AppKit
-import Combine
 import Foundation
+import Observation
 import os
 
 /// Observable settings manager for immediate persistence and live updates
+@Observable
 @MainActor
-final class AppSettingsManager: ObservableObject {
+final class AppSettingsManager {
     static let shared = AppSettingsManager()
 
     // MARK: - Published Settings
 
-    @Published var general: GeneralSettings {
+    var general: GeneralSettings {
         didSet {
             general.language.apply()
             storage.saveGeneral(general)
@@ -26,7 +27,7 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
-    @Published var appearance: AppearanceSettings {
+    var appearance: AppearanceSettings {
         didSet {
             storage.saveAppearance(appearance)
             appearance.theme.apply()
@@ -34,7 +35,7 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
-    @Published var editor: EditorSettings {
+    var editor: EditorSettings {
         didSet {
             storage.saveEditor(editor)
             // Update cached theme values for thread-safe access
@@ -43,7 +44,7 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
-    @Published var dataGrid: DataGridSettings {
+    var dataGrid: DataGridSettings {
         didSet {
             guard !isValidating else { return }
             // Validate and sanitize before saving
@@ -65,7 +66,7 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
-    @Published var history: HistorySettings {
+    var history: HistorySettings {
         didSet {
             guard !isValidating else { return }
             // Validate before saving
@@ -87,35 +88,35 @@ final class AppSettingsManager: ObservableObject {
         }
     }
 
-    @Published var tabs: TabSettings {
+    var tabs: TabSettings {
         didSet {
             storage.saveTabs(tabs)
             notifyChange(domain: "tabs", notification: .tabSettingsDidChange)
         }
     }
 
-    @Published var keyboard: KeyboardSettings {
+    var keyboard: KeyboardSettings {
         didSet {
             storage.saveKeyboard(keyboard)
             notifyChange(domain: "keyboard", notification: .keyboardSettingsDidChange)
         }
     }
 
-    @Published var ai: AISettings {
+    var ai: AISettings {
         didSet {
             storage.saveAI(ai)
             notifyChange(domain: "ai", notification: .aiSettingsDidChange)
         }
     }
 
-    private let storage = AppSettingsStorage.shared
+    @ObservationIgnored private let storage = AppSettingsStorage.shared
     /// Reentrancy guard for didSet validation that re-assigns the property.
-    private var isValidating = false
-    private var accessibilityTextSizeObserver: NSObjectProtocol?
+    @ObservationIgnored private var isValidating = false
+    @ObservationIgnored private var accessibilityTextSizeObserver: NSObjectProtocol?
     /// Tracks the last-seen accessibility scale factor to avoid redundant reloads.
     /// The accessibility display options notification fires for all display option changes
     /// (contrast, motion, etc.), not just text size.
-    private var lastAccessibilityScale: CGFloat = 1.0
+    @ObservationIgnored private var lastAccessibilityScale: CGFloat = 1.0
 
     // MARK: - Initialization
 
