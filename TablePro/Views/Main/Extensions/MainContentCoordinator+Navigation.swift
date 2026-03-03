@@ -208,6 +208,11 @@ extension MainContentCoordinator {
             if connection.type == .mysql || connection.type == .mariadb {
                 _ = try await driver.execute(query: "USE `\(database)`")
 
+                // Also switch metadata driver's database
+                if let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) {
+                    _ = try? await metaDriver.execute(query: "USE `\(database)`")
+                }
+
                 // Update session with new database
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     var updatedConnection = session.connection

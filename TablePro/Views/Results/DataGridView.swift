@@ -886,6 +886,15 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         let isDropdown = dropdownColumns?.contains(columnIndex) == true
         let isTypePicker = typePickerColumns?.contains(columnIndex) == true
 
+        let isEnumOrSet: Bool = {
+            guard columnIndex < rowProvider.columnTypes.count,
+                  columnIndex < rowProvider.columns.count else { return false }
+            let ct = rowProvider.columnTypes[columnIndex]
+            let columnName = rowProvider.columns[columnIndex]
+            guard ct.isEnumType || ct.isSetType else { return false }
+            return rowProvider.columnEnumValues[columnName]?.isEmpty == false
+        }()
+
         let isFKColumn: Bool = {
             guard columnIndex < rowProvider.columns.count else { return false }
             let columnName = rowProvider.columns[columnIndex]
@@ -902,7 +911,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             isEditable: isEditable && !state.isDeleted,
             isLargeDataset: isLargeDataset,
             isFocused: isFocused,
-            isDropdown: isEditable && (isDropdown || isTypePicker),
+            isDropdown: isEditable && (isDropdown || isTypePicker || isEnumOrSet),
             isFKColumn: isFKColumn && !isDropdown && !(typePickerColumns?.contains(columnIndex) == true),
             fkArrowTarget: self,
             fkArrowAction: #selector(handleFKArrowClick(_:)),
@@ -966,6 +975,22 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         // Dropdown columns open on single click
         if let dropdownCols = dropdownColumns, dropdownCols.contains(columnIndex) {
             showDropdownMenu(tableView: sender, row: row, column: column, columnIndex: columnIndex)
+            return
+        }
+
+        // ENUM/SET columns open on single click
+        if columnIndex < rowProvider.columnTypes.count,
+           columnIndex < rowProvider.columns.count {
+            let ct = rowProvider.columnTypes[columnIndex]
+            let columnName = rowProvider.columns[columnIndex]
+            if ct.isEnumType, let values = rowProvider.columnEnumValues[columnName], !values.isEmpty {
+                showEnumPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
+                return
+            }
+            if ct.isSetType, let values = rowProvider.columnEnumValues[columnName], !values.isEmpty {
+                showSetPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
+                return
+            }
         }
     }
 
@@ -997,25 +1022,15 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
             return
         }
 
-        // ENUM columns use searchable dropdown popover
+        // ENUM/SET columns already handled by single click
         if columnIndex < rowProvider.columnTypes.count,
-           rowProvider.columnTypes[columnIndex].isEnumType,
            columnIndex < rowProvider.columns.count {
-            let columnName = rowProvider.columns[columnIndex]
-            if let values = rowProvider.columnEnumValues[columnName], !values.isEmpty {
-                showEnumPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
-                return
-            }
-        }
-
-        // SET columns use checkbox popover
-        if columnIndex < rowProvider.columnTypes.count,
-           rowProvider.columnTypes[columnIndex].isSetType,
-           columnIndex < rowProvider.columns.count {
-            let columnName = rowProvider.columns[columnIndex]
-            if let values = rowProvider.columnEnumValues[columnName], !values.isEmpty {
-                showSetPopover(tableView: sender, row: row, column: column, columnIndex: columnIndex)
-                return
+            let ct = rowProvider.columnTypes[columnIndex]
+            if ct.isEnumType || ct.isSetType {
+                let columnName = rowProvider.columns[columnIndex]
+                if let values = rowProvider.columnEnumValues[columnName], !values.isEmpty {
+                    return
+                }
             }
         }
 

@@ -802,11 +802,24 @@ struct MainContentView: View {
             }
         }
 
+        // Enrich column types with loaded enum values from Phase 2b
+        var columnTypes = tab.columnTypes
+        for (i, col) in tab.resultColumns.enumerated() where i < columnTypes.count {
+            if let values = tab.columnEnumValues[col], !values.isEmpty {
+                let ct = columnTypes[i]
+                if ct.isEnumType {
+                    columnTypes[i] = .enumType(rawType: ct.rawType, values: values)
+                } else if ct.isSetType {
+                    columnTypes[i] = .set(rawType: ct.rawType, values: values)
+                }
+            }
+        }
+
         rightPanelState.editState.configure(
             selectedRowIndices: selectedRowIndices,
             allRows: allRows,
             columns: tab.resultColumns,
-            columnTypes: tab.columnTypes
+            columnTypes: columnTypes
         )
 
         guard isSidebarEditable else {

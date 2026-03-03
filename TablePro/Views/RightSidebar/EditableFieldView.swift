@@ -85,7 +85,8 @@ struct EditableFieldView: View {
                 .disabled(true)
         } else if columnTypeEnum.isBooleanType {
             booleanPicker
-        } else if columnTypeEnum.isEnumType, let values = columnTypeEnum.enumValues, !values.isEmpty {
+        } else if (columnTypeEnum.isEnumType || columnTypeEnum.isSetType),
+                  let values = columnTypeEnum.enumValues, !values.isEmpty {
             enumPicker(values: values)
         } else if isLongText || columnTypeEnum.isJsonType {
             multiLineEditor
