@@ -47,6 +47,15 @@ struct BsonDocumentFlattenerTests {
             let result = BsonDocumentFlattener.unionColumns(from: [doc])
             #expect(result == ["name"])
         }
+
+        @Test("Empty documents produce no columns — driver must handle this")
+        func emptyDocumentsProduceNoColumns() {
+            // Documents the known behavior: unionColumns returns [] for empty input.
+            // MongoDBDriver guards against this by returning a QueryResult with ["_id"]
+            // before calling buildQueryResult when find() returns no documents.
+            let result = BsonDocumentFlattener.unionColumns(from: [])
+            #expect(result.isEmpty)
+        }
     }
 
     // MARK: - flatten(documents:columns:)
@@ -124,6 +133,18 @@ struct BsonDocumentFlattenerTests {
             let result = BsonDocumentFlattener.flatten(documents: [doc], columns: columns)
             let expected = ISO8601DateFormatter().string(from: date)
             #expect(result[0][1] == expected)
+        }
+
+        @Test("Empty document array produces empty rows")
+        func emptyDocumentArrayProducesEmptyRows() {
+            let result = BsonDocumentFlattener.flatten(documents: [], columns: ["_id"])
+            #expect(result.isEmpty)
+        }
+
+        @Test("Empty document array with no columns produces empty rows")
+        func emptyDocumentArrayWithNoColumnsProducesEmptyRows() {
+            let result = BsonDocumentFlattener.flatten(documents: [], columns: [])
+            #expect(result.isEmpty)
         }
     }
 

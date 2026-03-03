@@ -194,4 +194,77 @@ struct NativeTabRegistryTests {
         #expect(NativeTabRegistry.shared.allTabs(for: connectionId).isEmpty)
         #expect(!NativeTabRegistry.shared.hasWindows(for: connectionId))
     }
+
+    // MARK: - isRegistered
+
+    @Test("isRegistered returns true for a registered window")
+    func isRegisteredReturnsTrueForRegisteredWindow() {
+        let windowId = UUID()
+        let connectionId = UUID()
+
+        NativeTabRegistry.shared.register(windowId: windowId, connectionId: connectionId, tabs: [makeSnapshot()], selectedTabId: nil)
+        defer { NativeTabRegistry.shared.unregister(windowId: windowId) }
+
+        #expect(NativeTabRegistry.shared.isRegistered(windowId: windowId))
+    }
+
+    @Test("isRegistered returns false for an unregistered window")
+    func isRegisteredReturnsFalseForUnknownWindow() {
+        #expect(!NativeTabRegistry.shared.isRegistered(windowId: UUID()))
+    }
+
+    @Test("isRegistered returns false after unregister")
+    func isRegisteredReturnsFalseAfterUnregister() {
+        let windowId = UUID()
+        let connectionId = UUID()
+
+        NativeTabRegistry.shared.register(windowId: windowId, connectionId: connectionId, tabs: [makeSnapshot()], selectedTabId: nil)
+        NativeTabRegistry.shared.unregister(windowId: windowId)
+
+        #expect(!NativeTabRegistry.shared.isRegistered(windowId: windowId))
+    }
+
+    // MARK: - Tab group merge scenario
+
+    @Test("Tab group merge — re-register after unregister keeps window alive")
+    func tabGroupMergeReRegister() {
+        let windowId = UUID()
+        let connectionId = UUID()
+        let tab = makeSnapshot()
+
+        // Step 1: Initial register (window appears)
+        NativeTabRegistry.shared.register(windowId: windowId, connectionId: connectionId, tabs: [tab], selectedTabId: tab.id)
+        defer { NativeTabRegistry.shared.unregister(windowId: windowId) }
+
+        // Step 2: macOS tab group merge fires onDisappear → unregister
+        NativeTabRegistry.shared.unregister(windowId: windowId)
+        #expect(!NativeTabRegistry.shared.isRegistered(windowId: windowId))
+
+        // Step 3: macOS tab group merge fires onAppear → re-register same windowId
+        NativeTabRegistry.shared.register(windowId: windowId, connectionId: connectionId, tabs: [tab], selectedTabId: tab.id)
+
+        // Window should be alive — isRegistered true, hasWindows true, tabs intact
+        #expect(NativeTabRegistry.shared.isRegistered(windowId: windowId))
+        #expect(NativeTabRegistry.shared.hasWindows(for: connectionId))
+        #expect(NativeTabRegistry.shared.allTabs(for: connectionId).count == 1)
+        #expect(NativeTabRegistry.shared.allTabs(for: connectionId).first?.id == tab.id)
+    }
+
+    @Test("Tab group merge — teardown proceeds when window is not re-registered")
+    func tabGroupMergeTeardownWhenNotReRegistered() {
+        let windowId = UUID()
+        let connectionId = UUID()
+
+        // Step 1: Initial register (window appears)
+        NativeTabRegistry.shared.register(windowId: windowId, connectionId: connectionId, tabs: [makeSnapshot()], selectedTabId: nil)
+
+        // Step 2: onDisappear fires → unregister
+        NativeTabRegistry.shared.unregister(windowId: windowId)
+
+        // Step 3: No re-register happens (genuine window close, not a merge)
+        // After the delay, isRegistered should be false → teardown should proceed
+        #expect(!NativeTabRegistry.shared.isRegistered(windowId: windowId))
+        #expect(!NativeTabRegistry.shared.hasWindows(for: connectionId))
+        #expect(NativeTabRegistry.shared.allTabs(for: connectionId).isEmpty)
+    }
 }
