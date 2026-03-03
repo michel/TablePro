@@ -25,32 +25,14 @@ private struct MockTableFetcher: TableFetcher {
 
 // MARK: - Helpers
 
-/// Simulates the tab-mapping logic from switchDatabase(to:).
-/// Table-type tabs are converted to query tabs with cleared state to prevent
-/// "table not found" errors when the new database has different tables.
+/// Simulates the tab-clearing logic from switchDatabase(to:).
+/// All tabs are removed to prevent stale queries from the previous database.
 @MainActor
-private func simulateDatabaseSwitchTabMapping(
-    tabManager: QueryTabManager,
-    newDatabase: String
+private func simulateDatabaseSwitch(
+    tabManager: QueryTabManager
 ) {
-    tabManager.tabs = tabManager.tabs.map { tab in
-        var updatedTab = tab
-        updatedTab.resultColumns = []
-        updatedTab.resultRows = []
-        updatedTab.resultVersion += 1
-        updatedTab.errorMessage = nil
-        updatedTab.executionTime = nil
-        updatedTab.databaseName = newDatabase
-        if tab.tabType == .table {
-            updatedTab.tableName = nil
-            updatedTab.tabType = .query
-            updatedTab.query = ""
-            updatedTab.showStructure = false
-            updatedTab.isView = false
-            updatedTab.isEditable = false
-        }
-        return updatedTab
-    }
+    tabManager.tabs = []
+    tabManager.selectedTabId = nil
 }
 
 @Suite("SwitchDatabase")
@@ -199,133 +181,43 @@ struct SwitchDatabaseTests {
 
     // MARK: - Tab state after database switch
 
-    @Test("switchDatabase clears tableName on table tabs")
+    @Test("switchDatabase clears all table tabs")
     @MainActor
-    func switchDatabaseClearsTableName() {
+    func switchDatabaseClearsTableTabs() {
         let tabManager = QueryTabManager()
         tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
 
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
+        simulateDatabaseSwitch(tabManager: tabManager)
 
-        #expect(tabManager.tabs.first?.tableName == nil)
+        #expect(tabManager.tabs.isEmpty)
+        #expect(tabManager.selectedTabId == nil)
     }
 
-    @Test("switchDatabase converts table tabs to query type")
+    @Test("switchDatabase clears all query tabs")
     @MainActor
-    func switchDatabaseConvertsTableTabsToQuery() {
+    func switchDatabaseClearsQueryTabs() {
         let tabManager = QueryTabManager()
-        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
-
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
-
-        #expect(tabManager.tabs.first?.tabType == .query)
-    }
-
-    @Test("switchDatabase clears query on table tabs")
-    @MainActor
-    func switchDatabaseClearsQueryOnTableTabs() {
-        let tabManager = QueryTabManager()
-        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
-        #expect(tabManager.tabs.first?.query.isEmpty == false)
-
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
-
-        #expect(tabManager.tabs.first?.query == "")
-    }
-
-    @Test("switchDatabase preserves query tabs unchanged")
-    @MainActor
-    func switchDatabasePreservesQueryTabs() {
-        let tabManager = QueryTabManager()
-        let customSQL = "SELECT COUNT(*) FROM orders WHERE status = 'active'"
-        tabManager.addTab(initialQuery: customSQL, databaseName: "db_a")
-
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
-
-        let tab = tabManager.tabs.first
-        #expect(tab?.query == customSQL)
-        #expect(tab?.tabType == .query)
-    }
-
-    @Test("switchDatabase updates databaseName on all tabs")
-    @MainActor
-    func switchDatabaseUpdatesDatabaseName() {
-        let tabManager = QueryTabManager()
-        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
         tabManager.addTab(initialQuery: "SELECT 1", databaseName: "db_a")
 
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
+        simulateDatabaseSwitch(tabManager: tabManager)
 
-        for tab in tabManager.tabs {
-            #expect(tab.databaseName == "db_b")
-        }
+        #expect(tabManager.tabs.isEmpty)
+        #expect(tabManager.selectedTabId == nil)
     }
 
-    @Test("switchDatabase clears results on all tabs")
+    @Test("switchDatabase clears mixed table and query tabs")
     @MainActor
-    func switchDatabaseClearsResults() {
+    func switchDatabaseClearsMixedTabs() {
         let tabManager = QueryTabManager()
         tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
-        tabManager.addTab(initialQuery: "SELECT 1", databaseName: "db_a")
+        tabManager.addTab(initialQuery: "SELECT NOW()", databaseName: "db_a")
+        tabManager.addTableTab(tableName: "orders", databaseType: .mysql, databaseName: "db_a")
+        #expect(tabManager.tabs.count == 3)
 
-        // Populate result data on both tabs
-        for i in tabManager.tabs.indices {
-            tabManager.tabs[i].resultColumns = ["id", "name"]
-            tabManager.tabs[i].resultRows = [QueryResultRow(id: 0, values: ["1", "Alice"])]
-        }
+        simulateDatabaseSwitch(tabManager: tabManager)
 
-        let versionsBefore = tabManager.tabs.map(\.resultVersion)
-
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
-
-        for (i, tab) in tabManager.tabs.enumerated() {
-            #expect(tab.resultColumns.isEmpty)
-            #expect(tab.resultRows.isEmpty)
-            #expect(tab.resultVersion == versionsBefore[i] + 1)
-        }
-    }
-
-    @Test("switchDatabase handles mixed table and query tabs")
-    @MainActor
-    func switchDatabaseHandlesMixedTabs() {
-        let tabManager = QueryTabManager()
-        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
-        let customSQL = "SELECT NOW()"
-        tabManager.addTab(initialQuery: customSQL, databaseName: "db_a")
-
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
-
-        // Table tab should be converted
-        let tableTab = tabManager.tabs[0]
-        #expect(tableTab.tabType == .query)
-        #expect(tableTab.tableName == nil)
-        #expect(tableTab.query == "")
-        #expect(tableTab.showStructure == false)
-        #expect(tableTab.isView == false)
-        #expect(tableTab.isEditable == false)
-        #expect(tableTab.databaseName == "db_b")
-
-        // Query tab should keep its SQL
-        let queryTab = tabManager.tabs[1]
-        #expect(queryTab.tabType == .query)
-        #expect(queryTab.query == customSQL)
-        #expect(queryTab.databaseName == "db_b")
-    }
-
-    @Test("switchDatabase clears errorMessage and executionTime")
-    @MainActor
-    func switchDatabaseClearsErrorAndTiming() {
-        let tabManager = QueryTabManager()
-        tabManager.addTableTab(tableName: "users", databaseType: .mysql, databaseName: "db_a")
-
-        // Simulate previous execution state
-        tabManager.tabs[0].errorMessage = "Table 'users' doesn't exist"
-        tabManager.tabs[0].executionTime = 0.042
-
-        simulateDatabaseSwitchTabMapping(tabManager: tabManager, newDatabase: "db_b")
-
-        #expect(tabManager.tabs[0].errorMessage == nil)
-        #expect(tabManager.tabs[0].executionTime == nil)
+        #expect(tabManager.tabs.isEmpty)
+        #expect(tabManager.selectedTabId == nil)
     }
 
     // MARK: - SidebarViewModel selection during database switch

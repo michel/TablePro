@@ -207,26 +207,9 @@ extension MainContentCoordinator {
                 // Update toolbar state
                 toolbarState.databaseName = database
 
-                // Clear tab results but keep tabs open, update databaseName to new database
-                tabManager.tabs = tabManager.tabs.map { tab in
-                    var updatedTab = tab
-                    updatedTab.resultColumns = []
-                    updatedTab.resultRows = []
-                    updatedTab.resultVersion += 1
-                    updatedTab.errorMessage = nil
-                    updatedTab.executionTime = nil
-                    updatedTab.databaseName = database
-                    if tab.tabType == .table {
-                        updatedTab.tableName = nil
-                        updatedTab.tabType = .query
-                        updatedTab.query = ""
-                        updatedTab.showStructure = false
-                        updatedTab.isView = false
-                        updatedTab.isEditable = false
-                        updatedTab.pagination.reset()
-                    }
-                    return updatedTab
-                }
+                // Clear all tabs — previous database's tables/queries are no longer valid
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
 
                 // Reload schema for autocomplete.
                 // session.tables was cleared above, which triggers SidebarView.loadTables() via onChange.
@@ -250,26 +233,9 @@ extension MainContentCoordinator {
                 // Update toolbar state
                 toolbarState.databaseName = database
 
-                // Clear tab results but keep tabs open
-                tabManager.tabs = tabManager.tabs.map { tab in
-                    var updatedTab = tab
-                    updatedTab.resultColumns = []
-                    updatedTab.resultRows = []
-                    updatedTab.resultVersion += 1
-                    updatedTab.errorMessage = nil
-                    updatedTab.executionTime = nil
-                    updatedTab.databaseName = database
-                    if tab.tabType == .table {
-                        updatedTab.tableName = nil
-                        updatedTab.tabType = .query
-                        updatedTab.query = ""
-                        updatedTab.showStructure = false
-                        updatedTab.isView = false
-                        updatedTab.isEditable = false
-                        updatedTab.pagination.reset()
-                    }
-                    return updatedTab
-                }
+                // Clear all tabs — previous schema's tables/queries are no longer valid
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
 
                 // Reload schema for autocomplete
                 await loadSchema()
@@ -297,25 +263,9 @@ extension MainContentCoordinator {
 
                 toolbarState.databaseName = database
 
-                tabManager.tabs = tabManager.tabs.map { tab in
-                    var updatedTab = tab
-                    updatedTab.resultColumns = []
-                    updatedTab.resultRows = []
-                    updatedTab.resultVersion += 1
-                    updatedTab.errorMessage = nil
-                    updatedTab.executionTime = nil
-                    updatedTab.databaseName = database
-                    if tab.tabType == .table {
-                        updatedTab.tableName = nil
-                        updatedTab.tabType = .query
-                        updatedTab.query = ""
-                        updatedTab.showStructure = false
-                        updatedTab.isView = false
-                        updatedTab.isEditable = false
-                        updatedTab.pagination.reset()
-                    }
-                    return updatedTab
-                }
+                // Clear all tabs — previous database's collections are no longer valid
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
 
                 await loadSchema()
 
