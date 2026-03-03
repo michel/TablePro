@@ -180,6 +180,18 @@ extension MainContentCoordinator {
 
     // MARK: - Database Switching
 
+    /// Close all sibling native window-tabs except the current key window.
+    /// Each table opened via WindowOpener creates a separate NSWindow in the same
+    /// tab group. Clearing `tabManager.tabs` only affects the in-app state of the
+    /// *current* window — other NSWindows remain open with stale content.
+    private func closeSiblingNativeWindows() {
+        guard let keyWindow = NSApp.keyWindow else { return }
+        let siblings = keyWindow.tabbedWindows ?? []
+        for sibling in siblings where sibling !== keyWindow {
+            sibling.close()
+        }
+    }
+
     /// Switch to a different database (called from database switcher)
     func switchDatabase(to database: String) async {
         isSwitchingDatabase = true
@@ -207,7 +219,9 @@ extension MainContentCoordinator {
                 // Update toolbar state
                 toolbarState.databaseName = database
 
-                // Clear all tabs — previous database's tables/queries are no longer valid
+                // Close sibling native window-tabs and clear in-app tabs —
+                // previous database's tables/queries are no longer valid
+                closeSiblingNativeWindows()
                 tabManager.tabs = []
                 tabManager.selectedTabId = nil
 
@@ -233,7 +247,9 @@ extension MainContentCoordinator {
                 // Update toolbar state
                 toolbarState.databaseName = database
 
-                // Clear all tabs — previous schema's tables/queries are no longer valid
+                // Close sibling native window-tabs and clear in-app tabs —
+                // previous schema's tables/queries are no longer valid
+                closeSiblingNativeWindows()
                 tabManager.tabs = []
                 tabManager.selectedTabId = nil
 
@@ -263,7 +279,9 @@ extension MainContentCoordinator {
 
                 toolbarState.databaseName = database
 
-                // Clear all tabs — previous database's collections are no longer valid
+                // Close sibling native window-tabs and clear in-app tabs —
+                // previous database's collections are no longer valid
+                closeSiblingNativeWindows()
                 tabManager.tabs = []
                 tabManager.selectedTabId = nil
 
