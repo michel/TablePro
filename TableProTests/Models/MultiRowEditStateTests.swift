@@ -105,6 +105,16 @@ struct MultiRowEditStateTests {
             )
             #expect(field.effectiveValue == "__DEFAULT__")
         }
+
+        @Test("effectiveValue returns nil when no edit is pending")
+        func effectiveValueReturnsNilWhenNoEdit() {
+            let field = FieldEditState(
+                columnIndex: 0, columnName: "id", columnTypeEnum: .text(rawType: nil),
+                isLongText: false, originalValue: "1", hasMultipleValues: false,
+                pendingValue: nil, isPendingNull: false, isPendingDefault: false
+            )
+            #expect(field.effectiveValue == nil)
+        }
     }
 
     // MARK: - configure()
@@ -299,6 +309,26 @@ struct MultiRowEditStateTests {
                 columnTypes: [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)]
             )
             #expect(sut.fields[0].pendingValue == nil)
+        }
+
+        @Test("Reconfigure with added column clears all edits")
+        func reconfigureWithAddedColumnClearsAllEdits() {
+            let sut = makeSUT(
+                columns: ["a", "b"],
+                rows: [["1", "2"]]
+            )
+            sut.updateField(at: 0, value: "changed")
+            #expect(sut.fields[0].hasEdit == true)
+
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "2", "3"]],
+                columns: ["a", "b", "c"],
+                columnTypes: [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)]
+            )
+            #expect(sut.fields[0].pendingValue == nil)
+            #expect(sut.fields[1].pendingValue == nil)
+            #expect(sut.fields[2].pendingValue == nil)
         }
     }
 
@@ -784,6 +814,175 @@ struct MultiRowEditStateTests {
 
             sut.clearEdits()
             #expect(callbackCalls.isEmpty)
+        }
+    }
+
+    // MARK: - externallyModifiedColumns
+
+    @MainActor @Suite("externallyModifiedColumns")
+    struct ExternallyModifiedColumnsTests {
+
+        private func makeSUT(
+            columns: [String] = ["id", "name", "email"],
+            columnTypes: [ColumnType]? = nil,
+            rows: [[String?]] = [["1", "Alice", "alice@test.com"]],
+            selectedIndices: Set<Int> = [0]
+        ) -> MultiRowEditState {
+            let sut = MultiRowEditState()
+            let types = columnTypes ?? columns.map { _ in ColumnType.text(rawType: nil) }
+            sut.configure(
+                selectedRowIndices: selectedIndices,
+                allRows: rows,
+                columns: columns,
+                columnTypes: types
+            )
+            return sut
+        }
+
+        @Test("Marks specified column as modified")
+        func marksSpecifiedColumnAsModified() {
+            let sut = MultiRowEditState()
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)],
+                externallyModifiedColumns: [1]
+            )
+            #expect(sut.fields[1].hasEdit == true)
+            #expect(sut.fields[1].pendingValue == "Alice")
+        }
+
+        @Test("Does not mark unspecified columns")
+        func doesNotMarkUnspecifiedColumns() {
+            let sut = MultiRowEditState()
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)],
+                externallyModifiedColumns: [1]
+            )
+            #expect(sut.fields[0].hasEdit == false)
+            #expect(sut.fields[2].hasEdit == false)
+        }
+
+        @Test("Multiple externally modified columns all show hasEdit")
+        func multipleExternallyModifiedColumnsAllShowHasEdit() {
+            let sut = MultiRowEditState()
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)],
+                externallyModifiedColumns: [0, 2]
+            )
+            #expect(sut.fields[0].hasEdit == true)
+            #expect(sut.fields[0].pendingValue == "1")
+            #expect(sut.fields[2].hasEdit == true)
+            #expect(sut.fields[2].pendingValue == "alice@test.com")
+            #expect(sut.fields[1].hasEdit == false)
+        }
+
+        @Test("Does not override existing sidebar edits")
+        func doesNotOverrideExistingSidebarEdits() {
+            let sut = makeSUT()
+            sut.updateField(at: 0, value: "sidebar-edit")
+            #expect(sut.fields[0].pendingValue == "sidebar-edit")
+
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)],
+                externallyModifiedColumns: [0, 1]
+            )
+            // Column 0 should preserve sidebar edit, not be overwritten
+            #expect(sut.fields[0].pendingValue == "sidebar-edit")
+            // Column 1 should get the external mark
+            #expect(sut.fields[1].hasEdit == true)
+            #expect(sut.fields[1].pendingValue == "Alice")
+        }
+
+        @Test("Uses empty string when original value is nil")
+        func usesEmptyStringWhenOriginalIsNil() {
+            let sut = MultiRowEditState()
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [[nil, "Alice"]],
+                columns: ["id", "name"],
+                columnTypes: [.text(rawType: nil), .text(rawType: nil)],
+                externallyModifiedColumns: [0]
+            )
+            #expect(sut.fields[0].hasEdit == true)
+            #expect(sut.fields[0].pendingValue == "")
+        }
+    }
+
+    // MARK: - clearEdits then configure
+
+    @MainActor @Suite("clearEdits then configure")
+    struct ClearEditsThenConfigureTests {
+
+        @Test("Clears stale green dots after clearEdits and reconfigure")
+        func clearsStaleGreenDotsAfterClearEditsAndReconfigure() {
+            let sut = MultiRowEditState()
+            let types: [ColumnType] = [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)]
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: types
+            )
+            sut.updateField(at: 1, value: "Bob")
+            #expect(sut.fields[1].hasEdit == true)
+
+            sut.clearEdits()
+            #expect(sut.hasEdits == false)
+
+            // Reconfigure with same data and NO externallyModifiedColumns
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: types
+            )
+            for field in sut.fields {
+                #expect(field.hasEdit == false)
+            }
+        }
+
+        @Test("Simulates refresh/discard flow with null and default edits")
+        func simulatesRefreshDiscardFlowWithNullAndDefault() {
+            let sut = MultiRowEditState()
+            let types: [ColumnType] = [.text(rawType: nil), .text(rawType: nil), .text(rawType: nil)]
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: types
+            )
+            sut.setFieldToNull(at: 0)
+            sut.setFieldToDefault(at: 2)
+            #expect(sut.fields[0].isPendingNull == true)
+            #expect(sut.fields[2].isPendingDefault == true)
+            #expect(sut.hasEdits == true)
+
+            sut.clearEdits()
+
+            // Reconfigure with same selection and rows
+            sut.configure(
+                selectedRowIndices: [0],
+                allRows: [["1", "Alice", "alice@test.com"]],
+                columns: ["id", "name", "email"],
+                columnTypes: types
+            )
+            for field in sut.fields {
+                #expect(field.hasEdit == false)
+                #expect(field.isPendingNull == false)
+                #expect(field.isPendingDefault == false)
+                #expect(field.pendingValue == nil)
+            }
         }
     }
 }

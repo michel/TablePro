@@ -27,6 +27,11 @@ struct ConnectionSession: Identifiable {
     var pendingDeletes: Set<String> = []
     var tableOperationOptions: [String: TableOperationOptions] = [:]
     var currentSchema: String?
+    var currentDatabase: String?
+
+    var activeDatabase: String {
+        currentDatabase ?? connection.database
+    }
 
     // Metadata
     let connectedAt: Date
@@ -62,6 +67,7 @@ struct ConnectionSession: Identifiable {
         pendingTruncates = []
         pendingDeletes = []
         tableOperationOptions = [:]
+        currentDatabase = nil
     }
 
     /// Compares fields used by ContentView's body to avoid unnecessary SwiftUI re-renders.
@@ -77,5 +83,6 @@ struct ConnectionSession: Identifiable {
             && tableOperationOptions == other.tableOperationOptions
             && selectedTables == other.selectedTables
             && currentSchema == other.currentSchema
+            && currentDatabase == other.currentDatabase
     }
 }

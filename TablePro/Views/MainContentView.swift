@@ -298,7 +298,7 @@ struct MainContentView: View {
                     coordinator.tabPersistence.markJustRestored()
                     if let selectedTab = tabManager.selectedTab,
                        !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.connection.database
+                       selectedTab.databaseName != session.activeDatabase
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
@@ -436,7 +436,7 @@ struct MainContentView: View {
                 {
                     coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.connection.database
+                       selectedTab.databaseName != session.activeDatabase
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
@@ -509,7 +509,7 @@ struct MainContentView: View {
                 {
                     coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.connection.database
+                       selectedTab.databaseName != session.activeDatabase
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
@@ -802,11 +802,36 @@ struct MainContentView: View {
             }
         }
 
+        // Enrich column types with loaded enum values from Phase 2b
+        var columnTypes = tab.columnTypes
+        for (i, col) in tab.resultColumns.enumerated() where i < columnTypes.count {
+            if let values = tab.columnEnumValues[col], !values.isEmpty {
+                let ct = columnTypes[i]
+                if ct.isEnumType {
+                    columnTypes[i] = .enumType(rawType: ct.rawType, values: values)
+                } else if ct.isSetType {
+                    columnTypes[i] = .set(rawType: ct.rawType, values: values)
+                }
+            }
+        }
+
+        // Clear stale sidebar edits after refresh/discard
+        if !changeManager.hasChanges {
+            rightPanelState.editState.clearEdits()
+        }
+
+        // Collect columns modified in data grid so sidebar shows green dots
+        var modifiedColumns = Set<Int>()
+        for rowIndex in selectedRowIndices {
+            modifiedColumns.formUnion(changeManager.getModifiedColumnsForRow(rowIndex))
+        }
+
         rightPanelState.editState.configure(
             selectedRowIndices: selectedRowIndices,
             allRows: allRows,
             columns: tab.resultColumns,
-            columnTypes: tab.columnTypes
+            columnTypes: columnTypes,
+            externallyModifiedColumns: modifiedColumns
         )
 
         guard isSidebarEditable else {

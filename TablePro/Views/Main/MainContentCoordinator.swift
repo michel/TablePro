@@ -427,7 +427,8 @@ final class MainContentCoordinator {
                 var needsMetadataFetch = false
 
                 if isEditable, let tableName = tableName {
-                    needsMetadataFetch = !isMetadataCached(tabId: tabId, tableName: tableName)
+                    let cached = isMetadataCached(tabId: tabId, tableName: tableName)
+                    needsMetadataFetch = !cached
 
                     // If metadata is NOT cached and a dedicated metadata driver exists,
                     // start fetching columns+FKs on the separate connection so it runs
@@ -1257,9 +1258,22 @@ private extension MainContentCoordinator {
             return false
         }
         let tab = tabManager.tabs[idx]
-        return tab.tableName == tableName
-            && !tab.columnDefaults.isEmpty
-            && tab.primaryKeyColumn != nil
+        guard tab.tableName == tableName,
+              !tab.columnDefaults.isEmpty,
+              tab.primaryKeyColumn != nil else {
+            return false
+        }
+        // Ensure every ENUM/SET column has its allowed values loaded
+        let enumSetColumnNames: [String] = tab.resultColumns.enumerated().compactMap { i, name in
+            guard i < tab.columnTypes.count,
+                  tab.columnTypes[i].isEnumType || tab.columnTypes[i].isSetType else { return nil }
+            return name
+        }
+        if !enumSetColumnNames.isEmpty,
+           !enumSetColumnNames.allSatisfy({ tab.columnEnumValues[$0] != nil }) {
+            return false
+        }
+        return true
     }
 
     /// Await schema metadata from parallel task or fall back to sequential fetch
@@ -1393,7 +1407,6 @@ private extension MainContentCoordinator {
         }
 
         // Phase 2b: Fetch enum/set values
-        guard let schema = schemaResult else { return }
         let enumDriver = DatabaseManager.shared.metadataDriver(for: connectionId)
             ?? DatabaseManager.shared.driver(for: connectionId)
         guard let enumDriver else { return }
@@ -1401,20 +1414,36 @@ private extension MainContentCoordinator {
         Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: 200_000_000)
+
+            // Use schema if available, otherwise fetch column info for enum parsing
+            let columnInfo: [ColumnInfo]
+            if let schema = schemaResult {
+                columnInfo = schema.columnInfo
+            } else {
+                do {
+                    columnInfo = try await enumDriver.fetchColumns(table: tableName)
+                } catch {
+                    columnInfo = []
+                }
+            }
+
             let columnEnumValues = await self.fetchEnumValues(
-                columnInfo: schema.columnInfo,
+                columnInfo: columnInfo,
                 tableName: tableName,
                 driver: enumDriver,
                 connectionType: connectionType
             )
 
-            guard !columnEnumValues.isEmpty else { return }
+            guard !columnEnumValues.isEmpty else {
+                return
+            }
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 guard capturedGeneration == queryGeneration else { return }
                 guard !Task.isCancelled else { return }
                 if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                     tabManager.tabs[idx].columnEnumValues = columnEnumValues
+                    tabManager.tabs[idx].metadataVersion += 1
                 }
             }
         }

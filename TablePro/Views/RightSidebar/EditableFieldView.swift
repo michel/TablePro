@@ -27,6 +27,7 @@ struct EditableFieldView: View {
 
     @FocusState private var isFocused: Bool
     @State private var isHovered = false
+    @State private var isSetPopoverPresented = false
 
     private var placeholderText: String {
         if hasMultipleValues {
@@ -83,10 +84,14 @@ struct EditableFieldView: View {
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: DesignConstants.FontSize.small))
                 .disabled(true)
+        } else if columnTypeEnum.isEnumType,
+                  let values = columnTypeEnum.enumValues, !values.isEmpty {
+            enumPicker(values: values)
+        } else if columnTypeEnum.isSetType,
+                  let values = columnTypeEnum.enumValues, !values.isEmpty {
+            setPicker(values: values)
         } else if columnTypeEnum.isBooleanType {
             booleanPicker
-        } else if columnTypeEnum.isEnumType, let values = columnTypeEnum.enumValues, !values.isEmpty {
-            enumPicker(values: values)
         } else if isLongText || columnTypeEnum.isJsonType {
             multiLineEditor
         } else {
@@ -95,30 +100,76 @@ struct EditableFieldView: View {
     }
 
     private var booleanPicker: some View {
-        Picker("", selection: Binding(
-            get: { normalizeBooleanValue(value) },
-            set: { value = $0 }
-        )) {
-            Text("true").tag("1")
-            Text("false").tag("0")
+        dropdownField(label: normalizeBooleanValue(value) == "1" ? "true" : "false") {
+            Button("true") { value = "1" }
+            Button("false") { value = "0" }
         }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func enumPicker(values: [String]) -> some View {
-        Picker("", selection: Binding(
-            get: { value },
-            set: { value = $0 }
-        )) {
+        let label = value.isEmpty ? (values.first ?? "") : value
+        return dropdownField(label: label) {
             ForEach(values, id: \.self) { val in
-                Text(val).tag(val)
+                Button(val) { value = val }
             }
         }
-        .labelsHidden()
-        .pickerStyle(.menu)
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func setPicker(values: [String]) -> some View {
+        let displayLabel = value.isEmpty ? String(localized: "No selection") : value
+        return Button {
+            isSetPopoverPresented = true
+        } label: {
+            Text(displayLabel)
+                .font(.system(size: DesignConstants.FontSize.small))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+        .background(.quinary, in: RoundedRectangle(cornerRadius: 5))
+        .popover(isPresented: $isSetPopoverPresented) {
+            SetPopoverContentView(
+                allowedValues: values,
+                initialSelections: parseSetSelections(from: value, allowed: values),
+                onCommit: { result in
+                    value = result ?? ""
+                },
+                onDismiss: {
+                    isSetPopoverPresented = false
+                }
+            )
+        }
+    }
+
+    private func parseSetSelections(from value: String, allowed: [String]) -> [String: Bool] {
+        let selected = Set(value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+        var dict: [String: Bool] = [:]
+        for val in allowed {
+            dict[val] = selected.contains(val)
+        }
+        return dict
+    }
+
+    private func dropdownField<Content: View>(
+        label: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        Menu {
+            content()
+        } label: {
+            Text(label)
+                .font(.system(size: DesignConstants.FontSize.small))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+        .background(.quinary, in: RoundedRectangle(cornerRadius: 5))
     }
 
     private var multiLineEditor: some View {

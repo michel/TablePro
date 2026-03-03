@@ -1357,6 +1357,9 @@
         }
       }
     },
+    "Auto-show inspector on row select" : {
+
+    },
     "Automatically check for updates" : {
       "localizations" : {
         "vi" : {
@@ -5719,6 +5722,9 @@
 
     },
     "No schemas match \"%@\"" : {
+
+    },
+    "No selection" : {
 
     },
     "No Selection" : {

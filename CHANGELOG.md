@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deep link support via `tablepro://` URL scheme for opening connections, tables, queries, and importing connections
 - "Copy as URL" context menu action on connections to copy connection details as a URL string (e.g., `mysql://user:pass@host/db`)
 - Auto-show inspector option: automatically open the right sidebar when selecting a row (Settings > Data Grid)
+- ENUM and SET columns now open their picker on single click with a chevron indicator, matching boolean column behavior
+- Homebrew Cask installation via `brew install datlechin/tap/tablepro`
 
 ### Fixed
 
