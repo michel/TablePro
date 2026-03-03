@@ -414,7 +414,7 @@ final class PostgreSQLDriver: DatabaseDriver {
     /// Fetch sequences referenced in column defaults (nextval) for the given table.
     /// Returns array of (sequenceName, CREATE SEQUENCE DDL) pairs.
     func fetchDependentSequences(forTable table: String) async throws -> [(name: String, ddl: String)] {
-        let safeTable = SQLEscaping.escapeStringLiteral(table)
+        let safeTable = SQLEscaping.escapeStringLiteral(table, databaseType: .postgresql)
         let query = """
             SELECT s.sequencename,
                    s.start_value,
@@ -426,10 +426,10 @@ final class PostgreSQLDriver: DatabaseDriver {
             JOIN pg_class c ON c.oid = ad.adrelid
             JOIN pg_namespace n ON n.oid = c.relnamespace
             JOIN pg_sequences s ON s.schemaname = n.nspname
-                 AND ad.adsrc LIKE '%' || quote_ident(s.sequencename) || '%'
+                 AND pg_get_expr(ad.adbin, ad.adrelid) LIKE '%' || quote_ident(s.sequencename) || '%'
             WHERE c.relname = '\(safeTable)'
               AND n.nspname = '\(escapedSchema)'
-              AND ad.adsrc LIKE '%nextval%'
+              AND pg_get_expr(ad.adbin, ad.adrelid) LIKE '%nextval%'
             """
         let result = try await execute(query: query)
         return result.rows.compactMap { row in
@@ -560,7 +560,7 @@ final class PostgreSQLDriver: DatabaseDriver {
     func fetchTableDDL(table: String) async throws -> String {
         // PostgreSQL doesn't have a direct equivalent to SHOW CREATE TABLE
         // We need to reconstruct it from system catalogs in multiple queries
-        let safeTable = SQLEscaping.escapeStringLiteral(table)
+        let safeTable = SQLEscaping.escapeStringLiteral(table, databaseType: .postgresql)
         let quotedTable = "\"\(table.replacingOccurrences(of: "\"", with: "\"\""))\""
 
         // 1. Get column definitions
