@@ -3,56 +3,30 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.11.0</title>
-            <pubDate>Mon, 02 Mar 2026 12:46:29 +0000</pubDate>
-            <sparkle:version>22</sparkle:version>
-            <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
+            <title>0.11.1</title>
+            <pubDate>Tue, 03 Mar 2026 04:29:59 +0000</pubDate>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.11.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Environment color indicator: subtle toolbar tint based on connection color for at-a-glance environment identification</li>
-<li>Import database connections from SSH tunnel URLs (e.g., `mysql+ssh://`, `postgresql+ssh://`)</li>
-<li>Connection groups for organizing database connections into folders with colored headers</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Toolbar briefly showing "MySQL" and missing version (e.g., "MongoDB" instead of "MongoDB 8.2.5") when opening a new tab</li>
-<li>Keyboard shortcuts not working (beep sound) after connecting from welcome screen until a second tab is opened</li>
-<li>Toolbar overflow menu showing only one item and missing all other buttons when window is narrow</li>
-<li>AI chat showing "SQL" language label and missing syntax highlighting for MongoDB code blocks</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Refactored toolbar to use individual `ToolbarItem` entries with `Label` for native macOS overflow behavior, and moved History/Export/Import to `.secondaryAction` overflow menu</li>
-<li>Redesigned right sidebar detail pane with compact field layout and type-aware editors</li>
+<li>MySQL second tab showing empty rows due to premature coordinator teardown during native macOS tab group merging</li>
+<li>MongoDB tab name showing "MQL Query" instead of collection name when using bracket notation `db["collection"].find()`</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.11.0/TablePro-0.11.0-arm64.zip" length="21912737" type="application/octet-stream" sparkle:edSignature="ZduQ7BOI3Cl3HUr1gOFmmKPc5jGxIyDrmGyodK5wGjKQv0E2FAPbmw74PCnSDggDcLPOEYX8tCD9VUTvSygjBA==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.11.1/TablePro-0.11.1-arm64.zip" length="21913157" type="application/octet-stream" sparkle:edSignature="q40NLbg/TfT0RAWbsx18/2pu7wpKD1+EG2/u7C9kyCJU0VM5k2qeHFY+TD+0Lo49C/R/bAmIc4WD3dXYe8/7Dw==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.11.0</title>
-            <pubDate>Mon, 02 Mar 2026 12:46:29 +0000</pubDate>
-            <sparkle:version>22</sparkle:version>
-            <sparkle:shortVersionString>0.11.0</sparkle:shortVersionString>
+            <title>0.11.1</title>
+            <pubDate>Tue, 03 Mar 2026 04:29:59 +0000</pubDate>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.11.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Environment color indicator: subtle toolbar tint based on connection color for at-a-glance environment identification</li>
-<li>Import database connections from SSH tunnel URLs (e.g., `mysql+ssh://`, `postgresql+ssh://`)</li>
-<li>Connection groups for organizing database connections into folders with colored headers</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Toolbar briefly showing "MySQL" and missing version (e.g., "MongoDB" instead of "MongoDB 8.2.5") when opening a new tab</li>
-<li>Keyboard shortcuts not working (beep sound) after connecting from welcome screen until a second tab is opened</li>
-<li>Toolbar overflow menu showing only one item and missing all other buttons when window is narrow</li>
-<li>AI chat showing "SQL" language label and missing syntax highlighting for MongoDB code blocks</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Refactored toolbar to use individual `ToolbarItem` entries with `Label` for native macOS overflow behavior, and moved History/Export/Import to `.secondaryAction` overflow menu</li>
-<li>Redesigned right sidebar detail pane with compact field layout and type-aware editors</li>
+<li>MySQL second tab showing empty rows due to premature coordinator teardown during native macOS tab group merging</li>
+<li>MongoDB tab name showing "MQL Query" instead of collection name when using bracket notation `db["collection"].find()`</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.11.0/TablePro-0.11.0-x86_64.zip" length="22444241" type="application/octet-stream" sparkle:edSignature="3fYMdf37fJxiuX0aU5lwk2jGPSbZ6gmcWAAsyozePfJtgmCHPdv7ctw17hkl2rIuCznPZaj06ZH/F/uqUEhjCA==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.11.1/TablePro-0.11.1-x86_64.zip" length="22445191" type="application/octet-stream" sparkle:edSignature="Hm1maPNksRB2FA7u/ZMc7uVh/nT9z74IAUuT46H3xBk3qmvMzUyFybVZ9SfCZmCxKuTuhc72fHvPlmIIBrcKCQ==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
