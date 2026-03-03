@@ -6,13 +6,13 @@
 //  Handles debounced saving, restoration from disk, and window close handling.
 //
 
-import Combine
 import Foundation
+import Observation
 import os
 
 /// Service for managing tab state persistence
-@MainActor
-final class TabPersistenceService: ObservableObject {
+@MainActor @Observable
+final class TabPersistenceService {
     private static let logger = Logger(subsystem: "com.TablePro", category: "TabPersistenceService")
 
     // MARK: - Constants
@@ -22,13 +22,13 @@ final class TabPersistenceService: ObservableObject {
     // MARK: - State
 
     /// Indicates tabs are being restored (prevents circular sync)
-    @Published private(set) var isRestoringTabs = false
+    private(set) var isRestoringTabs = false
 
     /// Indicates view is being dismissed (prevents saving during teardown)
-    @Published private(set) var isDismissing = false
+    private(set) var isDismissing = false
 
     /// Flag to track if a tab was just restored (prevents duplicate lazy load)
-    @Published private(set) var justRestoredTab = false
+    private(set) var justRestoredTab = false
 
     // MARK: - Private State
 

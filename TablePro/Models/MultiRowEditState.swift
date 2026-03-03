@@ -6,8 +6,8 @@
 //  Tracks pending edits across multiple selected rows.
 //
 
-import Combine
 import Foundation
+import Observation
 
 /// Represents the edit state for a single field across multiple rows
 struct FieldEditState {
@@ -47,9 +47,9 @@ struct FieldEditState {
 }
 
 /// Manages edit state for multi-row editing in sidebar
-@MainActor
-class MultiRowEditState: ObservableObject {
-    @Published var fields: [FieldEditState] = []
+@MainActor @Observable
+class MultiRowEditState {
+    var fields: [FieldEditState] = []
 
     var onFieldChanged: ((Int, String?) -> Void)?
 

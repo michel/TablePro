@@ -6,8 +6,8 @@
 //  and foreign key handling.
 //
 
-import Combine
 import Foundation
+import Observation
 import os
 
 // MARK: - Import State
@@ -27,12 +27,12 @@ struct ImportState {
 // MARK: - Import Service
 
 /// Service responsible for importing SQL files
-@MainActor
-final class ImportService: ObservableObject {
+@MainActor @Observable
+final class ImportService {
     private static let logger = Logger(subsystem: "com.TablePro", category: "ImportService")
     // MARK: - Published State
 
-    @Published var state = ImportState()
+    var state = ImportState()
 
     // MARK: - Cancellation
 

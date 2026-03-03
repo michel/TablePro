@@ -7,17 +7,17 @@
 //  Delegates undo/redo stack management to DataChangeUndoManager.
 //
 
-import Combine
 import Foundation
+import Observation
 
 /// Manager for tracking and applying data changes
 /// @MainActor ensures thread-safe access - critical for avoiding EXC_BAD_ACCESS
 /// when multiple queries complete simultaneously (e.g., rapid sorting over SSH tunnel)
-@MainActor
-final class DataChangeManager: ObservableObject {
-    @Published var changes: [RowChange] = []
-    @Published var hasChanges: Bool = false
-    @Published var reloadVersion: Int = 0  // Incremented to trigger table reload
+@MainActor @Observable
+final class DataChangeManager {
+    var changes: [RowChange] = []
+    var hasChanges: Bool = false
+    var reloadVersion: Int = 0  // Incremented to trigger table reload
 
     // Track which rows changed since last reload for granular updates
     private(set) var changedRowIndices: Set<Int> = []

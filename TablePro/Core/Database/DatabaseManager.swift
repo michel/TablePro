@@ -5,8 +5,8 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
-import Combine
 import Foundation
+import Observation
 import os
 
 extension Notification.Name {
@@ -14,16 +14,16 @@ extension Notification.Name {
 }
 
 /// Manages database connections and active drivers
-@MainActor
-final class DatabaseManager: ObservableObject {
+@MainActor @Observable
+final class DatabaseManager {
     static let shared = DatabaseManager()
     private static let logger = Logger(subsystem: "com.TablePro", category: "DatabaseManager")
 
     /// All active connection sessions
-    @Published private(set) var activeSessions: [UUID: ConnectionSession] = [:]
+    private(set) var activeSessions: [UUID: ConnectionSession] = [:]
 
     /// Currently selected session ID (displayed in UI)
-    @Published private(set) var currentSessionId: UUID?
+    private(set) var currentSessionId: UUID?
 
     /// Health monitors for active connections (MySQL/PostgreSQL only)
     private var healthMonitors: [UUID: ConnectionHealthMonitor] = [:]

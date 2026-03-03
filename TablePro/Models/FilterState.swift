@@ -5,8 +5,8 @@
 //  Manages the state of the filter panel
 //
 
-import Combine
 import Foundation
+import Observation
 import SwiftUI
 
 /// Filter logic mode for combining multiple filters
@@ -20,15 +20,15 @@ enum FilterLogicMode: String, Codable {
 }
 
 /// Observable state manager for filter panel
-@MainActor
-final class FilterStateManager: ObservableObject {
-    @Published var filters: [TableFilter] = []
-    @Published var isVisible: Bool = false
-    @Published var appliedFilters: [TableFilter] = []
-    @Published var focusedFilterId: UUID?
-    @Published var quickSearchText: String = ""
-    @Published var shouldFocusQuickSearch: Bool = false
-    @Published var filterLogicMode: FilterLogicMode = .and  // AND or OR logic
+@MainActor @Observable
+final class FilterStateManager {
+    var filters: [TableFilter] = []
+    var isVisible: Bool = false
+    var appliedFilters: [TableFilter] = []
+    var focusedFilterId: UUID?
+    var quickSearchText: String = ""
+    var shouldFocusQuickSearch: Bool = false
+    var filterLogicMode: FilterLogicMode = .and  // AND or OR logic
 
     /// Settings storage reference
     private let settingsStorage = FilterSettingsStorage.shared

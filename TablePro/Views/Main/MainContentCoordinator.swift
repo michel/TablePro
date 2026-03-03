@@ -7,8 +7,8 @@
 //
 
 import CodeEditSourceEditor
-import Combine
 import Foundation
+import Observation
 import os
 import SwiftUI
 
@@ -36,8 +36,8 @@ enum ActiveSheet: Identifiable {
 }
 
 /// Coordinator managing MainContentView business logic
-@MainActor
-final class MainContentCoordinator: ObservableObject {
+@MainActor @Observable
+final class MainContentCoordinator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
 
     /// Per-connection shared schema providers so new tabs skip redundant schema loads
@@ -70,16 +70,16 @@ final class MainContentCoordinator: ObservableObject {
 
     // MARK: - Published State
 
-    @Published var schemaProvider: SQLSchemaProvider
-    @Published var cursorPositions: [CursorPosition] = []
-    @Published var tableMetadata: TableMetadata?
+    var schemaProvider: SQLSchemaProvider
+    var cursorPositions: [CursorPosition] = []
+    var tableMetadata: TableMetadata?
     // Removed: showErrorAlert and errorAlertMessage - errors now display inline
-    @Published var activeSheet: ActiveSheet?
-    @Published var importFileURL: URL?
-    @Published var needsLazyLoad = false
+    var activeSheet: ActiveSheet?
+    var importFileURL: URL?
+    var needsLazyLoad = false
 
     /// Cache for async-sorted query tab rows (large datasets sorted on background thread)
-    @Published private(set) var querySortCache: [UUID: QuerySortCacheEntry] = [:]
+    private(set) var querySortCache: [UUID: QuerySortCacheEntry] = [:]
 
     // MARK: - Internal State
 
