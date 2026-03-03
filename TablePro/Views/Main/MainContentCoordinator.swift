@@ -64,7 +64,7 @@ final class MainContentCoordinator {
 
     internal let queryBuilder: TableQueryBuilder
     let tabPersistence: TabPersistenceService
-    internal lazy var rowOperationsManager: RowOperationsManager = {
+    @ObservationIgnored internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
     }()
 
@@ -83,10 +83,10 @@ final class MainContentCoordinator {
 
     // MARK: - Internal State
 
-    internal var queryGeneration: Int = 0
-    internal var currentQueryTask: Task<Void, Never>?
-    private var changeManagerUpdateTask: Task<Void, Never>?
-    private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored internal var queryGeneration: Int = 0
+    @ObservationIgnored internal var currentQueryTask: Task<Void, Never>?
+    @ObservationIgnored private var changeManagerUpdateTask: Task<Void, Never>?
+    @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
@@ -96,7 +96,7 @@ final class MainContentCoordinator {
     var isSwitchingDatabase = false
 
     /// Tracks whether teardown() was called; used by deinit to log missed teardowns
-    private var didTeardown = false
+    @ObservationIgnored private var didTeardown = false
 
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {

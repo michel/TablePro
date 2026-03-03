@@ -6,7 +6,6 @@
 //  Allows DataGridView to work with both DataChangeManager and StructureChangeManager.
 //
 
-import Combine
 import Foundation
 import Observation
 
@@ -14,10 +13,17 @@ import Observation
 @Observable
 @MainActor
 final class AnyChangeManager {
-    var hasChanges: Bool = false
-    var reloadVersion: Int = 0
+    @ObservationIgnored private var dataManager: DataChangeManager?
+    @ObservationIgnored private var structureManager: StructureChangeManager?
 
-    @ObservationIgnored private var cancellables: Set<AnyCancellable> = []
+    var hasChanges: Bool {
+        dataManager?.hasChanges ?? structureManager?.hasChanges ?? false
+    }
+
+    var reloadVersion: Int {
+        dataManager?.reloadVersion ?? structureManager?.reloadVersion ?? 0
+    }
+
     @ObservationIgnored private let _isRowDeleted: (Int) -> Bool
     @ObservationIgnored private let _getChanges: () -> [Any]
     @ObservationIgnored private let _canRedo: () -> Bool
@@ -30,6 +36,7 @@ final class AnyChangeManager {
 
     /// Wrap a DataChangeManager
     init(dataManager: DataChangeManager) {
+        self.dataManager = dataManager
         self._isRowDeleted = { rowIndex in
             dataManager.isRowDeleted(rowIndex)
         }
@@ -58,19 +65,11 @@ final class AnyChangeManager {
         self._consumeChangedRowIndices = {
             dataManager.consumeChangedRowIndices()
         }
-
-        // Sync published properties — use .sink with [weak self] instead of .assign(to:on:)
-        // because .assign retains the target, creating a cycle: self -> cancellables -> subscription -> self
-        dataManager.$hasChanges
-            .sink { [weak self] in self?.hasChanges = $0 }
-            .store(in: &cancellables)
-        dataManager.$reloadVersion
-            .sink { [weak self] in self?.reloadVersion = $0 }
-            .store(in: &cancellables)
     }
 
     /// Wrap a StructureChangeManager
     init(structureManager: StructureChangeManager) {
+        self.structureManager = structureManager
         self._isRowDeleted = { _ in false } // Structure doesn't track row deletions
         self._getChanges = {
             Array(structureManager.pendingChanges.values)
@@ -84,14 +83,6 @@ final class AnyChangeManager {
         self._consumeChangedRowIndices = {
             structureManager.consumeChangedRowIndices()
         }
-
-        // Sync published properties — use .sink with [weak self] to avoid retain cycle
-        structureManager.$hasChanges
-            .sink { [weak self] in self?.hasChanges = $0 }
-            .store(in: &cancellables)
-        structureManager.$reloadVersion
-            .sink { [weak self] in self?.reloadVersion = $0 }
-            .store(in: &cancellables)
     }
 
     // MARK: - Public API

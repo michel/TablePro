@@ -95,6 +95,13 @@ internal final class NativeTabRegistry {
         entries.values.contains { $0.connectionId == connectionId }
     }
 
+    /// Check if any OTHER windows are registered for a connection (excluding a specific window)
+    internal func hasOtherWindows(for connectionId: UUID, excluding windowId: UUID) -> Bool {
+        entries.contains { key, value in
+            key != windowId && value.connectionId == connectionId
+        }
+    }
+
     /// Check if a specific window is still registered
     internal func isRegistered(windowId: UUID) -> Bool {
         entries[windowId] != nil

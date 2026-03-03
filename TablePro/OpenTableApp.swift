@@ -33,7 +33,7 @@ final class AppState {
 struct PasteboardCommands: Commands {
     var appState: AppState
     var settingsManager: AppSettingsManager
-    @FocusedObject var actions: MainContentCommandActions?
+    @FocusedValue(\.commandActions) var actions: MainContentCommandActions?
 
     /// Build a SwiftUI KeyboardShortcut from keyboard settings
     private func shortcut(for action: ShortcutAction) -> KeyboardShortcut? {
@@ -114,7 +114,7 @@ struct AppMenuCommands: Commands {
     var appState: AppState
     var settingsManager: AppSettingsManager
     var updaterBridge: UpdaterBridge
-    @FocusedObject var actions: MainContentCommandActions?
+    @FocusedValue(\.commandActions) var actions: MainContentCommandActions?
 
     private func shortcut(for action: ShortcutAction) -> KeyboardShortcut? {
         settingsManager.keyboard.keyboardShortcut(for: action)
@@ -137,7 +137,7 @@ struct AppMenuCommands: Commands {
         //    - Standard actions: copy, paste, undo, delete, cancelOperation (ESC)
         //    - Context-aware: First responder handles action appropriately
         //
-        // 2. **@FocusedObject** (Menu → single handler):
+        // 2. **@FocusedValue** (Menu → single handler):
         //    - Most menu commands call MainContentCommandActions directly
         //    - Clean method calls, no global event bus
         //

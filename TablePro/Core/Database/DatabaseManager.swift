@@ -20,7 +20,13 @@ final class DatabaseManager {
     private static let logger = Logger(subsystem: "com.TablePro", category: "DatabaseManager")
 
     /// All active connection sessions
-    private(set) var activeSessions: [UUID: ConnectionSession] = [:]
+    private(set) var activeSessions: [UUID: ConnectionSession] = [:] {
+        didSet { sessionVersion &+= 1 }
+    }
+
+    /// Monotonically increasing counter; incremented on every mutation of activeSessions.
+    /// Used by views for `.onChange` since `[UUID: ConnectionSession]` is not `Equatable`.
+    private(set) var sessionVersion: Int = 0
 
     /// Currently selected session ID (displayed in UI)
     private(set) var currentSessionId: UUID?

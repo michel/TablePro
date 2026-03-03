@@ -5,7 +5,6 @@
 //  Tests for AnyChangeManager type-erased wrapper and [weak self] sink fix.
 //
 
-import Combine
 import Foundation
 @testable import TablePro
 import Testing
@@ -63,7 +62,7 @@ struct AnyChangeManagerTests {
         wrapper.recordCellChange(rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "Alice", newValue: "Bob", originalRow: ["1", "Alice"])
 
         #expect(dataManager.hasChanges == true)
-        #expect(wrapper.changes.count > 0)
+        #expect(!wrapper.changes.isEmpty)
     }
 
     @Test("No retain cycle — wrapper can be deallocated")
@@ -102,11 +101,33 @@ struct AnyChangeManagerTests {
         #expect(indices.isEmpty)
     }
 
-    @Test("StructureChangeManager wrapper: hasChanges forwards correctly")
-    func structureManagerHasChangesForwards() {
+    @Test("StructureChangeManager wrapper: hasChanges forwards correctly when false")
+    func structureManagerHasChangesForwardsFalse() {
         let structureManager = StructureChangeManager()
         let wrapper = AnyChangeManager(structureManager: structureManager)
 
         #expect(wrapper.hasChanges == false)
+    }
+
+    @Test("StructureChangeManager wrapper: hasChanges forwards correctly when true")
+    func structureManagerHasChangesForwardsTrue() {
+        let structureManager = StructureChangeManager()
+        let wrapper = AnyChangeManager(structureManager: structureManager)
+
+        structureManager.hasChanges = true
+
+        #expect(wrapper.hasChanges == true)
+    }
+
+    @Test("StructureChangeManager wrapper: reloadVersion forwards correctly")
+    func structureManagerReloadVersionForwards() {
+        let structureManager = StructureChangeManager()
+        let wrapper = AnyChangeManager(structureManager: structureManager)
+
+        let initialVersion = wrapper.reloadVersion
+        structureManager.reloadVersion = 5
+
+        #expect(wrapper.reloadVersion == 5)
+        #expect(wrapper.reloadVersion != initialVersion)
     }
 }

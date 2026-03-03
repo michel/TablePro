@@ -2,46 +2,47 @@
 //  MainContentCommandActions.swift
 //  TablePro
 //
-//  Provides command actions for MainContentView, accessible via @FocusedObject.
+//  Provides command actions for MainContentView, accessible via @FocusedValue.
 //  Menu commands and toolbar buttons call methods directly instead of posting notifications.
 //  Retains NotificationCenter subscribers only for legitimate multi-listener broadcasts.
 //
 
 import AppKit
-import Combine
 import Foundation
+import Observation
 import os
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Provides command actions for MainContentView, accessible via @FocusedObject
+/// Provides command actions for MainContentView, accessible via @FocusedValue
 @MainActor
-final class MainContentCommandActions: ObservableObject {
+@Observable
+final class MainContentCommandActions {
     nonisolated private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCommandActions")
 
     // MARK: - Dependencies
 
-    private weak var coordinator: MainContentCoordinator?
-    private let filterStateManager: FilterStateManager
-    private let connection: DatabaseConnection
+    @ObservationIgnored private weak var coordinator: MainContentCoordinator?
+    @ObservationIgnored private let filterStateManager: FilterStateManager
+    @ObservationIgnored private let connection: DatabaseConnection
 
     // MARK: - Bindings
 
-    private let selectedRowIndices: Binding<Set<Int>>
-    private let selectedTables: Binding<Set<TableInfo>>
-    private let pendingTruncates: Binding<Set<String>>
-    private let pendingDeletes: Binding<Set<String>>
-    private let tableOperationOptions: Binding<[String: TableOperationOptions]>
-    private let rightPanelState: RightPanelState
-    private let editingCell: Binding<CellPosition?>
+    @ObservationIgnored private let selectedRowIndices: Binding<Set<Int>>
+    @ObservationIgnored private let selectedTables: Binding<Set<TableInfo>>
+    @ObservationIgnored private let pendingTruncates: Binding<Set<String>>
+    @ObservationIgnored private let pendingDeletes: Binding<Set<String>>
+    @ObservationIgnored private let tableOperationOptions: Binding<[String: TableOperationOptions]>
+    @ObservationIgnored private let rightPanelState: RightPanelState
+    @ObservationIgnored private let editingCell: Binding<CellPosition?>
 
     /// The window this instance belongs to — used for key-window guards.
-    weak var window: NSWindow?
+    @ObservationIgnored weak var window: NSWindow?
 
     // MARK: - State
 
     /// Task handles for async notification observers; cancelled on deinit.
-    private var notificationTasks: [Task<Void, Never>] = []
+    @ObservationIgnored private var notificationTasks: [Task<Void, Never>] = []
 
     // MARK: - Initialization
 
@@ -150,7 +151,7 @@ final class MainContentCommandActions: ObservableObject {
 
     /// Observers for notifications still posted by non-menu views (DataGrid, SidebarView,
     /// context menus, QueryEditorView, ConnectionStatusView). These bridge AppKit/non-menu
-    /// notification posts to the same command action methods used by @FocusedObject callers.
+    /// notification posts to the same command action methods used by @FocusedValue callers.
     private func setupNonMenuNotificationObservers() {
         observeKeyWindowOnly(.addNewRow) { [weak self] _ in self?.addNewRow() }
 
@@ -709,5 +710,18 @@ final class MainContentCommandActions: ObservableObject {
         Task { @MainActor in
             await DatabaseManager.shared.reconnectSession(self.connection.id)
         }
+    }
+}
+
+// MARK: - Focused Value Key
+
+private struct CommandActionsKey: FocusedValueKey {
+    typealias Value = MainContentCommandActions
+}
+
+extension FocusedValues {
+    var commandActions: MainContentCommandActions? {
+        get { self[CommandActionsKey.self] }
+        set { self[CommandActionsKey.self] = newValue }
     }
 }

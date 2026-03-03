@@ -290,7 +290,8 @@ struct MainContentView: View {
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
-            .onReceive(DatabaseManager.shared.$activeSessions) { sessions in
+            .onChange(of: DatabaseManager.shared.sessionVersion, initial: true) { _, _ in
+                let sessions = DatabaseManager.shared.activeSessions
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {
                     coordinator.needsLazyLoad = false
@@ -446,7 +447,7 @@ struct MainContentView: View {
         // Connection-only payload or nil payload — restore tabs from storage
         // If other windows already exist for this connection, this is a "new tab"
         // from the native macOS "+" button — just add a single empty query tab.
-        if NativeTabRegistry.shared.hasWindows(for: connection.id) {
+        if NativeTabRegistry.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
             tabManager.addTab(databaseName: connection.database)
             return
         }
@@ -917,15 +918,15 @@ private struct ToolbarTintModifier: ViewModifier {
 
 // MARK: - Focused Command Actions Modifier
 
-/// Conditionally publishes `MainContentCommandActions` as a focused scene object.
-/// `focusedSceneObject` requires a non-optional value, so this modifier
+/// Conditionally publishes `MainContentCommandActions` as a focused scene value.
+/// `focusedSceneValue` requires a non-optional value, so this modifier
 /// only applies it when the actions object has been created.
 private struct FocusedCommandActionsModifier: ViewModifier {
     let actions: MainContentCommandActions?
 
     func body(content: Content) -> some View {
         if let actions {
-            content.focusedSceneObject(actions)
+            content.focusedSceneValue(\.commandActions, actions)
         } else {
             content
         }

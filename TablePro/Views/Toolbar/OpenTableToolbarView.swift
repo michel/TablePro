@@ -51,7 +51,7 @@ struct ToolbarPrincipalContent: View {
 /// Apply this to a view to add the production toolbar
 struct TableProToolbar: ViewModifier {
     @Bindable var state: ConnectionToolbarState
-    @FocusedObject private var actions: MainContentCommandActions?
+    @FocusedValue(\.commandActions) private var actions: MainContentCommandActions?
     @State private var showConnectionSwitcher = false
 
     func body(content: Content) -> some View {

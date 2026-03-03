@@ -38,7 +38,7 @@ final class LicenseManager {
     /// Grace period: 30 days without server contact before forcing re-validation
     private let gracePeriodDays = 30
 
-    private var revalidationTask: Task<Void, Never>?
+    @ObservationIgnored private var revalidationTask: Task<Void, Never>?
 
     private init() {
         loadCachedLicense()
