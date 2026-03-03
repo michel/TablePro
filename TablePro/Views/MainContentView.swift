@@ -298,7 +298,7 @@ struct MainContentView: View {
                     coordinator.tabPersistence.markJustRestored()
                     if let selectedTab = tabManager.selectedTab,
                        !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.connection.database
+                       selectedTab.databaseName != session.activeDatabase
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
@@ -436,7 +436,7 @@ struct MainContentView: View {
                 {
                     coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.connection.database
+                       selectedTab.databaseName != session.activeDatabase
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
@@ -509,7 +509,7 @@ struct MainContentView: View {
                 {
                     coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
-                       selectedTab.databaseName != session.connection.database
+                       selectedTab.databaseName != session.activeDatabase
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {

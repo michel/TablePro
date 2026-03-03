@@ -18,7 +18,7 @@ extension MainContentCoordinator {
         // Get current database name from active session (may differ from connection default after Cmd+K switch)
         let currentDatabase: String
         if let session = DatabaseManager.shared.session(for: connectionId) {
-            currentDatabase = session.connection.database
+            currentDatabase = session.activeDatabase
         } else {
             currentDatabase = connection.database
         }
@@ -215,9 +215,7 @@ extension MainContentCoordinator {
 
                 // Update session with new database
                 DatabaseManager.shared.updateSession(connectionId) { session in
-                    var updatedConnection = session.connection
-                    updatedConnection.database = database
-                    session.connection = updatedConnection
+                    session.currentDatabase = database
                     session.tables = []          // triggers SidebarView.loadTables() via onChange
                 }
 
@@ -276,9 +274,7 @@ extension MainContentCoordinator {
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
-                    var updatedConnection = session.connection
-                    updatedConnection.database = database
-                    session.connection = updatedConnection
+                    session.currentDatabase = database
                     session.tables = []
                 }
 
