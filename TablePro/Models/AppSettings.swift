@@ -359,14 +359,23 @@ struct DataGridSettings: Codable, Equatable {
     var showAlternateRows: Bool
     var autoShowInspector: Bool
 
-    static let `default` = DataGridSettings(
-        rowHeight: .normal,
-        dateFormat: .iso8601,
-        nullDisplay: "NULL",
-        defaultPageSize: 1_000,
-        showAlternateRows: true,
-        autoShowInspector: false
-    )
+    static let `default` = DataGridSettings()
+
+    init(
+        rowHeight: DataGridRowHeight = .normal,
+        dateFormat: DateFormatOption = .iso8601,
+        nullDisplay: String = "NULL",
+        defaultPageSize: Int = 1_000,
+        showAlternateRows: Bool = true,
+        autoShowInspector: Bool = false
+    ) {
+        self.rowHeight = rowHeight
+        self.dateFormat = dateFormat
+        self.nullDisplay = nullDisplay
+        self.defaultPageSize = defaultPageSize
+        self.showAlternateRows = showAlternateRows
+        self.autoShowInspector = autoShowInspector
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
