@@ -11,7 +11,7 @@ import SwiftUI
 
 /// Sidebar view displaying list of database tables
 struct SidebarView: View {
-    @StateObject private var viewModel: SidebarViewModel
+    @State private var viewModel: SidebarViewModel
 
     // Keep @Binding on the view for SwiftUI change tracking.
     // The ViewModel stores the same bindings for write access.
@@ -47,7 +47,7 @@ struct SidebarView: View {
         _selectedTables = selectedTables
         _pendingTruncates = pendingTruncates
         _pendingDeletes = pendingDeletes
-        _viewModel = StateObject(wrappedValue: SidebarViewModel(
+        _viewModel = State(wrappedValue: SidebarViewModel(
             tables: tables,
             selectedTables: selectedTables,
             pendingTruncates: pendingTruncates,

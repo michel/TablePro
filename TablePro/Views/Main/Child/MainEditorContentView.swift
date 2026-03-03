@@ -22,10 +22,10 @@ private struct SortedRowsCache {
 struct MainEditorContentView: View {
     // MARK: - Dependencies
 
-    @ObservedObject var tabManager: QueryTabManager
-    @ObservedObject var coordinator: MainContentCoordinator
-    @ObservedObject var changeManager: DataChangeManager
-    @ObservedObject var filterStateManager: FilterStateManager
+    var tabManager: QueryTabManager
+    @Bindable var coordinator: MainContentCoordinator
+    var changeManager: DataChangeManager
+    var filterStateManager: FilterStateManager
     let connection: DatabaseConnection
     let windowId: UUID
     let connectionId: UUID
@@ -71,7 +71,7 @@ struct MainEditorContentView: View {
 
     // MARK: - Environment
 
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     /// Returns the cached AnyChangeManager, creating it on first access.
     private var currentChangeManager: AnyChangeManager {

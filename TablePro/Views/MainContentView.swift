@@ -29,11 +29,11 @@ struct MainContentView: View {
 
     // MARK: - State Objects
 
-    @StateObject private var tabManager: QueryTabManager
-    @StateObject private var changeManager: DataChangeManager
-    @StateObject private var filterStateManager: FilterStateManager
-    @StateObject private var toolbarState: ConnectionToolbarState
-    @StateObject var coordinator: MainContentCoordinator
+    @State private var tabManager: QueryTabManager
+    @State private var changeManager: DataChangeManager
+    @State private var filterStateManager: FilterStateManager
+    @State private var toolbarState: ConnectionToolbarState
+    @State var coordinator: MainContentCoordinator
 
     // MARK: - Local State
 
@@ -50,7 +50,7 @@ struct MainContentView: View {
 
     // MARK: - Environment
 
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     // MARK: - Initialization
 
@@ -124,13 +124,13 @@ struct MainContentView: View {
         }
         // If payload is nil or connection-only, tab restoration handles it in initializeAndRestoreTabs()
 
-        _tabManager = StateObject(wrappedValue: tabMgr)
-        _changeManager = StateObject(wrappedValue: changeMgr)
-        _filterStateManager = StateObject(wrappedValue: filterMgr)
-        _toolbarState = StateObject(wrappedValue: toolbarSt)
+        _tabManager = State(wrappedValue: tabMgr)
+        _changeManager = State(wrappedValue: changeMgr)
+        _filterStateManager = State(wrappedValue: filterMgr)
+        _toolbarState = State(wrappedValue: toolbarSt)
 
         // Create coordinator with all dependencies
-        _coordinator = StateObject(
+        _coordinator = State(
             wrappedValue: MainContentCoordinator(
                 connection: connection,
                 tabManager: tabMgr,

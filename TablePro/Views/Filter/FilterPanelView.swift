@@ -10,7 +10,7 @@ import SwiftUI
 
 /// Filter panel for table data filtering
 struct FilterPanelView: View {
-    @ObservedObject var filterState: FilterStateManager
+    @Bindable var filterState: FilterStateManager
     let columns: [String]
     let primaryKeyColumn: String?
     let databaseType: DatabaseType

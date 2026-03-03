@@ -6,32 +6,33 @@
 //
 
 import CodeEditTextView
-import Combine
+import Observation
 import Sparkle
 import SwiftUI
 
 // MARK: - App State for Menu Commands
 
 @MainActor
-final class AppState: ObservableObject {
+@Observable
+final class AppState {
     static let shared = AppState()
-    @Published var isConnected: Bool = false
-    @Published var isReadOnly: Bool = false  // True when current connection is read-only
-    @Published var isMongoDB: Bool = false
-    @Published var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
-    @Published var hasRowSelection: Bool = false  // True when rows are selected in data grid
-    @Published var hasTableSelection: Bool = false  // True when tables are selected in sidebar
-    @Published var isHistoryPanelVisible: Bool = false  // Global history panel visibility
-    @Published var hasQueryText: Bool = false  // True when current editor has non-empty query
-    @Published var hasStructureChanges: Bool = false  // True when structure view has pending schema changes
+    var isConnected: Bool = false
+    var isReadOnly: Bool = false  // True when current connection is read-only
+    var isMongoDB: Bool = false
+    var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
+    var hasRowSelection: Bool = false  // True when rows are selected in data grid
+    var hasTableSelection: Bool = false  // True when tables are selected in sidebar
+    var isHistoryPanelVisible: Bool = false  // Global history panel visibility
+    var hasQueryText: Bool = false  // True when current editor has non-empty query
+    var hasStructureChanges: Bool = false  // True when structure view has pending schema changes
 }
 
 // MARK: - Pasteboard Commands
 
 /// Custom Commands struct for pasteboard operations
 struct PasteboardCommands: Commands {
-    @ObservedObject var appState: AppState
-    @ObservedObject var settingsManager: AppSettingsManager
+    var appState: AppState
+    var settingsManager: AppSettingsManager
     @FocusedObject var actions: MainContentCommandActions?
 
     /// Build a SwiftUI KeyboardShortcut from keyboard settings
@@ -110,8 +111,8 @@ struct PasteboardCommands: Commands {
 /// All menu commands extracted into a separate Commands struct so that AppState
 /// changes only re-evaluate the menu items — NOT the Scene body / WindowGroups.
 struct AppMenuCommands: Commands {
-    @ObservedObject var appState: AppState
-    @ObservedObject var settingsManager: AppSettingsManager
+    var appState: AppState
+    var settingsManager: AppSettingsManager
     var updaterBridge: UpdaterBridge
     @FocusedObject var actions: MainContentCommandActions?
 
@@ -373,8 +374,8 @@ struct TableProApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self)
     var appDelegate
 
-    @StateObject private var settingsManager = AppSettingsManager.shared
-    @StateObject private var updaterBridge = UpdaterBridge()
+    @State private var settingsManager = AppSettingsManager.shared
+    @State private var updaterBridge = UpdaterBridge()
 
     init() {
         // Perform startup cleanup of query history if auto-cleanup is enabled
@@ -411,7 +412,7 @@ struct TableProApp: App {
         // Each native window-tab gets its own ContentView with independent state.
         WindowGroup(id: "main", for: EditorTabPayload.self) { $payload in
             ContentView(payload: payload)
-                .environmentObject(AppState.shared)
+                .environment(AppState.shared)
                 .background(OpenWindowHandler())
                 .tint(accentTint)
         }
@@ -421,7 +422,7 @@ struct TableProApp: App {
         // Settings Window - opens with Cmd+,
         Settings {
             SettingsView()
-                .environmentObject(updaterBridge)
+                .environment(updaterBridge)
                 .tint(accentTint)
         }
 
@@ -498,7 +499,7 @@ extension Notification.Name {
 
 /// Menu bar button that triggers Sparkle update check
 struct CheckForUpdatesView: View {
-    @ObservedObject var updaterBridge: UpdaterBridge
+    var updaterBridge: UpdaterBridge
 
     var body: some View {
         Button("Check for Updates...") {
