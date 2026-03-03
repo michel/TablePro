@@ -48,7 +48,7 @@ enum SQLEscaping {
             result = result.replacingOccurrences(of: "\u{1A}", with: "\\Z")  // MySQL EOF marker (Ctrl+Z)
             return result
 
-        case .postgresql, .sqlite, .mongodb:
+        case .postgresql, .redshift, .sqlite, .mongodb:
             // Standard SQL: only single quotes need doubling
             // Newlines, tabs, backslashes are valid as-is in string literals
             var result = str

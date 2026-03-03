@@ -588,6 +588,10 @@ struct TableStructureView: View {
         if driver is MySQLDriver {
             return .mysql
         } else if driver is PostgreSQLDriver {
+            // Redshift uses PostgreSQLDriver; differentiate by connection type
+            if connection.type == .redshift {
+                return .redshift
+            }
             return .postgresql
         } else if driver is SQLiteDriver {
             return .sqlite

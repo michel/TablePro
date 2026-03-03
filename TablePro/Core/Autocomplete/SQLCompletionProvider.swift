@@ -327,7 +327,7 @@ final class SQLCompletionProvider {
                         "ENGINE", "CHARSET", "COLLATE", "COMMENT",
                         "AUTO_INCREMENT", "ROW_FORMAT", "DEFAULT CHARSET",
                     ])
-                case .postgresql:
+                case .postgresql, .redshift:
                     items += filterKeywords([
                         "TABLESPACE", "INHERITS", "PARTITION BY",
                         "WITH", "WITHOUT OIDS",
@@ -467,7 +467,7 @@ final class SQLCompletionProvider {
                 "BINARY", "VARBINARY",
             ]
 
-        case .postgresql:
+        case .postgresql, .redshift:
             types += [
                 "BIGSERIAL", "SERIAL", "SMALLSERIAL",
                 "DOUBLE PRECISION", "MONEY",

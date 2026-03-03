@@ -373,7 +373,7 @@ final class MainContentCoordinator {
         switch connection.type {
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql:
+        case .mysql, .mariadb, .postgresql, .redshift:
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)

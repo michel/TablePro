@@ -102,6 +102,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     case mariadb = "MariaDB"
     case postgresql = "PostgreSQL"
     case sqlite = "SQLite"
+    case redshift = "Redshift"
     case mongodb = "MongoDB"
 
     var id: String { rawValue }
@@ -117,6 +118,8 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return "postgresql-icon"
         case .sqlite:
             return "sqlite-icon"
+        case .redshift:
+            return "redshift-icon"
         case .mongodb:
             return "mongodb-icon"
         }
@@ -128,6 +131,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .mysql, .mariadb: return 3_306
         case .postgresql: return 5_432
         case .sqlite: return 0
+        case .redshift: return 5_439
         case .mongodb: return 27_017
         }
     }
@@ -137,7 +141,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// MongoDB and SQLite commonly run without authentication.
     var requiresAuthentication: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql: return true
+        case .mysql, .mariadb, .postgresql, .redshift: return true
         case .sqlite, .mongodb: return false
         }
     }
@@ -145,7 +149,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// Whether this database type supports foreign key constraints
     var supportsForeignKeys: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .sqlite:
+        case .mysql, .mariadb, .postgresql, .sqlite, .redshift:
             return true
         case .mongodb:
             return false
@@ -157,7 +161,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .postgresql, .sqlite:
             return true
-        case .mongodb:
+        case .redshift, .mongodb:
             return false
         }
     }
@@ -168,7 +172,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .sqlite:
             return "`"
-        case .postgresql, .mongodb:
+        case .postgresql, .redshift, .mongodb:
             return "\""
         }
     }

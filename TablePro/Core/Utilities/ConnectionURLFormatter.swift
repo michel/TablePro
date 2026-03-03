@@ -27,6 +27,7 @@ struct ConnectionURLFormatter {
         case .mysql: return "mysql"
         case .mariadb: return "mariadb"
         case .postgresql: return "postgresql"
+        case .redshift: return "redshift"
         case .sqlite: return "sqlite"
         case .mongodb: return "mongodb"
         }
