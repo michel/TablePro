@@ -15,43 +15,43 @@ import Testing
 struct InspectorTriggerTests {
     @Test("Same values are equal")
     func sameValuesAreEqual() {
-        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataTableName: "users")
-        let b = InspectorTrigger(tableName: "users", resultVersion: 1, metadataTableName: "users")
+        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
+        let b = InspectorTrigger(tableName: "users", resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
         #expect(a == b)
     }
 
     @Test("Both nil fields are equal")
     func bothNilFieldsAreEqual() {
-        let a = InspectorTrigger(tableName: nil, resultVersion: 0, metadataTableName: nil)
-        let b = InspectorTrigger(tableName: nil, resultVersion: 0, metadataTableName: nil)
+        let a = InspectorTrigger(tableName: nil, resultVersion: 0, metadataVersion: 0, metadataTableName: nil)
+        let b = InspectorTrigger(tableName: nil, resultVersion: 0, metadataVersion: 0, metadataTableName: nil)
         #expect(a == b)
     }
 
     @Test("Different tableName produces unequal triggers")
     func differentTableName() {
-        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataTableName: "users")
-        let b = InspectorTrigger(tableName: "orders", resultVersion: 1, metadataTableName: "users")
+        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
+        let b = InspectorTrigger(tableName: "orders", resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
         #expect(a != b)
     }
 
     @Test("nil vs non-nil tableName produces unequal triggers")
     func nilVsNonNilTableName() {
-        let a = InspectorTrigger(tableName: nil, resultVersion: 1, metadataTableName: "users")
-        let b = InspectorTrigger(tableName: "users", resultVersion: 1, metadataTableName: "users")
+        let a = InspectorTrigger(tableName: nil, resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
+        let b = InspectorTrigger(tableName: "users", resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
         #expect(a != b)
     }
 
     @Test("Different resultVersion produces unequal triggers")
     func differentResultVersion() {
-        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataTableName: "users")
-        let b = InspectorTrigger(tableName: "users", resultVersion: 2, metadataTableName: "users")
+        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
+        let b = InspectorTrigger(tableName: "users", resultVersion: 2, metadataVersion: 0, metadataTableName: "users")
         #expect(a != b)
     }
 
     @Test("Different metadataTableName produces unequal triggers")
     func differentMetadataTableName() {
-        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataTableName: "users")
-        let b = InspectorTrigger(tableName: "users", resultVersion: 1, metadataTableName: "orders")
+        let a = InspectorTrigger(tableName: "users", resultVersion: 1, metadataVersion: 0, metadataTableName: "users")
+        let b = InspectorTrigger(tableName: "users", resultVersion: 1, metadataVersion: 0, metadataTableName: "orders")
         #expect(a != b)
     }
 }

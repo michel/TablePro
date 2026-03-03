@@ -815,11 +815,23 @@ struct MainContentView: View {
             }
         }
 
+        // Clear stale sidebar edits after refresh/discard
+        if !changeManager.hasChanges {
+            rightPanelState.editState.clearEdits()
+        }
+
+        // Collect columns modified in data grid so sidebar shows green dots
+        var modifiedColumns = Set<Int>()
+        for rowIndex in selectedRowIndices {
+            modifiedColumns.formUnion(changeManager.getModifiedColumnsForRow(rowIndex))
+        }
+
         rightPanelState.editState.configure(
             selectedRowIndices: selectedRowIndices,
             allRows: allRows,
             columns: tab.resultColumns,
-            columnTypes: columnTypes
+            columnTypes: columnTypes,
+            externallyModifiedColumns: modifiedColumns
         )
 
         guard isSidebarEditable else {

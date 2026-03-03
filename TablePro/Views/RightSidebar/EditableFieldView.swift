@@ -78,16 +78,16 @@ struct EditableFieldView: View {
 
     @ViewBuilder
     private var typeAwareEditor: some View {
-        if isPendingNull || isPendingDefault {
+        if (columnTypeEnum.isEnumType || columnTypeEnum.isSetType),
+           let values = columnTypeEnum.enumValues, !values.isEmpty {
+            enumPicker(values: values)
+        } else if isPendingNull || isPendingDefault {
             TextField(isPendingNull ? "NULL" : "DEFAULT", text: .constant(""))
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: DesignConstants.FontSize.small))
                 .disabled(true)
         } else if columnTypeEnum.isBooleanType {
             booleanPicker
-        } else if (columnTypeEnum.isEnumType || columnTypeEnum.isSetType),
-                  let values = columnTypeEnum.enumValues, !values.isEmpty {
-            enumPicker(values: values)
         } else if isLongText || columnTypeEnum.isJsonType {
             multiLineEditor
         } else {
@@ -96,28 +96,47 @@ struct EditableFieldView: View {
     }
 
     private var booleanPicker: some View {
-        Picker("", selection: Binding(
-            get: { normalizeBooleanValue(value) },
-            set: { value = $0 }
-        )) {
-            Text("true").tag("1")
-            Text("false").tag("0")
+        dropdownField(label: normalizeBooleanValue(value) == "1" ? "true" : "false") {
+            Button("true") { value = "1" }
+            Button("false") { value = "0" }
         }
-        .labelsHidden()
-        .frame(maxWidth: .infinity)
     }
 
     private func enumPicker(values: [String]) -> some View {
-        Picker("", selection: Binding(
-            get: { value },
-            set: { value = $0 }
-        )) {
+        let label: String = if isPendingNull {
+            "NULL"
+        } else if isPendingDefault {
+            "DEFAULT"
+        } else if value.isEmpty {
+            values.first ?? ""
+        } else {
+            value
+        }
+        return dropdownField(label: label) {
             ForEach(values, id: \.self) { val in
-                Text(val).tag(val)
+                Button(val) { value = val }
             }
         }
-        .labelsHidden()
-        .frame(maxWidth: .infinity)
+    }
+
+    private func dropdownField<Content: View>(
+        label: String,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        Menu {
+            content()
+        } label: {
+            Text(label)
+                .font(.system(size: DesignConstants.FontSize.small))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+        .background(.quinary, in: RoundedRectangle(cornerRadius: 5))
     }
 
     private var multiLineEditor: some View {
