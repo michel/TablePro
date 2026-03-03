@@ -5,15 +5,16 @@
 //  Thin ObservableObject wrapping SPUStandardUpdaterController for SwiftUI integration
 //
 
-import Combine
+import Observation
 import Sparkle
 
+@Observable
 @MainActor
-final class UpdaterBridge: ObservableObject {
-    private let controller: SPUStandardUpdaterController
-    @Published var canCheckForUpdates = false
+final class UpdaterBridge {
+    @ObservationIgnored private let controller: SPUStandardUpdaterController
+    var canCheckForUpdates = false
 
-    private var cancellable: AnyCancellable?
+    @ObservationIgnored private var observation: NSKeyValueObservation?
 
     init() {
         controller = SPUStandardUpdaterController(
@@ -22,11 +23,12 @@ final class UpdaterBridge: ObservableObject {
             userDriverDelegate: nil
         )
 
-        // Observe canCheckForUpdates via KVO and publish to SwiftUI
-        cancellable = controller.updater.publisher(for: \.canCheckForUpdates)
-            .sink { [weak self] value in
-                self?.canCheckForUpdates = value
+        // Observe canCheckForUpdates via KVO
+        observation = controller.updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] _, change in
+            Task { @MainActor in
+                self?.canCheckForUpdates = change.newValue ?? false
             }
+        }
     }
 
     /// The underlying Sparkle updater for direct property access (e.g. automaticallyChecksForUpdates)

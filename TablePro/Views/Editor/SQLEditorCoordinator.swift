@@ -9,20 +9,21 @@
 import AppKit
 import CodeEditSourceEditor
 import CodeEditTextView
-import Combine
+import Observation
 import os
 
 /// Coordinator for the SQL editor — manages find panel, horizontal scrolling, and scroll-to-match
+@Observable
 @MainActor
-final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
+final class SQLEditorCoordinator: TextViewCoordinator {
     // MARK: - Properties
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "SQLEditorCoordinator")
 
-    weak var controller: TextViewController?
+    @ObservationIgnored weak var controller: TextViewController?
     /// Shared schema provider for inline AI suggestions (avoids duplicate schema fetches)
-    var schemaProvider: SQLSchemaProvider?
-    private var contextMenu: AIEditorContextMenu?
+    @ObservationIgnored var schemaProvider: SQLSchemaProvider?
+    @ObservationIgnored private var contextMenu: AIEditorContextMenu?
     nonisolated(unsafe) private var rightClickMonitor: Any?
     nonisolated(unsafe) private var inlineSuggestionManager: InlineSuggestionManager?
     nonisolated(unsafe) private var editorSettingsObserver: NSObjectProtocol?
@@ -35,14 +36,14 @@ final class SQLEditorCoordinator: TextViewCoordinator, ObservableObject {
     /// Test-only accessor for destroy state
     var isDestroyed: Bool { didDestroy }
 
-    /// Published Vim mode for UI observation
-    @Published private(set) var vimMode: VimMode = .normal
-    private var vimEngine: VimEngine?
-    private var vimKeyInterceptor: VimKeyInterceptor?
-    private var commandHandler = VimCommandLineHandler()
-    private var vimCursorManager: VimCursorManager?
-    var onCloseTab: (() -> Void)?
-    var onExecuteQuery: (() -> Void)?
+    /// Vim mode for UI observation
+    private(set) var vimMode: VimMode = .normal
+    @ObservationIgnored private var vimEngine: VimEngine?
+    @ObservationIgnored private var vimKeyInterceptor: VimKeyInterceptor?
+    @ObservationIgnored private var commandHandler = VimCommandLineHandler()
+    @ObservationIgnored private var vimCursorManager: VimCursorManager?
+    @ObservationIgnored var onCloseTab: (() -> Void)?
+    @ObservationIgnored var onExecuteQuery: (() -> Void)?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights

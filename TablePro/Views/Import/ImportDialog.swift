@@ -7,6 +7,7 @@
 
 import AppKit
 import Combine
+import Observation
 import os
 import SwiftUI
 import UniformTypeIdentifiers
@@ -42,7 +43,7 @@ struct ImportDialog: View {
 
     // MARK: - Import Service
 
-    @StateObject private var importServiceState = ImportServiceState()
+    @State private var importServiceState = ImportServiceState()
 
     // MARK: - Body
 
@@ -439,27 +440,27 @@ struct ImportDialog: View {
 
 // MARK: - Import Service State
 
+@Observable
 @MainActor
-final class ImportServiceState: ObservableObject {
-    private var cancellable: AnyCancellable?
+final class ImportServiceState {
+    @ObservationIgnored private var cancellable: AnyCancellable?
 
-    private(set) var service: ImportService? {
-        didSet {
-            cancellable?.cancel()
-            guard let service else { return }
-            cancellable = service.objectWillChange
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in self?.objectWillChange.send() }
-        }
-    }
+    @ObservationIgnored private(set) var service: ImportService?
 
     func setService(_ service: ImportService) {
+        cancellable?.cancel()
         self.service = service
+        cancellable = service.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.serviceVersion += 1 }
     }
 
-    var isImporting: Bool { service?.state.isImporting ?? false }
-    var currentStatement: String { service?.state.currentStatement ?? "" }
-    var currentStatementIndex: Int { service?.state.currentStatementIndex ?? 0 }
-    var totalStatements: Int { service?.state.totalStatements ?? 0 }
-    var statusMessage: String { service?.state.statusMessage ?? "" }
+    /// Bumped whenever the underlying service publishes a change, triggering @Observable invalidation.
+    private var serviceVersion: Int = 0
+
+    var isImporting: Bool { _ = serviceVersion; return service?.state.isImporting ?? false }
+    var currentStatement: String { _ = serviceVersion; return service?.state.currentStatement ?? "" }
+    var currentStatementIndex: Int { _ = serviceVersion; return service?.state.currentStatementIndex ?? 0 }
+    var totalStatements: Int { _ = serviceVersion; return service?.state.totalStatements ?? 0 }
+    var statusMessage: String { _ = serviceVersion; return service?.state.statusMessage ?? "" }
 }
