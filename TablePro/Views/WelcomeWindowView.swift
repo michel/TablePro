@@ -310,6 +310,12 @@ struct WelcomeWindowView: View {
             onDuplicate: {
                 duplicateConnection(connection)
             },
+            onCopyURL: {
+                let pw = ConnectionStorage.shared.loadPassword(for: connection.id)
+                let sshPw = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
+                let url = ConnectionURLFormatter.format(connection, password: pw, sshPassword: sshPw)
+                ClipboardService.shared.writeText(url)
+            },
             onDelete: {
                 connectionToDelete = connection
                 showDeleteConfirmation = true
@@ -570,6 +576,7 @@ private struct ConnectionRow: View {
     var onConnect: (() -> Void)?
     var onEdit: (() -> Void)?
     var onDuplicate: (() -> Void)?
+    var onCopyURL: (() -> Void)?
     var onDelete: (() -> Void)?
 
     private var displayTag: ConnectionTag? {
@@ -637,6 +644,12 @@ private struct ConnectionRow: View {
             if let onDuplicate = onDuplicate {
                 Button(action: onDuplicate) {
                     Label("Duplicate", systemImage: "doc.on.doc")
+                }
+            }
+
+            if let onCopyURL = onCopyURL {
+                Button(action: onCopyURL) {
+                    Label("Copy as URL", systemImage: "link")
                 }
             }
 

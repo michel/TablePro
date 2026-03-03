@@ -180,6 +180,18 @@ extension MainContentCoordinator {
 
     // MARK: - Database Switching
 
+    /// Close all sibling native window-tabs except the current key window.
+    /// Each table opened via WindowOpener creates a separate NSWindow in the same
+    /// tab group. Clearing `tabManager.tabs` only affects the in-app state of the
+    /// *current* window — other NSWindows remain open with stale content.
+    private func closeSiblingNativeWindows() {
+        guard let keyWindow = NSApp.keyWindow else { return }
+        let siblings = keyWindow.tabbedWindows ?? []
+        for sibling in siblings where sibling !== keyWindow {
+            sibling.close()
+        }
+    }
+
     /// Switch to a different database (called from database switcher)
     func switchDatabase(to database: String) async {
         isSwitchingDatabase = true
@@ -207,28 +219,15 @@ extension MainContentCoordinator {
                 // Update toolbar state
                 toolbarState.databaseName = database
 
-                // Clear tab results but keep tabs open, update databaseName to new database
-                tabManager.tabs = tabManager.tabs.map { tab in
-                    var updatedTab = tab
-                    updatedTab.resultColumns = []
-                    updatedTab.resultRows = []
-                    updatedTab.resultVersion += 1
-                    updatedTab.errorMessage = nil
-                    updatedTab.executionTime = nil
-                    updatedTab.databaseName = database
-                    return updatedTab
-                }
+                // Close sibling native window-tabs and clear in-app tabs —
+                // previous database's tables/queries are no longer valid
+                closeSiblingNativeWindows()
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
 
                 // Reload schema for autocomplete.
                 // session.tables was cleared above, which triggers SidebarView.loadTables() via onChange.
                 await loadSchema()
-
-                // Re-execute current tab if it's a table tab.
-                // Do NOT post .refreshAll here — that broadcasts to ALL windows and causes
-                // every window to re-execute its query against the wrong database.
-                if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
-                    runQuery()
-                }
             } else if connection.type == .postgresql {
                 // PostgreSQL: switch schema (not database — PG database switching requires reconnection)
                 guard let pgDriver = driver as? PostgreSQLDriver else { return }
@@ -248,17 +247,11 @@ extension MainContentCoordinator {
                 // Update toolbar state
                 toolbarState.databaseName = database
 
-                // Clear tab results but keep tabs open
-                tabManager.tabs = tabManager.tabs.map { tab in
-                    var updatedTab = tab
-                    updatedTab.resultColumns = []
-                    updatedTab.resultRows = []
-                    updatedTab.resultVersion += 1
-                    updatedTab.errorMessage = nil
-                    updatedTab.executionTime = nil
-                    updatedTab.databaseName = database
-                    return updatedTab
-                }
+                // Close sibling native window-tabs and clear in-app tabs —
+                // previous schema's tables/queries are no longer valid
+                closeSiblingNativeWindows()
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
 
                 // Reload schema for autocomplete
                 await loadSchema()
@@ -266,11 +259,6 @@ extension MainContentCoordinator {
                 // Force sidebar reload — posting .refreshData ensures loadTables() runs
                 // even when session.tables was already [] (e.g. switching from empty schema back to public)
                 NotificationCenter.default.post(name: .refreshData, object: nil)
-
-                // Re-execute current tab if it's a table tab
-                if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
-                    runQuery()
-                }
             } else if connection.type == .mongodb {
                 // MongoDB: update the driver's connection so fetchTables/execute use the new database
                 if let mongoDriver = driver as? MongoDBDriver {
@@ -291,24 +279,15 @@ extension MainContentCoordinator {
 
                 toolbarState.databaseName = database
 
-                tabManager.tabs = tabManager.tabs.map { tab in
-                    var updatedTab = tab
-                    updatedTab.resultColumns = []
-                    updatedTab.resultRows = []
-                    updatedTab.resultVersion += 1
-                    updatedTab.errorMessage = nil
-                    updatedTab.executionTime = nil
-                    updatedTab.databaseName = database
-                    return updatedTab
-                }
+                // Close sibling native window-tabs and clear in-app tabs —
+                // previous database's collections are no longer valid
+                closeSiblingNativeWindows()
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
 
                 await loadSchema()
 
                 NotificationCenter.default.post(name: .refreshData, object: nil)
-
-                if let currentTab = tabManager.selectedTab, currentTab.tabType == .table {
-                    runQuery()
-                }
             }
         } catch {
             navigationLogger.error("Failed to switch database: \(error.localizedDescription, privacy: .public)")
