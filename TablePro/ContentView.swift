@@ -33,7 +33,7 @@ struct ContentView: View {
 
     @Environment(\.openWindow)
     private var openWindow
-    @EnvironmentObject private var appState: AppState
+    @Environment(AppState.self) private var appState
 
     private let storage = ConnectionStorage.shared
 
