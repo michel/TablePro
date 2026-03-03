@@ -10,10 +10,14 @@
 import Foundation
 
 @MainActor @Observable final class RightPanelState {
-    // Panel visibility
-    var isPresented: Bool = false
+    private static let isPresentedKey = "com.TablePro.rightPanel.isPresented"
 
-    // Tab switcher state
+    var isPresented: Bool {
+        didSet {
+            UserDefaults.standard.set(isPresented, forKey: Self.isPresentedKey)
+        }
+    }
+
     var activeTab: RightPanelTab = .details
 
     // Save closure — set by MainContentCommandActions, called by UnifiedRightPanelView
@@ -22,4 +26,8 @@ import Foundation
     // Owned objects — lifted from MainContentView @StateObject
     let editState = MultiRowEditState()
     let aiViewModel = AIChatViewModel()
+
+    init() {
+        self.isPresented = UserDefaults.standard.bool(forKey: Self.isPresentedKey)
+    }
 }

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Deep link support via `tablepro://` URL scheme for opening connections, tables, queries, and importing connections
+- Auto-show inspector option: automatically open the right sidebar when selecting a row (Settings > Data Grid)
+
+### Fixed
+
+- Right sidebar state now persists across native window-tabs instead of resetting to closed
 
 ## [0.11.1] - 2026-03-02
 
