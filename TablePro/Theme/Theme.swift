@@ -19,7 +19,7 @@ enum Theme {
     static let sqliteColor = Color(nsColor: .systemGreen)
     static let mariadbColor = Color(nsColor: .systemCyan)
     static let mongodbColor = Color(red: 0.0, green: 0.93, blue: 0.39)
-    static let redshiftColor = Color(red: 0.83, green: 0.15, blue: 0.15)
+    static let redshiftColor = Color(red: 0.13, green: 0.36, blue: 0.59)
 
     // MARK: - Semantic Colors
 
