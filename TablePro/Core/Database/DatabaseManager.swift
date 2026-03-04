@@ -139,6 +139,10 @@ final class DatabaseManager {
                 activeSessions[connection.id]?.currentSchema = pgDriver.currentSchema
             } else if let rsDriver = driver as? RedshiftDriver {
                 activeSessions[connection.id]?.currentSchema = rsDriver.currentSchema
+            } else if connection.type == .redis {
+                // Redis defaults to db0 on connect
+                let initialDb = connection.redisDatabase ?? Int(connection.database) ?? 0
+                activeSessions[connection.id]?.currentDatabase = String(initialDb)
             }
 
             // Batch all session mutations into a single write to fire objectWillChange once
