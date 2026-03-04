@@ -92,7 +92,9 @@ extension MainContentCoordinator {
                     tabManager.tabs[tabIndex].pagination.reset()
                     toolbarState.isTableTab = true
                 }
-                runQuery()
+                if let dbIndex = Int(currentDatabase) {
+                    selectRedisDatabaseAndQuery(dbIndex)
+                }
             }
             return
         }
@@ -381,6 +383,34 @@ extension MainContentCoordinator {
                 message: error.localizedDescription,
                 window: NSApplication.shared.keyWindow
             )
+        }
+    }
+
+    // MARK: - Redis Database Selection
+
+    /// Select a Redis database index and then run the query.
+    /// Redis sidebar clicks go through openTableTab (sync), so we need a Task
+    /// to call the async selectDatabase before executing the query.
+    private func selectRedisDatabaseAndQuery(_ dbIndex: Int) {
+        let connId = connectionId
+        let database = String(dbIndex)
+        Task { @MainActor in
+            do {
+                if let redisDriver = DatabaseManager.shared.driver(for: connId) as? RedisDriver {
+                    try await redisDriver.selectDatabase(dbIndex)
+                }
+            } catch {
+                navigationLogger.error("Failed to SELECT Redis db\(dbIndex): \(error.localizedDescription, privacy: .public)")
+                return
+            }
+            if let metaRedisDriver = DatabaseManager.shared.metadataDriver(for: connId) as? RedisDriver {
+                try? await metaRedisDriver.selectDatabase(dbIndex)
+            }
+            DatabaseManager.shared.updateSession(connId) { session in
+                session.currentDatabase = database
+            }
+            toolbarState.databaseName = database
+            executeTableTabQueryDirectly()
         }
     }
 }

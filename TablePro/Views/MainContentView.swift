@@ -95,6 +95,12 @@ struct MainContentView: View {
         }
         toolbarSt.hasCompletedSetup = true
 
+        // Redis: set initial database name eagerly to avoid toolbar flash
+        if connection.type == .redis {
+            let dbIndex = connection.redisDatabase ?? Int(connection.database) ?? 0
+            toolbarSt.databaseName = String(dbIndex)
+        }
+
         // Initialize single tab based on payload
         if let payload, !payload.isConnectionOnly {
             switch payload.tabType {
