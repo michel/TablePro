@@ -401,7 +401,7 @@ extension MainContentCoordinator {
             if let redisDriver = DatabaseManager.shared.driver(for: connId) as? RedisDriver {
                 try? await redisDriver.selectDatabase(dbIndex)
             }
-            runQuery()
+            executeTableTabQueryDirectly()
         }
     }
 }

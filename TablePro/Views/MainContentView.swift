@@ -520,6 +520,26 @@ struct MainContentView: View {
                     coordinator.needsLazyLoad = true
                 }
             }
+        } else if connection.type == .redis {
+            // Redis: auto-open db0 on first connect (no persisted tabs)
+            let dbIndex = Int(connection.database) ?? 0
+            let dbName = "db\(dbIndex)"
+            tabManager.addTableTab(
+                tableName: dbName,
+                databaseType: .redis,
+                databaseName: String(dbIndex)
+            )
+            if let tabIndex = tabManager.selectedTabIndex {
+                tabManager.tabs[tabIndex].pagination.reset()
+                toolbarState.isTableTab = true
+            }
+            if let session = DatabaseManager.shared.activeSessions[connection.id],
+               session.isConnected
+            {
+                coordinator.executeTableTabQueryDirectly()
+            } else {
+                coordinator.needsLazyLoad = true
+            }
         }
     }
 
