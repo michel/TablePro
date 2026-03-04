@@ -133,7 +133,36 @@ struct ConnectionURLFormatter {
             params.append("sslmode=\(sslParam)")
         }
 
+        if let hex = colorHex(connection.color) {
+            params.append("statusColor=\(hex)")
+        }
+
+        if let tagId = connection.tagId,
+           let tag = TagStorage.shared.tag(for: tagId) {
+            let encoded = tag.name
+                .replacingOccurrences(of: " ", with: "+")
+                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)?
+                .replacingOccurrences(of: "&", with: "%26")
+                .replacingOccurrences(of: "=", with: "%3D")
+                ?? tag.name
+            params.append("env=\(encoded)")
+        }
+
         return params.joined(separator: "&")
+    }
+
+    private static func colorHex(_ color: ConnectionColor) -> String? {
+        switch color {
+        case .none: return nil
+        case .red: return "FF3B30"
+        case .orange: return "FF9500"
+        case .yellow: return "FFCC00"
+        case .green: return "34C759"
+        case .blue: return "007AFF"
+        case .purple: return "AF52DE"
+        case .pink: return "FF2D55"
+        case .gray: return "8E8E93"
+        }
     }
 
     private static func sslModeParam(_ mode: SSLMode) -> String? {

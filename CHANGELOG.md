@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Redis database support with key-value browsing, database-level sidebar (db0–db15), TTL management, and interactive CLI
+- TablePlus-compatible database URL handling: `open -a TablePro "postgresql://user@host/db"` with support for schema switching, table opening, filters, color, and environment tags
 
 ## [0.12.0] - 2026-03-03
 
