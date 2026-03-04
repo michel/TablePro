@@ -196,6 +196,8 @@ extension DatabaseDriver {
                 break  // SQLite busy_timeout handled by driver directly
             case .mongodb:
                 break  // MongoDB timeout handled per-operation by MongoDBDriver
+            case .redis:
+                break  // Redis does not support session-level query timeouts
             }
         } catch {
             Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
@@ -217,6 +219,8 @@ extension DatabaseDriver {
             sql = "BEGIN"
         case .mongodb:
             sql = ""  // MongoDB transactions not supported in default impl
+        case .redis:
+            sql = ""  // Redis transactions handled by RedisDriver directly
         }
         guard !sql.isEmpty else { return }
         _ = try await execute(query: sql)
@@ -245,6 +249,8 @@ enum DatabaseDriverFactory {
             return RedshiftDriver(connection: connection)
         case .mongodb:
             return MongoDBDriver(connection: connection)
+        case .redis:
+            return RedisDriver(connection: connection)
         }
     }
 }

@@ -377,6 +377,8 @@ final class MainContentCoordinator {
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)
+        case .redis:
+            explainSQL = Self.buildRedisDebugCommand(for: stmt)
         }
 
         Task { @MainActor in
@@ -415,8 +417,15 @@ final class MainContentCoordinator {
             effectiveSQL = sql
         }
 
-        let tableName = extractTableName(from: effectiveSQL)
-        let isEditable = tableName != nil
+        let tableName: String?
+        let isEditable: Bool
+        if connection.type == .redis {
+            tableName = tabManager.selectedTab?.tableName
+            isEditable = tableName != nil
+        } else {
+            tableName = extractTableName(from: effectiveSQL)
+            isEditable = tableName != nil
+        }
 
         currentQueryTask = Task { [weak self] in
             guard let self else { return }
@@ -1325,6 +1334,14 @@ private extension MainContentCoordinator {
         updatedTab.lastExecutedAt = Date()
         updatedTab.tableName = tableName
         updatedTab.isEditable = isEditable && updatedTab.isEditable
+        if conn.type == .redis {
+            // Populate enum values from column types for the enum popover
+            for (index, colType) in (updatedTab.columnTypes ?? []).enumerated() {
+                if case .enumType(_, let values) = colType, let vals = values, index < updatedTab.resultColumns.count {
+                    updatedTab.columnEnumValues[updatedTab.resultColumns[index]] = vals
+                }
+            }
+        }
 
         // Merge FK metadata into the same update if available
         if let metadata {
@@ -1354,6 +1371,17 @@ private extension MainContentCoordinator {
                     columns: columns,
                     primaryKeyColumn: pk,
                     databaseType: conn.type
+                )
+            }
+        } else if conn.type == .redis, isEditable {
+            tabManager.tabs[idx].primaryKeyColumn = "Key"
+
+            if tabManager.selectedTabId == tabId {
+                changeManager.configureForTable(
+                    tableName: tableName ?? "",
+                    columns: columns,
+                    primaryKeyColumn: "Key",
+                    databaseType: .redis
                 )
             }
         }

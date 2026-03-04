@@ -21,7 +21,7 @@ struct SQLParameterInliner {
         switch databaseType {
         case .postgresql, .redshift:
             return inlineDollarPlaceholders(statement.sql, parameters: statement.parameters)
-        case .mysql, .mariadb, .sqlite, .mongodb:
+        case .mysql, .mariadb, .sqlite, .mongodb, .redis:
             return inlineQuestionMarkPlaceholders(statement.sql, parameters: statement.parameters)
         }
     }

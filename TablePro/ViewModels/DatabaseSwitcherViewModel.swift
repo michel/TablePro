@@ -174,6 +174,8 @@ class DatabaseSwitcherViewModel {
             return false
         case .mongodb:
             return false
+        case .redis:
+            return false
         }
     }
 }

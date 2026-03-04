@@ -227,12 +227,12 @@ struct ConnectionURLParserTests {
 
     @Test("Unsupported scheme returns error")
     func testUnsupportedSchemeReturnsError() {
-        let result = ConnectionURLParser.parse("redis://host:6379")
+        let result = ConnectionURLParser.parse("ftp://host:21")
         guard case .failure(let error) = result else {
             Issue.record("Expected failure"); return
         }
         if case .unsupportedScheme(let scheme) = error {
-            #expect(scheme == "redis")
+            #expect(scheme == "ftp")
         } else {
             Issue.record("Expected unsupportedScheme error")
         }
@@ -525,5 +525,88 @@ struct ConnectionURLParserTests {
             Issue.record("Expected success"); return
         }
         #expect(parsed.type == .redshift)
+    }
+
+    // MARK: - Redis
+
+    @Test("Redis URL parses host and port")
+    func testRedisBasicURL() {
+        let result = ConnectionURLParser.parse("redis://localhost:6379")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redis)
+        #expect(parsed.host == "localhost")
+        #expect(parsed.port == 6379)
+        #expect(parsed.redisDatabase == nil)
+    }
+
+    @Test("Redis URL with database index")
+    func testRedisURLWithDatabaseIndex() {
+        let result = ConnectionURLParser.parse("redis://localhost:6379/3")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redis)
+        #expect(parsed.redisDatabase == 3)
+        #expect(parsed.database == "")
+    }
+
+    @Test("Redis URL without port")
+    func testRedisURLWithoutPort() {
+        let result = ConnectionURLParser.parse("redis://localhost")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redis)
+        #expect(parsed.host == "localhost")
+        #expect(parsed.port == nil)
+    }
+
+    @Test("Rediss scheme enables SSL")
+    func testRedissSchemeEnablesSSL() {
+        let result = ConnectionURLParser.parse("rediss://host:6379")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redis)
+        #expect(parsed.sslMode == .required)
+    }
+
+    @Test("Redis URL with password only")
+    func testRedisURLWithPasswordOnly() {
+        let result = ConnectionURLParser.parse("redis://:password@localhost:6379")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redis)
+        #expect(parsed.password == "password")
+        #expect(parsed.host == "localhost")
+    }
+
+    @Test("Redis URL with user, password, and database index")
+    func testRedisURLWithUserPasswordAndDatabase() {
+        let result = ConnectionURLParser.parse("redis://user:pass@localhost:6379/2")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redis)
+        #expect(parsed.username == "user")
+        #expect(parsed.password == "pass")
+        #expect(parsed.host == "localhost")
+        #expect(parsed.port == 6379)
+        #expect(parsed.redisDatabase == 2)
+        #expect(parsed.database == "")
+    }
+
+    @Test("Redis URL with database index zero")
+    func testRedisURLWithDatabaseIndexZero() {
+        let result = ConnectionURLParser.parse("redis://localhost:6379/0")
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.type == .redis)
+        #expect(parsed.redisDatabase == 0)
+        #expect(parsed.database == "")
     }
 }

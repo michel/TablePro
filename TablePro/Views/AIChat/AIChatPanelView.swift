@@ -24,11 +24,19 @@ struct AIChatPanelView: View {
     }
 
     private var queryLanguage: String {
-        connection.type == .mongodb ? "javascript" : "sql"
+        switch connection.type {
+        case .mongodb: return "javascript"
+        case .redis: return "bash"
+        default: return "sql"
+        }
     }
 
     private var queryTypeName: String {
-        connection.type == .mongodb ? "MongoDB query" : "SQL query"
+        switch connection.type {
+        case .mongodb: return "MongoDB query"
+        case .redis: return "Redis command"
+        default: return "SQL query"
+        }
     }
 
     var body: some View {

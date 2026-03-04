@@ -1809,6 +1809,9 @@
         }
       }
     },
+    "CMD" : {
+
+    },
     "Collation" : {
       "localizations" : {
         "vi" : {
@@ -1818,9 +1821,6 @@
           }
         }
       }
-    },
-    "Collections" : {
-
     },
     "Color" : {
       "localizations" : {
@@ -1931,6 +1931,9 @@
           }
         }
       }
+    },
+    "Command Preview" : {
+
     },
     "Comment" : {
       "localizations" : {
@@ -2665,6 +2668,9 @@
         }
       }
     },
+    "Database Index: %lld" : {
+
+    },
     "Database Name" : {
       "localizations" : {
         "vi" : {
@@ -3313,6 +3319,9 @@
           }
         }
       }
+    },
+    "Empty Redis command" : {
+
     },
     "Enable inline suggestions" : {
       "localizations" : {
@@ -4662,6 +4671,9 @@
         }
       }
     },
+    "Invalid argument: %@" : {
+
+    },
     "Invalid connection URL format" : {
       "localizations" : {
         "vi" : {
@@ -5480,9 +5492,6 @@
         }
       }
     },
-    "No Collections" : {
-
-    },
     "No Columns Defined" : {
       "localizations" : {
         "vi" : {
@@ -5574,9 +5583,6 @@
         }
       }
     },
-    "No matching collections" : {
-
-    },
     "No matching connections" : {
       "localizations" : {
         "vi" : {
@@ -5614,6 +5620,7 @@
 
     },
     "No matching tables" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -5748,6 +5755,7 @@
       }
     },
     "No Tables" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -6063,6 +6071,9 @@
       }
     },
     "Open MQL Editor" : {
+
+    },
+    "Open Redis CLI" : {
 
     },
     "Open Schema" : {
@@ -6404,6 +6415,12 @@
           }
         }
       }
+    },
+    "Preview Commands" : {
+
+    },
+    "Preview Commands (⌘⇧P)" : {
+
     },
     "Preview MQL" : {
 
@@ -6775,6 +6792,9 @@
         }
       }
     },
+    "Redis" : {
+
+    },
     "Redo" : {
       "localizations" : {
         "vi" : {
@@ -7005,10 +7025,8 @@
         }
       }
     },
-    "Right-click to show all collections" : {
-
-    },
     "Right-click to show all tables" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -7568,6 +7586,9 @@
     "Show All Collections" : {
 
     },
+    "Show All Databases" : {
+
+    },
     "Show All Tables" : {
       "localizations" : {
         "vi" : {
@@ -7718,7 +7739,7 @@
         }
       }
     },
-    "SQL import is not supported for MongoDB connections." : {
+    "SQL import is not supported for %@ connections." : {
 
     },
     "SQL Preview" : {
@@ -8178,6 +8199,7 @@
       }
     },
     "Tables" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -8316,10 +8338,8 @@
         }
       }
     },
-    "This database has no collections yet." : {
-
-    },
     "This database has no tables yet." : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {

@@ -567,6 +567,8 @@ final class QueryTabManager {
         if databaseType == .mongodb {
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             query = "db[\"\(escaped)\"].find({}).limit(\(pageSize))"
+        } else if databaseType == .redis {
+            query = "SCAN 0 MATCH * COUNT \(pageSize)"
         } else {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
@@ -602,6 +604,8 @@ final class QueryTabManager {
         if databaseType == .mongodb {
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             query = "db[\"\(escaped)\"].find({}).limit(\(pageSize))"
+        } else if databaseType == .redis {
+            query = "SCAN 0 MATCH * COUNT \(pageSize)"
         } else {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"

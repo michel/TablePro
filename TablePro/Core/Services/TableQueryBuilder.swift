@@ -44,6 +44,14 @@ struct TableQueryBuilder {
             )
         }
 
+        if databaseType == .redis {
+            let redisBuilder = RedisQueryBuilder()
+            return redisBuilder.buildBaseQuery(
+                namespace: "", sortState: sortState,
+                columns: columns, limit: limit, offset: offset
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
 
@@ -88,6 +96,16 @@ struct TableQueryBuilder {
             )
         }
 
+        if databaseType == .redis {
+            let redisBuilder = RedisQueryBuilder()
+            return redisBuilder.buildFilteredQuery(
+                namespace: "",
+                filters: filters,
+                logicMode: logicMode,
+                limit: limit
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
 
@@ -128,6 +146,15 @@ struct TableQueryBuilder {
             return buildMongoQuickSearchQuery(
                 tableName: tableName, searchText: searchText, columns: columns,
                 sortState: sortState, limit: limit, offset: offset
+            )
+        }
+
+        if databaseType == .redis {
+            let redisBuilder = RedisQueryBuilder()
+            return redisBuilder.buildQuickSearchQuery(
+                namespace: "",
+                searchText: searchText,
+                limit: limit
             )
         }
 
@@ -177,6 +204,33 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
+        if databaseType == .redis {
+            let redisBuilder = RedisQueryBuilder()
+            let hasFilters = !filters.isEmpty
+            let hasSearch = !searchText.isEmpty
+
+            if hasSearch {
+                return redisBuilder.buildQuickSearchQuery(
+                    namespace: "",
+                    searchText: searchText,
+                    limit: limit
+                )
+            } else if hasFilters {
+                return redisBuilder.buildFilteredQuery(
+                    namespace: "",
+                    filters: filters,
+                    logicMode: logicMode,
+                    limit: limit
+                )
+            } else {
+                return redisBuilder.buildBaseQuery(
+                    namespace: "",
+                    limit: limit,
+                    offset: offset
+                )
+            }
+        }
+
         if databaseType == .mongodb {
             let mongoBuilder = MongoDBQueryBuilder()
             let hasFilters = !filters.isEmpty
@@ -272,6 +326,11 @@ struct TableQueryBuilder {
         columnName: String,
         ascending: Bool
     ) -> String {
+        // Redis SCAN does not support server-side sorting
+        if databaseType == .redis {
+            return baseQuery
+        }
+
         if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
             let sortDoc = "\"\(Self.escapeMongoString(columnName))\": \(ascending ? 1 : -1)"
             return "\(Self.mongoCollectionAccessor(parsed.collection)).find(\(parsed.filter))"
@@ -313,6 +372,11 @@ struct TableQueryBuilder {
         sortState: SortState,
         columns: [String]
     ) -> String {
+        // Redis SCAN does not support server-side sorting
+        if databaseType == .redis {
+            return baseQuery
+        }
+
         if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
             if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
                 return "\(Self.mongoCollectionAccessor(parsed.collection)).find(\(parsed.filter))"
@@ -552,7 +616,7 @@ struct TableQueryBuilder {
             return "\(column)::TEXT LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mysql, .mariadb:
             return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%'"
-        case .sqlite, .mongodb:
+        case .sqlite, .mongodb, .redis:
             return "\(column) LIKE '%\(searchText)%' ESCAPE '\\'"
         }
     }

@@ -230,6 +230,8 @@ struct SQLDialectFactory {
             return SQLiteDialect()
         case .mongodb:
             return SQLiteDialect()  // Placeholder until MongoDB dialect is implemented
+        case .redis:
+            return SQLiteDialect()  // Placeholder until Redis dialect is implemented
         }
     }
 }

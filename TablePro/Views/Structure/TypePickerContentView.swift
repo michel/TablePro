@@ -27,6 +27,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["INTEGER", "REAL", "NUMERIC"]
             case .mongodb:
                 return ["Int32", "Int64", "Double", "Decimal128"]
+            case .redis:
+                return ["Integer"]
             }
         case .string:
             switch dbType {
@@ -38,6 +40,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["TEXT"]
             case .mongodb:
                 return ["String", "ObjectId", "UUID"]
+            case .redis:
+                return ["String"]
             }
         case .dateTime:
             switch dbType {
@@ -49,6 +53,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["DATE", "DATETIME"]
             case .mongodb:
                 return ["Date", "Timestamp"]
+            case .redis:
+                return []
             }
         case .binary:
             switch dbType {
@@ -60,6 +66,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BLOB"]
             case .mongodb:
                 return ["BinData"]
+            case .redis:
+                return []
             }
         case .other:
             switch dbType {
@@ -71,6 +79,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BOOLEAN"]
             case .mongodb:
                 return ["Boolean", "Object", "Array", "Null", "Regex"]
+            case .redis:
+                return ["List", "Set", "Sorted Set", "Hash", "Stream"]
             }
         }
     }

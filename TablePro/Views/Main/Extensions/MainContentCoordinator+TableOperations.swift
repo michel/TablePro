@@ -84,7 +84,7 @@ extension MainContentCoordinator {
     func fkDisableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb: return ["SET FOREIGN_KEY_CHECKS=0"]
-        case .postgresql, .redshift, .mongodb: return []
+        case .postgresql, .redshift, .mongodb, .redis: return []
         case .sqlite: return ["PRAGMA foreign_keys = OFF"]
         }
     }
@@ -94,7 +94,7 @@ extension MainContentCoordinator {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]
-        case .postgresql, .redshift, .mongodb:
+        case .postgresql, .redshift, .mongodb, .redis:
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
@@ -128,6 +128,8 @@ extension MainContentCoordinator {
         case .mongodb:
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             return ["db[\"\(escaped)\"].deleteMany({})"]
+        case .redis:
+            return ["FLUSHDB"]
         }
     }
 
@@ -142,6 +144,8 @@ extension MainContentCoordinator {
         case .mongodb:
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             return "db[\"\(escaped)\"].drop()"
+        case .redis:
+            return "DEL \(tableName)"
         }
     }
 }

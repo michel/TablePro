@@ -643,6 +643,20 @@ final class DataChangeManager {
             return statements
         }
 
+        // Redis uses its own statement generator (Redis commands instead of SQL)
+        if databaseType == .redis {
+            let generator = RedisStatementGenerator(
+                namespaceName: tableName,
+                columns: columns
+            )
+            return generator.generateStatements(
+                from: changes,
+                insertedRowData: insertedRowData,
+                deletedRowIndices: deletedRowIndices,
+                insertedRowIndices: insertedRowIndices
+            )
+        }
+
         let generator = SQLStatementGenerator(
             tableName: tableName,
             columns: columns,

@@ -154,6 +154,7 @@ Pure logic types, generators, parsers, models, extensions, utilities:
 
 - `SQLStatementGenerator`, `FilterSQLGenerator`, `SQLEscaping`
 - `MongoDBStatementGenerator`, `MongoShellParser`, `BsonDocumentFlattener`
+- `RedisStatementGenerator`, `RedisCommandParser`, `RedisKeyNamespace`, `RedisQueryBuilder`
 - `CompletionEngine`, `SQLContextAnalyzer`, `SQLKeywords`
 - All model structs (`TableFilter`, `PaginationState`, `ColumnInfo`, etc.)
 - All extensions (`String+`, `Date+`, etc.)
@@ -236,6 +237,7 @@ Structs, enums, generators — no cleanup.
 | `TablePro/Core/Database/` | `TableProTests/Core/Database/` |
 | `TablePro/Core/KeyboardHandling/` | `TableProTests/Core/KeyboardHandling/` |
 | `TablePro/Core/MongoDB/` | `TableProTests/Core/MongoDB/` |
+| `TablePro/Core/Redis/` | `TableProTests/Core/Redis/` |
 | `TablePro/Core/SchemaTracking/` | `TableProTests/Core/SchemaTracking/` |
 | `TablePro/Core/Services/` | `TableProTests/Core/Services/` |
 | `TablePro/Core/SSH/` | `TableProTests/Core/SSH/` |
@@ -263,7 +265,7 @@ Factory methods with sensible defaults:
 ```swift
 // Database
 TestFixtures.makeConnection(id: UUID(), name: "Test", database: "testdb", type: .mysql)
-TestFixtures.allDatabaseTypes  // [.mysql, .mariadb, .postgresql, .sqlite, .mongodb]
+TestFixtures.allDatabaseTypes  // [.mysql, .mariadb, .postgresql, .sqlite, .redshift, .mongodb, .redis]
 
 // Table schema
 TestFixtures.makeTableInfo(name: "test_table", type: .table)

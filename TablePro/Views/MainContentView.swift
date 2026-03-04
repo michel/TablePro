@@ -576,7 +576,7 @@ struct MainContentView: View {
         )
 
         // Update window title to reflect selected tab
-        let queryLabel = connection.type == .mongodb ? "MQL Query" : "SQL Query"
+        let queryLabel = connection.type == .mongodb ? "MQL Query" : connection.type == .redis ? "Redis Query" : "SQL Query"
         windowTitle = tabManager.selectedTab?.tableName
             ?? (tabManager.tabs.isEmpty ? connection.name : queryLabel)
 
@@ -612,14 +612,14 @@ struct MainContentView: View {
     }
 
     private func handleTabsChange(_ newTabs: [QueryTab]) {
+        // Always update window title to reflect current tab, even during restoration
+        let queryLabel = connection.type == .mongodb ? "MQL Query" : connection.type == .redis ? "Redis Query" : "SQL Query"
+        windowTitle = tabManager.selectedTab?.tableName
+            ?? (tabManager.tabs.isEmpty ? connection.name : queryLabel)
+
         guard !coordinator.tabPersistence.isRestoringTabs,
               !coordinator.tabPersistence.isDismissing
         else { return }
-
-        // Update window title to reflect current state
-        let queryLabel = connection.type == .mongodb ? "MQL Query" : "SQL Query"
-        windowTitle = tabManager.selectedTab?.tableName
-            ?? (tabManager.tabs.isEmpty ? connection.name : queryLabel)
 
         // Update registry (non-observable, safe inside onChange)
         NativeTabRegistry.shared.update(
@@ -694,7 +694,10 @@ struct MainContentView: View {
             selectedRowIndices = []
             coordinator.openTableTab(tableName, isView: isView)
         case .revertAndOpenNewWindow:
-            syncSidebarToCurrentTab()
+            // Redis databases navigate in-place, so skip the sidebar revert
+            if connection.type != .redis {
+                syncSidebarToCurrentTab()
+            }
             coordinator.openTableTab(tableName, isView: isView)
         }
 

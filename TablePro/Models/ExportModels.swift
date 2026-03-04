@@ -35,6 +35,8 @@ enum ExportFormat: String, CaseIterable, Identifiable {
         switch databaseType {
         case .mongodb:
             return [.csv, .json, .mql, .xlsx]
+        case .redis:
+            return [.csv, .json, .xlsx]
         default:
             return allCases.filter { $0 != .mql }
         }

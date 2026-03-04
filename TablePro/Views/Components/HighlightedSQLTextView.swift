@@ -171,7 +171,15 @@ struct HighlightedSQLTextView: NSViewRepresentable {
         textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
 
         // Apply pre-compiled patterns
-        let activePatterns = databaseType == .mongodb ? Self.mqlPatterns : Self.syntaxPatterns
+        let activePatterns: [(regex: NSRegularExpression, color: NSColor)]
+        switch databaseType {
+        case .mongodb:
+            activePatterns = Self.mqlPatterns
+        case .redis:
+            activePatterns = Self.syntaxPatterns
+        default:
+            activePatterns = Self.syntaxPatterns
+        }
         let text = textStorage.string
         for (regex, color) in activePatterns {
             let matches = regex.matches(in: text, options: [], range: fullRange)

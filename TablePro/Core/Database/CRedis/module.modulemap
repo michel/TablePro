@@ -1,0 +1,4 @@
+module CRedis [system] {
+    header "CRedis.h"
+    export *
+}

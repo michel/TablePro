@@ -138,6 +138,44 @@ prepare_libmongoc() {
     echo "✅ libmongoc + libbson libraries ready for $target_arch"
 }
 
+prepare_hiredis() {
+    local target_arch=$1
+    echo "📦 Preparing hiredis static libraries for $target_arch..."
+
+    local all_ok=1
+    for lib in libhiredis libhiredis_ssl; do
+        # If already present with the correct architecture, skip
+        if [ -f "Libs/${lib}.a" ] && lipo -info "Libs/${lib}.a" 2>/dev/null | grep -q "$target_arch"; then
+            continue
+        fi
+
+        # Try arch-specific file first
+        if [ -f "Libs/${lib}_${target_arch}.a" ]; then
+            cp "Libs/${lib}_${target_arch}.a" "Libs/${lib}.a"
+            continue
+        fi
+
+        # Fall back to universal
+        if [ ! -f "Libs/${lib}_universal.a" ]; then
+            echo "❌ ERROR: Libs/${lib}_${target_arch}.a and Libs/${lib}_universal.a not found!"
+            echo "Run this first: ./scripts/build-hiredis.sh both"
+            all_ok=0
+            continue
+        fi
+
+        if ! lipo "Libs/${lib}_universal.a" -thin "$target_arch" -output "Libs/${lib}.a"; then
+            echo "❌ FATAL: Failed to extract $target_arch slice from ${lib}_universal.a"
+            exit 1
+        fi
+    done
+
+    if [ "$all_ok" -eq 0 ]; then
+        exit 1
+    fi
+
+    echo "✅ hiredis libraries ready for $target_arch"
+}
+
 # Bundle non-system dynamic libraries into the app bundle
 # so the app runs without Homebrew on end-user machines.
 bundle_dylibs() {
@@ -279,6 +317,7 @@ build_for_arch() {
     prepare_mariadb "$arch"
     prepare_libpq "$arch"
     prepare_libmongoc "$arch"
+    prepare_hiredis "$arch"
 
     # Remove AppIcon.icon if present — Xcode 26's automatic icon format
     # uses SVG rendering with GPU effects (shadows, translucency) that

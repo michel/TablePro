@@ -81,6 +81,11 @@ struct AIChatCodeBlockView: View {
                 Text(highlightedJavaScript(code))
                     .textSelection(.enabled)
                     .padding(10)
+            } else if isRedis {
+                Text(code)
+                    .font(.system(size: 12, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(10)
             } else {
                 Text(code)
                     .font(.system(size: 12, design: .monospaced))
@@ -102,8 +107,14 @@ struct AIChatCodeBlockView: View {
         return mongoLanguages.contains(language.lowercased())
     }
 
+    private var isRedis: Bool {
+        guard let language else { return false }
+        let redisLanguages = ["redis", "bash", "shell", "sh"]
+        return redisLanguages.contains(language.lowercased())
+    }
+
     private var isInsertable: Bool {
-        isSQL || isMongoDB
+        isSQL || isMongoDB || isRedis
     }
 
     // MARK: - Static SQL Regex Patterns (compiled once)
