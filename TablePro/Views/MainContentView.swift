@@ -948,6 +948,7 @@ private struct ToolbarTintModifier: ViewModifier {
     func body(content: Content) -> some View {
         if connectionColor.isDefault {
             content
+                .toolbarBackground(.hidden, for: .windowToolbar)
         } else {
             content
                 .toolbarBackground(connectionColor.color.opacity(0.12), for: .windowToolbar)
