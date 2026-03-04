@@ -2,100 +2,33 @@ name: Bug Report
 description: Report a bug or unexpected behavior
 labels: ["bug"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for taking the time to report a bug! Please fill out the information below to help us investigate.
-
-  - type: input
-    id: version
-    attributes:
-      label: TablePro Version
-      description: Which version of TablePro are you using? (Check TablePro > About TablePro)
-      placeholder: e.g. 0.5.0
-    validations:
-      required: true
-
-  - type: input
-    id: macos-version
-    attributes:
-      label: macOS Version
-      description: Which version of macOS are you running?
-      placeholder: e.g. macOS 15.3
-    validations:
-      required: true
-
-  - type: dropdown
-    id: chip
-    attributes:
-      label: Mac Chip
-      options:
-        - Apple Silicon (M1/M2/M3/M4)
-        - Intel
-    validations:
-      required: true
-
-  - type: dropdown
-    id: database
-    attributes:
-      label: Database Type
-      description: Which database were you connected to when the issue occurred?
-      options:
-        - MySQL / MariaDB
-        - PostgreSQL
-        - SQLite
-        - N/A (not database-specific)
-    validations:
-      required: true
-
   - type: textarea
     id: description
     attributes:
-      label: Description
-      description: A clear and concise description of the bug.
+      label: What happened?
+      description: Describe the bug. Include steps to reproduce if possible.
+      placeholder: |
+        When I click X, Y happens instead of Z.
+
+        Steps to reproduce:
+        1. Open a MySQL connection
+        2. ...
     validations:
       required: true
 
-  - type: textarea
-    id: steps
+  - type: input
+    id: environment
     attributes:
-      label: Steps to Reproduce
-      description: How can we reproduce the issue?
-      value: |
-        1.
-        2.
-        3.
-    validations:
-      required: true
-
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected Behavior
-      description: What did you expect to happen?
-    validations:
-      required: true
-
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual Behavior
-      description: What actually happened?
-    validations:
-      required: true
-
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots / Screen Recordings
-      description: If applicable, add screenshots or screen recordings to help explain the problem.
+      label: Environment
+      description: "TablePro version, macOS version, chip (e.g. 0.5.0 / macOS 15.3 / Apple Silicon)"
+      placeholder: "0.5.0 / macOS 15.3 / Apple Silicon"
     validations:
       required: false
 
   - type: textarea
-    id: additional
+    id: context
     attributes:
-      label: Additional Context
-      description: Any other context about the problem (e.g. crash logs, error messages, database version).
+      label: Screenshots / Logs
+      description: If applicable, add screenshots, screen recordings, or crash logs.
     validations:
       required: false
