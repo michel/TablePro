@@ -140,8 +140,11 @@ final class DatabaseManager {
             } else if let rsDriver = driver as? RedshiftDriver {
                 activeSessions[connection.id]?.currentSchema = rsDriver.currentSchema
             } else if connection.type == .redis {
-                // Redis defaults to db0 on connect
+                // Redis defaults to db0 on connect; SELECT the configured database if non-default
                 let initialDb = connection.redisDatabase ?? Int(connection.database) ?? 0
+                if initialDb != 0 {
+                    try? await (driver as? RedisDriver)?.selectDatabase(initialDb)
+                }
                 activeSessions[connection.id]?.currentDatabase = String(initialDb)
             }
 

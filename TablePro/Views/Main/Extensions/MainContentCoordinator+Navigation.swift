@@ -395,8 +395,13 @@ extension MainContentCoordinator {
         let connId = connectionId
         let database = String(dbIndex)
         Task { @MainActor in
-            if let redisDriver = DatabaseManager.shared.driver(for: connId) as? RedisDriver {
-                try? await redisDriver.selectDatabase(dbIndex)
+            do {
+                if let redisDriver = DatabaseManager.shared.driver(for: connId) as? RedisDriver {
+                    try await redisDriver.selectDatabase(dbIndex)
+                }
+            } catch {
+                navigationLogger.error("Failed to SELECT Redis db\(dbIndex): \(error.localizedDescription, privacy: .public)")
+                return
             }
             if let metaRedisDriver = DatabaseManager.shared.metadataDriver(for: connId) as? RedisDriver {
                 try? await metaRedisDriver.selectDatabase(dbIndex)
