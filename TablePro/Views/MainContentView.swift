@@ -521,8 +521,8 @@ struct MainContentView: View {
                 }
             }
         } else if connection.type == .redis {
-            // Redis: auto-open db0 on first connect (no persisted tabs)
-            let dbIndex = Int(connection.database) ?? 0
+            // Redis: auto-open the initial database on first connect (no persisted tabs)
+            let dbIndex = connection.redisDatabase ?? Int(connection.database) ?? 0
             let dbName = "db\(dbIndex)"
             tabManager.addTableTab(
                 tableName: dbName,

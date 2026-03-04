@@ -76,11 +76,7 @@ extension MainContentCoordinator {
                 AppState.shared.isCurrentTabEditable = !isView && tableName.isEmpty == false
                 toolbarState.isTableTab = true
             }
-            if connection.type == .redis, let dbIndex = Int(currentDatabase) {
-                selectRedisDatabaseAndQuery(dbIndex)
-            } else {
-                runQuery()
-            }
+            runQuery()
             return
         }
 
@@ -397,10 +393,18 @@ extension MainContentCoordinator {
     /// to call the async selectDatabase before executing the query.
     private func selectRedisDatabaseAndQuery(_ dbIndex: Int) {
         let connId = connectionId
+        let database = String(dbIndex)
         Task { @MainActor in
             if let redisDriver = DatabaseManager.shared.driver(for: connId) as? RedisDriver {
                 try? await redisDriver.selectDatabase(dbIndex)
             }
+            if let metaRedisDriver = DatabaseManager.shared.metadataDriver(for: connId) as? RedisDriver {
+                try? await metaRedisDriver.selectDatabase(dbIndex)
+            }
+            DatabaseManager.shared.updateSession(connId) { session in
+                session.currentDatabase = database
+            }
+            toolbarState.databaseName = database
             executeTableTabQueryDirectly()
         }
     }
