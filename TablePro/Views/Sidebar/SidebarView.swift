@@ -124,7 +124,7 @@ struct SidebarView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, DesignConstants.Spacing.xxs)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(Color(nsColor: .quaternaryLabelColor))
         .cornerRadius(6)
         .padding(.horizontal, 10)
         .padding(.top, 8)

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix sidebar search field and main content area background colors to blend with macOS vibrancy
 - Fix POINT and geometry columns showing blank values in MySQL and wrong type label in sidebar
 
 ## [0.12.0] - 2026-03-03
