@@ -33,6 +33,7 @@ Tài liệu đầy đủ tại [docs.tablepro.app](https://docs.tablepro.app).
 Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
 - **[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)**
+- **[Nimbus](https://getnimbus.io?ref=tablepro)**
 - **[Huy TQ](https://github.com/imhuytq)** — Tài trợ Apple Developer Program
 - **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
