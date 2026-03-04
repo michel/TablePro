@@ -7,8 +7,8 @@
 //
 
 import Foundation
-import Testing
 @testable import TablePro
+import Testing
 
 @Suite("ColumnType Badge Labels")
 struct ColumnTypeBadgeLabelTests {
@@ -142,5 +142,11 @@ struct ColumnTypeBadgeLabelTests {
     func nonRedisEnumRawTypeReturnsEnum() {
         let type = ColumnType.enumType(rawType: "ENUM(status)", values: nil)
         #expect(type.badgeLabel == "enum")
+    }
+
+    @Test("Spatial returns spatial")
+    func spatialReturnsSpatial() {
+        let type = ColumnType.spatial(rawType: "GEOMETRY")
+        #expect(type.badgeLabel == "spatial")
     }
 }

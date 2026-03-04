@@ -21,13 +21,15 @@ enum ColumnType: Equatable {
     case json(rawType: String?)
     case enumType(rawType: String?, values: [String]?)
     case set(rawType: String?, values: [String]?)
+    case spatial(rawType: String?)
 
     /// Raw database type name (e.g., "LONGTEXT", "VARCHAR(255)", "CLOB")
     var rawType: String? {
         switch self {
         case .text(let raw), .integer(let raw), .decimal(let raw),
              .date(let raw), .timestamp(let raw), .datetime(let raw),
-             .boolean(let raw), .blob(let raw), .json(let raw):
+             .boolean(let raw), .blob(let raw), .json(let raw),
+             .spatial(let raw):
             return raw
         case .enumType(let raw, _), .set(let raw, _):
             return raw
@@ -75,6 +77,10 @@ enum ColumnType: Equatable {
             self = .enumType(rawType: rawType, values: nil)
         case 248:  // SET
             self = .set(rawType: rawType, values: nil)
+
+        // Geometry type
+        case 255:  // GEOMETRY
+            self = .spatial(rawType: rawType)
 
         // Text types (default)
         default:
@@ -125,6 +131,10 @@ enum ColumnType: Equatable {
         // Binary types
         case 17:  // BYTEA
             self = .blob(rawType: rawType)
+
+        // Native geometry types
+        case 600, 601, 602, 603, 604, 628, 718:  // point, lseg, path, box, polygon, line, circle
+            self = .spatial(rawType: rawType)
 
         // Text types (default)
         default:
@@ -249,6 +259,7 @@ enum ColumnType: Equatable {
         case .json: return "JSON"
         case .enumType: return "Enum"
         case .set: return "Set"
+        case .spatial: return "Spatial"
         }
     }
 
@@ -334,6 +345,7 @@ enum ColumnType: Equatable {
         case .blob: return "binary"
         case .text(let rawType):
             return rawType == "RedisRaw" ? "raw" : "string"
+        case .spatial: return "spatial"
         }
     }
 

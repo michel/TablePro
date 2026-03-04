@@ -643,7 +643,10 @@ final class MariaDBConnection: @unchecked Sendable {
                     // Avoids intermediate [UInt8] allocation — String copies internally
                     let bufferPtr = UnsafeRawBufferPointer(start: fieldPtr, count: length)
 
-                    if let str = String(bytes: bufferPtr, encoding: .utf8) {
+                    if columnTypes[i] == 255 {
+                        // GEOMETRY type: parse WKB binary to WKT text
+                        row.append(GeometryWKBParser.parse(bufferPtr))
+                    } else if let str = String(bytes: bufferPtr, encoding: .utf8) {
                         row.append(str)
                     } else {
                         // Fallback: create string from buffer as Latin1
@@ -994,9 +997,11 @@ final class MariaDBConnection: @unchecked Sendable {
                 // Get column count
                 let numFields = Int(mysql_num_fields(resultPtr))
 
-                // Fetch column names
+                // Fetch column names and types
                 var columns: [String] = []
+                var columnTypes: [UInt32] = []
                 columns.reserveCapacity(numFields)
+                columnTypes.reserveCapacity(numFields)
                 if let fields = mysql_fetch_fields(resultPtr) {
                     for i in 0..<numFields {
                         let field = fields[i]
@@ -1006,12 +1011,14 @@ final class MariaDBConnection: @unchecked Sendable {
                         } else {
                             columns.append("column_\(i)")
                         }
+                        columnTypes.append(field.type.rawValue)
                     }
                 }
 
                 let streamingResult = MariaDBStreamingResult(
                     resultPtr: resultPtr,
                     columns: columns,
+                    columnTypes: columnTypes,
                     numFields: numFields,
                     queue: queue
                 )
@@ -1083,17 +1090,19 @@ final class MariaDBConnection: @unchecked Sendable {
 final class MariaDBStreamingResult: @unchecked Sendable {
     private var resultPtr: UnsafeMutablePointer<MYSQL_RES>?
     let columns: [String]
+    let columnTypes: [UInt32]
     let numFields: Int
     private let queue: DispatchQueue
     private let closeLock = NSLock()
     private var isClosed = false
 
     init(
-        resultPtr: UnsafeMutablePointer<MYSQL_RES>, columns: [String], numFields: Int,
-        queue: DispatchQueue
+        resultPtr: UnsafeMutablePointer<MYSQL_RES>, columns: [String], columnTypes: [UInt32],
+        numFields: Int, queue: DispatchQueue
     ) {
         self.resultPtr = resultPtr
         self.columns = columns
+        self.columnTypes = columnTypes
         self.numFields = numFields
         self.queue = queue
     }
@@ -1144,7 +1153,10 @@ final class MariaDBStreamingResult: @unchecked Sendable {
                 // Avoids intermediate [UInt8] allocation — String copies internally
                 let bufferPtr = UnsafeRawBufferPointer(start: fieldPtr, count: length)
 
-                if let str = String(bytes: bufferPtr, encoding: .utf8) {
+                if columnTypes[i] == 255 {
+                    // GEOMETRY type: parse WKB binary to WKT text
+                    row.append(GeometryWKBParser.parse(bufferPtr))
+                } else if let str = String(bytes: bufferPtr, encoding: .utf8) {
                     row.append(str)
                 } else {
                     // Fallback: create string from buffer as Latin1
