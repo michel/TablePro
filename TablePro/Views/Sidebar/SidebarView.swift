@@ -173,13 +173,15 @@ struct SidebarView: View {
                 .font(.system(size: 28, weight: .thin))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
-            Text(viewModel.databaseType == .mongodb ? "No Collections" : "No Tables")
+            Text(sidebarLabel(mongodb: "No Collections", redis: "No Databases", default: "No Tables"))
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Color(nsColor: .secondaryLabelColor))
 
-            Text(viewModel.databaseType == .mongodb
-                ? "This database has no collections yet."
-                : "This database has no tables yet.")
+            Text(sidebarLabel(
+                mongodb: "This database has no collections yet.",
+                redis: "All databases are empty.",
+                default: "This database has no tables yet."
+            ))
                 .font(.system(size: 11))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
         }
@@ -191,7 +193,7 @@ struct SidebarView: View {
             Image(systemName: "magnifyingglass")
                 .font(.title)
                 .foregroundStyle(.tertiary)
-            Text(viewModel.databaseType == .mongodb ? "No matching collections" : "No matching tables")
+            Text(sidebarLabel(mongodb: "No matching collections", redis: "No matching databases", default: "No matching tables"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -222,14 +224,18 @@ struct SidebarView: View {
                     }
                 }
             } header: {
-                Text(viewModel.databaseType == .mongodb ? "Collections" : "Tables")
-                    .help(viewModel.databaseType == .mongodb
-                        ? "Right-click to show all collections"
-                        : "Right-click to show all tables")
+                Text(sidebarLabel(mongodb: "Collections", redis: "Databases", default: "Tables"))
+                    .help(sidebarLabel(
+                        mongodb: "Right-click to show all collections",
+                        redis: "Right-click to show all databases",
+                        default: "Right-click to show all tables"
+                    ))
                     .contextMenu {
-                        Button(viewModel.databaseType == .mongodb
-                            ? String(localized: "Show All Collections")
-                            : String(localized: "Show All Tables")) {
+                        Button(sidebarLabel(
+                            mongodb: String(localized: "Show All Collections"),
+                            redis: String(localized: "Show All Databases"),
+                            default: String(localized: "Show All Tables")
+                        )) {
                             onShowAllTables?()
                         }
                     }
@@ -248,6 +254,16 @@ struct SidebarView: View {
         }
         .onExitCommand {
             selectedTables.removeAll()
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func sidebarLabel(mongodb: String, redis: String, default defaultLabel: String) -> String {
+        switch viewModel.databaseType {
+        case .mongodb: return mongodb
+        case .redis: return redis
+        default: return defaultLabel
         }
     }
 }

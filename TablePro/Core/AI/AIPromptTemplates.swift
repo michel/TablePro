@@ -28,9 +28,13 @@ enum AIPromptTemplates {
     }
 
     private static func queryInfo(for databaseType: DatabaseType) -> (typeName: String, language: String) {
-        if databaseType == .mongodb {
+        switch databaseType {
+        case .mongodb:
             return ("MongoDB query", "javascript")
+        case .redis:
+            return ("Redis command", "bash")
+        default:
+            return ("SQL query", "sql")
         }
-        return ("SQL query", "sql")
     }
 }

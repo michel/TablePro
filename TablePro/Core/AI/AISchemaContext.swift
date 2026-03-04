@@ -54,7 +54,12 @@ struct AISchemaContext {
         if settings.includeCurrentQuery,
            let query = currentQuery,
            !query.isEmpty {
-            let lang = databaseType == .mongodb ? "javascript" : "sql"
+            let lang: String
+            switch databaseType {
+            case .mongodb: lang = "javascript"
+            case .redis: lang = "bash"
+            default: lang = "sql"
+            }
             parts.append("\n## Current Query\n```\(lang)\n\(query)\n```")
         }
 
@@ -70,6 +75,13 @@ struct AISchemaContext {
             )
             parts.append(
                 "Use MongoDB shell syntax (db.collection.find(), etc.), not SQL."
+            )
+        } else if databaseType == .redis {
+            parts.append(
+                "\nProvide Redis commands using `bash` fenced code blocks."
+            )
+            parts.append(
+                "Use Redis CLI syntax (GET, SET, HGETALL, etc.), not SQL."
             )
         } else {
             parts.append(

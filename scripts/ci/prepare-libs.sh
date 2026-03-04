@@ -22,3 +22,11 @@ for lib in libpq libpgcommon libpgport libssl libcrypto; do
 done
 echo "✅ libpq + OpenSSL libraries ready"
 ls -lh Libs/lib{pq,pgcommon,pgport,ssl,crypto}.a
+
+# Prepare hiredis
+echo "📦 Preparing hiredis static libraries for $ARCH..."
+for lib in libhiredis libhiredis_ssl; do
+  cp "Libs/${lib}_${ARCH}.a" "Libs/${lib}.a"
+done
+echo "✅ hiredis libraries ready"
+ls -lh Libs/lib{hiredis,hiredis_ssl}.a

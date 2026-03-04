@@ -20,6 +20,7 @@ enum Theme {
     static let mariadbColor = Color(nsColor: .systemCyan)
     static let mongodbColor = Color(red: 0.0, green: 0.93, blue: 0.39)
     static let redshiftColor = Color(red: 0.13, green: 0.36, blue: 0.59)
+    static let redisColor = Color(red: 0.86, green: 0.22, blue: 0.18) // #DC382D
 
     // MARK: - Semantic Colors
 
@@ -108,6 +109,8 @@ extension DatabaseType {
             return Theme.redshiftColor
         case .mongodb:
             return Theme.mongodbColor
+        case .redis:
+            return Theme.redisColor
         }
     }
 }

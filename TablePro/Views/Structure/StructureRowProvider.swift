@@ -20,7 +20,7 @@ final class StructureRowProvider {
         switch tab {
         case .columns:
             return changeManager.workingColumns.enumerated().map { index, column in
-                if databaseType == .mongodb {
+                if databaseType == .mongodb || databaseType == .redis {
                     return QueryResultRow(id: index, values: [
                         column.name,
                         column.dataType,
@@ -64,7 +64,7 @@ final class StructureRowProvider {
     var columns: [String] {
         switch tab {
         case .columns:
-            if databaseType == .mongodb {
+            if databaseType == .mongodb || databaseType == .redis {
                 return [
                     String(localized: "Name"),
                     String(localized: "Type"),
@@ -109,7 +109,7 @@ final class StructureRowProvider {
     var dropdownColumns: Set<Int> {
         switch tab {
         case .columns:
-            if databaseType == .mongodb {
+            if databaseType == .mongodb || databaseType == .redis {
                 return [2] // Nullable (index 2) only
             }
             return [2, 4] // Nullable (index 2), Auto Inc (index 4)

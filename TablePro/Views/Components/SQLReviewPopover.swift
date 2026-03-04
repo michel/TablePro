@@ -99,7 +99,11 @@ struct SQLReviewPopover: View {
 
     private var headerView: some View {
         HStack {
-            Text(databaseType == .mongodb ? String(localized: "MQL Preview") : String(localized: "SQL Preview"))
+            Text(databaseType == .mongodb
+                ? String(localized: "MQL Preview")
+                : databaseType == .redis
+                    ? String(localized: "Command Preview")
+                    : String(localized: "SQL Preview"))
                 .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
             if !statements.isEmpty {
                 Text(
@@ -145,7 +149,7 @@ struct SQLReviewPopover: View {
         if isEditorReady {
             SourceEditor(
                 .constant(combinedSQL),
-                language: databaseType == .mongodb ? .javascript : .sql,
+                language: databaseType == .mongodb ? .javascript : databaseType == .redis ? .bash : .sql,
                 configuration: Self.makeConfiguration(),
                 state: $editorState
             )

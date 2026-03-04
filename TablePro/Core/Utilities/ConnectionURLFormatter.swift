@@ -30,6 +30,7 @@ struct ConnectionURLFormatter {
         case .redshift: return "redshift"
         case .sqlite: return "sqlite"
         case .mongodb: return "mongodb"
+        case .redis: return "redis"
         }
     }
 

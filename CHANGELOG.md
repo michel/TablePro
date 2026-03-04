@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Redis database support with key-value browsing, database-level sidebar (db0–db15), TTL management, and interactive CLI
+
 ## [0.12.0] - 2026-03-03
 
 ### Added

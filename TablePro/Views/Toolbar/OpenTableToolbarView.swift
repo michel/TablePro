@@ -59,29 +59,31 @@ struct TableProToolbar: ViewModifier {
             .toolbar {
                 // MARK: - Navigation (Left)
 
-                ToolbarItem(placement: .navigation) {
-                    Button {
-                        showConnectionSwitcher.toggle()
-                    } label: {
-                        Label("Connection", systemImage: "network")
-                    }
-                    .help("Switch Connection (⌘⌥C)")
-                    .popover(isPresented: $showConnectionSwitcher) {
-                        ConnectionSwitcherPopover {
-                            showConnectionSwitcher = false
+                if state.databaseType != .redis {
+                    ToolbarItem(placement: .navigation) {
+                        Button {
+                            showConnectionSwitcher.toggle()
+                        } label: {
+                            Label("Connection", systemImage: "network")
+                        }
+                        .help("Switch Connection (⌘⌥C)")
+                        .popover(isPresented: $showConnectionSwitcher) {
+                            ConnectionSwitcherPopover {
+                                showConnectionSwitcher = false
+                            }
                         }
                     }
-                }
 
-                ToolbarItem(placement: .navigation) {
-                    Button {
-                        actions?.openDatabaseSwitcher()
-                    } label: {
-                        Label("Database", systemImage: "cylinder")
+                    ToolbarItem(placement: .navigation) {
+                        Button {
+                            actions?.openDatabaseSwitcher()
+                        } label: {
+                            Label("Database", systemImage: "cylinder")
+                        }
+                        .help("Open Database (⌘K)")
+                        .disabled(
+                            state.connectionState != .connected || state.databaseType == .sqlite)
                     }
-                    .help("Open Database (⌘K)")
-                    .disabled(
-                        state.connectionState != .connected || state.databaseType == .sqlite)
                 }
 
                 ToolbarItem(placement: .navigation) {
@@ -126,10 +128,14 @@ struct TableProToolbar: ViewModifier {
                         actions?.previewSQL()
                     } label: {
                         Label(
-                            state.databaseType == .mongodb ? "Preview MQL" : "Preview SQL",
+                            state.databaseType == .mongodb ? "Preview MQL"
+                                : state.databaseType == .redis ? "Preview Commands"
+                                : "Preview SQL",
                             systemImage: "eye")
                     }
-                    .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)" : "Preview SQL (⌘⇧P)")
+                    .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)"
+                        : state.databaseType == .redis ? "Preview Commands (⌘⇧P)"
+                        : "Preview SQL (⌘⇧P)")
                     .disabled(!state.hasPendingChanges || state.connectionState != .connected)
                 }
 
@@ -160,7 +166,7 @@ struct TableProToolbar: ViewModifier {
                     .help("Export Data (⌘⇧E)")
                     .disabled(state.connectionState != .connected)
 
-                    if state.databaseType != .mongodb {
+                    if state.databaseType != .mongodb && state.databaseType != .redis {
                         Button {
                             actions?.importTables()
                         } label: {

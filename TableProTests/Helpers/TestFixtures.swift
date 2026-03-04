@@ -12,7 +12,7 @@ import Testing
 enum TestFixtures {
     // MARK: - Database Types
 
-    static let allDatabaseTypes: [DatabaseType] = [.mysql, .mariadb, .postgresql, .sqlite, .redshift, .mongodb]
+    static let allDatabaseTypes: [DatabaseType] = [.mysql, .mariadb, .postgresql, .sqlite, .redshift, .mongodb, .redis]
 
     // MARK: - Factory Methods
 

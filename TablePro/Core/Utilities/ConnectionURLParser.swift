@@ -19,6 +19,7 @@ struct ParsedConnectionURL {
     let sshUsername: String?
     let usePrivateKey: Bool?
     let connectionName: String?
+    let redisDatabase: Int?
 
     var suggestedName: String {
         if let connectionName, !connectionName.isEmpty {
@@ -88,6 +89,8 @@ struct ConnectionURLParser {
             dbType = .sqlite
         case "mongodb", "mongodb+srv":
             dbType = .mongodb
+        case "redis", "rediss":
+            dbType = .redis
         default:
             return .failure(.unsupportedScheme(scheme))
         }
@@ -107,7 +110,8 @@ struct ConnectionURLParser {
                 sshPort: nil,
                 sshUsername: nil,
                 usePrivateKey: nil,
-                connectionName: nil
+                connectionName: nil,
+                redisDatabase: nil
             ))
         }
 
@@ -150,6 +154,18 @@ struct ConnectionURLParser {
             }
         }
 
+        // Redis-specific: parse database index from path and handle TLS scheme
+        var redisDatabase: Int?
+        if dbType == .redis {
+            if !database.isEmpty {
+                redisDatabase = Int(database)
+                database = ""
+            }
+            if scheme == "rediss" {
+                sslMode = sslMode ?? .required
+            }
+        }
+
         return .success(ParsedConnectionURL(
             type: dbType,
             host: host,
@@ -163,7 +179,8 @@ struct ConnectionURLParser {
             sshPort: nil,
             sshUsername: nil,
             usePrivateKey: nil,
-            connectionName: nil
+            connectionName: nil,
+            redisDatabase: redisDatabase
         ))
     }
 
@@ -303,7 +320,8 @@ struct ConnectionURLParser {
             sshPort: sshPort,
             sshUsername: sshUsername,
             usePrivateKey: usePrivateKey,
-            connectionName: connectionName
+            connectionName: connectionName,
+            redisDatabase: nil
         ))
     }
 

@@ -209,6 +209,30 @@ enum ColumnType: Equatable {
         }
     }
 
+    // MARK: - Redis Type Mapping
+
+    /// Initialize from Redis TYPE command result string
+    init(fromRedisType type: String) {
+        switch type.lowercased() {
+        case "string":
+            self = .text(rawType: "String")
+        case "list":
+            self = .json(rawType: "List")
+        case "set":
+            self = .json(rawType: "Set")
+        case "zset":
+            self = .json(rawType: "Sorted Set")
+        case "hash":
+            self = .json(rawType: "Hash")
+        case "stream":
+            self = .json(rawType: "Stream")
+        case "none":
+            self = .text(rawType: "None")
+        default:
+            self = .text(rawType: type)
+        }
+    }
+
     // MARK: - Display Properties
 
     /// Human-readable name for this column type
@@ -301,11 +325,15 @@ enum ColumnType: Equatable {
         case .boolean: return "bool"
         case .json: return "json"
         case .date, .timestamp, .datetime: return "date"
-        case .enumType: return "enum"
+        case .enumType(let rawType, _):
+            return rawType == "RedisType" ? "option" : "enum"
         case .set: return "set"
-        case .integer, .decimal: return "number"
+        case .integer(let rawType):
+            return rawType == "RedisInt" ? "second" : "number"
+        case .decimal: return "number"
         case .blob: return "binary"
-        case .text: return "string"
+        case .text(let rawType):
+            return rawType == "RedisRaw" ? "raw" : "string"
         }
     }
 

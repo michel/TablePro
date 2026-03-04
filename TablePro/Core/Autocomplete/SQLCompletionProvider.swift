@@ -396,7 +396,26 @@ final class SQLCompletionProvider {
 
         case .unknown:
             // Start of query - suggest statement keywords and tables
-            if databaseType == .mongodb {
+            if databaseType == .redis {
+                // Redis: command completions
+                items = [
+                    "GET", "SET", "DEL", "EXISTS", "KEYS",
+                    "HGET", "HSET", "HGETALL", "HDEL",
+                    "LPUSH", "RPUSH", "LRANGE", "LLEN",
+                    "SADD", "SMEMBERS", "SREM", "SCARD",
+                    "ZADD", "ZRANGE", "ZREM", "ZSCORE",
+                    "EXPIRE", "TTL", "PERSIST", "TYPE",
+                    "SCAN", "HSCAN", "SSCAN", "ZSCAN",
+                    "INFO", "DBSIZE", "FLUSHDB", "SELECT",
+                    "INCR", "DECR", "APPEND", "MGET", "MSET",
+                ].map { cmd in
+                    SQLCompletionItem(
+                        label: cmd,
+                        kind: .keyword,
+                        insertText: cmd
+                    )
+                }
+            } else if databaseType == .mongodb {
                 // MongoDB: only MQL method completions, no SQL keywords
                 items = [
                     "db.", "db.runCommand", "db.adminCommand",
@@ -491,6 +510,20 @@ final class SQLCompletionProvider {
                 "Null", "Regex", "UUID",
             ]
             return mongoTypes.map { typeName in
+                var item = SQLCompletionItem(
+                    label: typeName,
+                    kind: .keyword,
+                    insertText: typeName
+                )
+                item.sortPriority = 380
+                return item
+            }
+
+        case .redis:
+            let redisTypes = [
+                "String", "List", "Set", "Sorted Set", "Hash", "Stream",
+            ]
+            return redisTypes.map { typeName in
                 var item = SQLCompletionItem(
                     label: typeName,
                     kind: .keyword,

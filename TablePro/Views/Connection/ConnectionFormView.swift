@@ -431,6 +431,20 @@ struct ConnectionFormView: View {
                 }
             }
 
+            if type == .redis {
+                Section("Redis") {
+                    Stepper(
+                        value: Binding(
+                            get: { Int(database) ?? 0 },
+                            set: { database = String($0) }
+                        ),
+                        in: 0...15
+                    ) {
+                        Text(String(localized: "Database Index: \(Int(database) ?? 0)"))
+                    }
+                }
+            }
+
             Section(String(localized: "AI")) {
                 Picker(String(localized: "AI Policy"), selection: $aiPolicy) {
                     Text(String(localized: "Use Default"))
@@ -520,6 +534,7 @@ struct ConnectionFormView: View {
         case .redshift: return "5439"
         case .sqlite: return ""
         case .mongodb: return "27017"
+        case .redis: return "6379"
         }
     }
 

@@ -17,7 +17,10 @@ extension MainContentCoordinator {
     func openTableTab(_ tableName: String, showStructure: Bool = false, isView: Bool = false) {
         // Get current database name from active session (may differ from connection default after Cmd+K switch)
         let currentDatabase: String
-        if let session = DatabaseManager.shared.session(for: connectionId) {
+        if connection.type == .redis {
+            // Extract db index from table name "db3" → "3"
+            currentDatabase = String(tableName.dropFirst(2))
+        } else if let session = DatabaseManager.shared.session(for: connectionId) {
             currentDatabase = session.activeDatabase
         } else {
             currentDatabase = connection.database
@@ -71,6 +74,23 @@ extension MainContentCoordinator {
                 toolbarState.isTableTab = true
             }
             runQuery()
+            return
+        }
+
+        // Redis databases navigate in-place (replace current tab) rather than
+        // opening new native window tabs, matching TablePlus behavior.
+        if connection.type == .redis {
+            if tabManager.replaceTabContent(
+                tableName: tableName,
+                databaseType: .redis,
+                databaseName: currentDatabase
+            ) {
+                if let tabIndex = tabManager.selectedTabIndex {
+                    tabManager.tabs[tabIndex].pagination.reset()
+                    toolbarState.isTableTab = true
+                }
+                runQuery()
+            }
             return
         }
 
@@ -185,6 +205,13 @@ extension MainContentCoordinator {
         case .mongodb:
             tabManager.addTab(
                 initialQuery: "db.runCommand({\"listCollections\": 1, \"nameOnly\": false})",
+                databaseName: connection.database
+            )
+            runQuery()
+            return
+        case .redis:
+            tabManager.addTab(
+                initialQuery: "SCAN 0 MATCH * COUNT 100",
                 databaseName: connection.database
             )
             runQuery()
@@ -310,6 +337,32 @@ extension MainContentCoordinator {
 
                 // Close sibling native window-tabs and clear in-app tabs —
                 // previous database's collections are no longer valid
+                closeSiblingNativeWindows()
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
+
+                await loadSchema()
+
+                NotificationCenter.default.post(name: .refreshData, object: nil)
+            } else if connection.type == .redis {
+                // Redis: SELECT <db index> to switch logical database
+                guard let dbIndex = Int(database) else { return }
+
+                if let redisDriver = driver as? RedisDriver {
+                    try await redisDriver.selectDatabase(dbIndex)
+                }
+
+                if let metaRedisDriver = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedisDriver {
+                    try? await metaRedisDriver.selectDatabase(dbIndex)
+                }
+
+                DatabaseManager.shared.updateSession(connectionId) { session in
+                    session.currentDatabase = database
+                    session.tables = []
+                }
+
+                toolbarState.databaseName = database
+
                 closeSiblingNativeWindows()
                 tabManager.tabs = []
                 tabManager.selectedTabId = nil

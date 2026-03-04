@@ -35,7 +35,7 @@ struct SQLEditorView: View {
             if editorReady {
             SourceEditor(
                 $text,
-                language: databaseType == .mongodb ? .javascript : .sql,
+                language: databaseType == .mongodb ? .javascript : databaseType == .redis ? .bash : .sql,
                 configuration: editorConfiguration,
                 state: $editorState,
                 coordinators: [coordinator],

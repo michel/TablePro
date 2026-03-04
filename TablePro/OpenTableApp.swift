@@ -19,6 +19,7 @@ final class AppState {
     var isConnected: Bool = false
     var isReadOnly: Bool = false  // True when current connection is read-only
     var isMongoDB: Bool = false
+    var isRedis: Bool = false
     var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
     var hasRowSelection: Bool = false  // True when rows are selected in data grid
     var hasTableSelection: Bool = false  // True when tables are selected in sidebar
@@ -169,13 +170,13 @@ struct AppMenuCommands: Commands {
                 actions?.openDatabaseSwitcher()
             }
             .optionalKeyboardShortcut(shortcut(for: .openDatabase))
-            .disabled(!appState.isConnected)
+            .disabled(!appState.isConnected || appState.isRedis)
 
             Button("Switch Connection...") {
                 NotificationCenter.default.post(name: .openConnectionSwitcher, object: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .switchConnection))
-            .disabled(!appState.isConnected)
+            .disabled(!appState.isConnected || appState.isRedis)
 
             Divider()
 
@@ -185,7 +186,7 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .saveChanges))
             .disabled(!appState.isConnected || appState.isReadOnly)
 
-            Button(appState.isMongoDB ? "Preview MQL" : "Preview SQL") {
+            Button(appState.isMongoDB ? "Preview MQL" : appState.isRedis ? "Preview Commands" : "Preview SQL") {
                 actions?.previewSQL()
             }
             .optionalKeyboardShortcut(shortcut(for: .previewSQL))
@@ -222,7 +223,7 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .export))
             .disabled(!appState.isConnected)
 
-            if !appState.isMongoDB {
+            if !appState.isMongoDB && !appState.isRedis {
                 Button("Import...") {
                     actions?.importTables()
                 }

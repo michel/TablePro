@@ -186,7 +186,7 @@ final class ExportService {
         var failedCount = 0
         for table in tables {
             do {
-                if databaseType == .mongodb {
+                if databaseType == .mongodb || databaseType == .redis {
                     if let count = try await driver.fetchApproximateRowCount(table: table.name) {
                         total += count
                     }
@@ -270,6 +270,8 @@ final class ExportService {
                 return "db\(escaped).find({})"
             }
             return "db.\(escaped).find({})"
+        case .redis:
+            return "SCAN 0 MATCH * COUNT 10000"
         default:
             return "SELECT * FROM \(qualifiedTableRef(for: table))"
         }

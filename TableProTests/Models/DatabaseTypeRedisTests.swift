@@ -1,0 +1,55 @@
+import Testing
+@testable import TablePro
+
+@Suite("DatabaseType Redis Properties")
+struct DatabaseTypeRedisTests {
+    @Test("Default port is 6379")
+    func defaultPort() {
+        #expect(DatabaseType.redis.defaultPort == 6_379)
+    }
+
+    @Test("Icon name is redis-icon")
+    func iconName() {
+        #expect(DatabaseType.redis.iconName == "redis-icon")
+    }
+
+    @Test("Does not require authentication")
+    func requiresAuthentication() {
+        #expect(DatabaseType.redis.requiresAuthentication == false)
+    }
+
+    @Test("Does not support foreign keys")
+    func supportsForeignKeys() {
+        #expect(DatabaseType.redis.supportsForeignKeys == false)
+    }
+
+    @Test("Does not support schema editing")
+    func supportsSchemaEditing() {
+        #expect(DatabaseType.redis.supportsSchemaEditing == false)
+    }
+
+    @Test("Identifier quote is double quote")
+    func identifierQuote() {
+        #expect(DatabaseType.redis.identifierQuote == "\"")
+    }
+
+    @Test("quoteIdentifier returns name unchanged")
+    func quoteIdentifier() {
+        #expect(DatabaseType.redis.quoteIdentifier("mykey") == "mykey")
+    }
+
+    @Test("Raw value is Redis")
+    func rawValue() {
+        #expect(DatabaseType.redis.rawValue == "Redis")
+    }
+
+    @Test("Theme color matches Theme.redisColor")
+    func themeColor() {
+        #expect(DatabaseType.redis.themeColor == Theme.redisColor)
+    }
+
+    @Test("Included in allCases")
+    func includedInAllCases() {
+        #expect(DatabaseType.allCases.contains(.redis))
+    }
+}

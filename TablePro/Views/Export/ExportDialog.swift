@@ -65,6 +65,9 @@ struct ExportDialog: View {
             if connection.type == .mongodb && config.format == .sql {
                 config.format = .mql
             }
+            if connection.type == .redis && config.format == .sql {
+                config.format = .json
+            }
         }
         .onExitCommand {
             if !isExporting {
@@ -474,6 +477,25 @@ struct ExportDialog: View {
                 if !tableItems.isEmpty {
                     items.append(ExportDatabaseItem(
                         name: connection.database.isEmpty ? "main" : connection.database,
+                        tables: tableItems,
+                        isExpanded: true
+                    ))
+                }
+
+            case .redis:
+                // Redis: fetch keys as table items
+                let tables = try await driver.fetchTables()
+                let tableItems = tables.map { table in
+                    ExportTableItem(
+                        name: table.name,
+                        databaseName: "",
+                        type: table.type,
+                        isSelected: preselectedTables.contains(table.name)
+                    )
+                }
+                if !tableItems.isEmpty {
+                    items.append(ExportDatabaseItem(
+                        name: connection.database.isEmpty ? "db0" : connection.database,
                         tables: tableItems,
                         isExpanded: true
                     ))
