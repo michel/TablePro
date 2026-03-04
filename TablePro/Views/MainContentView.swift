@@ -95,25 +95,10 @@ struct MainContentView: View {
         }
         toolbarSt.hasCompletedSetup = true
 
-        // Redis: set initial database name and create default tab eagerly to avoid
-        // toolbar flash and race condition with schema loading
+        // Redis: set initial database name eagerly to avoid toolbar flash
         if connection.type == .redis {
             let dbIndex = connection.redisDatabase ?? Int(connection.database) ?? 0
             toolbarSt.databaseName = String(dbIndex)
-
-            // Create db tab synchronously for connection-only / no-payload case
-            // so it exists before loadSchemaIfNeeded() triggers sidebar sync
-            if payload == nil || payload?.isConnectionOnly == true {
-                let dbName = "db\(dbIndex)"
-                tabMgr.addTableTab(
-                    tableName: dbName,
-                    databaseType: .redis,
-                    databaseName: String(dbIndex)
-                )
-                if let tabIndex = tabMgr.selectedTabIndex {
-                    tabMgr.tabs[tabIndex].pagination.reset()
-                }
-            }
         }
 
         // Initialize single tab based on payload
@@ -475,9 +460,7 @@ struct MainContentView: View {
         // If other windows already exist for this connection, this is a "new tab"
         // from the native macOS "+" button — just add a single empty query tab.
         if NativeTabRegistry.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
-            if tabManager.tabs.isEmpty {
-                tabManager.addTab(databaseName: connection.database)
-            }
+            tabManager.addTab(databaseName: connection.database)
             return
         }
 
@@ -542,16 +525,6 @@ struct MainContentView: View {
                     // Reactive path: fires via .onReceive($activeSessions) when connection is ready
                     coordinator.needsLazyLoad = true
                 }
-            }
-        } else if connection.type == .redis {
-            // Redis db tab was already created synchronously in init — just run the query
-            toolbarState.isTableTab = true
-            if let session = DatabaseManager.shared.activeSessions[connection.id],
-               session.isConnected
-            {
-                coordinator.executeTableTabQueryDirectly()
-            } else {
-                coordinator.needsLazyLoad = true
             }
         }
     }
