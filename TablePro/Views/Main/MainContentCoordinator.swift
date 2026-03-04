@@ -378,7 +378,7 @@ final class MainContentCoordinator {
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)
         case .redis:
-            explainSQL = stmt
+            explainSQL = Self.buildRedisDebugCommand(for: stmt)
         }
 
         Task { @MainActor in
@@ -1335,7 +1335,12 @@ private extension MainContentCoordinator {
         updatedTab.tableName = tableName
         updatedTab.isEditable = isEditable && updatedTab.isEditable
         if conn.type == .redis {
-            updatedTab.columnEnumValues["Type"] = ["STRING", "SET", "ZSET", "LIST", "HASH", "STREAM"]
+            // Populate enum values from column types for the enum popover
+            for (index, colType) in (updatedTab.columnTypes ?? []).enumerated() {
+                if case .enumType(_, let values) = colType, let vals = values, index < updatedTab.resultColumns.count {
+                    updatedTab.columnEnumValues[updatedTab.resultColumns[index]] = vals
+                }
+            }
         }
 
         // Merge FK metadata into the same update if available

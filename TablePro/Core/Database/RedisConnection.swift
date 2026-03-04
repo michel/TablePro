@@ -182,8 +182,9 @@ final class RedisConnection: @unchecked Sendable {
                         ptr.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
                     }
                     logger.error("Redis connection error: \(errMsg)")
+                    let errCode = Int(ctx.pointee.err)
                     redisFree(ctx)
-                    continuation.resume(throwing: RedisError(code: Int(ctx.pointee.err), message: errMsg))
+                    continuation.resume(throwing: RedisError(code: errCode, message: errMsg))
                     return
                 }
 
@@ -290,8 +291,9 @@ final class RedisConnection: @unchecked Sendable {
         stateLock.unlock()
 
         #if canImport(CRedis)
+        let cleanupQueue = queue
         if handle != nil || ssl != nil {
-            queue.async {
+            cleanupQueue.async {
                 if let handle = handle {
                     redisFree(handle)
                 }
@@ -760,6 +762,7 @@ private extension RedisConnection {
 
     /// Execute redisCommandArgv with properly managed C string pointers.
     /// The closure receives the argv array and length array suitable for hiredis.
+    /// Uses iterative allocation instead of recursive withCString to avoid stack overflow on large arg counts.
     func withArgvPointers<T>(
         args: [String],
         lengths: [Int],
@@ -767,7 +770,10 @@ private extension RedisConnection {
     ) rethrows -> T {
         let count = args.count
 
-        // Allocate arrays for argv and argvlen
+        // Convert all strings to C strings upfront
+        let cStrings = args.map { strdup($0) }
+        defer { cStrings.forEach { free($0) } }
+
         let argv = UnsafeMutablePointer<UnsafePointer<CChar>?>.allocate(capacity: count)
         let argvlen = UnsafeMutablePointer<Int>.allocate(capacity: count)
         defer {
@@ -775,20 +781,12 @@ private extension RedisConnection {
             argvlen.deallocate()
         }
 
-        // Build each C string using withCString nested calls.
-        // We use a recursive helper to keep all withCString scopes alive.
-        func buildArgv(index: Int) throws -> T {
-            if index == count {
-                return try body(argv, argvlen)
-            }
-            return try args[index].withCString { cStr in
-                argv[index] = cStr
-                argvlen[index] = lengths[index]
-                return try buildArgv(index: index + 1)
-            }
+        for i in 0 ..< count {
+            argv[i] = UnsafePointer(cStrings[i])
+            argvlen[i] = lengths[i]
         }
 
-        return try buildArgv(index: 0)
+        return try body(argv, argvlen)
     }
 
     func parseReply(_ reply: UnsafeMutablePointer<redisReply>) -> RedisReply {
@@ -844,6 +842,65 @@ private extension RedisConnection {
                 return .error(String(data: data, encoding: .utf8) ?? "Unknown error")
             }
             return .error("Unknown error")
+
+        // RESP3 types
+        case REDIS_REPLY_DOUBLE:
+            // dval has the numeric value; str has the string representation
+            if let str = reply.pointee.str {
+                let len = reply.pointee.len
+                let data = Data(bytes: str, count: len)
+                if let string = String(data: data, encoding: .utf8) {
+                    return .string(string)
+                }
+            }
+            return .string(String(reply.pointee.dval))
+
+        case REDIS_REPLY_BOOL:
+            return .integer(reply.pointee.integer)
+
+        case REDIS_REPLY_MAP:
+            // MAP contains key-value pairs as sequential elements, flatten to array
+            let count = reply.pointee.elements
+            guard count > 0, let elements = reply.pointee.element else {
+                return .array([])
+            }
+            var items: [RedisReply] = []
+            items.reserveCapacity(count)
+            for i in 0 ..< count {
+                if let element = elements[i] {
+                    items.append(parseReply(element))
+                } else {
+                    items.append(.null)
+                }
+            }
+            return .array(items)
+
+        case REDIS_REPLY_SET, REDIS_REPLY_PUSH:
+            let count = reply.pointee.elements
+            guard count > 0, let elements = reply.pointee.element else {
+                return .array([])
+            }
+            var items: [RedisReply] = []
+            items.reserveCapacity(count)
+            for i in 0 ..< count {
+                if let element = elements[i] {
+                    items.append(parseReply(element))
+                } else {
+                    items.append(.null)
+                }
+            }
+            return .array(items)
+
+        case REDIS_REPLY_BIGNUM, REDIS_REPLY_VERB:
+            if let str = reply.pointee.str {
+                let len = reply.pointee.len
+                let data = Data(bytes: str, count: len)
+                if let string = String(data: data, encoding: .utf8) {
+                    return .string(string)
+                }
+                return .data(data)
+            }
+            return .null
 
         default:
             logger.warning("Unknown Redis reply type: \(type)")

@@ -51,42 +51,71 @@ extension RedisDriver {
         )
     }
 
+    /// Maximum number of elements to fetch for collection value previews
+    private static let previewLimit = 100
+
+    /// Maximum character length for preview strings before truncation
+    private static let previewMaxChars = 1000
+
     /// Fetch the value for a key based on its type, serialized as a raw string.
     /// Matches TablePlus behavior: hashes as JSON objects, lists/sets as JSON arrays.
+    /// Collection types are bounded to `previewLimit` elements and truncated to
+    /// `previewMaxChars` characters to avoid loading unbounded data.
     func fetchValuePreview(key: String, type: String, connection conn: RedisConnection) async throws -> String? {
         switch type.lowercased() {
         case "string":
             let result = try await conn.executeCommand(["GET", key])
-            return result.stringValue
+            return truncatePreview(result.stringValue)
 
         case "hash":
-            let result = try await conn.executeCommand(["HGETALL", key])
-            guard let array = result.stringArrayValue, !array.isEmpty else { return "{}" }
+            let result = try await conn.executeCommand(["HSCAN", key, "0", "COUNT", String(Self.previewLimit)])
+            // HSCAN returns [cursor, [field1, val1, field2, val2, ...]]
+            let array: [String]
+            if case .array(let scanResult) = result,
+               scanResult.count == 2,
+               let items = scanResult[1].stringArrayValue {
+                array = items
+            } else if let items = result.stringArrayValue, !items.isEmpty {
+                array = items
+            } else {
+                return "{}"
+            }
+            guard !array.isEmpty else { return "{}" }
             var pairs: [String] = []
             var i = 0
             while i + 1 < array.count {
                 pairs.append("\"\(escapeJsonString(array[i]))\":\"\(escapeJsonString(array[i + 1]))\"")
                 i += 2
             }
-            return "{\(pairs.joined(separator: ","))}"
+            return truncatePreview("{\(pairs.joined(separator: ","))}")
 
         case "list":
-            let result = try await conn.executeCommand(["LRANGE", key, "0", "-1"])
+            let result = try await conn.executeCommand(["LRANGE", key, "0", String(Self.previewLimit - 1)])
             guard let items = result.stringArrayValue else { return "[]" }
             let quoted = items.map { "\"\(escapeJsonString($0))\"" }
-            return "[\(quoted.joined(separator: ", "))]"
+            return truncatePreview("[\(quoted.joined(separator: ", "))]")
 
         case "set":
-            let result = try await conn.executeCommand(["SMEMBERS", key])
-            guard let members = result.stringArrayValue else { return "[]" }
+            let result = try await conn.executeCommand(["SSCAN", key, "0", "COUNT", String(Self.previewLimit)])
+            // SSCAN returns [cursor, [member1, member2, ...]]
+            let members: [String]
+            if case .array(let scanResult) = result,
+               scanResult.count == 2,
+               let items = scanResult[1].stringArrayValue {
+                members = items
+            } else if let items = result.stringArrayValue {
+                members = items
+            } else {
+                return "[]"
+            }
             let quoted = members.map { "\"\(escapeJsonString($0))\"" }
-            return "[\(quoted.joined(separator: ", "))]"
+            return truncatePreview("[\(quoted.joined(separator: ", "))]")
 
         case "zset":
-            let result = try await conn.executeCommand(["ZRANGE", key, "0", "-1"])
+            let result = try await conn.executeCommand(["ZRANGE", key, "0", String(Self.previewLimit - 1)])
             guard let members = result.stringArrayValue else { return "[]" }
             let quoted = members.map { "\"\(escapeJsonString($0))\"" }
-            return "[\(quoted.joined(separator: ", "))]"
+            return truncatePreview("[\(quoted.joined(separator: ", "))]")
 
         case "stream":
             let lenResult = try await conn.executeCommand(["XLEN", key])
@@ -96,6 +125,15 @@ extension RedisDriver {
         default:
             return nil
         }
+    }
+
+    /// Truncate a preview string to the maximum character limit, appending "..." if truncated
+    private func truncatePreview(_ value: String?) -> String? {
+        guard let value else { return nil }
+        if value.count > Self.previewMaxChars {
+            return String(value.prefix(Self.previewMaxChars)) + "..."
+        }
+        return value
     }
 
     /// Escape special characters for JSON string values

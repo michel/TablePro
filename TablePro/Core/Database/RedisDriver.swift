@@ -411,22 +411,43 @@ final class RedisDriver: DatabaseDriver {
             throw DatabaseError.notConnected
         }
 
-        do {
-            // Switch to the target database temporarily to get its info
-            _ = try await conn.executeCommand(["SELECT", database])
-            let result = try await conn.executeCommand(["DBSIZE"])
-            let keyCount = result .intValue
+        // Parse key count from INFO keyspace without switching databases.
+        // This avoids race conditions with concurrent queries on the shared connection.
+        let dbName = database.hasPrefix("db") ? database : "db\(database)"
 
-            // Switch back to the current database
-            if !connection.database.isEmpty {
-                _ = try await conn.executeCommand(["SELECT", connection.database])
-            } else {
-                _ = try await conn.executeCommand(["SELECT", "0"])
+        do {
+            let infoResult = try await conn.executeCommand(["INFO", "keyspace"])
+            guard let infoStr = infoResult.stringValue else {
+                return DatabaseMetadata(
+                    id: database,
+                    name: dbName,
+                    tableCount: 0,
+                    sizeBytes: nil,
+                    lastAccessed: nil,
+                    isSystemDatabase: false,
+                    icon: "cylinder.fill"
+                )
+            }
+
+            var keyCount = 0
+            for line in infoStr.components(separatedBy: .newlines) {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.hasPrefix("\(dbName):") {
+                    let statsStr = String(trimmed[trimmed.index(trimmed.startIndex, offsetBy: dbName.count + 1)...])
+                    for stat in statsStr.components(separatedBy: ",") {
+                        let parts = stat.components(separatedBy: "=")
+                        if parts.count == 2, parts[0] == "keys", let count = Int(parts[1]) {
+                            keyCount = count
+                            break
+                        }
+                    }
+                    break
+                }
             }
 
             return DatabaseMetadata(
                 id: database,
-                name: "db\(database)",
+                name: dbName,
                 tableCount: keyCount,
                 sizeBytes: nil,
                 lastAccessed: nil,
@@ -435,7 +456,7 @@ final class RedisDriver: DatabaseDriver {
             )
         } catch {
             Self.logger.debug("Failed to get metadata for database \(database): \(error.localizedDescription)")
-            return DatabaseMetadata.minimal(name: "db\(database)")
+            return DatabaseMetadata.minimal(name: dbName)
         }
     }
 

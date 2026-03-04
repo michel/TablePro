@@ -21,7 +21,7 @@ struct RedisQueryBuilder {
         offset: Int = 0
     ) -> String {
         let pattern = namespace.isEmpty ? "*" : "\(namespace)*"
-        return "SCAN 0 MATCH \(pattern) COUNT \(limit)"
+        return "SCAN 0 MATCH \"\(pattern)\" COUNT \(limit)"
     }
 
     /// Build a SCAN command with filters applied.
@@ -36,7 +36,7 @@ struct RedisQueryBuilder {
         // Check if any filter targets the Key column with a pattern-compatible operator
         let keyPattern = extractKeyPattern(from: filters, namespace: namespace)
         if let pattern = keyPattern {
-            return "SCAN 0 MATCH \(pattern) COUNT \(limit)"
+            return "SCAN 0 MATCH \"\(pattern)\" COUNT \(limit)"
         }
 
         return buildBaseQuery(namespace: namespace, limit: limit)
@@ -55,7 +55,7 @@ struct RedisQueryBuilder {
         } else {
             pattern = "\(namespace)*\(escapedSearch)*"
         }
-        return "SCAN 0 MATCH \(pattern) COUNT \(limit)"
+        return "SCAN 0 MATCH \"\(pattern)\" COUNT \(limit)"
     }
 
     /// Build a count command for a namespace
@@ -64,7 +64,7 @@ struct RedisQueryBuilder {
             return "DBSIZE"
         }
         // For a specific namespace, we use SCAN to count matching keys
-        return "SCAN 0 MATCH \(namespace)* COUNT 10000"
+        return "SCAN 0 MATCH \"\(namespace)*\" COUNT 10000"
     }
 
     // MARK: - Private Helpers

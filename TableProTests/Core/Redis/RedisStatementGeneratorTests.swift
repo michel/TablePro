@@ -624,7 +624,7 @@ struct RedisStatementGeneratorEscapeEdgeCaseTests {
         )
 
         #expect(stmts.count == 1)
-        #expect(stmts[0].sql == "SET mykey \"a\nb\"")
+        #expect(stmts[0].sql == "SET mykey \"a\\nb\"")
     }
 
     @Test("Value with both space and double-quote escapes properly")

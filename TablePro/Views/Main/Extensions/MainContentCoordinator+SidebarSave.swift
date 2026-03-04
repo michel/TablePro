@@ -81,10 +81,16 @@ extension MainContentCoordinator {
                 }
             case "Value":
                 if let newValue = field.newValue {
-                    commands.append("SET \(redisEscape(effectiveKey)) \(redisEscape(newValue))")
+                    // Only use SET for string-type keys — other types need specific commands
+                    let typeIndex = columns.firstIndex(of: "Type")
+                    let keyType = typeIndex.flatMap { $0 < originalRow.count ? originalRow[$0]?.uppercased() : nil }
+                    if keyType == nil || keyType == "STRING" || keyType == "NONE" {
+                        commands.append("SET \(redisEscape(effectiveKey)) \(redisEscape(newValue))")
+                    }
+                    // Non-string types: skip (editing Value for complex types not supported via sidebar)
                 }
             case "TTL":
-                if let ttlStr = field.newValue, let ttl = Int(ttlStr), ttl > 0 {
+                if let ttlStr = field.newValue, let ttl = Int(ttlStr), ttl >= 0 {
                     commands.append("EXPIRE \(redisEscape(effectiveKey)) \(ttl)")
                 } else if field.newValue == nil || field.newValue == "-1" {
                     commands.append("PERSIST \(redisEscape(effectiveKey))")
@@ -103,6 +109,8 @@ extension MainContentCoordinator {
             let escaped = value
                 .replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "\"", with: "\\\"")
+                .replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\r", with: "\\r")
             return "\"\(escaped)\""
         }
         return value

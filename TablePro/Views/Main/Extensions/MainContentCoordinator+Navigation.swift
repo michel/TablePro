@@ -19,6 +19,9 @@ extension MainContentCoordinator {
         let currentDatabase: String
         if connection.type == .redis {
             // Extract db index from table name "db3" → "3"
+            guard tableName.hasPrefix("db"), let _ = Int(String(tableName.dropFirst(2))) else {
+                return
+            }
             currentDatabase = String(tableName.dropFirst(2))
         } else if let session = DatabaseManager.shared.session(for: connectionId) {
             currentDatabase = session.activeDatabase

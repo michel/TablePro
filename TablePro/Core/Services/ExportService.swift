@@ -271,7 +271,7 @@ final class ExportService {
             }
             return "db.\(escaped).find({})"
         case .redis:
-            return "SCAN 0 MATCH * COUNT 10000"
+            return "SCAN 0 MATCH \"*\" COUNT 10000"
         default:
             return "SELECT * FROM \(qualifiedTableRef(for: table))"
         }
