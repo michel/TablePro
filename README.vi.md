@@ -42,4 +42,4 @@ Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
 ## Giấy phép
 
-Dự án này được cấp phép theo [GNU General Public License v3.0](LICENSE).
+Dự án này được cấp phép theo [TablePro Source Available License](LICENSE).

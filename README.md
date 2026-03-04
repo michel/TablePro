@@ -46,4 +46,4 @@ Thanks to these amazing people for supporting TablePro:
 
 ## License
 
-This project is licensed under the [GNU General Public License v3.0](LICENSE).
+This project is licensed under the [TablePro Source Available License](LICENSE).
