@@ -492,6 +492,10 @@ extension Notification.Name {
     static let openMainWindow = Notification.Name("openMainWindow")
     static let openWelcomeWindow = Notification.Name("openWelcomeWindow")
 
+    // Database URL handling notifications
+    static let switchSchemaFromURL = Notification.Name("switchSchemaFromURL")
+    static let applyURLFilter = Notification.Name("applyURLFilter")
+
     // License notifications
     static let licenseStatusDidChange = Notification.Name("licenseStatusDidChange")
 }

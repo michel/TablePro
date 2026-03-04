@@ -35,6 +35,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// cleanup pass.  While > 0 the welcome window is suppressed.
     private var fileOpenSuppressionCount = 0
 
+    private static let databaseURLSchemes: Set<String> = [
+        "postgresql", "postgres", "mysql", "mariadb", "sqlite",
+        "mongodb", "redis", "rediss", "redshift"
+    ]
+
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
 
@@ -133,6 +138,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 for url in deeplinkURLs {
                     self.handleDeeplink(url)
+                }
+            }
+        }
+
+        // Handle database connection URLs (e.g. postgresql://user@host/db)
+        let databaseURLs = urls.filter { url in
+            guard let scheme = url.scheme?.lowercased() else { return false }
+            let baseScheme = scheme.replacingOccurrences(of: "+ssh", with: "")
+            return Self.databaseURLSchemes.contains(baseScheme)
+        }
+        if !databaseURLs.isEmpty {
+            Task { @MainActor in
+                for url in databaseURLs {
+                    self.handleDatabaseURL(url)
                 }
             }
         }
@@ -263,6 +282,154 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let openWindow = WindowOpener.shared.openWindow {
             openWindow(id: "connection-form", value: connection.id)
+        }
+    }
+
+    @MainActor
+    private func handleDatabaseURL(_ url: URL) {
+        let result = ConnectionURLParser.parse(url.absoluteString)
+        guard case .success(let parsed) = result else {
+            Self.logger.error("Failed to parse database URL: \(url.absoluteString, privacy: .public)")
+            return
+        }
+
+        // Try to find a matching saved connection
+        let connections = ConnectionStorage.shared.loadConnections()
+        let matchedConnection = connections.first { conn in
+            conn.type == parsed.type
+                && conn.host == parsed.host
+                && (parsed.port == nil || conn.port == parsed.port)
+                && conn.database == parsed.database
+                && (parsed.username.isEmpty || conn.username == parsed.username)
+        }
+
+        let connection: DatabaseConnection
+        if let matched = matchedConnection {
+            connection = matched
+        } else {
+            // Create a transient connection (not saved to storage)
+            var sshConfig = SSHConfiguration()
+            if let sshHost = parsed.sshHost {
+                sshConfig.enabled = true
+                sshConfig.host = sshHost
+                sshConfig.port = parsed.sshPort ?? 22
+                sshConfig.username = parsed.sshUsername ?? ""
+                if parsed.usePrivateKey == true {
+                    sshConfig.authMethod = .privateKey
+                }
+            }
+
+            var sslConfig = SSLConfiguration()
+            if let sslMode = parsed.sslMode {
+                sslConfig.mode = sslMode
+            }
+
+            var color: ConnectionColor = .none
+            if let hex = parsed.statusColor {
+                color = ConnectionURLParser.connectionColor(fromHex: hex)
+            }
+
+            var tagId: UUID?
+            if let envName = parsed.envTag {
+                tagId = ConnectionURLParser.tagId(fromEnvName: envName)
+            }
+
+            connection = DatabaseConnection(
+                name: parsed.connectionName ?? parsed.suggestedName,
+                host: parsed.host,
+                port: parsed.port ?? parsed.type.defaultPort,
+                database: parsed.database,
+                username: parsed.username,
+                type: parsed.type,
+                sshConfig: sshConfig,
+                sslConfig: sslConfig,
+                color: color,
+                tagId: tagId,
+                redisDatabase: parsed.redisDatabase
+            )
+        }
+
+        // Store password in Keychain if provided
+        if !parsed.password.isEmpty {
+            ConnectionStorage.shared.savePassword(parsed.password, for: connection.id)
+        }
+
+        // If already connected to this connection, just handle post-connect actions
+        if DatabaseManager.shared.activeSessions[connection.id]?.driver != nil {
+            handlePostConnectionActions(parsed, connectionId: connection.id)
+            for window in NSApp.windows where isMainWindow(window) {
+                window.makeKeyAndOrderFront(nil)
+            }
+            return
+        }
+
+        // Connect using the same pattern as connectViaDeeplink
+        NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
+
+        Task { @MainActor in
+            do {
+                try await DatabaseManager.shared.connectToSession(connection)
+                for window in NSApp.windows where self.isWelcomeWindow(window) {
+                    window.close()
+                }
+                self.handlePostConnectionActions(parsed, connectionId: connection.id)
+            } catch {
+                Self.logger.error("Database URL connect failed: \(error.localizedDescription)")
+                for window in NSApp.windows where self.isMainWindow(window) {
+                    window.close()
+                }
+                self.openWelcomeWindow()
+                AlertHelper.showErrorSheet(
+                    title: String(localized: "Connection Failed"),
+                    message: error.localizedDescription,
+                    window: NSApp.keyWindow
+                )
+            }
+        }
+    }
+
+    @MainActor
+    private func handlePostConnectionActions(_ parsed: ParsedConnectionURL, connectionId: UUID) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+
+            // Switch schema if specified (PostgreSQL/Redshift only)
+            if let schema = parsed.schema,
+               parsed.type == .postgresql || parsed.type == .redshift {
+                NotificationCenter.default.post(
+                    name: .switchSchemaFromURL,
+                    object: nil,
+                    userInfo: ["connectionId": connectionId, "schema": schema]
+                )
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+
+            // Open table/view if specified
+            if let tableName = parsed.tableName {
+                let payload = EditorTabPayload(
+                    connectionId: connectionId,
+                    tabType: .table,
+                    tableName: tableName,
+                    isView: parsed.isView
+                )
+                WindowOpener.shared.openNativeTab(payload)
+
+                // Apply filter after table loads
+                if parsed.filterColumn != nil || parsed.filterCondition != nil {
+                    try? await Task.sleep(for: .milliseconds(800))
+                    NotificationCenter.default.post(
+                        name: .applyURLFilter,
+                        object: nil,
+                        userInfo: [
+                            "connectionId": connectionId,
+                            "column": parsed.filterColumn as Any,
+                            "operation": parsed.filterOperation as Any,
+                            "value": parsed.filterValue as Any,
+                            "condition": parsed.filterCondition as Any
+                        ]
+                    )
+                }
+            }
         }
     }
 

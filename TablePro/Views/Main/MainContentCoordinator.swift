@@ -136,6 +136,7 @@ final class MainContentCoordinator {
         }
 
         Self.retainSchemaProvider(for: connection.id)
+        setupURLNotificationObservers()
     }
 
     /// Explicit cleanup called from `onDisappear`. Releases schema provider

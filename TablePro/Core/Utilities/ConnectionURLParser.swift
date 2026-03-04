@@ -20,6 +20,15 @@ struct ParsedConnectionURL {
     let usePrivateKey: Bool?
     let connectionName: String?
     let redisDatabase: Int?
+    let statusColor: String?
+    let envTag: String?
+    let schema: String?
+    let tableName: String?
+    let isView: Bool
+    let filterColumn: String?
+    let filterOperation: String?
+    let filterValue: String?
+    let filterCondition: String?
 
     var suggestedName: String {
         if let connectionName, !connectionName.isEmpty {
@@ -111,7 +120,16 @@ struct ConnectionURLParser {
                 sshUsername: nil,
                 usePrivateKey: nil,
                 connectionName: nil,
-                redisDatabase: nil
+                redisDatabase: nil,
+                statusColor: nil,
+                envTag: nil,
+                schema: nil,
+                tableName: nil,
+                isView: false,
+                filterColumn: nil,
+                filterOperation: nil,
+                filterValue: nil,
+                filterCondition: nil
             ))
         }
 
@@ -128,7 +146,8 @@ struct ConnectionURLParser {
             return .failure(.missingHost)
         }
 
-        let port = components.port
+        let rawPort = components.port
+        let port = (rawPort == dbType.defaultPort) ? nil : rawPort
         let username = components.percentEncodedUser.flatMap {
             $0.removingPercentEncoding
         } ?? ""
@@ -141,19 +160,9 @@ struct ConnectionURLParser {
             database = String(database.dropFirst())
         }
 
-        var sslMode: SSLMode?
-        var authSource: String?
-        if let queryItems = components.queryItems {
-            for item in queryItems {
-                if item.name == "sslmode", let value = item.value {
-                    sslMode = parseSSLMode(value)
-                }
-                if item.name == "authSource" || item.name == "authsource" {
-                    authSource = item.value
-                }
-            }
-        }
+        let ext = parseQueryItems(components.queryItems)
 
+        var sslMode = ext.sslMode
         // Redis-specific: parse database index from path and handle TLS scheme
         var redisDatabase: Int?
         if dbType == .redis {
@@ -174,13 +183,22 @@ struct ConnectionURLParser {
             username: username,
             password: password,
             sslMode: sslMode,
-            authSource: authSource,
+            authSource: ext.authSource,
             sshHost: nil,
             sshPort: nil,
             sshUsername: nil,
             usePrivateKey: nil,
-            connectionName: nil,
-            redisDatabase: redisDatabase
+            connectionName: ext.connectionName,
+            redisDatabase: redisDatabase,
+            statusColor: ext.statusColor,
+            envTag: ext.envTag,
+            schema: ext.schema,
+            tableName: ext.tableName,
+            isView: ext.isView,
+            filterColumn: ext.filterColumn,
+            filterOperation: ext.filterOperation,
+            filterValue: ext.filterValue,
+            filterCondition: ext.filterCondition
         ))
     }
 
@@ -267,7 +285,7 @@ struct ConnectionURLParser {
         var port: Int?
         if let (h, p) = parseHostPort(dbHostPort) {
             host = h
-            port = p
+            port = (p == dbType.defaultPort) ? nil : p
         } else {
             host = dbHostPort
         }
@@ -276,36 +294,7 @@ struct ConnectionURLParser {
             host = "127.0.0.1"
         }
 
-        var connectionName: String?
-        var usePrivateKey: Bool?
-        var sslMode: SSLMode?
-        var authSource: String?
-
-        if let queryString {
-            let params = queryString.split(separator: "&", omittingEmptySubsequences: true)
-            for param in params {
-                let parts = param.split(separator: "=", maxSplits: 1)
-                guard let key = parts.first else { continue }
-                let value = parts.count > 1 ? String(parts[1]) : nil
-
-                switch String(key) {
-                case "name":
-                    connectionName = value?
-                        .replacingOccurrences(of: "+", with: " ")
-                        .removingPercentEncoding ?? value
-                case "usePrivateKey":
-                    usePrivateKey = value?.lowercased() == "true"
-                case "sslmode":
-                    if let value {
-                        sslMode = parseSSLMode(value)
-                    }
-                case "authSource", "authsource":
-                    authSource = value
-                default:
-                    break
-                }
-            }
-        }
+        let ext = parseSSHQueryString(queryString)
 
         return .success(ParsedConnectionURL(
             type: dbType,
@@ -314,16 +303,114 @@ struct ConnectionURLParser {
             database: database,
             username: dbUsername,
             password: dbPassword,
-            sslMode: sslMode,
-            authSource: authSource,
+            sslMode: ext.sslMode,
+            authSource: ext.authSource,
             sshHost: sshHost,
             sshPort: sshPort,
             sshUsername: sshUsername,
-            usePrivateKey: usePrivateKey,
-            connectionName: connectionName,
-            redisDatabase: nil
+            usePrivateKey: ext.usePrivateKey,
+            connectionName: ext.connectionName,
+            redisDatabase: nil,
+            statusColor: ext.statusColor,
+            envTag: ext.envTag,
+            schema: ext.schema,
+            tableName: ext.tableName,
+            isView: ext.isView,
+            filterColumn: ext.filterColumn,
+            filterOperation: ext.filterOperation,
+            filterValue: ext.filterValue,
+            filterCondition: ext.filterCondition
         ))
     }
+
+    // MARK: - Query Parameter Helpers
+
+    private struct ExtendedParams {
+        var sslMode: SSLMode?
+        var authSource: String?
+        var connectionName: String?
+        var usePrivateKey: Bool?
+        var statusColor: String?
+        var envTag: String?
+        var schema: String?
+        var tableName: String?
+        var isView = false
+        var filterColumn: String?
+        var filterOperation: String?
+        var filterValue: String?
+        var filterCondition: String?
+    }
+
+    private static func parseQueryItems(_ queryItems: [URLQueryItem]?) -> ExtendedParams {
+        var ext = ExtendedParams()
+        guard let queryItems else { return ext }
+        for item in queryItems {
+            guard let value = item.value, !value.isEmpty else { continue }
+            applyQueryParam(key: item.name, value: value, to: &ext)
+        }
+        return ext
+    }
+
+    private static func parseSSHQueryString(_ queryString: String?) -> ExtendedParams {
+        var ext = ExtendedParams()
+        guard let queryString else { return ext }
+        let params = queryString.split(separator: "&", omittingEmptySubsequences: true)
+        for param in params {
+            let parts = param.split(separator: "=", maxSplits: 1)
+            guard let key = parts.first else { continue }
+            let value = parts.count > 1 ? String(parts[1]) : nil
+            guard let value else { continue }
+            if String(key) == "usePrivateKey" {
+                ext.usePrivateKey = value.lowercased() == "true"
+                continue
+            }
+            applyQueryParam(key: String(key), value: value, to: &ext)
+        }
+        return ext
+    }
+
+    private static func applyQueryParam(key: String, value: String, to ext: inout ExtendedParams) {
+        switch key {
+        case "sslmode":
+            ext.sslMode = parseSSLMode(value)
+        case "authSource", "authsource":
+            ext.authSource = value
+        case "statusColor", "statuscolor":
+            ext.statusColor = value
+        case "env":
+            ext.envTag = value.removingPercentEncoding ?? value
+        case "schema":
+            ext.schema = value
+        case "table":
+            ext.tableName = value.replacingOccurrences(of: "+", with: " ")
+                .removingPercentEncoding ?? value
+        case "name":
+            ext.connectionName = value.replacingOccurrences(of: "+", with: " ")
+                .removingPercentEncoding ?? value
+        case "view":
+            ext.tableName = value.replacingOccurrences(of: "+", with: " ")
+                .removingPercentEncoding ?? value
+            ext.isView = true
+        case "column":
+            ext.filterColumn = value
+        case "operation", "operator":
+            ext.filterOperation = value
+        case "value":
+            ext.filterValue = value.replacingOccurrences(of: "+", with: " ")
+                .removingPercentEncoding ?? value
+        case "condition", "raw", "query":
+            ext.filterCondition = value.replacingOccurrences(of: "+", with: " ")
+                .removingPercentEncoding ?? value
+        case "tLSMode", "tlsmode":
+            if ext.sslMode == nil, let intValue = Int(value) {
+                ext.sslMode = parseTlsModeInteger(intValue)
+            }
+        default:
+            break
+        }
+    }
+
+    // MARK: - Host/Port Parsing
 
     /// Parse a host:port string, handling IPv6 bracket notation ([::1]:port).
     /// Returns nil if the string is empty or contains only a bare host with no port.
@@ -364,5 +451,58 @@ struct ConnectionURLParser {
         default:
             return nil
         }
+    }
+
+    private static func parseTlsModeInteger(_ value: Int) -> SSLMode? {
+        switch value {
+        case 0: return .disabled
+        case 1: return .preferred
+        case 2: return .required
+        case 3: return .verifyCa
+        case 4: return .verifyIdentity
+        default: return nil
+        }
+    }
+
+    internal static func connectionColor(fromHex hex: String) -> ConnectionColor {
+        let cleaned = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        guard cleaned.count == 6, let hexInt = UInt32(cleaned, radix: 16) else {
+            return .none
+        }
+
+        let r = Int((hexInt >> 16) & 0xFF)
+        let g = Int((hexInt >> 8) & 0xFF)
+        let b = Int(hexInt & 0xFF)
+
+        let palette: [(ConnectionColor, Int, Int, Int)] = [
+            (.red, 255, 59, 48),
+            (.orange, 255, 149, 0),
+            (.yellow, 255, 204, 0),
+            (.green, 52, 199, 89),
+            (.blue, 0, 122, 255),
+            (.purple, 175, 82, 222),
+            (.pink, 255, 45, 85),
+            (.gray, 142, 142, 147)
+        ]
+
+        var bestColor: ConnectionColor = .none
+        var bestDistance = Int.max
+        for (color, pr, pg, pb) in palette {
+            let dr = r - pr
+            let dg = g - pg
+            let db = b - pb
+            let distance = dr * dr + dg * dg + db * db
+            if distance < bestDistance {
+                bestDistance = distance
+                bestColor = color
+            }
+        }
+
+        return bestColor
+    }
+
+    internal static func tagId(fromEnvName name: String) -> UUID? {
+        let tags = TagStorage.shared.loadTags()
+        return tags.first(where: { $0.name.lowercased() == name.lowercased() })?.id
     }
 }
