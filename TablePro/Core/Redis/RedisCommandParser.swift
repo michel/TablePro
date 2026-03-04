@@ -111,6 +111,38 @@ struct RedisCommandParser {
         let args = Array(tokens.dropFirst())
 
         switch command {
+        case "GET", "SET", "DEL", "KEYS", "SCAN", "TYPE", "TTL", "PTTL",
+             "EXPIRE", "PERSIST", "RENAME", "EXISTS":
+            return try parseKeyCommand(command, args: args)
+
+        case "HGET", "HSET", "HGETALL", "HDEL":
+            return try parseHashCommand(command, args: args)
+
+        case "LRANGE", "LPUSH", "RPUSH", "LLEN":
+            return try parseListCommand(command, args: args)
+
+        case "SMEMBERS", "SADD", "SREM", "SCARD":
+            return try parseSetCommand(command, args: args)
+
+        case "ZRANGE", "ZADD", "ZREM", "ZCARD":
+            return try parseSortedSetCommand(command, args: args)
+
+        case "XRANGE", "XLEN":
+            return try parseStreamCommand(command, args: args)
+
+        case "PING", "INFO", "DBSIZE", "FLUSHDB", "SELECT", "CONFIG",
+             "MULTI", "EXEC", "DISCARD":
+            return try parseServerCommand(command, args: args, tokens: tokens)
+
+        default:
+            return .command(args: tokens)
+        }
+    }
+
+    // MARK: - Key Commands
+
+    private static func parseKeyCommand(_ command: String, args: [String]) throws -> RedisOperation {
+        switch command {
         case "GET":
             guard args.count >= 1 else { throw RedisParseError.missingArgument("GET requires a key") }
             return .get(key: args[0])
@@ -166,6 +198,15 @@ struct RedisCommandParser {
             guard !args.isEmpty else { throw RedisParseError.missingArgument("EXISTS requires at least one key") }
             return .exists(keys: args)
 
+        default:
+            throw RedisParseError.invalidArgument("Unknown key command: \(command)")
+        }
+    }
+
+    // MARK: - Hash Commands
+
+    private static func parseHashCommand(_ command: String, args: [String]) throws -> RedisOperation {
+        switch command {
         case "HGET":
             guard args.count >= 2 else { throw RedisParseError.missingArgument("HGET requires key and field") }
             return .hget(key: args[0], field: args[1])
@@ -190,6 +231,15 @@ struct RedisCommandParser {
             guard args.count >= 2 else { throw RedisParseError.missingArgument("HDEL requires key and at least one field") }
             return .hdel(key: args[0], fields: Array(args.dropFirst()))
 
+        default:
+            throw RedisParseError.invalidArgument("Unknown hash command: \(command)")
+        }
+    }
+
+    // MARK: - List Commands
+
+    private static func parseListCommand(_ command: String, args: [String]) throws -> RedisOperation {
+        switch command {
         case "LRANGE":
             guard args.count >= 3 else { throw RedisParseError.missingArgument("LRANGE requires key, start, and stop") }
             guard let start = Int(args[1]), let stop = Int(args[2]) else {
@@ -209,6 +259,15 @@ struct RedisCommandParser {
             guard args.count >= 1 else { throw RedisParseError.missingArgument("LLEN requires a key") }
             return .llen(key: args[0])
 
+        default:
+            throw RedisParseError.invalidArgument("Unknown list command: \(command)")
+        }
+    }
+
+    // MARK: - Set Commands
+
+    private static func parseSetCommand(_ command: String, args: [String]) throws -> RedisOperation {
+        switch command {
         case "SMEMBERS":
             guard args.count >= 1 else { throw RedisParseError.missingArgument("SMEMBERS requires a key") }
             return .smembers(key: args[0])
@@ -225,6 +284,15 @@ struct RedisCommandParser {
             guard args.count >= 1 else { throw RedisParseError.missingArgument("SCARD requires a key") }
             return .scard(key: args[0])
 
+        default:
+            throw RedisParseError.invalidArgument("Unknown set command: \(command)")
+        }
+    }
+
+    // MARK: - Sorted Set Commands
+
+    private static func parseSortedSetCommand(_ command: String, args: [String]) throws -> RedisOperation {
+        switch command {
         case "ZRANGE":
             guard args.count >= 3 else { throw RedisParseError.missingArgument("ZRANGE requires key, start, and stop") }
             guard let start = Int(args[1]), let stop = Int(args[2]) else {
@@ -256,6 +324,15 @@ struct RedisCommandParser {
             guard args.count >= 1 else { throw RedisParseError.missingArgument("ZCARD requires a key") }
             return .zcard(key: args[0])
 
+        default:
+            throw RedisParseError.invalidArgument("Unknown sorted set command: \(command)")
+        }
+    }
+
+    // MARK: - Stream Commands
+
+    private static func parseStreamCommand(_ command: String, args: [String]) throws -> RedisOperation {
+        switch command {
         case "XRANGE":
             guard args.count >= 3 else { throw RedisParseError.missingArgument("XRANGE requires key, start, and end") }
             var count: Int?
@@ -268,6 +345,17 @@ struct RedisCommandParser {
             guard args.count >= 1 else { throw RedisParseError.missingArgument("XLEN requires a key") }
             return .xlen(key: args[0])
 
+        default:
+            throw RedisParseError.invalidArgument("Unknown stream command: \(command)")
+        }
+    }
+
+    // MARK: - Server Commands
+
+    private static func parseServerCommand(
+        _ command: String, args: [String], tokens: [String]
+    ) throws -> RedisOperation {
+        switch command {
         case "PING":
             return .ping
 
@@ -313,7 +401,7 @@ struct RedisCommandParser {
             return .discard
 
         default:
-            return .command(args: tokens)
+            throw RedisParseError.invalidArgument("Unknown server command: \(command)")
         }
     }
 

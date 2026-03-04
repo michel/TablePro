@@ -462,8 +462,7 @@ final class RedisConnection: @unchecked Sendable {
     ) async throws -> (cursor: Int, keys: [String]) {
         #if canImport(CRedis)
         resetCancellation()
-        return try await withCheckedThrowingContinuation {
-            [self] (cont: CheckedContinuation<(cursor: Int, keys: [String]), Error>) in
+        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<(cursor: Int, keys: [String]), Error>) in
             queue.async { [self] in
                 guard !isShuttingDown, context != nil else {
                     cont.resume(throwing: RedisError.notConnected)
@@ -704,7 +703,6 @@ final class RedisConnection: @unchecked Sendable {
 
 #if canImport(CRedis)
 private extension RedisConnection {
-
     func connectSSL(_ ctx: UnsafeMutablePointer<redisContext>) throws {
         var sslError = redisSSLContextError(0)
 

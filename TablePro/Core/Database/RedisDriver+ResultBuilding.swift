@@ -55,7 +55,7 @@ extension RedisDriver {
     private static let previewLimit = 100
 
     /// Maximum character length for preview strings before truncation
-    private static let previewMaxChars = 1000
+    private static let previewMaxChars = 1_000
 
     /// Fetch the value for a key based on its type, serialized as a raw string.
     /// Matches TablePlus behavior: hashes as JSON objects, lists/sets as JSON arrays.

@@ -498,6 +498,37 @@ private extension RedisDriver {
         startTime: Date
     ) async throws -> QueryResult {
         switch operation {
+        case .get, .set, .del, .keys, .scan, .type, .ttl, .pttl, .expire, .persist, .rename, .exists:
+            return try await executeKeyOperation(operation, connection: conn, startTime: startTime)
+
+        case .hget, .hset, .hgetall, .hdel:
+            return try await executeHashOperation(operation, connection: conn, startTime: startTime)
+
+        case .lrange, .lpush, .rpush, .llen:
+            return try await executeListOperation(operation, connection: conn, startTime: startTime)
+
+        case .smembers, .sadd, .srem, .scard:
+            return try await executeSetOperation(operation, connection: conn, startTime: startTime)
+
+        case .zrange, .zadd, .zrem, .zcard:
+            return try await executeSortedSetOperation(operation, connection: conn, startTime: startTime)
+
+        case .xrange, .xlen:
+            return try await executeStreamOperation(operation, connection: conn, startTime: startTime)
+
+        case .ping, .info, .dbsize, .flushdb, .select, .configGet, .configSet, .command, .multi, .exec, .discard:
+            return try await executeServerOperation(operation, connection: conn, startTime: startTime)
+        }
+    }
+
+    // MARK: - Key Operations
+
+    func executeKeyOperation(
+        _ operation: RedisOperation,
+        connection conn: RedisConnection,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
         case .get(let key):
             let result = try await conn.executeCommand(["GET", key])
             let value = result .stringValue
@@ -612,6 +643,19 @@ private extension RedisDriver {
                 error: nil
             )
 
+        default:
+            fatalError("Unexpected operation in executeKeyOperation")
+        }
+    }
+
+    // MARK: - Hash Operations
+
+    func executeHashOperation(
+        _ operation: RedisOperation,
+        connection conn: RedisConnection,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
         case .hget(let key, let field):
             let result = try await conn.executeCommand(["HGET", key, field])
             let value = result .stringValue
@@ -657,6 +701,19 @@ private extension RedisDriver {
                 error: nil
             )
 
+        default:
+            fatalError("Unexpected operation in executeHashOperation")
+        }
+    }
+
+    // MARK: - List Operations
+
+    func executeListOperation(
+        _ operation: RedisOperation,
+        connection conn: RedisConnection,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
         case .lrange(let key, let start, let stop):
             let result = try await conn.executeCommand(["LRANGE", key, String(start), String(stop)])
             return buildListResult(result, startTime: startTime)
@@ -699,6 +756,19 @@ private extension RedisDriver {
                 error: nil
             )
 
+        default:
+            fatalError("Unexpected operation in executeListOperation")
+        }
+    }
+
+    // MARK: - Set Operations
+
+    func executeSetOperation(
+        _ operation: RedisOperation,
+        connection conn: RedisConnection,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
         case .smembers(let key):
             let result = try await conn.executeCommand(["SMEMBERS", key])
             return buildSetResult(result, startTime: startTime)
@@ -741,6 +811,19 @@ private extension RedisDriver {
                 error: nil
             )
 
+        default:
+            fatalError("Unexpected operation in executeSetOperation")
+        }
+    }
+
+    // MARK: - Sorted Set Operations
+
+    func executeSortedSetOperation(
+        _ operation: RedisOperation,
+        connection conn: RedisConnection,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
         case .zrange(let key, let start, let stop, let withScores):
             var args = ["ZRANGE", key, String(start), String(stop)]
             if withScores { args.append("WITHSCORES") }
@@ -788,6 +871,19 @@ private extension RedisDriver {
                 error: nil
             )
 
+        default:
+            fatalError("Unexpected operation in executeSortedSetOperation")
+        }
+    }
+
+    // MARK: - Stream Operations
+
+    func executeStreamOperation(
+        _ operation: RedisOperation,
+        connection conn: RedisConnection,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
         case .xrange(let key, let start, let end, let count):
             var args = ["XRANGE", key, start, end]
             if let c = count { args += ["COUNT", String(c)] }
@@ -806,6 +902,19 @@ private extension RedisDriver {
                 error: nil
             )
 
+        default:
+            fatalError("Unexpected operation in executeStreamOperation")
+        }
+    }
+
+    // MARK: - Server Operations
+
+    func executeServerOperation(
+        _ operation: RedisOperation,
+        connection conn: RedisConnection,
+        startTime: Date
+    ) async throws -> QueryResult {
+        switch operation {
         case .ping:
             _ = try await conn.executeCommand(["PING"])
             return QueryResult(
@@ -874,6 +983,9 @@ private extension RedisDriver {
         case .discard:
             _ = try await conn.executeCommand(["DISCARD"])
             return buildStatusResult("OK", startTime: startTime)
+
+        default:
+            fatalError("Unexpected operation in executeServerOperation")
         }
     }
 }
