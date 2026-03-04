@@ -197,18 +197,22 @@ struct ConnectionFormView: View {
                         text: $port,
                         prompt: Text(defaultPort)
                     )
-                    TextField(
-                        String(localized: "Database"),
-                        text: $database,
-                        prompt: Text("database_name")
-                    )
+                    if type != .redis {
+                        TextField(
+                            String(localized: "Database"),
+                            text: $database,
+                            prompt: Text("database_name")
+                        )
+                    }
                 }
                 Section(String(localized: "Authentication")) {
-                    TextField(
-                        String(localized: "Username"),
-                        text: $username,
-                        prompt: Text("root")
-                    )
+                    if type != .redis {
+                        TextField(
+                            String(localized: "Username"),
+                            text: $username,
+                            prompt: Text("root")
+                        )
+                    }
                     SecureField(
                         String(localized: "Password"),
                         text: $password
