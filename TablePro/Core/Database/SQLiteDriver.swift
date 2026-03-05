@@ -275,7 +275,7 @@ final class SQLiteDriver: DatabaseDriver {
 
     /// Synchronous helper to update the interrupt handle under the lock,
     /// keeping NSLock usage off the async context.
-    private nonisolated func setInterruptHandle(_ handle: OpaquePointer?) {
+    nonisolated private func setInterruptHandle(_ handle: OpaquePointer?) {
         interruptLock.lock()
         _dbHandleForInterrupt = handle
         interruptLock.unlock()
