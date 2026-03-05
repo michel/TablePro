@@ -375,8 +375,6 @@ struct AIChatPanelView: View {
         let provider = viewModel.schemaProvider
 
         for table in tablesToFetch {
-            // Reuse cached columns from the schema provider (populated by
-            // MainContentCoordinator.loadSchema) to avoid N redundant queries.
             if let provider {
                 let cached = await provider.getColumns(for: table.name)
                 if !cached.isEmpty {
@@ -384,7 +382,6 @@ struct AIChatPanelView: View {
                 }
             }
 
-            // Fall back to driver query only when the cache missed
             if columns[table.name] == nil {
                 do {
                     let cols = try await driver.fetchColumns(table: table.name)
@@ -395,16 +392,16 @@ struct AIChatPanelView: View {
                     )
                 }
             }
+        }
 
-            // Foreign keys are not cached by SQLSchemaProvider — query per table
-            do {
-                let fks = try await driver.fetchForeignKeys(table: table.name)
-                foreignKeys[table.name] = fks
-            } catch {
-                Self.logger.warning(
-                    "Failed to fetch foreign keys for table '\(table.name)': \(error.localizedDescription)"
-                )
+        // Fetch foreign keys for the needed tables in bulk
+        do {
+            let fkResult = try await driver.fetchForeignKeys(forTables: tablesToFetch.map(\.name))
+            for (table, fks) in fkResult {
+                foreignKeys[table] = fks
             }
+        } catch {
+            Self.logger.warning("Failed to bulk fetch foreign keys: \(error.localizedDescription)")
         }
 
         viewModel.columnsByTable = columns
