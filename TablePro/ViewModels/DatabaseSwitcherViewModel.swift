@@ -17,7 +17,7 @@ class DatabaseSwitcherViewModel {
 
     // MARK: - Mode
 
-    enum Mode {
+    enum Mode: Hashable {
         case database
         case schema
     }
@@ -132,7 +132,6 @@ class DatabaseSwitcherViewModel {
             } else {
                 selectedDatabase = databases.first?.name
             }
-            preselectDatabase()
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
