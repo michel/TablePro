@@ -120,10 +120,10 @@ struct SQLStatementGenerator {
     /// Get placeholder syntax for the database type
     private func placeholder(at index: Int) -> String {
         switch databaseType {
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             return "$\(index + 1)"  // PostgreSQL uses $1, $2, etc.
-        case .mysql, .mariadb, .sqlite, .mongodb, .redis, .mssql:
-            return "?"  // MySQL, MariaDB, SQLite, MongoDB, and MSSQL use ?
+        case .mysql, .mariadb, .sqlite, .mongodb, .redis, .mssql, .oracle:
+            return "?"  // MySQL, MariaDB, SQLite, MongoDB, MSSQL, and Oracle use ?
         }
     }
 
@@ -297,7 +297,9 @@ struct SQLStatementGenerator {
                 sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) LIMIT 1"
             case .mssql:
                 sql = "UPDATE TOP (1) \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
-            case .postgresql, .redshift, .mongodb, .redis:
+            case .oracle:
+                sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) AND ROWNUM = 1"
+            case .postgresql, .redshift, .cockroachdb, .mongodb, .redis:
                 sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
             }
 
@@ -371,7 +373,9 @@ struct SQLStatementGenerator {
             sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) LIMIT 1"
         case .mssql:
             sql = "DELETE TOP (1) FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
-        case .postgresql, .redshift, .mongodb, .redis:
+        case .oracle:
+            sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) AND ROWNUM = 1"
+        case .postgresql, .redshift, .cockroachdb, .mongodb, .redis:
             sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
         }
 

@@ -278,6 +278,68 @@ struct MSSQLDialect: SQLDialectProvider {
     ]
 }
 
+// MARK: - Oracle Dialect
+
+struct OracleDialect: SQLDialectProvider {
+    let identifierQuote = "\""
+
+    let keywords: Set<String> = [
+        "SELECT", "FROM", "WHERE", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "FULL",
+        "ON", "USING", "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN", "AS",
+        "ORDER", "BY", "GROUP", "HAVING", "FETCH", "FIRST", "ROWS", "ONLY", "OFFSET",
+        "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "MERGE",
+
+        "CREATE", "ALTER", "DROP", "TABLE", "INDEX", "VIEW", "DATABASE", "SCHEMA",
+        "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CONSTRAINT",
+        "ADD", "MODIFY", "COLUMN", "RENAME",
+
+        "NULL", "IS", "ASC", "DESC", "DISTINCT", "ALL", "ANY", "SOME",
+        "SEQUENCE", "SYNONYM", "GRANT", "REVOKE", "TRIGGER", "PROCEDURE",
+
+        "CASE", "WHEN", "THEN", "ELSE", "END", "COALESCE", "NULLIF", "DECODE",
+
+        "UNION", "INTERSECT", "MINUS",
+
+        "DECLARE", "BEGIN", "COMMIT", "ROLLBACK", "SAVEPOINT",
+        "EXECUTE", "IMMEDIATE",
+        "OVER", "PARTITION", "ROW_NUMBER", "RANK", "DENSE_RANK",
+        "RETURNING", "CONNECT", "LEVEL", "START", "WITH", "PRIOR",
+        "ROWNUM", "ROWID", "DUAL", "SYSDATE", "SYSTIMESTAMP"
+    ]
+
+    let functions: Set<String> = [
+        "COUNT", "SUM", "AVG", "MAX", "MIN", "LISTAGG",
+
+        "CONCAT", "SUBSTR", "INSTR", "LENGTH", "LOWER", "UPPER",
+        "TRIM", "LTRIM", "RTRIM", "REPLACE", "LPAD", "RPAD",
+        "INITCAP", "TRANSLATE",
+
+        "SYSDATE", "SYSTIMESTAMP", "CURRENT_DATE", "CURRENT_TIMESTAMP",
+        "ADD_MONTHS", "MONTHS_BETWEEN", "LAST_DAY", "NEXT_DAY",
+        "EXTRACT", "TO_DATE", "TO_CHAR", "TO_NUMBER", "TO_TIMESTAMP",
+        "TRUNC", "ROUND",
+
+        "CEIL", "FLOOR", "ABS", "POWER", "SQRT", "MOD", "SIGN",
+
+        "NVL", "NVL2", "DECODE", "COALESCE", "NULLIF",
+        "GREATEST", "LEAST", "CAST",
+        "SYS_GUID", "DBMS_RANDOM.VALUE", "USER", "SYS_CONTEXT"
+    ]
+
+    let dataTypes: Set<String> = [
+        "NUMBER", "INTEGER", "SMALLINT", "FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE",
+
+        "CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2", "CLOB", "NCLOB", "LONG",
+
+        "BLOB", "RAW", "LONG RAW", "BFILE",
+
+        "DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE",
+        "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND",
+
+        "BOOLEAN", "ROWID", "UROWID", "XMLTYPE", "SDO_GEOMETRY"
+    ]
+}
+
 // MARK: - Dialect Factory
 
 struct SQLDialectFactory {
@@ -286,7 +348,7 @@ struct SQLDialectFactory {
         switch databaseType {
         case .mysql, .mariadb:
             return MySQLDialect()
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             return PostgreSQLDialect()
         case .sqlite:
             return SQLiteDialect()
@@ -296,6 +358,8 @@ struct SQLDialectFactory {
             return SQLiteDialect()  // Placeholder until Redis dialect is implemented
         case .mssql:
             return MSSQLDialect()
+        case .oracle:
+            return OracleDialect()
         }
     }
 }

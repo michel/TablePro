@@ -327,7 +327,7 @@ final class SQLCompletionProvider {
                         "ENGINE", "CHARSET", "COLLATE", "COMMENT",
                         "AUTO_INCREMENT", "ROW_FORMAT", "DEFAULT CHARSET",
                     ])
-                case .postgresql, .redshift:
+                case .postgresql, .redshift, .cockroachdb:
                     items += filterKeywords([
                         "TABLESPACE", "INHERITS", "PARTITION BY",
                         "WITH", "WITHOUT OIDS",
@@ -491,7 +491,7 @@ final class SQLCompletionProvider {
                 "BINARY", "VARBINARY",
             ]
 
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             types += [
                 "BIGSERIAL", "SERIAL", "SMALLSERIAL",
                 "DOUBLE PRECISION", "MONEY",
@@ -510,6 +510,16 @@ final class SQLCompletionProvider {
                 "BINARY", "VARBINARY", "IMAGE",
                 "UNIQUEIDENTIFIER", "XML", "SQL_VARIANT",
                 "ROWVERSION", "HIERARCHYID",
+            ]
+
+        case .oracle:
+            types += [
+                "NUMBER", "BINARY_FLOAT", "BINARY_DOUBLE",
+                "VARCHAR2", "NVARCHAR2", "NCHAR", "NCLOB",
+                "CLOB", "LONG", "RAW", "LONG RAW", "BFILE",
+                "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE",
+                "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND",
+                "ROWID", "UROWID", "XMLTYPE", "SDO_GEOMETRY",
             ]
 
         case .sqlite:

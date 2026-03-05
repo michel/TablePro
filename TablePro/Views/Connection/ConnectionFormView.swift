@@ -70,6 +70,9 @@ struct ConnectionFormView: View {
     // MSSQL-specific settings
     @State private var mssqlSchema: String = "dbo"
 
+    // Oracle-specific settings
+    @State private var oracleServiceName: String = ""
+
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
 
@@ -462,6 +465,16 @@ struct ConnectionFormView: View {
                 }
             }
 
+            if type == .oracle {
+                Section("Oracle") {
+                    TextField(String(localized: "Service Name"), text: Binding(
+                        get: { oracleServiceName },
+                        set: { oracleServiceName = $0 }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                }
+            }
+
             Section(String(localized: "AI")) {
                 Picker(String(localized: "AI Policy"), selection: $aiPolicy) {
                     Text(String(localized: "Use Default"))
@@ -549,10 +562,12 @@ struct ConnectionFormView: View {
         case .mysql, .mariadb: return "3306"
         case .postgresql: return "5432"
         case .redshift: return "5439"
+        case .cockroachdb: return "26257"
         case .sqlite: return ""
         case .mongodb: return "27017"
         case .redis: return "6379"
         case .mssql: return "1433"
+        case .oracle: return "1521"
         }
     }
 
@@ -623,6 +638,9 @@ struct ConnectionFormView: View {
             // Load MSSQL settings
             mssqlSchema = existing.mssqlSchema ?? "dbo"
 
+            // Load Oracle settings
+            oracleServiceName = existing.oracleServiceName ?? ""
+
             // Load passwords from Keychain
             if let savedSSHPassword = storage.loadSSHPassword(for: existing.id) {
                 sshPassword = savedSSHPassword
@@ -678,7 +696,8 @@ struct ConnectionFormView: View {
             aiPolicy: aiPolicy,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
-            mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema
+            mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
+            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName
         )
 
         // Save passwords to Keychain
@@ -776,7 +795,8 @@ struct ConnectionFormView: View {
             groupId: selectedGroupId,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
-            mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema
+            mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
+            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName
         )
 
         Task {

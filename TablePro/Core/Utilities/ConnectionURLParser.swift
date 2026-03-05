@@ -100,8 +100,12 @@ struct ConnectionURLParser {
             dbType = .mongodb
         case "redis", "rediss":
             dbType = .redis
+        case "cockroachdb":
+            dbType = .cockroachdb
         case "sqlserver", "mssql", "jdbc:sqlserver":
             dbType = .mssql
+        case "oracle", "jdbc:oracle:thin":
+            dbType = .oracle
         default:
             return .failure(.unsupportedScheme(scheme))
         }

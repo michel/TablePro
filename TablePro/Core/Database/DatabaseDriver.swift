@@ -265,7 +265,7 @@ extension DatabaseDriver {
                 _ = try await execute(query: "SET SESSION max_execution_time = \(ms)")
             case .mariadb:
                 _ = try await execute(query: "SET SESSION max_statement_time = \(seconds)")
-            case .postgresql, .redshift:
+            case .postgresql, .redshift, .cockroachdb:
                 _ = try await execute(query: "SET statement_timeout = '\(ms)'")
             case .sqlite:
                 break  // SQLite busy_timeout handled by driver directly
@@ -275,6 +275,8 @@ extension DatabaseDriver {
                 break  // Redis does not support session-level query timeouts
             case .mssql:
                 _ = try await execute(query: "SET LOCK_TIMEOUT \(ms)")
+            case .oracle:
+                break  // Oracle timeout handled per-statement by OracleDriver
             }
         } catch {
             Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
@@ -290,7 +292,7 @@ extension DatabaseDriver {
         switch connection.type {
         case .mysql, .mariadb:
             sql = "START TRANSACTION"
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             sql = "BEGIN"
         case .sqlite:
             sql = "BEGIN"
@@ -300,6 +302,8 @@ extension DatabaseDriver {
             sql = ""  // Redis transactions handled by RedisDriver directly
         case .mssql:
             sql = "BEGIN TRANSACTION"
+        case .oracle:
+            sql = ""  // Oracle auto-starts transactions
         }
         guard !sql.isEmpty else { return }
         _ = try await execute(query: sql)
@@ -326,12 +330,16 @@ enum DatabaseDriverFactory {
             return PostgreSQLDriver(connection: connection)
         case .redshift:
             return RedshiftDriver(connection: connection)
+        case .cockroachdb:
+            return CockroachDBDriver(connection: connection)
         case .mongodb:
             return MongoDBDriver(connection: connection)
         case .redis:
             return RedisDriver(connection: connection)
         case .mssql:
             return MSSQLDriver(connection: connection)
+        case .oracle:
+            return OracleDriver(connection: connection)
         }
     }
 }

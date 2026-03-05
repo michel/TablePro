@@ -1,0 +1,4 @@
+module COracle {
+    umbrella header "COracle.h"
+    export *
+}

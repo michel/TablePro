@@ -170,6 +170,27 @@ extension MainContentCoordinator {
             WHERE schema = '\(schema)'
             ORDER BY "table"
             """
+        case .cockroachdb:
+            let schema: String
+            if let crdbDriver = DatabaseManager.shared.driver(for: connectionId) as? CockroachDBDriver {
+                schema = crdbDriver.escapedSchema
+            } else {
+                schema = "public"
+            }
+            sql = """
+            SELECT
+                schemaname as schema,
+                relname as name,
+                'TABLE' as kind,
+                n_live_tup as estimated_rows,
+                pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) as total_size,
+                pg_size_pretty(pg_relation_size(schemaname||'.'||relname)) as data_size,
+                pg_size_pretty(pg_indexes_size(schemaname||'.'||relname)) as index_size,
+                obj_description((schemaname||'.'||relname)::regclass) as comment
+            FROM pg_stat_user_tables
+            WHERE schemaname = '\(schema)'
+            ORDER BY relname
+            """
         case .mysql, .mariadb:
             sql = """
             SELECT
@@ -223,6 +244,23 @@ extension MainContentCoordinator {
             LEFT JOIN sys.views v ON t.object_id = v.object_id
             GROUP BY s.name, t.name, p.rows, v.object_id
             ORDER BY t.name
+            """
+        case .oracle:
+            let schema: String
+            if let oracleDriver = DatabaseManager.shared.driver(for: connectionId) as? OracleDriver {
+                schema = oracleDriver.escapedSchema
+            } else {
+                schema = "SYSTEM"
+            }
+            sql = """
+            SELECT
+                OWNER as schema_name,
+                TABLE_NAME as name,
+                'TABLE' as kind,
+                NUM_ROWS as estimated_rows
+            FROM ALL_TABLES
+            WHERE OWNER = '\(schema)'
+            ORDER BY TABLE_NAME
             """
         case .mongodb:
             tabManager.addTab(
@@ -301,12 +339,14 @@ extension MainContentCoordinator {
                 // Reload schema for autocomplete.
                 // session.tables was cleared above, which triggers SidebarView.loadTables() via onChange.
                 await loadSchema()
-            } else if connection.type == .postgresql || connection.type == .redshift {
+            } else if connection.type == .postgresql || connection.type == .redshift || connection.type == .cockroachdb {
                 // PostgreSQL: switch schema (not database — PG database switching requires reconnection)
                 if let pgDriver = driver as? PostgreSQLDriver {
                     try await pgDriver.switchSchema(to: database)
                 } else if let rsDriver = driver as? RedshiftDriver {
                     try await rsDriver.switchSchema(to: database)
+                } else if let crdbDriver = driver as? CockroachDBDriver {
+                    try await crdbDriver.switchSchema(to: database)
                 } else {
                     return
                 }
@@ -316,6 +356,8 @@ extension MainContentCoordinator {
                     try? await pgMeta.switchSchema(to: database)
                 } else if let rsMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedshiftDriver {
                     try? await rsMeta.switchSchema(to: database)
+                } else if let crdbMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? CockroachDBDriver {
+                    try? await crdbMeta.switchSchema(to: database)
                 }
 
                 // Update session
@@ -338,6 +380,29 @@ extension MainContentCoordinator {
 
                 // Force sidebar reload — posting .refreshData ensures loadTables() runs
                 // even when session.tables was already [] (e.g. switching from empty schema back to public)
+                NotificationCenter.default.post(name: .refreshData, object: nil)
+            } else if connection.type == .oracle {
+                if let oracleDriver = driver as? OracleDriver {
+                    try await oracleDriver.switchSchema(to: database)
+                }
+
+                if let oracleMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? OracleDriver {
+                    try? await oracleMeta.switchSchema(to: database)
+                }
+
+                DatabaseManager.shared.updateSession(connectionId) { session in
+                    session.currentSchema = database
+                    session.tables = []
+                }
+
+                toolbarState.databaseName = database
+
+                closeSiblingNativeWindows()
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
+
+                await loadSchema()
+
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .mssql {
                 if let mssqlDriver = driver as? MSSQLDriver {

@@ -33,7 +33,7 @@ extension MainContentCoordinator {
         let sortedDeletes = deletes.sorted()
 
         // Check if any operation needs FK disabled (not applicable to PostgreSQL or MSSQL)
-        let needsDisableFK = includeFKHandling && dbType != .postgresql && dbType != .mssql && truncates.union(deletes).contains { tableName in
+        let needsDisableFK = includeFKHandling && dbType != .postgresql && dbType != .cockroachdb && dbType != .mssql && dbType != .oracle && truncates.union(deletes).contains { tableName in
             options[tableName]?.ignoreForeignKeys == true
         }
 
@@ -45,7 +45,14 @@ extension MainContentCoordinator {
         // Wrap in transaction for atomicity
         let needsTransaction = wrapInTransaction && (sortedTruncates.count + sortedDeletes.count) > 1
         if needsTransaction {
-            statements.append(dbType == .mssql ? "BEGIN TRANSACTION" : "BEGIN")
+            switch dbType {
+            case .mssql:
+                statements.append("BEGIN TRANSACTION")
+            case .oracle:
+                statements.append("SET TRANSACTION READ WRITE")
+            default:
+                statements.append("BEGIN")
+            }
         }
 
         for tableName in sortedTruncates {
@@ -84,7 +91,7 @@ extension MainContentCoordinator {
     func fkDisableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb: return ["SET FOREIGN_KEY_CHECKS=0"]
-        case .postgresql, .redshift, .mongodb, .redis, .mssql: return []
+        case .postgresql, .redshift, .cockroachdb, .mongodb, .redis, .mssql, .oracle: return []
         case .sqlite: return ["PRAGMA foreign_keys = OFF"]
         }
     }
@@ -94,7 +101,7 @@ extension MainContentCoordinator {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]
-        case .postgresql, .redshift, .mongodb, .redis, .mssql:
+        case .postgresql, .redshift, .cockroachdb, .mongodb, .redis, .mssql, .oracle:
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
@@ -109,10 +116,10 @@ extension MainContentCoordinator {
         switch dbType {
         case .mysql, .mariadb:
             return ["TRUNCATE TABLE \(quotedName)"]
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             let cascade = options.cascade ? " CASCADE" : ""
             return ["TRUNCATE TABLE \(quotedName)\(cascade)"]
-        case .mssql:
+        case .mssql, .oracle:
             return ["TRUNCATE TABLE \(quotedName)"]
         case .sqlite:
             // DELETE FROM + reset auto-increment counter for true TRUNCATE semantics.
@@ -139,9 +146,9 @@ extension MainContentCoordinator {
     private func dropTableStatement(tableName: String, quotedName: String, isView: Bool, options: TableOperationOptions, dbType: DatabaseType) -> String {
         let keyword = isView ? "VIEW" : "TABLE"
         switch dbType {
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             return "DROP \(keyword) \(quotedName)\(options.cascade ? " CASCADE" : "")"
-        case .mysql, .mariadb, .sqlite, .mssql:
+        case .mysql, .mariadb, .sqlite, .mssql, .oracle:
             return "DROP \(keyword) \(quotedName)"
         case .mongodb:
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")

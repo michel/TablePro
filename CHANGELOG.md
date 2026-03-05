@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Oracle Database support via OCI (Oracle Call Interface)
+- CockroachDB database support (PostgreSQL wire-compatible via LibPQ)
+
 ### Fixed
 
 - Fix memory leak where session state objects were recreated on every tab open due to SwiftUI `@State` init trap, causing 785MB usage at 5 tabs with 734MB retained after closing
+- Fix per-cell field editor allocation in DataGrid creating 180+ NSTextView instances instead of sharing one
+- Fix NSEvent monitor not removed on all popover dismissal paths in connection switcher
+- Fix race condition in FreeTDS `disconnect()` where `dbproc` was set to nil without holding the lock
+- Fix data race in `MainContentCoordinator.deinit` reading `nonisolated(unsafe)` flags from arbitrary threads
+- Fix JSON encoding and file I/O blocking the main thread in TabStateStorage
 
 ## [0.14.0] - 2026-03-05
 
