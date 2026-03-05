@@ -15,7 +15,21 @@ private let logger = Logger(subsystem: "com.TablePro", category: "FreeTDSConnect
 // MARK: - Global FreeTDS initialization
 
 /// Last error captured by the FreeTDS error/message handlers — surfaced in connection failures
-var freetdsLastError = ""
+private let freetdsLastErrorLock = NSLock()
+private var _freetdsLastError = ""
+
+var freetdsLastError: String {
+    get {
+        freetdsLastErrorLock.lock()
+        defer { freetdsLastErrorLock.unlock() }
+        return _freetdsLastError
+    }
+    set {
+        freetdsLastErrorLock.lock()
+        defer { freetdsLastErrorLock.unlock() }
+        _freetdsLastError = newValue
+    }
+}
 
 private let freetdsInitOnce: Void = {
     _ = dbinit()
@@ -79,7 +93,7 @@ final class FreeTDSConnection: @unchecked Sendable {
     private var dbproc: UnsafeMutablePointer<DBPROCESS>?
 
     /// Serial queue for thread-safe access to the C library
-    private let queue = DispatchQueue(label: "com.TablePro.freetds", qos: .userInitiated)
+    private let queue: DispatchQueue
 
     /// Connection parameters
     private let host: String
@@ -102,6 +116,7 @@ final class FreeTDSConnection: @unchecked Sendable {
     // MARK: - Initialization
 
     init(host: String, port: Int, user: String, password: String, database: String) {
+        self.queue = DispatchQueue(label: "com.TablePro.freetds.\(host).\(port)", qos: .userInitiated)
         self.host = host
         self.port = port
         self.user = user
@@ -342,7 +357,9 @@ final class FreeTDSConnection: @unchecked Sendable {
         case Int32(SYBBIT): return "bit"
         case Int32(SYBBINARY), Int32(SYBVARBINARY): return "varbinary"
         case Int32(SYBIMAGE): return "image"
-        case Int32(SYBDATETIME), Int32(SYBDATETIMN), Int32(SYBDATETIME4): return "datetime"
+        case Int32(SYBDATETIME), Int32(SYBDATETIMN): return "datetime"
+        case Int32(SYBDATETIME4): return "smalldatetime"
+        // Note: datetime2, date, and time constants are not present in the FreeTDS stub header.
         case Int32(SYBUNIQUE): return "uniqueidentifier"
         default: return "unknown"
         }

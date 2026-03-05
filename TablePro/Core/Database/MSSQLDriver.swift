@@ -54,7 +54,7 @@ final class MSSQLDriver: DatabaseDriver {
             status = .connected
             if let result = try? await conn.executeQuery("SELECT @@VERSION"),
                let versionStr = result.rows.first?.first ?? nil {
-                _serverVersion = String(versionStr.prefix(20))
+                _serverVersion = String(versionStr.prefix(50))
             }
         } catch {
             status = .error(error.localizedDescription)
@@ -81,24 +81,14 @@ final class MSSQLDriver: DatabaseDriver {
 
     func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
         // FreeTDS db-lib does not support parameterized queries natively.
-        // Build query inline with escaped values.
-        var built = query
-        for param in parameters {
-            let escaped: String
-            if let p = param {
-                escaped = "'\(String(describing: p).replacingOccurrences(of: "'", with: "''"))'"
-            } else {
-                escaped = "NULL"
-            }
-            if let range = built.range(of: "?") {
-                built.replaceSubrange(range, with: escaped)
-            }
-        }
+        // Use SQLParameterInliner for type-aware inlining (int/float unquoted, strings escaped, nil → NULL).
+        let statement = ParameterizedStatement(sql: query, parameters: parameters)
+        let built = SQLParameterInliner.inline(statement, databaseType: .mssql)
         return try await execute(query: built)
     }
 
     func fetchRowCount(query: String) async throws -> Int {
-        let countQuery = "SELECT COUNT(*) FROM (\(query)) AS __cnt"
+        let countQuery = "SELECT COUNT_BIG(*) FROM (\(query)) AS __cnt"
         let result = try await execute(query: countQuery)
         guard let row = result.rows.first,
               let cell = row.first,
@@ -127,6 +117,7 @@ final class MSSQLDriver: DatabaseDriver {
         guard len >= 8 else { return false }
         var depth = 0
         var i = len - 1
+        // Note: does not account for ORDER BY inside string literals — acceptable for TablePro's query patterns.
         while i >= 7 {
             let ch = ns.character(at: i)
             if ch == 0x29 { depth += 1 }       // ')'
@@ -253,8 +244,9 @@ final class MSSQLDriver: DatabaseDriver {
     }
 
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
-        let escapedTable = table.replacingOccurrences(of: "'", with: "''")
-        let escapedFull = "\(escapedSchema).\(escapedTable)"
+        let bracketedSchema = currentSchema.replacingOccurrences(of: "]", with: "]]")
+        let bracketedTable = table.replacingOccurrences(of: "]", with: "]]")
+        let bracketedFull = "[\(bracketedSchema)].[\(bracketedTable)]"
         let sql = """
             SELECT i.name, i.is_unique, i.is_primary_key, c.name AS column_name
             FROM sys.indexes i
@@ -262,7 +254,7 @@ final class MSSQLDriver: DatabaseDriver {
                 ON i.object_id = ic.object_id AND i.index_id = ic.index_id
             JOIN sys.columns c
                 ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-            WHERE i.object_id = OBJECT_ID('\(escapedFull)')
+            WHERE i.object_id = OBJECT_ID('\(bracketedFull)')
               AND i.name IS NOT NULL
             ORDER BY i.index_id, ic.key_ordinal
             """
