@@ -191,6 +191,8 @@ final class MainContentCoordinator {
         for tab in tabManager.tabs {
             tab.rowBuffer.evict()
         }
+        tabManager.tabs.removeAll()
+        tabManager.selectedTabId = nil
         querySortCache.removeAll()
 
         Self.releaseSchemaProvider(for: connection.id)

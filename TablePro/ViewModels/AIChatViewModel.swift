@@ -197,6 +197,28 @@ final class AIChatViewModel {
         errorMessage = nil
     }
 
+    /// Release all session-specific data to free memory on disconnect.
+    /// Unlike `clearConversation()`, this does not delete persisted history.
+    func clearSessionData() {
+        streamingTask?.cancel()
+        streamingTask = nil
+        schemaProvider = nil
+        connection = nil
+        tables = []
+        columnsByTable = [:]
+        foreignKeysByTable = [:]
+        currentQuery = nil
+        queryResults = nil
+        messages = []
+        errorMessage = nil
+        lastMessageFailed = false
+        activeConversationID = nil
+        sessionApprovedConnections = []
+        isStreaming = false
+        streamingAssistantID = nil
+        pendingFeature = nil
+    }
+
     /// Delete a conversation
     func deleteConversation(_ id: UUID) {
         chatStorage.delete(id)

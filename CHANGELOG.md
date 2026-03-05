@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix memory leak where session state objects were recreated on every tab open due to SwiftUI `@State` init trap, causing 785MB usage at 5 tabs with 734MB retained after closing
+
 ## [0.14.0] - 2026-03-05
 
 ### Added
