@@ -164,6 +164,8 @@ extension MainContentCoordinator {
                 switch dbType {
                 case .mysql, .mariadb:
                     beginSQL = "START TRANSACTION"
+                case .oracle:
+                    beginSQL = "SET TRANSACTION READ WRITE"
                 default:
                     beginSQL = "BEGIN"
                 }

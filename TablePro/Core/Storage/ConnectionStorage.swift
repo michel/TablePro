@@ -361,6 +361,9 @@ private struct StoredConnection: Codable {
     // MSSQL schema
     let mssqlSchema: String?
 
+    // Oracle service name
+    let oracleServiceName: String?
+
     init(from connection: DatabaseConnection) {
         self.id = connection.id
         self.name = connection.name
@@ -398,6 +401,9 @@ private struct StoredConnection: Codable {
 
         // MSSQL schema
         self.mssqlSchema = connection.mssqlSchema
+
+        // Oracle service name
+        self.oracleServiceName = connection.oracleServiceName
     }
 
     // Custom decoder to handle migration from old format
@@ -435,6 +441,7 @@ private struct StoredConnection: Codable {
         isReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
         aiPolicy = try container.decodeIfPresent(String.self, forKey: .aiPolicy)
         mssqlSchema = try container.decodeIfPresent(String.self, forKey: .mssqlSchema)
+        oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
     }
 
     func toConnection() -> DatabaseConnection {
@@ -475,7 +482,8 @@ private struct StoredConnection: Codable {
             groupId: parsedGroupId,
             isReadOnly: isReadOnly,
             aiPolicy: parsedAIPolicy,
-            mssqlSchema: mssqlSchema
+            mssqlSchema: mssqlSchema,
+            oracleServiceName: oracleServiceName
         )
     }
 }

@@ -141,6 +141,8 @@ final class DatabaseManager {
                 activeSessions[connection.id]?.currentSchema = rsDriver.currentSchema
             } else if let crdbDriver = driver as? CockroachDBDriver {
                 activeSessions[connection.id]?.currentSchema = crdbDriver.currentSchema
+            } else if let oracleDriver = driver as? OracleDriver {
+                activeSessions[connection.id]?.currentSchema = oracleDriver.currentSchema
             } else if connection.type == .redis {
                 // Redis defaults to db0 on connect; SELECT the configured database if non-default
                 let initialDb = connection.redisDatabase ?? Int(connection.database) ?? 0

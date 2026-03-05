@@ -40,7 +40,8 @@ final class OracleDriver: DatabaseDriver {
             port: connection.port,
             user: connection.username,
             password: ConnectionStorage.shared.loadPassword(for: connection.id) ?? "",
-            database: connection.database
+            database: connection.database,
+            serviceName: connection.oracleServiceName ?? ""
         )
         do {
             try await conn.connect()

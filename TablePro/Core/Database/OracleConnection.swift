@@ -51,6 +51,7 @@ final class OracleConnection: @unchecked Sendable {
     private let user: String
     private let password: String
     private let database: String
+    private let serviceName: String
 
     private let lock = NSLock()
     private var _isConnected = false
@@ -63,13 +64,14 @@ final class OracleConnection: @unchecked Sendable {
 
     // MARK: - Initialization
 
-    init(host: String, port: Int, user: String, password: String, database: String) {
+    init(host: String, port: Int, user: String, password: String, database: String, serviceName: String = "") {
         self.queue = DispatchQueue(label: "com.TablePro.oracle.\(host).\(port)", qos: .userInitiated)
         self.host = host
         self.port = port
         self.user = user
         self.password = password
         self.database = database
+        self.serviceName = serviceName
     }
 
     // MARK: - Connection
@@ -118,7 +120,8 @@ final class OracleConnection: @unchecked Sendable {
         srvHandle = env?.assumingMemoryBound(to: OCIServer.self)
 
         // Build connect string: //host:port/service_name
-        let connectString = "//\(host):\(port)/\(database)"
+        let service = serviceName.isEmpty ? database : serviceName
+        let connectString = "//\(host):\(port)/\(service)"
 
         // Attach to server
         status = connectString.withCString { cStr in
