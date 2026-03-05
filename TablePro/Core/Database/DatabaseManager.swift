@@ -146,6 +146,11 @@ final class DatabaseManager {
                     try? await (driver as? RedisDriver)?.selectDatabase(initialDb)
                 }
                 activeSessions[connection.id]?.currentDatabase = String(initialDb)
+            } else if connection.type == .mssql, let mssqlDriver = driver as? MSSQLDriver {
+                if let savedDb = AppSettingsStorage.shared.loadLastDatabase(for: connection.id) {
+                    try? await mssqlDriver.switchDatabase(to: savedDb)
+                    activeSessions[connection.id]?.currentDatabase = savedDb
+                }
             }
 
             // Batch all session mutations into a single write to fire objectWillChange once
@@ -547,6 +552,12 @@ final class DatabaseManager {
             }
         }
 
+        // Restore database for MSSQL if session had a non-default database
+        if let savedDatabase = session.currentDatabase,
+           let mssqlDriver = driver as? MSSQLDriver {
+            try? await mssqlDriver.switchDatabase(to: savedDatabase)
+        }
+
         return driver
     }
 
@@ -615,6 +626,12 @@ final class DatabaseManager {
                 }
             }
 
+            // Restore database for MSSQL if session had a non-default database
+            if let savedDatabase = activeSessions[sessionId]?.currentDatabase,
+               let mssqlDriver = driver as? MSSQLDriver {
+                try? await mssqlDriver.switchDatabase(to: savedDatabase)
+            }
+
             // Update session
             updateSession(sessionId) { session in
                 session.driver = driver
@@ -641,6 +658,11 @@ final class DatabaseManager {
                         } else if let rsMetaDriver = metaDriver as? RedshiftDriver {
                             try? await rsMetaDriver.switchSchema(to: savedSchema)
                         }
+                    }
+                    // Restore database on metadata driver too for MSSQL
+                    if let savedDatabase = self.activeSessions[metaConnectionId]?.currentDatabase,
+                       let mssqlMetaDriver = metaDriver as? MSSQLDriver {
+                        try? await mssqlMetaDriver.switchDatabase(to: savedDatabase)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
                 } catch {

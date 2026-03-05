@@ -296,7 +296,7 @@ final class MainContentCoordinator {
 
     /// Pre-compiled regex for extracting table name from SELECT queries
     private static let tableNameRegex = try? NSRegularExpression(
-        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#,
+        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+(?:\[(\w+)\]|[`"]?(\w+)[`"]?)\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|OFFSET|$|;)"#,
         options: []
     )
 
@@ -429,7 +429,7 @@ final class MainContentCoordinator {
         switch connection.type {
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .redshift:
+        case .mysql, .mariadb, .postgresql, .redshift, .mssql:
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)
@@ -685,11 +685,15 @@ final class MainContentCoordinator {
     func extractTableName(from sql: String) -> String? {
         let nsRange = NSRange(sql.startIndex..., in: sql)
 
-        // SQL: SELECT ... FROM tableName
+        // SQL: SELECT ... FROM tableName  (group 1 = bracket-quoted, group 2 = plain/backtick/double-quote)
         if let regex = Self.tableNameRegex,
-           let match = regex.firstMatch(in: sql, options: [], range: nsRange),
-           let range = Range(match.range(at: 1), in: sql) {
-            return String(sql[range])
+           let match = regex.firstMatch(in: sql, options: [], range: nsRange) {
+            for group in 1...2 {
+                let r = match.range(at: group)
+                if r.location != NSNotFound, let range = Range(r, in: sql) {
+                    return String(sql[range])
+                }
+            }
         }
 
         // MQL bracket notation: db["collectionName"].find(...)
@@ -1176,6 +1180,8 @@ final class MainContentCoordinator {
         switch dbType {
         case .mysql, .mariadb:
             beginStatement = "START TRANSACTION"
+        case .mssql:
+            beginStatement = "BEGIN TRANSACTION"
         default:
             beginStatement = "BEGIN"
         }
