@@ -14,28 +14,40 @@ struct DatabaseSwitcherSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let currentDatabase: String?
+    let currentSchema: String?
     let databaseType: DatabaseType
     let connectionId: UUID
     let onSelect: (String) -> Void
+    let onSelectSchema: ((String) -> Void)?
 
     @State private var viewModel: DatabaseSwitcherViewModel
     @State private var showCreateDialog = false
 
-    private var isSchemaMode: Bool { databaseType == .postgresql || databaseType == .redshift }
+    private var isSchemaMode: Bool { viewModel.isSchemaMode }
+
+    /// The active name used for current-badge comparison, depending on mode.
+    private var activeName: String? {
+        isSchemaMode ? currentSchema : currentDatabase
+    }
 
     init(
-        isPresented: Binding<Bool>, currentDatabase: String?, databaseType: DatabaseType,
-        connectionId: UUID, onSelect: @escaping (String) -> Void
+        isPresented: Binding<Bool>, currentDatabase: String?, currentSchema: String? = nil,
+        databaseType: DatabaseType,
+        connectionId: UUID, onSelect: @escaping (String) -> Void,
+        onSelectSchema: ((String) -> Void)? = nil
     ) {
         self._isPresented = isPresented
         self.currentDatabase = currentDatabase
+        self.currentSchema = currentSchema
         self.databaseType = databaseType
         self.connectionId = connectionId
         self.onSelect = onSelect
+        self.onSelectSchema = onSelectSchema
         self._viewModel = State(
             wrappedValue: DatabaseSwitcherViewModel(
                 connectionId: connectionId,
                 currentDatabase: currentDatabase,
+                currentSchema: currentSchema,
                 databaseType: databaseType
             ))
     }
@@ -48,6 +60,23 @@ struct DatabaseSwitcherSheet: View {
                 : String(localized: "Open Database"))
                 .font(.system(size: DesignConstants.FontSize.body, weight: .semibold))
                 .padding(.vertical, 12)
+
+            // Databases / Schemas toggle (PostgreSQL only)
+            if databaseType == .postgresql {
+                Picker("", selection: $viewModel.mode) {
+                    Text(String(localized: "Databases"))
+                        .tag(DatabaseSwitcherViewModel.Mode.database)
+                    Text(String(localized: "Schemas"))
+                        .tag(DatabaseSwitcherViewModel.Mode.schema)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+                .onChange(of: viewModel.mode) {
+                    Task { await viewModel.fetchDatabases() }
+                }
+            }
 
             Divider()
 
@@ -207,7 +236,7 @@ struct DatabaseSwitcherSheet: View {
 
     private func databaseRow(_ database: DatabaseMetadata) -> some View {
         let isSelected = database.name == viewModel.selectedDatabase
-        let isCurrent = database.name == currentDatabase
+        let isCurrent = database.name == activeName
 
         return HStack(spacing: 10) {
             // Icon
@@ -361,7 +390,7 @@ struct DatabaseSwitcherSheet: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(
-                viewModel.selectedDatabase == nil || viewModel.selectedDatabase == currentDatabase
+                viewModel.selectedDatabase == nil || viewModel.selectedDatabase == activeName
             )
             .keyboardShortcut(.return, modifiers: [])
         }
@@ -395,8 +424,8 @@ struct DatabaseSwitcherSheet: View {
     private func openSelectedDatabase() {
         guard let database = viewModel.selectedDatabase else { return }
 
-        // Don't reopen current database
-        if database == currentDatabase {
+        // Don't reopen current database/schema
+        if database == activeName {
             dismiss()
             return
         }
@@ -404,8 +433,12 @@ struct DatabaseSwitcherSheet: View {
         // Track access
         viewModel.trackAccess(database: database)
 
-        // Call onSelect callback
-        onSelect(database)
+        // Call appropriate callback
+        if viewModel.isSchemaMode, databaseType == .postgresql, let onSelectSchema {
+            onSelectSchema(database)
+        } else {
+            onSelect(database)
+        }
         dismiss()
     }
 }

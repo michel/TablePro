@@ -34,7 +34,11 @@ extension MainContentCoordinator {
                   let schema = userInfo["schema"] as? String else { return }
 
             Task { @MainActor in
-                await self.switchDatabase(to: schema)
+                if self.connection.type == .postgresql {
+                    await self.switchSchema(to: schema)
+                } else {
+                    await self.switchDatabase(to: schema)
+                }
             }
         }
     }

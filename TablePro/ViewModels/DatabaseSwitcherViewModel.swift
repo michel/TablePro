@@ -14,6 +14,14 @@ import SwiftUI
 @MainActor @Observable
 class DatabaseSwitcherViewModel {
     private static let logger = Logger(subsystem: "com.TablePro", category: "DatabaseSwitcherViewModel")
+
+    // MARK: - Mode
+
+    enum Mode {
+        case database
+        case schema
+    }
+
     // MARK: - Published State
 
     var databases: [DatabaseMetadata] = []
@@ -23,14 +31,16 @@ class DatabaseSwitcherViewModel {
     var isLoading = false
     var errorMessage: String?
     var showPreview = false
+    var mode: Mode
 
-    /// Whether we're switching schemas (PostgreSQL) or databases (MySQL)
-    var isSchemaMode: Bool { databaseType == .postgresql || databaseType == .redshift }
+    /// Whether we're switching schemas (Redshift or PostgreSQL in schema mode)
+    var isSchemaMode: Bool { mode == .schema }
 
     // MARK: - Dependencies
 
     private let connectionId: UUID
     private let currentDatabase: String?
+    private let currentSchema: String?
     private let databaseType: DatabaseType
 
     // MARK: - Computed Properties
@@ -59,16 +69,21 @@ class DatabaseSwitcherViewModel {
 
     // MARK: - Initialization
 
-    init(connectionId: UUID, currentDatabase: String?, databaseType: DatabaseType) {
+    init(
+        connectionId: UUID, currentDatabase: String?, currentSchema: String?,
+        databaseType: DatabaseType
+    ) {
         self.connectionId = connectionId
         self.currentDatabase = currentDatabase
+        self.currentSchema = currentSchema
         self.databaseType = databaseType
+        self.mode = databaseType == .redshift ? .schema : .database
         self.recentDatabases = UserDefaults.standard.recentDatabases(for: connectionId)
     }
 
     // MARK: - Public Methods
 
-    /// Fetch databases (or schemas for PostgreSQL) and their metadata
+    /// Fetch databases (or schemas for Redshift) and their metadata
     func fetchDatabases() async {
         isLoading = true
         errorMessage = nil
@@ -81,13 +96,13 @@ class DatabaseSwitcherViewModel {
             }
 
             if isSchemaMode {
-                // PostgreSQL: fetch schemas instead of databases
+                // Redshift: fetch schemas instead of databases
                 let schemaNames = try await driver.fetchSchemas()
                 databases = schemaNames.map { name in
                     DatabaseMetadata.minimal(name: name, isSystem: isSystemItem(name))
                 }
             } else {
-                // MySQL/MariaDB: fetch databases with metadata
+                // MySQL/MariaDB/PostgreSQL: fetch databases with metadata
                 let dbNames = try await driver.fetchDatabases()
 
                 let metadataList = await withTaskGroup(of: DatabaseMetadata?.self) { group in
@@ -112,7 +127,8 @@ class DatabaseSwitcherViewModel {
             isLoading = false
 
             // Pre-select current database/schema or first item
-            if let current = currentDatabase, databases.contains(where: { $0.name == current }) {
+            let current = isSchemaMode ? currentSchema : currentDatabase
+            if let current, databases.contains(where: { $0.name == current }) {
                 selectedDatabase = current
             } else {
                 selectedDatabase = databases.first?.name

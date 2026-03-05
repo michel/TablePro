@@ -284,20 +284,33 @@ extension MainContentCoordinator {
                 // Reload schema for autocomplete.
                 // session.tables was cleared above, which triggers SidebarView.loadTables() via onChange.
                 await loadSchema()
-            } else if connection.type == .postgresql || connection.type == .redshift {
-                // PostgreSQL: switch schema (not database — PG database switching requires reconnection)
-                if let pgDriver = driver as? PostgreSQLDriver {
-                    try await pgDriver.switchSchema(to: database)
-                } else if let rsDriver = driver as? RedshiftDriver {
+            } else if connection.type == .postgresql {
+                DatabaseManager.shared.updateSession(connectionId) { session in
+                    session.connection.database = database
+                    session.currentDatabase = database
+                    session.currentSchema = nil
+                    session.tables = []  // triggers SidebarView.loadTables() via onChange
+                }
+
+                toolbarState.databaseName = database
+
+                closeSiblingNativeWindows()
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
+
+                await DatabaseManager.shared.reconnectSession(connectionId)
+
+                NotificationCenter.default.post(name: .refreshData, object: nil)
+            } else if connection.type == .redshift {
+                // Redshift: switch schema
+                if let rsDriver = driver as? RedshiftDriver {
                     try await rsDriver.switchSchema(to: database)
                 } else {
                     return
                 }
 
                 // Also switch metadata driver's schema
-                if let pgMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? PostgreSQLDriver {
-                    try? await pgMeta.switchSchema(to: database)
-                } else if let rsMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedshiftDriver {
+                if let rsMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedshiftDriver {
                     try? await rsMeta.switchSchema(to: database)
                 }
 
@@ -380,6 +393,44 @@ extension MainContentCoordinator {
             navigationLogger.error("Failed to switch database: \(error.localizedDescription, privacy: .public)")
             AlertHelper.showErrorSheet(
                 title: String(localized: "Database Switch Failed"),
+                message: error.localizedDescription,
+                window: NSApplication.shared.keyWindow
+            )
+        }
+    }
+
+    /// Switch to a different PostgreSQL schema (used for URL-based schema selection)
+    func switchSchema(to schema: String) async {
+        guard connection.type == .postgresql else { return }
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
+
+        do {
+            if let pgDriver = driver as? PostgreSQLDriver {
+                try await pgDriver.switchSchema(to: schema)
+            } else {
+                return
+            }
+
+            if let pgMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? PostgreSQLDriver {
+                try? await pgMeta.switchSchema(to: schema)
+            }
+
+            DatabaseManager.shared.updateSession(connectionId) { session in
+                session.currentSchema = schema
+                session.tables = []
+            }
+
+            closeSiblingNativeWindows()
+            tabManager.tabs = []
+            tabManager.selectedTabId = nil
+
+            await loadSchema()
+
+            NotificationCenter.default.post(name: .refreshData, object: nil)
+        } catch {
+            navigationLogger.error("Failed to switch schema: \(error.localizedDescription, privacy: .public)")
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Schema Switch Failed"),
                 message: error.localizedDescription,
                 window: NSApplication.shared.keyWindow
             )
