@@ -423,6 +423,31 @@ final class RedisConnection: @unchecked Sendable {
         #endif
     }
 
+    /// Execute multiple Redis commands in a single pipeline round trip.
+    func executePipeline(_ commands: [[String]]) async throws -> [RedisReply] {
+        #if canImport(CRedis)
+        resetCancellation()
+        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[RedisReply], Error>) in
+            queue.async { [self] in
+                guard !isShuttingDown, context != nil else {
+                    cont.resume(throwing: RedisError.notConnected)
+                    return
+                }
+                do {
+                    try checkCancelled()
+                    let results = try executePipelineSync(commands)
+                    try checkCancelled()
+                    cont.resume(returning: results)
+                } catch {
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+        #else
+        throw RedisError.hiredisUnavailable
+        #endif
+    }
+
     // MARK: - Key Operations
 
     func selectDatabase(_ index: Int) async throws {
@@ -756,6 +781,49 @@ private extension RedisConnection {
             freeReplyObject(rawReply)
             return parsed
         }
+    }
+
+    func executePipelineSync(_ commands: [[String]]) throws -> [RedisReply] {
+        guard let ctx = context else { throw RedisError.notConnected }
+        guard !commands.isEmpty else { return [] }
+
+        for args in commands {
+            let argc = Int32(args.count)
+            let lengths = args.map { $0.utf8.count }
+            try withArgvPointers(args: args, lengths: lengths) { argv, argvlen in
+                let status = redisAppendCommandArgv(ctx, argc, argv, argvlen)
+                if status != REDIS_OK {
+                    let errMsg = withUnsafePointer(to: &ctx.pointee.errstr) { ptr in
+                        ptr.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
+                    }
+                    throw RedisError(code: Int(ctx.pointee.err), message: errMsg)
+                }
+            }
+        }
+
+        var replies: [RedisReply] = []
+        replies.reserveCapacity(commands.count)
+        for i in 0 ..< commands.count {
+            var rawReply: UnsafeMutableRawPointer?
+            let status = redisGetReply(ctx, &rawReply)
+            guard status == REDIS_OK, let reply = rawReply else {
+                let errMsg = withUnsafePointer(to: &ctx.pointee.errstr) { ptr in
+                    ptr.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
+                }
+                for j in (i + 1) ..< commands.count {
+                    var discard: UnsafeMutableRawPointer?
+                    if redisGetReply(ctx, &discard) == REDIS_OK, let d = discard {
+                        freeReplyObject(d)
+                    }
+                }
+                throw RedisError(code: Int(ctx.pointee.err), message: errMsg)
+            }
+            let replyPtr = reply.assumingMemoryBound(to: redisReply.self)
+            let parsed = parseReply(replyPtr)
+            freeReplyObject(reply)
+            replies.append(parsed)
+        }
+        return replies
     }
 
     /// Execute redisCommandArgv with properly managed C string pointers.

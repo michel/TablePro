@@ -446,6 +446,73 @@ final class PostgreSQLDriver: DatabaseDriver {
         }
     }
 
+    func fetchAllDependentTypes(forTables tables: [String]) async throws -> [String: [(name: String, labels: [String])]] {
+        guard !tables.isEmpty else { return [:] }
+        let tableList = tables.map { "'\(SQLEscaping.escapeStringLiteral($0, databaseType: .postgresql))'" }.joined(separator: ", ")
+        let query = """
+            SELECT DISTINCT c.relname AS table_name, t.typname, e.enumlabel
+            FROM pg_type t
+            JOIN pg_enum e ON t.oid = e.enumtypid
+            JOIN pg_attribute a ON a.atttypid = t.oid
+            JOIN pg_class c ON c.oid = a.attrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname IN (\(tableList))
+              AND n.nspname = '\(escapedSchema)'
+            ORDER BY c.relname, t.typname, e.enumsortorder
+            """
+        let result = try await execute(query: query)
+
+        var grouped: [String: [String: [String]]] = [:]
+        for row in result.rows {
+            guard let tableName = row[0], let typeName = row[1], let label = row[2] else { continue }
+            grouped[tableName, default: [:]][typeName, default: []].append(label)
+        }
+
+        var output: [String: [(name: String, labels: [String])]] = [:]
+        for (table, types) in grouped {
+            output[table] = types.map { (name: $0.key, labels: $0.value) }.sorted { $0.name < $1.name }
+        }
+        return output
+    }
+
+    func fetchAllDependentSequences(forTables tables: [String]) async throws -> [String: [(name: String, ddl: String)]] {
+        guard !tables.isEmpty else { return [:] }
+        let tableList = tables.map { "'\(SQLEscaping.escapeStringLiteral($0, databaseType: .postgresql))'" }.joined(separator: ", ")
+        let query = """
+            SELECT c.relname AS table_name,
+                   s.sequencename,
+                   s.start_value,
+                   s.min_value,
+                   s.max_value,
+                   s.increment_by,
+                   s.cycle
+            FROM pg_attrdef ad
+            JOIN pg_class c ON c.oid = ad.adrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_sequences s ON s.schemaname = n.nspname
+                 AND pg_get_expr(ad.adbin, ad.adrelid) LIKE '%' || quote_ident(s.sequencename) || '%'
+            WHERE c.relname IN (\(tableList))
+              AND n.nspname = '\(escapedSchema)'
+              AND pg_get_expr(ad.adbin, ad.adrelid) LIKE '%nextval%'
+            """
+        let result = try await execute(query: query)
+
+        var output: [String: [(name: String, ddl: String)]] = [:]
+        for row in result.rows {
+            guard let tableName = row[0], let seqName = row[1] else { continue }
+            let startVal = row[2] ?? "1"
+            let minVal = row[3] ?? "1"
+            let maxVal = row[4] ?? "9223372036854775807"
+            let incrementBy = row[5] ?? "1"
+            let cycle = row[6] == "t" ? " CYCLE" : ""
+            let ddl = "CREATE SEQUENCE \"\(seqName)\" INCREMENT BY \(incrementBy)"
+                + " MINVALUE \(minVal) MAXVALUE \(maxVal)"
+                + " START WITH \(startVal)\(cycle);"
+            output[tableName, default: []].append((name: seqName, ddl: ddl))
+        }
+        return output
+    }
+
     func fetchIndexes(table: String) async throws -> [IndexInfo] {
         let query = """
             SELECT
@@ -532,6 +599,55 @@ final class PostgreSQLDriver: DatabaseDriver {
                 onUpdate: row[5] ?? "NO ACTION"
             )
         }
+    }
+
+    func fetchAllForeignKeys() async throws -> [String: [ForeignKeyInfo]] {
+        let query = """
+            SELECT
+                tc.table_name,
+                tc.constraint_name,
+                kcu.column_name,
+                ccu.table_name AS referenced_table,
+                ccu.column_name AS referenced_column,
+                rc.delete_rule,
+                rc.update_rule
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.referential_constraints rc
+                ON tc.constraint_name = rc.constraint_name
+                AND tc.constraint_schema = rc.constraint_schema
+            JOIN information_schema.constraint_column_usage ccu
+                ON rc.unique_constraint_name = ccu.constraint_name
+                AND rc.unique_constraint_schema = ccu.constraint_schema
+            WHERE tc.table_schema = '\(escapedSchema)'
+                AND tc.constraint_type = 'FOREIGN KEY'
+            ORDER BY tc.table_name, tc.constraint_name
+            """
+        let result = try await execute(query: query)
+
+        var grouped: [String: [ForeignKeyInfo]] = [:]
+        for row in result.rows {
+            guard row.count >= 7,
+                  let tableName = row[0],
+                  let name = row[1],
+                  let column = row[2],
+                  let refTable = row[3],
+                  let refColumn = row[4]
+            else { continue }
+
+            let fk = ForeignKeyInfo(
+                name: name,
+                column: column,
+                referencedTable: refTable,
+                referencedColumn: refColumn,
+                onDelete: row[5] ?? "NO ACTION",
+                onUpdate: row[6] ?? "NO ACTION"
+            )
+            grouped[tableName, default: []].append(fk)
+        }
+        return grouped
     }
 
     func fetchApproximateRowCount(table: String) async throws -> Int? {
@@ -807,6 +923,34 @@ final class PostgreSQLDriver: DatabaseDriver {
             isSystemDatabase: isSystem,
             icon: isSystem ? "gearshape.fill" : "cylinder.fill"
         )
+    }
+
+    func fetchAllDatabaseMetadata() async throws -> [DatabaseMetadata] {
+        let systemDatabases = ["postgres", "template0", "template1"]
+
+        let query = """
+            SELECT d.datname, pg_database_size(d.datname)
+            FROM pg_database d
+            WHERE d.datistemplate = false
+            ORDER BY d.datname
+            """
+        let result = try await execute(query: query)
+
+        return result.rows.compactMap { row in
+            guard let dbName = row[0] else { return nil }
+            let sizeBytes = Int64(row[1] ?? "0") ?? 0
+            let isSystem = systemDatabases.contains(dbName)
+
+            return DatabaseMetadata(
+                id: dbName,
+                name: dbName,
+                tableCount: nil,
+                sizeBytes: sizeBytes,
+                lastAccessed: nil,
+                isSystemDatabase: isSystem,
+                icon: isSystem ? "gearshape.fill" : "cylinder.fill"
+            )
+        }
     }
 
     /// Create a new database

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix slow database switcher loading by replacing N+1 metadata queries with single batched queries (MySQL, PostgreSQL, Redshift)
+- Fix slow Redis key browsing by pipelining TYPE and TTL commands in a single round trip instead of 3 sequential commands per key
+- Fix slow SQL export startup by batching COUNT(*) queries via UNION ALL and batching dependent sequence/type lookups
+- Fix slow AI Chat schema loading by fetching all foreign keys in a single bulk query instead of per-table
+
 ## [0.13.0] - 2026-03-04
 
 ### Added

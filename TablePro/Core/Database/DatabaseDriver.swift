@@ -81,6 +81,10 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch foreign keys for a specific table
     func fetchForeignKeys(table: String) async throws -> [ForeignKeyInfo]
 
+    /// Fetch foreign keys for all tables in the current database/schema in bulk.
+    /// Default implementation falls back to per-table fetchForeignKeys.
+    func fetchAllForeignKeys() async throws -> [String: [ForeignKeyInfo]]
+
     /// Fetch an approximate row count using fast database-specific metadata.
     /// Returns nil if not available (e.g., SQLite). Used for instant pagination display.
     func fetchApproximateRowCount(table: String) async throws -> Int?
@@ -110,6 +114,10 @@ protocol DatabaseDriver: AnyObject {
 
     /// Fetch metadata for a specific database (table count, size, etc.)
     func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata
+
+    /// Fetch metadata for all databases in a single batch (table count, size, etc.)
+    /// Default implementation falls back to per-database calls.
+    func fetchAllDatabaseMetadata() async throws -> [DatabaseMetadata]
 
     /// Create a new database
     func createDatabase(name: String, charset: String, collation: String?) async throws
@@ -144,6 +152,34 @@ extension DatabaseDriver {
         return true
     }
 
+    /// Default fetchAllDatabaseMetadata: falls back to per-database calls (N+1).
+    /// Drivers should override with a single bulk query where possible.
+    func fetchAllDatabaseMetadata() async throws -> [DatabaseMetadata] {
+        let dbNames = try await fetchDatabases()
+        var results: [DatabaseMetadata] = []
+        for dbName in dbNames {
+            do {
+                let metadata = try await fetchDatabaseMetadata(dbName)
+                results.append(metadata)
+            } catch {
+                results.append(DatabaseMetadata.minimal(name: dbName))
+            }
+        }
+        return results
+    }
+
+    func fetchAllForeignKeys() async throws -> [String: [ForeignKeyInfo]] {
+        let allTables = try await fetchTables()
+        var result: [String: [ForeignKeyInfo]] = [:]
+        for table in allTables {
+            do {
+                let fks = try await fetchForeignKeys(table: table.name)
+                if !fks.isEmpty { result[table.name] = fks }
+            } catch {}
+        }
+        return result
+    }
+
     /// Default fetchAllColumns: falls back to per-table fetchColumns (N+1).
     /// Drivers should override with a single bulk query where possible.
     func fetchAllColumns() async throws -> [String: [ColumnInfo]] {
@@ -168,6 +204,24 @@ extension DatabaseDriver {
     /// Default: no dependent sequences (MySQL/SQLite don't use standalone sequences)
     func fetchDependentSequences(forTable table: String) async throws -> [(name: String, ddl: String)] {
         []
+    }
+
+    func fetchAllDependentTypes(forTables tables: [String]) async throws -> [String: [(name: String, labels: [String])]] {
+        var result: [String: [(name: String, labels: [String])]] = [:]
+        for table in tables {
+            let types = try await fetchDependentTypes(forTable: table)
+            if !types.isEmpty { result[table] = types }
+        }
+        return result
+    }
+
+    func fetchAllDependentSequences(forTables tables: [String]) async throws -> [String: [(name: String, ddl: String)]] {
+        var result: [String: [(name: String, ddl: String)]] = [:]
+        for table in tables {
+            let seqs = try await fetchDependentSequences(forTable: table)
+            if !seqs.isEmpty { result[table] = seqs }
+        }
+        return result
     }
 
     func fetchApproximateRowCount(table: String) async throws -> Int? { nil }

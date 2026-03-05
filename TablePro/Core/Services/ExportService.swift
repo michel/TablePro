@@ -182,30 +182,55 @@ final class ExportService {
     /// - Returns: The total row count across all tables. Any failures are logged but do not affect the returned value.
     /// - Note: When row count fails for some tables, the statusMessage is updated to inform the user that progress is estimated.
     private func fetchTotalRowCount(for tables: [ExportTableItem]) async -> Int {
+        if databaseType == .mongodb || databaseType == .redis {
+            var total = 0
+            for table in tables {
+                if let count = try? await driver.fetchApproximateRowCount(table: table.name) {
+                    total += count
+                }
+            }
+            return total
+        }
+
+        guard !tables.isEmpty else { return 0 }
+
+        // Batch all COUNT(*) into a single UNION ALL query per chunk
+        let chunkSize = 50
         var total = 0
         var failedCount = 0
-        for table in tables {
+
+        for chunkStart in stride(from: 0, to: tables.count, by: chunkSize) {
+            let end = min(chunkStart + chunkSize, tables.count)
+            let batch = tables[chunkStart ..< end]
+
+            let unionParts = batch.map { "SELECT COUNT(*) AS c FROM \(qualifiedTableRef(for: $0))" }
+            let batchQuery = unionParts.joined(separator: " UNION ALL ")
+
             do {
-                if databaseType == .mongodb || databaseType == .redis {
-                    if let count = try await driver.fetchApproximateRowCount(table: table.name) {
-                        total += count
-                    }
-                } else {
-                    let tableRef = qualifiedTableRef(for: table)
-                    let result = try await driver.execute(query: "SELECT COUNT(*) FROM \(tableRef)")
-                    if let countStr = result.rows.first?.first, let count = Int(countStr ?? "0") {
+                let result = try await driver.execute(query: batchQuery)
+                for row in result.rows {
+                    if let countStr = row.first, let count = Int(countStr ?? "0") {
                         total += count
                     }
                 }
             } catch {
-                // Log the error but continue - progress will be less accurate
-                failedCount += 1
-                Self.logger.warning("Failed to get row count for \(table.qualifiedName): \(error.localizedDescription)")
+                for table in batch {
+                    do {
+                        let tableRef = qualifiedTableRef(for: table)
+                        let result = try await driver.execute(query: "SELECT COUNT(*) FROM \(tableRef)")
+                        if let countStr = result.rows.first?.first, let count = Int(countStr ?? "0") {
+                            total += count
+                        }
+                    } catch {
+                        failedCount += 1
+                        Self.logger.warning("Failed to get row count for \(table.qualifiedName): \(error.localizedDescription)")
+                    }
+                }
             }
         }
+
         if failedCount > 0 {
             Self.logger.warning("\(failedCount) table(s) failed row count - progress indicator may be inaccurate")
-            // Update status message so user knows progress is estimated
             state.statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
         }
         return total
@@ -821,24 +846,27 @@ final class ExportService {
             try fileHandle.write(contentsOf: "-- Generated: \(dateFormatter.string(from: Date()))\n".toUTF8Data())
             try fileHandle.write(contentsOf: "-- Database Type: \(databaseType.rawValue)\n\n".toUTF8Data())
 
-            // Collect and emit dependent sequences and enum types (PostgreSQL)
+            // Collect and emit dependent sequences and enum types (PostgreSQL) in batch
             var emittedSequenceNames: Set<String> = []
             var emittedTypeNames: Set<String> = []
+            let structureTableNames = tables.filter { $0.sqlOptions.includeStructure }.map(\.name)
+
+            let allSequences = (try? await driver.fetchAllDependentSequences(forTables: structureTableNames)) ?? [:]
+            let allEnumTypes = (try? await driver.fetchAllDependentTypes(forTables: structureTableNames)) ?? [:]
+
             for table in tables where table.sqlOptions.includeStructure {
-                let sequences = try await driver.fetchDependentSequences(forTable: table.name)
+                let sequences = allSequences[table.name] ?? []
                 for seq in sequences where !emittedSequenceNames.contains(seq.name) {
                     emittedSequenceNames.insert(seq.name)
                     let quotedName = "\"\(seq.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                    // Always DROP dependent sequences — they must be recreated for CREATE TABLE to succeed
                     try fileHandle.write(contentsOf: "DROP SEQUENCE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
                     try fileHandle.write(contentsOf: "\(seq.ddl)\n\n".toUTF8Data())
                 }
 
-                let enumTypes = try await driver.fetchDependentTypes(forTable: table.name)
+                let enumTypes = allEnumTypes[table.name] ?? []
                 for enumType in enumTypes where !emittedTypeNames.contains(enumType.name) {
                     emittedTypeNames.insert(enumType.name)
                     let quotedName = "\"\(enumType.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                    // Always DROP dependent types — they must be recreated for CREATE TABLE to succeed
                     try fileHandle.write(contentsOf: "DROP TYPE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
                     let quotedLabels = enumType.labels.map { "'\(SQLEscaping.escapeStringLiteral($0, databaseType: databaseType))'" }
                     try fileHandle.write(contentsOf: "CREATE TYPE \(quotedName) AS ENUM (\(quotedLabels.joined(separator: ", ")));\n\n".toUTF8Data())

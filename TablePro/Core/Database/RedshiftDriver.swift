@@ -707,6 +707,45 @@ final class RedshiftDriver: DatabaseDriver {
         )
     }
 
+    func fetchAllDatabaseMetadata() async throws -> [DatabaseMetadata] {
+        let systemDatabases = ["dev", "padb_harvest"]
+
+        let dbResult = try await execute(
+            query: "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname"
+        )
+        let dbNames = dbResult.rows.compactMap { $0.first.flatMap { $0 } }
+
+        let infoQuery = """
+            SELECT database, COUNT(DISTINCT "table"), COALESCE(SUM(size), 0)
+            FROM svv_table_info
+            WHERE schema NOT IN ('pg_internal', 'pg_catalog', 'information_schema')
+            GROUP BY database
+            """
+        let infoResult = try await execute(query: infoQuery)
+
+        var metadataByName: [String: (tableCount: Int, sizeMb: Int64)] = [:]
+        for row in infoResult.rows {
+            guard let dbName = row[0] else { continue }
+            let tableCount = Int(row[1] ?? "0") ?? 0
+            let sizeMb = Int64(row[2] ?? "0") ?? 0
+            metadataByName[dbName] = (tableCount: tableCount, sizeMb: sizeMb)
+        }
+
+        return dbNames.map { dbName in
+            let isSystem = systemDatabases.contains(dbName)
+            let info = metadataByName[dbName]
+            return DatabaseMetadata(
+                id: dbName,
+                name: dbName,
+                tableCount: info?.tableCount,
+                sizeBytes: info.map { $0.sizeMb * 1_024 * 1_024 },
+                lastAccessed: nil,
+                isSystemDatabase: isSystem,
+                icon: isSystem ? "gearshape.fill" : "cylinder.fill"
+            )
+        }
+    }
+
     func createDatabase(name: String, charset: String, collation: String?) async throws {
         let escapedName = name.replacingOccurrences(of: "\"", with: "\"\"")
 
