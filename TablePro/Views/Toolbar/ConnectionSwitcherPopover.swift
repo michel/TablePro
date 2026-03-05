@@ -235,7 +235,7 @@ struct ConnectionSwitcherPopover: View {
 
                 Text(connectionSubtitle(connection))
                     .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isHighlighted ? .white.opacity(0.7) : .secondary)
                     .lineLimit(1)
             }
 
@@ -258,12 +258,12 @@ struct ConnectionSwitcherPopover: View {
             // Database type badge
             Text(connection.type.rawValue.uppercased())
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isHighlighted ? .white : .secondary)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(Color(nsColor: .separatorColor))
+                        .fill(isHighlighted ? Color.white.opacity(0.2) : Color(nsColor: .separatorColor))
                 )
         }
         .padding(.vertical, 2)
