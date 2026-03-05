@@ -101,7 +101,7 @@ final class SQLFileParser: Sendable {
 
                     var state: ParserState = .normal
                     // nil when countOnly — skips all string building via optional chaining
-                    var currentStatement: NSMutableString? = countOnly ? nil : NSMutableString()
+                    let currentStatement: NSMutableString? = countOnly ? nil : NSMutableString()
                     var hasStatementContent = false
                     var currentLine = 1
                     var statementStartLine = 1

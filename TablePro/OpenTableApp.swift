@@ -240,7 +240,7 @@ struct AppMenuCommands: Commands {
                    firstResponder is NSTextView || firstResponder is TextView {
                     // Send undo: (with colon) through responder chain —
                     // CodeEditTextView.TextView responds to undo: via @objc func undo(_:)
-                    NSApp.sendAction(Selector(("undo:")), to: nil, from: nil)
+                    NSApp.sendAction(#selector(TableProResponderActions.undo(_:)), to: nil, from: nil)
                 } else {
                     // Data grid undo
                     actions?.undoChange()
@@ -253,7 +253,7 @@ struct AppMenuCommands: Commands {
                 if let firstResponder = NSApp.keyWindow?.firstResponder,
                    firstResponder is NSTextView || firstResponder is TextView {
                     // Send redo: (with colon) through responder chain
-                    NSApp.sendAction(Selector(("redo:")), to: nil, from: nil)
+                    NSApp.sendAction(#selector(TableProResponderActions.redo(_:)), to: nil, from: nil)
                 } else {
                     // Data grid redo
                     actions?.redoChange()

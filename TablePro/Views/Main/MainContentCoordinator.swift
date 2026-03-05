@@ -53,7 +53,7 @@ final class MainContentCoordinator {
 
     // MARK: - Dependencies
 
-    nonisolated(unsafe) let connection: DatabaseConnection
+    let connection: DatabaseConnection
     var connectionId: UUID { connection.id }
     let tabManager: QueryTabManager
     let changeManager: DataChangeManager
@@ -497,7 +497,7 @@ final class MainContentCoordinator {
                 }
 
                 // Parse schema metadata if available
-                let metadata = schemaResult.map { parseSchemaMetadata($0) }
+                let metadata = schemaResult.map { self.parseSchemaMetadata($0) }
 
                 // Phase 1: Display data rows + FK arrows in a single MainActor update.
                 await MainActor.run { [weak self] in
@@ -1337,7 +1337,7 @@ private extension MainContentCoordinator {
         updatedTab.isEditable = isEditable && updatedTab.isEditable
         if conn.type == .redis {
             // Populate enum values from column types for the enum popover
-            for (index, colType) in (updatedTab.columnTypes ?? []).enumerated() {
+            for (index, colType) in updatedTab.columnTypes.enumerated() {
                 if case .enumType(_, let values) = colType, let vals = values, index < updatedTab.resultColumns.count {
                     updatedTab.columnEnumValues[updatedTab.resultColumns[index]] = vals
                 }

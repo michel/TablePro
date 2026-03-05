@@ -110,7 +110,7 @@ final class CellOverlayEditor: NSObject, NSTextViewDelegate {
 
         // Install click-outside monitor
         clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self, let sv = self.scrollView, let window = sv.window else { return event }
+            guard let self, let sv = self.scrollView, sv.window != nil else { return event }
             let locationInSV = sv.convert(event.locationInWindow, from: nil)
             if !sv.bounds.contains(locationInSV) {
                 self.dismiss(commit: true)

@@ -201,7 +201,7 @@ final class MongoDBConnection: @unchecked Sendable {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
                 let uriString = buildUri()
-                logger.debug("Connecting to MongoDB at \(host):\(port)")
+                logger.debug("Connecting to MongoDB at \(self.host):\(self.port)")
 
                 guard let newClient = mongoc_client_new(uriString) else {
                     logger.error("Failed to create MongoDB client")

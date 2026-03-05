@@ -7,18 +7,26 @@ import Foundation
 
 extension MainContentCoordinator {
     func setupURLNotificationObservers() {
+        let connId = connectionId
         NotificationCenter.default.addObserver(
             forName: .applyURLFilter,
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let self,
-                  let userInfo = notification.userInfo,
+            guard let userInfo = notification.userInfo,
                   let targetId = userInfo["connectionId"] as? UUID,
-                  targetId == self.connectionId else { return }
+                  targetId == connId else { return }
 
-            Task { @MainActor in
-                self.applyURLFilter(userInfo: userInfo)
+            // Extract Sendable values before crossing isolation boundary
+            let condition = userInfo["condition"] as? String
+            let column = userInfo["column"] as? String
+            let operation = userInfo["operation"] as? String
+            let value = userInfo["value"] as? String
+            Task { @MainActor [weak self] in
+                self?.applyURLFilterValues(
+                    condition: condition, column: column,
+                    operation: operation, value: value
+                )
             }
         }
 
@@ -27,20 +35,22 @@ extension MainContentCoordinator {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let self,
-                  let userInfo = notification.userInfo,
+            guard let userInfo = notification.userInfo,
                   let targetId = userInfo["connectionId"] as? UUID,
-                  targetId == self.connectionId,
+                  targetId == connId,
                   let schema = userInfo["schema"] as? String else { return }
 
-            Task { @MainActor in
-                await self.switchDatabase(to: schema)
+            Task { @MainActor [weak self] in
+                await self?.switchDatabase(to: schema)
             }
         }
     }
 
-    private func applyURLFilter(userInfo: [AnyHashable: Any]) {
-        if let condition = userInfo["condition"] as? String, !condition.isEmpty {
+    private func applyURLFilterValues(
+        condition: String?, column: String?,
+        operation: String?, value: String?
+    ) {
+        if let condition, !condition.isEmpty {
             let filter = TableFilter(
                 id: UUID(),
                 columnName: TableFilter.rawSQLColumn,
@@ -54,17 +64,15 @@ extension MainContentCoordinator {
             return
         }
 
-        guard let column = userInfo["column"] as? String, !column.isEmpty else { return }
+        guard let column, !column.isEmpty else { return }
 
-        let operationString = userInfo["operation"] as? String ?? "Equal"
-        let filterOp = mapTablePlusOperation(operationString)
-        let value = userInfo["value"] as? String ?? ""
+        let filterOp = mapTablePlusOperation(operation ?? "Equal")
 
         let filter = TableFilter(
             id: UUID(),
             columnName: column,
             filterOperator: filterOp,
-            value: value,
+            value: value ?? "",
             isSelected: true,
             isEnabled: true
         )

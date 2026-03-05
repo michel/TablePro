@@ -169,7 +169,7 @@ final class RedisConnection: @unchecked Sendable {
         _ = Self.initOnce
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
-                logger.debug("Connecting to Redis at \(host):\(port)")
+                logger.debug("Connecting to Redis at \(self.host):\(self.port)")
 
                 guard let ctx = redisConnect(host, Int32(port)) else {
                     logger.error("Failed to create Redis context")
