@@ -57,7 +57,7 @@ struct ContentView: View {
 
     var body: some View {
         mainContent
-            .frame(minWidth: 1_100, minHeight: 600)
+            .frame(minWidth: 1_200, minHeight: 600)
             .confirmationDialog(
                 "Delete Connection",
                 isPresented: $showDeleteConfirmation,
@@ -206,19 +206,20 @@ struct ContentView: View {
                     inspectorContext: $inspectorContext,
                     rightPanelState: rightPanelState
                 )
+                .inspector(isPresented: Bindable(rightPanelState).isPresented) {
+                    UnifiedRightPanelView(
+                        state: rightPanelState,
+                        inspectorContext: inspectorContext,
+                        connection: currentSession.connection,
+                        tables: currentSession.tables
+                    )
+                    .frame(minWidth: 280, maxWidth: 500)
+                    .inspectorColumnWidth(min: 280, ideal: 320, max: 500)
+                }
                 .id(currentSession.id)
             }
             .navigationTitle(windowTitle)
             .navigationSubtitle(currentSession.connection.name)
-            .inspector(isPresented: Bindable(rightPanelState).isPresented) {
-                UnifiedRightPanelView(
-                    state: rightPanelState,
-                    inspectorContext: inspectorContext,
-                    connection: currentSession.connection,
-                    tables: currentSession.tables
-                )
-                .inspectorColumnWidth(min: 280, ideal: 320, max: 500)
-            }
         } else {
             VStack(spacing: 16) {
                 ProgressView()
