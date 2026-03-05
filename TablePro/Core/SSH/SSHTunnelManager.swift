@@ -60,6 +60,12 @@ actor SSHTunnelManager {
     private var healthCheckTask: Task<Void, Never>?
 
     private init() {
+        Task { [weak self] in
+            await self?.startHealthCheck()
+        }
+    }
+
+    private func startHealthCheck() {
         healthCheckTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))

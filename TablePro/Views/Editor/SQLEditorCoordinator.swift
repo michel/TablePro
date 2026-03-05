@@ -24,14 +24,14 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     /// Shared schema provider for inline AI suggestions (avoids duplicate schema fetches)
     @ObservationIgnored var schemaProvider: SQLSchemaProvider?
     @ObservationIgnored private var contextMenu: AIEditorContextMenu?
-    nonisolated(unsafe) private var rightClickMonitor: Any?
-    nonisolated(unsafe) private var inlineSuggestionManager: InlineSuggestionManager?
-    nonisolated(unsafe) private var editorSettingsObserver: NSObjectProtocol?
+    @ObservationIgnored private var rightClickMonitor: Any?
+    @ObservationIgnored private var inlineSuggestionManager: InlineSuggestionManager?
+    @ObservationIgnored private var editorSettingsObserver: NSObjectProtocol?
     /// Debounce work item for frame-change notification to avoid
     /// triggering syntax highlight viewport recalculation on every keystroke.
-    nonisolated(unsafe) private var frameChangeWorkItem: DispatchWorkItem?
-    nonisolated(unsafe) private var clipboardMonitor: Any?
-    nonisolated(unsafe) private var didDestroy = false
+    @ObservationIgnored private var frameChangeWorkItem: DispatchWorkItem?
+    @ObservationIgnored private var clipboardMonitor: Any?
+    @ObservationIgnored private var didDestroy = false
 
     /// Test-only accessor for destroy state
     var isDestroyed: Bool { didDestroy }

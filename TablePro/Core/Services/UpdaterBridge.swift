@@ -25,8 +25,9 @@ final class UpdaterBridge {
 
         // Observe canCheckForUpdates via KVO
         observation = controller.updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] _, change in
-            Task { @MainActor in
-                self?.canCheckForUpdates = change.newValue ?? false
+            let newValue = change.newValue ?? false
+            Task { @MainActor [weak self] in
+                self?.canCheckForUpdates = newValue
             }
         }
     }

@@ -428,6 +428,50 @@ final class MySQLDriver: DatabaseDriver {
         }
     }
 
+    func fetchAllForeignKeys() async throws -> [String: [ForeignKeyInfo]] {
+        let dbName = connection.database
+        let query = """
+            SELECT
+                kcu.TABLE_NAME,
+                kcu.CONSTRAINT_NAME,
+                kcu.COLUMN_NAME,
+                kcu.REFERENCED_TABLE_NAME,
+                kcu.REFERENCED_COLUMN_NAME,
+                rc.DELETE_RULE,
+                rc.UPDATE_RULE
+            FROM information_schema.KEY_COLUMN_USAGE kcu
+            JOIN information_schema.REFERENTIAL_CONSTRAINTS rc
+                ON kcu.CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+                AND kcu.CONSTRAINT_SCHEMA = rc.CONSTRAINT_SCHEMA
+            WHERE kcu.TABLE_SCHEMA = '\(SQLEscaping.escapeStringLiteral(dbName))'
+                AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+            ORDER BY kcu.TABLE_NAME, kcu.CONSTRAINT_NAME
+            """
+        let result = try await execute(query: query)
+
+        var grouped: [String: [ForeignKeyInfo]] = [:]
+        for row in result.rows {
+            guard row.count >= 7,
+                  let tableName = row[0],
+                  let name = row[1],
+                  let column = row[2],
+                  let refTable = row[3],
+                  let refColumn = row[4]
+            else { continue }
+
+            let fk = ForeignKeyInfo(
+                name: name,
+                column: column,
+                referencedTable: refTable,
+                referencedColumn: refColumn,
+                onDelete: row[5] ?? "NO ACTION",
+                onUpdate: row[6] ?? "NO ACTION"
+            )
+            grouped[tableName, default: []].append(fk)
+        }
+        return grouped
+    }
+
     func fetchApproximateRowCount(table: String) async throws -> Int? {
         let dbName = connection.database
         let query = """
@@ -667,6 +711,46 @@ final class MySQLDriver: DatabaseDriver {
             isSystemDatabase: isSystem,
             icon: isSystem ? "gearshape.fill" : "cylinder.fill"
         )
+    }
+
+    /// Fetch metadata for all databases in a single query
+    func fetchAllDatabaseMetadata() async throws -> [DatabaseMetadata] {
+        let systemDatabases = ["information_schema", "mysql", "performance_schema", "sys"]
+
+        // Single query to get table count and size for all databases at once
+        let query = """
+            SELECT TABLE_SCHEMA, COUNT(*), COALESCE(SUM(DATA_LENGTH + INDEX_LENGTH), 0)
+            FROM information_schema.TABLES
+            GROUP BY TABLE_SCHEMA
+        """
+        let result = try await execute(query: query)
+
+        var metadataByName: [String: DatabaseMetadata] = [:]
+        for row in result.rows {
+            guard let dbName = row[0] else { continue }
+            let tableCount = Int(row[1] ?? "0") ?? 0
+            let sizeBytes = Int64(row[2] ?? "0") ?? 0
+            let isSystem = systemDatabases.contains(dbName)
+
+            metadataByName[dbName] = DatabaseMetadata(
+                id: dbName,
+                name: dbName,
+                tableCount: tableCount,
+                sizeBytes: sizeBytes,
+                lastAccessed: nil,
+                isSystemDatabase: isSystem,
+                icon: isSystem ? "gearshape.fill" : "cylinder.fill"
+            )
+        }
+
+        // Also include databases that have no tables (not in information_schema.TABLES)
+        let allDatabases = try await fetchDatabases()
+        return allDatabases.map { dbName in
+            metadataByName[dbName] ?? DatabaseMetadata.minimal(
+                name: dbName,
+                isSystem: systemDatabases.contains(dbName)
+            )
+        }
     }
 
     /// Create a new database

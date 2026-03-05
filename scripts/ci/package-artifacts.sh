@@ -20,7 +20,7 @@ brew list create-dmg &>/dev/null || brew install create-dmg
 chmod +x scripts/create-dmg.sh
 
 echo "📌 Using version: $VERSION"
-scripts/create-dmg.sh "$VERSION" "$ARCH" "build/Release/TablePro-${ARCH}.app"
+NOTARIZE="${NOTARIZE:-false}" scripts/create-dmg.sh "$VERSION" "$ARCH" "build/Release/TablePro-${ARCH}.app"
 
 # Verify DMG was created
 DMG_FILE="build/Release/TablePro-${VERSION}-${ARCH}.dmg"

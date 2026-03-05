@@ -21,18 +21,22 @@ extension RedisDriver {
             return buildEmptyKeyResult(startTime: startTime)
         }
 
-        var rows: [[String?]] = []
-
+        // Pipeline TYPE and TTL commands for all keys in one round trip
+        var commands: [[String]] = []
+        commands.reserveCapacity(keys.count * 2)
         for key in keys {
-            let typeResult = try await conn.executeCommand(["TYPE", key])
-            let typeName = (typeResult.stringValue ?? "unknown").uppercased()
+            commands.append(["TYPE", key])
+            commands.append(["TTL", key])
+        }
+        let replies = try await conn.executePipeline(commands)
 
-            let ttlResult = try await conn.executeCommand(["TTL", key])
-            let ttl = ttlResult.intValue ?? -1
+        var rows: [[String?]] = []
+        for (i, key) in keys.enumerated() {
+            let typeName = (replies[i * 2].stringValue ?? "unknown").uppercased()
+            let ttl = replies[i * 2 + 1].intValue ?? -1
             let ttlStr = String(ttl)
 
             let value = try await fetchValuePreview(key: key, type: typeName, connection: conn)
-
             rows.append([key, typeName, ttlStr, value])
         }
 

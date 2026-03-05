@@ -70,7 +70,26 @@ else
   echo "⚠️  WARNING: No Frameworks directory found — dylibs may not be bundled"
 fi
 
+# Verify code signature
+APP_BUNDLE="build/Release/TablePro-${ARCH}.app"
+echo "Verifying code signature..."
+if codesign --verify --deep --strict "$APP_BUNDLE" 2>&1; then
+  SIGN_INFO=$(codesign -dvv "$APP_BUNDLE" 2>&1 | grep "Authority=" | head -1)
+  echo "✅ Code signature valid: $SIGN_INFO"
+else
+  echo "❌ ERROR: Code signature verification failed"
+  codesign -dvv "$APP_BUNDLE" 2>&1 || true
+  exit 1
+fi
+
+# Verify notarization staple (if notarized)
+if xcrun stapler validate "$APP_BUNDLE" 2>&1 | grep -q "The validate action worked"; then
+  echo "✅ Notarization ticket stapled"
+else
+  echo "⚠️  No notarization ticket stapled (may not have been notarized yet)"
+fi
+
 # Display info
 echo "✅ Build verified successfully"
 echo "Binary size: $(ls -lh "$BINARY_PATH" | awk '{print $5}')"
-echo "App bundle size: $(du -sh "build/Release/TablePro-${ARCH}.app" | awk '{print $1}')"
+echo "App bundle size: $(du -sh "$APP_BUNDLE" | awk '{print $1}')"

@@ -53,7 +53,7 @@ final class MainContentCoordinator {
 
     // MARK: - Dependencies
 
-    nonisolated(unsafe) let connection: DatabaseConnection
+    let connection: DatabaseConnection
     var connectionId: UUID { connection.id }
     let tabManager: QueryTabManager
     let changeManager: DataChangeManager
@@ -95,8 +95,31 @@ final class MainContentCoordinator {
     /// side-effect window creation during the switch cascade.
     var isSwitchingDatabase = false
 
+    /// True once the coordinator's view has appeared (onAppear fired).
+    /// Coordinators that SwiftUI creates during body re-evaluation but never
+    /// adopts into @State are silently discarded — no teardown warning needed.
+    @ObservationIgnored nonisolated(unsafe) private var didActivate = false
+
     /// Tracks whether teardown() was called; used by deinit to log missed teardowns
-    @ObservationIgnored private var didTeardown = false
+    @ObservationIgnored nonisolated(unsafe) private var didTeardown = false
+
+    /// Tracks whether teardown has been scheduled (but not yet executed)
+    /// so deinit doesn't warn if SwiftUI deallocates before the delayed Task fires
+    @ObservationIgnored nonisolated(unsafe) private var teardownScheduled = false
+
+    /// Set when NSApplication is terminating — suppresses deinit warning since
+    /// SwiftUI does not call onDisappear during app termination
+    nonisolated(unsafe) private static var isAppTerminating = false
+
+    private static let registerTerminationObserver: Void = {
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainContentCoordinator.isAppTerminating = true
+        }
+    }()
 
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
@@ -137,6 +160,20 @@ final class MainContentCoordinator {
 
         Self.retainSchemaProvider(for: connection.id)
         setupURLNotificationObservers()
+
+        _ = Self.registerTerminationObserver
+    }
+
+    func markActivated() {
+        didActivate = true
+    }
+
+    func markTeardownScheduled() {
+        teardownScheduled = true
+    }
+
+    func clearTeardownScheduled() {
+        teardownScheduled = false
     }
 
     /// Explicit cleanup called from `onDisappear`. Releases schema provider
@@ -162,12 +199,30 @@ final class MainContentCoordinator {
 
     deinit {
         let connectionId = connection.id
-        guard !didTeardown else { return }
-        let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
-        logger.warning("teardown() was not called before deallocation for connection \(connectionId)")
-        Task { @MainActor in
-            MainContentCoordinator.releaseSchemaProvider(for: connectionId)
-            MainContentCoordinator.purgeUnusedSchemaProviders()
+        let alreadyHandled = didTeardown || teardownScheduled
+
+        // Never-activated coordinators are throwaway instances created by SwiftUI
+        // during body re-evaluation — @State only keeps the first, rest are discarded
+        guard didActivate else {
+            if !alreadyHandled {
+                Task { @MainActor in
+                    MainContentCoordinator.releaseSchemaProvider(for: connectionId)
+                    MainContentCoordinator.purgeUnusedSchemaProviders()
+                }
+            }
+            return
+        }
+
+        if !alreadyHandled && !Self.isAppTerminating {
+            let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
+            logger.warning("teardown() was not called before deallocation for connection \(connectionId)")
+        }
+
+        if !alreadyHandled {
+            Task { @MainActor in
+                MainContentCoordinator.releaseSchemaProvider(for: connectionId)
+                MainContentCoordinator.purgeUnusedSchemaProviders()
+            }
         }
     }
 
@@ -497,7 +552,7 @@ final class MainContentCoordinator {
                 }
 
                 // Parse schema metadata if available
-                let metadata = schemaResult.map { parseSchemaMetadata($0) }
+                let metadata = schemaResult.map { self.parseSchemaMetadata($0) }
 
                 // Phase 1: Display data rows + FK arrows in a single MainActor update.
                 await MainActor.run { [weak self] in
@@ -1337,7 +1392,7 @@ private extension MainContentCoordinator {
         updatedTab.isEditable = isEditable && updatedTab.isEditable
         if conn.type == .redis {
             // Populate enum values from column types for the enum popover
-            for (index, colType) in (updatedTab.columnTypes ?? []).enumerated() {
+            for (index, colType) in updatedTab.columnTypes.enumerated() {
                 if case .enumType(_, let values) = colType, let vals = values, index < updatedTab.resultColumns.count {
                     updatedTab.columnEnumValues[updatedTab.resultColumns[index]] = vals
                 }

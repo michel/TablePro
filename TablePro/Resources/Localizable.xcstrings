@@ -5450,6 +5450,9 @@
         }
       }
     },
+    "No active connection" : {
+
+    },
     "No AI provider configured. Go to Settings > AI to add one." : {
       "localizations" : {
         "vi" : {

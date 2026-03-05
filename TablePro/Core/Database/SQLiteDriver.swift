@@ -42,10 +42,10 @@ private actor SQLiteConnectionActor {
         sqlite3_busy_timeout(db, milliseconds)
     }
 
-    /// Get the raw db handle for interrupt purposes.
+    /// Get the raw db handle as a Sendable Int for safe cross-isolation transfer.
     /// sqlite3_interrupt() is one of the few sqlite3 APIs that is safe to call
     /// from a different thread than the one running the query.
-    var dbHandleForInterrupt: OpaquePointer? { db }
+    var dbHandleForInterrupt: Int { db.map { Int(bitPattern: $0) } ?? 0 }
 
     /// Execute a SQL query and return the raw result
     func executeQuery(_ query: String) throws -> SQLiteRawResult {
@@ -273,6 +273,14 @@ final class SQLiteDriver: DatabaseDriver {
     /// sqlite3_interrupt() is documented as safe to call from any thread.
     nonisolated(unsafe) private var _dbHandleForInterrupt: OpaquePointer?
 
+    /// Synchronous helper to update the interrupt handle under the lock,
+    /// keeping NSLock usage off the async context.
+    private nonisolated func setInterruptHandle(_ handle: OpaquePointer?) {
+        interruptLock.lock()
+        _dbHandleForInterrupt = handle
+        interruptLock.unlock()
+    }
+
     /// Server version string (SQLite library version, e.g., "3.43.2")
     var serverVersion: String? {
         String(cString: sqlite3_libversion())
@@ -304,9 +312,8 @@ final class SQLiteDriver: DatabaseDriver {
 
         do {
             try await connectionActor.open(path: path)
-            interruptLock.lock()
-            _dbHandleForInterrupt = await connectionActor.dbHandleForInterrupt
-            interruptLock.unlock()
+            let rawHandle = await connectionActor.dbHandleForInterrupt
+            setInterruptHandle(rawHandle != 0 ? OpaquePointer(bitPattern: rawHandle) : nil)
             status = .connected
         } catch {
             let message = (error as? DatabaseError).flatMap { err -> String? in

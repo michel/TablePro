@@ -136,7 +136,7 @@ final class OpenAICompatibleProvider: AIProvider {
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-            let (data, response) = try await session.data(for: request)
+            let (_, response) = try await session.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 return false

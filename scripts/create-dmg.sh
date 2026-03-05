@@ -12,6 +12,8 @@ SOURCE_APP="${3:-build/Release/${APP_NAME}.app}"
 DMG_NAME="${APP_NAME}-${VERSION}-${ARCH}.dmg"
 VOLUME_NAME="${APP_NAME} ${VERSION}"
 FINAL_DMG="build/Release/$DMG_NAME"
+SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Dat Ngo Quoc (D7HJ5TFYCU)}"
+NOTARIZE="${NOTARIZE:-false}"
 
 echo "📦 Creating DMG installer for $APP_NAME..."
 echo "   Version: $VERSION"
@@ -216,6 +218,27 @@ fi
 if [ ! -f "$FINAL_DMG" ]; then
     echo "❌ ERROR: Failed to create DMG"
     exit 1
+fi
+
+# Sign the DMG
+echo "🔏 Signing DMG with: $SIGN_IDENTITY"
+codesign -fs "$SIGN_IDENTITY" --timestamp "$FINAL_DMG"
+if ! codesign --verify "$FINAL_DMG" 2>&1; then
+    echo "❌ ERROR: DMG signature verification failed"
+    exit 1
+fi
+echo "✅ DMG signed"
+
+# Notarize the DMG (opt-in via NOTARIZE=true)
+if [ "$NOTARIZE" = "true" ]; then
+    echo "📮 Notarizing DMG..."
+    if xcrun notarytool submit "$FINAL_DMG" --keychain-profile "TablePro" --wait; then
+        xcrun stapler staple "$FINAL_DMG"
+        echo "✅ DMG notarized and stapled"
+    else
+        echo "❌ DMG notarization failed"
+        exit 1
+    fi
 fi
 
 # Get final size

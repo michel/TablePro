@@ -97,7 +97,7 @@ final class InlineSuggestionManager {
     /// Called by the coordinator when cursor selection changes
     func handleSelectionChange() {
         // If cursor moved away from the suggestion offset, dismiss
-        guard let suggestion = currentSuggestion else { return }
+        guard currentSuggestion != nil else { return }
         guard let controller else { return }
 
         let cursorOffset = controller.cursorPositions.first?.range.location ?? NSNotFound

@@ -181,17 +181,19 @@ final class AppSettingsManager {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            guard let self else { return }
-            let newScale = SQLEditorTheme.accessibilityScaleFactor
-            // Only reload if the text size scale actually changed (this notification
-            // also fires for contrast, reduce motion, etc.)
-            guard abs(newScale - lastAccessibilityScale) > 0.01 else { return }
-            lastAccessibilityScale = newScale
-            Self.logger.debug("Accessibility text size changed, scale: \(newScale, format: .fixed(precision: 2))")
-            // Re-apply editor fonts with the updated accessibility scale factor
-            SQLEditorTheme.reloadFromSettings(editor)
-            // Notify the editor view to rebuild its configuration
-            NotificationCenter.default.post(name: .accessibilityTextSizeDidChange, object: self)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let newScale = SQLEditorTheme.accessibilityScaleFactor
+                // Only reload if the text size scale actually changed (this notification
+                // also fires for contrast, reduce motion, etc.)
+                guard abs(newScale - lastAccessibilityScale) > 0.01 else { return }
+                lastAccessibilityScale = newScale
+                Self.logger.debug("Accessibility text size changed, scale: \(newScale, format: .fixed(precision: 2))")
+                // Re-apply editor fonts with the updated accessibility scale factor
+                SQLEditorTheme.reloadFromSettings(editor)
+                // Notify the editor view to rebuild its configuration
+                NotificationCenter.default.post(name: .accessibilityTextSizeDidChange, object: self)
+            }
         }
     }
 
