@@ -1,7 +1,9 @@
 #!/bin/sh
 
 # Xcode Cloud post-clone script
-# Allows SPM package plugins (SwiftLint in CodeEditSourceEditor) to run without
-# the -skipPackagePluginValidation flag that Xcode Cloud doesn't pass by default.
 
+# Create empty Secrets.xcconfig (gitignored, not available in CI)
+touch "$CI_PRIMARY_REPOSITORY_PATH/Secrets.xcconfig"
+
+# Allow SPM package plugins (SwiftLint in CodeEditSourceEditor) to run
 defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidatation -bool YES
