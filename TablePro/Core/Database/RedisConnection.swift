@@ -818,7 +818,7 @@ private extension RedisConnection {
                 let errMsg = withUnsafePointer(to: &ctx.pointee.errstr) { ptr in
                     ptr.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
                 }
-                for j in (i + 1) ..< commands.count {
+                for _ in (i + 1) ..< commands.count {
                     var discard: UnsafeMutableRawPointer?
                     if redisGetReply(ctx, &discard) == REDIS_OK, let d = discard {
                         freeReplyObject(d)

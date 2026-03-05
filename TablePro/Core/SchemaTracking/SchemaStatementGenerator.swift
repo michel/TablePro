@@ -198,7 +198,6 @@ struct SchemaStatementGenerator {
 
         case .mssql:
             var statements: [String] = []
-            let oldQuoted = databaseType.quoteIdentifier(old.name)
             let newQuoted = databaseType.quoteIdentifier(new.name)
 
             if old.name != new.name {
