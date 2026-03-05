@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Microsoft SQL Server (MSSQL) database support via FreeTDS
+- Support for editing and deleting rows in tables without a primary key
 
 ### Fixed
 
 - Fix MSSQL connection losing selected database after disconnect and reconnect when no default database is configured
-
+- DELETE operations on tables without a primary key now show an error if row data is missing instead of being silently dropped
+- SQLite and MSSQL now use safe single-row limits for DELETE and UPDATE on tables without a primary key
 - Fix high CPU/RAM on app launch from blocking storage init, unsynchronized health monitors, and excessive retry loops
 - Fix O(n log n) row cache eviction in RowProvider by replacing sorted eviction with O(n) distance-threshold filter
 - Fix O(n) string operations in GeometryWKBParser, RedisDriver, and autocomplete scoring by switching to NSString O(1) indexing
