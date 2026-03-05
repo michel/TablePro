@@ -9,6 +9,10 @@ PROJECT="TablePro.xcodeproj"
 SCHEME="TablePro"
 CONFIG="Release"
 BUILD_DIR="build/Release"
+SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Dat Ngo Quoc (D7HJ5TFYCU)}"
+TEAM_ID="D7HJ5TFYCU"
+NOTARIZE="${NOTARIZE:-false}"
+APPLE_ID="${APPLE_ID:-datngoquoc@icloud.com}"
 
 echo "🏗️  Building TablePro for: $ARCH"
 
@@ -297,8 +301,8 @@ bundle_dylibs() {
         echo "   ⚠️  WARNING: Could not determine deployment target, skipping dylib version check"
     fi
 
-    # Ad-hoc sign bundled dylibs (required on Apple Silicon)
-    echo "   Signing bundled libraries..."
+    # Sign bundled dylibs (will be re-signed with proper identity later)
+    echo "   Signing bundled libraries (preliminary)..."
     for fw in "$frameworks_dir"/*.dylib; do
         [ -f "$fw" ] || continue
         codesign -fs - --force "$fw" 2>/dev/null || true
@@ -340,9 +344,9 @@ build_for_arch() {
         -configuration "$CONFIG" \
         -arch "$arch" \
         ONLY_ACTIVE_ARCH=YES \
-        CODE_SIGN_IDENTITY="" \
-        CODE_SIGNING_REQUIRED=NO \
-        CODE_SIGNING_ALLOWED=NO \
+        CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
+        CODE_SIGN_STYLE=Manual \
+        DEVELOPMENT_TEAM="$TEAM_ID" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
@@ -415,18 +419,57 @@ build_for_arch() {
         echo "   ⚠️  WARNING: Source icon not found at $SOURCE_ICON"
     fi
 
+    # Remove any stale nested .app bundles in the bundle root (breaks codesign)
+    for nested in "$BUILD_DIR/$OUTPUT_NAME"/*.app; do
+        [ -d "$nested" ] && rm -rf "$nested"
+    done
+
     # Bundle non-system dynamic libraries (libpq, OpenSSL, etc.)
     bundle_dylibs "$BUILD_DIR/$OUTPUT_NAME"
 
-    # Ad-hoc sign the entire app bundle (required for Sparkle update validation).
-    # Sign inner frameworks first, then the app bundle last to seal resources.
-    echo "🔏 Signing app bundle..."
+    # Sign the entire app bundle with Developer ID.
+    # Must deep-sign all nested executables (Sparkle has XPC services, helper apps).
+    # Sign from inside out: nested binaries → frameworks → dylibs → app.
+    echo "🔏 Signing app bundle with: $SIGN_IDENTITY"
     FRAMEWORKS_DIR="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks"
+
+    # Sign all nested XPC services, helper apps, and executables inside frameworks
+    while IFS= read -r -d '' binary; do
+        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$binary"
+    done < <(find "$FRAMEWORKS_DIR" -type f \( -name "*.xpc" -o -perm +111 \) -not -name "*.dylib" -not -name "*.plist" -not -name "*.h" -not -name "*.strings" -not -name "*.nib" -not -name "*.png" -not -name "*.icns" -not -name "*.car" -not -name "CodeResources" -not -name "Info.plist" -print0 2>/dev/null)
+
+    # Sign XPC service bundles
+    while IFS= read -r -d '' xpc; do
+        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$xpc"
+    done < <(find "$FRAMEWORKS_DIR" -name "*.xpc" -type d -print0 2>/dev/null)
+
+    # Sign nested .app bundles (e.g., Sparkle's Updater.app)
+    while IFS= read -r -d '' app; do
+        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$app"
+    done < <(find "$FRAMEWORKS_DIR" -name "*.app" -type d -print0 2>/dev/null)
+
+    # Sign top-level frameworks
     for fw in "$FRAMEWORKS_DIR"/*.framework; do
         [ -d "$fw" ] || continue
-        codesign -fs - --force "$fw" 2>/dev/null || true
+        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$fw"
     done
-    codesign -fs - --force "$BUILD_DIR/$OUTPUT_NAME"
+
+    # Sign top-level dylibs
+    for dylib in "$FRAMEWORKS_DIR"/*.dylib; do
+        [ -f "$dylib" ] || continue
+        codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$dylib"
+    done
+
+    # Sign the app bundle last
+    codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$BUILD_DIR/$OUTPUT_NAME"
+    echo "✅ Code signing complete"
+
+    # Verify signature
+    if ! codesign --verify --deep --strict "$BUILD_DIR/$OUTPUT_NAME" 2>&1; then
+        echo "❌ FATAL: Code signature verification failed"
+        exit 1
+    fi
+    echo "✅ Signature verified"
 
     # Verify binary exists inside the copied bundle
     BINARY_PATH="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS/TablePro"
@@ -490,4 +533,31 @@ echo "📁 Output: $BUILD_DIR/"
 if ! ls -lh "$BUILD_DIR" 2>/dev/null; then
     echo "⚠️  WARNING: Could not list build directory contents"
     echo "Directory may be empty or inaccessible"
+fi
+
+# Notarization (opt-in via NOTARIZE=true)
+if [ "$NOTARIZE" = "true" ]; then
+    echo ""
+    echo "📮 Notarizing..."
+
+    # Requires: xcrun notarytool store-credentials "TablePro" --apple-id ... --team-id ... --password ...
+    for app in "$BUILD_DIR"/TablePro-*.app; do
+        [ -d "$app" ] || continue
+        name=$(basename "$app")
+        zip_path="$BUILD_DIR/${name%.app}.zip"
+        echo "   Zipping $name..."
+        ditto -c -k --keepParent "$app" "$zip_path"
+
+        echo "   Submitting $name for notarization..."
+        if xcrun notarytool submit "$zip_path" --keychain-profile "TablePro" --wait; then
+            echo "   Stapling $name..."
+            xcrun stapler staple "$app"
+            echo "   ✅ $name notarized and stapled"
+        else
+            echo "   ❌ Notarization failed for $name"
+            exit 1
+        fi
+        rm -f "$zip_path"
+    done
+    echo "✅ Notarization complete"
 fi

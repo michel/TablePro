@@ -87,6 +87,7 @@ jobs:
       - name: Build ARM64
         env:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
+          NOTARIZE: "true"
         run: |
           chmod +x scripts/build-release.sh
           scripts/build-release.sh arm64
@@ -95,6 +96,8 @@ jobs:
         run: scripts/ci/verify-build.sh arm64
 
       - name: Package artifacts
+        env:
+          NOTARIZE: "true"
         run: scripts/ci/package-artifacts.sh arm64 "/tmp/tablepro-artifacts-${{ github.sha }}"
 
   build-x86_64:
@@ -205,6 +208,7 @@ jobs:
       - name: Build x86_64
         env:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
+          NOTARIZE: "true"
         run: |
           chmod +x scripts/build-release.sh
           scripts/build-release.sh x86_64
@@ -213,6 +217,8 @@ jobs:
         run: scripts/ci/verify-build.sh x86_64
 
       - name: Package artifacts
+        env:
+          NOTARIZE: "true"
         run: scripts/ci/package-artifacts.sh x86_64 "/tmp/tablepro-artifacts-${{ github.sha }}"
 
   release:
