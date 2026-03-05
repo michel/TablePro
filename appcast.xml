@@ -3,40 +3,56 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.13.0</title>
-            <pubDate>Wed, 04 Mar 2026 12:03:40 +0000</pubDate>
-            <sparkle:version>25</sparkle:version>
-            <sparkle:shortVersionString>0.13.0</sparkle:shortVersionString>
+            <title>0.14.0</title>
+            <pubDate>Thu, 05 Mar 2026 14:39:43 +0000</pubDate>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Redis database support with key-value browsing, database-level sidebar (db0–db15), TTL management, and interactive CLI</li>
-<li>TablePlus-compatible database URL handling: `open -a TablePro "postgresql://user@host/db"` with support for schema switching, table opening, filters, color, and environment tags</li>
+<li>Microsoft SQL Server (MSSQL) database support via FreeTDS</li>
+<li>Support for editing and deleting rows in tables without a primary key</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>Fix sidebar search field and main content area background colors to blend with macOS vibrancy</li>
-<li>Fix POINT and geometry columns showing blank values in MySQL and wrong type label in sidebar</li>
+<li>Fix MSSQL connection losing selected database after disconnect and reconnect when no default database is configured</li>
+<li>DELETE operations on tables without a primary key now show an error if row data is missing instead of being silently dropped</li>
+<li>SQLite and MSSQL now use safe single-row limits for DELETE and UPDATE on tables without a primary key</li>
+<li>Fix high CPU/RAM on app launch from blocking storage init, unsynchronized health monitors, and excessive retry loops</li>
+<li>Fix O(n log n) row cache eviction in RowProvider by replacing sorted eviction with O(n) distance-threshold filter</li>
+<li>Fix O(n) string operations in GeometryWKBParser, RedisDriver, and autocomplete scoring by switching to NSString O(1) indexing</li>
+<li>Fix slow database switcher loading by replacing N+1 metadata queries with single batched queries (MySQL, PostgreSQL, Redshift)</li>
+<li>Fix slow Redis key browsing by pipelining TYPE and TTL commands in a single round trip instead of 3 sequential commands per key</li>
+<li>Fix slow SQL export startup by batching COUNT(*) queries via UNION ALL and batching dependent sequence/type lookups</li>
+<li>Fix slow AI Chat schema loading by fetching all foreign keys in a single bulk query instead of per-table</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.13.0/TablePro-0.13.0-arm64.zip" length="22215385" type="application/octet-stream" sparkle:edSignature="f+ezhszehKdLQMwFiwWt6ThUJuEDBbGBeWtcM+J+2lBW5GDxxxy0C9+tnIxAfJ97vnQntrc/v9VKGRNfSOaGBQ==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.14.0/TablePro-0.14.0-arm64.zip" length="22510110" type="application/octet-stream" sparkle:edSignature="IU91PHObpPpk4JMT0kMIupTSG7Rx93qptC8ZkHoEFATyGtEwI6hAZnZZhinmtdstoLgUM/sj9BiMauzfslBVDA==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.13.0</title>
-            <pubDate>Wed, 04 Mar 2026 12:03:40 +0000</pubDate>
-            <sparkle:version>25</sparkle:version>
-            <sparkle:shortVersionString>0.13.0</sparkle:shortVersionString>
+            <title>0.14.0</title>
+            <pubDate>Thu, 05 Mar 2026 14:39:43 +0000</pubDate>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Redis database support with key-value browsing, database-level sidebar (db0–db15), TTL management, and interactive CLI</li>
-<li>TablePlus-compatible database URL handling: `open -a TablePro "postgresql://user@host/db"` with support for schema switching, table opening, filters, color, and environment tags</li>
+<li>Microsoft SQL Server (MSSQL) database support via FreeTDS</li>
+<li>Support for editing and deleting rows in tables without a primary key</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>Fix sidebar search field and main content area background colors to blend with macOS vibrancy</li>
-<li>Fix POINT and geometry columns showing blank values in MySQL and wrong type label in sidebar</li>
+<li>Fix MSSQL connection losing selected database after disconnect and reconnect when no default database is configured</li>
+<li>DELETE operations on tables without a primary key now show an error if row data is missing instead of being silently dropped</li>
+<li>SQLite and MSSQL now use safe single-row limits for DELETE and UPDATE on tables without a primary key</li>
+<li>Fix high CPU/RAM on app launch from blocking storage init, unsynchronized health monitors, and excessive retry loops</li>
+<li>Fix O(n log n) row cache eviction in RowProvider by replacing sorted eviction with O(n) distance-threshold filter</li>
+<li>Fix O(n) string operations in GeometryWKBParser, RedisDriver, and autocomplete scoring by switching to NSString O(1) indexing</li>
+<li>Fix slow database switcher loading by replacing N+1 metadata queries with single batched queries (MySQL, PostgreSQL, Redshift)</li>
+<li>Fix slow Redis key browsing by pipelining TYPE and TTL commands in a single round trip instead of 3 sequential commands per key</li>
+<li>Fix slow SQL export startup by batching COUNT(*) queries via UNION ALL and batching dependent sequence/type lookups</li>
+<li>Fix slow AI Chat schema loading by fetching all foreign keys in a single bulk query instead of per-table</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.13.0/TablePro-0.13.0-x86_64.zip" length="22790246" type="application/octet-stream" sparkle:edSignature="f4/AWg360va5+fGRaKA08wjZt/NHjQZsVPNutP8MfBDRw6xrE1cR86KQjSAbU6l9dAozEKhURTIp911AUrwQAg==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.14.0/TablePro-0.14.0-x86_64.zip" length="23112947" type="application/octet-stream" sparkle:edSignature="z85G0KR/iGmQrV2+WroLVQAHdf+/yfIeGw3dgbrTV7+205x6ng4D4l7jibU95nCHEoMmb3BBG189uJB24ddhBA==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
