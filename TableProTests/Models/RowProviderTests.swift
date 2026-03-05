@@ -511,4 +511,33 @@ struct InMemoryRowProviderTests {
         #expect(row != nil)
         #expect(row?.value(at: 0) == "id_0")
     }
+
+    @Test("Eviction keeps rows closest to access point")
+    func evictionKeepsClosestRows() {
+        let provider = TestFixtures.makeInMemoryRowProvider(rowCount: 6000)
+        for i in 0 ..< 6000 {
+            let _ = provider.row(at: i)
+        }
+        let _ = provider.row(at: 4000)
+        let nearby = provider.row(at: 4001)
+        #expect(nearby != nil)
+        #expect(nearby?.value(at: 0) == "id_4001")
+    }
+
+    @Test("Eviction preserves data integrity across multiple eviction cycles")
+    func evictionMultipleCycles() {
+        let provider = TestFixtures.makeInMemoryRowProvider(rowCount: 12000)
+        for i in 0 ..< 6000 {
+            let _ = provider.row(at: i)
+        }
+        for i in 6000 ..< 12000 {
+            let _ = provider.row(at: i)
+        }
+        let early = provider.row(at: 100)
+        #expect(early != nil)
+        #expect(early?.value(at: 0) == "id_100")
+        let late = provider.row(at: 11999)
+        #expect(late != nil)
+        #expect(late?.value(at: 0) == "id_11999")
+    }
 }

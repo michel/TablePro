@@ -187,13 +187,13 @@ actor SQLSchemaProvider {
             isPK: Bool, isNullable: Bool, defaultValue: String?, comment: String?
         )] = []
 
+        let hasMultipleRefs = references.count > 1
         for ref in references {
             let columns = await getColumns(for: ref.tableName)
             let refId = ref.identifier
             for column in columns {
-                // Include table/alias prefix for clarity when multiple tables
-                let label = references.count > 1 ? "\(refId).\(column.name)" : column.name
-                let insertText = references.count > 1 ? "\(refId).\(column.name)" : column.name
+                let label = hasMultipleRefs ? "\(refId).\(column.name)" : column.name
+                let insertText = hasMultipleRefs ? "\(refId).\(column.name)" : column.name
 
                 itemDataBuilder.append(
                     (

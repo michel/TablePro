@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix high CPU/RAM on app launch from blocking storage init, unsynchronized health monitors, and excessive retry loops
+- Fix O(n log n) row cache eviction in RowProvider by replacing sorted eviction with O(n) distance-threshold filter
+- Fix O(n) string operations in GeometryWKBParser, RedisDriver, and autocomplete scoring by switching to NSString O(1) indexing
 - Fix slow database switcher loading by replacing N+1 metadata queries with single batched queries (MySQL, PostgreSQL, Redshift)
 - Fix slow Redis key browsing by pipelining TYPE and TTL commands in a single round trip instead of 3 sequential commands per key
 - Fix slow SQL export startup by batching COUNT(*) queries via UNION ALL and batching dependent sequence/type lookups

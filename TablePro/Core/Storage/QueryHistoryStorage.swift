@@ -52,8 +52,8 @@ final class QueryHistoryStorage {
     private var insertsSinceCleanup: Int = 0
 
     private init() {
-        queue.sync {
-            setupDatabase()
+        queue.async { [weak self] in
+            self?.setupDatabase()
         }
     }
 

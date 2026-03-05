@@ -501,17 +501,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    /// Schedule repeated checks to close any welcome window that
-    /// SwiftUI creates as part of app activation for a file-open event.
-    /// Retries up to 5 times with short delays to catch late-restored windows.
     private func scheduleWelcomeWindowSuppression() {
         Task { @MainActor [weak self] in
-            for _ in 0 ..< 5 {
-                guard let self else { return }
-                self.closeWelcomeWindowIfMainExists()
-                try? await Task.sleep(for: .milliseconds(200))
-            }
+            // Single check after a short delay for window creation
+            try? await Task.sleep(for: .milliseconds(300))
+            self?.closeWelcomeWindowIfMainExists()
+            // One final check after windows settle
+            try? await Task.sleep(for: .milliseconds(700))
             guard let self else { return }
+            self.closeWelcomeWindowIfMainExists()
             self.fileOpenSuppressionCount = max(0, self.fileOpenSuppressionCount - 1)
             if self.fileOpenSuppressionCount == 0 {
                 self.isHandlingFileOpen = false
@@ -538,14 +536,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func postSQLFilesWhenReady(urls: [URL]) {
         Task { @MainActor [weak self] in
-            for attempt in 0 ..< 10 {
-                if NSApp.windows.contains(where: { self?.isMainWindow($0) == true && $0.isKeyWindow }) {
-                    break
-                }
-                if attempt == 9 {
-                    Self.logger.warning("postSQLFilesWhenReady: no key main window after retries, posting anyway")
-                }
-                try? await Task.sleep(for: .milliseconds(50))
+            try? await Task.sleep(for: .milliseconds(100))
+            if !NSApp.windows.contains(where: { self?.isMainWindow($0) == true && $0.isKeyWindow }) {
+                Self.logger.warning("postSQLFilesWhenReady: no key main window, posting anyway")
             }
             NotificationCenter.default.post(name: .openSQLFiles, object: urls)
         }

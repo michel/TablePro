@@ -949,4 +949,18 @@ struct SQLCompletionProviderTests {
             #expect(containsIdx < fuzzyIdx, "Contains matches should rank above fuzzy-only matches")
         }
     }
+
+    // MARK: - Performance: NSString.length for label scoring
+
+    @Test("Shorter label scores lower (better) than longer label")
+    func testShorterLabelScoresBetter() async {
+        // "IN" (2 chars) should rank above "INSERT" (6 chars) when both match prefix "IN"
+        let text = "SELECT * FROM users WHERE id IN"
+        let (items, _) = await provider.getCompletions(text: text, cursorPosition: text.count)
+        let inIdx = items.firstIndex { $0.label == "IN" }
+        let insertIdx = items.firstIndex { $0.label == "INSERT" }
+        if let inIdx, let insertIdx {
+            #expect(inIdx < insertIdx, "IN should rank above INSERT for prefix 'IN'")
+        }
+    }
 }

@@ -185,11 +185,8 @@ final class InMemoryRowProvider: RowProvider {
     /// Keeps the half closest to `nearIndex` and discards the rest.
     private func evictCacheIfNeeded(nearIndex: Int) {
         guard rowCache.count > Self.maxCacheSize / 2 else { return }
-        let sorted = rowCache.keys.sorted(by: { abs($0 - nearIndex) > abs($1 - nearIndex) })
-        let evictCount = rowCache.count - Self.maxCacheSize / 2
-        for key in sorted.prefix(evictCount) {
-            rowCache.removeValue(forKey: key)
-        }
+        let halfSize = Self.maxCacheSize / 2
+        rowCache = rowCache.filter { abs($0.key - nearIndex) <= halfSize }
     }
 }
 
@@ -301,10 +298,7 @@ final class DatabaseRowProvider: RowProvider {
     /// and discards the rest.
     private func evictCacheIfNeeded(nearIndex: Int) {
         guard cache.count > Self.maxCacheSize else { return }
-        let sorted = cache.keys.sorted(by: { abs($0 - nearIndex) > abs($1 - nearIndex) })
-        let evictCount = cache.count - Self.maxCacheSize / 2
-        for key in sorted.prefix(evictCount) {
-            cache.removeValue(forKey: key)
-        }
+        let halfSize = Self.maxCacheSize / 2
+        cache = cache.filter { abs($0.key - nearIndex) <= halfSize }
     }
 }
