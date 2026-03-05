@@ -293,6 +293,9 @@ final class MainContentCommandActions {
             keyWindow.close()
         } else {
             // Last tab with content — clear tabs to show empty state instead of closing
+            for tab in coordinator?.tabManager.tabs ?? [] {
+                tab.rowBuffer.evict()
+            }
             coordinator?.tabManager.tabs.removeAll()
             coordinator?.tabManager.selectedTabId = nil
             AppState.shared.isCurrentTabEditable = false
@@ -305,7 +308,7 @@ final class MainContentCommandActions {
 
         let template: String
         switch connection.type {
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             template = "CREATE OR REPLACE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         case .mysql, .mariadb:
             template = "CREATE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
@@ -313,6 +316,8 @@ final class MainContentCommandActions {
             template = "CREATE VIEW IF NOT EXISTS view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         case .mssql:
             template = "CREATE OR ALTER VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
+        case .oracle:
+            template = "CREATE OR REPLACE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         case .mongodb:
             template = "db.createView(\"view_name\", \"source_collection\", [\n  {\"$match\": {}},\n  {\"$project\": {\"_id\": 1}}\n])"
         case .redis:
@@ -609,7 +614,7 @@ final class MainContentCommandActions {
             } catch {
                 let fallbackSQL: String
                 switch connection.type {
-                case .postgresql, .redshift:
+                case .postgresql, .redshift, .cockroachdb:
                     fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
                 case .mysql, .mariadb:
                     fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
@@ -617,6 +622,8 @@ final class MainContentCommandActions {
                     fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"
                 case .mssql:
                     fallbackSQL = "CREATE OR ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
+                case .oracle:
+                    fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
                 case .mongodb:
                     fallbackSQL = "db.runCommand({\"collMod\": \"\(viewName)\", \"viewOn\": \"source_collection\", \"pipeline\": [{\"$match\": {}}]})"
                 case .redis:

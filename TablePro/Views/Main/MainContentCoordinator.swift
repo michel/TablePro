@@ -89,7 +89,7 @@ final class MainContentCoordinator {
     @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
-    internal var isHandlingTabSwitch = false
+    @ObservationIgnored internal var isHandlingTabSwitch = false
 
     /// True while a database switch is in progress. Guards against
     /// side-effect window creation during the switch cascade.
@@ -191,9 +191,10 @@ final class MainContentCoordinator {
         for tab in tabManager.tabs {
             tab.rowBuffer.evict()
         }
+        querySortCache.removeAll()
+
         tabManager.tabs.removeAll()
         tabManager.selectedTabId = nil
-        querySortCache.removeAll()
 
         Self.releaseSchemaProvider(for: connection.id)
         Self.purgeUnusedSchemaProviders()
@@ -429,11 +430,11 @@ final class MainContentCoordinator {
         // Build database-specific EXPLAIN prefix
         let explainSQL: String
         switch connection.type {
-        case .mssql:
+        case .mssql, .oracle:
             return
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .redshift:
+        case .mysql, .mariadb, .postgresql, .redshift, .cockroachdb:
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)
@@ -1189,9 +1190,9 @@ final class MainContentCoordinator {
         count -= 1
         if count <= 0 {
             schemaProviderRefCounts.removeValue(forKey: connectionId)
-            // Grace period: keep provider alive for 5s in case a new tab opens quickly
+            // Grace period: keep provider alive for 1s in case a new tab opens quickly
             schemaProviderRemovalTasks[connectionId] = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard !Task.isCancelled else { return }
                 sharedSchemaProviders.removeValue(forKey: connectionId)
                 schemaProviderRemovalTasks.removeValue(forKey: connectionId)

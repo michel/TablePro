@@ -59,6 +59,13 @@ struct TableQueryBuilder {
             )
         }
 
+        if databaseType == .oracle {
+            return buildOracleBaseQuery(
+                tableName: tableName, sortState: sortState,
+                columns: columns, limit: limit, offset: offset
+            )
+        }
+
         let quotedTable = databaseType.quoteIdentifier(tableName)
         var query = "SELECT * FROM \(quotedTable)"
 
@@ -115,6 +122,18 @@ struct TableQueryBuilder {
 
         if databaseType == .mssql {
             return buildMSSQLFilteredQuery(
+                tableName: tableName,
+                filters: filters,
+                logicMode: logicMode,
+                sortState: sortState,
+                columns: columns,
+                limit: limit,
+                offset: offset
+            )
+        }
+
+        if databaseType == .oracle {
+            return buildOracleFilteredQuery(
                 tableName: tableName,
                 filters: filters,
                 logicMode: logicMode,
@@ -631,7 +650,7 @@ struct TableQueryBuilder {
     /// PostgreSQL and SQLite require an explicit ESCAPE declaration.
     private func buildLikeCondition(column: String, searchText: String) -> String {
         switch databaseType {
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .cockroachdb:
             return "\(column)::TEXT LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mysql, .mariadb:
             return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%'"
@@ -639,6 +658,8 @@ struct TableQueryBuilder {
             return "\(column) LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mssql:
             return "CAST(\(column) AS NVARCHAR(MAX)) LIKE '%\(searchText)%' ESCAPE '\\'"
+        case .oracle:
+            return "CAST(\(column) AS VARCHAR2(4000)) LIKE '%\(searchText)%' ESCAPE '\\'"
         }
     }
 
@@ -677,6 +698,45 @@ struct TableQueryBuilder {
         }
         let orderBy = buildOrderByClause(sortState: sortState, columns: columns)
             ?? "ORDER BY (SELECT NULL)"
+        query += " \(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        return query
+    }
+
+    // MARK: - Oracle Query Helpers
+
+    private func buildOracleBaseQuery(
+        tableName: String,
+        sortState: SortState?,
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String {
+        let quotedTable = databaseType.quoteIdentifier(tableName)
+        var query = "SELECT * FROM \(quotedTable)"
+        let orderBy = buildOrderByClause(sortState: sortState, columns: columns)
+            ?? "ORDER BY 1"
+        query += " \(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        return query
+    }
+
+    private func buildOracleFilteredQuery(
+        tableName: String,
+        filters: [TableFilter],
+        logicMode: FilterLogicMode,
+        sortState: SortState?,
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String {
+        let quotedTable = databaseType.quoteIdentifier(tableName)
+        var query = "SELECT * FROM \(quotedTable)"
+        let generator = FilterSQLGenerator(databaseType: databaseType)
+        let whereClause = generator.generateWhereClause(from: filters, logicMode: logicMode)
+        if !whereClause.isEmpty {
+            query += " \(whereClause)"
+        }
+        let orderBy = buildOrderByClause(sortState: sortState, columns: columns)
+            ?? "ORDER BY 1"
         query += " \(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
         return query
     }

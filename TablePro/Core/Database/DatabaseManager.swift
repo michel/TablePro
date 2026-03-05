@@ -134,11 +134,13 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
-            // Initialize schema for PostgreSQL/Redshift connections
+            // Initialize schema for PostgreSQL/Redshift/CockroachDB connections
             if let pgDriver = driver as? PostgreSQLDriver {
                 activeSessions[connection.id]?.currentSchema = pgDriver.currentSchema
             } else if let rsDriver = driver as? RedshiftDriver {
                 activeSessions[connection.id]?.currentSchema = rsDriver.currentSchema
+            } else if let crdbDriver = driver as? CockroachDBDriver {
+                activeSessions[connection.id]?.currentSchema = crdbDriver.currentSchema
             } else if connection.type == .redis {
                 // Redis defaults to db0 on connect; SELECT the configured database if non-default
                 let initialDb = connection.redisDatabase ?? Int(connection.database) ?? 0
@@ -198,12 +200,16 @@ final class DatabaseManager {
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
                     }
-                    // Sync schema on metadata driver for PostgreSQL/Redshift
+                    // Sync schema on metadata driver for PostgreSQL/Redshift/CockroachDB
                     if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
                         if let pgMetaDriver = metaDriver as? PostgreSQLDriver {
                             try? await pgMetaDriver.switchSchema(to: savedSchema)
                         } else if let rsMetaDriver = metaDriver as? RedshiftDriver {
                             try? await rsMetaDriver.switchSchema(to: savedSchema)
+                        } else if let crdbMetaDriver = metaDriver as? CockroachDBDriver {
+                            try? await crdbMetaDriver.switchSchema(to: savedSchema)
+                        } else if let oracleMetaDriver = metaDriver as? OracleDriver {
+                            try? await oracleMetaDriver.switchSchema(to: savedSchema)
                         }
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
@@ -545,12 +551,16 @@ final class DatabaseManager {
             try await driver.applyQueryTimeout(timeoutSeconds)
         }
 
-        // Restore schema for PostgreSQL/Redshift if session had a non-default schema
+        // Restore schema for PostgreSQL/Redshift/CockroachDB if session had a non-default schema
         if let savedSchema = session.currentSchema {
             if let pgDriver = driver as? PostgreSQLDriver {
                 try? await pgDriver.switchSchema(to: savedSchema)
             } else if let rsDriver = driver as? RedshiftDriver {
                 try? await rsDriver.switchSchema(to: savedSchema)
+            } else if let crdbDriver = driver as? CockroachDBDriver {
+                try? await crdbDriver.switchSchema(to: savedSchema)
+            } else if let oracleDriver = driver as? OracleDriver {
+                try? await oracleDriver.switchSchema(to: savedSchema)
             }
         }
 
@@ -619,12 +629,16 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
-            // Restore schema for PostgreSQL/Redshift if session had a non-default schema
+            // Restore schema for PostgreSQL/Redshift/CockroachDB/Oracle if session had a non-default schema
             if let savedSchema = activeSessions[sessionId]?.currentSchema {
                 if let pgDriver = driver as? PostgreSQLDriver {
                     try? await pgDriver.switchSchema(to: savedSchema)
                 } else if let rsDriver = driver as? RedshiftDriver {
                     try? await rsDriver.switchSchema(to: savedSchema)
+                } else if let crdbDriver = driver as? CockroachDBDriver {
+                    try? await crdbDriver.switchSchema(to: savedSchema)
+                } else if let oracleDriver = driver as? OracleDriver {
+                    try? await oracleDriver.switchSchema(to: savedSchema)
                 }
             }
 
@@ -659,6 +673,10 @@ final class DatabaseManager {
                             try? await pgMetaDriver.switchSchema(to: savedSchema)
                         } else if let rsMetaDriver = metaDriver as? RedshiftDriver {
                             try? await rsMetaDriver.switchSchema(to: savedSchema)
+                        } else if let crdbMetaDriver = metaDriver as? CockroachDBDriver {
+                            try? await crdbMetaDriver.switchSchema(to: savedSchema)
+                        } else if let oracleMetaDriver = metaDriver as? OracleDriver {
+                            try? await oracleMetaDriver.switchSchema(to: savedSchema)
                         }
                     }
                     // Restore database on metadata driver too for MSSQL
@@ -694,7 +712,7 @@ final class DatabaseManager {
 
     // MARK: - SSH Tunnel Recovery
 
-    /// Handle SSH tunnel death by attempting reconnection
+    /// Handle SSH tunnel death by attempting reconnection with exponential backoff
     private func handleSSHTunnelDied(connectionId: UUID) async {
         guard let session = activeSessions[connectionId] else { return }
 
@@ -705,21 +723,28 @@ final class DatabaseManager {
             session.status = .connecting
         }
 
-        // Wait a bit before attempting reconnection (give VPN time to reconnect)
-        try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+        let maxRetries = 5
+        for retryCount in 0..<maxRetries {
+            // Exponential backoff: 2s, 4s, 8s, 16s, 32s (capped at 60s)
+            let delay = min(60.0, 2.0 * pow(2.0, Double(retryCount)))
+            Self.logger.info("SSH reconnect attempt \(retryCount + 1)/\(maxRetries) in \(delay)s for: \(session.connection.name)")
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
 
-        do {
-            // Attempt to reconnect
-            try await connectToSession(session.connection)
-            Self.logger.info("Successfully reconnected SSH tunnel for: \(session.connection.name)")
-        } catch {
-            Self.logger.error("Failed to reconnect SSH tunnel: \(error.localizedDescription)")
-
-            // Mark as error and release stale cached data
-            updateSession(connectionId) { session in
-                session.status = .error("SSH tunnel disconnected. Click to reconnect.")
-                session.clearCachedData()
+            do {
+                try await connectToSession(session.connection)
+                Self.logger.info("Successfully reconnected SSH tunnel for: \(session.connection.name)")
+                return
+            } catch {
+                Self.logger.warning("SSH reconnect attempt \(retryCount + 1) failed: \(error.localizedDescription)")
             }
+        }
+
+        Self.logger.error("All SSH reconnect attempts failed for: \(session.connection.name)")
+
+        // Mark as error and release stale cached data
+        updateSession(connectionId) { session in
+            session.status = .error("SSH tunnel disconnected. Click to reconnect.")
+            session.clearCachedData()
         }
     }
 
@@ -798,7 +823,7 @@ final class DatabaseManager {
         driver: DatabaseDriver
     ) async -> String? {
         // Only needed for PostgreSQL PK modifications
-        guard databaseType == .postgresql || databaseType == .redshift else { return nil }
+        guard databaseType == .postgresql || databaseType == .redshift || databaseType == .cockroachdb else { return nil }
         guard
             changes.contains(where: {
                 if case .modifyPrimaryKey = $0 { return true }
@@ -815,6 +840,8 @@ final class DatabaseManager {
             schema = pgDriver.escapedSchema
         } else if let rsDriver = driver as? RedshiftDriver {
             schema = rsDriver.escapedSchema
+        } else if let crdbDriver = driver as? CockroachDBDriver {
+            schema = crdbDriver.escapedSchema
         } else {
             schema = "public"
         }

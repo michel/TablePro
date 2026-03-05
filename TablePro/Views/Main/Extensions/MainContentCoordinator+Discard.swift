@@ -26,6 +26,8 @@ extension MainContentCoordinator {
             beginStatement = "START TRANSACTION"
         case .mssql:
             beginStatement = "BEGIN TRANSACTION"
+        case .oracle:
+            beginStatement = "SET TRANSACTION READ WRITE"
         default:
             beginStatement = "BEGIN"
         }

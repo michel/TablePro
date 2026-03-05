@@ -36,6 +36,7 @@ final class ImportService {
 
     // MARK: - Cancellation
 
+    // Lock is required despite @MainActor because _isCancelled is read from background Tasks
     private let isCancelledLock = NSLock()
     private var _isCancelled: Bool = false
 
@@ -288,7 +289,7 @@ final class ImportService {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=0"]
-        case .postgresql, .redshift, .mssql:
+        case .postgresql, .redshift, .cockroachdb, .mssql, .oracle:
             // These databases don't support globally disabling non-deferrable FKs.
             return []
         case .sqlite:
@@ -302,7 +303,7 @@ final class ImportService {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]
-        case .postgresql, .redshift, .mssql:
+        case .postgresql, .redshift, .cockroachdb, .mssql, .oracle:
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
@@ -315,8 +316,10 @@ final class ImportService {
         switch dbType {
         case .mysql, .mariadb:
             return "START TRANSACTION"
-        case .postgresql, .redshift, .sqlite:
+        case .postgresql, .redshift, .cockroachdb, .sqlite:
             return "BEGIN"
+        case .oracle:
+            return "SET TRANSACTION READ WRITE"
         case .mssql:
             return "BEGIN TRANSACTION"
         case .mongodb, .redis:

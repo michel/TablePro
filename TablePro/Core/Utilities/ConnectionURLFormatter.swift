@@ -28,10 +28,12 @@ struct ConnectionURLFormatter {
         case .mariadb: return "mariadb"
         case .postgresql: return "postgresql"
         case .redshift: return "redshift"
+        case .cockroachdb: return "cockroachdb"
         case .sqlite: return "sqlite"
         case .mongodb: return "mongodb"
         case .redis: return "redis"
         case .mssql: return "sqlserver"
+        case .oracle: return "oracle"
         }
     }
 

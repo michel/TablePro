@@ -25,7 +25,7 @@ class DatabaseSwitcherViewModel {
     var showPreview = false
 
     /// Whether we're switching schemas (PostgreSQL) or databases (MySQL)
-    var isSchemaMode: Bool { databaseType == .postgresql || databaseType == .redshift }
+    var isSchemaMode: Bool { databaseType == .postgresql || databaseType == .redshift || databaseType == .cockroachdb }
 
     // MARK: - Dependencies
 
@@ -157,6 +157,8 @@ class DatabaseSwitcherViewModel {
             return ["postgres", "template0", "template1"].contains(name)
         case .redshift:
             return ["dev", "padb_harvest"].contains(name)
+        case .cockroachdb:
+            return ["system", "defaultdb"].contains(name)
         case .sqlite:
             return false
         case .mongodb:
@@ -165,6 +167,8 @@ class DatabaseSwitcherViewModel {
             return false
         case .mssql:
             return ["master", "tempdb", "model", "msdb"].contains(name)
+        case .oracle:
+            return ["SYS", "SYSTEM", "OUTLN", "DBSNMP", "APPQOSSYS", "WMSYS", "XDB"].contains(name)
         }
     }
 }

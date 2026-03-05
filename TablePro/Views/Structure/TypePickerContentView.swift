@@ -21,10 +21,12 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "BIT"]
-            case .postgresql, .redshift:
+            case .postgresql, .redshift, .cockroachdb:
                 return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
             case .mssql:
                 return ["TINYINT", "SMALLINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "REAL", "MONEY", "SMALLMONEY", "BIT"]
+            case .oracle:
+                return ["NUMBER", "BINARY_FLOAT", "BINARY_DOUBLE", "INTEGER", "SMALLINT", "FLOAT"]
             case .sqlite:
                 return ["INTEGER", "REAL", "NUMERIC"]
             case .mongodb:
@@ -36,10 +38,12 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"]
-            case .postgresql, .redshift:
+            case .postgresql, .redshift, .cockroachdb:
                 return ["CHAR", "VARCHAR", "TEXT"]
             case .mssql:
                 return ["CHAR", "VARCHAR", "NCHAR", "NVARCHAR", "TEXT", "NTEXT"]
+            case .oracle:
+                return ["CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2", "CLOB", "NCLOB", "LONG"]
             case .sqlite:
                 return ["TEXT"]
             case .mongodb:
@@ -51,10 +55,12 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"]
-            case .postgresql, .redshift:
+            case .postgresql, .redshift, .cockroachdb:
                 return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
             case .mssql:
                 return ["DATE", "TIME", "DATETIME", "DATETIME2", "SMALLDATETIME", "DATETIMEOFFSET"]
+            case .oracle:
+                return ["DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND"]
             case .sqlite:
                 return ["DATE", "DATETIME"]
             case .mongodb:
@@ -66,10 +72,12 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"]
-            case .postgresql, .redshift:
+            case .postgresql, .redshift, .cockroachdb:
                 return ["BYTEA"]
             case .mssql:
                 return ["BINARY", "VARBINARY", "IMAGE"]
+            case .oracle:
+                return ["BLOB", "RAW", "LONG RAW", "BFILE"]
             case .sqlite:
                 return ["BLOB"]
             case .mongodb:
@@ -81,10 +89,12 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["BOOLEAN", "ENUM", "SET", "JSON"]
-            case .postgresql, .redshift:
+            case .postgresql, .redshift, .cockroachdb:
                 return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
             case .mssql:
                 return ["BIT", "UNIQUEIDENTIFIER", "XML", "SQL_VARIANT", "ROWVERSION", "HIERARCHYID"]
+            case .oracle:
+                return ["BOOLEAN", "ROWID", "UROWID", "XMLTYPE", "SDO_GEOMETRY"]
             case .sqlite:
                 return ["BOOLEAN"]
             case .mongodb:

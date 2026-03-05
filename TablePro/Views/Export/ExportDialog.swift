@@ -419,7 +419,7 @@ struct ExportDialog: View {
             var items: [ExportDatabaseItem] = []
 
             switch connection.type {
-            case .postgresql, .redshift:
+            case .postgresql, .redshift, .cockroachdb:
                 // PostgreSQL: fetch schemas within current database (can't query across databases)
                 let schemas = try await fetchPostgreSQLSchemas(driver: driver)
                 for schema in schemas {
@@ -529,6 +529,28 @@ struct ExportDialog: View {
                     if item1.name == "dbo" { return true }
                     if item2.name == "dbo" { return false }
                     return item1.name < item2.name
+                }
+
+            case .oracle:
+                // Oracle: fetch schemas (users) and their tables
+                let schemas = try await driver.fetchSchemas()
+                for schema in schemas {
+                    let tables = try await fetchTablesForSchema(schema, driver: driver)
+                    let tableItems = tables.map { table in
+                        ExportTableItem(
+                            name: table.name,
+                            databaseName: schema,
+                            type: table.type,
+                            isSelected: preselectedTables.contains(table.name)
+                        )
+                    }
+                    if !tableItems.isEmpty {
+                        items.append(ExportDatabaseItem(
+                            name: schema,
+                            tables: tableItems,
+                            isExpanded: schema == connection.username.uppercased()
+                        ))
+                    }
                 }
 
             case .mysql, .mariadb:
