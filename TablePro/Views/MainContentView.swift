@@ -217,6 +217,8 @@ struct MainContentView: View {
                 scheduleInspectorUpdate()
             }
             .onAppear {
+                coordinator.markActivated()
+
                 // Set window title for empty state (no tabs restored)
                 if tabManager.tabs.isEmpty {
                     windowTitle = connection.name
@@ -252,6 +254,10 @@ struct MainContentView: View {
             .onDisappear {
                 NativeTabRegistry.shared.unregister(windowId: windowId)
 
+                // Mark teardown intent synchronously so deinit doesn't warn
+                // if SwiftUI deallocates the coordinator before the delayed Task fires
+                coordinator.markTeardownScheduled()
+
                 let capturedWindowId = windowId
                 let connectionId = connection.id
                 let connectionName = connection.name
@@ -260,6 +266,7 @@ struct MainContentView: View {
 
                     // If this window re-registered (temporary disappear during tab group merge), skip cleanup
                     if NativeTabRegistry.shared.isRegistered(windowId: capturedWindowId) {
+                        coordinator.clearTeardownScheduled()
                         return
                     }
 
