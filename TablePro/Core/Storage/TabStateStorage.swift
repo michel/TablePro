@@ -65,7 +65,9 @@ final class TabStateStorage {
         decoder = JSONDecoder()
 
         createDirectoriesIfNeeded()
-        migrateFromUserDefaultsIfNeeded()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            self?.migrateFromUserDefaultsIfNeeded()
+        }
     }
 
     // MARK: - Public API

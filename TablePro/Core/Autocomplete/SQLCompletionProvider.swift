@@ -703,7 +703,7 @@ final class SQLCompletionProvider {
         }
 
         // Shorter names slightly preferred
-        score += item.label.count
+        score += (item.label as NSString).length
 
         // Fuzzy match penalty — items matched only by fuzzy get demoted
         if !prefix.isEmpty {
