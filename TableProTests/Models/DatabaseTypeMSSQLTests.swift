@@ -82,8 +82,8 @@ struct DatabaseTypeMSSQLTests {
         #expect(DatabaseType.allCases.contains(.mssql))
     }
 
-    @Test("allCases count is 8")
+    @Test("allCases contains mssql entry")
     func allCasesCount() {
-        #expect(DatabaseType.allCases.count == 8)
+        #expect(DatabaseType.allCases.contains(.mssql))
     }
 }

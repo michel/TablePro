@@ -114,31 +114,55 @@ final class MSSQLDriver: DatabaseDriver {
         while base.hasSuffix(";") {
             base = String(base.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        base = stripMSSQLPagination(from: base)
-        let paginated = "\(base) ORDER BY (SELECT NULL) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        base = stripMSSQLOffsetFetch(from: base)
+        let orderBy = hasTopLevelOrderBy(base) ? "" : " ORDER BY (SELECT NULL)"
+        let paginated = "\(base)\(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
         return try await execute(query: paginated)
     }
 
-    /// Strip trailing ORDER BY … OFFSET … ROWS FETCH NEXT … ROWS ONLY added by TableQueryBuilder,
-    /// so fetchRows can re-apply pagination with the correct offset and limit.
-    private func stripMSSQLPagination(from query: String) -> String {
+    /// Detect whether query has a top-level ORDER BY clause (not inside parentheses).
+    private func hasTopLevelOrderBy(_ query: String) -> Bool {
         let ns = query.uppercased() as NSString
         let len = ns.length
-        // Walk backwards character-by-character (O(1) per char via NSString)
-        // looking for a top-level ORDER BY (depth == 0 means not inside parens)
+        guard len >= 8 else { return false }
         var depth = 0
         var i = len - 1
-        while i >= 8 {
+        while i >= 7 {
             let ch = ns.character(at: i)
             if ch == 0x29 { depth += 1 }       // ')'
             else if ch == 0x28 { depth -= 1 }  // '('
-            else if depth == 0 && ch == 0x59 { // 'Y' (end of "ORDER BY")
-                // Candidate end of "ORDER BY" — check the 8 chars ending here
-                let candidate = ns.substring(with: NSRange(location: i - 7, length: 8))
-                if candidate == "ORDER BY" {
-                    let stripped = (query as NSString).substring(to: i - 7)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    return stripped
+            else if depth == 0 && ch == 0x59 { // 'Y' — end of "ORDER BY"
+                let start = i - 7
+                if start >= 0 {
+                    let candidate = ns.substring(with: NSRange(location: start, length: 8))
+                    if candidate == "ORDER BY" { return true }
+                }
+            }
+            i -= 1
+        }
+        return false
+    }
+
+    /// Strip trailing OFFSET … ROWS FETCH NEXT … ROWS ONLY added by TableQueryBuilder,
+    /// so fetchRows can re-apply pagination with the correct offset and limit.
+    private func stripMSSQLOffsetFetch(from query: String) -> String {
+        let ns = query.uppercased() as NSString
+        let len = ns.length
+        guard len >= 6 else { return query }
+        var depth = 0
+        var i = len - 1
+        while i >= 5 {
+            let ch = ns.character(at: i)
+            if ch == 0x29 { depth += 1 }       // ')'
+            else if ch == 0x28 { depth -= 1 }  // '('
+            else if depth == 0 && ch == 0x54 { // 'T' — end of "OFFSET"
+                let start = i - 5
+                if start >= 0 {
+                    let candidate = ns.substring(with: NSRange(location: start, length: 6))
+                    if candidate == "OFFSET" {
+                        return (query as NSString).substring(to: start)
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
                 }
             }
             i -= 1
@@ -276,12 +300,13 @@ final class MSSQLDriver: DatabaseDriver {
             FROM sys.foreign_keys fk
             JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
             JOIN sys.tables tp ON fkc.parent_object_id = tp.object_id
+            JOIN sys.schemas s ON tp.schema_id = s.schema_id
             JOIN sys.columns cp
                 ON fkc.parent_object_id = cp.object_id AND fkc.parent_column_id = cp.column_id
             JOIN sys.tables tr ON fkc.referenced_object_id = tr.object_id
             JOIN sys.columns cr
                 ON fkc.referenced_object_id = cr.object_id AND fkc.referenced_column_id = cr.column_id
-            WHERE tp.name = '\(escapedTable)'
+            WHERE tp.name = '\(escapedTable)' AND s.name = '\(escapedSchema)'
             ORDER BY fk.name
             """
         let result = try await execute(query: sql)
@@ -303,11 +328,11 @@ final class MSSQLDriver: DatabaseDriver {
 
     func fetchApproximateRowCount(table: String) async throws -> Int? {
         let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+        let objectName = "[\(escapedSchema)].[\(escapedTable)]"
         let sql = """
             SELECT SUM(p.rows)
             FROM sys.partitions p
-            JOIN sys.objects o ON p.object_id = o.object_id
-            WHERE o.name = '\(escapedTable)' AND p.index_id IN (0, 1)
+            WHERE p.object_id = OBJECT_ID(N'\(objectName)') AND p.index_id IN (0, 1)
             """
         let result = try await execute(query: sql)
         if let row = result.rows.first, let cell = row.first, let str = cell {
@@ -364,12 +389,13 @@ final class MSSQLDriver: DatabaseDriver {
                 8 * SUM(a.used_pages) AS size_kb,
                 ep.value AS comment
             FROM sys.tables t
+            JOIN sys.schemas s ON t.schema_id = s.schema_id
             JOIN sys.partitions p
                 ON t.object_id = p.object_id AND p.index_id IN (0, 1)
             JOIN sys.allocation_units a ON p.partition_id = a.container_id
             LEFT JOIN sys.extended_properties ep
                 ON ep.major_id = t.object_id AND ep.minor_id = 0 AND ep.name = 'MS_Description'
-            WHERE t.name = '\(escapedTable)'
+            WHERE t.name = '\(escapedTable)' AND s.name = '\(escapedSchema)'
             GROUP BY ep.value
             """
         let result = try await execute(query: sql)

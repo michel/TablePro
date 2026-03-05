@@ -427,9 +427,11 @@ final class MainContentCoordinator {
         // Build database-specific EXPLAIN prefix
         let explainSQL: String
         switch connection.type {
+        case .mssql:
+            return
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .redshift, .mssql:
+        case .mysql, .mariadb, .postgresql, .redshift:
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)

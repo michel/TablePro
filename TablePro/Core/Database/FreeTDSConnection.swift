@@ -286,11 +286,15 @@ final class FreeTDSConnection: @unchecked Sendable {
             }
         }
 
+        // For SELECT results (columns present) report the fetched row count.
+        // For DML statements (INSERT/UPDATE/DELETE), columns are empty and allRows.count
+        // reflects nothing useful — report 0 since dbcount() is not available in the stub.
+        let affectedRows = allColumns.isEmpty ? 0 : allRows.count
         return FreeTDSQueryResult(
             columns: allColumns,
             columnTypeNames: allTypeNames,
             rows: allRows,
-            affectedRows: allRows.count
+            affectedRows: affectedRows
         )
     }
 

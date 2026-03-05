@@ -146,7 +146,9 @@ final class DatabaseManager {
                     try? await (driver as? RedisDriver)?.selectDatabase(initialDb)
                 }
                 activeSessions[connection.id]?.currentDatabase = String(initialDb)
-            } else if connection.type == .mssql, let mssqlDriver = driver as? MSSQLDriver {
+            } else if connection.type == .mssql,
+                      connection.database.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      let mssqlDriver = driver as? MSSQLDriver {
                 if let savedDb = AppSettingsStorage.shared.loadLastDatabase(for: connection.id) {
                     try? await mssqlDriver.switchDatabase(to: savedDb)
                     activeSessions[connection.id]?.currentDatabase = savedDb

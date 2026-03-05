@@ -315,8 +315,10 @@ final class ImportService {
         switch dbType {
         case .mysql, .mariadb:
             return "START TRANSACTION"
-        case .postgresql, .redshift, .sqlite, .mssql:
+        case .postgresql, .redshift, .sqlite:
             return "BEGIN"
+        case .mssql:
+            return "BEGIN TRANSACTION"
         case .mongodb, .redis:
             return ""
         }

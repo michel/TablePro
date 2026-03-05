@@ -506,7 +506,7 @@ struct ExportDialog: View {
 
             case .mssql:
                 // MSSQL: fetch schemas within current database
-                let schemas = try await fetchPostgreSQLSchemas(driver: driver)
+                let schemas = try await driver.fetchSchemas()
                 for schema in schemas {
                     let tables = try await fetchTablesForSchema(schema, driver: driver)
                     let tableItems = tables.map { table in
