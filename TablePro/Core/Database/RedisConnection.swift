@@ -787,18 +787,26 @@ private extension RedisConnection {
         guard let ctx = context else { throw RedisError.notConnected }
         guard !commands.isEmpty else { return [] }
 
+        var appendedCount = 0
         for args in commands {
             let argc = Int32(args.count)
             let lengths = args.map { $0.utf8.count }
             try withArgvPointers(args: args, lengths: lengths) { argv, argvlen in
                 let status = redisAppendCommandArgv(ctx, argc, argv, argvlen)
                 if status != REDIS_OK {
+                    // Drain replies for commands that were successfully appended
+                    for _ in 0 ..< appendedCount {
+                        var discard: UnsafeMutableRawPointer?
+                        if redisGetReply(ctx, &discard) != REDIS_OK { break }
+                        if let d = discard { freeReplyObject(d) }
+                    }
                     let errMsg = withUnsafePointer(to: &ctx.pointee.errstr) { ptr in
                         ptr.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
                     }
                     throw RedisError(code: Int(ctx.pointee.err), message: errMsg)
                 }
             }
+            appendedCount += 1
         }
 
         var replies: [RedisReply] = []

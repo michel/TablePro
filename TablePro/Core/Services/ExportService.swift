@@ -182,22 +182,31 @@ final class ExportService {
     /// - Returns: The total row count across all tables. Any failures are logged but do not affect the returned value.
     /// - Note: When row count fails for some tables, the statusMessage is updated to inform the user that progress is estimated.
     private func fetchTotalRowCount(for tables: [ExportTableItem]) async -> Int {
+        guard !tables.isEmpty else { return 0 }
+
+        var total = 0
+        var failedCount = 0
+
         if databaseType == .mongodb || databaseType == .redis {
-            var total = 0
             for table in tables {
-                if let count = try? await driver.fetchApproximateRowCount(table: table.name) {
-                    total += count
+                do {
+                    if let count = try await driver.fetchApproximateRowCount(table: table.name) {
+                        total += count
+                    }
+                } catch {
+                    failedCount += 1
+                    Self.logger.warning("Failed to get approximate row count for \(table.qualifiedName): \(error.localizedDescription)")
                 }
+            }
+            if failedCount > 0 {
+                Self.logger.warning("\(failedCount) table(s) failed row count - progress indicator may be inaccurate")
+                state.statusMessage = "Progress estimated (\(failedCount) table\(failedCount > 1 ? "s" : "") could not be counted)"
             }
             return total
         }
 
-        guard !tables.isEmpty else { return 0 }
-
         // Batch all COUNT(*) into a single UNION ALL query per chunk
         let chunkSize = 50
-        var total = 0
-        var failedCount = 0
 
         for chunkStart in stride(from: 0, to: tables.count, by: chunkSize) {
             let end = min(chunkStart + chunkSize, tables.count)
@@ -851,8 +860,19 @@ final class ExportService {
             var emittedTypeNames: Set<String> = []
             let structureTableNames = tables.filter { $0.sqlOptions.includeStructure }.map(\.name)
 
-            let allSequences = (try? await driver.fetchAllDependentSequences(forTables: structureTableNames)) ?? [:]
-            let allEnumTypes = (try? await driver.fetchAllDependentTypes(forTables: structureTableNames)) ?? [:]
+            var allSequences: [String: [(name: String, ddl: String)]] = [:]
+            do {
+                allSequences = try await driver.fetchAllDependentSequences(forTables: structureTableNames)
+            } catch {
+                Self.logger.warning("Failed to fetch dependent sequences: \(error.localizedDescription)")
+            }
+
+            var allEnumTypes: [String: [(name: String, labels: [String])]] = [:]
+            do {
+                allEnumTypes = try await driver.fetchAllDependentTypes(forTables: structureTableNames)
+            } catch {
+                Self.logger.warning("Failed to fetch dependent enum types: \(error.localizedDescription)")
+            }
 
             for table in tables where table.sqlOptions.includeStructure {
                 let sequences = allSequences[table.name] ?? []

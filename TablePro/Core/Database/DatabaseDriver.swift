@@ -85,6 +85,10 @@ protocol DatabaseDriver: AnyObject {
     /// Default implementation falls back to per-table fetchForeignKeys.
     func fetchAllForeignKeys() async throws -> [String: [ForeignKeyInfo]]
 
+    /// Fetch foreign keys for a specific set of tables.
+    /// Default implementation calls fetchAllForeignKeys and filters, or falls back to per-table.
+    func fetchForeignKeys(forTables tableNames: [String]) async throws -> [String: [ForeignKeyInfo]]
+
     /// Fetch an approximate row count using fast database-specific metadata.
     /// Returns nil if not available (e.g., SQLite). Used for instant pagination display.
     func fetchApproximateRowCount(table: String) async throws -> Int?
@@ -175,7 +179,24 @@ extension DatabaseDriver {
             do {
                 let fks = try await fetchForeignKeys(table: table.name)
                 if !fks.isEmpty { result[table.name] = fks }
-            } catch {}
+            } catch {
+                Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
+                    .debug("Failed to fetch foreign keys for \(table.name): \(error.localizedDescription)")
+            }
+        }
+        return result
+    }
+
+    func fetchForeignKeys(forTables tableNames: [String]) async throws -> [String: [ForeignKeyInfo]] {
+        var result: [String: [ForeignKeyInfo]] = [:]
+        for name in tableNames {
+            do {
+                let fks = try await fetchForeignKeys(table: name)
+                if !fks.isEmpty { result[name] = fks }
+            } catch {
+                Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
+                    .debug("Failed to fetch foreign keys for \(name): \(error.localizedDescription)")
+            }
         }
         return result
     }

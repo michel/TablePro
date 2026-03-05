@@ -439,7 +439,8 @@ final class PostgreSQLDriver: DatabaseDriver {
             let maxVal = row[3] ?? "9223372036854775807"
             let incrementBy = row[4] ?? "1"
             let cycle = row[5] == "t" ? " CYCLE" : ""
-            let ddl = "CREATE SEQUENCE \"\(seqName)\" INCREMENT BY \(incrementBy)"
+            let quotedSeqName = "\"\(seqName.replacingOccurrences(of: "\"", with: "\"\""))\""
+            let ddl = "CREATE SEQUENCE \(quotedSeqName) INCREMENT BY \(incrementBy)"
                 + " MINVALUE \(minVal) MAXVALUE \(maxVal)"
                 + " START WITH \(startVal)\(cycle);"
             return (name: seqName, ddl: ddl)
@@ -505,7 +506,8 @@ final class PostgreSQLDriver: DatabaseDriver {
             let maxVal = row[4] ?? "9223372036854775807"
             let incrementBy = row[5] ?? "1"
             let cycle = row[6] == "t" ? " CYCLE" : ""
-            let ddl = "CREATE SEQUENCE \"\(seqName)\" INCREMENT BY \(incrementBy)"
+            let quotedSeqName = "\"\(seqName.replacingOccurrences(of: "\"", with: "\"\""))\""
+            let ddl = "CREATE SEQUENCE \(quotedSeqName) INCREMENT BY \(incrementBy)"
                 + " MINVALUE \(minVal) MAXVALUE \(maxVal)"
                 + " START WITH \(startVal)\(cycle);"
             output[tableName, default: []].append((name: seqName, ddl: ddl))

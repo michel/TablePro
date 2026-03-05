@@ -394,11 +394,10 @@ struct AIChatPanelView: View {
             }
         }
 
-        // Fetch all foreign keys in a single bulk query
+        // Fetch foreign keys for the needed tables in bulk
         do {
-            let allFks = try await driver.fetchAllForeignKeys()
-            let tableNames = Set(tablesToFetch.map(\.name))
-            for (table, fks) in allFks where tableNames.contains(table) {
+            let fkResult = try await driver.fetchForeignKeys(forTables: tablesToFetch.map(\.name))
+            for (table, fks) in fkResult {
                 foreignKeys[table] = fks
             }
         } catch {
