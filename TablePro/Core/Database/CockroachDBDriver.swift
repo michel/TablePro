@@ -557,54 +557,58 @@ final class CockroachDBDriver: DatabaseDriver {
 
     func fetchTableMetadata(tableName: String) async throws -> TableMetadata {
         let safeTable = SQLEscaping.escapeStringLiteral(tableName, databaseType: .cockroachdb)
+        let quotedTable = "\"\(tableName.replacingOccurrences(of: "\"", with: "\"\""))\""
+        let quotedSchema = "\"\(currentSchema.replacingOccurrences(of: "\"", with: "\"\""))\""
+        let fullName = "\(quotedSchema).\(quotedTable)"
 
-        // Try CockroachDB-specific table_span_stats for size
-        var totalSize: Int64?
-        do {
-            let sizeQuery = """
-                SELECT approximate_disk_bytes
-                FROM crdb_internal.table_span_stats
-                WHERE table_name = '\(safeTable)'
-                """
-            let sizeResult = try await execute(query: sizeQuery)
-            if let row = sizeResult.rows.first, let val = row[0] {
-                totalSize = Int64(val)
-            }
-        } catch {
-            Self.logger.debug("crdb_internal.table_span_stats not available, falling back to pg_total_relation_size")
+        // Use PostgreSQL-compatible size functions (CockroachDB supports these)
+        let query = """
+            SELECT
+                pg_total_relation_size('\(fullName)') AS total_size,
+                pg_table_size('\(fullName)') AS data_size,
+                pg_indexes_size('\(fullName)') AS index_size,
+                c.reltuples::bigint AS row_count,
+                CASE WHEN c.reltuples > 0 THEN pg_table_size('\(fullName)') / GREATEST(c.reltuples, 1) ELSE 0 END AS avg_row_length,
+                obj_description(c.oid, 'pg_class') AS comment
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relname = '\(safeTable)'
+              AND n.nspname = '\(escapedSchema)'
+            """
+
+        let result = try await execute(query: query)
+
+        guard let row = result.rows.first else {
+            return TableMetadata(
+                tableName: tableName,
+                dataSize: nil,
+                indexSize: nil,
+                totalSize: nil,
+                avgRowLength: nil,
+                rowCount: nil,
+                comment: nil,
+                engine: nil,
+                collation: nil,
+                createTime: nil,
+                updateTime: nil
+            )
         }
 
-        // Fall back to pg_total_relation_size if CockroachDB-specific view unavailable
-        if totalSize == nil {
-            do {
-                let pgSizeQuery = """
-                    SELECT pg_total_relation_size('\(escapedSchema).\(safeTable)')
-                    """
-                let pgSizeResult = try await execute(query: pgSizeQuery)
-                if let row = pgSizeResult.rows.first, let val = row[0] {
-                    totalSize = Int64(val)
-                }
-            } catch {
-                Self.logger.debug("pg_total_relation_size failed: \(error.localizedDescription)")
-            }
-        }
-
-        // Fetch row count
-        let rowCount = try await fetchApproximateRowCount(table: tableName).map { Int64($0) }
-
-        let avgRowLength: Int64? = {
-            guard let size = totalSize, let count = rowCount, count > 0 else { return nil }
-            return size / count
-        }()
+        let totalSize = !row.isEmpty ? Int64(row[0] ?? "0") : nil
+        let dataSize = row.count > 1 ? Int64(row[1] ?? "0") : nil
+        let indexSize = row.count > 2 ? Int64(row[2] ?? "0") : nil
+        let rowCount = row.count > 3 ? Int64(row[3] ?? "0") : nil
+        let avgRowLength = row.count > 4 ? Int64(row[4] ?? "0") : nil
+        let comment = row.count > 5 ? row[5] : nil
 
         return TableMetadata(
             tableName: tableName,
-            dataSize: totalSize,
-            indexSize: nil,
+            dataSize: dataSize,
+            indexSize: indexSize,
             totalSize: totalSize,
             avgRowLength: avgRowLength,
             rowCount: rowCount,
-            comment: nil,
+            comment: comment?.isEmpty == true ? nil : comment,
             engine: "CockroachDB",
             collation: nil,
             createTime: nil,
@@ -657,9 +661,17 @@ final class CockroachDBDriver: DatabaseDriver {
     func fetchDatabaseMetadata(_ database: String) async throws -> DatabaseMetadata {
         let escapedDbLiteral = SQLEscaping.escapeStringLiteral(database, databaseType: .cockroachdb)
 
-        let sizeQuery = "SELECT pg_database_size('\(escapedDbLiteral)')"
-        let sizeResult = try await execute(query: sizeQuery)
-        let sizeBytes = Int64(sizeResult.rows.first?[0] ?? "0") ?? 0
+        let query = """
+            SELECT
+                (SELECT COUNT(*)
+                 FROM information_schema.tables
+                 WHERE table_schema = 'public' AND table_catalog = '\(escapedDbLiteral)'),
+                pg_database_size('\(escapedDbLiteral)')
+        """
+        let result = try await execute(query: query)
+        let row = result.rows.first
+        let tableCount = Int(row?[0] ?? "0") ?? 0
+        let sizeBytes = Int64(row?[1] ?? "0") ?? 0
 
         let systemDatabases = ["system", "defaultdb"]
         let isSystem = systemDatabases.contains(database)
@@ -667,7 +679,7 @@ final class CockroachDBDriver: DatabaseDriver {
         return DatabaseMetadata(
             id: database,
             name: database,
-            tableCount: nil,
+            tableCount: tableCount,
             sizeBytes: sizeBytes,
             lastAccessed: nil,
             isSystemDatabase: isSystem,
@@ -678,18 +690,24 @@ final class CockroachDBDriver: DatabaseDriver {
     func fetchAllDatabaseMetadata() async throws -> [DatabaseMetadata] {
         let systemDatabases = ["system", "defaultdb"]
 
-        let dbResult = try await execute(
-            query: "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname"
-        )
-        let dbNames = dbResult.rows.compactMap { $0.first.flatMap { $0 } }
+        let query = """
+            SELECT d.datname, pg_database_size(d.datname)
+            FROM pg_database d
+            WHERE d.datistemplate = false
+            ORDER BY d.datname
+            """
+        let result = try await execute(query: query)
 
-        return dbNames.map { dbName in
+        return result.rows.compactMap { row in
+            guard let dbName = row[0] else { return nil }
+            let sizeBytes = Int64(row[1] ?? "0") ?? 0
             let isSystem = systemDatabases.contains(dbName)
+
             return DatabaseMetadata(
                 id: dbName,
                 name: dbName,
                 tableCount: nil,
-                sizeBytes: nil,
+                sizeBytes: sizeBytes,
                 lastAccessed: nil,
                 isSystemDatabase: isSystem,
                 icon: isSystem ? "gearshape.fill" : "cylinder.fill"
@@ -723,13 +741,64 @@ final class CockroachDBDriver: DatabaseDriver {
         _ = try await execute(query: query)
     }
 
-    // MARK: - Unsupported CockroachDB Operations
+    // MARK: - Dependent Types & Sequences
 
     func fetchDependentTypes(forTable table: String) async throws -> [(name: String, labels: [String])] {
-        []
+        let safeTable = SQLEscaping.escapeStringLiteral(table, databaseType: .cockroachdb)
+        let query = """
+            SELECT DISTINCT t.typname,
+                   array_to_string(array_agg(e.enumlabel ORDER BY e.enumsortorder), ',')
+            FROM pg_attribute a
+            JOIN pg_class c ON c.oid = a.attrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_type t ON t.oid = a.atttypid
+            JOIN pg_enum e ON e.enumtypid = t.oid
+            WHERE c.relname = '\(safeTable)'
+              AND n.nspname = '\(escapedSchema)'
+              AND a.attnum > 0
+              AND NOT a.attisdropped
+            GROUP BY t.typname
+            ORDER BY t.typname
+            """
+        let result = try await execute(query: query)
+        return result.rows.compactMap { row in
+            guard let typeName = row[0], let labelsStr = row[1] else { return nil }
+            let labels = labelsStr.components(separatedBy: ",")
+            return (name: typeName, labels: labels)
+        }
     }
 
     func fetchDependentSequences(forTable table: String) async throws -> [(name: String, ddl: String)] {
-        []
+        let safeTable = SQLEscaping.escapeStringLiteral(table, databaseType: .cockroachdb)
+        let query = """
+            SELECT s.sequencename,
+                   s.start_value,
+                   s.min_value,
+                   s.max_value,
+                   s.increment_by,
+                   s.cycle
+            FROM pg_attrdef ad
+            JOIN pg_class c ON c.oid = ad.adrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_sequences s ON s.schemaname = n.nspname
+                 AND pg_get_expr(ad.adbin, ad.adrelid) LIKE '%' || quote_ident(s.sequencename) || '%'
+            WHERE c.relname = '\(safeTable)'
+              AND n.nspname = '\(escapedSchema)'
+              AND pg_get_expr(ad.adbin, ad.adrelid) LIKE '%nextval%'
+            """
+        let result = try await execute(query: query)
+        return result.rows.compactMap { row in
+            guard let seqName = row[0] else { return nil }
+            let startVal = row[1] ?? "1"
+            let minVal = row[2] ?? "1"
+            let maxVal = row[3] ?? "9223372036854775807"
+            let incrementBy = row[4] ?? "1"
+            let cycle = row[5] == "t" ? " CYCLE" : ""
+            let quotedSeqName = "\"\(seqName.replacingOccurrences(of: "\"", with: "\"\""))\""
+            let ddl = "CREATE SEQUENCE \(quotedSeqName) INCREMENT BY \(incrementBy)"
+                + " MINVALUE \(minVal) MAXVALUE \(maxVal)"
+                + " START WITH \(startVal)\(cycle);"
+            return (name: seqName, ddl: ddl)
+        }
     }
 }
