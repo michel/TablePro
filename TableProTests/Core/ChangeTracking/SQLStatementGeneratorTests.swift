@@ -495,30 +495,6 @@ struct SQLStatementGeneratorTests {
         #expect(stmt.sql.contains("$2"))
     }
 
-    @Test("Update without primary key returns nil")
-    func testUpdateNoPrimaryKey() {
-        let generator = makeGenerator(primaryKeyColumn: nil)
-        let changes: [RowChange] = [
-            RowChange(
-                rowIndex: 0,
-                type: .update,
-                cellChanges: [
-                    CellChange(rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Johnny")
-                ],
-                originalRow: ["1", "John", "john@example.com"]
-            )
-        ]
-
-        let statements = generator.generateStatements(
-            from: changes,
-            insertedRowData: [:],
-            deletedRowIndices: [],
-            insertedRowIndices: []
-        )
-
-        #expect(statements.isEmpty)
-    }
-
     @Test("Update PK value from originalRow")
     func testUpdatePKFromOriginalRow() {
         let generator = makeGenerator()

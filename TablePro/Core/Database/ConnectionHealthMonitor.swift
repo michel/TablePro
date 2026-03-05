@@ -107,6 +107,10 @@ actor ConnectionHealthMonitor {
         monitoringTask = Task { [weak self] in
             guard let self else { return }
 
+            let initialDelay = Double.random(in: 0 ... 10)
+            try? await Task.sleep(for: .seconds(initialDelay))
+            guard !Task.isCancelled else { return }
+
             while !Task.isCancelled {
                 // Race between the normal ping interval and an early wake-up signal
                 await withTaskGroup(of: Bool.self) { group in

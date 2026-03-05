@@ -296,7 +296,7 @@ final class MainContentCoordinator {
 
     /// Pre-compiled regex for extracting table name from SELECT queries
     private static let tableNameRegex = try? NSRegularExpression(
-        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+[`"]?(\w+)[`"]?\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|$|;)"#,
+        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+(?:\[(\w+)\]|[`"]?(\w+)[`"]?)\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|OFFSET|$|;)"#,
         options: []
     )
 
@@ -427,6 +427,8 @@ final class MainContentCoordinator {
         // Build database-specific EXPLAIN prefix
         let explainSQL: String
         switch connection.type {
+        case .mssql:
+            return
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
         case .mysql, .mariadb, .postgresql, .redshift:
@@ -685,11 +687,15 @@ final class MainContentCoordinator {
     func extractTableName(from sql: String) -> String? {
         let nsRange = NSRange(sql.startIndex..., in: sql)
 
-        // SQL: SELECT ... FROM tableName
+        // SQL: SELECT ... FROM tableName  (group 1 = bracket-quoted, group 2 = plain/backtick/double-quote)
         if let regex = Self.tableNameRegex,
-           let match = regex.firstMatch(in: sql, options: [], range: nsRange),
-           let range = Range(match.range(at: 1), in: sql) {
-            return String(sql[range])
+           let match = regex.firstMatch(in: sql, options: [], range: nsRange) {
+            for group in 1...2 {
+                let r = match.range(at: group)
+                if r.location != NSNotFound, let range = Range(r, in: sql) {
+                    return String(sql[range])
+                }
+            }
         }
 
         // MQL bracket notation: db["collectionName"].find(...)
@@ -1158,78 +1164,6 @@ final class MainContentCoordinator {
                 }
             }
         }
-    }
-
-    // MARK: - Table Creation
-
-    /// Execute sidebar changes immediately (single transaction)
-    func executeSidebarChanges(statements: [String]) async throws {
-        guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
-            throw DatabaseError.notConnected
-        }
-
-        let dbType = connection.type
-        var allStatements: [String] = []
-
-        // Add database-specific BEGIN / START TRANSACTION
-        let beginStatement: String
-        switch dbType {
-        case .mysql, .mariadb:
-            beginStatement = "START TRANSACTION"
-        default:
-            beginStatement = "BEGIN"
-        }
-        allStatements.append(beginStatement)
-
-        // Add user statements
-        allStatements.append(contentsOf: statements)
-
-        // Add COMMIT
-        allStatements.append("COMMIT")
-
-        // Execute all statements sequentially
-        do {
-            for sql in allStatements {
-                _ = try await driver.execute(query: sql)
-            }
-        } catch {
-            // Try to rollback on error
-            _ = try? await driver.execute(query: "ROLLBACK")
-            throw error
-        }
-    }
-
-    // MARK: - Discard Handling
-
-    func handleDiscard(
-        pendingTruncates: inout Set<String>,
-        pendingDeletes: inout Set<String>
-    ) {
-        let originalValues = changeManager.getOriginalValues()
-        if let index = tabManager.selectedTabIndex {
-            for (rowIndex, columnIndex, originalValue) in originalValues {
-                if rowIndex < tabManager.tabs[index].resultRows.count {
-                    tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = originalValue
-                }
-            }
-
-            let insertedIndices = changeManager.insertedRowIndices.sorted(by: >)
-            for rowIndex in insertedIndices {
-                if rowIndex < tabManager.tabs[index].resultRows.count {
-                    tabManager.tabs[index].resultRows.remove(at: rowIndex)
-                }
-            }
-        }
-
-        pendingTruncates.removeAll()
-        pendingDeletes.removeAll()
-        changeManager.clearChanges()
-
-        if let index = tabManager.selectedTabIndex {
-            tabManager.tabs[index].pendingChanges = TabPendingChanges()
-        }
-
-        NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
     }
 
     /// Remove shared schema provider when a connection disconnects

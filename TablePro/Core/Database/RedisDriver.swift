@@ -435,7 +435,7 @@ final class RedisDriver: DatabaseDriver {
             for line in infoStr.components(separatedBy: .newlines) {
                 let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.hasPrefix("\(dbName):") {
-                    let statsStr = String(trimmed[trimmed.index(trimmed.startIndex, offsetBy: dbName.count + 1)...])
+                    let statsStr = (trimmed as NSString).substring(from: dbName.count + 1)
                     for stat in statsStr.components(separatedBy: ",") {
                         let parts = stat.components(separatedBy: "=")
                         if parts.count == 2, parts[0] == "keys", let count = Int(parts[1]) {

@@ -120,4 +120,35 @@ struct ConnectionHealthMonitorTests {
         let name = Notification.Name.connectionHealthStateChanged
         #expect(name.rawValue == "connectionHealthStateChanged")
     }
+
+    @Test("Staggered initial delay — no ping fires immediately")
+    func staggeredInitialDelay() async {
+        var pingCount = 0
+        let lock = NSLock()
+
+        let monitor = ConnectionHealthMonitor(
+            connectionId: UUID(),
+            pingHandler: {
+                lock.lock()
+                pingCount += 1
+                lock.unlock()
+                return true
+            },
+            reconnectHandler: { true },
+            onStateChanged: { _, _ in }
+        )
+
+        await monitor.startMonitoring()
+
+        // Wait briefly — with stagger (0-10s) + ping interval (30s),
+        // no ping should fire in 200ms
+        try? await Task.sleep(for: .milliseconds(200))
+
+        await monitor.stopMonitoring()
+
+        lock.lock()
+        let count = pingCount
+        lock.unlock()
+        #expect(count == 0, "No ping should fire immediately due to staggered initial delay")
+    }
 }

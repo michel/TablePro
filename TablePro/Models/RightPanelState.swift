@@ -11,10 +11,15 @@ import Foundation
 
 @MainActor @Observable final class RightPanelState {
     private static let isPresentedKey = "com.TablePro.rightPanel.isPresented"
+    private static let isPresentedChangedNotification = Notification.Name("com.TablePro.rightPanel.isPresentedChanged")
+
+    private var isSyncing = false
 
     var isPresented: Bool {
         didSet {
+            guard !isSyncing else { return }
             UserDefaults.standard.set(isPresented, forKey: Self.isPresentedKey)
+            NotificationCenter.default.post(name: Self.isPresentedChangedNotification, object: self)
         }
     }
 
@@ -29,5 +34,24 @@ import Foundation
 
     init() {
         self.isPresented = UserDefaults.standard.bool(forKey: Self.isPresentedKey)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleIsPresentedChanged(_:)),
+            name: Self.isPresentedChangedNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func handleIsPresentedChanged(_ notification: Notification) {
+        guard let sender = notification.object as? RightPanelState, sender !== self else { return }
+        let newValue = UserDefaults.standard.bool(forKey: Self.isPresentedKey)
+        guard newValue != isPresented else { return }
+        isSyncing = true
+        isPresented = newValue
+        isSyncing = false
     }
 }

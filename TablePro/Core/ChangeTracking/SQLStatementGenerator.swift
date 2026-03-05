@@ -122,8 +122,8 @@ struct SQLStatementGenerator {
         switch databaseType {
         case .postgresql, .redshift:
             return "$\(index + 1)"  // PostgreSQL uses $1, $2, etc.
-        case .mysql, .mariadb, .sqlite, .mongodb, .redis:
-            return "?"  // MySQL, MariaDB, SQLite, and MongoDB use ?
+        case .mysql, .mariadb, .sqlite, .mongodb, .redis, .mssql:
+            return "?"  // MySQL, MariaDB, SQLite, MongoDB, and MSSQL use ?
         }
     }
 
@@ -232,21 +232,12 @@ struct SQLStatementGenerator {
     private func generateUpdateSQL(for change: RowChange) -> ParameterizedStatement? {
         guard !change.cellChanges.isEmpty else { return nil }
 
-        // CRITICAL FIX: Require primary key for safe updates
-        guard let pkColumn = primaryKeyColumn,
-              let pkColumnIndex = columns.firstIndex(of: pkColumn) else {
-            Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - no primary key defined")
-            return nil
-        }
-
-        // Build SET clauses with parameters
         var parameters: [Any?] = []
         let setClauses = change.cellChanges.map { cellChange -> String in
             if cellChange.newValue == "__DEFAULT__" {
                 return "\(databaseType.quoteIdentifier(cellChange.columnName)) = DEFAULT"
             } else if let newValue = cellChange.newValue {
                 if isSQLFunctionExpression(newValue) {
-                    // SQL function - cannot parameterize
                     return "\(databaseType.quoteIdentifier(cellChange.columnName)) = \(newValue.trimmingCharacters(in: .whitespaces).uppercased())"
                 } else {
                     parameters.append(newValue)
@@ -258,29 +249,60 @@ struct SQLStatementGenerator {
             }
         }.joined(separator: ", ")
 
-        // Get PK value from originalRow or cellChanges
-        var pkValue: Any?
-        if let originalRow = change.originalRow, pkColumnIndex < originalRow.count {
-            pkValue = originalRow[pkColumnIndex]
-        } else if let pkChange = change.cellChanges.first(where: { $0.columnName == pkColumn }) {
-            pkValue = pkChange.oldValue
+        if let pkColumn = primaryKeyColumn,
+           let pkColumnIndex = columns.firstIndex(of: pkColumn) {
+            var pkValue: Any?
+            if let originalRow = change.originalRow, pkColumnIndex < originalRow.count {
+                pkValue = originalRow[pkColumnIndex]
+            } else if let pkChange = change.cellChanges.first(where: { $0.columnName == pkColumn }) {
+                pkValue = pkChange.oldValue
+            }
+
+            guard pkValue != nil else {
+                Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - cannot determine primary key value for row")
+                return nil
+            }
+
+            parameters.append(pkValue)
+            let whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(placeholder(at: parameters.count - 1))"
+            let limitClause = (databaseType == .mysql || databaseType == .mariadb) ? " LIMIT 1" : ""
+            let sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
+            return ParameterizedStatement(sql: sql, parameters: parameters)
+        } else {
+            guard let originalRow = change.originalRow else {
+                Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - no primary key and no original row data")
+                return nil
+            }
+
+            var conditions: [String] = []
+            for (index, columnName) in columns.enumerated() {
+                guard index < originalRow.count else { continue }
+                let value = originalRow[index]
+                let quotedColumn = databaseType.quoteIdentifier(columnName)
+                if let value = value {
+                    parameters.append(value)
+                    conditions.append("\(quotedColumn) = \(placeholder(at: parameters.count - 1))")
+                } else {
+                    conditions.append("\(quotedColumn) IS NULL")
+                }
+            }
+
+            guard !conditions.isEmpty else { return nil }
+
+            let whereClause = conditions.joined(separator: " AND ")
+
+            let sql: String
+            switch databaseType {
+            case .mysql, .mariadb, .sqlite:
+                sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) LIMIT 1"
+            case .mssql:
+                sql = "UPDATE TOP (1) \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
+            case .postgresql, .redshift, .mongodb, .redis:
+                sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
+            }
+
+            return ParameterizedStatement(sql: sql, parameters: parameters)
         }
-
-        // CRITICAL: Require valid PK value
-        guard pkValue != nil else {
-            Self.logger.warning("Skipping UPDATE for table '\(self.tableName)' - cannot determine primary key value for row")
-            return nil
-        }
-
-        parameters.append(pkValue)
-        let whereClause = "\(databaseType.quoteIdentifier(pkColumn)) = \(placeholder(at: parameters.count - 1))"
-
-        // Add LIMIT 1 for MySQL/MariaDB
-        let limitClause = (databaseType == .mysql || databaseType == .mariadb) ? " LIMIT 1" : ""
-
-        let sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)\(limitClause)"
-
-        return ParameterizedStatement(sql: sql, parameters: parameters)
     }
 
     // MARK: - DELETE Generation
@@ -343,10 +365,15 @@ struct SQLStatementGenerator {
 
         let whereClause = conditions.joined(separator: " AND ")
 
-        // Add LIMIT 1 for MySQL/MariaDB to be extra safe
-        let limitClause = (databaseType == .mysql || databaseType == .mariadb) ? " LIMIT 1" : ""
-
-        let sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)\(limitClause)"
+        let sql: String
+        switch databaseType {
+        case .mysql, .mariadb, .sqlite:
+            sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) LIMIT 1"
+        case .mssql:
+            sql = "DELETE TOP (1) FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
+        case .postgresql, .redshift, .mongodb, .redis:
+            sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
+        }
 
         return ParameterizedStatement(sql: sql, parameters: parameters)
     }

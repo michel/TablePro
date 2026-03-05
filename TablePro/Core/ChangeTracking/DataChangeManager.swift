@@ -675,8 +675,18 @@ final class DataChangeManager {
 
         if expectedUpdates > 0 && actualUpdates < expectedUpdates {
             throw DatabaseError.queryFailed(
-                "Cannot save UPDATE changes to table '\(tableName)' without a primary key. " +
-                    "Please add a primary key to this table or use raw SQL queries instead."
+                "Cannot save UPDATE changes to table '\(tableName)'. " +
+                    "Some rows could not be identified for updating. Please verify the table data."
+            )
+        }
+
+        let expectedDeletes = changes.count(where: { $0.type == .delete && deletedRowIndices.contains($0.rowIndex) })
+        let actualDeletes = statements.count(where: { $0.sql.hasPrefix("DELETE") })
+
+        if expectedDeletes > 0 && actualDeletes < expectedDeletes {
+            throw DatabaseError.queryFailed(
+                "Cannot save DELETE changes to table '\(tableName)'. " +
+                    "Some rows could not be identified for deletion. Please verify the table data."
             )
         }
 

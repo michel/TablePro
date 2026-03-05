@@ -283,4 +283,50 @@ struct SQLSchemaProviderTests {
 
         #expect(driver.fetchColumnsCallCount == 1)
     }
+
+    @Test("allColumnsInScope with single reference returns unprefixed names")
+    func allColumnsInScopeSingleRef() async {
+        let driver = MockDatabaseDriver()
+        driver.tablesToReturn = [TestFixtures.makeTableInfo(name: "users")]
+        driver.columnsToReturn = [
+            "users": [
+                TestFixtures.makeColumnInfo(name: "id"),
+                TestFixtures.makeColumnInfo(name: "email", dataType: "VARCHAR", isPrimaryKey: false)
+            ]
+        ]
+
+        let provider = SQLSchemaProvider()
+        await provider.loadSchema(using: driver, connection: TestFixtures.makeConnection())
+
+        let ref = TableReference(tableName: "users", alias: nil)
+        let items = await provider.allColumnsInScope(for: [ref])
+        #expect(items.count == 2)
+        #expect(items[0].label == "id")
+        #expect(items[1].label == "email")
+    }
+
+    @Test("allColumnsInScope with multiple references returns prefixed names")
+    func allColumnsInScopeMultipleRefs() async {
+        let driver = MockDatabaseDriver()
+        driver.tablesToReturn = [
+            TestFixtures.makeTableInfo(name: "users"),
+            TestFixtures.makeTableInfo(name: "orders")
+        ]
+        driver.columnsToReturn = [
+            "users": [TestFixtures.makeColumnInfo(name: "id")],
+            "orders": [TestFixtures.makeColumnInfo(name: "id")]
+        ]
+
+        let provider = SQLSchemaProvider()
+        await provider.loadSchema(using: driver, connection: TestFixtures.makeConnection())
+
+        let refs = [
+            TableReference(tableName: "users", alias: nil),
+            TableReference(tableName: "orders", alias: nil)
+        ]
+        let items = await provider.allColumnsInScope(for: refs)
+        #expect(items.count == 2)
+        #expect(items[0].label == "users.id")
+        #expect(items[1].label == "orders.id")
+    }
 }

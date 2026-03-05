@@ -165,7 +165,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					5A1091C62EF17EDC0055EA7C = {
 						CreatedOnToolsVersion = 26.2;
@@ -250,6 +250,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -315,6 +316,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -379,7 +381,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_APP_SANDBOX = NO;
@@ -393,9 +395,9 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
-					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
-					"/usr/local/opt/mariadb-connector-c/include/mariadb",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
@@ -413,7 +415,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.13.0;
+				MARKETING_VERSION = 0.14.0;
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
@@ -434,6 +436,8 @@
 					"$(PROJECT_DIR)/Libs/libhiredis.a",
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libhiredis_ssl.a",
+					"$(PROJECT_DIR)/Libs/libsybdb.a",
+					"-liconv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -451,7 +455,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis";
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.9;
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -471,7 +475,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 25;
+				CURRENT_PROJECT_VERSION = 26;
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
@@ -486,9 +490,9 @@
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
-					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
-					"/usr/local/opt/mariadb-connector-c/include/mariadb",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
@@ -506,7 +510,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.13.0;
+				MARKETING_VERSION = 0.14.0;
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
@@ -527,6 +531,8 @@
 					"$(PROJECT_DIR)/Libs/libhiredis.a",
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libhiredis_ssl.a",
+					"$(PROJECT_DIR)/Libs/libsybdb.a",
+					"-liconv",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -544,7 +550,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis";
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.9;
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -560,9 +566,9 @@
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
-					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
-					"/usr/local/opt/mariadb-connector-c/include/mariadb",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
@@ -575,7 +581,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis";
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TablePro.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TablePro";
@@ -591,9 +597,9 @@
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = (
-					"/opt/homebrew/opt/mariadb-connector-c/include/mariadb",
-					"/usr/local/opt/mariadb-connector-c/include/mariadb",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
+					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
 					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
@@ -606,7 +612,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis";
+				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TablePro.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TablePro";

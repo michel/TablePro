@@ -11,8 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The PostgreSQL Cmd+K database switcher now lists and switches both databases and schemas for PostgreSQL connections.
 
+## [0.14.0] - 2026-03-05
+
+### Added
+
+- Microsoft SQL Server (MSSQL) database support via FreeTDS
+- Support for editing and deleting rows in tables without a primary key
+
 ### Fixed
 
+- Fix MSSQL connection losing selected database after disconnect and reconnect when no default database is configured
+- DELETE operations on tables without a primary key now show an error if row data is missing instead of being silently dropped
+- SQLite and MSSQL now use safe single-row limits for DELETE and UPDATE on tables without a primary key
+- Fix high CPU/RAM on app launch from blocking storage init, unsynchronized health monitors, and excessive retry loops
+- Fix O(n log n) row cache eviction in RowProvider by replacing sorted eviction with O(n) distance-threshold filter
+- Fix O(n) string operations in GeometryWKBParser, RedisDriver, and autocomplete scoring by switching to NSString O(1) indexing
 - Fix slow database switcher loading by replacing N+1 metadata queries with single batched queries (MySQL, PostgreSQL, Redshift)
 - Fix slow Redis key browsing by pipelining TYPE and TTL commands in a single round trip instead of 3 sequential commands per key
 - Fix slow SQL export startup by batching COUNT(*) queries via UNION ALL and batching dependent sequence/type lookups
@@ -658,7 +671,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/datlechin/tablepro/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/datlechin/tablepro/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/datlechin/tablepro/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/datlechin/tablepro/compare/v0.11.0...v0.11.1

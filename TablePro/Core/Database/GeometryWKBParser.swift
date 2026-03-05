@@ -120,9 +120,8 @@ enum GeometryWKBParser {
         for _ in 0 ..< numGeoms {
             guard let geom = parseWKBGeometry(data, offset: &offset) else { return nil }
             if geom.hasPrefix("POINT("), geom.hasSuffix(")") {
-                let start = geom.index(geom.startIndex, offsetBy: 6)
-                let end = geom.index(before: geom.endIndex)
-                points.append(String(geom[start ..< end]))
+                let ns = geom as NSString
+                points.append(ns.substring(with: NSRange(location: 6, length: ns.length - 7)))
             } else {
                 points.append(geom)
             }
@@ -142,9 +141,8 @@ enum GeometryWKBParser {
         for _ in 0 ..< numGeoms {
             guard let geom = parseWKBGeometry(data, offset: &offset) else { return nil }
             if geom.hasPrefix("LINESTRING("), geom.hasSuffix(")") {
-                let start = geom.index(geom.startIndex, offsetBy: 11)
-                let end = geom.index(before: geom.endIndex)
-                lineStrings.append("(\(geom[start ..< end]))")
+                let ns = geom as NSString
+                lineStrings.append("(\(ns.substring(with: NSRange(location: 11, length: ns.length - 12))))")
             } else {
                 lineStrings.append(geom)
             }
@@ -164,9 +162,8 @@ enum GeometryWKBParser {
         for _ in 0 ..< numGeoms {
             guard let geom = parseWKBGeometry(data, offset: &offset) else { return nil }
             if geom.hasPrefix("POLYGON("), geom.hasSuffix(")") {
-                let start = geom.index(geom.startIndex, offsetBy: 8)
-                let end = geom.index(before: geom.endIndex)
-                polygons.append("(\(geom[start ..< end]))")
+                let ns = geom as NSString
+                polygons.append("(\(ns.substring(with: NSRange(location: 8, length: ns.length - 9))))")
             } else {
                 polygons.append(geom)
             }
