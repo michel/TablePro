@@ -62,12 +62,8 @@ struct ConnectionStatusView: View {
             }
             .buttonStyle(.plain)
             .help(isReadOnly
-                ? (databaseType == .postgresql
-                    ? "Current schema: \(databaseName) (read-only, ⌘K to switch)"
-                    : "Current database: \(databaseName) (read-only, ⌘K to switch)")
-                : (databaseType == .postgresql
-                    ? "Current schema: \(databaseName) (⌘K to switch)"
-                    : "Current database: \(databaseName) (⌘K to switch)"))
+                ? String(localized: "Current database: \(databaseName) (read-only, ⌘K to switch)")
+                : String(localized: "Current database: \(databaseName) (⌘K to switch)"))
         }
     }
 

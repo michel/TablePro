@@ -112,12 +112,22 @@ struct MainContentView: View {
 
         switch sheet {
         case .databaseSwitcher:
+            let session = DatabaseManager.shared.session(for: connection.id)
+            let activeDatabase = session?.currentDatabase ?? connection.database
+            let activeSchema = session?.currentSchema
+            let currentSelection = connection.type == .redshift
+                ? (activeSchema ?? activeDatabase)
+                : activeDatabase
             DatabaseSwitcherSheet(
                 isPresented: dismissBinding,
-                currentDatabase: connection.database,
+                currentDatabase: currentSelection,
+                currentSchema: activeSchema,
                 databaseType: connection.type,
                 connectionId: connection.id,
-                onSelect: switchDatabase
+                onSelect: switchDatabase,
+                onSelectSchema: { schema in
+                    Task { await coordinator.switchSchema(to: schema) }
+                }
             )
         case .exportDialog:
             ExportDialog(
