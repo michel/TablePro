@@ -26,7 +26,7 @@ let package = Package(
                 .product(name: "SwiftTreeSitter", package: "SwiftTreeSitter")
             ],
             resources: [.copy("Resources")],
-            linkerSettings: [.linkedLibrary("c++")]
+            linkerSettings: []
         )
     ]
 )
