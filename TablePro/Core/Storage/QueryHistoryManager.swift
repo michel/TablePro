@@ -9,24 +9,23 @@
 import Combine
 import Foundation
 
-/// Notification names for query history updates
-extension Notification.Name {
-    static let queryHistoryDidUpdate = Notification.Name("queryHistoryDidUpdate")
-    static let loadQueryIntoEditor = Notification.Name("loadQueryIntoEditor")
-    static let insertQueryFromAI = Notification.Name("insertQueryFromAI")
-}
-
 /// Thread-safe manager for query history
 /// NOT an ObservableObject - uses NotificationCenter for UI communication
 final class QueryHistoryManager {
     static let shared = QueryHistoryManager()
 
-    private let storage = QueryHistoryStorage.shared
+    private let storage: QueryHistoryStorage
 
     // Settings observer for immediate cleanup when settings change
     private var settingsObserver: AnyCancellable?
 
+    /// Creates an isolated manager with its own storage. For testing only.
+    init(isolatedStorage: QueryHistoryStorage) {
+        self.storage = isolatedStorage
+    }
+
     private init() {
+        self.storage = QueryHistoryStorage.shared
         // Subscribe to history settings changes for immediate cleanup
         settingsObserver = NotificationCenter.default.publisher(for: .historySettingsDidChange)
             .receive(on: DispatchQueue.main)

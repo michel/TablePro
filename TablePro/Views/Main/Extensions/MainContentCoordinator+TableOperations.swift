@@ -45,7 +45,7 @@ extension MainContentCoordinator {
         // Wrap in transaction for atomicity
         let needsTransaction = wrapInTransaction && (sortedTruncates.count + sortedDeletes.count) > 1
         if needsTransaction {
-            statements.append(dbType == .mssql ? "BEGIN TRANSACTION" : "BEGIN")
+            statements.append(dbType.beginTransactionSQL)
         }
 
         for tableName in sortedTruncates {

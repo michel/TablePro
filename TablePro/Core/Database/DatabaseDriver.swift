@@ -286,21 +286,7 @@ extension DatabaseDriver {
 
     /// Default transaction implementation using database-specific SQL
     func beginTransaction() async throws {
-        let sql: String
-        switch connection.type {
-        case .mysql, .mariadb:
-            sql = "START TRANSACTION"
-        case .postgresql, .redshift:
-            sql = "BEGIN"
-        case .sqlite:
-            sql = "BEGIN"
-        case .mongodb:
-            sql = ""  // MongoDB transactions not supported in default impl
-        case .redis:
-            sql = ""  // Redis transactions handled by RedisDriver directly
-        case .mssql:
-            sql = "BEGIN TRANSACTION"
-        }
+        let sql = connection.type.beginTransactionSQL
         guard !sql.isEmpty else { return }
         _ = try await execute(query: sql)
     }

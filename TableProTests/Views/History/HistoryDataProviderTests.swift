@@ -133,11 +133,19 @@ struct HistoryDataProviderTests {
 
     @Test("clearAll returns true")
     func clearAllRemovesAllHistory() async {
-        _ = await insertEntry()
-
-        let provider = HistoryDataProvider()
-        let result = await provider.clearAll()
+        let isolated = QueryHistoryStorage(isolatedForTesting: true)
+        _ = await isolated.addHistory(QueryHistoryEntry(
+            query: "SELECT clear_test",
+            connectionId: UUID(),
+            databaseName: "testdb",
+            executionTime: 0.01,
+            rowCount: 1,
+            wasSuccessful: true
+        ))
+        let result = await isolated.clearAllHistory()
         #expect(result == true)
+        let remaining = await isolated.fetchHistory(limit: 100)
+        #expect(remaining.isEmpty)
     }
 
     @Test("scheduleSearch debounces then loads data")

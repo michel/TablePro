@@ -61,6 +61,16 @@ final class QueryHistoryStorage {
         }
     }
 
+    /// Creates an isolated instance with a unique database file. For testing only.
+    init(isolatedForTesting: Bool) {
+        testDatabaseSuffix = isolatedForTesting ? "_\(UUID().uuidString)" : nil
+        queue.sync {
+            setupDatabase()
+        }
+    }
+
+    private var testDatabaseSuffix: String?
+
     private var dbPath: String?
 
     deinit {
@@ -118,8 +128,9 @@ final class QueryHistoryStorage {
         // Create directory if needed
         try? fileManager.createDirectory(at: TableProDir, withIntermediateDirectories: true)
 
+        let suffix = testDatabaseSuffix ?? ""
         let dbFileName = Self.isRunningTests
-            ? "query_history_test_\(ProcessInfo.processInfo.processIdentifier).db"
+            ? "query_history_test_\(ProcessInfo.processInfo.processIdentifier)\(suffix).db"
             : "query_history.db"
         let dbPath = TableProDir.appendingPathComponent(dbFileName).path(percentEncoded: false)
 

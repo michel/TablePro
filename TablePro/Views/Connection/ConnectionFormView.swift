@@ -901,12 +901,6 @@ struct ConnectionFormView: View {
     }
 }
 
-// MARK: - Notification Names
-
-extension Notification.Name {
-    static let connectionUpdated = Notification.Name("connectionUpdated")
-}
-
 #Preview("New Connection") {
     ConnectionFormView(connectionId: nil)
 }

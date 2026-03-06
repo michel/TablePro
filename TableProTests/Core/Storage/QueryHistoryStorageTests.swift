@@ -178,12 +178,12 @@ struct QueryHistoryStorageTests {
 
     @Test("clearAllHistory removes all entries")
     func clearAllHistoryRemovesAll() async {
-        // Insert then clear — verify count goes to 0
-        _ = await storage.addHistory(makeEntry(query: "SELECT clear_test"))
-        let result = await storage.clearAllHistory()
+        let isolated = QueryHistoryStorage(isolatedForTesting: true)
+        _ = await isolated.addHistory(makeEntry(query: "SELECT clear_test"))
+        let result = await isolated.clearAllHistory()
         #expect(result == true)
-        // Count may be 0 or may have entries from other parallel processes
-        // Just verify the operation succeeded (returns true)
+        let remaining = await isolated.fetchHistory(limit: 100)
+        #expect(remaining.isEmpty)
     }
 
     @Test("Combined connectionId + dateFilter works")

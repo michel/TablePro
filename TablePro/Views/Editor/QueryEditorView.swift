@@ -9,14 +9,6 @@ import CodeEditSourceEditor
 import os
 import SwiftUI
 
-extension Notification.Name {
-    static let formatQueryRequested = Notification.Name("formatQueryRequested")
-    static let sendAIPrompt = Notification.Name("sendAIPrompt")
-    static let aiFixError = Notification.Name("aiFixError")
-    static let aiExplainSelection = Notification.Name("aiExplainSelection")
-    static let aiOptimizeSelection = Notification.Name("aiOptimizeSelection")
-}
-
 /// SQL query editor view with execute button
 struct QueryEditorView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
