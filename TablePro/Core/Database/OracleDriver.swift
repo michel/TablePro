@@ -451,9 +451,7 @@ final class OracleDriver: DatabaseDriver {
     }
 
     func createDatabase(name: String, charset: String, collation: String?) async throws {
-        // Oracle doesn't support CREATE DATABASE from a session. Create a schema (user) instead.
-        let quotedName = connection.type.quoteIdentifier(name)
-        _ = try await execute(query: "CREATE USER \(quotedName) IDENTIFIED BY temp_password DEFAULT TABLESPACE USERS QUOTA UNLIMITED ON USERS")
+        throw DatabaseError.unsupportedOperation
     }
 
     func cancelQuery() throws {

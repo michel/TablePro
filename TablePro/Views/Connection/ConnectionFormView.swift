@@ -466,7 +466,7 @@ struct ConnectionFormView: View {
             }
 
             if type == .oracle {
-                Section("Oracle") {
+                Section(String(localized: "Oracle")) {
                     TextField(String(localized: "Service Name"), text: Binding(
                         get: { oracleServiceName },
                         set: { oracleServiceName = $0 }
