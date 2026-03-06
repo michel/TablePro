@@ -287,6 +287,8 @@ extension DatabaseDriver {
                 _ = try await execute(query: "SET LOCK_TIMEOUT \(ms)")
             case .oracle:
                 break  // Oracle timeout handled per-statement by OracleDriver
+            case .clickhouse:
+                _ = try await execute(query: "SET max_execution_time = \(seconds)")
             }
         } catch {
             Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
@@ -314,6 +316,8 @@ extension DatabaseDriver {
             sql = "BEGIN TRANSACTION"
         case .oracle:
             sql = ""  // Oracle auto-starts transactions
+        case .clickhouse:
+            sql = ""  // ClickHouse does not support transactions
         }
         guard !sql.isEmpty else { return }
         _ = try await execute(query: sql)
@@ -350,6 +354,8 @@ enum DatabaseDriverFactory {
             return MSSQLDriver(connection: connection)
         case .oracle:
             return OracleDriver(connection: connection)
+        case .clickhouse:
+            return ClickHouseDriver(connection: connection)
         }
     }
 }

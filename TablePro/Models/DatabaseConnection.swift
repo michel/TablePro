@@ -108,6 +108,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     case redis = "Redis"
     case mssql = "SQL Server"
     case oracle = "Oracle"
+    case clickhouse = "ClickHouse"
 
     var id: String { rawValue }
 
@@ -134,6 +135,8 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return "mssql-icon"
         case .oracle:
             return "oracle-icon"
+        case .clickhouse:
+            return "clickhouse-icon"
         }
     }
 
@@ -149,6 +152,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .redis: return 6_379
         case .mssql: return 1_433
         case .oracle: return 1_521
+        case .clickhouse: return 8_123
         }
     }
 
@@ -157,7 +161,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// MongoDB and SQLite commonly run without authentication.
     var requiresAuthentication: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .redshift, .cockroachdb, .mssql, .oracle: return true
+        case .mysql, .mariadb, .postgresql, .redshift, .cockroachdb, .mssql, .oracle, .clickhouse: return true
         case .sqlite, .mongodb, .redis: return false
         }
     }
@@ -167,7 +171,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .postgresql, .sqlite, .redshift, .cockroachdb, .mssql, .oracle:
             return true
-        case .mongodb, .redis:
+        case .mongodb, .redis, .clickhouse:
             return false
         }
     }
@@ -177,7 +181,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .postgresql, .sqlite, .cockroachdb, .mssql, .oracle:
             return true
-        case .redshift, .mongodb, .redis:
+        case .redshift, .mongodb, .redis, .clickhouse:
             return false
         }
     }
@@ -186,7 +190,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// MySQL/MariaDB/SQLite use backticks, PostgreSQL uses double quotes
     var identifierQuote: String {
         switch self {
-        case .mysql, .mariadb, .sqlite:
+        case .mysql, .mariadb, .sqlite, .clickhouse:
             return "`"
         case .postgresql, .redshift, .cockroachdb, .mongodb, .redis, .oracle:
             return "\""

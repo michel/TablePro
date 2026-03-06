@@ -522,6 +522,21 @@ final class SQLCompletionProvider {
                 "ROWID", "UROWID", "XMLTYPE", "SDO_GEOMETRY",
             ]
 
+        case .clickhouse:
+            types += [
+                "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256",
+                "Int8", "Int16", "Int32", "Int64", "Int128", "Int256",
+                "Float32", "Float64",
+                "Decimal32", "Decimal64", "Decimal128", "Decimal256",
+                "String", "FixedString", "UUID",
+                "Date32", "DateTime64",
+                "Array", "Tuple", "Map", "Nested",
+                "Nullable", "LowCardinality",
+                "Enum8", "Enum16",
+                "IPv4", "IPv6",
+                "JSON", "Bool",
+            ]
+
         case .sqlite:
             types += [
                 "BLOB",

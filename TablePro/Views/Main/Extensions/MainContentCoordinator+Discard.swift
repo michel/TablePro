@@ -17,27 +17,32 @@ extension MainContentCoordinator {
         }
 
         let dbType = connection.type
+        let supportsTransactions = dbType != .redis && dbType != .mongodb && dbType != .clickhouse
         var allStatements: [String] = []
 
-        // Add database-specific BEGIN / START TRANSACTION
-        let beginStatement: String
-        switch dbType {
-        case .mysql, .mariadb:
-            beginStatement = "START TRANSACTION"
-        case .mssql:
-            beginStatement = "BEGIN TRANSACTION"
-        case .oracle:
-            beginStatement = "SET TRANSACTION READ WRITE"
-        default:
-            beginStatement = "BEGIN"
+        if supportsTransactions {
+            // Add database-specific BEGIN / START TRANSACTION
+            let beginStatement: String
+            switch dbType {
+            case .mysql, .mariadb:
+                beginStatement = "START TRANSACTION"
+            case .mssql:
+                beginStatement = "BEGIN TRANSACTION"
+            case .oracle:
+                beginStatement = "SET TRANSACTION READ WRITE"
+            default:
+                beginStatement = "BEGIN"
+            }
+            allStatements.append(beginStatement)
         }
-        allStatements.append(beginStatement)
 
         // Add user statements
         allStatements.append(contentsOf: statements)
 
-        // Add COMMIT
-        allStatements.append("COMMIT")
+        if supportsTransactions {
+            // Add COMMIT
+            allStatements.append("COMMIT")
+        }
 
         // Execute all statements sequentially
         do {
@@ -45,8 +50,10 @@ extension MainContentCoordinator {
                 _ = try await driver.execute(query: sql)
             }
         } catch {
-            // Try to rollback on error
-            _ = try? await driver.execute(query: "ROLLBACK")
+            if supportsTransactions {
+                // Try to rollback on error
+                _ = try? await driver.execute(query: "ROLLBACK")
+            }
             throw error
         }
     }

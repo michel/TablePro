@@ -434,7 +434,7 @@ final class MainContentCoordinator {
             return
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .redshift, .cockroachdb:
+        case .mysql, .mariadb, .postgresql, .redshift, .cockroachdb, .clickhouse:
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)

@@ -30,8 +30,8 @@ enum SQLEscaping {
     /// - Returns: The escaped string safe for use in SQL string literals
     static func escapeStringLiteral(_ str: String, databaseType: DatabaseType = .mysql) -> String {
         switch databaseType {
-        case .mysql, .mariadb:
-            // MySQL/MariaDB: backslash escaping is active by default
+        case .mysql, .mariadb, .clickhouse:
+            // MySQL/MariaDB/ClickHouse: backslash escaping is active by default
             var result = str
             // IMPORTANT: Escape backslashes FIRST to avoid double-escaping
             result = result.replacingOccurrences(of: "\\", with: "\\\\")

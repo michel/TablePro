@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- ClickHouse database support
 - Oracle Database support via OCI (Oracle Call Interface)
 - CockroachDB database support (PostgreSQL wire-compatible via LibPQ)
 - Add database and schema switching for PostgreSQL connections via ⌘K

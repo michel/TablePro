@@ -182,6 +182,8 @@ class DatabaseSwitcherViewModel {
             return ["dev", "padb_harvest"].contains(name)
         case .cockroachdb:
             return ["system", "defaultdb"].contains(name)
+        case .clickhouse:
+            return ["information_schema", "INFORMATION_SCHEMA", "system"].contains(name)
         case .sqlite:
             return false
         case .mongodb:

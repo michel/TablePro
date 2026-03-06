@@ -33,7 +33,7 @@ extension MainContentCoordinator {
         let sortedDeletes = deletes.sorted()
 
         // Check if any operation needs FK disabled (not applicable to PostgreSQL or MSSQL)
-        let needsDisableFK = includeFKHandling && dbType != .postgresql && dbType != .cockroachdb && dbType != .mssql && dbType != .oracle && truncates.union(deletes).contains { tableName in
+        let needsDisableFK = includeFKHandling && dbType != .postgresql && dbType != .cockroachdb && dbType != .clickhouse && dbType != .mssql && dbType != .oracle && truncates.union(deletes).contains { tableName in
             options[tableName]?.ignoreForeignKeys == true
         }
 
@@ -91,7 +91,7 @@ extension MainContentCoordinator {
     func fkDisableStatements(for dbType: DatabaseType) -> [String] {
         switch dbType {
         case .mysql, .mariadb: return ["SET FOREIGN_KEY_CHECKS=0"]
-        case .postgresql, .redshift, .cockroachdb, .mongodb, .redis, .mssql, .oracle: return []
+        case .postgresql, .redshift, .cockroachdb, .clickhouse, .mongodb, .redis, .mssql, .oracle: return []
         case .sqlite: return ["PRAGMA foreign_keys = OFF"]
         }
     }
@@ -101,7 +101,7 @@ extension MainContentCoordinator {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]
-        case .postgresql, .redshift, .cockroachdb, .mongodb, .redis, .mssql, .oracle:
+        case .postgresql, .redshift, .cockroachdb, .clickhouse, .mongodb, .redis, .mssql, .oracle:
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
@@ -114,7 +114,7 @@ extension MainContentCoordinator {
     /// - Note: SQLite uses DELETE and resets auto-increment via sqlite_sequence.
     private func truncateStatements(tableName: String, quotedName: String, options: TableOperationOptions, dbType: DatabaseType) -> [String] {
         switch dbType {
-        case .mysql, .mariadb:
+        case .mysql, .mariadb, .clickhouse:
             return ["TRUNCATE TABLE \(quotedName)"]
         case .postgresql, .redshift, .cockroachdb:
             let cascade = options.cascade ? " CASCADE" : ""
@@ -148,7 +148,7 @@ extension MainContentCoordinator {
         switch dbType {
         case .postgresql, .redshift, .cockroachdb:
             return "DROP \(keyword) \(quotedName)\(options.cascade ? " CASCADE" : "")"
-        case .mysql, .mariadb, .sqlite, .mssql, .oracle:
+        case .mysql, .mariadb, .clickhouse, .sqlite, .mssql, .oracle:
             return "DROP \(keyword) \(quotedName)"
         case .mongodb:
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")

@@ -34,6 +34,7 @@ struct ConnectionURLFormatter {
         case .redis: return "redis"
         case .mssql: return "sqlserver"
         case .oracle: return "oracle"
+        case .clickhouse: return "clickhouse"
         }
     }
 

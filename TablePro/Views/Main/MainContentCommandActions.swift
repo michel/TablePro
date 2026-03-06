@@ -310,7 +310,7 @@ final class MainContentCommandActions {
         switch connection.type {
         case .postgresql, .redshift, .cockroachdb:
             template = "CREATE OR REPLACE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
-        case .mysql, .mariadb:
+        case .mysql, .mariadb, .clickhouse:
             template = "CREATE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         case .sqlite:
             template = "CREATE VIEW IF NOT EXISTS view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
@@ -616,7 +616,7 @@ final class MainContentCommandActions {
                 switch connection.type {
                 case .postgresql, .redshift, .cockroachdb:
                     fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                case .mysql, .mariadb:
+                case .mysql, .mariadb, .clickhouse:
                     fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
                 case .sqlite:
                     fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"

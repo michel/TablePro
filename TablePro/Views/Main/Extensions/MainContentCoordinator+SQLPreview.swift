@@ -81,6 +81,7 @@ extension MainContentCoordinator {
             switch dbType {
             case .mssql: beginSQL = "BEGIN TRANSACTION"
             case .oracle: beginSQL = "SET TRANSACTION READ WRITE"
+            case .clickhouse: beginSQL = ""
             default: beginSQL = "BEGIN"
             }
             allStatements.append(ParameterizedStatement(sql: beginSQL, parameters: []))

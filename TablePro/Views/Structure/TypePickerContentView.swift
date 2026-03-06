@@ -27,6 +27,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["TINYINT", "SMALLINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "REAL", "MONEY", "SMALLMONEY", "BIT"]
             case .oracle:
                 return ["NUMBER", "BINARY_FLOAT", "BINARY_DOUBLE", "INTEGER", "SMALLINT", "FLOAT"]
+            case .clickhouse:
+                return ["UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256", "Int8", "Int16", "Int32", "Int64", "Int128", "Int256", "Float32", "Float64", "Decimal", "Decimal32", "Decimal64", "Decimal128", "Decimal256", "Bool"]
             case .sqlite:
                 return ["INTEGER", "REAL", "NUMERIC"]
             case .mongodb:
@@ -44,6 +46,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["CHAR", "VARCHAR", "NCHAR", "NVARCHAR", "TEXT", "NTEXT"]
             case .oracle:
                 return ["CHAR", "VARCHAR2", "NCHAR", "NVARCHAR2", "CLOB", "NCLOB", "LONG"]
+            case .clickhouse:
+                return ["String", "FixedString", "UUID", "IPv4", "IPv6"]
             case .sqlite:
                 return ["TEXT"]
             case .mongodb:
@@ -61,6 +65,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["DATE", "TIME", "DATETIME", "DATETIME2", "SMALLDATETIME", "DATETIMEOFFSET"]
             case .oracle:
                 return ["DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND"]
+            case .clickhouse:
+                return ["Date", "Date32", "DateTime", "DateTime64"]
             case .sqlite:
                 return ["DATE", "DATETIME"]
             case .mongodb:
@@ -78,6 +84,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BINARY", "VARBINARY", "IMAGE"]
             case .oracle:
                 return ["BLOB", "RAW", "LONG RAW", "BFILE"]
+            case .clickhouse:
+                return []
             case .sqlite:
                 return ["BLOB"]
             case .mongodb:
@@ -95,6 +103,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["BIT", "UNIQUEIDENTIFIER", "XML", "SQL_VARIANT", "ROWVERSION", "HIERARCHYID"]
             case .oracle:
                 return ["BOOLEAN", "ROWID", "UROWID", "XMLTYPE", "SDO_GEOMETRY"]
+            case .clickhouse:
+                return ["Array", "Tuple", "Map", "Nested", "JSON", "Nullable", "LowCardinality", "Enum8", "Enum16", "Nothing"]
             case .sqlite:
                 return ["BOOLEAN"]
             case .mongodb:

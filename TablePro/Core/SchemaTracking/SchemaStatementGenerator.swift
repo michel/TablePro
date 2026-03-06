@@ -246,6 +246,35 @@ struct SchemaStatementGenerator {
                 isDestructive: old.dataType != new.dataType
             )
 
+        case .clickhouse:
+            var statements: [String] = []
+            let newQuoted = databaseType.quoteIdentifier(new.name)
+
+            if old.name != new.name {
+                let oldQuoted = databaseType.quoteIdentifier(old.name)
+                statements.append("ALTER TABLE \(tableQuoted) RENAME COLUMN \(oldQuoted) TO \(newQuoted)")
+            }
+
+            if old.dataType != new.dataType || old.isNullable != new.isNullable {
+                let nullableType = new.isNullable ? "Nullable(\(new.dataType))" : new.dataType
+                statements.append("ALTER TABLE \(tableQuoted) MODIFY COLUMN \(newQuoted) \(nullableType)")
+            }
+
+            if old.defaultValue != new.defaultValue {
+                if let defaultVal = new.defaultValue, !defaultVal.isEmpty {
+                    statements.append("ALTER TABLE \(tableQuoted) MODIFY COLUMN \(newQuoted) DEFAULT \(defaultVal)")
+                } else {
+                    statements.append("ALTER TABLE \(tableQuoted) MODIFY COLUMN \(newQuoted) REMOVE DEFAULT")
+                }
+            }
+
+            let sql = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n")
+            return SchemaStatement(
+                sql: sql,
+                description: "Modify column '\(old.name)' to '\(new.name)'",
+                isDestructive: old.dataType != new.dataType
+            )
+
         case .sqlite, .mongodb, .redis:
             // SQLite doesn't support ALTER COLUMN - requires table recreation
             // MongoDB/Redis don't use SQL ALTER TABLE
@@ -299,8 +328,8 @@ struct SchemaStatementGenerator {
                 parts[1] = "SERIAL"
             case .sqlite:
                 parts.append("AUTOINCREMENT")
-            case .mongodb, .redis:
-                break  // MongoDB/Redis auto-generate IDs
+            case .mongodb, .redis, .clickhouse:
+                break  // MongoDB/Redis auto-generate IDs; ClickHouse has no auto-increment
             case .mssql:
                 parts[1] = "INT IDENTITY(1,1)"
             case .oracle:
@@ -317,7 +346,7 @@ struct SchemaStatementGenerator {
         // Comment
         if let comment = column.comment, !comment.isEmpty {
             switch databaseType {
-            case .mysql, .mariadb:
+            case .mysql, .mariadb, .clickhouse:
                 let escapedComment = comment.replacingOccurrences(of: "'", with: "''")
                 parts.append("COMMENT '\(escapedComment)'")
             case .postgresql, .redshift, .cockroachdb:
@@ -351,7 +380,7 @@ struct SchemaStatementGenerator {
             let indexTypeClause = index.type == .btree ? "" : "USING \(index.type.rawValue)"
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) \(indexTypeClause) (\(columnsQuoted))"
 
-        case .sqlite, .mongodb, .redis, .mssql, .oracle:
+        case .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) (\(columnsQuoted))"
         }
 
@@ -380,7 +409,7 @@ struct SchemaStatementGenerator {
 
         let sql: String
         switch databaseType {
-        case .mysql, .mariadb:
+        case .mysql, .mariadb, .clickhouse:
             let tableQuoted = databaseType.quoteIdentifier(tableName)
             sql = "DROP INDEX \(indexQuoted) ON \(tableQuoted)"
 
@@ -447,7 +476,7 @@ struct SchemaStatementGenerator {
 
         case .postgresql, .redshift, .cockroachdb, .mssql, .oracle:
             sql = "ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(fkQuoted)"
-        case .sqlite, .mongodb, .redis:
+        case .sqlite, .mongodb, .redis, .clickhouse:
             throw DatabaseError.unsupportedOperation
         }
         return SchemaStatement(
@@ -493,9 +522,10 @@ struct SchemaStatementGenerator {
             ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted));
             """
 
-        case .sqlite, .mongodb, .redis:
+        case .sqlite, .mongodb, .redis, .clickhouse:
             // SQLite doesn't support modifying primary keys - requires table recreation
             // MongoDB/Redis don't use SQL ALTER TABLE
+            // ClickHouse primary keys are defined at table creation and cannot be modified
             throw DatabaseError.unsupportedOperation
         }
 

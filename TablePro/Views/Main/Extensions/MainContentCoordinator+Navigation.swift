@@ -191,6 +191,19 @@ extension MainContentCoordinator {
             WHERE schemaname = '\(schema)'
             ORDER BY relname
             """
+        case .clickhouse:
+            sql = """
+            SELECT
+                database as `schema`,
+                name,
+                engine as kind,
+                total_rows as estimated_rows,
+                formatReadableSize(total_bytes) as total_size,
+                comment
+            FROM system.tables
+            WHERE database = currentDatabase()
+            ORDER BY name
+            """
         case .mysql, .mariadb:
             sql = """
             SELECT
@@ -312,8 +325,8 @@ extension MainContentCoordinator {
         }
 
         do {
-            // For MySQL/MariaDB, use USE command
-            if connection.type == .mysql || connection.type == .mariadb {
+            // For MySQL/MariaDB/ClickHouse, use USE command
+            if connection.type == .mysql || connection.type == .mariadb || connection.type == .clickhouse {
                 _ = try await driver.execute(query: "USE `\(database)`")
 
                 // Also switch metadata driver's database
