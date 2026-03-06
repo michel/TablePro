@@ -317,6 +317,8 @@ extension MainContentCoordinator {
 
                 await DatabaseManager.shared.reconnectSession(connectionId)
 
+                await loadSchema()
+
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .redshift {
                 // Redshift: switch schema
@@ -461,6 +463,8 @@ extension MainContentCoordinator {
                 session.currentSchema = schema
                 session.tables = []
             }
+
+            toolbarState.databaseName = schema
 
             closeSiblingNativeWindows()
             tabManager.tabs = []

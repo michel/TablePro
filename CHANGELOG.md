@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-- The PostgreSQL Cmd+K database switcher now lists and switches both databases and schemas for PostgreSQL connections.
+- Add database and schema switching for PostgreSQL connections via ⌘K
 
 ## [0.14.0] - 2026-03-05
 
