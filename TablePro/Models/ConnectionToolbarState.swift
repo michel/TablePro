@@ -228,10 +228,9 @@ final class ConnectionToolbarState {
         if connection.type == .sqlite {
             databaseName = (connection.database as NSString).lastPathComponent
         } else if connection.type == .postgresql {
-            // For PostgreSQL, show schema name from session if available
             if let session = DatabaseManager.shared.session(for: connection.id),
-               let schema = session.currentSchema {
-                databaseName = schema
+               let database = session.currentDatabase {
+                databaseName = database
             } else {
                 databaseName = connection.database
             }

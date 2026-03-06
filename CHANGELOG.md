@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Oracle Database support via OCI (Oracle Call Interface)
 - CockroachDB database support (PostgreSQL wire-compatible via LibPQ)
+- Add database and schema switching for PostgreSQL connections via ⌘K
 
 ### Fixed
 
