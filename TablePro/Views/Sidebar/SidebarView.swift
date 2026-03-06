@@ -12,11 +12,16 @@ import SwiftUI
 /// Sidebar view displaying list of database tables
 struct SidebarView: View {
     @State private var viewModel: SidebarViewModel
+    /// Local search text for responsive typing; synced to/from shared binding
+    @State private var localSearchText: String = ""
+    /// Debounce task for writing local search text to the shared session binding
+    @State private var searchSyncTask: Task<Void, Never>?
 
     // Keep @Binding on the view for SwiftUI change tracking.
     // The ViewModel stores the same bindings for write access.
     @Binding var tables: [TableInfo]
     @Binding var selectedTables: Set<TableInfo>
+    @Binding var searchText: String
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
 
@@ -34,6 +39,7 @@ struct SidebarView: View {
     init(
         tables: Binding<[TableInfo]>,
         selectedTables: Binding<Set<TableInfo>>,
+        searchText: Binding<String> = .constant(""),
         activeTableName: String? = nil,
         onShowAllTables: (() -> Void)? = nil,
         pendingTruncates: Binding<Set<String>>,
@@ -45,6 +51,8 @@ struct SidebarView: View {
     ) {
         _tables = tables
         _selectedTables = selectedTables
+        _searchText = searchText
+        _localSearchText = State(initialValue: searchText.wrappedValue)
         _pendingTruncates = pendingTruncates
         _pendingDeletes = pendingDeletes
         _viewModel = State(wrappedValue: SidebarViewModel(
@@ -72,6 +80,23 @@ struct SidebarView: View {
             content
         }
         .frame(minWidth: 280)
+        .onChange(of: localSearchText) { _, newValue in
+            // Debounce: update the shared binding and viewModel after a short delay
+            viewModel.debouncedSearchText = newValue
+            searchSyncTask?.cancel()
+            searchSyncTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                guard !Task.isCancelled else { return }
+                searchText = newValue
+            }
+        }
+        .onChange(of: searchText) { _, newValue in
+            // Another window updated the shared search text — sync to local
+            if localSearchText != newValue {
+                localSearchText = newValue
+                viewModel.debouncedSearchText = newValue
+            }
+        }
         .onChange(of: tables) { _, newTables in
             let hasSession = DatabaseManager.shared.activeSessions[connectionId] != nil
             if newTables.isEmpty && hasSession && !viewModel.isLoading {
@@ -108,12 +133,12 @@ struct SidebarView: View {
                 .foregroundStyle(.secondary)
                 .font(.system(size: DesignConstants.FontSize.medium))
 
-            TextField("Filter", text: $viewModel.searchText)
+            TextField("Filter", text: $localSearchText)
                 .textFieldStyle(.plain)
                 .font(.system(size: DesignConstants.FontSize.body))
 
-            if !viewModel.searchText.isEmpty {
-                Button(action: { viewModel.searchText = "" }) {
+            if !localSearchText.isEmpty {
+                Button(action: { localSearchText = "" }) {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.secondary)
                         .font(.system(size: DesignConstants.FontSize.medium))

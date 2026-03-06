@@ -28,8 +28,6 @@ struct ContentView: View {
     @State private var rightPanelState = RightPanelState()
     @State private var inspectorContext = InspectorContext.empty
     @State private var windowTitle: String
-    /// Per-window sidebar selection (independent of other window-tabs)
-    @State private var localSelectedTables: Set<TableInfo> = []
 
     @Environment(\.openWindow)
     private var openWindow
@@ -178,7 +176,8 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     SidebarView(
                         tables: sessionTablesBinding,
-                        selectedTables: $localSelectedTables,
+                        selectedTables: sessionSelectedTablesBinding,
+                        searchText: sessionSidebarSearchTextBinding,
                         activeTableName: windowTitle,
                         onShowAllTables: {
                             showAllTablesMetadata()
@@ -199,7 +198,7 @@ struct ContentView: View {
                     payload: payload,
                     windowTitle: $windowTitle,
                     tables: sessionTablesBinding,
-                    selectedTables: $localSelectedTables,
+                    selectedTables: sessionSelectedTablesBinding,
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding,
                     tableOperationOptions: sessionTableOperationOptionsBinding,
@@ -260,6 +259,22 @@ struct ContentView: View {
                     }
                 }
             }
+        )
+    }
+
+    private var sessionSelectedTablesBinding: Binding<Set<TableInfo>> {
+        createSessionBinding(
+            get: { $0.selectedTables },
+            set: { $0.selectedTables = $1 },
+            defaultValue: []
+        )
+    }
+
+    private var sessionSidebarSearchTextBinding: Binding<String> {
+        createSessionBinding(
+            get: { $0.sidebarSearchText },
+            set: { $0.sidebarSearchText = $1 },
+            defaultValue: ""
         )
     }
 
