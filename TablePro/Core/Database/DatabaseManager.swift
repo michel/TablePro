@@ -134,13 +134,9 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
-            // Initialize schema for PostgreSQL/Redshift/CockroachDB connections
-            if let pgDriver = driver as? PostgreSQLDriver {
-                activeSessions[connection.id]?.currentSchema = pgDriver.currentSchema
-            } else if let rsDriver = driver as? RedshiftDriver {
-                activeSessions[connection.id]?.currentSchema = rsDriver.currentSchema
-            } else if let crdbDriver = driver as? CockroachDBDriver {
-                activeSessions[connection.id]?.currentSchema = crdbDriver.currentSchema
+            // Initialize schema for drivers that support schema switching
+            if let schemaDriver = driver as? SchemaSwitchable {
+                activeSessions[connection.id]?.currentSchema = schemaDriver.currentSchema
             } else if connection.type == .redis {
                 // Redis defaults to db0 on connect; SELECT the configured database if non-default
                 let initialDb = connection.redisDatabase ?? Int(connection.database) ?? 0
@@ -200,17 +196,9 @@ final class DatabaseManager {
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
                     }
-                    // Sync schema on metadata driver for PostgreSQL/Redshift/CockroachDB
-                    if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
-                        if let pgMetaDriver = metaDriver as? PostgreSQLDriver {
-                            try? await pgMetaDriver.switchSchema(to: savedSchema)
-                        } else if let rsMetaDriver = metaDriver as? RedshiftDriver {
-                            try? await rsMetaDriver.switchSchema(to: savedSchema)
-                        } else if let crdbMetaDriver = metaDriver as? CockroachDBDriver {
-                            try? await crdbMetaDriver.switchSchema(to: savedSchema)
-                        } else if let oracleMetaDriver = metaDriver as? OracleDriver {
-                            try? await oracleMetaDriver.switchSchema(to: savedSchema)
-                        }
+                    if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema,
+                       let schemaMetaDriver = metaDriver as? SchemaSwitchable {
+                        try? await schemaMetaDriver.switchSchema(to: savedSchema)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
                 } catch {
@@ -551,17 +539,9 @@ final class DatabaseManager {
             try await driver.applyQueryTimeout(timeoutSeconds)
         }
 
-        // Restore schema for PostgreSQL/Redshift/CockroachDB if session had a non-default schema
-        if let savedSchema = session.currentSchema {
-            if let pgDriver = driver as? PostgreSQLDriver {
-                try? await pgDriver.switchSchema(to: savedSchema)
-            } else if let rsDriver = driver as? RedshiftDriver {
-                try? await rsDriver.switchSchema(to: savedSchema)
-            } else if let crdbDriver = driver as? CockroachDBDriver {
-                try? await crdbDriver.switchSchema(to: savedSchema)
-            } else if let oracleDriver = driver as? OracleDriver {
-                try? await oracleDriver.switchSchema(to: savedSchema)
-            }
+        if let savedSchema = session.currentSchema,
+           let schemaDriver = driver as? SchemaSwitchable {
+            try? await schemaDriver.switchSchema(to: savedSchema)
         }
 
         // Restore database for MSSQL if session had a non-default database
@@ -629,17 +609,9 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
-            // Restore schema for PostgreSQL/Redshift/CockroachDB/Oracle if session had a non-default schema
-            if let savedSchema = activeSessions[sessionId]?.currentSchema {
-                if let pgDriver = driver as? PostgreSQLDriver {
-                    try? await pgDriver.switchSchema(to: savedSchema)
-                } else if let rsDriver = driver as? RedshiftDriver {
-                    try? await rsDriver.switchSchema(to: savedSchema)
-                } else if let crdbDriver = driver as? CockroachDBDriver {
-                    try? await crdbDriver.switchSchema(to: savedSchema)
-                } else if let oracleDriver = driver as? OracleDriver {
-                    try? await oracleDriver.switchSchema(to: savedSchema)
-                }
+            if let savedSchema = activeSessions[sessionId]?.currentSchema,
+               let schemaDriver = driver as? SchemaSwitchable {
+                try? await schemaDriver.switchSchema(to: savedSchema)
             }
 
             // Restore database for MSSQL if session had a non-default database
@@ -667,17 +639,9 @@ final class DatabaseManager {
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
                     }
-                    // Restore schema on metadata driver too
-                    if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
-                        if let pgMetaDriver = metaDriver as? PostgreSQLDriver {
-                            try? await pgMetaDriver.switchSchema(to: savedSchema)
-                        } else if let rsMetaDriver = metaDriver as? RedshiftDriver {
-                            try? await rsMetaDriver.switchSchema(to: savedSchema)
-                        } else if let crdbMetaDriver = metaDriver as? CockroachDBDriver {
-                            try? await crdbMetaDriver.switchSchema(to: savedSchema)
-                        } else if let oracleMetaDriver = metaDriver as? OracleDriver {
-                            try? await oracleMetaDriver.switchSchema(to: savedSchema)
-                        }
+                    if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema,
+                       let schemaMetaDriver = metaDriver as? SchemaSwitchable {
+                        try? await schemaMetaDriver.switchSchema(to: savedSchema)
                     }
                     // Restore database on metadata driver too for MSSQL
                     if let savedDatabase = self.activeSessions[metaConnectionId]?.currentDatabase,
@@ -836,12 +800,8 @@ final class DatabaseManager {
         // Query the actual constraint name from pg_constraint
         let escapedTable = tableName.replacingOccurrences(of: "'", with: "''")
         let schema: String
-        if let pgDriver = driver as? PostgreSQLDriver {
-            schema = pgDriver.escapedSchema
-        } else if let rsDriver = driver as? RedshiftDriver {
-            schema = rsDriver.escapedSchema
-        } else if let crdbDriver = driver as? CockroachDBDriver {
-            schema = crdbDriver.escapedSchema
+        if let schemaDriver = driver as? SchemaSwitchable {
+            schema = schemaDriver.escapedSchema
         } else {
             schema = "public"
         }

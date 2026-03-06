@@ -9,7 +9,7 @@ import Foundation
 import os
 
 /// CockroachDB database driver using libpq native library
-final class CockroachDBDriver: DatabaseDriver {
+final class CockroachDBDriver: DatabaseDriver, SchemaSwitchable {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 

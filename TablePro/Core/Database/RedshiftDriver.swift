@@ -9,7 +9,7 @@ import Foundation
 import os
 
 /// Amazon Redshift database driver using libpq native library
-final class RedshiftDriver: DatabaseDriver {
+final class RedshiftDriver: DatabaseDriver, SchemaSwitchable {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 

@@ -218,28 +218,32 @@ final class OracleConnection: @unchecked Sendable {
         lock.lock()
         let wasConnected = _isConnected
         _isConnected = false
+        let capturedEnv = envHandle
+        let capturedErr = errHandle
+        let capturedSvc = svcHandle
+        let capturedSrv = srvHandle
+        let capturedSes = sesHandle
+        envHandle = nil
+        errHandle = nil
+        svcHandle = nil
+        srvHandle = nil
+        sesHandle = nil
         lock.unlock()
 
         guard wasConnected else { return }
 
-        queue.async { [self] in
-            if let ses = sesHandle, let svc = svcHandle, let err = errHandle {
+        queue.async {
+            if let ses = capturedSes, let svc = capturedSvc, let err = capturedErr {
                 _ = OCISessionEnd(svc, err, ses, UInt32(OCI_DEFAULT))
             }
-            if let srv = srvHandle, let err = errHandle {
+            if let srv = capturedSrv, let err = capturedErr {
                 _ = OCIServerDetach(srv, err, UInt32(OCI_DEFAULT))
             }
-            if let ses = sesHandle { _ = OCIHandleFree(ses, UInt32(OCI_HTYPE_SESSION)) }
-            if let svc = svcHandle { _ = OCIHandleFree(svc, UInt32(OCI_HTYPE_SVCCTX)) }
-            if let srv = srvHandle { _ = OCIHandleFree(srv, UInt32(OCI_HTYPE_SERVER)) }
-            if let err = errHandle { _ = OCIHandleFree(err, UInt32(OCI_HTYPE_ERROR)) }
-            if let env = envHandle { _ = OCIHandleFree(env, UInt32(OCI_HTYPE_ENV)) }
-
-            self.sesHandle = nil
-            self.svcHandle = nil
-            self.srvHandle = nil
-            self.errHandle = nil
-            self.envHandle = nil
+            if let ses = capturedSes { _ = OCIHandleFree(ses, UInt32(OCI_HTYPE_SESSION)) }
+            if let svc = capturedSvc { _ = OCIHandleFree(svc, UInt32(OCI_HTYPE_SVCCTX)) }
+            if let srv = capturedSrv { _ = OCIHandleFree(srv, UInt32(OCI_HTYPE_SERVER)) }
+            if let err = capturedErr { _ = OCIHandleFree(err, UInt32(OCI_HTYPE_ERROR)) }
+            if let env = capturedEnv { _ = OCIHandleFree(env, UInt32(OCI_HTYPE_ENV)) }
         }
     }
 
@@ -329,17 +333,15 @@ final class OracleConnection: @unchecked Sendable {
         var columns: [String] = []
         var typeNames: [String] = []
         let bufSize = 4_096
-        var buffers: [[CChar]] = []
+        var buffers: [UnsafeMutableBufferPointer<CChar>] = []
         var indicators: [Int16] = Array(repeating: 0, count: numCols)
         var returnLengths: [UInt16] = Array(repeating: 0, count: numCols)
         var defines: [UnsafeMutablePointer<OCIDefine>?] = Array(repeating: nil, count: numCols)
 
         for i in 1...numCols {
-            // Get parameter descriptor
             var paramRaw: UnsafeMutableRawPointer?
             _ = OCIParamGet(stmt, UInt32(OCI_HTYPE_STMT), err, &paramRaw, UInt32(i))
 
-            // Get column name
             var namePtr: UnsafeMutablePointer<CChar>?
             var nameLen: UInt32 = 0
             _ = OCIAttrGet(
@@ -354,7 +356,6 @@ final class OracleConnection: @unchecked Sendable {
             }
             columns.append(colName)
 
-            // Get data type
             var dataType: UInt16 = 0
             _ = OCIAttrGet(
                 paramRaw, UInt32(OCI_DTYPE_PARAM),
@@ -362,26 +363,27 @@ final class OracleConnection: @unchecked Sendable {
             )
             typeNames.append(oracleTypeName(Int32(dataType)))
 
-            // Define output buffer — convert everything to string
-            var buf = [CChar](repeating: 0, count: bufSize)
+            // Heap-allocate buffer so the pointer stays valid through fetch
+            let buf = UnsafeMutableBufferPointer<CChar>.allocate(capacity: bufSize)
+            buf.initialize(repeating: 0)
             buffers.append(buf)
         }
 
-        // Set up define by position for each column
-        for i in 0..<numCols {
-            buffers[i].withUnsafeMutableBufferPointer { bufPtr in
-                _ = OCIDefineByPos(
-                    stmt, &defines[i], err,
-                    UInt32(i + 1),
-                    bufPtr.baseAddress, Int32(bufSize),
-                    UInt16(SQLT_STR),
-                    &indicators[i], &returnLengths[i], nil,
-                    UInt32(OCI_DEFAULT)
-                )
-            }
+        defer {
+            for buf in buffers { buf.deallocate() }
         }
 
-        // Fetch rows
+        for i in 0..<numCols {
+            _ = OCIDefineByPos(
+                stmt, &defines[i], err,
+                UInt32(i + 1),
+                buffers[i].baseAddress, Int32(bufSize),
+                UInt16(SQLT_STR),
+                &indicators[i], &returnLengths[i], nil,
+                UInt32(OCI_DEFAULT)
+            )
+        }
+
         var allRows: [[String?]] = []
         while true {
             status = OCIStmtFetch2(
@@ -394,12 +396,10 @@ final class OracleConnection: @unchecked Sendable {
             for i in 0..<numCols {
                 if indicators[i] == -1 {
                     row.append(nil)
+                } else if let base = buffers[i].baseAddress {
+                    row.append(String(cString: base))
                 } else {
-                    let str = buffers[i].withUnsafeBufferPointer { bufPtr -> String? in
-                        guard let base = bufPtr.baseAddress else { return nil }
-                        return String(cString: base)
-                    }
-                    row.append(str)
+                    row.append(nil)
                 }
             }
             allRows.append(row)

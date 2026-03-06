@@ -182,6 +182,38 @@ enum ColumnType: Equatable {
         }
     }
 
+    // MARK: - Oracle Type Mapping
+
+    init(fromOracleType typeName: String?) {
+        guard let type = typeName?.lowercased() else {
+            self = .text(rawType: typeName)
+            return
+        }
+
+        switch type {
+        case "integer", "smallint":
+            self = .integer(rawType: typeName)
+        case "number":
+            self = .decimal(rawType: typeName)
+        case "float", "binary_float", "binary_double":
+            self = .decimal(rawType: typeName)
+        case "date":
+            self = .date(rawType: typeName)
+        case "timestamp", "timestamp with time zone", "timestamp with local time zone":
+            self = .timestamp(rawType: typeName)
+        case "interval year to month", "interval day to second":
+            self = .text(rawType: typeName)
+        case "blob", "raw", "long raw", "bfile":
+            self = .blob(rawType: typeName)
+        case "clob", "nclob", "long":
+            self = .text(rawType: typeName)
+        case "rowid":
+            self = .text(rawType: typeName)
+        default:
+            self = .text(rawType: typeName)
+        }
+    }
+
     // MARK: - MongoDB BSON Type Mapping
 
     /// Initialize from BSON type integer code

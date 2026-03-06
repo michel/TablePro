@@ -8,7 +8,7 @@
 import Foundation
 
 /// PostgreSQL database driver using libpq native library
-final class PostgreSQLDriver: DatabaseDriver {
+final class PostgreSQLDriver: DatabaseDriver, SchemaSwitchable {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 

@@ -161,12 +161,6 @@ struct ContentView: View {
                                 window.isReleasedWhenClosed = true
                                 window.close()
                             }
-                            malloc_zone_pressure_relief(nil, 0)
-                        }
-
-                        // Defer a second malloc pass after SwiftUI processes state changes
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                            malloc_zone_pressure_relief(nil, 0)
                         }
                     }
                     return

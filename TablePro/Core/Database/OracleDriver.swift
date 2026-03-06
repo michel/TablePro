@@ -10,7 +10,7 @@ import OSLog
 
 private let logger = Logger(subsystem: "com.TablePro", category: "OracleDriver")
 
-final class OracleDriver: DatabaseDriver {
+final class OracleDriver: DatabaseDriver, SchemaSwitchable {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 
@@ -40,7 +40,7 @@ final class OracleDriver: DatabaseDriver {
             port: connection.port,
             user: connection.username,
             password: ConnectionStorage.shared.loadPassword(for: connection.id) ?? "",
-            database: connection.database
+            database: connection.oracleServiceName ?? connection.database
         )
         do {
             try await conn.connect()
@@ -74,12 +74,14 @@ final class OracleDriver: DatabaseDriver {
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> QueryResult {
-        guard let conn = oracleConn else {
-            throw DatabaseError.connectionFailed("Not connected to Oracle")
-        }
-        let startTime = Date()
-        let result = try await conn.executeQuery(query)
-        return mapToQueryResult(result, executionTime: Date().timeIntervalSince(startTime))
+        try await executeWithReconnect(query: query, isRetry: false)
+    }
+
+    func testConnection() async throws -> Bool {
+        try await connect()
+        let isConnected = status == .connected
+        disconnect()
+        return isConnected
     }
 
     func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
@@ -469,9 +471,39 @@ final class OracleDriver: DatabaseDriver {
 
     // MARK: - Private Helpers
 
+    private func executeWithReconnect(query: String, isRetry: Bool) async throws -> QueryResult {
+        guard let conn = oracleConn else {
+            throw DatabaseError.connectionFailed("Not connected to Oracle")
+        }
+        let startTime = Date()
+        do {
+            let result = try await conn.executeQuery(query)
+            return mapToQueryResult(result, executionTime: Date().timeIntervalSince(startTime))
+        } catch let error as NSError where !isRetry && isConnectionLostError(error) {
+            try await reconnect()
+            return try await executeWithReconnect(query: query, isRetry: true)
+        } catch {
+            throw DatabaseError.queryFailed(error.localizedDescription)
+        }
+    }
+
+    private func isConnectionLostError(_ error: NSError) -> Bool {
+        let msg = error.localizedDescription.lowercased()
+        return msg.contains("connection") &&
+            (msg.contains("lost") || msg.contains("closed") ||
+             msg.contains("no connection") || msg.contains("not connected"))
+    }
+
+    private func reconnect() async throws {
+        oracleConn?.disconnect()
+        oracleConn = nil
+        status = .connecting
+        try await connect()
+    }
+
     private func mapToQueryResult(_ oracleResult: OracleQueryResult, executionTime: TimeInterval) -> QueryResult {
         let columnTypes = oracleResult.columnTypeNames.map { rawType in
-            ColumnType(fromSQLiteType: rawType)
+            ColumnType(fromOracleType: rawType)
         }
         return QueryResult(
             columns: oracleResult.columns,

@@ -144,6 +144,16 @@ protocol DatabaseDriver: AnyObject {
     func rollbackTransaction() async throws
 }
 
+// MARK: - Schema Switching
+
+/// Protocol for drivers that support schema/search_path switching.
+/// Eliminates repeated as? casting chains in DatabaseManager.
+protocol SchemaSwitchable: DatabaseDriver {
+    var currentSchema: String { get }
+    var escapedSchema: String { get }
+    func switchSchema(to schema: String) async throws
+}
+
 /// Default implementation for common operations
 extension DatabaseDriver {
     /// Default implementation returns nil
