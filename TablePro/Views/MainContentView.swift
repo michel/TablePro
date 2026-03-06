@@ -20,7 +20,7 @@ struct MainContentView: View {
     // Shared state from parent
     @Binding var windowTitle: String
     @Binding var tables: [TableInfo]
-    @Binding var selectedTables: Set<TableInfo>
+    var sidebarState: SharedSidebarState
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
     @Binding var tableOperationOptions: [String: TableOperationOptions]
@@ -47,6 +47,10 @@ struct MainContentView: View {
     /// Stable identifier for this window in NativeTabRegistry
     @State private var windowId = UUID()
     @State private var hasInitialized = false
+    /// Tracks whether this view's window is the key (focused) window
+    @State private var isKeyWindow = false
+    /// Reference to this view's NSWindow for filtering notifications
+    @State private var viewWindow: NSWindow?
 
     // MARK: - Environment
 
@@ -59,7 +63,7 @@ struct MainContentView: View {
         payload: EditorTabPayload?,
         windowTitle: Binding<String>,
         tables: Binding<[TableInfo]>,
-        selectedTables: Binding<Set<TableInfo>>,
+        sidebarState: SharedSidebarState,
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
@@ -70,7 +74,7 @@ struct MainContentView: View {
         self.payload = payload
         self._windowTitle = windowTitle
         self._tables = tables
-        self._selectedTables = selectedTables
+        self.sidebarState = sidebarState
         self._pendingTruncates = pendingTruncates
         self._pendingDeletes = pendingDeletes
         self._tableOperationOptions = tableOperationOptions
@@ -191,7 +195,7 @@ struct MainContentView: View {
             ExportDialog(
                 isPresented: dismissBinding,
                 connection: connection,
-                preselectedTables: Set(selectedTables.map(\.name))
+                preselectedTables: Set(sidebarState.selectedTables.map(\.name))
             )
         case .importDialog:
             ImportDialog(
@@ -259,6 +263,8 @@ struct MainContentView: View {
                     window.tabbingMode = .preferred
 
                     NativeTabRegistry.shared.setWindow(window, for: windowId, connectionId: connection.id)
+                    viewWindow = window
+                    isKeyWindow = window.isKeyWindow
                 }
             }
             .onDisappear {
@@ -334,24 +340,32 @@ struct MainContentView: View {
                 }
             }
 
-            .onChange(of: selectedTables) { _, newTables in
+            .onChange(of: sidebarState.selectedTables) { _, newTables in
                 handleTableSelectionChange(from: previousSelectedTables, to: newTables)
                 previousSelectedTables = newTables
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                guard let notificationWindow = notification.object as? NSWindow,
+                      notificationWindow === viewWindow else { return }
+                isKeyWindow = true
                 DispatchQueue.main.async {
                     syncSidebarToCurrentTab()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
+                guard let notificationWindow = notification.object as? NSWindow,
+                      notificationWindow === viewWindow else { return }
+                isKeyWindow = false
+            }
             .onChange(of: tables) { _, newTables in
                 let syncAction = SidebarSyncAction.resolveOnTablesLoad(
                     newTables: newTables,
-                    selectedTables: selectedTables,
+                    selectedTables: sidebarState.selectedTables,
                     currentTabTableName: tabManager.selectedTab?.tableName
                 )
                 if case let .select(tableName) = syncAction,
                    let match = newTables.first(where: { $0.name == tableName }) {
-                    selectedTables = [match]
+                    sidebarState.selectedTables = [match]
                 }
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
@@ -561,7 +575,10 @@ struct MainContentView: View {
             filterStateManager: filterStateManager,
             connection: connection,
             selectedRowIndices: $selectedRowIndices,
-            selectedTables: $selectedTables,
+            selectedTables: Binding(
+                get: { sidebarState.selectedTables },
+                set: { sidebarState.selectedTables = $0 }
+            ),
             pendingTruncates: $pendingTruncates,
             pendingDeletes: $pendingDeletes,
             tableOperationOptions: $tableOperationOptions,
@@ -703,6 +720,13 @@ struct MainContentView: View {
             return
         }
 
+        // Only navigate when this is the focused window.
+        // Prevents feedback loops when shared sidebar state syncs across native tabs.
+        guard isKeyWindow else {
+            AppState.shared.hasTableSelection = !newTables.isEmpty
+            return
+        }
+
         let result = SidebarNavigationResult.resolve(
             clickedTableName: tableName,
             currentTabTableName: tabManager.selectedTab?.tableName,
@@ -717,23 +741,26 @@ struct MainContentView: View {
             selectedRowIndices = []
             coordinator.openTableTab(tableName, isView: isView)
         case .revertAndOpenNewWindow:
-            // Redis databases navigate in-place, so skip the sidebar revert
-            if connection.type != .redis {
-                syncSidebarToCurrentTab()
-            }
             coordinator.openTableTab(tableName, isView: isView)
         }
 
         AppState.shared.hasTableSelection = !newTables.isEmpty
     }
 
-    /// Keep sidebar selection in sync with the current window's tab
+    /// Keep sidebar selection in sync with the current window's tab.
+    /// Only writes when the value actually changes, preventing spurious onChange triggers.
+    /// Navigation safety is guaranteed by `SidebarNavigationResult.resolve` returning `.skip`
+    /// when the selected table matches the current tab.
     private func syncSidebarToCurrentTab() {
+        let target: Set<TableInfo>
         if let currentTableName = tabManager.selectedTab?.tableName,
            let match = tables.first(where: { $0.name == currentTableName }) {
-            selectedTables = [match]
+            target = [match]
         } else {
-            selectedTables = []
+            target = []
+        }
+        if sidebarState.selectedTables != target {
+            sidebarState.selectedTables = target
         }
     }
 
@@ -999,7 +1026,7 @@ private struct FocusedCommandActionsModifier: ViewModifier {
         payload: nil,
         windowTitle: .constant("SQL Query"),
         tables: .constant([]),
-        selectedTables: .constant([]),
+        sidebarState: SharedSidebarState(),
         pendingTruncates: .constant([]),
         pendingDeletes: .constant([]),
         tableOperationOptions: .constant([:]),
