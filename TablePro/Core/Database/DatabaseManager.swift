@@ -266,6 +266,9 @@ final class DatabaseManager {
         // Clean up shared schema cache for this connection
         MainContentCoordinator.clearSharedSchema(for: sessionId)
 
+        // Clean up shared sidebar state for this connection
+        SharedSidebarState.removeConnection(sessionId)
+
         // If this was the current session, switch to another or clear
         if currentSessionId == sessionId {
             if let nextSessionId = activeSessions.keys.first {

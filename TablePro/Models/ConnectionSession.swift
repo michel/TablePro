@@ -21,7 +21,6 @@ struct ConnectionSession: Identifiable {
     // Per-connection state
     var tables: [TableInfo] = []
     var selectedTables: Set<TableInfo> = []
-    var sidebarSearchText: String = ""
     var tabs: [QueryTab] = []
     var selectedTabId: UUID?
     var pendingTruncates: Set<String> = []
@@ -65,7 +64,6 @@ struct ConnectionSession: Identifiable {
     mutating func clearCachedData() {
         tables = []
         selectedTables = []
-        sidebarSearchText = ""
         pendingTruncates = []
         pendingDeletes = []
         tableOperationOptions = [:]
@@ -83,8 +81,6 @@ struct ConnectionSession: Identifiable {
             && pendingTruncates == other.pendingTruncates
             && pendingDeletes == other.pendingDeletes
             && tableOperationOptions == other.tableOperationOptions
-            && selectedTables == other.selectedTables
-            && sidebarSearchText == other.sidebarSearchText
             && currentSchema == other.currentSchema
             && currentDatabase == other.currentDatabase
     }

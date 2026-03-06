@@ -119,8 +119,8 @@ struct ConnectionSessionEquivalenceTests {
         #expect(!a.isContentViewEquivalent(to: b))
     }
 
-    @Test("Returns false when selectedTables change")
-    func falseWhenSelectedTablesChange() {
+    @Test("Returns true when selectedTables change (ephemeral UI state)")
+    func trueWhenSelectedTablesChange() {
         let id = UUID()
         var a = makeSession(id: id)
         var b = makeSession(id: id)
@@ -128,7 +128,7 @@ struct ConnectionSessionEquivalenceTests {
         a.selectedTables = [TestFixtures.makeTableInfo(name: "users")]
         b.selectedTables = []
 
-        #expect(!a.isContentViewEquivalent(to: b))
+        #expect(a.isContentViewEquivalent(to: b))
     }
 }
 

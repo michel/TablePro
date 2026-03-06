@@ -28,7 +28,6 @@ struct ContentView: View {
     @State private var rightPanelState = RightPanelState()
     @State private var inspectorContext = InspectorContext.empty
     @State private var windowTitle: String
-
     @Environment(\.openWindow)
     private var openWindow
     @Environment(AppState.self) private var appState
@@ -176,8 +175,7 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     SidebarView(
                         tables: sessionTablesBinding,
-                        selectedTables: sessionSelectedTablesBinding,
-                        searchText: sessionSidebarSearchTextBinding,
+                        sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
                         activeTableName: windowTitle,
                         onShowAllTables: {
                             showAllTablesMetadata()
@@ -198,7 +196,7 @@ struct ContentView: View {
                     payload: payload,
                     windowTitle: $windowTitle,
                     tables: sessionTablesBinding,
-                    selectedTables: sessionSelectedTablesBinding,
+                    sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding,
                     tableOperationOptions: sessionTableOperationOptionsBinding,
@@ -259,22 +257,6 @@ struct ContentView: View {
                     }
                 }
             }
-        )
-    }
-
-    private var sessionSelectedTablesBinding: Binding<Set<TableInfo>> {
-        createSessionBinding(
-            get: { $0.selectedTables },
-            set: { $0.selectedTables = $1 },
-            defaultValue: []
-        )
-    }
-
-    private var sessionSidebarSearchTextBinding: Binding<String> {
-        createSessionBinding(
-            get: { $0.sidebarSearchText },
-            set: { $0.sidebarSearchText = $1 },
-            defaultValue: ""
         )
     }
 

@@ -12,16 +12,15 @@ import SwiftUI
 /// Sidebar view displaying list of database tables
 struct SidebarView: View {
     @State private var viewModel: SidebarViewModel
-    /// Local search text for responsive typing; synced to/from shared binding
+    /// Local search text for responsive typing; synced to/from shared state
     @State private var localSearchText: String = ""
-    /// Debounce task for writing local search text to the shared session binding
+    /// Debounce task for writing local search text to the shared state
     @State private var searchSyncTask: Task<Void, Never>?
 
     // Keep @Binding on the view for SwiftUI change tracking.
     // The ViewModel stores the same bindings for write access.
     @Binding var tables: [TableInfo]
-    @Binding var selectedTables: Set<TableInfo>
-    @Binding var searchText: String
+    var sidebarState: SharedSidebarState
     @Binding var pendingTruncates: Set<String>
     @Binding var pendingDeletes: Set<String>
 
@@ -36,10 +35,16 @@ struct SidebarView: View {
         return tables.filter { $0.name.localizedCaseInsensitiveContains(viewModel.debouncedSearchText) }
     }
 
+    private var selectedTablesBinding: Binding<Set<TableInfo>> {
+        Binding(
+            get: { sidebarState.selectedTables },
+            set: { sidebarState.selectedTables = $0 }
+        )
+    }
+
     init(
         tables: Binding<[TableInfo]>,
-        selectedTables: Binding<Set<TableInfo>>,
-        searchText: Binding<String> = .constant(""),
+        sidebarState: SharedSidebarState,
         activeTableName: String? = nil,
         onShowAllTables: (() -> Void)? = nil,
         pendingTruncates: Binding<Set<String>>,
@@ -50,21 +55,26 @@ struct SidebarView: View {
         schemaProvider: SQLSchemaProvider? = nil
     ) {
         _tables = tables
-        _selectedTables = selectedTables
-        _searchText = searchText
-        _localSearchText = State(initialValue: searchText.wrappedValue)
+        self.sidebarState = sidebarState
+        _localSearchText = State(initialValue: sidebarState.searchText)
         _pendingTruncates = pendingTruncates
         _pendingDeletes = pendingDeletes
-        _viewModel = State(wrappedValue: SidebarViewModel(
+        let selectedBinding = Binding(
+            get: { sidebarState.selectedTables },
+            set: { sidebarState.selectedTables = $0 }
+        )
+        let vm = SidebarViewModel(
             tables: tables,
-            selectedTables: selectedTables,
+            selectedTables: selectedBinding,
             pendingTruncates: pendingTruncates,
             pendingDeletes: pendingDeletes,
             tableOperationOptions: tableOperationOptions,
             databaseType: databaseType,
             connectionId: connectionId,
             schemaProvider: schemaProvider
-        ))
+        )
+        vm.debouncedSearchText = sidebarState.searchText
+        _viewModel = State(wrappedValue: vm)
         self.activeTableName = activeTableName
         self.onShowAllTables = onShowAllTables
         self.connectionId = connectionId
@@ -81,17 +91,17 @@ struct SidebarView: View {
         }
         .frame(minWidth: 280)
         .onChange(of: localSearchText) { _, newValue in
-            // Debounce: update the shared binding and viewModel after a short delay
             viewModel.debouncedSearchText = newValue
             searchSyncTask?.cancel()
             searchSyncTask = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 150_000_000)
                 guard !Task.isCancelled else { return }
-                searchText = newValue
+                if sidebarState.searchText != newValue {
+                    sidebarState.searchText = newValue
+                }
             }
         }
-        .onChange(of: searchText) { _, newValue in
-            // Another window updated the shared search text — sync to local
+        .onChange(of: sidebarState.searchText) { _, newValue in
             if localSearchText != newValue {
                 localSearchText = newValue
                 viewModel.debouncedSearchText = newValue
@@ -228,7 +238,7 @@ struct SidebarView: View {
     // MARK: - Table List
 
     private var tableList: some View {
-        List(selection: $selectedTables) {
+        List(selection: selectedTablesBinding) {
             Section(isExpanded: $viewModel.isTablesExpanded) {
                 ForEach(filteredTables) { table in
                     TableRow(
@@ -241,7 +251,7 @@ struct SidebarView: View {
                     .contextMenu {
                         SidebarContextMenu(
                             clickedTable: table,
-                            selectedTables: $selectedTables,
+                            selectedTables: selectedTablesBinding,
                             isReadOnly: AppState.shared.isReadOnly,
                             onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
                             onBatchToggleDelete: { viewModel.batchToggleDelete() }
@@ -271,14 +281,14 @@ struct SidebarView: View {
         .contextMenu {
             SidebarContextMenu(
                 clickedTable: nil,
-                selectedTables: $selectedTables,
+                selectedTables: selectedTablesBinding,
                 isReadOnly: AppState.shared.isReadOnly,
                 onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
                 onBatchToggleDelete: { viewModel.batchToggleDelete() }
             )
         }
         .onExitCommand {
-            selectedTables.removeAll()
+            sidebarState.selectedTables.removeAll()
         }
     }
 
@@ -298,7 +308,7 @@ struct SidebarView: View {
 #Preview {
     SidebarView(
         tables: .constant([]),
-        selectedTables: .constant([]),
+        sidebarState: SharedSidebarState(),
         pendingTruncates: .constant([]),
         pendingDeletes: .constant([]),
         tableOperationOptions: .constant([:]),
