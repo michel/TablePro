@@ -81,7 +81,6 @@ struct ConnectionSession: Identifiable {
             && pendingTruncates == other.pendingTruncates
             && pendingDeletes == other.pendingDeletes
             && tableOperationOptions == other.tableOperationOptions
-            && selectedTables == other.selectedTables
             && currentSchema == other.currentSchema
             && currentDatabase == other.currentDatabase
     }

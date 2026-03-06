@@ -28,9 +28,6 @@ struct ContentView: View {
     @State private var rightPanelState = RightPanelState()
     @State private var inspectorContext = InspectorContext.empty
     @State private var windowTitle: String
-    /// Per-window sidebar selection (independent of other window-tabs)
-    @State private var localSelectedTables: Set<TableInfo> = []
-
     @Environment(\.openWindow)
     private var openWindow
     @Environment(AppState.self) private var appState
@@ -178,7 +175,7 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     SidebarView(
                         tables: sessionTablesBinding,
-                        selectedTables: $localSelectedTables,
+                        sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
                         activeTableName: windowTitle,
                         onShowAllTables: {
                             showAllTablesMetadata()
@@ -199,7 +196,7 @@ struct ContentView: View {
                     payload: payload,
                     windowTitle: $windowTitle,
                     tables: sessionTablesBinding,
-                    selectedTables: $localSelectedTables,
+                    sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding,
                     tableOperationOptions: sessionTableOperationOptionsBinding,
