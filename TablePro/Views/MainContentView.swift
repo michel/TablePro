@@ -289,8 +289,13 @@ struct MainContentView: View {
                     // Window truly closed — teardown coordinator
                     coordinator.teardown()
 
-                    // If no more windows for this connection, disconnect
+                    // If no more windows for this connection, clean up and disconnect
                     guard !NativeTabRegistry.shared.hasWindows(for: connectionId) else { return }
+
+                    // Clear persisted tab state — all windows are closed, so there's
+                    // nothing to restore on next connect.
+                    coordinator.tabPersistence.clearSavedState()
+
                     let hasVisibleWindow = NSApp.windows.contains { window in
                         window.isVisible && window.subtitle == connectionName
                     }
