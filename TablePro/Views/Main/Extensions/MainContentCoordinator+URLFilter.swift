@@ -41,7 +41,6 @@ extension MainContentCoordinator {
                   let schema = userInfo["schema"] as? String else { return }
 
             Task { @MainActor [weak self] in
-                
                 guard let self else { return }
                 
                 if self.connection.type == .postgresql {
