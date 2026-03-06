@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replace CodeEditLanguages xcframework (38 grammars) with local package compiling only SQL, Bash, and JavaScript, reducing app binary size by ~55%
+
 ## [0.14.1] - 2026-03-06
 
 ### Added
