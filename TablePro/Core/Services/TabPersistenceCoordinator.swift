@@ -57,16 +57,16 @@ internal final class TabPersistenceCoordinator {
 
     /// Save pre-aggregated tabs for the quit path, where the caller has already
     /// collected and converted tabs from all windows for this connection.
-    internal func saveNow(allTabs: [PersistedTab], selectedTabId: UUID?) {
+    internal func saveNow(persistedTabs: [PersistedTab], selectedTabId: UUID?) {
         let connId = connectionId
         let selectedId = selectedTabId
 
         Self.logger.info(
-            "saveNow (allTabs) -- \(allTabs.count) tabs, selectedTabId=\(selectedId?.uuidString ?? "nil", privacy: .public)"
+            "saveNow (persistedTabs) -- \(persistedTabs.count) tabs, selectedTabId=\(selectedId?.uuidString ?? "nil", privacy: .public)"
         )
 
         Task {
-            await TabDiskActor.shared.save(connectionId: connId, tabs: allTabs, selectedTabId: selectedId)
+            await TabDiskActor.shared.save(connectionId: connId, tabs: persistedTabs, selectedTabId: selectedId)
         }
     }
 

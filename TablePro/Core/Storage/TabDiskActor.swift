@@ -46,19 +46,9 @@ internal actor TabDiskActor {
     private static let maxPersistableQuerySize = 500_000
 
     private init() {
-        let appSupport: URL
-        if let resolved = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first {
-            appSupport = resolved
-        } else {
-            Self.logger.error("Application Support directory unavailable, falling back to temporary directory")
-            appSupport = FileManager.default.temporaryDirectory
-        }
+        tabStateDirectory = Self.resolvedTabStateDirectory()
 
-        let baseDirectory = appSupport.appendingPathComponent("TablePro", isDirectory: true)
-        tabStateDirectory = baseDirectory.appendingPathComponent("TabState", isDirectory: true)
+        let baseDirectory = tabStateDirectory.deletingLastPathComponent()
         lastQueryDirectory = baseDirectory.appendingPathComponent("LastQuery", isDirectory: true)
 
         encoder = JSONEncoder()
@@ -171,6 +161,21 @@ internal actor TabDiskActor {
         }
     }
 
+    // MARK: - Static Path Helpers
+
+    nonisolated private static func resolvedTabStateDirectory() -> URL {
+        let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first ?? FileManager.default.temporaryDirectory
+        let baseDirectory = appSupport.appendingPathComponent("TablePro", isDirectory: true)
+        return baseDirectory.appendingPathComponent("TabState", isDirectory: true)
+    }
+
+    nonisolated private static func tabStateFileURL(for connectionId: UUID) -> URL {
+        resolvedTabStateDirectory().appendingPathComponent("\(connectionId.uuidString).json")
+    }
+
     // MARK: - Synchronous Save (quit-time only)
 
     /// Synchronous file write for `applicationWillTerminate`, where no run loop
@@ -186,14 +191,9 @@ internal actor TabDiskActor {
 
         do {
             let data = try encoder.encode(state)
-            let appSupport = FileManager.default.urls(
-                for: .applicationSupportDirectory,
-                in: .userDomainMask
-            ).first ?? FileManager.default.temporaryDirectory
-            let fileURL = appSupport
-                .appendingPathComponent("TablePro", isDirectory: true)
-                .appendingPathComponent("TabState", isDirectory: true)
-                .appendingPathComponent("\(connectionId.uuidString).json")
+            let directory = resolvedTabStateDirectory()
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let fileURL = tabStateFileURL(for: connectionId)
             try data.write(to: fileURL, options: .atomic)
         } catch {
             logger.error("saveSync failed for \(connectionId): \(error.localizedDescription)")

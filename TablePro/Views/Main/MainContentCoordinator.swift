@@ -170,9 +170,10 @@ final class MainContentCoordinator {
         Self.retainSchemaProvider(for: connection.id)
         setupURLNotificationObservers()
 
-        // Synchronous save at quit time. NotificationCenter delivers this
-        // synchronously on the main thread, so the write completes before
-        // the process exits — unlike Task-based saves that need a run loop.
+        // Synchronous save at quit time. NotificationCenter with queue: .main
+        // delivers the closure on the main thread, satisfying assumeIsolated's
+        // precondition. The write completes before the process exits — unlike
+        // Task-based saves that need a run loop.
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,

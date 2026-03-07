@@ -112,7 +112,7 @@ struct TabPersistenceCoordinatorTests {
         ]
         let selectedId = persistedTabs[0].id
 
-        coordinator.saveNow(allTabs: persistedTabs, selectedTabId: selectedId)
+        coordinator.saveNow(persistedTabs: persistedTabs, selectedTabId: selectedId)
         await sleep()
 
         let result = await coordinator.restoreFromDisk()
