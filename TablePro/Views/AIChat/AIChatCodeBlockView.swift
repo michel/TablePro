@@ -42,7 +42,7 @@ struct AIChatCodeBlockView: View {
             Button {
                 ClipboardService.shared.writeText(code)
                 isCopied = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     isCopied = false
                 }
             } label: {

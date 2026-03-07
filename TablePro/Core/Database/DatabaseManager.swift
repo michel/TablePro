@@ -71,9 +71,11 @@ final class DatabaseManager {
         currentSession?.status ?? .disconnected
     }
 
+    @ObservationIgnored nonisolated(unsafe) private var sshTunnelObserver: NSObjectProtocol?
+
     private init() {
         // Observe SSH tunnel failures
-        NotificationCenter.default.addObserver(
+        sshTunnelObserver = NotificationCenter.default.addObserver(
             forName: .sshTunnelDied,
             object: nil,
             queue: .main
@@ -84,6 +86,12 @@ final class DatabaseManager {
             Task { @MainActor in
                 await self.handleSSHTunnelDied(connectionId: connectionId)
             }
+        }
+    }
+
+    deinit {
+        if let sshTunnelObserver {
+            NotificationCenter.default.removeObserver(sshTunnelObserver)
         }
     }
 

@@ -440,9 +440,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func scheduleQueuedDatabaseURLProcessing() {
         Task { @MainActor [weak self] in
             var ready = false
-            for _ in 0..<50 {
+            for _ in 0..<25 {
                 if WindowOpener.shared.openWindow != nil { ready = true; break }
-                try? await Task.sleep(for: .milliseconds(100))
+                try? await Task.sleep(for: .milliseconds(200))
             }
             guard let self else { return }
             if !ready {
@@ -531,7 +531,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
                 if parsed.filterColumn != nil || parsed.filterCondition != nil {
                     // Wait for table data to load before applying filter via notification
-                    try? await Task.sleep(for: .milliseconds(500))
+                    try? await Task.sleep(for: .milliseconds(300))
                     NotificationCenter.default.post(
                         name: .applyURLFilter,
                         object: nil,
@@ -611,6 +611,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             closeRestoredMainWindows()
         }
 
+        // NOTE: These observers are not explicitly removed because AppDelegate
+        // lives for the entire app lifetime. NotificationCenter uses weak
+        // references for selector-based observers on macOS 10.11+.
+
         // Observe for new windows being created
         NotificationCenter.default.addObserver(
             self,
@@ -649,10 +653,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func scheduleWelcomeWindowSuppression() {
         Task { @MainActor [weak self] in
             // Wait for SwiftUI to create the main window after file-open triggers connection
-            try? await Task.sleep(for: .milliseconds(300))
+            try? await Task.sleep(for: .milliseconds(200))
             self?.closeWelcomeWindowIfMainExists()
             // Second check after windows fully settle (animations, state restoration)
-            try? await Task.sleep(for: .milliseconds(700))
+            try? await Task.sleep(for: .milliseconds(500))
             guard let self else { return }
             self.closeWelcomeWindowIfMainExists()
             self.fileOpenSuppressionCount = max(0, self.fileOpenSuppressionCount - 1)

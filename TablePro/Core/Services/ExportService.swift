@@ -444,6 +444,7 @@ final class ExportService {
             let errorPipe = Pipe()
             process.standardError = errorPipe
 
+            // Safe: already inside Task.detached, so waitUntilExit() won't block MainActor
             try process.run()
             process.waitUntilExit()
 
