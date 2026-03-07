@@ -42,6 +42,7 @@ enum SSHAgentSocketOption: String, CaseIterable, Identifiable {
     case custom
 
     static let onePasswordSocketPath = "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    private static let onePasswordAliasPath = "~/.1password/agent.sock"
 
     var id: String { rawValue }
 
@@ -62,7 +63,7 @@ enum SSHAgentSocketOption: String, CaseIterable, Identifiable {
         switch trimmedPath {
         case "":
             self = .systemDefault
-        case Self.onePasswordSocketPath:
+        case Self.onePasswordSocketPath, Self.onePasswordAliasPath:
             self = .onePassword
         default:
             self = .custom

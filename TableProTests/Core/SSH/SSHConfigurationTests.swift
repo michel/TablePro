@@ -94,6 +94,11 @@ struct SSHConfigurationTests {
         #expect(SSHAgentSocketOption(socketPath: SSHAgentSocketOption.onePasswordSocketPath) == .onePassword)
     }
 
+    @Test("1Password alias path maps to 1Password option")
+    func testOnePasswordAliasPathMapsToPreset() {
+        #expect(SSHAgentSocketOption(socketPath: "~/.1password/agent.sock") == .onePassword)
+    }
+
     @Test("Unknown socket path maps to custom option")
     func testCustomSocketPathMapsToCustomOption() {
         #expect(SSHAgentSocketOption(socketPath: "/tmp/custom.sock") == .custom)

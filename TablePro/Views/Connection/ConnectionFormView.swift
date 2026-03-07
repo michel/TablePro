@@ -349,14 +349,14 @@ struct ConnectionFormView: View {
                     if sshAuthMethod == .password {
                         SecureField(String(localized: "Password"), text: $sshPassword)
                     } else if sshAuthMethod == .sshAgent {
-                        Picker(String(localized: "Agent Socket"), selection: $sshAgentSocketOption) {
+                        Picker("Agent Socket", selection: $sshAgentSocketOption) {
                             ForEach(SSHAgentSocketOption.allCases) { option in
                                 Text(option.displayName).tag(option)
                             }
                         }
                         if sshAgentSocketOption == .custom {
                             TextField(
-                                String(localized: "Custom Path"),
+                                "Custom Path",
                                 text: $customSSHAgentSocketPath,
                                 prompt: Text("/path/to/agent.sock")
                             )
