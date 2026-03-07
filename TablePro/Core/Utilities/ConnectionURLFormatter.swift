@@ -130,6 +130,15 @@ struct ConnectionURLFormatter {
             params.append("usePrivateKey=true")
         }
 
+        if connection.sshConfig.enabled && connection.sshConfig.authMethod == .sshAgent {
+            params.append("useSSHAgent=true")
+            if !connection.sshConfig.agentSocketPath.isEmpty {
+                let encoded = connection.sshConfig.agentSocketPath
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? connection.sshConfig.agentSocketPath
+                params.append("agentSocket=\(encoded)")
+            }
+        }
+
         if let sslParam = sslModeParam(connection.sslConfig.mode) {
             params.append("sslmode=\(sslParam)")
         }
