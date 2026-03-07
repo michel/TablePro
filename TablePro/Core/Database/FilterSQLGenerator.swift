@@ -117,7 +117,7 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return ""
-        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .mssql:
+        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .mssql, .oracle:
             return " ESCAPE '\\'"
         }
     }
@@ -142,7 +142,7 @@ struct FilterSQLGenerator {
             return "\(column) REGEXP '\(escapedPattern)'"
         case .postgresql, .redshift:
             return "\(column) ~ '\(escapedPattern)'"
-        case .sqlite, .mongodb, .redis, .mssql:
+        case .sqlite, .mongodb, .redis, .mssql, .oracle:
             return "\(column) LIKE '%\(escapedPattern)%'"
         }
     }
@@ -246,7 +246,14 @@ extension FilterSQLGenerator {
             sql += "\n\(whereClause)"
         }
 
-        sql += "\nLIMIT \(limit)"
+        switch databaseType {
+        case .oracle:
+            sql += "\nORDER BY 1 OFFSET 0 ROWS FETCH NEXT \(limit) ROWS ONLY"
+        case .mssql:
+            sql += "\nORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT \(limit) ROWS ONLY"
+        default:
+            sql += "\nLIMIT \(limit)"
+        }
         return sql
     }
 }

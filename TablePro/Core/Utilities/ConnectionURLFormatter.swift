@@ -32,6 +32,7 @@ struct ConnectionURLFormatter {
         case .mongodb: return "mongodb"
         case .redis: return "redis"
         case .mssql: return "sqlserver"
+        case .oracle: return "oracle"
         }
     }
 
@@ -73,7 +74,10 @@ struct ConnectionURLFormatter {
             result += ":\(connection.port)"
         }
 
-        result += "/\(connection.database)"
+        let sshPathComponent = connection.type == .oracle
+            ? (connection.oracleServiceName ?? connection.database)
+            : connection.database
+        result += "/\(sshPathComponent)"
 
         let query = buildQueryString(connection)
         if !query.isEmpty {
@@ -103,7 +107,10 @@ struct ConnectionURLFormatter {
             result += ":\(connection.port)"
         }
 
-        result += "/\(connection.database)"
+        let pathComponent = connection.type == .oracle
+            ? (connection.oracleServiceName ?? connection.database)
+            : connection.database
+        result += "/\(pathComponent)"
 
         let query = buildQueryString(connection)
         if !query.isEmpty {

@@ -531,6 +531,28 @@ struct ExportDialog: View {
                     return item1.name < item2.name
                 }
 
+            case .oracle:
+                // Oracle: fetch schemas (users) and their tables
+                let schemas = try await driver.fetchSchemas()
+                for schema in schemas {
+                    let tables = try await fetchTablesForSchema(schema, driver: driver)
+                    let tableItems = tables.map { table in
+                        ExportTableItem(
+                            name: table.name,
+                            databaseName: schema,
+                            type: table.type,
+                            isSelected: preselectedTables.contains(table.name)
+                        )
+                    }
+                    if !tableItems.isEmpty {
+                        items.append(ExportDatabaseItem(
+                            name: schema,
+                            tables: tableItems,
+                            isExpanded: schema == connection.username.uppercased()
+                        ))
+                    }
+                }
+
             case .mysql, .mariadb:
                 // MySQL/MariaDB: fetch all databases and their tables
                 let databases = try await driver.fetchDatabases()
@@ -591,7 +613,25 @@ struct ExportDialog: View {
     }
 
     private func fetchTablesForSchema(_ schema: String, driver: DatabaseDriver) async throws -> [TableInfo] {
-        // Fetch tables from information_schema and filter by schema in Swift to avoid SQL interpolation.
+        // Oracle does not have information_schema — use ALL_TABLES/ALL_VIEWS
+        if connection.type == .oracle {
+            let escapedSchema = schema.replacingOccurrences(of: "'", with: "''")
+            let query = """
+                SELECT TABLE_NAME, 'BASE TABLE' AS TABLE_TYPE FROM ALL_TABLES WHERE OWNER = '\(escapedSchema)'
+                UNION ALL
+                SELECT VIEW_NAME, 'VIEW' FROM ALL_VIEWS WHERE OWNER = '\(escapedSchema)'
+                ORDER BY 1
+                """
+            let result = try await driver.execute(query: query)
+            return result.rows.compactMap { row in
+                guard let name = row[safe: 0] ?? nil else { return nil }
+                let typeStr = (row[safe: 1] ?? nil) ?? "BASE TABLE"
+                let type: TableInfo.TableType = typeStr.uppercased().contains("VIEW") ? .view : .table
+                return TableInfo(name: name, type: type, rowCount: nil)
+            }
+        }
+
+        // MSSQL / PostgreSQL / Redshift: use information_schema
         let query = """
             SELECT table_schema, table_name, table_type
             FROM information_schema.tables

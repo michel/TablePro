@@ -53,4 +53,28 @@ struct RightPanelStateTests {
         #expect(state2.isPresented == true)
         UserDefaults.standard.removeObject(forKey: Self.key)
     }
+
+    @Test("teardown nils schemaProvider on aiViewModel")
+    @MainActor
+    func teardown_nilsSchemaProvider() {
+        let state = RightPanelState()
+        state.aiViewModel.schemaProvider = SQLSchemaProvider()
+        #expect(state.aiViewModel.schemaProvider != nil)
+
+        state.teardown()
+
+        #expect(state.aiViewModel.schemaProvider == nil)
+    }
+
+    @Test("teardown nils onSave closure")
+    @MainActor
+    func teardown_nilsOnSave() {
+        let state = RightPanelState()
+        state.onSave = { }
+        #expect(state.onSave != nil)
+
+        state.teardown()
+
+        #expect(state.onSave == nil)
+    }
 }

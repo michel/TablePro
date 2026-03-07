@@ -209,6 +209,16 @@ final class MultiRowEditState {
         }
     }
 
+    /// Release all data to free memory on disconnect
+    func releaseData() {
+        fields = []
+        onFieldChanged = nil
+        selectedRowIndices = []
+        allRows = []
+        columns = []
+        columnTypes = []
+    }
+
     /// Get all edited fields with their new values
     func getEditedFields() -> [(columnIndex: Int, columnName: String, newValue: String?)] {
         fields.compactMap { field in

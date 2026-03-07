@@ -526,6 +526,9 @@ final class QueryTabManager {
         } else if databaseType == .mssql {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) ORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
+        } else if databaseType == .oracle {
+            let quotedName = databaseType.quoteIdentifier(tableName)
+            query = "SELECT * FROM \(quotedName) ORDER BY 1 OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
         } else {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
@@ -566,6 +569,9 @@ final class QueryTabManager {
         } else if databaseType == .mssql {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) ORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
+        } else if databaseType == .oracle {
+            let quotedName = databaseType.quoteIdentifier(tableName)
+            query = "SELECT * FROM \(quotedName) ORDER BY 1 OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
         } else {
             let quotedName = databaseType.quoteIdentifier(tableName)
             query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"

@@ -1040,6 +1040,9 @@
         }
       }
     },
+    "Agent Socket" : {
+
+    },
     "AI" : {
       "localizations" : {
         "vi" : {
@@ -5141,6 +5144,9 @@
         }
       }
     },
+    "Keys are provided by the SSH agent (e.g. 1Password, ssh-agent)." : {
+
+    },
     "Language:" : {
       "localizations" : {
         "vi" : {
@@ -5180,6 +5186,9 @@
           }
         }
       }
+    },
+    "Leave empty for SSH_AUTH_SOCK" : {
+
     },
     "Length" : {
       "extractionState" : "stale",
@@ -6599,6 +6608,9 @@
           }
         }
       }
+    },
+    "Oracle" : {
+
     },
     "Orange" : {
       "localizations" : {
@@ -8090,6 +8102,9 @@
         }
       }
     },
+    "Service Name" : {
+
+    },
     "Set DEFAULT" : {
       "localizations" : {
         "vi" : {
@@ -8390,6 +8405,9 @@
           }
         }
       }
+    },
+    "SSH Agent" : {
+
     },
     "SSH authentication failed. Check your credentials or private key." : {
       "localizations" : {

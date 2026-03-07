@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add database URL scheme support — open connections directly from terminal with `open "mysql://user@host/db" -a TablePro` (supports MySQL, PostgreSQL, SQLite, MongoDB, Redis, MSSQL)
+- Oracle Database support via OCI (Oracle Call Interface)
+- Add database URL scheme support — open connections directly from terminal with `open "mysql://user@host/db" -a TablePro` (supports MySQL, PostgreSQL, SQLite, MongoDB, Redis, MSSQL, Oracle)
 - SSH Agent authentication method for SSH tunnels (compatible with 1Password SSH Agent, Secretive, ssh-agent)
 
 ### Changed
@@ -18,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix memory leak where session state objects were recreated on every tab open due to SwiftUI `@State` init trap, causing 785MB usage at 5 tabs with 734MB retained after closing
+- Fix per-cell field editor allocation in DataGrid creating 180+ NSTextView instances instead of sharing one
+- Fix NSEvent monitor not removed on all popover dismissal paths in connection switcher
+- Fix race condition in FreeTDS `disconnect()` where `dbproc` was set to nil without holding the lock
+- Fix data race in `MainContentCoordinator.deinit` reading `nonisolated(unsafe)` flags from arbitrary threads
+- Fix JSON encoding and file I/O blocking the main thread in TabStateStorage
 - Fix MySQL/MariaDB getting `BEGIN` instead of `START TRANSACTION` in table operations and SQL preview
 - Fix port resetting to default value when editing a connection with a custom port
 - Replace `.onTapGesture` with `Button` in color pickers, section headers, group headers, and connection switcher for VoiceOver accessibility

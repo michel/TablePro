@@ -22,6 +22,7 @@ enum Theme {
     static let redshiftColor = Color(red: 0.13, green: 0.36, blue: 0.59)
     static let redisColor = Color(red: 0.86, green: 0.22, blue: 0.18) // #DC382D
     static let mssqlColor = Color(red: 0.89, green: 0.27, blue: 0.09)
+    static let oracleColor = Color(red: 0.76, green: 0.09, blue: 0.07) // #C3160B Oracle red
 
     // MARK: - Semantic Colors
 
@@ -114,6 +115,8 @@ extension DatabaseType {
             return Theme.redisColor
         case .mssql:
             return Theme.mssqlColor
+        case .oracle:
+            return Theme.oracleColor
         }
     }
 }

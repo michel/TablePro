@@ -31,14 +31,16 @@ struct ParsedConnectionURL {
     let filterOperation: String?
     let filterValue: String?
     let filterCondition: String?
+    let oracleServiceName: String?
 
     var suggestedName: String {
         if let connectionName, !connectionName.isEmpty {
             return connectionName
         }
         let typeName = type.rawValue
-        if !database.isEmpty {
-            return "\(typeName) \(host)/\(database)"
+        let displayDatabase = database.isEmpty ? (oracleServiceName ?? "") : database
+        if !displayDatabase.isEmpty {
+            return "\(typeName) \(host)/\(displayDatabase)"
         }
         if !host.isEmpty {
             return "\(typeName) \(host)"
@@ -104,6 +106,8 @@ struct ConnectionURLParser {
             dbType = .redis
         case "sqlserver", "mssql", "jdbc:sqlserver":
             dbType = .mssql
+        case "oracle", "jdbc:oracle:thin":
+            dbType = .oracle
         default:
             return .failure(.unsupportedScheme(scheme))
         }
@@ -135,7 +139,8 @@ struct ConnectionURLParser {
                 filterColumn: nil,
                 filterOperation: nil,
                 filterValue: nil,
-                filterCondition: nil
+                filterCondition: nil,
+                oracleServiceName: nil
             ))
         }
 
@@ -181,6 +186,13 @@ struct ConnectionURLParser {
             }
         }
 
+        // Oracle-specific: path component is the service name, not the database name
+        var oracleServiceName: String?
+        if dbType == .oracle && !database.isEmpty {
+            oracleServiceName = database
+            database = ""
+        }
+
         return .success(ParsedConnectionURL(
             type: dbType,
             host: host,
@@ -206,7 +218,8 @@ struct ConnectionURLParser {
             filterColumn: ext.filterColumn,
             filterOperation: ext.filterOperation,
             filterValue: ext.filterValue,
-            filterCondition: ext.filterCondition
+            filterCondition: ext.filterCondition,
+            oracleServiceName: oracleServiceName
         ))
     }
 
@@ -304,6 +317,13 @@ struct ConnectionURLParser {
 
         let ext = parseSSHQueryString(queryString)
 
+        // Oracle-specific: path component is the service name, not the database name
+        var oracleServiceName: String?
+        if dbType == .oracle && !database.isEmpty {
+            oracleServiceName = database
+            database = ""
+        }
+
         return .success(ParsedConnectionURL(
             type: dbType,
             host: host,
@@ -329,7 +349,8 @@ struct ConnectionURLParser {
             filterColumn: ext.filterColumn,
             filterOperation: ext.filterOperation,
             filterValue: ext.filterValue,
-            filterCondition: ext.filterCondition
+            filterCondition: ext.filterCondition,
+            oracleServiceName: oracleServiceName
         ))
     }
 
