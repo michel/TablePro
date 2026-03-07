@@ -50,7 +50,7 @@ extension String {
             return .failure(.stringEmpty(field: "String"))
         }
 
-        if cleaned.count > maxLength {
+        if (cleaned as NSString).length > maxLength {
             return .failure(.stringTooLong(field: "String", maxLength: maxLength))
         }
 

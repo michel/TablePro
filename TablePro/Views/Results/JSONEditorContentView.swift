@@ -156,36 +156,28 @@ private struct JSONSyntaxTextView: NSViewRepresentable {
         textStorage.addAttribute(.font, value: font, range: fullRange)
         textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
 
-        // 1. Highlight all quoted strings as red (both keys and values initially)
-        applyPattern("\"(?:[^\"\\\\]|\\\\.)*\"", color: .systemRed, in: textStorage, content: content)
+        applyPattern(JSONHighlightPatterns.string, color: .systemRed, in: textStorage, content: content)
 
-        // 2. Re-highlight keys (strings followed by colon) as blue using capture group
-        if let keyRegex = try? NSRegularExpression(pattern: "(\"(?:[^\"\\\\]|\\\\.)*\")\\s*:") {
-            let range = NSRange(location: 0, length: length)
-            for match in keyRegex.matches(in: content, range: range) {
-                let keyRange = match.range(at: 1)
-                if keyRange.location != NSNotFound {
-                    textStorage.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: keyRange)
-                }
+        let keyRange = NSRange(location: 0, length: length)
+        for match in JSONHighlightPatterns.key.matches(in: content, range: keyRange) {
+            let captureRange = match.range(at: 1)
+            if captureRange.location != NSNotFound {
+                textStorage.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: captureRange)
             }
         }
 
-        // 3. Numbers
-        applyPattern("(?<=[\\s,:\\[{])-?\\d+\\.?\\d*(?:[eE][+-]?\\d+)?(?=[\\s,\\]}])", color: .systemPurple, in: textStorage, content: content)
-
-        // 4. Booleans and null
-        applyPattern("\\b(?:true|false|null)\\b", color: .systemOrange, in: textStorage, content: content)
+        applyPattern(JSONHighlightPatterns.number, color: .systemPurple, in: textStorage, content: content)
+        applyPattern(JSONHighlightPatterns.booleanNull, color: .systemOrange, in: textStorage, content: content)
 
         textStorage.endEditing()
     }
 
     private static func applyPattern(
-        _ pattern: String,
+        _ regex: NSRegularExpression,
         color: NSColor,
         in textStorage: NSTextStorage,
         content: String
     ) {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
         let range = NSRange(location: 0, length: textStorage.length)
         for match in regex.matches(in: content, range: range) {
             textStorage.addAttribute(.foregroundColor, value: color, range: match.range)

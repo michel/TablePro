@@ -40,17 +40,6 @@ enum ActiveSheet: Identifiable {
 final class MainContentCoordinator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
 
-    /// Per-connection shared schema providers so new tabs skip redundant schema loads
-    private static var sharedSchemaProviders: [UUID: SQLSchemaProvider] = [:]
-    /// Reference counts for shared schema providers (tracks how many coordinators use each)
-    private static var schemaProviderRefCounts: [UUID: Int] = [:]
-    /// Delayed removal tasks — cancelled if a new coordinator claims the provider within the grace period
-    private static var schemaProviderRemovalTasks: [UUID: Task<Void, Never>] = [:]
-
-    static func schemaProvider(for connectionId: UUID) -> SQLSchemaProvider? {
-        sharedSchemaProviders[connectionId]
-    }
-
     // MARK: - Dependencies
 
     let connection: DatabaseConnection
@@ -63,7 +52,7 @@ final class MainContentCoordinator {
     // MARK: - Services
 
     internal let queryBuilder: TableQueryBuilder
-    let tabPersistence: TabPersistenceService
+    let persistence: TabPersistenceCoordinator
     @ObservationIgnored internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
     }()
@@ -87,6 +76,7 @@ final class MainContentCoordinator {
     @ObservationIgnored internal var currentQueryTask: Task<Void, Never>?
     @ObservationIgnored private var changeManagerUpdateTask: Task<Void, Never>?
     @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var terminationObserver: NSObjectProtocol?
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     @ObservationIgnored internal var isHandlingTabSwitch = false
@@ -107,9 +97,17 @@ final class MainContentCoordinator {
     /// so deinit doesn't warn if SwiftUI deallocates before the delayed Task fires
     @ObservationIgnored nonisolated(unsafe) private var teardownScheduled = false
 
+    /// Whether teardown is scheduled or already completed — used by views to skip
+    /// persistence during window close teardown
+    var isTearingDown: Bool { teardownScheduled || didTeardown }
+
     /// Set when NSApplication is terminating — suppresses deinit warning since
     /// SwiftUI does not call onDisappear during app termination
-    nonisolated(unsafe) private static var isAppTerminating = false
+    nonisolated private static let _isAppTerminating = OSAllocatedUnfairLock(initialState: false)
+    nonisolated static var isAppTerminating: Bool {
+        get { _isAppTerminating.withLock { $0 } }
+        set { _isAppTerminating.withLock { $0 = newValue } }
+    }
 
     private static let registerTerminationObserver: Void = {
         NotificationCenter.default.addObserver(
@@ -147,19 +145,29 @@ final class MainContentCoordinator {
         self.filterStateManager = filterStateManager
         self.toolbarState = toolbarState
         self.queryBuilder = TableQueryBuilder(databaseType: connection.type)
-        self.tabPersistence = TabPersistenceService(connectionId: connection.id)
+        self.persistence = TabPersistenceCoordinator(connectionId: connection.id)
 
-        // Reuse existing schema provider for this connection, or create a new one
-        if let existing = Self.sharedSchemaProviders[connection.id] {
-            self.schemaProvider = existing
-        } else {
-            let provider = SQLSchemaProvider()
-            Self.sharedSchemaProviders[connection.id] = provider
-            self.schemaProvider = provider
-        }
-
-        Self.retainSchemaProvider(for: connection.id)
+        self.schemaProvider = SchemaProviderRegistry.shared.getOrCreate(for: connection.id)
+        SchemaProviderRegistry.shared.retain(for: connection.id)
         setupURLNotificationObservers()
+
+        // Synchronous save at quit time. NotificationCenter with queue: .main
+        // delivers the closure on the main thread, satisfying assumeIsolated's
+        // precondition. The write completes before the process exits — unlike
+        // Task-based saves that need a run loop.
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.isTearingDown else { return }
+                self.persistence.saveNowSync(
+                    tabs: self.tabManager.tabs,
+                    selectedTabId: self.tabManager.selectedTabId
+                )
+            }
+        }
 
         _ = Self.registerTerminationObserver
     }
@@ -180,6 +188,10 @@ final class MainContentCoordinator {
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
         didTeardown = true
+        if let observer = terminationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            terminationObserver = nil
+        }
         currentQueryTask?.cancel()
         currentQueryTask = nil
         changeManagerUpdateTask?.cancel()
@@ -196,8 +208,8 @@ final class MainContentCoordinator {
         tabManager.tabs.removeAll()
         tabManager.selectedTabId = nil
 
-        Self.releaseSchemaProvider(for: connection.id)
-        Self.purgeUnusedSchemaProviders()
+        SchemaProviderRegistry.shared.release(for: connection.id)
+        SchemaProviderRegistry.shared.purgeUnused()
     }
 
     deinit {
@@ -209,8 +221,8 @@ final class MainContentCoordinator {
         guard didActivate else {
             if !alreadyHandled {
                 Task { @MainActor in
-                    MainContentCoordinator.releaseSchemaProvider(for: connectionId)
-                    MainContentCoordinator.purgeUnusedSchemaProviders()
+                    SchemaProviderRegistry.shared.release(for: connectionId)
+                    SchemaProviderRegistry.shared.purgeUnused()
                 }
             }
             return
@@ -223,8 +235,8 @@ final class MainContentCoordinator {
 
         if !alreadyHandled {
             Task { @MainActor in
-                MainContentCoordinator.releaseSchemaProvider(for: connectionId)
-                MainContentCoordinator.purgeUnusedSchemaProviders()
+                SchemaProviderRegistry.shared.release(for: connectionId)
+                SchemaProviderRegistry.shared.purgeUnused()
             }
         }
     }
@@ -336,9 +348,9 @@ final class MainContentCoordinator {
             sql = nsQuery.substring(with: clampedRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            sql = extractQueryAtCursor(
-                from: fullQuery,
-                at: cursorPositions.first?.range.location ?? 0
+            sql = SQLStatementScanner.statementAtCursor(
+                in: fullQuery,
+                cursorPosition: cursorPositions.first?.range.location ?? 0
             )
         }
 
@@ -347,7 +359,7 @@ final class MainContentCoordinator {
         }
 
         // Split into individual statements for multi-statement support
-        let statements = splitStatements(from: sql)
+        let statements = SQLStatementScanner.allStatements(in: sql)
         guard !statements.isEmpty else { return }
 
         // Block write queries in read-only mode
@@ -414,9 +426,9 @@ final class MainContentCoordinator {
             sql = nsQuery.substring(with: clampedRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            sql = extractQueryAtCursor(
-                from: fullQuery,
-                at: cursorPositions.first?.range.location ?? 0
+            sql = SQLStatementScanner.statementAtCursor(
+                in: fullQuery,
+                cursorPosition: cursorPositions.first?.range.location ?? 0
             )
         }
 
@@ -424,7 +436,7 @@ final class MainContentCoordinator {
         guard !trimmed.isEmpty else { return }
 
         // Use first statement only (EXPLAIN on a single statement)
-        let statements = splitStatements(from: trimmed)
+        let statements = SQLStatementScanner.allStatements(in: trimmed)
         guard let stmt = statements.first else { return }
 
         // Build database-specific EXPLAIN prefix
@@ -716,117 +728,6 @@ final class MainContentCoordinator {
         }
 
         return nil
-    }
-
-    private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
-        let nsQuery = fullQuery as NSString
-        let length = nsQuery.length
-        guard length > 0 else { return "" }
-
-        // Fast check: if no semicolons, return the full query trimmed.
-        // Uses NSString range search (C-level speed) instead of Swift String.contains.
-        guard nsQuery.range(of: ";").location != NSNotFound else {
-            return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        let singleQuote = UInt16(UnicodeScalar("'").value)
-        let doubleQuote = UInt16(UnicodeScalar("\"").value)
-        let backtick = UInt16(UnicodeScalar("`").value)
-        let semicolonChar = UInt16(UnicodeScalar(";").value)
-        let dash = UInt16(UnicodeScalar("-").value)
-        let slash = UInt16(UnicodeScalar("/").value)
-        let star = UInt16(UnicodeScalar("*").value)
-        let newline = UInt16(UnicodeScalar("\n").value)
-        let backslash = UInt16(UnicodeScalar("\\").value)
-
-        let safePosition = min(max(0, position), length)
-        var currentStart = 0
-        var inString = false
-        var stringCharVal: UInt16 = 0
-        var inLineComment = false
-        var inBlockComment = false
-        var i = 0
-
-        // Scan through characters, stopping as soon as we find the statement
-        // containing the cursor. Avoids scanning the entire file.
-        while i < length {
-            let ch = nsQuery.character(at: i)
-
-            // Handle line comment end
-            if inLineComment {
-                if ch == newline { inLineComment = false }
-                i += 1
-                continue
-            }
-
-            // Handle block comment end
-            if inBlockComment {
-                if ch == star && i + 1 < length && nsQuery.character(at: i + 1) == slash {
-                    inBlockComment = false
-                    i += 2
-                    continue
-                }
-                i += 1
-                continue
-            }
-
-            // Detect line comment start (--)
-            if !inString && ch == dash && i + 1 < length && nsQuery.character(at: i + 1) == dash {
-                inLineComment = true
-                i += 2
-                continue
-            }
-
-            // Detect block comment start (/*)
-            if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
-                inBlockComment = true
-                i += 2
-                continue
-            }
-
-            // Handle backslash escapes inside strings (e.g., \' \" \\)
-            if inString && ch == backslash && i + 1 < length {
-                i += 2
-                continue
-            }
-
-            // Track string/identifier literals
-            if ch == singleQuote || ch == doubleQuote || ch == backtick {
-                if !inString {
-                    inString = true
-                    stringCharVal = ch
-                } else if ch == stringCharVal {
-                    // Handle doubled (escaped) quotes: '' "" ``
-                    if i + 1 < length && nsQuery.character(at: i + 1) == stringCharVal {
-                        i += 1 // Skip the escaped quote
-                    } else {
-                        inString = false
-                    }
-                }
-            }
-
-            // Statement delimiter
-            if ch == semicolonChar && !inString {
-                let stmtEnd = i + 1
-                if safePosition >= currentStart && safePosition <= stmtEnd {
-                    let stmtRange = NSRange(location: currentStart, length: i - currentStart)
-                    return nsQuery.substring(with: stmtRange)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                }
-                currentStart = stmtEnd
-            }
-
-            i += 1
-        }
-
-        // Cursor is in the last statement (no trailing semicolon)
-        if currentStart < length {
-            let stmtRange = NSRange(location: currentStart, length: length - currentStart)
-            return nsQuery.substring(with: stmtRange)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Sorting
@@ -1169,53 +1070,6 @@ final class MainContentCoordinator {
         }
     }
 
-    /// Remove shared schema provider when a connection disconnects
-    static func clearSharedSchema(for connectionId: UUID) {
-        sharedSchemaProviders.removeValue(forKey: connectionId)
-        schemaProviderRefCounts.removeValue(forKey: connectionId)
-        schemaProviderRemovalTasks[connectionId]?.cancel()
-        schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-    }
-
-    /// Increment reference count for a connection's schema provider
-    private static func retainSchemaProvider(for connectionId: UUID) {
-        schemaProviderRemovalTasks[connectionId]?.cancel()
-        schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-        schemaProviderRefCounts[connectionId, default: 0] += 1
-    }
-
-    /// Decrement reference count; schedule deferred removal when count reaches zero
-    private static func releaseSchemaProvider(for connectionId: UUID) {
-        guard var count = schemaProviderRefCounts[connectionId] else { return }
-        count -= 1
-        if count <= 0 {
-            schemaProviderRefCounts.removeValue(forKey: connectionId)
-            // Grace period: keep provider alive for 1s in case a new tab opens quickly
-            schemaProviderRemovalTasks[connectionId] = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                guard !Task.isCancelled else { return }
-                sharedSchemaProviders.removeValue(forKey: connectionId)
-                schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-            }
-        } else {
-            schemaProviderRefCounts[connectionId] = count
-        }
-    }
-
-    /// Remove entries with zero or missing reference counts that lack pending removal tasks.
-    /// Guards against unbounded growth if releaseSchemaProvider fails to execute.
-    private static func purgeUnusedSchemaProviders() {
-        let orphanedIds = sharedSchemaProviders.keys.filter { connectionId in
-            let count = schemaProviderRefCounts[connectionId] ?? 0
-            let hasPendingRemoval = schemaProviderRemovalTasks[connectionId] != nil
-            return count <= 0 && !hasPendingRemoval
-        }
-        for connectionId in orphanedIds {
-            logger.info("Purging orphaned schema provider for connection \(connectionId)")
-            sharedSchemaProviders.removeValue(forKey: connectionId)
-            schemaProviderRefCounts.removeValue(forKey: connectionId)
-        }
-    }
 }
 
 // MARK: - Query Execution Helpers

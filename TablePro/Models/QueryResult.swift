@@ -13,7 +13,7 @@ struct QueryResultRow: Identifiable, Equatable {
     var values: [String?]
 
     static func == (lhs: QueryResultRow, rhs: QueryResultRow) -> Bool {
-        lhs.id == rhs.id
+        lhs.id == rhs.id && lhs.values == rhs.values
     }
 }
 

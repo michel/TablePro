@@ -159,14 +159,6 @@ extension MainContentCoordinator {
     }
 
     private func isSidebarSQLFunction(_ value: String) -> Bool {
-        let trimmed = value.trimmingCharacters(in: .whitespaces).uppercased()
-        let sqlFunctions = [
-            "NOW()", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP",
-            "CURDATE()", "CURTIME()", "UTC_TIMESTAMP()", "UTC_DATE()", "UTC_TIME()",
-            "LOCALTIME()", "LOCALTIME", "LOCALTIMESTAMP()", "LOCALTIMESTAMP",
-            "SYSDATE()", "UNIX_TIMESTAMP()", "CURRENT_DATE()", "CURRENT_DATE",
-            "CURRENT_TIME()", "CURRENT_TIME",
-        ]
-        return sqlFunctions.contains(trimmed)
+        SQLEscaping.isTemporalFunction(value)
     }
 }

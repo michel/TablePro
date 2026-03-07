@@ -674,9 +674,8 @@ final class MainContentCommandActions {
     private func setupWindowObservers() {
         observe(.mainWindowWillClose) { [weak self] _ in
             guard let coordinator = self?.coordinator else { return }
-            let combinedTabs = NativeTabRegistry.shared.allTabs(for: coordinator.connection.id)
-            coordinator.tabPersistence.handleWindowClose(
-                tabs: combinedTabs,
+            coordinator.persistence.saveNow(
+                tabs: coordinator.tabManager.tabs,
                 selectedTabId: coordinator.tabManager.selectedTabId
             )
         }

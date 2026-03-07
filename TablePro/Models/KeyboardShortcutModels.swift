@@ -394,7 +394,7 @@ struct KeyboardSettings: Codable, Equatable {
 
     // MARK: - Default Shortcuts
 
-    /// All default shortcuts matching the hardcoded values in OpenTableApp.swift
+    /// All default shortcuts matching the hardcoded values in TableProApp.swift
     static let defaultShortcuts: [ShortcutAction: KeyCombo] = [
         // File
         .newConnection: KeyCombo(key: "n", command: true),

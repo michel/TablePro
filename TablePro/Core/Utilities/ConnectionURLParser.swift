@@ -18,6 +18,8 @@ struct ParsedConnectionURL {
     let sshPort: Int?
     let sshUsername: String?
     let usePrivateKey: Bool?
+    let useSSHAgent: Bool?
+    let agentSocket: String?
     let connectionName: String?
     let redisDatabase: Int?
     let statusColor: String?
@@ -125,6 +127,8 @@ struct ConnectionURLParser {
                 sshPort: nil,
                 sshUsername: nil,
                 usePrivateKey: nil,
+                useSSHAgent: nil,
+                agentSocket: nil,
                 connectionName: nil,
                 redisDatabase: nil,
                 statusColor: nil,
@@ -194,6 +198,8 @@ struct ConnectionURLParser {
             sshPort: nil,
             sshUsername: nil,
             usePrivateKey: nil,
+            useSSHAgent: nil,
+            agentSocket: nil,
             connectionName: ext.connectionName,
             redisDatabase: redisDatabase,
             statusColor: ext.statusColor,
@@ -315,6 +321,8 @@ struct ConnectionURLParser {
             sshPort: sshPort,
             sshUsername: sshUsername,
             usePrivateKey: ext.usePrivateKey,
+            useSSHAgent: ext.useSSHAgent,
+            agentSocket: ext.agentSocket,
             connectionName: ext.connectionName,
             redisDatabase: nil,
             statusColor: ext.statusColor,
@@ -336,6 +344,8 @@ struct ConnectionURLParser {
         var authSource: String?
         var connectionName: String?
         var usePrivateKey: Bool?
+        var useSSHAgent: Bool?
+        var agentSocket: String?
         var statusColor: String?
         var envTag: String?
         var schema: String?
@@ -368,6 +378,14 @@ struct ConnectionURLParser {
             guard let value else { continue }
             if String(key) == "usePrivateKey" {
                 ext.usePrivateKey = value.lowercased() == "true"
+                continue
+            }
+            if String(key) == "useSSHAgent" {
+                ext.useSSHAgent = value.lowercased() == "true"
+                continue
+            }
+            if String(key) == "agentSocket" {
+                ext.agentSocket = value.removingPercentEncoding ?? value
                 continue
             }
             applyQueryParam(key: String(key), value: value, to: &ext)

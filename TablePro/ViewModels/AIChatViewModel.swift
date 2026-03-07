@@ -274,7 +274,7 @@ final class AIChatViewModel {
         let settings = AppSettingsManager.shared.ai
 
         // Resolve provider from feature routing or use first enabled provider
-        guard let (config, apiKey) = resolveProvider(for: feature, settings: settings) else {
+        guard let (config, apiKey) = AIProviderFactory.resolveProvider(for: feature, settings: settings) else {
             errorMessage = String(localized: "No AI provider configured. Go to Settings > AI to add one.")
             return
         }
@@ -298,7 +298,7 @@ final class AIChatViewModel {
         }
 
         let provider = AIProviderFactory.createProvider(for: config, apiKey: apiKey)
-        let model = resolveModel(for: feature, config: config, settings: settings)
+        let model = AIProviderFactory.resolveModel(for: feature, config: config, settings: settings)
         let systemPrompt = buildSystemPrompt(settings: settings)
 
         // Create assistant message placeholder
@@ -355,39 +355,6 @@ final class AIChatViewModel {
                 self.streamingAssistantID = nil
             }
         }
-    }
-
-    private func resolveProvider(
-        for feature: AIFeature,
-        settings: AISettings
-    ) -> (AIProviderConfig, String?)? {
-        // Check feature routing first
-        if let route = settings.featureRouting[feature.rawValue],
-           let config = settings.providers.first(where: { $0.id == route.providerID && $0.isEnabled }) {
-            let apiKey = AIKeyStorage.shared.loadAPIKey(for: config.id)
-            return (config, apiKey)
-        }
-
-        // Fall back to first enabled provider
-        guard let config = settings.providers.first(where: { $0.isEnabled }) else {
-            return nil
-        }
-
-        let apiKey = AIKeyStorage.shared.loadAPIKey(for: config.id)
-        return (config, apiKey)
-    }
-
-    private func resolveModel(
-        for feature: AIFeature,
-        config: AIProviderConfig,
-        settings: AISettings
-    ) -> String {
-        // Use feature-specific model if routed
-        if let route = settings.featureRouting[feature.rawValue], !route.model.isEmpty {
-            return route.model
-        }
-        // Fall back to provider's default model
-        return config.model
     }
 
     private func resolveConnectionPolicy(settings: AISettings) -> AIConnectionPolicy? {

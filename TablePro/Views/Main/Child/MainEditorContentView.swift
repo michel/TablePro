@@ -212,11 +212,6 @@ struct MainEditorContentView: View {
         }
     }
 
-    /// Maximum query size to persist (500KB). Queries larger than this are typically
-    /// imported SQL dumps — serializing 40MB to JSON + writing to UserDefaults
-    /// blocks the main thread for 10-30+ seconds, freezing the app.
-    private static let maxPersistableQuerySize = 500_000
-
     private func queryTextBinding(for tab: QueryTab) -> Binding<String> {
         let tabId = tab.id
         return Binding(
@@ -233,25 +228,11 @@ struct MainEditorContentView: View {
                 AppState.shared.hasQueryText = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
                 // Skip persistence for very large queries (e.g., imported SQL dumps).
-                // JSON-encoding 40MB + writing to UserDefaults freezes the main thread.
+                // JSON-encoding 40MB freezes the main thread.
                 let queryLength = (newValue as NSString).length
-                guard queryLength < Self.maxPersistableQuerySize else { return }
+                guard queryLength < QueryTab.maxPersistableQuerySize else { return }
 
-                coordinator.tabPersistence.saveLastQueryDebounced(newValue)
-
-                if !coordinator.tabPersistence.isRestoringTabs && !coordinator.tabPersistence.isDismissing {
-                    NativeTabRegistry.shared.update(
-                        windowId: windowId,
-                        connectionId: connectionId,
-                        tabs: tabManager.tabs.map { $0.toSnapshot() },
-                        selectedTabId: tabManager.selectedTabId
-                    )
-                    let combinedTabs = NativeTabRegistry.shared.allTabs(for: connectionId)
-                    coordinator.tabPersistence.saveTabsDebounced(
-                        tabs: combinedTabs,
-                        selectedTabId: tabManager.selectedTabId
-                    )
-                }
+                coordinator.persistence.saveLastQuery(newValue)
             }
         )
     }

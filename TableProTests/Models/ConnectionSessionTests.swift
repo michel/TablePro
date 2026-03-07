@@ -54,10 +54,6 @@ struct ConnectionSessionEquivalenceTests {
         a.lastActiveAt = Date(timeIntervalSince1970: 1_000)
         b.lastActiveAt = Date(timeIntervalSince1970: 2_000)
 
-        // selectedTabId differs — excluded from comparison
-        a.selectedTabId = UUID()
-        b.selectedTabId = UUID()
-
         // lastError differs — excluded from comparison
         a.lastError = "something"
         b.lastError = nil
@@ -119,8 +115,8 @@ struct ConnectionSessionEquivalenceTests {
         #expect(!a.isContentViewEquivalent(to: b))
     }
 
-    @Test("Returns false when selectedTables change")
-    func falseWhenSelectedTablesChange() {
+    @Test("Returns true when selectedTables change (ephemeral UI state)")
+    func trueWhenSelectedTablesChange() {
         let id = UUID()
         var a = makeSession(id: id)
         var b = makeSession(id: id)
@@ -128,7 +124,7 @@ struct ConnectionSessionEquivalenceTests {
         a.selectedTables = [TestFixtures.makeTableInfo(name: "users")]
         b.selectedTables = []
 
-        #expect(!a.isContentViewEquivalent(to: b))
+        #expect(a.isContentViewEquivalent(to: b))
     }
 }
 

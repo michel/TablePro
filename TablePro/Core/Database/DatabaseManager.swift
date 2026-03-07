@@ -9,10 +9,6 @@ import Foundation
 import Observation
 import os
 
-extension Notification.Name {
-    static let databaseDidConnect = Notification.Name("databaseDidConnect")
-}
-
 /// Manages database connections and active drivers
 @MainActor @Observable
 final class DatabaseManager {
@@ -165,16 +161,6 @@ final class DatabaseManager {
                 session.status = driver.status
                 session.effectiveConnection = effectiveConnection
 
-                // Restore tab state if it exists (offload file I/O from main thread)
-                let connId = connection.id
-                let tabState = await Task.detached(priority: .userInitiated) {
-                    TabStateStorage.shared.loadTabState(connectionId: connId)
-                }.value
-                if let tabState {
-                    session.tabs = tabState.tabs.map { QueryTab(from: $0) }
-                    session.selectedTabId = tabState.selectedTabId
-                }
-
                 activeSessions[connection.id] = session  // Single write, single publish
             }
 
@@ -272,7 +258,10 @@ final class DatabaseManager {
         activeSessions.removeValue(forKey: sessionId)
 
         // Clean up shared schema cache for this connection
-        MainContentCoordinator.clearSharedSchema(for: sessionId)
+        SchemaProviderRegistry.shared.clear(for: sessionId)
+
+        // Clean up shared sidebar state for this connection
+        SharedSidebarState.removeConnection(sessionId)
 
         // If this was the current session, switch to another or clear
         if currentSessionId == sessionId {
@@ -288,12 +277,13 @@ final class DatabaseManager {
 
     /// Disconnect all sessions
     func disconnectAll() async {
-        // Stop all health monitors
-        for sessionId in healthMonitors.keys {
+        let monitorIds = Array(healthMonitors.keys)
+        for sessionId in monitorIds {
             await stopHealthMonitor(for: sessionId)
         }
 
-        for sessionId in activeSessions.keys {
+        let sessionIds = Array(activeSessions.keys)
+        for sessionId in sessionIds {
             await disconnectSession(sessionId)
         }
     }
@@ -406,6 +396,7 @@ final class DatabaseManager {
             privateKeyPath: connection.sshConfig.privateKeyPath,
             keyPassphrase: keyPassphrase,
             sshPassword: sshPassword,
+            agentSocketPath: connection.sshConfig.agentSocketPath,
             remoteHost: connection.host,
             remotePort: connection.port
         )

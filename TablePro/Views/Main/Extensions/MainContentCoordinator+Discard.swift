@@ -19,19 +19,7 @@ extension MainContentCoordinator {
         let dbType = connection.type
         var allStatements: [String] = []
 
-        // Add database-specific BEGIN / START TRANSACTION
-        let beginStatement: String
-        switch dbType {
-        case .mysql, .mariadb:
-            beginStatement = "START TRANSACTION"
-        case .mssql:
-            beginStatement = "BEGIN TRANSACTION"
-        case .oracle:
-            beginStatement = "SET TRANSACTION READ WRITE"
-        default:
-            beginStatement = "BEGIN"
-        }
-        allStatements.append(beginStatement)
+        allStatements.append(dbType.beginTransactionSQL)
 
         // Add user statements
         allStatements.append(contentsOf: statements)

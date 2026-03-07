@@ -39,12 +39,12 @@ final class VimKeyInterceptor {
 
         // Observe autocomplete popup close. When SuggestionController's popup
         // consumes Escape (closes itself), we also need to exit Insert/Visual mode.
-        // queue: nil → handler runs synchronously during close(), so NSApp.currentEvent
-        // is still the Escape keyDown event.
+        // queue: .main → handler runs synchronously when posted from main thread,
+        // so NSApp.currentEvent is still the Escape keyDown event.
         popupCloseObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: nil,
-            queue: nil
+            queue: .main
         ) { [weak self] notification in
             MainActor.assumeIsolated {
                 guard let self,

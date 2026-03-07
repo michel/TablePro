@@ -3,124 +3,13 @@
 //  TablePro
 //
 //  Multi-statement SQL execution support for MainContentCoordinator.
-//  Splits SQL text on semicolons (respecting strings/comments) and
-//  executes each statement sequentially, stopping on first error.
+//  Executes each statement sequentially, stopping on first error.
 //
 
 import AppKit
 import Foundation
 
 extension MainContentCoordinator {
-    // MARK: - Statement Splitting
-
-    /// Split SQL text into individual statements, respecting strings, comments, and backticks.
-    /// Uses the same parsing logic as `extractQueryAtCursor` but collects all statements.
-    func splitStatements(from sql: String) -> [String] {
-        let nsQuery = sql as NSString
-        let length = nsQuery.length
-        guard length > 0 else { return [] }
-
-        // Fast check: if no semicolons, return the full query trimmed
-        guard nsQuery.range(of: ";").location != NSNotFound else {
-            let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? [] : [trimmed]
-        }
-
-        let singleQuote = UInt16(UnicodeScalar("'").value)
-        let doubleQuote = UInt16(UnicodeScalar("\"").value)
-        let backtick = UInt16(UnicodeScalar("`").value)
-        let semicolonChar = UInt16(UnicodeScalar(";").value)
-        let dash = UInt16(UnicodeScalar("-").value)
-        let slash = UInt16(UnicodeScalar("/").value)
-        let star = UInt16(UnicodeScalar("*").value)
-        let newline = UInt16(UnicodeScalar("\n").value)
-        let backslash = UInt16(UnicodeScalar("\\").value)
-
-        var statements: [String] = []
-        var currentStart = 0
-        var inString = false
-        var stringCharVal: UInt16 = 0
-        var inLineComment = false
-        var inBlockComment = false
-        var i = 0
-
-        while i < length {
-            let ch = nsQuery.character(at: i)
-
-            if inLineComment {
-                if ch == newline { inLineComment = false }
-                i += 1
-                continue
-            }
-
-            if inBlockComment {
-                if ch == star && i + 1 < length && nsQuery.character(at: i + 1) == slash {
-                    inBlockComment = false
-                    i += 2
-                    continue
-                }
-                i += 1
-                continue
-            }
-
-            if !inString && ch == dash && i + 1 < length && nsQuery.character(at: i + 1) == dash {
-                inLineComment = true
-                i += 2
-                continue
-            }
-
-            if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
-                inBlockComment = true
-                i += 2
-                continue
-            }
-
-            // Handle backslash escapes inside strings (e.g., \' \" \\)
-            if inString && ch == backslash && i + 1 < length {
-                i += 2 // Skip the backslash and the escaped character
-                continue
-            }
-
-            if ch == singleQuote || ch == doubleQuote || ch == backtick {
-                if !inString {
-                    inString = true
-                    stringCharVal = ch
-                } else if ch == stringCharVal {
-                    // Handle doubled (escaped) quotes: '' "" ``
-                    if i + 1 < length && nsQuery.character(at: i + 1) == stringCharVal {
-                        i += 1 // Skip the escaped quote
-                    } else {
-                        inString = false
-                    }
-                }
-            }
-
-            if ch == semicolonChar && !inString {
-                let stmtRange = NSRange(location: currentStart, length: i - currentStart)
-                let stmt = nsQuery.substring(with: stmtRange)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if !stmt.isEmpty {
-                    statements.append(stmt)
-                }
-                currentStart = i + 1
-            }
-
-            i += 1
-        }
-
-        // Last statement (no trailing semicolon)
-        if currentStart < length {
-            let stmtRange = NSRange(location: currentStart, length: length - currentStart)
-            let stmt = nsQuery.substring(with: stmtRange)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !stmt.isEmpty {
-                statements.append(stmt)
-            }
-        }
-
-        return statements
-    }
-
     // MARK: - Multi-Statement Execution
 
     /// Execute multiple SQL statements sequentially within a transaction,
@@ -160,16 +49,7 @@ extension MainContentCoordinator {
                 }
 
                 // Wrap in a transaction for atomicity
-                let beginSQL: String
-                switch dbType {
-                case .mysql, .mariadb:
-                    beginSQL = "START TRANSACTION"
-                case .oracle:
-                    beginSQL = "SET TRANSACTION READ WRITE"
-                default:
-                    beginSQL = "BEGIN"
-                }
-                _ = try await driver.execute(query: beginSQL)
+                _ = try await driver.execute(query: dbType.beginTransactionSQL)
 
                 for (stmtIndex, sql) in statements.enumerated() {
                     guard !Task.isCancelled else { break }

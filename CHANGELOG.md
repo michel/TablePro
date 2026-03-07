@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Oracle Database support via OCI (Oracle Call Interface)
 - CockroachDB database support (PostgreSQL wire-compatible via LibPQ)
+- Add database URL scheme support — open connections directly from terminal with `open "mysql://user@host/db" -a TablePro` (supports MySQL, PostgreSQL, SQLite, MongoDB, Redis, MSSQL)
+- SSH Agent authentication method for SSH tunnels (compatible with 1Password SSH Agent, Secretive, ssh-agent)
+
+### Changed
+
+- Replace CodeEditLanguages xcframework (38 grammars) with local package compiling only SQL, Bash, and JavaScript, reducing app binary size by ~55%
 
 ### Fixed
 
@@ -20,6 +26,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix race condition in FreeTDS `disconnect()` where `dbproc` was set to nil without holding the lock
 - Fix data race in `MainContentCoordinator.deinit` reading `nonisolated(unsafe)` flags from arbitrary threads
 - Fix JSON encoding and file I/O blocking the main thread in TabStateStorage
+- Fix MySQL/MariaDB getting `BEGIN` instead of `START TRANSACTION` in table operations and SQL preview
+- Fix port resetting to default value when editing a connection with a custom port
+- Replace `.onTapGesture` with `Button` in color pickers, section headers, group headers, and connection switcher for VoiceOver accessibility
+- Fix data race on `isAppTerminating` static var in `MainContentCoordinator` using `OSAllocatedUnfairLock`
+- Fix `MainActor.assumeIsolated` crash risk in `VimKeyInterceptor` notification observer
+- Fix data race on `conn` pointer in `LibPQConnection` during disconnect and cancel
+- Fix SSH askpass script written with world-readable permissions; now uses atomic `0o700` creation and immediate cleanup
+- Fix potential dict mutation during iteration in `DatabaseManager.disconnectAll()`
+- Fix welcome screen showing blank panel when connections have orphaned group IDs
+- Fix multiple tabs auto-executing queries simultaneously on connection restore, causing lag
+- Fix welcome window becoming oversized after closing main windows due to AppKit scene restoration
+- Fix unescaped identifiers in MySQL `SHOW CREATE TABLE`/`VIEW` queries allowing SQL injection via table names
+- Fix `QueryResultRow` equality ignoring cell values, preventing SwiftUI from re-rendering updated rows
+- Fix status bar row info text rendering off-center due to duplicate spacer
+- Fix `Cmd+Delete` in sidebar search or right sidebar clearing the query editor
+
+## [0.14.1] - 2026-03-06
+
+### Added
+
+- Add database and schema switching for PostgreSQL connections via ⌘K
 
 ## [0.14.0] - 2026-03-05
 
@@ -681,7 +708,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.14.1...HEAD
+[0.14.1]: https://github.com/datlechin/tablepro/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/datlechin/tablepro/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/datlechin/tablepro/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/datlechin/tablepro/compare/v0.11.1...v0.12.0

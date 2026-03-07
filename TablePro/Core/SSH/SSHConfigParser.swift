@@ -15,6 +15,7 @@ struct SSHConfigEntry: Identifiable, Hashable {
     let port: Int?  // Port number
     let user: String?  // Username
     let identityFile: String?  // Path to private key
+    let identityAgent: String?  // Path to SSH agent socket
 
     /// Display name for UI
     var displayName: String {
@@ -52,6 +53,7 @@ final class SSHConfigParser {
         var currentPort: Int?
         var currentUser: String?
         var currentIdentityFile: String?
+        var currentIdentityAgent: String?
 
         let lines = content.components(separatedBy: .newlines)
 
@@ -82,7 +84,8 @@ final class SSHConfigParser {
                                 hostname: currentHostname,
                                 port: currentPort,
                                 user: currentUser,
-                                identityFile: expandPath(currentIdentityFile)
+                                identityFile: expandPath(currentIdentityFile),
+                                identityAgent: expandPath(currentIdentityAgent)
                             ))
                     }
                 }
@@ -93,6 +96,7 @@ final class SSHConfigParser {
                 currentPort = nil
                 currentUser = nil
                 currentIdentityFile = nil
+                currentIdentityAgent = nil
 
             case "hostname":
                 currentHostname = value
@@ -105,6 +109,9 @@ final class SSHConfigParser {
 
             case "identityfile":
                 currentIdentityFile = value
+
+            case "identityagent":
+                currentIdentityAgent = value
 
             default:
                 break  // Ignore other directives
@@ -119,7 +126,8 @@ final class SSHConfigParser {
                     hostname: currentHostname,
                     port: currentPort,
                     user: currentUser,
-                    identityFile: expandPath(currentIdentityFile)
+                    identityFile: expandPath(currentIdentityFile),
+                    identityAgent: expandPath(currentIdentityAgent)
                 ))
         }
 

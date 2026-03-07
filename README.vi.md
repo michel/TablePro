@@ -22,7 +22,15 @@
 
 ## Giới thiệu
 
-TablePro là một giải pháp thay thế nhẹ cho TablePlus, được xây dựng hoàn toàn bằng các framework native của Apple. Không Electron, không web view — chỉ SwiftUI + AppKit thuần tuý cho trải nghiệm macOS native thực sự.
+TablePro là ứng dụng quản lý database native cho macOS. Kết nối MySQL, MariaDB, PostgreSQL, SQLite, MongoDB, Redis, SQL Server và Redshift. Có trình soạn SQL với autocomplete, chỉnh sửa trực tiếp và hỗ trợ AI.
+
+## Cài đặt
+
+```bash
+brew install --cask tablepro
+```
+
+Hoặc tải DMG từ [GitHub Releases](https://github.com/datlechin/tablepro/releases).
 
 ## Tài liệu
 

@@ -187,9 +187,10 @@
 			mainGroup = 5A1091BE2EF17EDC0055EA7C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */,
+				5A0000012F4F000000000101 /* XCLocalSwiftPackageReference "LocalPackages/CodeEditSourceEditor" */,
 				5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				5ACE00012F4F00000000000B /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
+				5A0000012F4F000000000100 /* XCLocalSwiftPackageReference "LocalPackages/CodeEditLanguages" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5A1091C82EF17EDC0055EA7C /* Products */;
@@ -381,7 +382,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 27;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_APP_SANDBOX = NO;
@@ -415,7 +416,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.14.0;
+				MARKETING_VERSION = 0.14.1;
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
@@ -475,7 +476,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 27;
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
@@ -510,7 +511,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.14.0;
+				MARKETING_VERSION = 0.14.1;
 				OTHER_LDFLAGS = (
 					"-force_load",
 					"$(PROJECT_DIR)/Libs/libmariadb.a",
@@ -651,15 +652,18 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/CodeEditApp/CodeEditSourceEditor.git";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		5A0000012F4F000000000100 /* XCLocalSwiftPackageReference "LocalPackages/CodeEditLanguages" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = LocalPackages/CodeEditLanguages;
 		};
+		5A0000012F4F000000000101 /* XCLocalSwiftPackageReference "LocalPackages/CodeEditSourceEditor" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = LocalPackages/CodeEditSourceEditor;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
 		5ACE00012F4F000000000008 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sparkle-project/Sparkle";
@@ -681,7 +685,6 @@
 /* Begin XCSwiftPackageProductDependency section */
 		5ACE00012F4F000000000002 /* CodeEditSourceEditor */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5ACE00012F4F000000000001 /* XCRemoteSwiftPackageReference "CodeEditSourceEditor" */;
 			productName = CodeEditSourceEditor;
 		};
 		5ACE00012F4F000000000003 /* CodeEditLanguages */ = {
