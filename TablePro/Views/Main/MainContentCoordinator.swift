@@ -1092,7 +1092,6 @@ final class MainContentCoordinator {
             }
         }
     }
-
 }
 
 // MARK: - Query Execution Helpers

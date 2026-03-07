@@ -776,7 +776,6 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     func numberOfRows(in tableView: NSTableView) -> Int {
         cachedRowCount
     }
-
 }
 
 // MARK: - Preview

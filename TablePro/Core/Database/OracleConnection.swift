@@ -140,7 +140,7 @@ final class OracleConnectionWrapper: @unchecked Sendable {
         lock.unlock()
 
         do {
-            let statement: OracleStatement = OracleStatement(stringLiteral: query)
+            let statement = OracleStatement(stringLiteral: query)
             let stream = try await connection.execute(statement, logger: nioLogger)
 
             // Read column metadata from stream (available even with 0 rows)

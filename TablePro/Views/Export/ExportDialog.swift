@@ -447,62 +447,13 @@ struct ExportDialog: View {
                     return item1.name < item2.name
                 }
 
-            case .sqlite:
-                // SQLite: only one database, fetch tables directly
-                let tables = try await driver.fetchTables()
-                let tableItems = tables.map { table in
-                    ExportTableItem(
-                        name: table.name,
-                        databaseName: "",
-                        type: table.type,
-                        isSelected: preselectedTables.contains(table.name)
-                    )
-                }
-                if !tableItems.isEmpty {
-                    items.append(ExportDatabaseItem(
-                        name: connection.database.isEmpty ? "main" : connection.database,
-                        tables: tableItems,
-                        isExpanded: true
-                    ))
-                }
-
-            case .mongodb:
-                // MongoDB: similar to SQLite, fetch collections directly
-                let tables = try await driver.fetchTables()
-                let tableItems = tables.map { table in
-                    ExportTableItem(
-                        name: table.name,
-                        databaseName: "",
-                        type: table.type,
-                        isSelected: preselectedTables.contains(table.name)
-                    )
-                }
-                if !tableItems.isEmpty {
-                    items.append(ExportDatabaseItem(
-                        name: connection.database.isEmpty ? "main" : connection.database,
-                        tables: tableItems,
-                        isExpanded: true
-                    ))
-                }
-
-            case .redis:
-                // Redis: fetch keys as table items
-                let tables = try await driver.fetchTables()
-                let tableItems = tables.map { table in
-                    ExportTableItem(
-                        name: table.name,
-                        databaseName: "",
-                        type: table.type,
-                        isSelected: preselectedTables.contains(table.name)
-                    )
-                }
-                if !tableItems.isEmpty {
-                    items.append(ExportDatabaseItem(
-                        name: connection.database.isEmpty ? "db0" : connection.database,
-                        tables: tableItems,
-                        isExpanded: true
-                    ))
-                }
+            case .sqlite, .mongodb, .redis:
+                let fallbackName = connection.type == .redis ? "db0" : "main"
+                let dbItem = try await buildFlatDatabaseItem(
+                    driver: driver,
+                    name: connection.database.isEmpty ? fallbackName : connection.database
+                )
+                if let dbItem { items.append(dbItem) }
 
             case .mssql:
                 // MSSQL: fetch schemas within current database
@@ -610,6 +561,23 @@ struct ExportDialog: View {
             """
         let result = try await driver.execute(query: query)
         return result.rows.compactMap { $0[0] }
+    }
+
+    private func buildFlatDatabaseItem(
+        driver: DatabaseDriver,
+        name: String
+    ) async throws -> ExportDatabaseItem? {
+        let tables = try await driver.fetchTables()
+        let tableItems = tables.map { table in
+            ExportTableItem(
+                name: table.name,
+                databaseName: "",
+                type: table.type,
+                isSelected: preselectedTables.contains(table.name)
+            )
+        }
+        guard !tableItems.isEmpty else { return nil }
+        return ExportDatabaseItem(name: name, tables: tableItems, isExpanded: true)
     }
 
     private func fetchTablesForSchema(_ schema: String, driver: DatabaseDriver) async throws -> [TableInfo] {

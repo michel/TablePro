@@ -313,7 +313,6 @@ final class ImportService {
     }
 
 
-
     private func commitStatement(for dbType: DatabaseType) -> String {
         switch dbType {
         case .mongodb, .redis:

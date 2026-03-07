@@ -155,9 +155,7 @@ final class OracleDriver: DatabaseDriver {
         var i = len - 1
         while i >= 7 {
             let ch = ns.character(at: i)
-            if ch == 0x29 { depth += 1 }
-            else if ch == 0x28 { depth -= 1 }
-            else if depth == 0 && ch == 0x59 {
+            if ch == 0x29 { depth += 1 } else if ch == 0x28 { depth -= 1 } else if depth == 0 && ch == 0x59 {
                 let start = i - 7
                 if start >= 0 {
                     let candidate = ns.substring(with: NSRange(location: start, length: 8))
@@ -177,9 +175,7 @@ final class OracleDriver: DatabaseDriver {
         var i = len - 1
         while i >= 5 {
             let ch = ns.character(at: i)
-            if ch == 0x29 { depth += 1 }
-            else if ch == 0x28 { depth -= 1 }
-            else if depth == 0 && ch == 0x54 {
+            if ch == 0x29 { depth += 1 } else if ch == 0x28 { depth -= 1 } else if depth == 0 && ch == 0x54 {
                 let start = i - 5
                 if start >= 0 {
                     let candidate = ns.substring(with: NSRange(location: start, length: 6))
