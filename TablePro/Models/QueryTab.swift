@@ -25,39 +25,6 @@ struct PersistedTab: Codable {
     var databaseName: String = ""  // Database context for this tab (for multi-database restore)
 }
 
-/// Lightweight snapshot of a tab for registry storage.
-/// Unlike QueryTab, this does NOT hold a RowBuffer reference,
-/// preventing the registry from retaining large result data.
-struct TabSnapshot {
-    let id: UUID
-    let title: String
-    let query: String
-    let tabType: TabType
-    let tableName: String?
-    let isView: Bool
-    let databaseName: String
-
-    func toPersistedTab() -> PersistedTab {
-        // Truncate very large queries to prevent JSON encoding from blocking main thread
-        let persistedQuery: String
-        if (query as NSString).length > 500_000 {
-            persistedQuery = ""
-        } else {
-            persistedQuery = query
-        }
-
-        return PersistedTab(
-            id: id,
-            title: title,
-            query: persistedQuery,
-            tabType: tabType,
-            tableName: tableName,
-            isView: isView,
-            databaseName: databaseName
-        )
-    }
-}
-
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
 struct TabPendingChanges: Equatable {
     var changes: [RowChange]
@@ -476,19 +443,6 @@ struct QueryTab: Identifiable, Equatable {
             id: id,
             title: title,
             query: persistedQuery,
-            tabType: tabType,
-            tableName: tableName,
-            isView: isView,
-            databaseName: databaseName
-        )
-    }
-
-    /// Create a lightweight snapshot for registry storage (no RowBuffer reference)
-    func toSnapshot() -> TabSnapshot {
-        TabSnapshot(
-            id: id,
-            title: title,
-            query: query,
             tabType: tabType,
             tableName: tableName,
             isView: isView,

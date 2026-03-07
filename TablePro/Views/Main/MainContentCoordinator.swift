@@ -63,7 +63,7 @@ final class MainContentCoordinator {
     // MARK: - Services
 
     internal let queryBuilder: TableQueryBuilder
-    let tabPersistence: TabPersistenceService
+    let persistence: TabPersistenceCoordinator
     @ObservationIgnored internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
     }()
@@ -106,6 +106,10 @@ final class MainContentCoordinator {
     /// Tracks whether teardown has been scheduled (but not yet executed)
     /// so deinit doesn't warn if SwiftUI deallocates before the delayed Task fires
     @ObservationIgnored nonisolated(unsafe) private var teardownScheduled = false
+
+    /// Whether teardown is scheduled or already completed — used by views to skip
+    /// persistence during window close teardown
+    var isTearingDown: Bool { teardownScheduled || didTeardown }
 
     /// Set when NSApplication is terminating — suppresses deinit warning since
     /// SwiftUI does not call onDisappear during app termination
@@ -151,7 +155,7 @@ final class MainContentCoordinator {
         self.filterStateManager = filterStateManager
         self.toolbarState = toolbarState
         self.queryBuilder = TableQueryBuilder(databaseType: connection.type)
-        self.tabPersistence = TabPersistenceService(connectionId: connection.id)
+        self.persistence = TabPersistenceCoordinator(connectionId: connection.id)
 
         // Reuse existing schema provider for this connection, or create a new one
         if let existing = Self.sharedSchemaProviders[connection.id] {

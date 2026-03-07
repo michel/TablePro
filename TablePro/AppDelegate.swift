@@ -118,18 +118,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // When the app already has visible windows (e.g. main connection window),
-        // return false to prevent SwiftUI from creating the default welcome window.
-        // The welcome window should only appear when explicitly requested
-        // (e.g. via dock menu or after closing the main window).
         if flag {
-            // Bring the topmost relevant window to front instead
-            for window in NSApp.windows where isMainWindow(window) {
+            // Bring the topmost relevant window to front
+            let window = NSApp.windows.first(where: { isMainWindow($0) && $0.isVisible })
+                ?? NSApp.windows.first(where: { $0.isVisible && $0.identifier != nil })
+            if let window {
                 window.makeKeyAndOrderFront(nil)
                 return false
             }
         }
-        return true
+
+        // No visible windows — show welcome window explicitly.
+        // Never return true: SwiftUI would create a new WindowGroup("main") instance
+        // instead of the welcome Window, causing a blank connection window to appear.
+        openWelcomeWindow()
+        return false
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -636,9 +639,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }.count
 
             if remainingMainWindows == 0 {
-                // Last main window closing → save tabs and return to welcome screen.
+                // Last main window closing -- return to welcome screen.
                 // Per-connection disconnect is handled by each MainContentView's
-                // onDisappear (via NativeTabRegistry check), so we don't disconnectAll here.
+                // onDisappear (via WindowLifecycleMonitor check), so we don't disconnectAll here.
                 NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
 
                 // Reopen welcome window on next run loop after the close finishes
@@ -652,51 +655,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Save tab state synchronously before app terminates (backup mechanism)
-        saveAllTabStates()
+        // Tab state is saved explicitly on every tab mutation (selection change,
+        // tab add/remove, window close). No additional save needed at quit time.
     }
 
     nonisolated deinit {
         NotificationCenter.default.removeObserver(self)
     }
 
-    /// Save tab state for all active sessions using combined state from all native window-tabs
-    @MainActor
-    private func saveAllTabStates() {
-        // Collect tabs from NativeTabRegistry (authoritative source for native window tabs)
-        let registryConnectionIds = NativeTabRegistry.shared.connectionIds()
-
-        for connectionId in registryConnectionIds {
-            let combinedTabs = NativeTabRegistry.shared.allTabs(for: connectionId)
-            let selectedTabId = NativeTabRegistry.shared.selectedTabId(for: connectionId)
-
-            if combinedTabs.isEmpty {
-                TabStateStorage.shared.clearTabState(connectionId: connectionId)
-            } else {
-                TabStateStorage.shared.saveTabState(
-                    connectionId: connectionId,
-                    tabs: combinedTabs,
-                    selectedTabId: selectedTabId
-                )
-            }
-        }
-
-        // Also save for any active sessions not covered by the registry
-        // (e.g., sessions whose windows haven't appeared yet)
-        for (connectionId, session) in DatabaseManager.shared.activeSessions
-            where !registryConnectionIds.contains(connectionId)
-        {
-            if session.tabs.isEmpty {
-                TabStateStorage.shared.clearTabState(connectionId: connectionId)
-            } else {
-                TabStateStorage.shared.saveTabState(
-                    connectionId: connectionId,
-                    tabs: session.tabs.map { $0.toSnapshot() },
-                    selectedTabId: session.selectedTabId
-                )
-            }
-        }
-    }
+    // Tab state is saved explicitly by TabPersistenceCoordinator on every
+    // tab mutation. No centralized save-all needed at quit time.
 
     private func isMainWindow(_ window: NSWindow) -> Bool {
         // Main window has identifier containing "main" (from WindowGroup(id: "main"))

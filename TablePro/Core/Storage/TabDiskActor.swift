@@ -1,32 +1,32 @@
 //
-//  TabStateStorage.swift
+//  TabDiskActor.swift
 //  TablePro
 //
-//  File-based persistence for tab state per connection.
-//  Migrated from UserDefaults to Application Support directory
-//  to avoid bloating the plist loaded at app launch.
+//  Thread-safe actor for tab state persistence.
+//  Replaces TabStateStorage with actor-based serialization
+//  to eliminate data races on concurrent file writes.
 //
 
 import Foundation
 import os
 
-/// Represents persisted tab state for a connection
-struct TabState: Codable {
+/// Persisted tab state for a connection
+internal struct TabDiskState: Codable {
     let tabs: [PersistedTab]
     let selectedTabId: UUID?
 }
 
-/// Service for persisting tab state per connection using file-based storage.
+/// Actor that serializes all tab-state disk I/O.
 ///
 /// Data is stored as individual JSON files per connection in:
 ///   `~/Library/Application Support/TablePro/TabState/`
 ///
 /// Last-query strings are stored in a sibling directory:
 ///   `~/Library/Application Support/TablePro/LastQuery/`
-final class TabStateStorage {
-    static let shared = TabStateStorage()
+internal actor TabDiskActor {
+    internal static let shared = TabDiskActor()
 
-    private static let logger = Logger(subsystem: "com.TablePro", category: "TabStateStorage")
+    private static let logger = Logger(subsystem: "com.TablePro", category: "TabDiskActor")
 
     // MARK: - Legacy UserDefaults Keys (for migration)
 
@@ -64,21 +64,30 @@ final class TabStateStorage {
         encoder = JSONEncoder()
         decoder = JSONDecoder()
 
-        createDirectoriesIfNeeded()
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            self?.migrateFromUserDefaultsIfNeeded()
+        // Directory creation and migration run synchronously at init.
+        // Safe because init is the only caller and runs before any concurrent access.
+        let fm = FileManager.default
+        for directory in [tabStateDirectory, lastQueryDirectory] {
+            do {
+                try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+            } catch {
+                Self.logger.error("Failed to create directory \(directory.path): \(error.localizedDescription)")
+            }
         }
+        Self.performMigrationIfNeeded(
+            tabStateDirectory: tabStateDirectory,
+            lastQueryDirectory: lastQueryDirectory
+        )
     }
 
     // MARK: - Public API
 
-    /// Save tab state for a connection
-    func saveTabState(connectionId: UUID, tabs: [TabSnapshot], selectedTabId: UUID?) {
-        let persistedTabs = tabs.map { $0.toPersistedTab() }
-        let tabState = TabState(tabs: persistedTabs, selectedTabId: selectedTabId)
+    /// Save tab state for a connection. Errors are logged internally.
+    internal func save(connectionId: UUID, tabs: [PersistedTab], selectedTabId: UUID?) {
+        let state = TabDiskState(tabs: tabs, selectedTabId: selectedTabId)
 
         do {
-            let data = try encoder.encode(tabState)
+            let data = try encoder.encode(state)
             let fileURL = tabStateFileURL(for: connectionId)
             try data.write(to: fileURL, options: .atomic)
         } catch {
@@ -86,8 +95,8 @@ final class TabStateStorage {
         }
     }
 
-    /// Load tab state for a connection
-    func loadTabState(connectionId: UUID) -> TabState? {
+    /// Load tab state for a connection. Returns nil if the file is missing or corrupt.
+    internal func load(connectionId: UUID) -> TabDiskState? {
         let fileURL = tabStateFileURL(for: connectionId)
 
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
@@ -96,15 +105,15 @@ final class TabStateStorage {
 
         do {
             let data = try Data(contentsOf: fileURL)
-            return try decoder.decode(TabState.self, from: data)
+            return try decoder.decode(TabDiskState.self, from: data)
         } catch {
             Self.logger.error("Failed to load tab state for \(connectionId): \(error.localizedDescription)")
             return nil
         }
     }
 
-    /// Clear tab state for a connection
-    func clearTabState(connectionId: UUID) {
+    /// Delete the tab state file for a connection.
+    internal func clear(connectionId: UUID) {
         let fileURL = tabStateFileURL(for: connectionId)
 
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
@@ -116,19 +125,14 @@ final class TabStateStorage {
         }
     }
 
-    // MARK: - Last Query Memory (TablePlus-style)
-
-    /// Save the last query text for a connection (persists across tab close/open)
-    func saveLastQuery(_ query: String, for connectionId: UUID) {
-        // Skip persistence for very large queries to avoid excessive file I/O
+    /// Save the last query text for a connection. Skips if query exceeds 500KB.
+    internal func saveLastQuery(_ query: String, for connectionId: UUID) {
         guard (query as NSString).length < Self.maxPersistableQuerySize else { return }
 
         let fileURL = lastQueryFileURL(for: connectionId)
-
-        // Only save non-empty queries (trimmed to avoid saving whitespace-only queries)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+
         if trimmed.isEmpty {
-            // Remove file if query is empty
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 do {
                     try FileManager.default.removeItem(at: fileURL)
@@ -150,8 +154,8 @@ final class TabStateStorage {
         }
     }
 
-    /// Load the last query text for a connection
-    func loadLastQuery(for connectionId: UUID) -> String? {
+    /// Load the last query text for a connection.
+    internal func loadLastQuery(for connectionId: UUID) -> String? {
         let fileURL = lastQueryFileURL(for: connectionId)
 
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
@@ -177,83 +181,64 @@ final class TabStateStorage {
         lastQueryDirectory.appendingPathComponent("\(connectionId.uuidString).txt")
     }
 
-    private func createDirectoriesIfNeeded() {
-        let fm = FileManager.default
-        for directory in [tabStateDirectory, lastQueryDirectory] {
-            do {
-                try fm.createDirectory(at: directory, withIntermediateDirectories: true)
-            } catch {
-                Self.logger.error("Failed to create directory \(directory.path): \(error.localizedDescription)")
-            }
-        }
-    }
-
     // MARK: - Migration from UserDefaults
 
     /// One-time migration: reads existing tab state and last-query data from UserDefaults,
     /// writes it to file storage, then clears the old UserDefaults keys.
-    ///
-    /// SVC-25: This runs synchronously at first launch but is acceptable because:
-    ///   1. The `migrationCompleteKey` boolean guard makes subsequent launches O(1).
-    ///   2. Migration only processes a handful of small JSON blobs (one per connection).
-    ///   3. It runs during `init()` before any UI is displayed, so there is no visible stall.
-    /// Making this async would require the entire public API to become async, adding
-    /// significant complexity for a one-time operation that completes in milliseconds.
-    private func migrateFromUserDefaultsIfNeeded() {
+    /// This is a static method to avoid actor-isolation issues during init.
+    private static func performMigrationIfNeeded(tabStateDirectory: URL, lastQueryDirectory: URL) {
         let defaults = UserDefaults.standard
 
-        guard !defaults.bool(forKey: Self.migrationCompleteKey) else { return }
+        guard !defaults.bool(forKey: migrationCompleteKey) else { return }
 
-        Self.logger.trace("Starting one-time migration of tab state from UserDefaults to file storage")
+        logger.trace("Starting one-time migration of tab state from UserDefaults to file storage")
 
         var migratedTabStates = 0
         var migratedLastQueries = 0
 
-        // Migrate tab state entries
         let allKeys = defaults.dictionaryRepresentation().keys
-        let tabStateKeys = allKeys.filter { $0.hasPrefix(Self.legacyTabStateKeyPrefix) }
-        let lastQueryKeys = allKeys.filter { $0.hasPrefix(Self.legacyLastQueryKeyPrefix) }
+        let tabStateKeys = allKeys.filter { $0.hasPrefix(legacyTabStateKeyPrefix) }
+        let lastQueryKeys = allKeys.filter { $0.hasPrefix(legacyLastQueryKeyPrefix) }
 
         for key in tabStateKeys {
-            let uuidString = String(key.dropFirst(Self.legacyTabStateKeyPrefix.count))
+            let uuidString = String(key.dropFirst(legacyTabStateKeyPrefix.count))
             guard let connectionId = UUID(uuidString: uuidString),
                   let data = defaults.data(forKey: key) else { continue }
 
-            // Write directly to file (data is already JSON-encoded TabState)
-            let fileURL = tabStateFileURL(for: connectionId)
+            let fileURL = tabStateDirectory.appendingPathComponent("\(connectionId.uuidString).json")
             do {
                 try data.write(to: fileURL, options: .atomic)
                 defaults.removeObject(forKey: key)
                 migratedTabStates += 1
             } catch {
-                Self.logger.error("Failed to migrate tab state for \(uuidString): \(error.localizedDescription)")
+                logger.error("Failed to migrate tab state for \(uuidString): \(error.localizedDescription)")
             }
         }
 
         for key in lastQueryKeys {
-            let uuidString = String(key.dropFirst(Self.legacyLastQueryKeyPrefix.count))
+            let uuidString = String(key.dropFirst(legacyLastQueryKeyPrefix.count))
             guard let connectionId = UUID(uuidString: uuidString),
                   let query = defaults.string(forKey: key) else { continue }
 
-            let fileURL = lastQueryFileURL(for: connectionId)
+            let fileURL = lastQueryDirectory.appendingPathComponent("\(connectionId.uuidString).txt")
             do {
                 let data = Data(query.utf8)
                 try data.write(to: fileURL, options: .atomic)
                 defaults.removeObject(forKey: key)
                 migratedLastQueries += 1
             } catch {
-                Self.logger.error("Failed to migrate last query for \(uuidString): \(error.localizedDescription)")
+                logger.error("Failed to migrate last query for \(uuidString): \(error.localizedDescription)")
             }
         }
 
-        defaults.set(true, forKey: Self.migrationCompleteKey)
+        defaults.set(true, forKey: migrationCompleteKey)
 
         if migratedTabStates > 0 || migratedLastQueries > 0 {
-            Self.logger.trace(
+            logger.trace(
                 "Migration complete: \(migratedTabStates) tab states, \(migratedLastQueries) last queries"
             )
         } else {
-            Self.logger.trace("Migration complete: no legacy data found")
+            logger.trace("Migration complete: no legacy data found")
         }
     }
 }

@@ -233,25 +233,11 @@ struct MainEditorContentView: View {
                 AppState.shared.hasQueryText = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
                 // Skip persistence for very large queries (e.g., imported SQL dumps).
-                // JSON-encoding 40MB + writing to UserDefaults freezes the main thread.
+                // JSON-encoding 40MB freezes the main thread.
                 let queryLength = (newValue as NSString).length
                 guard queryLength < Self.maxPersistableQuerySize else { return }
 
-                coordinator.tabPersistence.saveLastQueryDebounced(newValue)
-
-                if !coordinator.tabPersistence.isRestoringTabs && !coordinator.tabPersistence.isDismissing {
-                    NativeTabRegistry.shared.update(
-                        windowId: windowId,
-                        connectionId: connectionId,
-                        tabs: tabManager.tabs.map { $0.toSnapshot() },
-                        selectedTabId: tabManager.selectedTabId
-                    )
-                    let combinedTabs = NativeTabRegistry.shared.allTabs(for: connectionId)
-                    coordinator.tabPersistence.saveTabsDebounced(
-                        tabs: combinedTabs,
-                        selectedTabId: tabManager.selectedTabId
-                    )
-                }
+                coordinator.persistence.saveLastQuery(newValue)
             }
         )
     }

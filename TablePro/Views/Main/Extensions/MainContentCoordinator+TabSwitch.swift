@@ -55,8 +55,7 @@ extension MainContentCoordinator {
             // redundant re-evaluation that blocks the Task executor (15-40ms).
 
             // Defer async operations (database switch, lazy load) to avoid blocking
-            let shouldSkipLazyLoad = tabPersistence.justRestoredTab
-            tabPersistence.clearJustRestoredFlag()
+            let shouldSkipLazyLoad = false
 
             if !newTab.databaseName.isEmpty {
                 let currentDatabase: String
