@@ -114,7 +114,7 @@ final class MainContentCoordinator {
 
     /// Set when NSApplication is terminating — suppresses deinit warning since
     /// SwiftUI does not call onDisappear during app termination
-    nonisolated(unsafe) private static let _isAppTerminating = OSAllocatedUnfairLock(initialState: false)
+    private static let _isAppTerminating = OSAllocatedUnfairLock(initialState: false)
     nonisolated static var isAppTerminating: Bool {
         get { _isAppTerminating.withLock { $0 } }
         set { _isAppTerminating.withLock { $0 = newValue } }

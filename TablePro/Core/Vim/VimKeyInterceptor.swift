@@ -46,19 +46,21 @@ final class VimKeyInterceptor {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let self,
-                  let closingWindow = notification.object as? NSWindow,
-                  closingWindow.windowController is SuggestionController,
-                  let editorWindow = self.controller?.textView.window,
-                  editorWindow.childWindows?.contains(closingWindow) == true,
-                  let currentEvent = NSApp.currentEvent,
-                  currentEvent.type == .keyDown,
-                  currentEvent.keyCode == 53,
-                  self.engine.mode != .normal else {
-                return
+            MainActor.assumeIsolated {
+                guard let self,
+                      let closingWindow = notification.object as? NSWindow,
+                      closingWindow.windowController is SuggestionController,
+                      let editorWindow = self.controller?.textView.window,
+                      editorWindow.childWindows?.contains(closingWindow) == true,
+                      let currentEvent = NSApp.currentEvent,
+                      currentEvent.type == .keyDown,
+                      currentEvent.keyCode == 53,
+                      self.engine.mode != .normal else {
+                    return
+                }
+                self.inlineSuggestionManager?.dismissSuggestion()
+                _ = self.engine.process("\u{1B}", shift: false)
             }
-            self.inlineSuggestionManager?.dismissSuggestion()
-            _ = self.engine.process("\u{1B}", shift: false)
         }
     }
 
