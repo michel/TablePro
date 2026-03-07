@@ -15,6 +15,7 @@ import SwiftUI
 enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
     case password = "Password"
     case privateKey = "Private Key"
+    case sshAgent = "SSH Agent"
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .password: return String(localized: "Password")
         case .privateKey: return String(localized: "Private Key")
+        case .sshAgent: return String(localized: "SSH Agent")
         }
     }
 
@@ -29,6 +31,7 @@ enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .password: return "key.fill"
         case .privateKey: return "doc.text.fill"
+        case .sshAgent: return "person.badge.key.fill"
         }
     }
 }
@@ -42,6 +45,7 @@ struct SSHConfiguration: Codable, Hashable {
     var authMethod: SSHAuthMethod = .password
     var privateKeyPath: String = ""  // Path to identity file (e.g., ~/.ssh/id_rsa)
     var useSSHConfig: Bool = true  // Auto-fill from ~/.ssh/config when selecting host
+    var agentSocketPath: String = ""  // Custom SSH_AUTH_SOCK path (empty = use system default)
 
     /// Check if SSH configuration is complete enough for connection
     var isValid: Bool {
@@ -53,6 +57,8 @@ struct SSHConfiguration: Codable, Hashable {
             return true  // Password will be provided separately
         case .privateKey:
             return !privateKeyPath.isEmpty
+        case .sshAgent:
+            return true
         }
     }
 }

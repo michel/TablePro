@@ -273,4 +273,46 @@ struct SSHConfigParserTests {
         #expect(result.count == 1)
         #expect(result[0].displayName == "myserver")
     }
+
+    @Test("IdentityAgent directive is parsed with tilde expansion")
+    func testIdentityAgentWithTildeExpansion() {
+        let content = """
+        Host myserver
+            HostName example.com
+            IdentityAgent ~/.1password/agent.sock
+        """
+
+        let result = SSHConfigParser.parseContent(content)
+        #expect(result.count == 1)
+
+        let homeDir = NSHomeDirectory()
+        #expect(result[0].identityAgent?.contains(homeDir) == true)
+        #expect(result[0].identityAgent?.contains(".1password/agent.sock") == true)
+    }
+
+    @Test("IdentityAgent with absolute path")
+    func testIdentityAgentAbsolutePath() {
+        let content = """
+        Host myserver
+            HostName example.com
+            IdentityAgent /run/user/1000/ssh-agent.sock
+        """
+
+        let result = SSHConfigParser.parseContent(content)
+        #expect(result.count == 1)
+        #expect(result[0].identityAgent == "/run/user/1000/ssh-agent.sock")
+    }
+
+    @Test("Entry without IdentityAgent has nil")
+    func testNoIdentityAgent() {
+        let content = """
+        Host myserver
+            HostName example.com
+            User admin
+        """
+
+        let result = SSHConfigParser.parseContent(content)
+        #expect(result.count == 1)
+        #expect(result[0].identityAgent == nil)
+    }
 }

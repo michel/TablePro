@@ -388,6 +388,7 @@ final class DatabaseManager {
             privateKeyPath: connection.sshConfig.privateKeyPath,
             keyPassphrase: keyPassphrase,
             sshPassword: sshPassword,
+            agentSocketPath: connection.sshConfig.agentSocketPath,
             remoteHost: connection.host,
             remotePort: connection.port
         )

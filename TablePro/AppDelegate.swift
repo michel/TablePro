@@ -353,6 +353,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 if parsed.usePrivateKey == true {
                     sshConfig.authMethod = .privateKey
                 }
+                if parsed.useSSHAgent == true {
+                    sshConfig.authMethod = .sshAgent
+                    sshConfig.agentSocketPath = parsed.agentSocket ?? ""
+                }
             }
 
             var sslConfig = SSLConfiguration()

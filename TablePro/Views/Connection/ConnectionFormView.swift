@@ -42,6 +42,7 @@ struct ConnectionFormView: View {
     @State private var sshPassword: String = ""
     @State private var sshAuthMethod: SSHAuthMethod = .password
     @State private var sshPrivateKeyPath: String = ""
+    @State private var sshAgentSocketPath: String = ""
     @State private var keyPassphrase: String = ""
     @State private var sshConfigEntries: [SSHConfigEntry] = []
     @State private var selectedSSHConfigHost: String = ""
@@ -339,6 +340,13 @@ struct ConnectionFormView: View {
                     }
                     if sshAuthMethod == .password {
                         SecureField(String(localized: "Password"), text: $sshPassword)
+                    } else if sshAuthMethod == .sshAgent {
+                        LabeledContent(String(localized: "Agent Socket")) {
+                            TextField("", text: $sshAgentSocketPath, prompt: Text("Leave empty for SSH_AUTH_SOCK"))
+                        }
+                        Text("Keys are provided by the SSH agent (e.g. 1Password, ssh-agent).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     } else {
                         LabeledContent(String(localized: "Key File")) {
                             HStack {
@@ -561,7 +569,7 @@ struct ConnectionFormView: View {
         let basicValid = !name.isEmpty && (type == .sqlite ? !database.isEmpty : true)
         if sshEnabled {
             let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty
-            let authValid = sshAuthMethod == .password || !sshPrivateKeyPath.isEmpty
+            let authValid = sshAuthMethod == .password || sshAuthMethod == .sshAgent || !sshPrivateKeyPath.isEmpty
             return basicValid && sshValid && authValid
         }
         return basicValid
@@ -602,6 +610,7 @@ struct ConnectionFormView: View {
             sshUsername = existing.sshConfig.username
             sshAuthMethod = existing.sshConfig.authMethod
             sshPrivateKeyPath = existing.sshConfig.privateKeyPath
+            sshAgentSocketPath = existing.sshConfig.agentSocketPath
 
             // Load SSL configuration
             sslMode = existing.sslConfig.mode
@@ -644,7 +653,8 @@ struct ConnectionFormView: View {
             username: sshUsername,
             authMethod: sshAuthMethod,
             privateKeyPath: sshPrivateKeyPath,
-            useSSHConfig: !selectedSSHConfigHost.isEmpty
+            useSSHConfig: !selectedSSHConfigHost.isEmpty,
+            agentSocketPath: sshAgentSocketPath
         )
 
         let sslConfig = SSLConfiguration(
@@ -744,7 +754,8 @@ struct ConnectionFormView: View {
             username: sshUsername,
             authMethod: sshAuthMethod,
             privateKeyPath: sshPrivateKeyPath,
-            useSSHConfig: !selectedSSHConfigHost.isEmpty
+            useSSHConfig: !selectedSSHConfigHost.isEmpty,
+            agentSocketPath: sshAgentSocketPath
         )
 
         let sslConfig = SSLConfiguration(
@@ -877,6 +888,10 @@ struct ConnectionFormView: View {
                 if parsed.usePrivateKey == true {
                     sshAuthMethod = .privateKey
                 }
+                if parsed.useSSHAgent == true {
+                    sshAuthMethod = .sshAgent
+                    sshAgentSocketPath = parsed.agentSocket ?? ""
+                }
             }
             if let connectionName = parsed.connectionName, !connectionName.isEmpty {
                 name = connectionName
@@ -900,7 +915,10 @@ struct ConnectionFormView: View {
         if let user = entry.user {
             sshUsername = user
         }
-        if let keyPath = entry.identityFile {
+        if let agentPath = entry.identityAgent {
+            sshAgentSocketPath = agentPath
+            sshAuthMethod = .sshAgent
+        } else if let keyPath = entry.identityFile {
             sshPrivateKeyPath = keyPath
             sshAuthMethod = .privateKey
         }

@@ -117,6 +117,7 @@ actor SSHTunnelManager {
         privateKeyPath: String? = nil,
         keyPassphrase: String? = nil,
         sshPassword: String? = nil,
+        agentSocketPath: String? = nil,
         remoteHost: String,
         remotePort: Int
     ) async throws -> Int {
@@ -173,6 +174,11 @@ actor SSHTunnelManager {
             arguments.append(contentsOf: ["-o", "PasswordAuthentication=yes"])
             arguments.append(contentsOf: ["-o", "PreferredAuthentications=password"])
             arguments.append(contentsOf: ["-o", "PubkeyAuthentication=no"])
+
+        case .sshAgent:
+            arguments.append(contentsOf: ["-o", "PubkeyAuthentication=yes"])
+            arguments.append(contentsOf: ["-o", "PasswordAuthentication=no"])
+            arguments.append(contentsOf: ["-o", "PreferredAuthentications=publickey"])
         }
 
         arguments.append("\(sshUsername)@\(sshHost)")
@@ -193,6 +199,12 @@ actor SSHTunnelManager {
             environment["SSH_ASKPASS"] = scriptPath
             environment["SSH_ASKPASS_REQUIRE"] = "force"
             environment["DISPLAY"] = ":0"  // Required for SSH_ASKPASS to work
+            process.environment = environment
+        }
+
+        if authMethod == .sshAgent, let socketPath = agentSocketPath, !socketPath.isEmpty {
+            var environment = process.environment ?? ProcessInfo.processInfo.environment
+            environment["SSH_AUTH_SOCK"] = expandPath(socketPath)
             process.environment = environment
         }
 
@@ -404,9 +416,10 @@ actor SSHTunnelManager {
         authMethod: SSHAuthMethod
     ) -> SSHTunnelError {
         if errorMessage.contains("Permission denied") {
-            if authMethod == .privateKey {
+            if authMethod == .privateKey || authMethod == .sshAgent {
                 return .tunnelCreationFailed(
-                    "Private key authentication failed. Possible causes:\n" +
+                    "Public key authentication failed. Possible causes:\n" +
+                        "• No keys loaded in SSH agent\n" +
                         "• Private key doesn't match the public key on server\n" +
                         "• Wrong passphrase for encrypted private key\n" +
                         "• Wrong user or server\n" +
