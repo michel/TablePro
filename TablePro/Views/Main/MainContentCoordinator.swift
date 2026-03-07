@@ -40,17 +40,6 @@ enum ActiveSheet: Identifiable {
 final class MainContentCoordinator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
 
-    /// Per-connection shared schema providers so new tabs skip redundant schema loads
-    private static var sharedSchemaProviders: [UUID: SQLSchemaProvider] = [:]
-    /// Reference counts for shared schema providers (tracks how many coordinators use each)
-    private static var schemaProviderRefCounts: [UUID: Int] = [:]
-    /// Delayed removal tasks — cancelled if a new coordinator claims the provider within the grace period
-    private static var schemaProviderRemovalTasks: [UUID: Task<Void, Never>] = [:]
-
-    static func schemaProvider(for connectionId: UUID) -> SQLSchemaProvider? {
-        sharedSchemaProviders[connectionId]
-    }
-
     // MARK: - Dependencies
 
     let connection: DatabaseConnection
@@ -153,16 +142,8 @@ final class MainContentCoordinator {
         self.queryBuilder = TableQueryBuilder(databaseType: connection.type)
         self.tabPersistence = TabPersistenceService(connectionId: connection.id)
 
-        // Reuse existing schema provider for this connection, or create a new one
-        if let existing = Self.sharedSchemaProviders[connection.id] {
-            self.schemaProvider = existing
-        } else {
-            let provider = SQLSchemaProvider()
-            Self.sharedSchemaProviders[connection.id] = provider
-            self.schemaProvider = provider
-        }
-
-        Self.retainSchemaProvider(for: connection.id)
+        self.schemaProvider = SchemaProviderRegistry.shared.getOrCreate(for: connection.id)
+        SchemaProviderRegistry.shared.retain(for: connection.id)
         setupURLNotificationObservers()
 
         _ = Self.registerTerminationObserver
@@ -197,8 +178,8 @@ final class MainContentCoordinator {
         }
         querySortCache.removeAll()
 
-        Self.releaseSchemaProvider(for: connection.id)
-        Self.purgeUnusedSchemaProviders()
+        SchemaProviderRegistry.shared.release(for: connection.id)
+        SchemaProviderRegistry.shared.purgeUnused()
     }
 
     deinit {
@@ -210,8 +191,8 @@ final class MainContentCoordinator {
         guard didActivate else {
             if !alreadyHandled {
                 Task { @MainActor in
-                    MainContentCoordinator.releaseSchemaProvider(for: connectionId)
-                    MainContentCoordinator.purgeUnusedSchemaProviders()
+                    SchemaProviderRegistry.shared.release(for: connectionId)
+                    SchemaProviderRegistry.shared.purgeUnused()
                 }
             }
             return
@@ -224,8 +205,8 @@ final class MainContentCoordinator {
 
         if !alreadyHandled {
             Task { @MainActor in
-                MainContentCoordinator.releaseSchemaProvider(for: connectionId)
-                MainContentCoordinator.purgeUnusedSchemaProviders()
+                SchemaProviderRegistry.shared.release(for: connectionId)
+                SchemaProviderRegistry.shared.purgeUnused()
             }
         }
     }
@@ -1059,53 +1040,6 @@ final class MainContentCoordinator {
         }
     }
 
-    /// Remove shared schema provider when a connection disconnects
-    static func clearSharedSchema(for connectionId: UUID) {
-        sharedSchemaProviders.removeValue(forKey: connectionId)
-        schemaProviderRefCounts.removeValue(forKey: connectionId)
-        schemaProviderRemovalTasks[connectionId]?.cancel()
-        schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-    }
-
-    /// Increment reference count for a connection's schema provider
-    private static func retainSchemaProvider(for connectionId: UUID) {
-        schemaProviderRemovalTasks[connectionId]?.cancel()
-        schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-        schemaProviderRefCounts[connectionId, default: 0] += 1
-    }
-
-    /// Decrement reference count; schedule deferred removal when count reaches zero
-    private static func releaseSchemaProvider(for connectionId: UUID) {
-        guard var count = schemaProviderRefCounts[connectionId] else { return }
-        count -= 1
-        if count <= 0 {
-            schemaProviderRefCounts.removeValue(forKey: connectionId)
-            // Grace period: keep provider alive for 5s in case a new tab opens quickly
-            schemaProviderRemovalTasks[connectionId] = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 5_000_000_000)
-                guard !Task.isCancelled else { return }
-                sharedSchemaProviders.removeValue(forKey: connectionId)
-                schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-            }
-        } else {
-            schemaProviderRefCounts[connectionId] = count
-        }
-    }
-
-    /// Remove entries with zero or missing reference counts that lack pending removal tasks.
-    /// Guards against unbounded growth if releaseSchemaProvider fails to execute.
-    private static func purgeUnusedSchemaProviders() {
-        let orphanedIds = sharedSchemaProviders.keys.filter { connectionId in
-            let count = schemaProviderRefCounts[connectionId] ?? 0
-            let hasPendingRemoval = schemaProviderRemovalTasks[connectionId] != nil
-            return count <= 0 && !hasPendingRemoval
-        }
-        for connectionId in orphanedIds {
-            logger.info("Purging orphaned schema provider for connection \(connectionId)")
-            sharedSchemaProviders.removeValue(forKey: connectionId)
-            schemaProviderRefCounts.removeValue(forKey: connectionId)
-        }
-    }
 }
 
 // MARK: - Query Execution Helpers

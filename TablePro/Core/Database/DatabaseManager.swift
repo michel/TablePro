@@ -260,7 +260,7 @@ final class DatabaseManager {
         activeSessions.removeValue(forKey: sessionId)
 
         // Clean up shared schema cache for this connection
-        MainContentCoordinator.clearSharedSchema(for: sessionId)
+        SchemaProviderRegistry.shared.clear(for: sessionId)
 
         // Clean up shared sidebar state for this connection
         SharedSidebarState.removeConnection(sessionId)

@@ -185,7 +185,7 @@ struct ContentView: View {
                         tableOperationOptions: sessionTableOperationOptionsBinding,
                         databaseType: currentSession.connection.type,
                         connectionId: currentSession.connection.id,
-                        schemaProvider: MainContentCoordinator.schemaProvider(for: currentSession.connection.id)
+                        schemaProvider: SchemaProviderRegistry.shared.provider(for: currentSession.connection.id)
                     )
                 }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 600)
