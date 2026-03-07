@@ -9,6 +9,18 @@ import AppKit
 import os
 import SwiftUI
 
+private extension URL {
+    /// Returns the URL string with the password component replaced by `***` for safe logging.
+    var sanitizedForLogging: String {
+        guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false),
+              components.password != nil else {
+            return absoluteString
+        }
+        components.password = "***"
+        return components.string ?? absoluteString
+    }
+}
+
 /// AppDelegate handles window lifecycle events using proper AppKit patterns.
 /// This is the correct way to configure window appearance on macOS, rather than
 /// using SwiftUI view hacks which can be unreliable.
@@ -281,23 +293,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             } catch {
                 Self.logger.error("Deep link connect failed: \(error.localizedDescription)")
-                for window in NSApp.windows where self.isMainWindow(window) {
-                    let hasActiveSession = DatabaseManager.shared.activeSessions.values.contains {
-                        window.subtitle == $0.connection.name
-                    }
-                    if !hasActiveSession {
-                        window.close()
-                    }
-                }
-                if !NSApp.windows.contains(where: { self.isMainWindow($0) && $0.isVisible }) {
-                    self.openWelcomeWindow()
-                }
-                try? await Task.sleep(for: .milliseconds(200))
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Connection Failed"),
-                    message: error.localizedDescription,
-                    window: NSApp.keyWindow
-                )
+                await self.handleConnectionFailure(error)
             }
         }
     }
@@ -329,7 +325,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let result = ConnectionURLParser.parse(url.absoluteString)
         guard case .success(let parsed) = result else {
-            Self.logger.error("Failed to parse database URL: \(url.absoluteString, privacy: .public)")
+            Self.logger.error("Failed to parse database URL: \(url.sanitizedForLogging, privacy: .public)")
             return
         }
 
@@ -397,9 +393,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // If already connected to this connection, just handle post-connect actions
         if DatabaseManager.shared.activeSessions[connection.id]?.driver != nil {
             handlePostConnectionActions(parsed, connectionId: connection.id)
-            for window in NSApp.windows where isMainWindow(window) {
-                window.makeKeyAndOrderFront(nil)
-            }
+            bringConnectionWindowToFront(connection.id)
             return
         }
 
@@ -407,9 +401,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // since each URL open creates a new UUID
         if let activeId = findActiveSessionByParams(parsed) {
             handlePostConnectionActions(parsed, connectionId: activeId)
-            for window in NSApp.windows where isMainWindow(window) {
-                window.makeKeyAndOrderFront(nil)
-            }
+            bringConnectionWindowToFront(activeId)
             return
         }
 
@@ -435,34 +427,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.handlePostConnectionActions(parsed, connectionId: connection.id)
             } catch {
                 Self.logger.error("Database URL connect failed: \(error.localizedDescription)")
-                for window in NSApp.windows where self.isMainWindow(window) {
-                    let hasActiveSession = DatabaseManager.shared.activeSessions.values.contains {
-                        window.subtitle == $0.connection.name
-                    }
-                    if !hasActiveSession {
-                        window.close()
-                    }
-                }
-                if !NSApp.windows.contains(where: { self.isMainWindow($0) && $0.isVisible }) {
-                    self.openWelcomeWindow()
-                }
-                try? await Task.sleep(for: .milliseconds(200))
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Connection Failed"),
-                    message: error.localizedDescription,
-                    window: NSApp.keyWindow
-                )
+                await self.handleConnectionFailure(error)
             }
         }
     }
 
     private func scheduleQueuedDatabaseURLProcessing() {
         Task { @MainActor [weak self] in
+            var ready = false
             for _ in 0..<50 {
-                if WindowOpener.shared.openWindow != nil { break }
+                if WindowOpener.shared.openWindow != nil { ready = true; break }
                 try? await Task.sleep(for: .milliseconds(100))
             }
             guard let self else { return }
+            if !ready {
+                Self.logger.warning("SwiftUI window system not ready after 5s, dropping \(self.queuedDatabaseURLs.count) queued database URL(s)")
+                self.queuedDatabaseURLs.removeAll()
+                return
+            }
             let urls = self.queuedDatabaseURLs
             self.queuedDatabaseURLs.removeAll()
             for url in urls {
@@ -479,11 +461,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 conn.host == parsed.host &&
                 conn.database == parsed.database &&
                 (parsed.port == nil || conn.port == parsed.port || conn.port == parsed.type.defaultPort) &&
-                (parsed.username.isEmpty || conn.username == parsed.username) {
+                (parsed.username.isEmpty || conn.username == parsed.username) &&
+                (parsed.redisDatabase == nil || conn.redisDatabase == parsed.redisDatabase) {
                 return id
             }
         }
         return nil
+    }
+
+    private func bringConnectionWindowToFront(_ connectionId: UUID) {
+        let windows = WindowLifecycleMonitor.shared.windows(for: connectionId)
+        if let window = windows.first {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            // Fallback: bring any main window to front
+            NSApp.windows.first { isMainWindow($0) && $0.isVisible }?.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    @MainActor
+    private func handleConnectionFailure(_ error: Error) async {
+        for window in NSApp.windows where isMainWindow(window) {
+            let hasActiveSession = DatabaseManager.shared.activeSessions.values.contains {
+                window.subtitle == $0.connection.name
+            }
+            if !hasActiveSession {
+                window.close()
+            }
+        }
+        if !NSApp.windows.contains(where: { isMainWindow($0) && $0.isVisible }) {
+            openWelcomeWindow()
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        AlertHelper.showErrorSheet(
+            title: String(localized: "Connection Failed"),
+            message: error.localizedDescription,
+            window: NSApp.keyWindow
+        )
     }
 
     @MainActor
@@ -491,8 +505,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             await waitForConnection(timeout: .seconds(5))
 
-            if let schema = parsed.schema,
-               parsed.type == .postgresql || parsed.type == .redshift {
+            if let schema = parsed.schema {
                 NotificationCenter.default.post(
                     name: .switchSchemaFromURL,
                     object: nil,
