@@ -3,7 +3,7 @@
 //  TablePro
 //
 //  Centralized notification names used across the app.
-//  Domain-specific collections remain in OpenTableApp.swift
+//  Domain-specific collections remain in TableProApp.swift
 //  and SettingsNotifications.swift.
 //
 
