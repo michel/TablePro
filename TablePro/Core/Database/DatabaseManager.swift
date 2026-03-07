@@ -130,13 +130,11 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
-            // Initialize schema for PostgreSQL/Redshift/CockroachDB connections
+            // Initialize schema for PostgreSQL/Redshift connections
             if let pgDriver = driver as? PostgreSQLDriver {
                 activeSessions[connection.id]?.currentSchema = pgDriver.currentSchema
             } else if let rsDriver = driver as? RedshiftDriver {
                 activeSessions[connection.id]?.currentSchema = rsDriver.currentSchema
-            } else if let crdbDriver = driver as? CockroachDBDriver {
-                activeSessions[connection.id]?.currentSchema = crdbDriver.currentSchema
             } else if let oracleDriver = driver as? OracleDriver {
                 activeSessions[connection.id]?.currentSchema = oracleDriver.currentSchema
             } else if connection.type == .redis {
@@ -188,14 +186,12 @@ final class DatabaseManager {
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
                     }
-                    // Sync schema on metadata driver for PostgreSQL/Redshift/CockroachDB
+                    // Sync schema on metadata driver for PostgreSQL/Redshift
                     if let savedSchema = self.activeSessions[metaConnectionId]?.currentSchema {
                         if let pgMetaDriver = metaDriver as? PostgreSQLDriver {
                             try? await pgMetaDriver.switchSchema(to: savedSchema)
                         } else if let rsMetaDriver = metaDriver as? RedshiftDriver {
                             try? await rsMetaDriver.switchSchema(to: savedSchema)
-                        } else if let crdbMetaDriver = metaDriver as? CockroachDBDriver {
-                            try? await crdbMetaDriver.switchSchema(to: savedSchema)
                         } else if let oracleMetaDriver = metaDriver as? OracleDriver {
                             try? await oracleMetaDriver.switchSchema(to: savedSchema)
                         }
@@ -544,14 +540,12 @@ final class DatabaseManager {
             try await driver.applyQueryTimeout(timeoutSeconds)
         }
 
-        // Restore schema for PostgreSQL/Redshift/CockroachDB if session had a non-default schema
+        // Restore schema for PostgreSQL/Redshift if session had a non-default schema
         if let savedSchema = session.currentSchema {
             if let pgDriver = driver as? PostgreSQLDriver {
                 try? await pgDriver.switchSchema(to: savedSchema)
             } else if let rsDriver = driver as? RedshiftDriver {
                 try? await rsDriver.switchSchema(to: savedSchema)
-            } else if let crdbDriver = driver as? CockroachDBDriver {
-                try? await crdbDriver.switchSchema(to: savedSchema)
             } else if let oracleDriver = driver as? OracleDriver {
                 try? await oracleDriver.switchSchema(to: savedSchema)
             }
@@ -622,14 +616,12 @@ final class DatabaseManager {
                 try await driver.applyQueryTimeout(timeoutSeconds)
             }
 
-            // Restore schema for PostgreSQL/Redshift/CockroachDB/Oracle if session had a non-default schema
+            // Restore schema for PostgreSQL/Redshift/Oracle if session had a non-default schema
             if let savedSchema = activeSessions[sessionId]?.currentSchema {
                 if let pgDriver = driver as? PostgreSQLDriver {
                     try? await pgDriver.switchSchema(to: savedSchema)
                 } else if let rsDriver = driver as? RedshiftDriver {
                     try? await rsDriver.switchSchema(to: savedSchema)
-                } else if let crdbDriver = driver as? CockroachDBDriver {
-                    try? await crdbDriver.switchSchema(to: savedSchema)
                 } else if let oracleDriver = driver as? OracleDriver {
                     try? await oracleDriver.switchSchema(to: savedSchema)
                 }
@@ -666,8 +658,6 @@ final class DatabaseManager {
                             try? await pgMetaDriver.switchSchema(to: savedSchema)
                         } else if let rsMetaDriver = metaDriver as? RedshiftDriver {
                             try? await rsMetaDriver.switchSchema(to: savedSchema)
-                        } else if let crdbMetaDriver = metaDriver as? CockroachDBDriver {
-                            try? await crdbMetaDriver.switchSchema(to: savedSchema)
                         } else if let oracleMetaDriver = metaDriver as? OracleDriver {
                             try? await oracleMetaDriver.switchSchema(to: savedSchema)
                         }
@@ -816,7 +806,7 @@ final class DatabaseManager {
         driver: DatabaseDriver
     ) async -> String? {
         // Only needed for PostgreSQL PK modifications
-        guard databaseType == .postgresql || databaseType == .redshift || databaseType == .cockroachdb else { return nil }
+        guard databaseType == .postgresql || databaseType == .redshift else { return nil }
         guard
             changes.contains(where: {
                 if case .modifyPrimaryKey = $0 { return true }
@@ -833,8 +823,6 @@ final class DatabaseManager {
             schema = pgDriver.escapedSchema
         } else if let rsDriver = driver as? RedshiftDriver {
             schema = rsDriver.escapedSchema
-        } else if let crdbDriver = driver as? CockroachDBDriver {
-            schema = crdbDriver.escapedSchema
         } else {
             schema = "public"
         }

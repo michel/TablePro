@@ -289,7 +289,7 @@ final class ImportService {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=0"]
-        case .postgresql, .redshift, .cockroachdb, .mssql, .oracle:
+        case .postgresql, .redshift, .mssql, .oracle:
             // These databases don't support globally disabling non-deferrable FKs.
             return []
         case .sqlite:
@@ -303,7 +303,7 @@ final class ImportService {
         switch dbType {
         case .mysql, .mariadb:
             return ["SET FOREIGN_KEY_CHECKS=1"]
-        case .postgresql, .redshift, .cockroachdb, .mssql, .oracle:
+        case .postgresql, .redshift, .mssql, .oracle:
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
