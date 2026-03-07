@@ -54,6 +54,14 @@ struct RightPanelStateTests {
         UserDefaults.standard.removeObject(forKey: Self.key)
     }
 
+    @Test("teardown is idempotent - calling twice does not crash")
+    @MainActor
+    func teardownIdempotent() {
+        let state = RightPanelState()
+        state.teardown()
+        state.teardown()
+    }
+
     @Test("teardown nils schemaProvider on aiViewModel")
     @MainActor
     func teardown_nilsSchemaProvider() {

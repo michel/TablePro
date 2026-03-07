@@ -64,9 +64,12 @@ final class QueryHistoryStorage {
     /// Creates an isolated instance with a unique database file. For testing only.
     init(isolatedForTesting: Bool) {
         testDatabaseSuffix = isolatedForTesting ? "_\(UUID().uuidString)" : nil
-        queue.sync {
+        let semaphore = DispatchSemaphore(value: 0)
+        queue.async { [self] in
             setupDatabase()
+            semaphore.signal()
         }
+        semaphore.wait()
     }
 
     private var testDatabaseSuffix: String?

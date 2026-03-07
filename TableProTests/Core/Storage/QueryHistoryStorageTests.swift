@@ -36,6 +36,13 @@ struct QueryHistoryStorageTests {
         )
     }
 
+    @Test("Isolated instance initializes without deadlock")
+    func isolatedInitDoesNotDeadlock() async {
+        let isolated = QueryHistoryStorage(isolatedForTesting: true)
+        let entries = await isolated.fetchHistory()
+        #expect(entries.isEmpty)
+    }
+
     @Test("addHistory returns true for valid entry")
     func addHistoryReturnsTrue() async {
         let entry = makeEntry()

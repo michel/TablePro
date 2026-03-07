@@ -462,7 +462,10 @@ struct DataGridView: NSViewRepresentable {
         } else if versionChanged {
             // Granular reload: only reload rows that changed
             let changedRows = changeManager.consumeChangedRowIndices()
-            if !changedRows.isEmpty {
+            if changedRows.count > 500 {
+                // Too many changed rows — full reload is faster than granular
+                tableView.reloadData()
+            } else if !changedRows.isEmpty {
                 // Some rows changed → granular reload for performance
                 let rowIndexSet = IndexSet(changedRows)
                 let columnIndexSet = IndexSet(integersIn: 0..<tableView.numberOfColumns)
@@ -516,11 +519,17 @@ struct DataGridView: NSViewRepresentable {
         guard Set(order) == Set(columns) else { return }
 
         let dataColumns = tableView.tableColumns.filter { $0.identifier.rawValue != "__rowNumber__" }
+
+        // Build name→column map for O(1) lookup
+        var columnMap: [String: NSTableColumn] = [:]
+        for col in dataColumns {
+            if let idx = columnIndex(from: col.identifier), idx < columns.count {
+                columnMap[columns[idx]] = col
+            }
+        }
+
         for (targetIndex, columnName) in order.enumerated() {
-            guard let sourceColumn = dataColumns.first(where: { col in
-                guard let idx = columnIndex(from: col.identifier), idx < columns.count else { return false }
-                return columns[idx] == columnName
-            }),
+            guard let sourceColumn = columnMap[columnName],
                   let currentIndex = tableView.tableColumns.firstIndex(of: sourceColumn) else { continue }
             let targetTableIndex = targetIndex + 1  // +1 for row number column
             if currentIndex != targetTableIndex && targetTableIndex < tableView.numberOfColumns {

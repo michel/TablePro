@@ -7,19 +7,20 @@
 
 import AppKit
 import CodeEditSourceEditor
+import os
 
 /// Intercepts keyboard events and routes them through the Vim engine
 @MainActor
 final class VimKeyInterceptor {
     private let engine: VimEngine
     private weak var inlineSuggestionManager: InlineSuggestionManager?
-    nonisolated(unsafe) private var monitor: Any?
+    private let _monitor = OSAllocatedUnfairLock<Any?>(initialState: nil)
     private weak var controller: TextViewController?
-    nonisolated(unsafe) private var popupCloseObserver: NSObjectProtocol?
+    private let _popupCloseObserver = OSAllocatedUnfairLock<Any?>(initialState: nil)
 
     deinit {
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        if let popupCloseObserver { NotificationCenter.default.removeObserver(popupCloseObserver) }
+        if let monitor = _monitor.withLock({ $0 }) { NSEvent.removeMonitor(monitor) }
+        if let observer = _popupCloseObserver.withLock({ $0 }) { NotificationCenter.default.removeObserver(observer) }
     }
 
     init(engine: VimEngine, inlineSuggestionManager: InlineSuggestionManager?) {
@@ -32,16 +33,18 @@ final class VimKeyInterceptor {
         self.controller = controller
         uninstall()
 
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
-            return self.handleKeyEvent(event)
+        _monitor.withLock {
+            $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self else { return event }
+                return self.handleKeyEvent(event)
+            }
         }
 
         // Observe autocomplete popup close. When SuggestionController's popup
         // consumes Escape (closes itself), we also need to exit Insert/Visual mode.
         // queue: .main → handler runs synchronously when posted from main thread,
         // so NSApp.currentEvent is still the Escape keyDown event.
-        popupCloseObserver = NotificationCenter.default.addObserver(
+        _popupCloseObserver.withLock { $0 = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: nil,
             queue: .main
@@ -61,19 +64,19 @@ final class VimKeyInterceptor {
                 self.inlineSuggestionManager?.dismissSuggestion()
                 _ = self.engine.process("\u{1B}", shift: false)
             }
-        }
+        } }
     }
 
     /// Remove the key event monitor
     func uninstall() {
-        if let monitor {
-            NSEvent.removeMonitor(monitor)
+        _monitor.withLock {
+            if let monitor = $0 { NSEvent.removeMonitor(monitor) }
+            $0 = nil
         }
-        monitor = nil
-        if let popupCloseObserver {
-            NotificationCenter.default.removeObserver(popupCloseObserver)
+        _popupCloseObserver.withLock {
+            if let observer = $0 { NotificationCenter.default.removeObserver(observer) }
+            $0 = nil
         }
-        popupCloseObserver = nil
     }
 
     /// Arrow key Unicode scalars → Vim motion characters

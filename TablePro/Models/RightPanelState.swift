@@ -8,12 +8,14 @@
 //
 
 import Foundation
+import os
 
 @MainActor @Observable final class RightPanelState {
     private static let isPresentedKey = "com.TablePro.rightPanel.isPresented"
     private static let isPresentedChangedNotification = Notification.Name("com.TablePro.rightPanel.isPresentedChanged")
 
     private var isSyncing = false
+    @ObservationIgnored private let _didTeardown = OSAllocatedUnfairLock(initialState: false)
 
     var isPresented: Bool {
         didSet {
@@ -45,14 +47,18 @@ import Foundation
     /// Release all heavy data on disconnect so memory drops
     /// even if AppKit keeps the window alive.
     func teardown() {
+        guard !_didTeardown.withLock({ $0 }) else { return }
+        _didTeardown.withLock { $0 = true }
         onSave = nil
         aiViewModel.clearSessionData()
         editState.releaseData()
-        NotificationCenter.default.removeObserver(self) // swiftlint:disable:this notification_center_detachment
+        NotificationCenter.default.removeObserver(self)
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        if !_didTeardown.withLock({ $0 }) {
+            NotificationCenter.default.removeObserver(self)
+        }
     }
 
     @objc private func handleIsPresentedChanged(_ notification: Notification) {

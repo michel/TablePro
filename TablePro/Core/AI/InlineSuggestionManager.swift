@@ -22,12 +22,12 @@ final class InlineSuggestionManager {
     private weak var controller: TextViewController?
     private var debounceTimer: Timer?
     private var currentTask: Task<Void, Never>?
-    nonisolated(unsafe) private var keyEventMonitor: Any?
-    nonisolated(unsafe) private var scrollObserver: NSObjectProtocol?
+    private let _keyEventMonitor = OSAllocatedUnfairLock<Any?>(initialState: nil)
+    private let _scrollObserver = OSAllocatedUnfairLock<Any?>(initialState: nil)
 
     deinit {
-        if let keyEventMonitor { NSEvent.removeMonitor(keyEventMonitor) }
-        if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
+        if let monitor = _keyEventMonitor.withLock({ $0 }) { NSEvent.removeMonitor(monitor) }
+        if let observer = _scrollObserver.withLock({ $0 }) { NotificationCenter.default.removeObserver(observer) }
     }
 
     /// The currently displayed suggestion text, nil when no suggestion is active
@@ -72,14 +72,14 @@ final class InlineSuggestionManager {
         currentTask = nil
         removeGhostLayer()
 
-        if let monitor = keyEventMonitor {
+        if let monitor = _keyEventMonitor.withLock({ $0 }) {
             NSEvent.removeMonitor(monitor)
-            keyEventMonitor = nil
+            _keyEventMonitor.withLock { $0 = nil }
         }
 
-        if let observer = scrollObserver {
+        if let observer = _scrollObserver.withLock({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
-            scrollObserver = nil
+            _scrollObserver.withLock { $0 = nil }
         }
 
         schemaProvider = nil
@@ -362,7 +362,7 @@ final class InlineSuggestionManager {
     // MARK: - Key Event Monitor
 
     private func installKeyEventMonitor() {
-        keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        _keyEventMonitor.withLock { $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
 
             // Only intercept when a suggestion is active
@@ -394,7 +394,7 @@ final class InlineSuggestionManager {
                 }
                 return event // Pass through
             }
-        }
+        } }
     }
 
     // MARK: - Scroll Observer
@@ -402,16 +402,18 @@ final class InlineSuggestionManager {
     private func installScrollObserver() {
         guard let scrollView = controller?.scrollView else { return }
 
-        scrollObserver = NotificationCenter.default.addObserver(
-            forName: NSView.boundsDidChangeNotification,
-            object: scrollView.contentView,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let suggestion = self.currentSuggestion {
-                    // Reposition the ghost layer after scroll
-                    self.showGhostText(suggestion, at: self.suggestionOffset)
+        _scrollObserver.withLock {
+            $0 = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: scrollView.contentView,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if let suggestion = self.currentSuggestion {
+                        // Reposition the ghost layer after scroll
+                        self.showGhostText(suggestion, at: self.suggestionOffset)
+                    }
                 }
             }
         }

@@ -88,18 +88,18 @@ final class MainContentCoordinator {
     /// True once the coordinator's view has appeared (onAppear fired).
     /// Coordinators that SwiftUI creates during body re-evaluation but never
     /// adopts into @State are silently discarded — no teardown warning needed.
-    @ObservationIgnored nonisolated(unsafe) private var didActivate = false
+    @ObservationIgnored private let _didActivate = OSAllocatedUnfairLock(initialState: false)
 
     /// Tracks whether teardown() was called; used by deinit to log missed teardowns
-    @ObservationIgnored nonisolated(unsafe) private var didTeardown = false
+    @ObservationIgnored private let _didTeardown = OSAllocatedUnfairLock(initialState: false)
 
     /// Tracks whether teardown has been scheduled (but not yet executed)
     /// so deinit doesn't warn if SwiftUI deallocates before the delayed Task fires
-    @ObservationIgnored nonisolated(unsafe) private var teardownScheduled = false
+    @ObservationIgnored private let _teardownScheduled = OSAllocatedUnfairLock(initialState: false)
 
     /// Whether teardown is scheduled or already completed — used by views to skip
     /// persistence during window close teardown
-    var isTearingDown: Bool { teardownScheduled || didTeardown }
+    var isTearingDown: Bool { _teardownScheduled.withLock { $0 } || _didTeardown.withLock { $0 } }
 
     /// Set when NSApplication is terminating — suppresses deinit warning since
     /// SwiftUI does not call onDisappear during app termination
@@ -173,21 +173,21 @@ final class MainContentCoordinator {
     }
 
     func markActivated() {
-        didActivate = true
+        _didActivate.withLock { $0 = true }
     }
 
     func markTeardownScheduled() {
-        teardownScheduled = true
+        _teardownScheduled.withLock { $0 = true }
     }
 
     func clearTeardownScheduled() {
-        teardownScheduled = false
+        _teardownScheduled.withLock { $0 = false }
     }
 
     /// Explicit cleanup called from `onDisappear`. Releases schema provider
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
-        didTeardown = true
+        _didTeardown.withLock { $0 = true }
         if let observer = terminationObserver {
             NotificationCenter.default.removeObserver(observer)
             terminationObserver = nil
@@ -214,11 +214,11 @@ final class MainContentCoordinator {
 
     deinit {
         let connectionId = connection.id
-        let alreadyHandled = didTeardown || teardownScheduled
+        let alreadyHandled = _didTeardown.withLock { $0 } || _teardownScheduled.withLock { $0 }
 
         // Never-activated coordinators are throwaway instances created by SwiftUI
         // during body re-evaluation — @State only keeps the first, rest are discarded
-        guard didActivate else {
+        guard _didActivate.withLock({ $0 }) else {
             if !alreadyHandled {
                 Task { @MainActor in
                     SchemaProviderRegistry.shared.release(for: connectionId)
@@ -857,16 +857,20 @@ final class MainContentCoordinator {
         rows: [QueryResultRow],
         sortColumns: [SortColumn]
     ) -> [Int] {
+        // Pre-extract sort keys for each row to avoid repeated access during comparison
+        let sortKeys: [[String]] = rows.map { row in
+            sortColumns.map { sortCol in
+                sortCol.columnIndex < row.values.count
+                    ? (row.values[sortCol.columnIndex] ?? "") : ""
+            }
+        }
+
         var indices = Array(0..<rows.count)
         indices.sort { i1, i2 in
-            let row1 = rows[i1]
-            let row2 = rows[i2]
-            for sortCol in sortColumns {
-                let val1 = sortCol.columnIndex < row1.values.count
-                    ? (row1.values[sortCol.columnIndex] ?? "") : ""
-                let val2 = sortCol.columnIndex < row2.values.count
-                    ? (row2.values[sortCol.columnIndex] ?? "") : ""
-                let result = val1.localizedStandardCompare(val2)
+            let keys1 = sortKeys[i1]
+            let keys2 = sortKeys[i2]
+            for (colIdx, sortCol) in sortColumns.enumerated() {
+                let result = keys1[colIdx].localizedStandardCompare(keys2[colIdx])
                 if result == .orderedSame { continue }
                 return sortCol.direction == .ascending
                     ? result == .orderedAscending

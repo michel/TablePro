@@ -286,6 +286,8 @@ final class LibPQConnection: @unchecked Sendable {
         _cachedServerVersion = nil
 
         if let handle {
+            // Async dispatch: during normal disconnect this avoids blocking the caller.
+            // On app termination the kernel cleans up the TCP socket regardless.
             queue.async {
                 PQfinish(handle)
             }

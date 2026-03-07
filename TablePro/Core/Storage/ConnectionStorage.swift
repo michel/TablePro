@@ -160,7 +160,7 @@ final class ConnectionStorage {
 
         let addQuery = baseQuery.merging([
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]) { _, new in new }
 
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
