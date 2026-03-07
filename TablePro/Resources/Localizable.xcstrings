@@ -5221,6 +5221,9 @@
         }
       }
     },
+    "Leave empty for SSH_AUTH_SOCK" : {
+
+    },
     "Length" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6639,6 +6642,9 @@
           }
         }
       }
+    },
+    "Oracle" : {
+
     },
     "Orange" : {
       "localizations" : {
@@ -8129,6 +8135,9 @@
           }
         }
       }
+    },
+    "Service Name" : {
+
     },
     "Set DEFAULT" : {
       "localizations" : {

@@ -128,7 +128,7 @@ struct SchemaStatementGenerator {
         let tableQuoted = databaseType.quoteIdentifier(tableName)
         let columnDef = try buildEditableColumnDefinition(column)
 
-        let keyword = databaseType == .mssql ? "ADD" : "ADD COLUMN"
+        let keyword = (databaseType == .mssql || databaseType == .oracle) ? "ADD" : "ADD COLUMN"
         let sql = "ALTER TABLE \(tableQuoted) \(keyword) \(columnDef)"
         return SchemaStatement(
             sql: sql,
@@ -217,6 +217,35 @@ struct SchemaStatementGenerator {
                 isDestructive: old.dataType != new.dataType
             )
 
+        case .oracle:
+            var statements: [String] = []
+            let newQuoted = databaseType.quoteIdentifier(new.name)
+
+            if old.name != new.name {
+                let oldQuoted = databaseType.quoteIdentifier(old.name)
+                statements.append("ALTER TABLE \(tableQuoted) RENAME COLUMN \(oldQuoted) TO \(newQuoted)")
+            }
+
+            if old.dataType != new.dataType || old.isNullable != new.isNullable {
+                let nullClause = new.isNullable ? "NULL" : "NOT NULL"
+                statements.append("ALTER TABLE \(tableQuoted) MODIFY (\(newQuoted) \(new.dataType) \(nullClause))")
+            }
+
+            if old.defaultValue != new.defaultValue {
+                if let defaultVal = new.defaultValue, !defaultVal.isEmpty {
+                    statements.append("ALTER TABLE \(tableQuoted) MODIFY (\(newQuoted) DEFAULT \(defaultVal))")
+                } else {
+                    statements.append("ALTER TABLE \(tableQuoted) MODIFY (\(newQuoted) DEFAULT NULL)")
+                }
+            }
+
+            let sql = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n")
+            return SchemaStatement(
+                sql: sql,
+                description: "Modify column '\(old.name)' to '\(new.name)'",
+                isDestructive: old.dataType != new.dataType
+            )
+
         case .sqlite, .mongodb, .redis:
             // SQLite doesn't support ALTER COLUMN - requires table recreation
             // MongoDB/Redis don't use SQL ALTER TABLE
@@ -274,6 +303,8 @@ struct SchemaStatementGenerator {
                 break  // MongoDB/Redis auto-generate IDs
             case .mssql:
                 parts[1] = "INT IDENTITY(1,1)"
+            case .oracle:
+                parts.append("GENERATED ALWAYS AS IDENTITY")
             }
         }
 
@@ -292,8 +323,8 @@ struct SchemaStatementGenerator {
             case .postgresql, .redshift:
                 // PostgreSQL comments are set via separate COMMENT statement
                 break
-            case .sqlite, .mongodb, .redis, .mssql:
-                // SQLite/MongoDB/Redis/MSSQL don't support inline column comments
+            case .sqlite, .mongodb, .redis, .mssql, .oracle:
+                // SQLite/MongoDB/Redis/MSSQL/Oracle don't support inline column comments
                 break
             }
         }
@@ -320,7 +351,7 @@ struct SchemaStatementGenerator {
             let indexTypeClause = index.type == .btree ? "" : "USING \(index.type.rawValue)"
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) \(indexTypeClause) (\(columnsQuoted))"
 
-        case .sqlite, .mongodb, .redis, .mssql:
+        case .sqlite, .mongodb, .redis, .mssql, .oracle:
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) (\(columnsQuoted))"
         }
 
@@ -353,7 +384,7 @@ struct SchemaStatementGenerator {
             let tableQuoted = databaseType.quoteIdentifier(tableName)
             sql = "DROP INDEX \(indexQuoted) ON \(tableQuoted)"
 
-        case .postgresql, .redshift, .sqlite, .mongodb, .redis:
+        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .oracle:
             sql = "DROP INDEX \(indexQuoted)"
         case .mssql:
             let tableQuoted = databaseType.quoteIdentifier(tableName)
@@ -414,7 +445,7 @@ struct SchemaStatementGenerator {
         case .mysql, .mariadb:
             sql = "ALTER TABLE \(tableQuoted) DROP FOREIGN KEY \(fkQuoted)"
 
-        case .postgresql, .redshift, .mssql:
+        case .postgresql, .redshift, .mssql, .oracle:
             sql = "ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(fkQuoted)"
         case .sqlite, .mongodb, .redis:
             throw DatabaseError.unsupportedOperation
@@ -449,6 +480,13 @@ struct SchemaStatementGenerator {
             """
 
         case .mssql:
+            let pkName = primaryKeyConstraintName ?? "PK_\(tableName)"
+            sql = """
+            ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(databaseType.quoteIdentifier(pkName));
+            ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted));
+            """
+
+        case .oracle:
             let pkName = primaryKeyConstraintName ?? "PK_\(tableName)"
             sql = """
             ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(databaseType.quoteIdentifier(pkName));

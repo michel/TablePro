@@ -188,6 +188,8 @@ final class DatabaseSwitcherViewModel {
             return false
         case .mssql:
             return ["master", "tempdb", "model", "msdb"].contains(name)
+        case .oracle:
+            return ["SYS", "SYSTEM", "OUTLN", "DBSNMP", "APPQOSSYS", "WMSYS", "XDB"].contains(name)
         }
     }
 }

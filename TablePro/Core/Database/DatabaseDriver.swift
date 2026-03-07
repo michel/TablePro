@@ -275,6 +275,8 @@ extension DatabaseDriver {
                 break  // Redis does not support session-level query timeouts
             case .mssql:
                 _ = try await execute(query: "SET LOCK_TIMEOUT \(ms)")
+            case .oracle:
+                break  // Oracle timeout handled per-statement by OracleDriver
             }
         } catch {
             Logger(subsystem: "com.TablePro", category: "DatabaseDriver")
@@ -318,6 +320,8 @@ enum DatabaseDriverFactory {
             return RedisDriver(connection: connection)
         case .mssql:
             return MSSQLDriver(connection: connection)
+        case .oracle:
+            return OracleDriver(connection: connection)
         }
     }
 }

@@ -29,11 +29,11 @@ struct MainContentView: View {
 
     // MARK: - State Objects
 
-    @State private var tabManager: QueryTabManager
-    @State private var changeManager: DataChangeManager
-    @State private var filterStateManager: FilterStateManager
-    @State private var toolbarState: ConnectionToolbarState
-    @State var coordinator: MainContentCoordinator
+    let tabManager: QueryTabManager
+    let changeManager: DataChangeManager
+    let filterStateManager: FilterStateManager
+    let toolbarState: ConnectionToolbarState
+    let coordinator: MainContentCoordinator
 
     // MARK: - Local State
 
@@ -72,7 +72,12 @@ struct MainContentView: View {
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
         inspectorContext: Binding<InspectorContext>,
-        rightPanelState: RightPanelState
+        rightPanelState: RightPanelState,
+        tabManager: QueryTabManager,
+        changeManager: DataChangeManager,
+        filterStateManager: FilterStateManager,
+        toolbarState: ConnectionToolbarState,
+        coordinator: MainContentCoordinator
     ) {
         self.connection = connection
         self.payload = payload
@@ -84,81 +89,18 @@ struct MainContentView: View {
         self._tableOperationOptions = tableOperationOptions
         self._inspectorContext = inspectorContext
         self.rightPanelState = rightPanelState
-
-        // Create state objects — each native window-tab gets its own instances
-        let tabMgr = QueryTabManager()
-        let changeMgr = DataChangeManager()
-        let filterMgr = FilterStateManager()
-        let toolbarSt = ConnectionToolbarState(connection: connection)
-
-        // Eagerly populate version + state from existing session to avoid flash
-        if let session = DatabaseManager.shared.session(for: connection.id) {
-            toolbarSt.updateConnectionState(from: session.status)
-            if let driver = session.driver {
-                toolbarSt.databaseVersion = driver.serverVersion
-            }
-        } else if let driver = DatabaseManager.shared.driver(for: connection.id) {
-            toolbarSt.connectionState = .connected
-            toolbarSt.databaseVersion = driver.serverVersion
-        }
-        toolbarSt.hasCompletedSetup = true
-
-        // Redis: set initial database name eagerly to avoid toolbar flash
-        if connection.type == .redis {
-            let dbIndex = connection.redisDatabase ?? Int(connection.database) ?? 0
-            toolbarSt.databaseName = String(dbIndex)
-        }
-
-        // Initialize single tab based on payload
-        if let payload, !payload.isConnectionOnly {
-            switch payload.tabType {
-            case .table:
-                if let tableName = payload.tableName {
-                    tabMgr.addTableTab(
-                        tableName: tableName,
-                        databaseType: connection.type,
-                        databaseName: payload.databaseName ?? connection.database
-                    )
-                    if let index = tabMgr.selectedTabIndex {
-                        tabMgr.tabs[index].isView = payload.isView
-                        tabMgr.tabs[index].isEditable = !payload.isView
-                        if payload.showStructure {
-                            tabMgr.tabs[index].showStructure = true
-                        }
-                    }
-                } else {
-                    tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
-                }
-            case .query:
-                tabMgr.addTab(
-                    initialQuery: payload.initialQuery,
-                    databaseName: payload.databaseName ?? connection.database
-                )
-            }
-        }
-        // If payload is nil or connection-only, tab restoration handles it in initializeAndRestoreTabs()
-
-        _tabManager = State(wrappedValue: tabMgr)
-        _changeManager = State(wrappedValue: changeMgr)
-        _filterStateManager = State(wrappedValue: filterMgr)
-        _toolbarState = State(wrappedValue: toolbarSt)
-
-        // Create coordinator with all dependencies
-        _coordinator = State(
-            wrappedValue: MainContentCoordinator(
-                connection: connection,
-                tabManager: tabMgr,
-                changeManager: changeMgr,
-                filterStateManager: filterMgr,
-                toolbarState: toolbarSt
-            ))
+        self.tabManager = tabManager
+        self.changeManager = changeManager
+        self.filterStateManager = filterStateManager
+        self.toolbarState = toolbarState
+        self.coordinator = coordinator
     }
 
     // MARK: - Body
 
     var body: some View {
         bodyContent
-            .sheet(item: $coordinator.activeSheet) { sheet in
+            .sheet(item: Bindable(coordinator).activeSheet) { sheet in
                 sheetContent(for: sheet)
             }
             .modifier(FocusedCommandActionsModifier(actions: commandActions))
@@ -291,6 +233,7 @@ struct MainContentView: View {
 
                     // Window truly closed — teardown coordinator
                     coordinator.teardown()
+                    rightPanelState.teardown()
 
                     // If no more windows for this connection, disconnect.
                     // Tab state is NOT cleared here — it's preserved for next reconnect.
@@ -996,6 +939,10 @@ private struct FocusedCommandActionsModifier: ViewModifier {
 // MARK: - Preview
 
 #Preview("With Connection") {
+    let state = SessionStateFactory.create(
+        connection: DatabaseConnection.sampleConnections[0],
+        payload: nil
+    )
     MainContentView(
         connection: DatabaseConnection.sampleConnections[0],
         payload: nil,
@@ -1006,7 +953,12 @@ private struct FocusedCommandActionsModifier: ViewModifier {
         pendingDeletes: .constant([]),
         tableOperationOptions: .constant([:]),
         inspectorContext: .constant(.empty),
-        rightPanelState: RightPanelState()
+        rightPanelState: RightPanelState(),
+        tabManager: state.tabManager,
+        changeManager: state.changeManager,
+        filterStateManager: state.filterStateManager,
+        toolbarState: state.toolbarState,
+        coordinator: state.coordinator
     )
     .frame(width: 1_000, height: 600)
 }

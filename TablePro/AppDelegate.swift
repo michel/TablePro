@@ -54,7 +54,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private static let databaseURLSchemes: Set<String> = [
         "postgresql", "postgres", "mysql", "mariadb", "sqlite",
         "mongodb", "mongodb+srv", "redis", "rediss", "redshift",
-        "mssql", "sqlserver"
+        "mssql", "sqlserver", "oracle"
     ]
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
@@ -385,7 +385,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 sslConfig: sslConfig,
                 color: color,
                 tagId: tagId,
-                redisDatabase: parsed.redisDatabase
+                redisDatabase: parsed.redisDatabase,
+                oracleServiceName: parsed.oracleServiceName
             )
         }
 
@@ -515,6 +516,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     object: nil,
                     userInfo: ["connectionId": connectionId, "schema": schema]
                 )
+                // Wait for schema switch to propagate through SwiftUI state before opening table
                 try? await Task.sleep(for: .milliseconds(500))
             }
 
@@ -528,7 +530,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 WindowOpener.shared.openNativeTab(payload)
 
                 if parsed.filterColumn != nil || parsed.filterCondition != nil {
-                    try? await Task.sleep(for: .milliseconds(800))
+                    // Wait for table data to load before applying filter via notification
+                    try? await Task.sleep(for: .milliseconds(500))
                     NotificationCenter.default.post(
                         name: .applyURLFilter,
                         object: nil,
@@ -645,10 +648,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func scheduleWelcomeWindowSuppression() {
         Task { @MainActor [weak self] in
-            // Single check after a short delay for window creation
+            // Wait for SwiftUI to create the main window after file-open triggers connection
             try? await Task.sleep(for: .milliseconds(300))
             self?.closeWelcomeWindowIfMainExists()
-            // One final check after windows settle
+            // Second check after windows fully settle (animations, state restoration)
             try? await Task.sleep(for: .milliseconds(700))
             guard let self else { return }
             self.closeWelcomeWindowIfMainExists()
@@ -678,6 +681,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func postSQLFilesWhenReady(urls: [URL]) {
         Task { @MainActor [weak self] in
+            // Brief delay to let the main window become key after connection completes
             try? await Task.sleep(for: .milliseconds(100))
             if !NSApp.windows.contains(where: { self?.isMainWindow($0) == true && $0.isKeyWindow }) {
                 Self.logger.warning("postSQLFilesWhenReady: no key main window, posting anyway")
@@ -874,7 +878,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureWelcomeWindow() {
-        // Wait for SwiftUI to create the welcome window, then configure it
+        // SwiftUI creates the welcome window asynchronously after app launch.
+        // Poll up to 5 times (250ms total) waiting for it to appear so we can
+        // configure AppKit-level style properties (hide miniaturize/zoom buttons, etc.).
         Task { @MainActor [weak self] in
             for _ in 0 ..< 5 {
                 guard let self else { return }

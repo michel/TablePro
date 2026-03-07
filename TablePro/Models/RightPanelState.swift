@@ -42,6 +42,15 @@ import Foundation
         )
     }
 
+    /// Release all heavy data on disconnect so memory drops
+    /// even if AppKit keeps the window alive.
+    func teardown() {
+        onSave = nil
+        aiViewModel.clearSessionData()
+        editState.releaseData()
+        NotificationCenter.default.removeObserver(self) // swiftlint:disable:this notification_center_detachment
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }

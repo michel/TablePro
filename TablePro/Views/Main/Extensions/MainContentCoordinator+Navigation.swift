@@ -224,6 +224,23 @@ extension MainContentCoordinator {
             GROUP BY s.name, t.name, p.rows, v.object_id
             ORDER BY t.name
             """
+        case .oracle:
+            let schema: String
+            if let oracleDriver = DatabaseManager.shared.driver(for: connectionId) as? OracleDriver {
+                schema = oracleDriver.escapedSchema
+            } else {
+                schema = "SYSTEM"
+            }
+            sql = """
+            SELECT
+                OWNER as schema_name,
+                TABLE_NAME as name,
+                'TABLE' as kind,
+                NUM_ROWS as estimated_rows
+            FROM ALL_TABLES
+            WHERE OWNER = '\(schema)'
+            ORDER BY TABLE_NAME
+            """
         case .mongodb:
             tabManager.addTab(
                 initialQuery: "db.runCommand({\"listCollections\": 1, \"nameOnly\": false})",
@@ -353,6 +370,29 @@ extension MainContentCoordinator {
 
                 // Force sidebar reload — posting .refreshData ensures loadTables() runs
                 // even when session.tables was already [] (e.g. switching from empty schema back to public)
+                NotificationCenter.default.post(name: .refreshData, object: nil)
+            } else if connection.type == .oracle {
+                if let oracleDriver = driver as? OracleDriver {
+                    try await oracleDriver.switchSchema(to: database)
+                }
+
+                if let oracleMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? OracleDriver {
+                    try? await oracleMeta.switchSchema(to: database)
+                }
+
+                DatabaseManager.shared.updateSession(connectionId) { session in
+                    session.currentSchema = database
+                    session.tables = []
+                }
+
+                toolbarState.databaseName = database
+
+                closeSiblingNativeWindows()
+                tabManager.tabs = []
+                tabManager.selectedTabId = nil
+
+                await loadSchema()
+
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .mssql {
                 if let mssqlDriver = driver as? MSSQLDriver {

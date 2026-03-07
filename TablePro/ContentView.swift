@@ -25,7 +25,8 @@ struct ContentView: View {
     @State private var connectionToDelete: DatabaseConnection?
     @State private var showDeleteConfirmation = false
     @State private var hasLoaded = false
-    @State private var rightPanelState = RightPanelState()
+    @State private var rightPanelState: RightPanelState?
+    @State private var sessionState: SessionStateFactory.SessionState?
     @State private var inspectorContext = InspectorContext.empty
     @State private var windowTitle: String
     @Environment(\.openWindow)
@@ -104,6 +105,15 @@ struct ContentView: View {
                     currentSession = DatabaseManager.shared.activeSessions[connectionId]
                     columnVisibility = currentSession != nil ? .all : .detailOnly
                     if let session = currentSession {
+                        if rightPanelState == nil {
+                            rightPanelState = RightPanelState()
+                        }
+                        if sessionState == nil {
+                            sessionState = SessionStateFactory.create(
+                                connection: session.connection,
+                                payload: payload
+                            )
+                        }
                         AppState.shared.isConnected = true
                         AppState.shared.isReadOnly = session.connection.isReadOnly
                         AppState.shared.isMongoDB = session.connection.type == .mongodb
@@ -123,12 +133,32 @@ struct ContentView: View {
                 }
                 guard let newSession = sessions[sid] else {
                     if currentSession?.id == sid {
+                        rightPanelState?.teardown()
+                        rightPanelState = nil
+                        sessionState?.coordinator.teardown()
+                        sessionState = nil
                         currentSession = nil
                         columnVisibility = .detailOnly
                         AppState.shared.isConnected = false
                         AppState.shared.isReadOnly = false
                         AppState.shared.isMongoDB = false
                         AppState.shared.isRedis = false
+
+                        // Close all native tab windows for this connection and
+                        // force AppKit to deallocate them instead of pooling.
+                        let tabbingId = "com.TablePro.main.\(sid.uuidString)"
+                        DispatchQueue.main.async {
+                            for window in NSApp.windows where window.tabbingIdentifier == tabbingId {
+                                window.isReleasedWhenClosed = true
+                                window.close()
+                            }
+                            malloc_zone_pressure_relief(nil, 0)
+                        }
+
+                        // Defer a second malloc pass after SwiftUI processes state changes
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            malloc_zone_pressure_relief(nil, 0)
+                        }
                     }
                     return
                 }
@@ -137,6 +167,15 @@ struct ContentView: View {
                     return
                 }
                 currentSession = newSession
+                if rightPanelState == nil {
+                    rightPanelState = RightPanelState()
+                }
+                if sessionState == nil {
+                    sessionState = SessionStateFactory.create(
+                        connection: newSession.connection,
+                        payload: payload
+                    )
+                }
                 AppState.shared.isConnected = true
                 AppState.shared.isReadOnly = newSession.connection.isReadOnly
                 AppState.shared.isMongoDB = newSession.connection.type == .mongodb
@@ -178,7 +217,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var mainContent: some View {
-        if let currentSession = currentSession {
+        if let currentSession = currentSession, let rightPanelState, let sessionState {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 // MARK: - Sidebar (Left) - Table Browser
                 VStack(spacing: 0) {
@@ -210,7 +249,12 @@ struct ContentView: View {
                     pendingDeletes: sessionPendingDeletesBinding,
                     tableOperationOptions: sessionTableOperationOptionsBinding,
                     inspectorContext: $inspectorContext,
-                    rightPanelState: rightPanelState
+                    rightPanelState: rightPanelState,
+                    tabManager: sessionState.tabManager,
+                    changeManager: sessionState.changeManager,
+                    filterStateManager: sessionState.filterStateManager,
+                    toolbarState: sessionState.toolbarState,
+                    coordinator: sessionState.coordinator
                 )
                 .inspector(isPresented: Bindable(rightPanelState).isPresented) {
                     UnifiedRightPanelView(
@@ -222,7 +266,6 @@ struct ContentView: View {
                     .frame(minWidth: 280, maxWidth: 500)
                     .inspectorColumnWidth(min: 280, ideal: 320, max: 500)
                 }
-                .id(currentSession.id)
             }
             .navigationTitle(windowTitle)
             .navigationSubtitle(currentSession.connection.name)

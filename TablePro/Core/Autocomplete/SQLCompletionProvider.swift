@@ -512,6 +512,16 @@ final class SQLCompletionProvider {
                 "ROWVERSION", "HIERARCHYID",
             ]
 
+        case .oracle:
+            types += [
+                "NUMBER", "BINARY_FLOAT", "BINARY_DOUBLE",
+                "VARCHAR2", "NVARCHAR2", "NCHAR", "NCLOB",
+                "CLOB", "LONG", "RAW", "LONG RAW", "BFILE",
+                "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE",
+                "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND",
+                "ROWID", "UROWID", "XMLTYPE", "SDO_GEOMETRY",
+            ]
+
         case .sqlite:
             types += [
                 "BLOB",

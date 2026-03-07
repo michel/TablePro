@@ -158,6 +158,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     case mongodb = "MongoDB"
     case redis = "Redis"
     case mssql = "SQL Server"
+    case oracle = "Oracle"
 
     var id: String { rawValue }
 
@@ -180,6 +181,8 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return "redis-icon"
         case .mssql:
             return "mssql-icon"
+        case .oracle:
+            return "oracle-icon"
         }
     }
 
@@ -193,6 +196,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .mongodb: return 27_017
         case .redis: return 6_379
         case .mssql: return 1_433
+        case .oracle: return 1_521
         }
     }
 
@@ -201,7 +205,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// MongoDB and SQLite commonly run without authentication.
     var requiresAuthentication: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .redshift, .mssql: return true
+        case .mysql, .mariadb, .postgresql, .redshift, .mssql, .oracle: return true
         case .sqlite, .mongodb, .redis: return false
         }
     }
@@ -209,7 +213,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// Whether this database type supports foreign key constraints
     var supportsForeignKeys: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .sqlite, .redshift, .mssql:
+        case .mysql, .mariadb, .postgresql, .sqlite, .redshift, .mssql, .oracle:
             return true
         case .mongodb, .redis:
             return false
@@ -221,6 +225,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .mysql, .mariadb: return "START TRANSACTION"
         case .postgresql, .redshift, .sqlite: return "BEGIN"
         case .mssql: return "BEGIN TRANSACTION"
+        case .oracle: return ""
         case .mongodb, .redis: return ""
         }
     }
@@ -228,7 +233,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// Whether this database type supports SQL-based schema editing (ALTER TABLE etc.)
     var supportsSchemaEditing: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .sqlite, .mssql:
+        case .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle:
             return true
         case .redshift, .mongodb, .redis:
             return false
@@ -241,7 +246,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .sqlite:
             return "`"
-        case .postgresql, .redshift, .mongodb, .redis:
+        case .postgresql, .redshift, .mongodb, .redis, .oracle:
             return "\""
         case .mssql:
             return "["
@@ -335,6 +340,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var mongoWriteConcern: String?
     var redisDatabase: Int?
     var mssqlSchema: String?
+    var oracleServiceName: String?
 
     init(
         id: UUID = UUID(),
@@ -354,7 +360,8 @@ struct DatabaseConnection: Identifiable, Hashable {
         mongoReadPreference: String? = nil,
         mongoWriteConcern: String? = nil,
         redisDatabase: Int? = nil,
-        mssqlSchema: String? = nil
+        mssqlSchema: String? = nil,
+        oracleServiceName: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -374,6 +381,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.mongoWriteConcern = mongoWriteConcern
         self.redisDatabase = redisDatabase
         self.mssqlSchema = mssqlSchema
+        self.oracleServiceName = oracleServiceName
     }
 
     /// Returns the display color (custom color or database type color)
