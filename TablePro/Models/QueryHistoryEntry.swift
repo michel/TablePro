@@ -67,7 +67,7 @@ struct QueryHistoryEntry: Identifiable, Codable, Hashable {
         if !trimmed.hasSuffix(";") {
             trimmed += ";"
         }
-        if trimmed.count > 100 {
+        if (trimmed as NSString).length > 100 {
             return String(trimmed.prefix(100)) + "..."
         }
         return trimmed

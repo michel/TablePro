@@ -41,10 +41,6 @@ internal actor TabDiskActor {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    /// Maximum query size to persist (500KB). Larger queries (e.g., imported SQL dumps)
-    /// would cause excessive file I/O.
-    private static let maxPersistableQuerySize = 500_000
-
     private init() {
         tabStateDirectory = Self.resolvedTabStateDirectory()
 
@@ -117,7 +113,7 @@ internal actor TabDiskActor {
 
     /// Save the last query text for a connection. Skips if query exceeds 500KB.
     internal func saveLastQuery(_ query: String, for connectionId: UUID) {
-        guard (query as NSString).length < Self.maxPersistableQuerySize else { return }
+        guard (query as NSString).length < QueryTab.maxPersistableQuerySize else { return }
 
         let fileURL = lastQueryFileURL(for: connectionId)
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -45,8 +45,6 @@ struct MainStatusBarView: View {
 
             Spacer()
 
-            Spacer()
-
             // Center: Row info (selection or pagination summary)
             if let tab = tab, !tab.resultRows.isEmpty {
                 Text(rowInfoText(for: tab))

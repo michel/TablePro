@@ -212,11 +212,6 @@ struct MainEditorContentView: View {
         }
     }
 
-    /// Maximum query size to persist (500KB). Queries larger than this are typically
-    /// imported SQL dumps — serializing 40MB to JSON + writing to UserDefaults
-    /// blocks the main thread for 10-30+ seconds, freezing the app.
-    private static let maxPersistableQuerySize = 500_000
-
     private func queryTextBinding(for tab: QueryTab) -> Binding<String> {
         let tabId = tab.id
         return Binding(
@@ -235,7 +230,7 @@ struct MainEditorContentView: View {
                 // Skip persistence for very large queries (e.g., imported SQL dumps).
                 // JSON-encoding 40MB freezes the main thread.
                 let queryLength = (newValue as NSString).length
-                guard queryLength < Self.maxPersistableQuerySize else { return }
+                guard queryLength < QueryTab.maxPersistableQuerySize else { return }
 
                 coordinator.persistence.saveLastQuery(newValue)
             }
