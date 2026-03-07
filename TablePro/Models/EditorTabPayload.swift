@@ -27,6 +27,8 @@ internal struct EditorTabPayload: Codable, Hashable {
     internal let isView: Bool
     /// Whether to show the structure view instead of data (for "Show Structure" context menu)
     internal let showStructure: Bool
+    /// Whether to skip automatic query execution (used for restored tabs that should lazy-load)
+    internal let skipAutoExecute: Bool
 
     internal init(
         id: UUID = UUID(),
@@ -36,7 +38,8 @@ internal struct EditorTabPayload: Codable, Hashable {
         databaseName: String? = nil,
         initialQuery: String? = nil,
         isView: Bool = false,
-        showStructure: Bool = false
+        showStructure: Bool = false,
+        skipAutoExecute: Bool = false
     ) {
         self.id = id
         self.connectionId = connectionId
@@ -46,6 +49,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.initialQuery = initialQuery
         self.isView = isView
         self.showStructure = showStructure
+        self.skipAutoExecute = skipAutoExecute
     }
 
     internal init(from decoder: Decoder) throws {
@@ -58,6 +62,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         initialQuery = try container.decodeIfPresent(String.self, forKey: .initialQuery)
         isView = try container.decodeIfPresent(Bool.self, forKey: .isView) ?? false
         showStructure = try container.decodeIfPresent(Bool.self, forKey: .showStructure) ?? false
+        skipAutoExecute = try container.decodeIfPresent(Bool.self, forKey: .skipAutoExecute) ?? false
     }
 
     /// Whether this payload is a "connection-only" payload — just a connectionId
@@ -68,7 +73,7 @@ internal struct EditorTabPayload: Codable, Hashable {
     }
 
     /// Create a payload from a persisted QueryTab for restoration
-    internal init(from tab: QueryTab, connectionId: UUID) {
+    internal init(from tab: QueryTab, connectionId: UUID, skipAutoExecute: Bool = false) {
         self.id = UUID()
         self.connectionId = connectionId
         self.tabType = tab.tabType
@@ -77,5 +82,6 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.initialQuery = tab.query
         self.isView = tab.isView
         self.showStructure = tab.showStructure
+        self.skipAutoExecute = skipAutoExecute
     }
 }

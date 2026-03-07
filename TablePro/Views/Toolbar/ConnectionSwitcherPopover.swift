@@ -325,7 +325,7 @@ struct ConnectionSwitcherPopover: View {
 
     /// Find an existing visible window for the given connection ID
     private func findWindow(for connectionId: UUID) -> NSWindow? {
-        NativeTabRegistry.shared.findWindow(for: connectionId)
+        WindowLifecycleMonitor.shared.findWindow(for: connectionId)
     }
 
     /// Open a new window for a different connection, ensuring it doesn't

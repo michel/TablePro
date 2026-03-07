@@ -94,18 +94,26 @@ struct ContentView: View {
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
             .onChange(of: DatabaseManager.shared.currentSessionId, initial: true) { _, newSessionId in
                 let ourConnectionId = payload?.connectionId
+                Self.logger.info("[TabRestore] ContentView.currentSessionId changed → new=\(newSessionId?.uuidString ?? "nil", privacy: .public), ourConnectionId=\(ourConnectionId?.uuidString ?? "nil", privacy: .public)")
                 // Windows with a payload only react to their own connection
                 if ourConnectionId != nil {
-                    guard newSessionId == ourConnectionId else { return }
+                    guard newSessionId == ourConnectionId else {
+                        Self.logger.info("[TabRestore] ContentView → ignoring session change (not ours)")
+                        return
+                    }
                 } else {
                     // No payload (legacy path): only pick up the initial connection,
                     // don't switch once we already have one
-                    guard currentSession == nil else { return }
+                    guard currentSession == nil else {
+                        Self.logger.info("[TabRestore] ContentView → ignoring (already have session)")
+                        return
+                    }
                 }
 
                 if let connectionId = ourConnectionId ?? newSessionId {
                     currentSession = DatabaseManager.shared.activeSessions[connectionId]
                     columnVisibility = currentSession != nil ? .all : .detailOnly
+                    Self.logger.info("[TabRestore] ContentView → session resolved: \(currentSession != nil ? "connected" : "nil", privacy: .public)")
                     if let session = currentSession {
                         AppState.shared.isConnected = true
                         AppState.shared.isReadOnly = session.connection.isReadOnly
@@ -122,12 +130,14 @@ struct ContentView: View {
                 // Use our payload's connectionId, or our current session's id if already connected,
                 // or lastly the global currentSessionId (only for initial bootstrap)
                 let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
+                Self.logger.info("[TabRestore] ContentView.sessionVersion changed → resolvedId=\(connectionId?.uuidString ?? "nil", privacy: .public), activeSessions=\(sessions.count)")
                 guard let sid = connectionId else {
                     if currentSession != nil { currentSession = nil }
                     return
                 }
                 guard let newSession = sessions[sid] else {
                     // Session was removed (disconnected)
+                    Self.logger.info("[TabRestore] ContentView → session removed (disconnected) for \(sid)")
                     if currentSession?.id == sid {
                         currentSession = nil
                         columnVisibility = .detailOnly
@@ -148,15 +158,30 @@ struct ContentView: View {
                 AppState.shared.isMongoDB = newSession.connection.type == .mongodb
                 AppState.shared.isRedis = newSession.connection.type == .redis
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-                // Sync AppState flags from this window's session when it becomes focused
-                if let connectionId = payload?.connectionId,
-                   let session = DatabaseManager.shared.activeSessions[connectionId] {
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                // Only process notifications for our own window to avoid every
+                // ContentView instance re-rendering on every window focus change.
+                // Match by checking if the window is registered for our connectionId
+                // in WindowLifecycleMonitor (subtitle may not be set yet on first appear).
+                guard let notificationWindow = notification.object as? NSWindow,
+                      notificationWindow.identifier?.rawValue.contains("main") == true,
+                      let connectionId = payload?.connectionId
+                else { return }
+
+                // Verify this notification is for our window. Check WindowLifecycleMonitor
+                // first (reliable after onAppear registers), fall back to subtitle match
+                // for the brief window before registration completes.
+                let isOurWindow = WindowLifecycleMonitor.shared.windows(for: connectionId)
+                    .contains(where: { $0 === notificationWindow })
+                    || notificationWindow.subtitle == currentSession?.connection.name
+                guard isOurWindow else { return }
+
+                if let session = DatabaseManager.shared.activeSessions[connectionId] {
                     AppState.shared.isConnected = true
                     AppState.shared.isReadOnly = session.connection.isReadOnly
                     AppState.shared.isMongoDB = session.connection.type == .mongodb
                     AppState.shared.isRedis = session.connection.type == .redis
-                } else if payload?.connectionId != nil {
+                } else {
                     AppState.shared.isConnected = false
                     AppState.shared.isReadOnly = false
                     AppState.shared.isMongoDB = false

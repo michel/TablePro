@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix SSH askpass script written with world-readable permissions; now uses atomic `0o700` creation and immediate cleanup
 - Fix potential dict mutation during iteration in `DatabaseManager.disconnectAll()`
 - Fix welcome screen showing blank panel when connections have orphaned group IDs
+- Fix multiple tabs auto-executing queries simultaneously on connection restore, causing lag
+- Fix welcome window becoming oversized after closing main windows due to AppKit scene restoration
 
 ## [0.14.1] - 2026-03-06
 

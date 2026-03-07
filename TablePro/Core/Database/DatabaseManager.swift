@@ -157,16 +157,6 @@ final class DatabaseManager {
                 session.status = driver.status
                 session.effectiveConnection = effectiveConnection
 
-                // Restore tab state if it exists (offload file I/O from main thread)
-                let connId = connection.id
-                let tabState = await Task.detached(priority: .userInitiated) {
-                    TabStateStorage.shared.loadTabState(connectionId: connId)
-                }.value
-                if let tabState {
-                    session.tabs = tabState.tabs.map { QueryTab(from: $0) }
-                    session.selectedTabId = tabState.selectedTabId
-                }
-
                 activeSessions[connection.id] = session  // Single write, single publish
             }
 

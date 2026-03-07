@@ -52,7 +52,7 @@ final class MainContentCoordinator {
     // MARK: - Services
 
     internal let queryBuilder: TableQueryBuilder
-    let tabPersistence: TabPersistenceService
+    let persistence: TabPersistenceCoordinator
     @ObservationIgnored internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
     }()
@@ -76,6 +76,7 @@ final class MainContentCoordinator {
     @ObservationIgnored internal var currentQueryTask: Task<Void, Never>?
     @ObservationIgnored private var changeManagerUpdateTask: Task<Void, Never>?
     @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var terminationObserver: NSObjectProtocol?
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     internal var isHandlingTabSwitch = false
@@ -96,9 +97,13 @@ final class MainContentCoordinator {
     /// so deinit doesn't warn if SwiftUI deallocates before the delayed Task fires
     @ObservationIgnored nonisolated(unsafe) private var teardownScheduled = false
 
+    /// Whether teardown is scheduled or already completed — used by views to skip
+    /// persistence during window close teardown
+    var isTearingDown: Bool { teardownScheduled || didTeardown }
+
     /// Set when NSApplication is terminating — suppresses deinit warning since
     /// SwiftUI does not call onDisappear during app termination
-    private nonisolated(unsafe) static let _isAppTerminating = OSAllocatedUnfairLock(initialState: false)
+    nonisolated private static let _isAppTerminating = OSAllocatedUnfairLock(initialState: false)
     nonisolated static var isAppTerminating: Bool {
         get { _isAppTerminating.withLock { $0 } }
         set { _isAppTerminating.withLock { $0 = newValue } }
@@ -140,11 +145,29 @@ final class MainContentCoordinator {
         self.filterStateManager = filterStateManager
         self.toolbarState = toolbarState
         self.queryBuilder = TableQueryBuilder(databaseType: connection.type)
-        self.tabPersistence = TabPersistenceService(connectionId: connection.id)
+        self.persistence = TabPersistenceCoordinator(connectionId: connection.id)
 
         self.schemaProvider = SchemaProviderRegistry.shared.getOrCreate(for: connection.id)
         SchemaProviderRegistry.shared.retain(for: connection.id)
         setupURLNotificationObservers()
+
+        // Synchronous save at quit time. NotificationCenter with queue: .main
+        // delivers the closure on the main thread, satisfying assumeIsolated's
+        // precondition. The write completes before the process exits — unlike
+        // Task-based saves that need a run loop.
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.isTearingDown else { return }
+                self.persistence.saveNowSync(
+                    tabs: self.tabManager.tabs,
+                    selectedTabId: self.tabManager.selectedTabId
+                )
+            }
+        }
 
         _ = Self.registerTerminationObserver
     }
@@ -165,6 +188,10 @@ final class MainContentCoordinator {
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
         didTeardown = true
+        if let observer = terminationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            terminationObserver = nil
+        }
         currentQueryTask?.cancel()
         currentQueryTask = nil
         changeManagerUpdateTask?.cancel()
