@@ -33,7 +33,7 @@ final class DatabaseSwitcherViewModel {
     var showPreview = false
     var mode: Mode
 
-    /// Whether we're switching schemas (Redshift or PostgreSQL in schema mode)
+    /// Whether we're switching schemas (Redshift, CockroachDB, or PostgreSQL in schema mode)
     var isSchemaMode: Bool { mode == .schema }
 
     // MARK: - Dependencies
@@ -77,7 +77,7 @@ final class DatabaseSwitcherViewModel {
         self.currentDatabase = currentDatabase
         self.currentSchema = currentSchema
         self.databaseType = databaseType
-        self.mode = databaseType == .redshift ? .schema : .database
+        self.mode = (databaseType == .redshift || databaseType == .cockroachdb) ? .schema : .database
         self.recentDatabases = UserDefaults.standard.recentDatabases(for: connectionId)
     }
 

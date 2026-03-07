@@ -90,10 +90,26 @@ final class OracleConnection: @unchecked Sendable {
     }
 
     private func connectSync() throws {
+        var didConnect = false
+        defer {
+            if !didConnect {
+                if let ses = sesHandle { OCIHandleFree(ses, UInt32(OCI_HTYPE_SESSION)) }
+                if let svc = svcHandle { OCIHandleFree(svc, UInt32(OCI_HTYPE_SVCCTX)) }
+                if let srv = srvHandle { OCIHandleFree(srv, UInt32(OCI_HTYPE_SERVER)) }
+                if let err = errHandle { OCIHandleFree(err, UInt32(OCI_HTYPE_ERROR)) }
+                if let env = envHandle { OCIHandleFree(env, UInt32(OCI_HTYPE_ENV)) }
+                sesHandle = nil
+                svcHandle = nil
+                srvHandle = nil
+                errHandle = nil
+                envHandle = nil
+            }
+        }
+
         // Create OCI environment
         var env: UnsafeMutableRawPointer?
         var status = OCIEnvCreate(
-            &envHandle, UInt32(OCI_THREADED),
+            &envHandle, UInt32(OCI_THREADED | OCI_OBJECT),
             nil, nil, nil, nil, 0, nil
         )
         guard status == Int32(OCI_SUCCESS), envHandle != nil else {
@@ -133,7 +149,7 @@ final class OracleConnection: @unchecked Sendable {
         }
         guard status == Int32(OCI_SUCCESS) || status == Int32(OCI_SUCCESS_WITH_INFO) else {
             let detail = getErrorMessage()
-            throw OracleError(message: "Failed to connect to \(host):\(port) \u{2014} \(detail)")
+            throw OracleError(message: "Failed to connect to \(host):\(port): \(detail)")
         }
 
         // Allocate service context
@@ -197,7 +213,7 @@ final class OracleConnection: @unchecked Sendable {
         )
         guard status == Int32(OCI_SUCCESS) || status == Int32(OCI_SUCCESS_WITH_INFO) else {
             let detail = getErrorMessage()
-            throw OracleError(message: "Authentication failed \u{2014} \(detail)")
+            throw OracleError(message: "Authentication failed: \(detail)")
         }
 
         // Set session on service context
@@ -214,29 +230,31 @@ final class OracleConnection: @unchecked Sendable {
         _isConnected = true
         lock.unlock()
 
+        didConnect = true
         logger.debug("Connected to Oracle \(self.host):\(self.port)/\(self.database)")
     }
 
     func disconnect() {
         lock.lock()
-        let wasConnected = _isConnected
+        guard _isConnected else {
+            lock.unlock()
+            return
+        }
         _isConnected = false
         lock.unlock()
 
-        guard wasConnected else { return }
-
-        queue.async { [self] in
-            if let ses = sesHandle, let svc = svcHandle, let err = errHandle {
-                _ = OCISessionEnd(svc, err, ses, UInt32(OCI_DEFAULT))
+        queue.sync { [self] in
+            if let ses = self.sesHandle {
+                OCISessionEnd(self.svcHandle, self.errHandle, ses, UInt32(OCI_DEFAULT))
             }
-            if let srv = srvHandle, let err = errHandle {
-                _ = OCIServerDetach(srv, err, UInt32(OCI_DEFAULT))
+            if let srv = self.srvHandle {
+                OCIServerDetach(srv, self.errHandle, UInt32(OCI_DEFAULT))
             }
-            if let ses = sesHandle { _ = OCIHandleFree(ses, UInt32(OCI_HTYPE_SESSION)) }
-            if let svc = svcHandle { _ = OCIHandleFree(svc, UInt32(OCI_HTYPE_SVCCTX)) }
-            if let srv = srvHandle { _ = OCIHandleFree(srv, UInt32(OCI_HTYPE_SERVER)) }
-            if let err = errHandle { _ = OCIHandleFree(err, UInt32(OCI_HTYPE_ERROR)) }
-            if let env = envHandle { _ = OCIHandleFree(env, UInt32(OCI_HTYPE_ENV)) }
+            if let ses = self.sesHandle { OCIHandleFree(ses, UInt32(OCI_HTYPE_SESSION)) }
+            if let svc = self.svcHandle { OCIHandleFree(svc, UInt32(OCI_HTYPE_SVCCTX)) }
+            if let srv = self.srvHandle { OCIHandleFree(srv, UInt32(OCI_HTYPE_SERVER)) }
+            if let err = self.errHandle { OCIHandleFree(err, UInt32(OCI_HTYPE_ERROR)) }
+            if let env = self.envHandle { OCIHandleFree(env, UInt32(OCI_HTYPE_ENV)) }
 
             self.sesHandle = nil
             self.svcHandle = nil
@@ -288,11 +306,11 @@ final class OracleConnection: @unchecked Sendable {
             throw OracleError(message: "Failed to prepare query: \(detail)")
         }
 
-        // Determine if this is a SELECT (iters=0) or DML (iters=1)
-        let isSelect = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            .uppercased().hasPrefix("SELECT")
-            || query.trimmingCharacters(in: .whitespacesAndNewlines)
-            .uppercased().hasPrefix("WITH")
+        // Use OCI statement type detection instead of string matching
+        var stmtType: UInt16 = 0
+        var stmtTypeSize: UInt32 = UInt32(MemoryLayout<UInt16>.size)
+        OCIAttrGet(stmt, UInt32(OCI_HTYPE_STMT), &stmtType, &stmtTypeSize, UInt32(OCI_ATTR_STMT_TYPE), err)
+        let isSelect = stmtType == UInt16(OCI_STMT_SELECT)
         let iters: UInt32 = isSelect ? 0 : 1
 
         // Execute
