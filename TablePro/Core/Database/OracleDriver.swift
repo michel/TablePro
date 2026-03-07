@@ -14,7 +14,7 @@ final class OracleDriver: DatabaseDriver {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 
-    private var oracleConn: OracleConnection?
+    private var oracleConn: OracleConnectionWrapper?
 
     private(set) var currentSchema: String = ""
 
@@ -35,7 +35,7 @@ final class OracleDriver: DatabaseDriver {
 
     func connect() async throws {
         status = .connecting
-        let conn = OracleConnection(
+        let conn = OracleConnectionWrapper(
             host: connection.host,
             port: connection.port,
             user: connection.username,
@@ -79,8 +79,35 @@ final class OracleDriver: DatabaseDriver {
             throw DatabaseError.connectionFailed("Not connected to Oracle")
         }
         let startTime = Date()
-        let result = try await conn.executeQuery(query)
-        return mapToQueryResult(result, executionTime: Date().timeIntervalSince(startTime))
+        var result = try await conn.executeQuery(query)
+        let executionTime = Date().timeIntervalSince(startTime)
+
+        // OracleNIO may not populate column metadata for empty result sets.
+        // Fall back to ALL_TAB_COLUMNS to get column names for the table.
+        if result.columns.isEmpty && result.rows.isEmpty {
+            if let table = Self.extractTableNameFromSelect(query) {
+                let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+                let colSQL = """
+                    SELECT COLUMN_NAME, DATA_TYPE FROM ALL_TAB_COLUMNS \
+                    WHERE OWNER = '\(escapedSchema)' AND TABLE_NAME = '\(escapedTable)' \
+                    ORDER BY COLUMN_ID
+                    """
+                if let colResult = try? await conn.executeQuery(colSQL) {
+                    let colNames = colResult.rows.compactMap { $0.first ?? nil }
+                    let colTypes = colResult.rows.map { ($0[safe: 1] ?? nil)?.lowercased() ?? "varchar2" }
+                    if !colNames.isEmpty {
+                        result = OracleQueryResult(
+                            columns: colNames,
+                            columnTypeNames: colTypes,
+                            rows: [],
+                            affectedRows: 0
+                        )
+                    }
+                }
+            }
+        }
+
+        return mapToQueryResult(result, executionTime: executionTime)
     }
 
     func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
@@ -311,7 +338,7 @@ final class OracleDriver: DatabaseDriver {
                   let columnName = row[safe: 1] ?? nil,
                   let refTable = row[safe: 2] ?? nil,
                   let refColumn = row[safe: 3] ?? nil else { return nil }
-            let deleteRule = row[safe: 4] ?? nil ?? "NO ACTION"
+            let deleteRule = (row[safe: 4] ?? nil) ?? "NO ACTION"
             return ForeignKeyInfo(
                 name: constraintName,
                 column: columnName,
@@ -426,7 +453,7 @@ final class OracleDriver: DatabaseDriver {
         let sql = """
             SELECT
                 (SELECT COUNT(*) FROM ALL_TABLES WHERE OWNER = '\(escapedDb)') AS table_count,
-                (SELECT NVL(SUM(BYTES), 0) FROM DBA_SEGMENTS WHERE OWNER = '\(escapedDb)') AS size_bytes
+                (SELECT NVL(SUM(BYTES), 0) FROM ALL_SEGMENTS WHERE OWNER = '\(escapedDb)') AS size_bytes
             FROM DUAL
             """
         do {
@@ -467,6 +494,26 @@ final class OracleDriver: DatabaseDriver {
     }
 
     // MARK: - Private Helpers
+
+    private static let fromTableRegex = try? NSRegularExpression(
+        pattern: #"FROM\s+"([^"]+)""#,
+        options: .caseInsensitive
+    )
+
+    private static func extractTableNameFromSelect(_ sql: String) -> String? {
+        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.range(of: "^SELECT\\b", options: [.regularExpression, .caseInsensitive]) != nil else {
+            return nil
+        }
+        let ns = trimmed as NSString
+        guard let match = fromTableRegex?.firstMatch(
+            in: trimmed,
+            range: NSRange(location: 0, length: ns.length)
+        ), match.numberOfRanges >= 2 else {
+            return nil
+        }
+        return ns.substring(with: match.range(at: 1))
+    }
 
     private func mapToQueryResult(_ oracleResult: OracleQueryResult, executionTime: TimeInterval) -> QueryResult {
         let columnTypes = oracleResult.columnTypeNames.map { rawType in

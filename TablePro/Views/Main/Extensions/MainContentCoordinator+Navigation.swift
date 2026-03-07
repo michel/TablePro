@@ -170,27 +170,6 @@ extension MainContentCoordinator {
             WHERE schema = '\(schema)'
             ORDER BY "table"
             """
-        case .cockroachdb:
-            let schema: String
-            if let crdbDriver = DatabaseManager.shared.driver(for: connectionId) as? CockroachDBDriver {
-                schema = crdbDriver.escapedSchema
-            } else {
-                schema = "public"
-            }
-            sql = """
-            SELECT
-                schemaname as schema,
-                relname as name,
-                'TABLE' as kind,
-                n_live_tup as estimated_rows,
-                pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) as total_size,
-                pg_size_pretty(pg_relation_size(schemaname||'.'||relname)) as data_size,
-                pg_size_pretty(pg_indexes_size(schemaname||'.'||relname)) as index_size,
-                obj_description((schemaname||'.'||relname)::regclass) as comment
-            FROM pg_stat_user_tables
-            WHERE schemaname = '\(schema)'
-            ORDER BY relname
-            """
         case .mysql, .mariadb:
             sql = """
             SELECT
@@ -358,12 +337,10 @@ extension MainContentCoordinator {
                 await loadSchema()
 
                 NotificationCenter.default.post(name: .refreshData, object: nil)
-            } else if connection.type == .redshift || connection.type == .cockroachdb {
-                // Redshift/CockroachDB: switch schema
+            } else if connection.type == .redshift {
+                // Redshift: switch schema
                 if let rsDriver = driver as? RedshiftDriver {
                     try await rsDriver.switchSchema(to: database)
-                } else if let crdbDriver = driver as? CockroachDBDriver {
-                    try await crdbDriver.switchSchema(to: database)
                 } else {
                     return
                 }
@@ -371,8 +348,6 @@ extension MainContentCoordinator {
                 // Also switch metadata driver's schema
                 if let rsMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedshiftDriver {
                     try? await rsMeta.switchSchema(to: database)
-                } else if let crdbMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? CockroachDBDriver {
-                    try? await crdbMeta.switchSchema(to: database)
                 }
 
                 // Update session

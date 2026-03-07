@@ -303,15 +303,15 @@ final class MainContentCoordinator {
     /// Default row limit for query tabs to prevent unbounded result sets
     private static let defaultQueryLimit = 10_000
 
-    /// Pre-compiled regex for detecting existing LIMIT clause in SELECT queries
+    /// Pre-compiled regex for detecting existing LIMIT/FETCH/TOP clause in SELECT queries
     private static let limitClauseRegex = try? NSRegularExpression(
-        pattern: "\\bLIMIT\\s+\\d+",
+        pattern: "\\b(?:LIMIT\\s+\\d+|FETCH\\s+(?:FIRST|NEXT)\\s+\\d+\\s+ROWS?\\s+ONLY|TOP\\s+\\d+)",
         options: .caseInsensitive
     )
 
     /// Pre-compiled regex for extracting table name from SELECT queries
     private static let tableNameRegex = try? NSRegularExpression(
-        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+(?:\[(\w+)\]|[`"]?(\w+)[`"]?)\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|OFFSET|$|;)"#,
+        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+(?:\[([^\]]+)\]|[`"]([^`"]+)[`"]|([\w$]+))\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|OFFSET|FETCH|$|;)"#,
         options: []
     )
 
@@ -446,7 +446,7 @@ final class MainContentCoordinator {
             return
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .redshift, .cockroachdb:
+        case .mysql, .mariadb, .postgresql, .redshift:
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)
@@ -485,7 +485,7 @@ final class MainContentCoordinator {
         // DAT-1: For query tabs, auto-append LIMIT if the SQL is a SELECT without one
         let effectiveSQL: String
         if tab.tabType == .query {
-            effectiveSQL = Self.addLimitIfNeeded(to: sql, limit: Self.defaultQueryLimit)
+            effectiveSQL = Self.addLimitIfNeeded(to: sql, limit: Self.defaultQueryLimit, dbType: connection.type)
         } else {
             effectiveSQL = sql
         }
@@ -598,14 +598,24 @@ final class MainContentCoordinator {
                 }
 
                 // Phase 2: Background exact COUNT + enum values.
-                if isEditable, let tableName = tableName, needsMetadataFetch {
-                    launchPhase2Work(
-                        tableName: tableName,
-                        tabId: tabId,
-                        capturedGeneration: capturedGeneration,
-                        connectionType: conn.type,
-                        schemaResult: schemaResult
-                    )
+                if isEditable, let tableName = tableName {
+                    if needsMetadataFetch {
+                        launchPhase2Work(
+                            tableName: tableName,
+                            tabId: tabId,
+                            capturedGeneration: capturedGeneration,
+                            connectionType: conn.type,
+                            schemaResult: schemaResult
+                        )
+                    } else {
+                        // Metadata cached but still need exact COUNT for pagination
+                        launchPhase2Count(
+                            tableName: tableName,
+                            tabId: tabId,
+                            capturedGeneration: capturedGeneration,
+                            connectionType: conn.type
+                        )
+                    }
                 } else if !isEditable || tableName == nil {
                     await MainActor.run { [weak self] in
                         guard let self else { return }
@@ -675,26 +685,39 @@ final class MainContentCoordinator {
 
     // MARK: - Query Limit Protection
 
-    /// Appends a LIMIT clause to SELECT queries that don't already have one.
-    /// Protects query tabs from unbounded result sets (e.g., SELECT * FROM million_row_table).
-    private static func addLimitIfNeeded(to sql: String, limit: Int) -> String {
+    /// Appends a row-limiting clause to SELECT queries that don't already have one.
+    /// Uses database-appropriate syntax (LIMIT, FETCH FIRST, TOP).
+    private static func addLimitIfNeeded(to sql: String, limit: Int, dbType: DatabaseType) -> String {
         let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         let uppercased = trimmed.uppercased()
 
         // Only apply to SELECT statements
         guard uppercased.hasPrefix("SELECT ") else { return sql }
 
-        // Check if query already has a LIMIT clause
+        // Skip for databases that don't support row limiting via SQL
+        guard dbType != .mongodb, dbType != .redis else { return sql }
+
+        // Check if query already has a LIMIT/FETCH/TOP clause
         let range = NSRange(trimmed.startIndex..., in: trimmed)
         if limitClauseRegex?.firstMatch(in: trimmed, options: [], range: range) != nil {
             return sql
         }
 
-        // Strip trailing semicolon, append LIMIT, and re-add semicolon
+        // Strip trailing semicolon
         let withoutSemicolon = trimmed.hasSuffix(";")
             ? String(trimmed.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
             : trimmed
-        return "\(withoutSemicolon) LIMIT \(limit)"
+
+        switch dbType {
+        case .oracle:
+            return "\(withoutSemicolon) FETCH FIRST \(limit) ROWS ONLY"
+        case .mssql:
+            // MSSQL uses TOP in SELECT — inject after SELECT keyword
+            let afterSelect = withoutSemicolon.dropFirst(7) // drop "SELECT "
+            return "SELECT TOP \(limit) \(afterSelect)"
+        default:
+            return "\(withoutSemicolon) LIMIT \(limit)"
+        }
     }
 
     // MARK: - SQL Parsing
@@ -705,7 +728,7 @@ final class MainContentCoordinator {
         // SQL: SELECT ... FROM tableName  (group 1 = bracket-quoted, group 2 = plain/backtick/double-quote)
         if let regex = Self.tableNameRegex,
            let match = regex.firstMatch(in: sql, options: [], range: nsRange) {
-            for group in 1...2 {
+            for group in 1...3 {
                 let r = match.range(at: group)
                 if r.location != NSNotFound, let range = Range(r, in: sql) {
                     return String(sql[range])
@@ -1319,6 +1342,37 @@ private extension MainContentCoordinator {
                 if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                     tabManager.tabs[idx].columnEnumValues = columnEnumValues
                     tabManager.tabs[idx].metadataVersion += 1
+                }
+            }
+        }
+    }
+
+    /// Launch only the exact COUNT(*) query (when metadata is already cached).
+    /// Does not guard on queryGeneration — the count is the same regardless of
+    /// which re-execution triggered it, and the repeated query issue means
+    /// generation is always stale by the time COUNT finishes.
+    private func launchPhase2Count(
+        tableName: String,
+        tabId: UUID,
+        capturedGeneration: Int,
+        connectionType: DatabaseType
+    ) {
+        let quotedTable = connectionType.quoteIdentifier(tableName)
+        Task { [weak self] in
+            guard let self else { return }
+            guard let mainDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
+            let countResult = try? await mainDriver.execute(
+                query: "SELECT COUNT(*) FROM \(quotedTable)"
+            )
+            if let firstRow = countResult?.rows.first,
+               let countStr = firstRow.first ?? nil,
+               let count = Int(countStr) {
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                        tabManager.tabs[idx].pagination.totalRowCount = count
+                        tabManager.tabs[idx].pagination.isApproximateRowCount = false
+                    }
                 }
             }
         }

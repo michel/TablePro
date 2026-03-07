@@ -124,7 +124,15 @@ extension ExportService {
                         try checkCancellation()
                         try Task.checkCancellation()
 
-                        let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
+                        let query: String
+                        switch databaseType {
+                        case .oracle:
+                            query = "SELECT * FROM \(tableRef) ORDER BY 1 OFFSET \(offset) ROWS FETCH NEXT \(batchSize) ROWS ONLY"
+                        case .mssql:
+                            query = "SELECT * FROM \(tableRef) ORDER BY (SELECT NULL) OFFSET \(offset) ROWS FETCH NEXT \(batchSize) ROWS ONLY"
+                        default:
+                            query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
+                        }
                         let result = try await driver.execute(query: query)
 
                         if result.rows.isEmpty {

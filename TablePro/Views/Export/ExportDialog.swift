@@ -419,7 +419,7 @@ struct ExportDialog: View {
             var items: [ExportDatabaseItem] = []
 
             switch connection.type {
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 // PostgreSQL: fetch schemas within current database (can't query across databases)
                 let schemas = try await fetchPostgreSQLSchemas(driver: driver)
                 for schema in schemas {
@@ -613,7 +613,25 @@ struct ExportDialog: View {
     }
 
     private func fetchTablesForSchema(_ schema: String, driver: DatabaseDriver) async throws -> [TableInfo] {
-        // Fetch tables from information_schema and filter by schema in Swift to avoid SQL interpolation.
+        // Oracle does not have information_schema — use ALL_TABLES/ALL_VIEWS
+        if connection.type == .oracle {
+            let escapedSchema = schema.replacingOccurrences(of: "'", with: "''")
+            let query = """
+                SELECT TABLE_NAME, 'BASE TABLE' AS TABLE_TYPE FROM ALL_TABLES WHERE OWNER = '\(escapedSchema)'
+                UNION ALL
+                SELECT VIEW_NAME, 'VIEW' FROM ALL_VIEWS WHERE OWNER = '\(escapedSchema)'
+                ORDER BY 1
+                """
+            let result = try await driver.execute(query: query)
+            return result.rows.compactMap { row in
+                guard let name = row[safe: 0] ?? nil else { return nil }
+                let typeStr = (row[safe: 1] ?? nil) ?? "BASE TABLE"
+                let type: TableInfo.TableType = typeStr.uppercased().contains("VIEW") ? .view : .table
+                return TableInfo(name: name, type: type, rowCount: nil)
+            }
+        }
+
+        // MSSQL / PostgreSQL / Redshift: use information_schema
         let query = """
             SELECT table_schema, table_name, table_type
             FROM information_schema.tables
