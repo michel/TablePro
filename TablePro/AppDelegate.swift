@@ -119,18 +119,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         if flag {
-            // Bring the topmost relevant window to front
-            let window = NSApp.windows.first(where: { isMainWindow($0) && $0.isVisible })
-                ?? NSApp.windows.first(where: { $0.isVisible && $0.identifier != nil })
-            if let window {
-                window.makeKeyAndOrderFront(nil)
-                return false
-            }
+            // macOS already activated the app and brought windows to the foreground.
+            // Return true to let it perform default behavior (no-op for visible windows).
+            // Manually calling makeKeyAndOrderFront here conflicts with the native
+            // activation animation and causes a visible stutter/delay.
+            return true
         }
 
         // No visible windows — show welcome window explicitly.
-        // Never return true: SwiftUI would create a new WindowGroup("main") instance
-        // instead of the welcome Window, causing a blank connection window to appear.
+        // Never return true here: SwiftUI would create a new WindowGroup("main")
+        // instance instead of the welcome Window.
         openWelcomeWindow()
         return false
     }

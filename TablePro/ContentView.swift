@@ -148,15 +148,21 @@ struct ContentView: View {
                 AppState.shared.isMongoDB = newSession.connection.type == .mongodb
                 AppState.shared.isRedis = newSession.connection.type == .redis
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-                // Sync AppState flags from this window's session when it becomes focused
-                if let connectionId = payload?.connectionId,
-                   let session = DatabaseManager.shared.activeSessions[connectionId] {
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                // Only process notifications for our own window to avoid every
+                // ContentView instance re-rendering on every window focus change.
+                guard let notificationWindow = notification.object as? NSWindow,
+                      notificationWindow.identifier?.rawValue.contains("main") == true,
+                      let connectionId = payload?.connectionId,
+                      notificationWindow.subtitle == currentSession?.connection.name
+                else { return }
+
+                if let session = DatabaseManager.shared.activeSessions[connectionId] {
                     AppState.shared.isConnected = true
                     AppState.shared.isReadOnly = session.connection.isReadOnly
                     AppState.shared.isMongoDB = session.connection.type == .mongodb
                     AppState.shared.isRedis = session.connection.type == .redis
-                } else if payload?.connectionId != nil {
+                } else {
                     AppState.shared.isConnected = false
                     AppState.shared.isReadOnly = false
                     AppState.shared.isMongoDB = false
