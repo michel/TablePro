@@ -362,6 +362,45 @@ final class ExportService {
         }
     }
 
+    func escapeJSONString(_ string: String) -> String {
+        var utf8Result = [UInt8]()
+        utf8Result.reserveCapacity(string.utf8.count)
+
+        for byte in string.utf8 {
+            switch byte {
+            case 0x22: // "
+                utf8Result.append(0x5C) // backslash
+                utf8Result.append(0x22)
+            case 0x5C: // backslash
+                utf8Result.append(0x5C)
+                utf8Result.append(0x5C)
+            case 0x0A: // \n
+                utf8Result.append(0x5C)
+                utf8Result.append(0x6E) // n
+            case 0x0D: // \r
+                utf8Result.append(0x5C)
+                utf8Result.append(0x72) // r
+            case 0x09: // \t
+                utf8Result.append(0x5C)
+                utf8Result.append(0x74) // t
+            case 0x08: // backspace
+                utf8Result.append(0x5C)
+                utf8Result.append(0x62) // b
+            case 0x0C: // form feed
+                utf8Result.append(0x5C)
+                utf8Result.append(0x66) // f
+            case 0x00...0x1F:
+                // Other control characters: emit \uXXXX
+                let hex = String(format: "\\u%04X", byte)
+                utf8Result.append(contentsOf: hex.utf8)
+            default:
+                utf8Result.append(byte)
+            }
+        }
+
+        return String(bytes: utf8Result, encoding: .utf8) ?? string
+    }
+
     // MARK: - Compression
 
     func compressFileToFile(source: URL, destination: URL) async throws {

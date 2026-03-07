@@ -186,7 +186,7 @@ extension ExportService {
         state.progress = 1.0
     }
 
-    func writeInsertStatementsWithProgress(
+    private func writeInsertStatementsWithProgress(
         table: ExportTableItem,
         columns: [String],
         rows: [[String?]],

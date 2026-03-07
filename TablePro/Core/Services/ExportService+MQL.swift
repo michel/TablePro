@@ -20,7 +20,7 @@ extension ExportService {
 
         let dbName = tables.first?.databaseName ?? ""
         if !dbName.isEmpty {
-            try fileHandle.write(contentsOf: "// Database: \(sanitizeForJSComment(dbName))\n".toUTF8Data())
+            try fileHandle.write(contentsOf: "// Database: \(sanitizeForSQLComment(dbName))\n".toUTF8Data())
         }
         try fileHandle.write(contentsOf: "\n".toUTF8Data())
 
@@ -41,7 +41,7 @@ extension ExportService {
                 collectionAccessor = "db.\(escapedCollection)"
             }
 
-            try fileHandle.write(contentsOf: "// Collection: \(sanitizeForJSComment(table.name))\n".toUTF8Data())
+            try fileHandle.write(contentsOf: "// Collection: \(sanitizeForSQLComment(table.name))\n".toUTF8Data())
 
             if mqlOpts.includeDrop {
                 try fileHandle.write(contentsOf: "\(collectionAccessor).drop();\n".toUTF8Data())
@@ -121,7 +121,7 @@ extension ExportService {
         state.progress = 1.0
     }
 
-    func writeMQLInsertMany(
+    private func writeMQLInsertMany(
         collection: String,
         documents: [String],
         to fileHandle: FileHandle
@@ -138,7 +138,7 @@ extension ExportService {
         try fileHandle.write(contentsOf: statement.toUTF8Data())
     }
 
-    func writeMQLIndexes(
+    private func writeMQLIndexes(
         collection: String,
         collectionAccessor: String,
         to fileHandle: FileHandle
@@ -171,7 +171,7 @@ extension ExportService {
         }
     }
 
-    func mqlJsonValue(for value: String) -> String {
+    private func mqlJsonValue(for value: String) -> String {
         if value == "true" || value == "false" {
             return value
         }
@@ -205,10 +205,4 @@ extension ExportService {
         return name
     }
 
-    func sanitizeForJSComment(_ name: String) -> String {
-        var result = name
-        result = result.replacingOccurrences(of: "\n", with: " ")
-        result = result.replacingOccurrences(of: "\r", with: " ")
-        return result
-    }
 }

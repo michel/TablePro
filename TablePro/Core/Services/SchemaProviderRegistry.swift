@@ -21,7 +21,6 @@ final class SchemaProviderRegistry {
 
     init() {}
 
-
     func provider(for connectionId: UUID) -> SQLSchemaProvider? {
         providers[connectionId]
     }

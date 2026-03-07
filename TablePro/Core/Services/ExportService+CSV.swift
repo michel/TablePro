@@ -71,7 +71,7 @@ extension ExportService {
         state.progress = 1.0
     }
 
-    func writeCSVContentWithProgress(
+    private func writeCSVContentWithProgress(
         columns: [String],
         rows: [[String?]],
         options: CSVExportOptions,
@@ -132,7 +132,7 @@ extension ExportService {
         await finalizeTableProgress()
     }
 
-    func escapeCSVField(_ field: String, options: CSVExportOptions, originalHadLineBreaks: Bool = false) -> String {
+    private func escapeCSVField(_ field: String, options: CSVExportOptions, originalHadLineBreaks: Bool = false) -> String {
         var processed = field
 
         // Sanitize formula-like prefixes to prevent CSV formula injection

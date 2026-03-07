@@ -623,7 +623,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     weak var tableView: NSTableView?
     let cellFactory = DataGridCellFactory()
-    internal(set) var overlayEditor: CellOverlayEditor?
+    var overlayEditor: CellOverlayEditor?
 
     // Settings observer for real-time updates
     fileprivate var settingsObserver: NSObjectProtocol?

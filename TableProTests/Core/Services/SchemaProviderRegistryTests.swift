@@ -15,7 +15,7 @@ struct SchemaProviderRegistryTests {
         let registry = SchemaProviderRegistry()
         let id = UUID()
         let provider = registry.getOrCreate(for: id)
-        #expect(provider != nil)
+        #expect(registry.provider(for: id) === provider)
     }
 
     @Test("getOrCreate returns same provider for same connectionId")
