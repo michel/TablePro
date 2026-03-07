@@ -13,9 +13,14 @@ enum SQLStatementScanner {
 
     static func allStatements(in sql: String) -> [String] {
         var results: [String] = []
-        scan(sql: sql, cursorPosition: nil) { stmt, _ in
-            if !stmt.isEmpty {
-                results.append(stmt)
+        scan(sql: sql, cursorPosition: nil) { rawSQL, _ in
+            var trimmed = rawSQL.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasSuffix(";") {
+                trimmed = String(trimmed.dropLast())
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            if !trimmed.isEmpty {
+                results.append(trimmed)
             }
             return true
         }
@@ -34,96 +39,12 @@ enum SQLStatementScanner {
     }
 
     static func locatedStatementAtCursor(in sql: String, cursorPosition: Int) -> LocatedStatement {
-        let nsQuery = sql as NSString
-        let length = nsQuery.length
-        guard length > 0 else { return LocatedStatement(sql: "", offset: 0) }
-
-        guard nsQuery.range(of: ";").location != NSNotFound else {
-            return LocatedStatement(sql: sql, offset: 0)
+        var result = LocatedStatement(sql: "", offset: 0)
+        scan(sql: sql, cursorPosition: cursorPosition) { rawSQL, offset in
+            result = LocatedStatement(sql: rawSQL, offset: offset)
+            return false
         }
-
-        let safePosition = min(max(0, cursorPosition), length)
-
-        var currentStart = 0
-        var inString = false
-        var stringCharVal: UInt16 = 0
-        var inLineComment = false
-        var inBlockComment = false
-        var i = 0
-
-        while i < length {
-            let ch = nsQuery.character(at: i)
-
-            if inLineComment {
-                if ch == newline { inLineComment = false }
-                i += 1
-                continue
-            }
-
-            if inBlockComment {
-                if ch == star && i + 1 < length && nsQuery.character(at: i + 1) == slash {
-                    inBlockComment = false
-                    i += 2
-                    continue
-                }
-                i += 1
-                continue
-            }
-
-            if !inString && ch == dash && i + 1 < length && nsQuery.character(at: i + 1) == dash {
-                inLineComment = true
-                i += 2
-                continue
-            }
-
-            if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
-                inBlockComment = true
-                i += 2
-                continue
-            }
-
-            if inString && ch == backslash && i + 1 < length {
-                i += 2
-                continue
-            }
-
-            if ch == singleQuote || ch == doubleQuote || ch == backtick {
-                if !inString {
-                    inString = true
-                    stringCharVal = ch
-                } else if ch == stringCharVal {
-                    if i + 1 < length && nsQuery.character(at: i + 1) == stringCharVal {
-                        i += 1
-                    } else {
-                        inString = false
-                    }
-                }
-            }
-
-            if ch == semicolonChar && !inString {
-                let stmtEnd = i + 1
-                if safePosition >= currentStart && safePosition <= stmtEnd {
-                    let stmtRange = NSRange(location: currentStart, length: stmtEnd - currentStart)
-                    return LocatedStatement(
-                        sql: nsQuery.substring(with: stmtRange),
-                        offset: currentStart
-                    )
-                }
-                currentStart = stmtEnd
-            }
-
-            i += 1
-        }
-
-        if currentStart < length {
-            let stmtRange = NSRange(location: currentStart, length: length - currentStart)
-            return LocatedStatement(
-                sql: nsQuery.substring(with: stmtRange),
-                offset: currentStart
-            )
-        }
-
-        return LocatedStatement(sql: sql, offset: 0)
+        return result
     }
 
     // MARK: - Private
@@ -137,49 +58,22 @@ enum SQLStatementScanner {
     private static let star = UInt16(UnicodeScalar("*").value)
     private static let newline = UInt16(UnicodeScalar("\n").value)
     private static let backslash = UInt16(UnicodeScalar("\\").value)
-    private static let space = UInt16(UnicodeScalar(" ").value)
-    private static let tab = UInt16(UnicodeScalar("\t").value)
-    private static let cr = UInt16(UnicodeScalar("\r").value)
 
-    private static func trimmedOffset(in nsString: NSString, from start: Int, to end: Int) -> Int {
-        var pos = start
-        while pos < end {
-            let ch = nsString.character(at: pos)
-            if ch == space || ch == tab || ch == newline || ch == cr {
-                pos += 1
-            } else {
-                break
-            }
-        }
-        return pos
-    }
-
-    /// Scans SQL text splitting on semicolons, respecting strings, identifiers, and comments.
-    /// Calls `onStatement` for each statement found. If `cursorPosition` is set, only calls
-    /// `onStatement` for the statement containing the cursor and stops.
-    /// Return `false` from `onStatement` to stop scanning early.
     private static func scan(
         sql: String,
         cursorPosition: Int?,
-        onStatement: (_ trimmedSQL: String, _ offset: Int) -> Bool
+        onStatement: (_ rawSQL: String, _ offset: Int) -> Bool
     ) {
         let nsQuery = sql as NSString
         let length = nsQuery.length
-        guard length > 0 else {
-            let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                _ = onStatement(trimmed, 0)
-            }
+        guard length > 0 else { return }
+
+        guard nsQuery.range(of: ";").location != NSNotFound else {
+            _ = onStatement(sql, 0)
             return
         }
 
-        guard nsQuery.range(of: ";").location != NSNotFound else {
-            let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty {
-                _ = onStatement(trimmed, trimmedOffset(in: nsQuery, from: 0, to: length))
-            }
-            return
-        }
+        let safePosition = cursorPosition.map { min(max(0, $0), length) }
 
         var currentStart = 0
         var inString = false
@@ -240,21 +134,15 @@ enum SQLStatementScanner {
             if ch == semicolonChar && !inString {
                 let stmtEnd = i + 1
 
-                if let cursor = cursorPosition {
+                if let cursor = safePosition {
                     if cursor >= currentStart && cursor <= stmtEnd {
-                        let stmtRange = NSRange(location: currentStart, length: i - currentStart)
-                        let stmt = nsQuery.substring(with: stmtRange)
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-                        let offset = trimmedOffset(in: nsQuery, from: currentStart, to: i)
-                        _ = onStatement(stmt, offset)
+                        let stmtRange = NSRange(location: currentStart, length: stmtEnd - currentStart)
+                        _ = onStatement(nsQuery.substring(with: stmtRange), currentStart)
                         return
                     }
                 } else {
-                    let stmtRange = NSRange(location: currentStart, length: i - currentStart)
-                    let stmt = nsQuery.substring(with: stmtRange)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    let offset = trimmedOffset(in: nsQuery, from: currentStart, to: i)
-                    if !onStatement(stmt, offset) { return }
+                    let stmtRange = NSRange(location: currentStart, length: stmtEnd - currentStart)
+                    if !onStatement(nsQuery.substring(with: stmtRange), currentStart) { return }
                 }
 
                 currentStart = stmtEnd
@@ -265,10 +153,7 @@ enum SQLStatementScanner {
 
         if currentStart < length {
             let stmtRange = NSRange(location: currentStart, length: length - currentStart)
-            let stmt = nsQuery.substring(with: stmtRange)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let offset = trimmedOffset(in: nsQuery, from: currentStart, to: length)
-            _ = onStatement(stmt, offset)
+            _ = onStatement(nsQuery.substring(with: stmtRange), currentStart)
         }
     }
 }
