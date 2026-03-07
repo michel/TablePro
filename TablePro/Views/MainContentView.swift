@@ -44,13 +44,17 @@ struct MainContentView: View {
     @State private var commandActions: MainContentCommandActions?
     @State private var queryResultsSummaryCache: (tabId: UUID, version: Int, summary: String?)?
     @State private var inspectorUpdateTask: Task<Void, Never>?
-    /// Stable identifier for this window in NativeTabRegistry
+    /// Stable identifier for this window in WindowLifecycleMonitor
     @State private var windowId = UUID()
     @State private var hasInitialized = false
     /// Tracks whether this view's window is the key (focused) window
     @State private var isKeyWindow = false
     /// Reference to this view's NSWindow for filtering notifications
     @State private var viewWindow: NSWindow?
+
+    /// Grace period for onDisappear: SwiftUI fires onDisappear transiently
+    /// during tab group merges, then re-fires onAppear shortly after.
+    private static let tabGroupMergeGracePeriod: Duration = .milliseconds(200)
 
     // MARK: - Environment
 
@@ -242,14 +246,6 @@ struct MainContentView: View {
                 updateInspectorContext()
                 rightPanelState.aiViewModel.schemaProvider = coordinator.schemaProvider
 
-                // Register this window's tabs in the native tab registry
-                NativeTabRegistry.shared.register(
-                    windowId: windowId,
-                    connectionId: connection.id,
-                    tabs: tabManager.tabs.map { $0.toSnapshot() },
-                    selectedTabId: tabManager.selectedTabId
-                )
-
                 // Register NSWindow reference and set per-connection tab grouping
                 DispatchQueue.main.async {
                     // Find our window by title rather than keyWindow to avoid races
@@ -262,14 +258,16 @@ struct MainContentView: View {
                     window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
                     window.tabbingMode = .preferred
 
-                    NativeTabRegistry.shared.setWindow(window, for: windowId, connectionId: connection.id)
+                    WindowLifecycleMonitor.shared.register(
+                        window: window,
+                        connectionId: connection.id,
+                        windowId: windowId
+                    )
                     viewWindow = window
                     isKeyWindow = window.isKeyWindow
                 }
             }
             .onDisappear {
-                NativeTabRegistry.shared.unregister(windowId: windowId)
-
                 // Mark teardown intent synchronously so deinit doesn't warn
                 // if SwiftUI deallocates the coordinator before the delayed Task fires
                 coordinator.markTeardownScheduled()
@@ -278,10 +276,15 @@ struct MainContentView: View {
                 let connectionId = connection.id
                 let connectionName = connection.name
                 Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(200))
+                    // Grace period: SwiftUI fires onDisappear transiently during tab group
+                    // merges/splits, then re-fires onAppear shortly after. The onAppear
+                    // handler re-registers via WindowLifecycleMonitor on DispatchQueue.main.async,
+                    // so this delay must exceed that dispatch latency to avoid tearing down
+                    // a window that's about to reappear.
+                    try? await Task.sleep(for: Self.tabGroupMergeGracePeriod)
 
                     // If this window re-registered (temporary disappear during tab group merge), skip cleanup
-                    if NativeTabRegistry.shared.isRegistered(windowId: capturedWindowId) {
+                    if WindowLifecycleMonitor.shared.isRegistered(windowId: capturedWindowId) {
                         coordinator.clearTeardownScheduled()
                         return
                     }
@@ -289,12 +292,10 @@ struct MainContentView: View {
                     // Window truly closed — teardown coordinator
                     coordinator.teardown()
 
-                    // If no more windows for this connection, clean up and disconnect
-                    guard !NativeTabRegistry.shared.hasWindows(for: connectionId) else { return }
-
-                    // Clear persisted tab state — all windows are closed, so there's
-                    // nothing to restore on next connect.
-                    coordinator.tabPersistence.clearSavedState()
+                    // If no more windows for this connection, disconnect.
+                    // Tab state is NOT cleared here — it's preserved for next reconnect.
+                    // Only handleTabsChange(count=0) clears state (user explicitly closed all tabs).
+                    guard !WindowLifecycleMonitor.shared.hasWindows(for: connectionId) else { return }
 
                     let hasVisibleWindow = NSApp.windows.contains { window in
                         window.isVisible && window.subtitle == connectionName
@@ -329,7 +330,6 @@ struct MainContentView: View {
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {
                     coordinator.needsLazyLoad = false
-                    coordinator.tabPersistence.markJustRestored()
                     if let selectedTab = tabManager.selectedTab,
                        !selectedTab.databaseName.isEmpty,
                        selectedTab.databaseName != session.activeDatabase
@@ -490,7 +490,6 @@ struct MainContentView: View {
                 if let session = DatabaseManager.shared.activeSessions[connection.id],
                    session.isConnected
                 {
-                    coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
                        selectedTab.databaseName != session.activeDatabase
                     {
@@ -499,27 +498,24 @@ struct MainContentView: View {
                         coordinator.executeTableTabQueryDirectly()
                     }
                 } else {
-                    // Reactive path: fires via .onReceive($activeSessions) when connection is ready
+                    // Reactive path: fires via onChange(of: sessionVersion) when connection is ready
                     coordinator.needsLazyLoad = true
                 }
             }
             return
         }
 
-        // Connection-only payload or nil payload — restore tabs from storage
+        // Connection-only payload or nil payload -- restore tabs from storage
         // If other windows already exist for this connection, this is a "new tab"
-        // from the native macOS "+" button — just add a single empty query tab.
-        if NativeTabRegistry.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
+        // from the native macOS "+" button -- just add a single empty query tab.
+        if WindowLifecycleMonitor.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
             tabManager.addTab(databaseName: connection.database)
             return
         }
 
-        // No existing windows — restore tabs from storage (first window on connection)
-        let result = await coordinator.tabPersistence.restoreTabs()
+        // No existing windows -- restore tabs from storage (first window on connection)
+        let result = await coordinator.persistence.restoreFromDisk()
         if !result.tabs.isEmpty {
-            coordinator.tabPersistence.beginRestoration()
-            defer { coordinator.tabPersistence.endRestoration() }
-
             // Find the selected tab, or use the first one
             let selectedId = result.selectedTabId
             let selectedIndex = result.tabs.firstIndex(where: { $0.id == selectedId }) ?? 0
@@ -528,14 +524,6 @@ struct MainContentView: View {
             let selectedTab = result.tabs[selectedIndex]
             tabManager.tabs = [selectedTab]
             tabManager.selectedTabId = selectedTab.id
-
-            // Update registry with this window's single tab
-            NativeTabRegistry.shared.update(
-                windowId: windowId,
-                connectionId: connection.id,
-                tabs: tabManager.tabs.map { $0.toSnapshot() },
-                selectedTabId: selectedTab.id
-            )
 
             // Open remaining tabs as new native window-tabs
             let remainingTabs = result.tabs.enumerated()
@@ -565,7 +553,6 @@ struct MainContentView: View {
                 if let session = DatabaseManager.shared.activeSessions[connection.id],
                    session.isConnected
                 {
-                    coordinator.tabPersistence.markJustRestored()
                     if !selectedTab.databaseName.isEmpty,
                        selectedTab.databaseName != session.activeDatabase
                     {
@@ -574,7 +561,7 @@ struct MainContentView: View {
                         coordinator.executeTableTabQueryDirectly()
                     }
                 } else {
-                    // Reactive path: fires via .onReceive($activeSessions) when connection is ready
+                    // Reactive path: fires via onChange(of: sessionVersion) when connection is ready
                     coordinator.needsLazyLoad = true
                 }
             }
@@ -646,30 +633,12 @@ struct MainContentView: View {
         // and this is the only place that can seed it from the restored tab.
         syncSidebarToCurrentTab()
 
-        // Persist tab selection
-        guard !coordinator.tabPersistence.isRestoringTabs,
-              !coordinator.tabPersistence.isDismissing
-        else { return }
-
-        // Update registry (non-observable, safe inside onChange)
-        NativeTabRegistry.shared.update(
-            windowId: windowId,
-            connectionId: connection.id,
-            tabs: tabManager.tabs.map { $0.toSnapshot() },
+        // Persist tab selection explicitly (skip during teardown)
+        guard !coordinator.isTearingDown else { return }
+        coordinator.persistence.saveNow(
+            tabs: tabManager.tabs,
             selectedTabId: newTabId
         )
-
-        // Defer session sync + persistence to next run loop to avoid
-        // "tried to update multiple times per frame" warning
-        let connId = connection.id
-        DispatchQueue.main.async { [coordinator] in
-            guard !coordinator.tabPersistence.isDismissing else { return }
-            let combinedTabs = NativeTabRegistry.shared.allTabs(for: connId)
-            coordinator.tabPersistence.saveTabsAsync(
-                tabs: combinedTabs,
-                selectedTabId: newTabId
-            )
-        }
     }
 
     private func handleTabsChange(_ newTabs: [QueryTab]) {
@@ -678,33 +647,18 @@ struct MainContentView: View {
         windowTitle = tabManager.selectedTab?.tableName
             ?? (tabManager.tabs.isEmpty ? connection.name : queryLabel)
 
-        guard !coordinator.tabPersistence.isRestoringTabs,
-              !coordinator.tabPersistence.isDismissing
-        else { return }
+        // Don't persist during teardown — SwiftUI may fire onChange with empty tabs
+        // as the view is being deallocated
+        guard !coordinator.isTearingDown else { return }
 
-        // Update registry (non-observable, safe inside onChange)
-        NativeTabRegistry.shared.update(
-            windowId: windowId,
-            connectionId: connection.id,
-            tabs: newTabs.map { $0.toSnapshot() },
-            selectedTabId: tabManager.selectedTabId
-        )
-
-        // Defer session sync + persistence to next run loop to avoid
-        // "tried to update multiple times per frame" warning
-        let connId = connection.id
-        let selectedTabId = tabManager.selectedTabId
-        DispatchQueue.main.async { [coordinator] in
-            guard !coordinator.tabPersistence.isDismissing else { return }
-            let combinedTabs = NativeTabRegistry.shared.allTabs(for: connId)
-            coordinator.tabPersistence.saveTabsAsync(
-                tabs: combinedTabs,
-                selectedTabId: selectedTabId
+        // Persist tab changes explicitly
+        if newTabs.isEmpty {
+            coordinator.persistence.clearSavedState()
+        } else {
+            coordinator.persistence.saveNow(
+                tabs: newTabs,
+                selectedTabId: tabManager.selectedTabId
             )
-
-            if combinedTabs.isEmpty {
-                coordinator.tabPersistence.clearSavedState()
-            }
         }
     }
 

@@ -637,9 +637,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }.count
 
             if remainingMainWindows == 0 {
-                // Last main window closing → save tabs and return to welcome screen.
+                // Last main window closing -- return to welcome screen.
                 // Per-connection disconnect is handled by each MainContentView's
-                // onDisappear (via NativeTabRegistry check), so we don't disconnectAll here.
+                // onDisappear (via WindowLifecycleMonitor check), so we don't disconnectAll here.
                 NotificationCenter.default.post(name: .mainWindowWillClose, object: nil)
 
                 // Reopen welcome window on next run loop after the close finishes
@@ -653,50 +653,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Save tab state synchronously before app terminates (backup mechanism)
-        saveAllTabStates()
+        // Each MainContentCoordinator observes willTerminateNotification and
+        // synchronously writes tab state via TabDiskActor.saveSync. No additional
+        // action needed here — the per-coordinator observers fire before this returns.
     }
 
     nonisolated deinit {
         NotificationCenter.default.removeObserver(self)
-    }
-
-    /// Save tab state for all active sessions using combined state from all native window-tabs
-    @MainActor
-    private func saveAllTabStates() {
-        // Collect tabs from NativeTabRegistry (authoritative source for native window tabs)
-        let registryConnectionIds = NativeTabRegistry.shared.connectionIds()
-
-        for connectionId in registryConnectionIds {
-            let combinedTabs = NativeTabRegistry.shared.allTabs(for: connectionId)
-            let selectedTabId = NativeTabRegistry.shared.selectedTabId(for: connectionId)
-
-            if combinedTabs.isEmpty {
-                TabStateStorage.shared.clearTabState(connectionId: connectionId)
-            } else {
-                TabStateStorage.shared.saveTabState(
-                    connectionId: connectionId,
-                    tabs: combinedTabs,
-                    selectedTabId: selectedTabId
-                )
-            }
-        }
-
-        // Also save for any active sessions not covered by the registry
-        // (e.g., sessions whose windows haven't appeared yet)
-        for (connectionId, session) in DatabaseManager.shared.activeSessions
-            where !registryConnectionIds.contains(connectionId)
-        {
-            if session.tabs.isEmpty {
-                TabStateStorage.shared.clearTabState(connectionId: connectionId)
-            } else {
-                TabStateStorage.shared.saveTabState(
-                    connectionId: connectionId,
-                    tabs: session.tabs.map { $0.toSnapshot() },
-                    selectedTabId: session.selectedTabId
-                )
-            }
-        }
     }
 
     private func isMainWindow(_ window: NSWindow) -> Bool {
