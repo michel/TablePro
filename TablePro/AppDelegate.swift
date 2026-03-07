@@ -9,7 +9,7 @@ import AppKit
 import os
 import SwiftUI
 
-private extension URL {
+internal extension URL {
     /// Returns the URL string with the password component replaced by `***` for safe logging.
     var sanitizedForLogging: String {
         guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false),
