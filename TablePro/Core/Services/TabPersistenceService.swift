@@ -19,7 +19,22 @@ final class TabPersistenceService {
 
     private static let saveDebounceDelay: UInt64 = 500_000_000  // 500ms in nanoseconds
 
+    /// Serial queue for ALL disk operations (save, clear, load).
+    /// Guarantees ordering: a clear always runs after any pending save,
+    /// eliminating the race where orphaned Task.detached writes survive a clear.
+    private static let diskQueue = DispatchQueue(label: "com.TablePro.tabPersistence.disk", qos: .utility)
+
     // MARK: - State
+
+    /// Connections where tabs were explicitly closed by the user.
+    /// Extra safety net for in-session restoreTabs() calls — diskQueue
+    /// serialization is the primary race-condition fix.
+    private static var clearedConnections: Set<UUID> = []
+
+    /// Check if a connection was explicitly cleared (tabs closed by user)
+    static func isCleared(connectionId: UUID) -> Bool {
+        clearedConnections.contains(connectionId)
+    }
 
     /// Indicates tabs are being restored (prevents circular sync)
     private(set) var isRestoringTabs = false
@@ -33,7 +48,6 @@ final class TabPersistenceService {
     // MARK: - Private State
 
     private var saveDebounceTask: Task<Void, Never>?
-    private var backgroundSaveTask: Task<Void, Never>?
     private var lastQueryDebounceTask: Task<Void, Never>?
     private let connectionId: UUID
 
@@ -60,13 +74,13 @@ final class TabPersistenceService {
         let selectedId = selectedTabId
         let connId = connectionId
 
-        // Create new debounce task — debounce on MainActor, write on background
+        // Create new debounce task — debounce on MainActor, write on serial queue
         saveDebounceTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: Self.saveDebounceDelay)
 
             guard !Task.isCancelled, !isDismissing else { return }
 
-            Task.detached(priority: .utility) {
+            Self.diskQueue.async {
                 TabStateStorage.shared.saveTabState(
                     connectionId: connId,
                     tabs: tabsToSave,
@@ -84,7 +98,7 @@ final class TabPersistenceService {
         guard !isRestoringTabs, !isDismissing else { return }
 
         let connId = connectionId
-        Task.detached(priority: .utility) {
+        Self.diskQueue.async {
             TabStateStorage.shared.saveTabState(
                 connectionId: connId,
                 tabs: tabs,
@@ -102,7 +116,7 @@ final class TabPersistenceService {
         saveDebounceTask?.cancel()
 
         let connId = connectionId
-        Task.detached(priority: .userInitiated) {
+        Self.diskQueue.async {
             TabStateStorage.shared.saveTabState(
                 connectionId: connId,
                 tabs: tabs,
@@ -117,17 +131,20 @@ final class TabPersistenceService {
     ///   - tabs: Current tabs array
     ///   - selectedTabId: Currently selected tab ID
     func saveTabsAsync(tabs: [TabSnapshot], selectedTabId: UUID?) {
-        guard !isRestoringTabs, !isDismissing else { return }
+        guard !isRestoringTabs, !isDismissing else {
+            Self.logger.info("[TabRestore] saveTabsAsync — skipped (isRestoring=\(self.isRestoringTabs), isDismissing=\(self.isDismissing))")
+            return
+        }
+        Self.logger.info("[TabRestore] saveTabsAsync — \(tabs.count) tabs, selectedTabId=\(selectedTabId?.uuidString ?? "nil", privacy: .public)")
 
-        // Cancel any in-flight background save so an older snapshot can't
-        // finish after a newer one and overwrite it.
-        backgroundSaveTask?.cancel()
+        // If tabs are being saved, this connection is no longer "cleared".
+        // This ensures normal disconnect/reconnect still restores tabs.
+        Self.clearedConnections.remove(connectionId)
 
         let tabsToSave = tabs
         let selectedId = selectedTabId
         let connId = connectionId
-        backgroundSaveTask = Task.detached(priority: .utility) {
-            guard !Task.isCancelled else { return }
+        Self.diskQueue.async {
             TabStateStorage.shared.saveTabState(
                 connectionId: connId,
                 tabs: tabsToSave,
@@ -157,23 +174,39 @@ final class TabPersistenceService {
         isRestoringTabs = true
         defer { isRestoringTabs = false }
 
-        // Try disk storage first (persists across app restarts, offload file I/O)
+        Self.logger.info("[TabRestore] restoreTabs — connectionId=\(self.connectionId)")
+
+        // If tabs were explicitly closed (clearSavedState was called), skip restoration.
+        if Self.clearedConnections.remove(connectionId) != nil {
+            Self.logger.info("[TabRestore] restoreTabs → connection was explicitly cleared, returning empty")
+            return RestoreResult(tabs: [], selectedTabId: nil, source: .none)
+        }
+
+        // Try disk storage first (persists across app restarts).
+        // Load through the serial diskQueue so the read waits for any pending writes.
         let connId = connectionId
-        let savedState = await Task.detached(priority: .userInitiated) {
-            TabStateStorage.shared.loadTabState(connectionId: connId)
-        }.value
+        let savedState = await withCheckedContinuation { continuation in
+            Self.diskQueue.async {
+                let state = TabStateStorage.shared.loadTabState(connectionId: connId)
+                continuation.resume(returning: state)
+            }
+        }
         if let savedState, !savedState.tabs.isEmpty {
             let restoredTabs = savedState.tabs.map { QueryTab(from: $0) }
+            let tabNames = restoredTabs.map { $0.tableName ?? "query" }.joined(separator: ", ")
+            Self.logger.info("[TabRestore] restoreTabs → disk: \(restoredTabs.count) tabs [\(tabNames, privacy: .public)], selectedTabId=\(savedState.selectedTabId?.uuidString ?? "nil", privacy: .public)")
             return RestoreResult(
                 tabs: restoredTabs,
                 selectedTabId: savedState.selectedTabId,
                 source: .disk
             )
         }
+        Self.logger.info("[TabRestore] restoreTabs → no disk state, checking session")
 
         // Fallback to session (persists during app session only)
         if let session = DatabaseManager.shared.session(for: connectionId),
            !session.tabs.isEmpty {
+            Self.logger.info("[TabRestore] restoreTabs → session: \(session.tabs.count) tabs")
             return RestoreResult(
                 tabs: session.tabs,
                 selectedTabId: session.selectedTabId,
@@ -181,6 +214,7 @@ final class TabPersistenceService {
             )
         }
 
+        Self.logger.info("[TabRestore] restoreTabs → no tabs found (none)")
         return RestoreResult(tabs: [], selectedTabId: nil, source: .none)
     }
 
@@ -206,7 +240,28 @@ final class TabPersistenceService {
 
     /// Clear saved state when all tabs are closed
     func clearSavedState() {
-        TabStateStorage.shared.clearTabState(connectionId: connectionId)
+        Self.logger.info("[TabRestore] clearSavedState — connectionId=\(self.connectionId)")
+
+        // Cancel any pending debounce so it doesn't fire after clear.
+        saveDebounceTask?.cancel()
+
+        // Mark this connection as explicitly cleared (in-session safety net).
+        Self.clearedConnections.insert(connectionId)
+
+        // Dispatch clear to the same serial queue as saves.
+        // Since all saves also go through diskQueue, this clear is guaranteed
+        // to execute AFTER any previously queued saves — no orphaned writes.
+        let connId = connectionId
+        Self.diskQueue.async {
+            TabStateStorage.shared.clearTabState(connectionId: connId)
+        }
+
+        // Also clear session tab cache so restoreTabs() session fallback
+        // doesn't resurrect tabs the user explicitly closed
+        DatabaseManager.shared.updateSession(connectionId) { session in
+            session.tabs = []
+            session.selectedTabId = nil
+        }
     }
 
     /// Load last query for this connection (TablePlus-style)
@@ -227,7 +282,7 @@ final class TabPersistenceService {
             try? await Task.sleep(nanoseconds: Self.saveDebounceDelay)
             guard !Task.isCancelled, !isDismissing else { return }
 
-            Task.detached(priority: .utility) {
+            Self.diskQueue.async {
                 TabStateStorage.shared.saveLastQuery(query, for: connId)
             }
         }
