@@ -9,6 +9,18 @@ import AppKit
 import os
 import SwiftUI
 
+internal extension URL {
+    /// Returns the URL string with the password component replaced by `***` for safe logging.
+    var sanitizedForLogging: String {
+        guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false),
+              components.password != nil else {
+            return absoluteString
+        }
+        components.password = "***"
+        return components.string ?? absoluteString
+    }
+}
+
 /// AppDelegate handles window lifecycle events using proper AppKit patterns.
 /// This is the correct way to configure window appearance on macOS, rather than
 /// using SwiftUI view hacks which can be unreliable.
@@ -27,6 +39,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// URLs queued for opening when no database connection is active yet
     private var queuedFileURLs: [URL] = []
 
+    /// Database URLs queued until the SwiftUI window system is ready
+    private var queuedDatabaseURLs: [URL] = []
+
     /// True while handling a file-open event with an active connection.
     /// Prevents SwiftUI from showing the welcome window as a side-effect.
     private var isHandlingFileOpen = false
@@ -38,7 +53,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static let databaseURLSchemes: Set<String> = [
         "postgresql", "postgres", "mysql", "mariadb", "sqlite",
-        "mongodb", "redis", "rediss", "redshift"
+        "mongodb", "mongodb+srv", "redis", "rediss", "redshift",
+        "mssql", "sqlserver"
     ]
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
@@ -147,14 +163,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Handle database connection URLs (e.g. postgresql://user@host/db)
         let databaseURLs = urls.filter { url in
             guard let scheme = url.scheme?.lowercased() else { return false }
-            let baseScheme = scheme.replacingOccurrences(of: "+ssh", with: "")
-            return Self.databaseURLSchemes.contains(baseScheme)
+            let baseScheme = scheme
+                .replacingOccurrences(of: "+ssh", with: "")
+                .replacingOccurrences(of: "+srv", with: "")
+            return Self.databaseURLSchemes.contains(baseScheme) ||
+                Self.databaseURLSchemes.contains(scheme)
         }
         if !databaseURLs.isEmpty {
+            // Suppress welcome window immediately (before async task runs)
+            // to prevent the flash on cold start
+            isHandlingFileOpen = true
+            fileOpenSuppressionCount += 1
+            for window in NSApp.windows where isWelcomeWindow(window) {
+                window.orderOut(nil)
+            }
+
             Task { @MainActor in
                 for url in databaseURLs {
                     self.handleDatabaseURL(url)
                 }
+                self.scheduleWelcomeWindowSuppression()
             }
         }
 
@@ -243,8 +271,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Not connected — same pattern as connectFromDock
-        NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
+        // Not connected — open in a separate window if another connection is active
+        let hadExistingMain = NSApp.windows.contains { isMainWindow($0) && $0.isVisible }
+        if hadExistingMain {
+            NSWindow.allowsAutomaticWindowTabbing = false
+        }
+
+        // Use openNativeTab directly to avoid duplicate window creation
+        // from multiple OpenWindowHandler instances receiving the notification
+        let deeplinkPayload = EditorTabPayload(connectionId: connection.id)
+        WindowOpener.shared.openNativeTab(deeplinkPayload)
 
         Task { @MainActor in
             do {
@@ -257,15 +293,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             } catch {
                 Self.logger.error("Deep link connect failed: \(error.localizedDescription)")
-                for window in NSApp.windows where self.isMainWindow(window) {
-                    window.close()
-                }
-                self.openWelcomeWindow()
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Connection Failed"),
-                    message: error.localizedDescription,
-                    window: NSApp.keyWindow
-                )
+                await self.handleConnectionFailure(error)
             }
         }
     }
@@ -289,9 +317,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func handleDatabaseURL(_ url: URL) {
+        guard WindowOpener.shared.openWindow != nil else {
+            queuedDatabaseURLs.append(url)
+            scheduleQueuedDatabaseURLProcessing()
+            return
+        }
+
         let result = ConnectionURLParser.parse(url.absoluteString)
         guard case .success(let parsed) = result else {
-            Self.logger.error("Failed to parse database URL: \(url.absoluteString, privacy: .public)")
+            Self.logger.error("Failed to parse database URL: \(url.sanitizedForLogging, privacy: .public)")
             return
         }
 
@@ -359,14 +393,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // If already connected to this connection, just handle post-connect actions
         if DatabaseManager.shared.activeSessions[connection.id]?.driver != nil {
             handlePostConnectionActions(parsed, connectionId: connection.id)
-            for window in NSApp.windows where isMainWindow(window) {
-                window.makeKeyAndOrderFront(nil)
-            }
+            bringConnectionWindowToFront(connection.id)
             return
         }
 
-        // Connect using the same pattern as connectViaDeeplink
-        NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
+        // For transient connections, also check by parameters (host/port/db/type)
+        // since each URL open creates a new UUID
+        if let activeId = findActiveSessionByParams(parsed) {
+            handlePostConnectionActions(parsed, connectionId: activeId)
+            bringConnectionWindowToFront(activeId)
+            return
+        }
+
+        // Temporarily disable auto-tabbing so macOS doesn't merge this window
+        // into an existing tab group for a different connection.
+        // Re-enabled in windowDidBecomeKey after the tabbingIdentifier is set.
+        let hadExistingMain = NSApp.windows.contains { isMainWindow($0) && $0.isVisible }
+        if hadExistingMain {
+            NSWindow.allowsAutomaticWindowTabbing = false
+        }
+
+        // Use openNativeTab directly instead of posting .openMainWindow notification,
+        // which fans out to every OpenWindowHandler and creates duplicate windows.
+        let payload = EditorTabPayload(connectionId: connection.id)
+        WindowOpener.shared.openNativeTab(payload)
 
         Task { @MainActor in
             do {
@@ -377,27 +427,85 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.handlePostConnectionActions(parsed, connectionId: connection.id)
             } catch {
                 Self.logger.error("Database URL connect failed: \(error.localizedDescription)")
-                for window in NSApp.windows where self.isMainWindow(window) {
-                    window.close()
-                }
-                self.openWelcomeWindow()
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Connection Failed"),
-                    message: error.localizedDescription,
-                    window: NSApp.keyWindow
-                )
+                await self.handleConnectionFailure(error)
             }
         }
+    }
+
+    private func scheduleQueuedDatabaseURLProcessing() {
+        Task { @MainActor [weak self] in
+            var ready = false
+            for _ in 0..<50 {
+                if WindowOpener.shared.openWindow != nil { ready = true; break }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            guard let self else { return }
+            if !ready {
+                Self.logger.warning("SwiftUI window system not ready after 5s, dropping \(self.queuedDatabaseURLs.count) queued database URL(s)")
+                self.queuedDatabaseURLs.removeAll()
+                return
+            }
+            let urls = self.queuedDatabaseURLs
+            self.queuedDatabaseURLs.removeAll()
+            for url in urls {
+                self.handleDatabaseURL(url)
+            }
+        }
+    }
+
+    private func findActiveSessionByParams(_ parsed: ParsedConnectionURL) -> UUID? {
+        for (id, session) in DatabaseManager.shared.activeSessions {
+            guard session.driver != nil else { continue }
+            let conn = session.connection
+            if conn.type == parsed.type &&
+                conn.host == parsed.host &&
+                conn.database == parsed.database &&
+                (parsed.port == nil || conn.port == parsed.port || conn.port == parsed.type.defaultPort) &&
+                (parsed.username.isEmpty || conn.username == parsed.username) &&
+                (parsed.redisDatabase == nil || conn.redisDatabase == parsed.redisDatabase) {
+                return id
+            }
+        }
+        return nil
+    }
+
+    private func bringConnectionWindowToFront(_ connectionId: UUID) {
+        let windows = WindowLifecycleMonitor.shared.windows(for: connectionId)
+        if let window = windows.first {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            // Fallback: bring any main window to front
+            NSApp.windows.first { isMainWindow($0) && $0.isVisible }?.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    @MainActor
+    private func handleConnectionFailure(_ error: Error) async {
+        for window in NSApp.windows where isMainWindow(window) {
+            let hasActiveSession = DatabaseManager.shared.activeSessions.values.contains {
+                window.subtitle == $0.connection.name
+            }
+            if !hasActiveSession {
+                window.close()
+            }
+        }
+        if !NSApp.windows.contains(where: { isMainWindow($0) && $0.isVisible }) {
+            openWelcomeWindow()
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        AlertHelper.showErrorSheet(
+            title: String(localized: "Connection Failed"),
+            message: error.localizedDescription,
+            window: NSApp.keyWindow
+        )
     }
 
     @MainActor
     private func handlePostConnectionActions(_ parsed: ParsedConnectionURL, connectionId: UUID) {
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(300))
+            await waitForConnection(timeout: .seconds(5))
 
-            // Switch schema if specified (PostgreSQL/Redshift only)
-            if let schema = parsed.schema,
-               parsed.type == .postgresql || parsed.type == .redshift {
+            if let schema = parsed.schema {
                 NotificationCenter.default.post(
                     name: .switchSchemaFromURL,
                     object: nil,
@@ -406,7 +514,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await Task.sleep(for: .milliseconds(500))
             }
 
-            // Open table/view if specified
             if let tableName = parsed.tableName {
                 let payload = EditorTabPayload(
                     connectionId: connectionId,
@@ -416,7 +523,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 )
                 WindowOpener.shared.openNativeTab(payload)
 
-                // Apply filter after table loads
                 if parsed.filterColumn != nil || parsed.filterCondition != nil {
                     try? await Task.sleep(for: .milliseconds(800))
                     NotificationCenter.default.post(
@@ -431,6 +537,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         ]
                     )
                 }
+            }
+        }
+    }
+
+    @MainActor
+    private func waitForConnection(timeout: Duration) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var didResume = false
+            var observer: NSObjectProtocol?
+
+            func resumeOnce() {
+                guard !didResume else { return }
+                didResume = true
+                if let obs = observer {
+                    NotificationCenter.default.removeObserver(obs)
+                }
+                continuation.resume()
+            }
+
+            let timeoutTask = Task { @MainActor in
+                try? await Task.sleep(for: timeout)
+                resumeOnce()
+            }
+            observer = NotificationCenter.default.addObserver(
+                forName: .databaseDidConnect,
+                object: nil,
+                queue: .main
+            ) { _ in
+                timeoutTask.cancel()
+                resumeOnce()
             }
         }
     }
@@ -710,13 +846,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Configure native tabbing for main windows (only once per window).
-        // Must be synchronous — tabbingMode must be set before the window
-        // is displayed so macOS merges it into the existing tab group.
+        // Must run synchronously so tabbingIdentifier is set before display.
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
             window.tabbingMode = .preferred
-            // Use the pending connectionId from WindowOpener (set by openNativeTab)
-            // to assign the correct per-connection tabbingIdentifier immediately,
-            // so macOS merges the window into the right tab group.
             let pendingId = MainActor.assumeIsolated { WindowOpener.shared.consumePendingConnectionId() }
             let existingIdentifier = NSApp.windows
                 .first { $0 !== window && isMainWindow($0) && $0.isVisible }?
@@ -726,6 +858,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 existingIdentifier: existingIdentifier
             )
             configuredWindows.insert(windowId)
+
+            // Re-enable auto-tabbing if it was temporarily disabled by
+            // handleDatabaseURL/connectViaDeeplink to prevent cross-connection merging
+            if !NSWindow.allowsAutomaticWindowTabbing {
+                NSWindow.allowsAutomaticWindowTabbing = true
+            }
         }
 
         // Note: Right panel uses overlay style (not .inspector()) — no split view configuration needed
