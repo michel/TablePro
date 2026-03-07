@@ -427,7 +427,7 @@ struct QueryTab: Identifiable, Equatable {
 
     /// Maximum query size to persist (500KB). Queries larger than this are typically
     /// imported SQL dumps — serializing them to JSON blocks the main thread.
-    private static let maxPersistableQuerySize = 500_000
+    static let maxPersistableQuerySize = 500_000
 
     /// Convert tab to persisted format for storage
     func toPersistedTab() -> PersistedTab {

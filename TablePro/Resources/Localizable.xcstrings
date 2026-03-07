@@ -1694,7 +1694,11 @@
         }
       }
     },
+    "Clear Query" : {
+
+    },
     "Clear Query (⌘+Delete)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {

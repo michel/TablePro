@@ -35,10 +35,17 @@ struct SQLParameterInliner {
         var paramIndex = 0
         var inString = false
         var previousWasQuote = false
-        var iterator = sql.makeIterator()
+        let nsSQL = sql as NSString
+        let length = nsSQL.length
+        var i = 0
 
-        while let char = iterator.next() {
-            if char == "'" {
+        let questionMark = UInt16(UnicodeScalar("?").value)
+        let singleQuote = UInt16(UnicodeScalar("'").value)
+
+        while i < length {
+            let ch = nsSQL.character(at: i)
+
+            if ch == singleQuote {
                 if inString {
                     if previousWasQuote {
                         // This is the second quote of an escaped '' pair — still inside string
@@ -52,18 +59,21 @@ struct SQLParameterInliner {
                     inString = true
                     previousWasQuote = false
                 }
-                result.append(char)
+                result += nsSQL.substring(with: NSRange(location: i, length: 1))
+                i += 1
             } else {
                 if previousWasQuote {
                     // Previous quote was the closing quote (not an escape)
                     inString = false
                     previousWasQuote = false
                 }
-                if char == "?" && !inString && paramIndex < parameters.count {
+                if ch == questionMark && !inString && paramIndex < parameters.count {
                     result += formatValue(parameters[paramIndex])
                     paramIndex += 1
+                    i += 1
                 } else {
-                    result.append(char)
+                    result += nsSQL.substring(with: NSRange(location: i, length: 1))
+                    i += 1
                 }
             }
         }

@@ -26,8 +26,6 @@ internal struct RestoreResult {
 /// no isDismissing/isRestoringTabs flag state machine.
 @MainActor @Observable
 internal final class TabPersistenceCoordinator {
-    private static let maxPersistableQuerySize = 500_000
-
     let connectionId: UUID
 
     init(connectionId: UUID) {
@@ -115,7 +113,7 @@ internal final class TabPersistenceCoordinator {
 
     private func convertToPersistedTab(_ tab: QueryTab) -> PersistedTab {
         let persistedQuery: String
-        if (tab.query as NSString).length > Self.maxPersistableQuerySize {
+        if (tab.query as NSString).length > QueryTab.maxPersistableQuerySize {
             persistedQuery = ""
         } else {
             persistedQuery = tab.query

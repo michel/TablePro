@@ -813,8 +813,10 @@ struct ConnectionFormView: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
 
-        if panel.runModal() == .OK, let url = panel.url {
-            database = url.path(percentEncoded: false)
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                database = url.path(percentEncoded: false)
+            }
         }
     }
 
@@ -825,8 +827,10 @@ struct ConnectionFormView: View {
         panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh")
         panel.showsHiddenFiles = true
 
-        if panel.runModal() == .OK, let url = panel.url {
-            sshPrivateKeyPath = url.path(percentEncoded: false)
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                sshPrivateKeyPath = url.path(percentEncoded: false)
+            }
         }
     }
 
@@ -837,8 +841,10 @@ struct ConnectionFormView: View {
         panel.allowedContentTypes = [.data]
         panel.showsHiddenFiles = true
 
-        if panel.runModal() == .OK, let url = panel.url {
-            binding.wrappedValue = url.path(percentEncoded: false)
+        panel.begin { response in
+            if response == .OK, let url = panel.url {
+                binding.wrappedValue = url.path(percentEncoded: false)
+            }
         }
     }
 

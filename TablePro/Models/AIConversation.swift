@@ -39,7 +39,7 @@ struct AIConversation: Codable, Equatable, Identifiable {
         else { return }
 
         let text = firstUserMessage.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        if text.count > 50 {
+        if (text as NSString).length > 50 {
             title = String(text.prefix(47)) + "..."
         } else {
             title = text

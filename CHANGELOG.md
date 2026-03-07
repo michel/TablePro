@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix welcome screen showing blank panel when connections have orphaned group IDs
 - Fix multiple tabs auto-executing queries simultaneously on connection restore, causing lag
 - Fix welcome window becoming oversized after closing main windows due to AppKit scene restoration
+- Fix unescaped identifiers in MySQL `SHOW CREATE TABLE`/`VIEW` queries allowing SQL injection via table names
+- Fix `QueryResultRow` equality ignoring cell values, preventing SwiftUI from re-rendering updated rows
+- Fix status bar row info text rendering off-center due to duplicate spacer
+- Fix `Cmd+Delete` in sidebar search or right sidebar clearing the query editor
 
 ## [0.14.1] - 2026-03-06
 

@@ -51,7 +51,7 @@ extension MainContentCoordinator {
         let querySummaries = statements.map { stmt -> String in
             let trimmed = stmt.trimmingCharacters(in: .whitespacesAndNewlines)
             // Show first 80 chars of each query
-            if trimmed.count > 80 {
+            if (trimmed as NSString).length > 80 {
                 return String(trimmed.prefix(80)) + "..."
             }
             return trimmed
