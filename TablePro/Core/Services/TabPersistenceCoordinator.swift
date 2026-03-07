@@ -8,7 +8,6 @@
 
 import Foundation
 import Observation
-import os
 
 /// Result of tab restoration from disk
 internal struct RestoreResult {
@@ -27,8 +26,6 @@ internal struct RestoreResult {
 /// no isDismissing/isRestoringTabs flag state machine.
 @MainActor @Observable
 internal final class TabPersistenceCoordinator {
-    private static let logger = Logger(subsystem: "com.TablePro", category: "TabPersistenceCoordinator")
-
     private static let maxPersistableQuerySize = 500_000
 
     let connectionId: UUID
@@ -46,10 +43,6 @@ internal final class TabPersistenceCoordinator {
         let connId = connectionId
         let selectedId = selectedTabId
 
-        Self.logger.info(
-            "saveNow -- \(persisted.count) tabs, selectedTabId=\(selectedId?.uuidString ?? "nil", privacy: .public)"
-        )
-
         Task {
             await TabDiskActor.shared.save(connectionId: connId, tabs: persisted, selectedTabId: selectedId)
         }
@@ -61,10 +54,6 @@ internal final class TabPersistenceCoordinator {
         let connId = connectionId
         let selectedId = selectedTabId
 
-        Self.logger.info(
-            "saveNow (persistedTabs) -- \(persistedTabs.count) tabs, selectedTabId=\(selectedId?.uuidString ?? "nil", privacy: .public)"
-        )
-
         Task {
             await TabDiskActor.shared.save(connectionId: connId, tabs: persistedTabs, selectedTabId: selectedId)
         }
@@ -74,11 +63,6 @@ internal final class TabPersistenceCoordinator {
     /// remains to service async Tasks. Bypasses the actor and writes directly.
     internal func saveNowSync(tabs: [QueryTab], selectedTabId: UUID?) {
         let persisted = tabs.map { convertToPersistedTab($0) }
-
-        Self.logger.info(
-            "saveNowSync -- \(persisted.count) tabs, selectedTabId=\(selectedTabId?.uuidString ?? "nil", privacy: .public)"
-        )
-
         TabDiskActor.saveSync(connectionId: connectionId, tabs: persisted, selectedTabId: selectedTabId)
     }
 
@@ -87,8 +71,6 @@ internal final class TabPersistenceCoordinator {
     /// Clear all saved state for this connection (user closed all tabs).
     internal func clearSavedState() {
         let connId = connectionId
-        Self.logger.info("clearSavedState -- connectionId=\(connId)")
-
         Task {
             await TabDiskActor.shared.clear(connectionId: connId)
         }
@@ -98,24 +80,15 @@ internal final class TabPersistenceCoordinator {
 
     /// Restore tabs from disk. Called once at window creation.
     internal func restoreFromDisk() async -> RestoreResult {
-        Self.logger.info("restoreFromDisk -- connectionId=\(self.connectionId)")
-
         guard let state = await TabDiskActor.shared.load(connectionId: connectionId) else {
-            Self.logger.info("restoreFromDisk -> no disk state (none)")
             return RestoreResult(tabs: [], selectedTabId: nil, source: .none)
         }
 
         guard !state.tabs.isEmpty else {
-            Self.logger.info("restoreFromDisk -> empty tabs on disk (none)")
             return RestoreResult(tabs: [], selectedTabId: nil, source: .none)
         }
 
         let restoredTabs = state.tabs.map { QueryTab(from: $0) }
-        let tabNames = restoredTabs.map { $0.tableName ?? "query" }.joined(separator: ", ")
-        Self.logger.info(
-            "restoreFromDisk -> disk: \(restoredTabs.count) tabs [\(tabNames, privacy: .public)], selectedTabId=\(state.selectedTabId?.uuidString ?? "nil", privacy: .public)"
-        )
-
         return RestoreResult(
             tabs: restoredTabs,
             selectedTabId: state.selectedTabId,

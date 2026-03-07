@@ -9,12 +9,9 @@
 
 import AppKit
 import Foundation
-import os
 
 @MainActor
 internal final class WindowLifecycleMonitor {
-    private static let logger = Logger(subsystem: "com.TablePro", category: "WindowLifecycleMonitor")
-
     internal static let shared = WindowLifecycleMonitor()
 
     private struct Entry {
@@ -63,28 +60,15 @@ internal final class WindowLifecycleMonitor {
             window: window,
             observer: observer
         )
-
-        let totalEntries = entries.count
-        Self.logger.info(
-            "register -- windowId=\(windowId), connectionId=\(connectionId), total=\(totalEntries)"
-        )
     }
 
     /// Remove the UUID mapping for a window.
     internal func unregisterWindow(for windowId: UUID) {
-        guard let entry = entries.removeValue(forKey: windowId) else {
-            Self.logger.debug("unregisterWindow -- windowId=\(windowId) not found, ignoring")
-            return
-        }
+        guard let entry = entries.removeValue(forKey: windowId) else { return }
 
         if let observer = entry.observer {
             NotificationCenter.default.removeObserver(observer)
         }
-
-        let remaining = windowCount(for: entry.connectionId)
-        Self.logger.info(
-            "unregisterWindow -- windowId=\(windowId), connectionId=\(entry.connectionId), remaining=\(remaining)"
-        )
     }
 
     // MARK: - Queries
@@ -133,34 +117,14 @@ internal final class WindowLifecycleMonitor {
 
     // MARK: - Private
 
-    private func windowCount(for connectionId: UUID) -> Int {
-        entries.values.filter { $0.connectionId == connectionId }.count
-    }
-
     private func handleWindowClose(_ closedWindow: NSWindow) {
-        // Find the entry matching this window
         guard let (windowId, entry) = entries.first(where: { $0.value.window === closedWindow }) else {
-            Self.logger.debug("handleWindowClose -- no entry found for closed window, ignoring")
             return
         }
 
-        let connectionId = entry.connectionId
-
-        // Clean up observer and remove entry
         if let observer = entry.observer {
             NotificationCenter.default.removeObserver(observer)
         }
         entries.removeValue(forKey: windowId)
-
-        let remaining = windowCount(for: connectionId)
-        Self.logger.info(
-            "handleWindowClose -- windowId=\(windowId), connectionId=\(connectionId), remaining=\(remaining)"
-        )
-
-        if remaining == 0 {
-            Self.logger.info(
-                "handleWindowClose -- last window closed for connectionId=\(connectionId)"
-            )
-        }
     }
 }
