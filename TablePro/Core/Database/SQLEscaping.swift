@@ -65,6 +65,20 @@ enum SQLEscaping {
     ///
     /// - Parameter value: The value to escape
     /// - Returns: The escaped value with %, _, and \ escaped
+    /// Known SQL temporal function expressions that should not be quoted/parameterized.
+    /// Canonical source — used by SQLStatementGenerator and sidebar save logic.
+    static let temporalFunctionExpressions: Set<String> = [
+        "NOW()", "CURRENT_TIMESTAMP()", "CURRENT_TIMESTAMP",
+        "CURDATE()", "CURTIME()", "UTC_TIMESTAMP()", "UTC_DATE()", "UTC_TIME()",
+        "LOCALTIME()", "LOCALTIME", "LOCALTIMESTAMP()", "LOCALTIMESTAMP",
+        "SYSDATE()", "UNIX_TIMESTAMP()", "CURRENT_DATE()", "CURRENT_DATE",
+        "CURRENT_TIME()", "CURRENT_TIME",
+    ]
+
+    static func isTemporalFunction(_ value: String) -> Bool {
+        temporalFunctionExpressions.contains(value.trimmingCharacters(in: .whitespaces).uppercased())
+    }
+
     static func escapeLikeWildcards(_ value: String) -> String {
         var result = value
         result = result.replacingOccurrences(of: "\\", with: "\\\\")
