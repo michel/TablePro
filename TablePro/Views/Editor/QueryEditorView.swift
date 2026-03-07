@@ -75,8 +75,7 @@ struct QueryEditorView: View {
                 Image(systemName: "trash")
             }
             .buttonStyle(.borderless)
-            .help("Clear Query (⌘+Delete)")
-            .keyboardShortcut(.delete, modifiers: .command)
+            .help("Clear Query")
 
             // Format button
             Button(action: formatQuery) {
