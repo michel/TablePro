@@ -132,7 +132,7 @@ final class ImportService {
 
             // 5. Begin transaction (if enabled)
             if config.wrapInTransaction {
-                let beginStmt = beginTransactionStatement(for: connection.type)
+                let beginStmt = connection.type.beginTransactionSQL
                 if !beginStmt.isEmpty {
                     _ = try await driver.execute(query: beginStmt)
                 }
@@ -308,19 +308,6 @@ final class ImportService {
             return ["PRAGMA foreign_keys = ON"]
         case .mongodb, .redis:
             return []
-        }
-    }
-
-    private func beginTransactionStatement(for dbType: DatabaseType) -> String {
-        switch dbType {
-        case .mysql, .mariadb:
-            return "START TRANSACTION"
-        case .postgresql, .redshift, .sqlite:
-            return "BEGIN"
-        case .mssql:
-            return "BEGIN TRANSACTION"
-        case .mongodb, .redis:
-            return ""
         }
     }
 

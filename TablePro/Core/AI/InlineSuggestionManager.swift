@@ -204,11 +204,11 @@ final class InlineSuggestionManager {
     private func fetchSuggestion(textBefore: String, fullQuery: String) async throws -> String {
         let settings = AppSettingsManager.shared.ai
 
-        guard let (config, apiKey) = resolveProvider(for: .inlineSuggest, settings: settings) else {
+        guard let (config, apiKey) = AIProviderFactory.resolveProvider(for: .inlineSuggest, settings: settings) else {
             throw AIProviderError.networkError("No AI provider configured")
         }
 
-        let model = resolveModel(for: .inlineSuggest, config: config, settings: settings)
+        let model = AIProviderFactory.resolveModel(for: .inlineSuggest, config: config, settings: settings)
         let provider = AIProviderFactory.createProvider(for: config, apiKey: apiKey)
 
         let userMessage = AIPromptTemplates.inlineSuggest(textBefore: textBefore, fullQuery: fullQuery)
@@ -245,39 +245,6 @@ final class InlineSuggestionManager {
         }
 
         return accumulated
-    }
-
-    // MARK: - Provider Resolution (mirrors AIChatViewModel)
-
-    private func resolveProvider(
-        for feature: AIFeature,
-        settings: AISettings
-    ) -> (AIProviderConfig, String?)? {
-        // Check feature routing first
-        if let route = settings.featureRouting[feature.rawValue],
-           let config = settings.providers.first(where: { $0.id == route.providerID && $0.isEnabled }) {
-            let apiKey = AIKeyStorage.shared.loadAPIKey(for: config.id)
-            return (config, apiKey)
-        }
-
-        // Fall back to first enabled provider
-        guard let config = settings.providers.first(where: { $0.isEnabled }) else {
-            return nil
-        }
-
-        let apiKey = AIKeyStorage.shared.loadAPIKey(for: config.id)
-        return (config, apiKey)
-    }
-
-    private func resolveModel(
-        for feature: AIFeature,
-        config: AIProviderConfig,
-        settings: AISettings
-    ) -> String {
-        if let route = settings.featureRouting[feature.rawValue], !route.model.isEmpty {
-            return route.model
-        }
-        return config.model
     }
 
     /// Clean the AI suggestion: strip thinking blocks, leading newlines,

@@ -337,9 +337,9 @@ final class MainContentCoordinator {
             sql = nsQuery.substring(with: clampedRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            sql = extractQueryAtCursor(
-                from: fullQuery,
-                at: cursorPositions.first?.range.location ?? 0
+            sql = SQLStatementScanner.statementAtCursor(
+                in: fullQuery,
+                cursorPosition: cursorPositions.first?.range.location ?? 0
             )
         }
 
@@ -348,7 +348,7 @@ final class MainContentCoordinator {
         }
 
         // Split into individual statements for multi-statement support
-        let statements = splitStatements(from: sql)
+        let statements = SQLStatementScanner.allStatements(in: sql)
         guard !statements.isEmpty else { return }
 
         // Block write queries in read-only mode
@@ -415,9 +415,9 @@ final class MainContentCoordinator {
             sql = nsQuery.substring(with: clampedRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            sql = extractQueryAtCursor(
-                from: fullQuery,
-                at: cursorPositions.first?.range.location ?? 0
+            sql = SQLStatementScanner.statementAtCursor(
+                in: fullQuery,
+                cursorPosition: cursorPositions.first?.range.location ?? 0
             )
         }
 
@@ -425,7 +425,7 @@ final class MainContentCoordinator {
         guard !trimmed.isEmpty else { return }
 
         // Use first statement only (EXPLAIN on a single statement)
-        let statements = splitStatements(from: trimmed)
+        let statements = SQLStatementScanner.allStatements(in: trimmed)
         guard let stmt = statements.first else { return }
 
         // Build database-specific EXPLAIN prefix
@@ -717,117 +717,6 @@ final class MainContentCoordinator {
         }
 
         return nil
-    }
-
-    private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
-        let nsQuery = fullQuery as NSString
-        let length = nsQuery.length
-        guard length > 0 else { return "" }
-
-        // Fast check: if no semicolons, return the full query trimmed.
-        // Uses NSString range search (C-level speed) instead of Swift String.contains.
-        guard nsQuery.range(of: ";").location != NSNotFound else {
-            return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        let singleQuote = UInt16(UnicodeScalar("'").value)
-        let doubleQuote = UInt16(UnicodeScalar("\"").value)
-        let backtick = UInt16(UnicodeScalar("`").value)
-        let semicolonChar = UInt16(UnicodeScalar(";").value)
-        let dash = UInt16(UnicodeScalar("-").value)
-        let slash = UInt16(UnicodeScalar("/").value)
-        let star = UInt16(UnicodeScalar("*").value)
-        let newline = UInt16(UnicodeScalar("\n").value)
-        let backslash = UInt16(UnicodeScalar("\\").value)
-
-        let safePosition = min(max(0, position), length)
-        var currentStart = 0
-        var inString = false
-        var stringCharVal: UInt16 = 0
-        var inLineComment = false
-        var inBlockComment = false
-        var i = 0
-
-        // Scan through characters, stopping as soon as we find the statement
-        // containing the cursor. Avoids scanning the entire file.
-        while i < length {
-            let ch = nsQuery.character(at: i)
-
-            // Handle line comment end
-            if inLineComment {
-                if ch == newline { inLineComment = false }
-                i += 1
-                continue
-            }
-
-            // Handle block comment end
-            if inBlockComment {
-                if ch == star && i + 1 < length && nsQuery.character(at: i + 1) == slash {
-                    inBlockComment = false
-                    i += 2
-                    continue
-                }
-                i += 1
-                continue
-            }
-
-            // Detect line comment start (--)
-            if !inString && ch == dash && i + 1 < length && nsQuery.character(at: i + 1) == dash {
-                inLineComment = true
-                i += 2
-                continue
-            }
-
-            // Detect block comment start (/*)
-            if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
-                inBlockComment = true
-                i += 2
-                continue
-            }
-
-            // Handle backslash escapes inside strings (e.g., \' \" \\)
-            if inString && ch == backslash && i + 1 < length {
-                i += 2
-                continue
-            }
-
-            // Track string/identifier literals
-            if ch == singleQuote || ch == doubleQuote || ch == backtick {
-                if !inString {
-                    inString = true
-                    stringCharVal = ch
-                } else if ch == stringCharVal {
-                    // Handle doubled (escaped) quotes: '' "" ``
-                    if i + 1 < length && nsQuery.character(at: i + 1) == stringCharVal {
-                        i += 1 // Skip the escaped quote
-                    } else {
-                        inString = false
-                    }
-                }
-            }
-
-            // Statement delimiter
-            if ch == semicolonChar && !inString {
-                let stmtEnd = i + 1
-                if safePosition >= currentStart && safePosition <= stmtEnd {
-                    let stmtRange = NSRange(location: currentStart, length: i - currentStart)
-                    return nsQuery.substring(with: stmtRange)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                }
-                currentStart = stmtEnd
-            }
-
-            i += 1
-        }
-
-        // Cursor is in the last statement (no trailing semicolon)
-        if currentStart < length {
-            let stmtRange = NSRange(location: currentStart, length: length - currentStart)
-            return nsQuery.substring(with: stmtRange)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Sorting

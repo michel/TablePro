@@ -9,10 +9,6 @@ import Foundation
 import Observation
 import os
 
-extension Notification.Name {
-    static let databaseDidConnect = Notification.Name("databaseDidConnect")
-}
-
 /// Manages database connections and active drivers
 @MainActor @Observable
 final class DatabaseManager {

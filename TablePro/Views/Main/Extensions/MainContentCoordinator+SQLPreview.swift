@@ -77,7 +77,7 @@ extension MainContentCoordinator {
         // Wrap all operations in a single transaction when we have multiple operations
         let needsTransaction = hasEditedCells && hasPendingTableOps
         if needsTransaction {
-            let beginSQL = dbType == .mssql ? "BEGIN TRANSACTION" : "BEGIN"
+            let beginSQL = dbType.beginTransactionSQL
             allStatements.append(ParameterizedStatement(sql: beginSQL, parameters: []))
         }
 

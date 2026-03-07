@@ -8,10 +8,6 @@
 import Foundation
 import os
 
-extension Notification.Name {
-    static let sshTunnelDied = Notification.Name("sshTunnelDied")
-}
-
 /// Error types for SSH tunnel operations
 enum SSHTunnelError: Error, LocalizedError {
     case tunnelCreationFailed(String)
