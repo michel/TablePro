@@ -769,9 +769,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.collectionBehavior.remove(.fullScreenPrimary)
         window.collectionBehavior.insert(.fullScreenNone)
 
-        // Keep the window non-resizable (already set via SwiftUI, but reinforce here)
         if window.styleMask.contains(.resizable) {
             window.styleMask.remove(.resizable)
+        }
+
+        let welcomeSize = NSSize(width: 700, height: 450)
+        if window.frame.size != welcomeSize {
+            window.setContentSize(welcomeSize)
+            window.center()
         }
 
         // Enable behind-window translucency (frosted glass effect)

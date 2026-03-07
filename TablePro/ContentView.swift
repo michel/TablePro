@@ -94,18 +94,26 @@ struct ContentView: View {
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
             .onChange(of: DatabaseManager.shared.currentSessionId, initial: true) { _, newSessionId in
                 let ourConnectionId = payload?.connectionId
+                Self.logger.info("[TabRestore] ContentView.currentSessionId changed → new=\(newSessionId?.uuidString ?? "nil", privacy: .public), ourConnectionId=\(ourConnectionId?.uuidString ?? "nil", privacy: .public)")
                 // Windows with a payload only react to their own connection
                 if ourConnectionId != nil {
-                    guard newSessionId == ourConnectionId else { return }
+                    guard newSessionId == ourConnectionId else {
+                        Self.logger.info("[TabRestore] ContentView → ignoring session change (not ours)")
+                        return
+                    }
                 } else {
                     // No payload (legacy path): only pick up the initial connection,
                     // don't switch once we already have one
-                    guard currentSession == nil else { return }
+                    guard currentSession == nil else {
+                        Self.logger.info("[TabRestore] ContentView → ignoring (already have session)")
+                        return
+                    }
                 }
 
                 if let connectionId = ourConnectionId ?? newSessionId {
                     currentSession = DatabaseManager.shared.activeSessions[connectionId]
                     columnVisibility = currentSession != nil ? .all : .detailOnly
+                    Self.logger.info("[TabRestore] ContentView → session resolved: \(currentSession != nil ? "connected" : "nil", privacy: .public)")
                     if let session = currentSession {
                         AppState.shared.isConnected = true
                         AppState.shared.isReadOnly = session.connection.isReadOnly
@@ -122,12 +130,14 @@ struct ContentView: View {
                 // Use our payload's connectionId, or our current session's id if already connected,
                 // or lastly the global currentSessionId (only for initial bootstrap)
                 let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
+                Self.logger.info("[TabRestore] ContentView.sessionVersion changed → resolvedId=\(connectionId?.uuidString ?? "nil", privacy: .public), activeSessions=\(sessions.count)")
                 guard let sid = connectionId else {
                     if currentSession != nil { currentSession = nil }
                     return
                 }
                 guard let newSession = sessions[sid] else {
                     // Session was removed (disconnected)
+                    Self.logger.info("[TabRestore] ContentView → session removed (disconnected) for \(sid)")
                     if currentSession?.id == sid {
                         currentSession = nil
                         columnVisibility = .detailOnly

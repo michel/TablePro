@@ -352,6 +352,15 @@ struct MainContentView: View {
                 DispatchQueue.main.async {
                     syncSidebarToCurrentTab()
                 }
+                // Lazy-load: execute query for restored tabs that skipped auto-execute
+                if let tab = tabManager.selectedTab,
+                   tab.tabType == .table,
+                   tab.resultRows.isEmpty,
+                   tab.lastExecutedAt == nil,
+                   !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                {
+                    coordinator.runQuery()
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
                 guard let notificationWindow = notification.object as? NSWindow,
@@ -464,6 +473,11 @@ struct MainContentView: View {
 
         // If payload provided a specific tab (not connection-only), execute its query immediately
         if let payload, !payload.isConnectionOnly {
+            if payload.skipAutoExecute {
+                // Don't execute now — query will fire when user clicks this tab
+                // (handled by didBecomeKeyNotification)
+                return
+            }
             if let selectedTab = tabManager.selectedTab,
                selectedTab.tabType == .table,
                !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -517,11 +531,13 @@ struct MainContentView: View {
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 100_000_000)
                     for tab in remainingTabs {
-                        let payload = EditorTabPayload(from: tab, connectionId: connection.id)
+                        let payload = EditorTabPayload(from: tab, connectionId: connection.id, skipAutoExecute: true)
                         WindowOpener.shared.openNativeTab(payload)
                         // Small delay between opens to avoid overwhelming AppKit
                         try? await Task.sleep(nanoseconds: 50_000_000)
                     }
+                    // Re-activate the selected tab's window so it stays in front
+                    viewWindow?.makeKeyAndOrderFront(nil)
                 }
             }
 
