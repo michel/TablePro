@@ -41,7 +41,7 @@ enum ExportError: LocalizedError {
 
 // MARK: - String Extension for Safe Encoding
 
-extension String {
+internal extension String {
     /// Safely encode string to UTF-8 data, throwing if encoding fails
     func toUTF8Data() throws -> Data {
         guard let data = self.data(using: .utf8) else {
@@ -87,8 +87,8 @@ final class ExportService {
 
     // MARK: - Cancellation
 
-    let isCancelledLock = NSLock()
-    var _isCancelled: Bool = false
+    private let isCancelledLock = NSLock()
+    private var _isCancelled: Bool = false
     var isCancelled: Bool {
         get {
             isCancelledLock.lock()

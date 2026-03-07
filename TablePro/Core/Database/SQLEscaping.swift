@@ -59,12 +59,6 @@ enum SQLEscaping {
         }
     }
 
-    /// Escape wildcards in LIKE patterns while preserving intentional wildcards
-    ///
-    /// This is useful when building LIKE clauses where the search term should be treated literally.
-    ///
-    /// - Parameter value: The value to escape
-    /// - Returns: The escaped value with %, _, and \ escaped
     /// Known SQL temporal function expressions that should not be quoted/parameterized.
     /// Canonical source — used by SQLStatementGenerator and sidebar save logic.
     static let temporalFunctionExpressions: Set<String> = [
@@ -79,6 +73,12 @@ enum SQLEscaping {
         temporalFunctionExpressions.contains(value.trimmingCharacters(in: .whitespaces).uppercased())
     }
 
+    /// Escape wildcards in LIKE patterns while preserving intentional wildcards
+    ///
+    /// This is useful when building LIKE clauses where the search term should be treated literally.
+    ///
+    /// - Parameter value: The value to escape
+    /// - Returns: The escaped value with %, _, and \ escaped
     static func escapeLikeWildcards(_ value: String) -> String {
         var result = value
         result = result.replacingOccurrences(of: "\\", with: "\\\\")
