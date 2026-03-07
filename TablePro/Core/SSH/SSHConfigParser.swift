@@ -168,9 +168,18 @@ final class SSHConfigParser {
                 remaining = String(remaining[remaining.index(after: atIndex)...])
             }
 
-            // Extract :port suffix
-            if let colonIndex = remaining.lastIndex(of: ":"),
-               let port = Int(String(remaining[remaining.index(after: colonIndex)...])) {
+            // Extract host and port (supports bracketed IPv6, e.g. [::1]:22)
+            if remaining.hasPrefix("["),
+               let closeBracket = remaining.firstIndex(of: "]") {
+                jumpHost.host = String(remaining[remaining.index(after: remaining.startIndex)..<closeBracket])
+                let afterBracket = remaining.index(after: closeBracket)
+                if afterBracket < remaining.endIndex,
+                   remaining[afterBracket] == ":",
+                   let port = Int(String(remaining[remaining.index(after: afterBracket)...])) {
+                    jumpHost.port = port
+                }
+            } else if let colonIndex = remaining.lastIndex(of: ":"),
+                      let port = Int(String(remaining[remaining.index(after: colonIndex)...])) {
                 jumpHost.host = String(remaining[remaining.startIndex..<colonIndex])
                 jumpHost.port = port
             } else {

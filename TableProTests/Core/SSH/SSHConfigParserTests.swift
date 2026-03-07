@@ -426,4 +426,22 @@ struct SSHConfigParserTests {
         #expect(jumpHosts[0].host == "bastion.com")
         #expect(jumpHosts[0].port == 22)
     }
+
+    @Test("parseProxyJump with bracketed IPv6 and port")
+    func testParseProxyJumpIPv6WithPort() {
+        let jumpHosts = SSHConfigParser.parseProxyJump("admin@[::1]:2222")
+        #expect(jumpHosts.count == 1)
+        #expect(jumpHosts[0].username == "admin")
+        #expect(jumpHosts[0].host == "::1")
+        #expect(jumpHosts[0].port == 2_222)
+    }
+
+    @Test("parseProxyJump with bracketed IPv6 without port")
+    func testParseProxyJumpIPv6WithoutPort() {
+        let jumpHosts = SSHConfigParser.parseProxyJump("admin@[fe80::1]")
+        #expect(jumpHosts.count == 1)
+        #expect(jumpHosts[0].username == "admin")
+        #expect(jumpHosts[0].host == "fe80::1")
+        #expect(jumpHosts[0].port == 22)
+    }
 }

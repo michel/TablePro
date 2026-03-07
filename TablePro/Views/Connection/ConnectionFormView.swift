@@ -380,77 +380,79 @@ struct ConnectionFormView: View {
                     }
                 }
 
-                Section(String(localized: "Jump Hosts")) {
-                    ForEach($jumpHosts) { $jumpHost in
-                        DisclosureGroup {
-                            TextField(
-                                String(localized: "Host"),
-                                text: $jumpHost.host,
-                                prompt: Text("bastion.example.com")
-                            )
-                            HStack {
+                Section {
+                    DisclosureGroup(String(localized: "Jump Hosts")) {
+                        ForEach($jumpHosts) { $jumpHost in
+                            DisclosureGroup {
                                 TextField(
-                                    String(localized: "Port"),
-                                    text: Binding(
-                                        get: { String(jumpHost.port) },
-                                        set: { jumpHost.port = Int($0) ?? 22 }
-                                    ),
-                                    prompt: Text("22")
+                                    String(localized: "Host"),
+                                    text: $jumpHost.host,
+                                    prompt: Text("bastion.example.com")
                                 )
-                                .frame(width: 80)
-                                TextField(
-                                    String(localized: "Username"),
-                                    text: $jumpHost.username,
-                                    prompt: Text("admin")
-                                )
-                            }
-                            Picker(String(localized: "Auth"), selection: $jumpHost.authMethod) {
-                                ForEach(SSHJumpAuthMethod.allCases) { method in
-                                    Text(method.rawValue).tag(method)
+                                HStack {
+                                    TextField(
+                                        String(localized: "Port"),
+                                        text: Binding(
+                                            get: { String(jumpHost.port) },
+                                            set: { jumpHost.port = Int($0) ?? 22 }
+                                        ),
+                                        prompt: Text("22")
+                                    )
+                                    .frame(width: 80)
+                                    TextField(
+                                        String(localized: "Username"),
+                                        text: $jumpHost.username,
+                                        prompt: Text("admin")
+                                    )
                                 }
-                            }
-                            if jumpHost.authMethod == .privateKey {
-                                LabeledContent(String(localized: "Key File")) {
-                                    HStack {
-                                        TextField("", text: $jumpHost.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
-                                        Button(String(localized: "Browse")) {
-                                            browseForJumpHostKey(jumpHost: $jumpHost)
+                                Picker(String(localized: "Auth"), selection: $jumpHost.authMethod) {
+                                    ForEach(SSHJumpAuthMethod.allCases) { method in
+                                        Text(method.rawValue).tag(method)
+                                    }
+                                }
+                                if jumpHost.authMethod == .privateKey {
+                                    LabeledContent(String(localized: "Key File")) {
+                                        HStack {
+                                            TextField("", text: $jumpHost.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                                            Button(String(localized: "Browse")) {
+                                                browseForJumpHostKey(jumpHost: $jumpHost)
+                                            }
+                                            .controlSize(.small)
                                         }
-                                        .controlSize(.small)
                                     }
                                 }
-                            }
-                        } label: {
-                            HStack {
-                                Text(jumpHost.host.isEmpty ? String(localized: "New Jump Host") : "\(jumpHost.username)@\(jumpHost.host)")
-                                    .foregroundStyle(jumpHost.host.isEmpty ? .secondary : .primary)
-                                Spacer()
-                                Button {
-                                    let idToRemove = jumpHost.id
-                                    withAnimation {
-                                        jumpHosts.removeAll { $0.id == idToRemove }
+                            } label: {
+                                HStack {
+                                    Text(jumpHost.host.isEmpty ? String(localized: "New Jump Host") : "\(jumpHost.username)@\(jumpHost.host)")
+                                        .foregroundStyle(jumpHost.host.isEmpty ? .secondary : .primary)
+                                    Spacer()
+                                    Button {
+                                        let idToRemove = jumpHost.id
+                                        withAnimation {
+                                            jumpHosts.removeAll { $0.id == idToRemove }
+                                        }
+                                    } label: {
+                                        Image(systemName: "minus.circle.fill")
+                                            .foregroundStyle(.red)
                                     }
-                                } label: {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(.red)
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
-                    }
-                    .onMove { indices, destination in
-                        jumpHosts.move(fromOffsets: indices, toOffset: destination)
-                    }
+                        .onMove { indices, destination in
+                            jumpHosts.move(fromOffsets: indices, toOffset: destination)
+                        }
 
-                    Button {
-                        jumpHosts.append(SSHJumpHost())
-                    } label: {
-                        Label(String(localized: "Add Jump Host"), systemImage: "plus")
-                    }
+                        Button {
+                            jumpHosts.append(SSHJumpHost())
+                        } label: {
+                            Label(String(localized: "Add Jump Host"), systemImage: "plus")
+                        }
 
-                    Text("Jump hosts are connected in order before reaching the SSH server above. Only key and agent auth are supported for jumps.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text("Jump hosts are connected in order before reaching the SSH server above. Only key and agent auth are supported for jumps.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
