@@ -858,4 +858,16 @@ struct ConnectionURLParserTests {
         #expect(parsed.sshHost == "bastion")
         #expect(parsed.sshPort == 2222)
     }
+
+    @Test("SSH URL with both usePrivateKey and useSSHAgent prefers last")
+    func testSSHURLWithBothPrivateKeyAndAgent() {
+        let result = ConnectionURLParser.parse(
+            "mysql+ssh://admin@jump.example.com/root:pass@127.0.0.1/mydb?usePrivateKey=true&useSSHAgent=true"
+        )
+        guard case .success(let parsed) = result else {
+            Issue.record("Expected success"); return
+        }
+        #expect(parsed.usePrivateKey == true)
+        #expect(parsed.useSSHAgent == true)
+    }
 }

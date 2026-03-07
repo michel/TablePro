@@ -416,10 +416,17 @@ actor SSHTunnelManager {
         authMethod: SSHAuthMethod
     ) -> SSHTunnelError {
         if errorMessage.contains("Permission denied") {
-            if authMethod == .privateKey || authMethod == .sshAgent {
+            if authMethod == .sshAgent {
                 return .tunnelCreationFailed(
-                    "Public key authentication failed. Possible causes:\n" +
-                        "• No keys loaded in SSH agent\n" +
+                    "SSH agent authentication failed. Possible causes:\n" +
+                        "• No keys loaded in SSH agent (run ssh-add -l to check)\n" +
+                        "• Agent key doesn't match the public key on server\n" +
+                        "• Wrong user or server\n" +
+                        "Debug: \(errorMessage)"
+                )
+            } else if authMethod == .privateKey {
+                return .tunnelCreationFailed(
+                    "Private key authentication failed. Possible causes:\n" +
                         "• Private key doesn't match the public key on server\n" +
                         "• Wrong passphrase for encrypted private key\n" +
                         "• Wrong user or server\n" +
