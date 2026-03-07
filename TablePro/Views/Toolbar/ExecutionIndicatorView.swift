@@ -38,7 +38,6 @@ struct ExecutionIndicatorView: View {
             }
         }
         .padding(.trailing, DesignConstants.Spacing.xs)
-        .animation(.easeInOut(duration: DesignConstants.AnimationDuration.normal), value: isExecuting)
     }
 
     // MARK: - Helpers

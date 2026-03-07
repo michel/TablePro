@@ -42,8 +42,6 @@ struct ToolbarPrincipalContent: View {
                 lastDuration: state.lastQueryDuration
             )
         }
-        .animation(.spring(), value: state.tagId)
-        .animation(state.hasCompletedSetup ? .easeInOut : nil, value: state.connectionState)
     }
 }
 
