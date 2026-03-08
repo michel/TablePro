@@ -343,7 +343,7 @@ final class ClickHouseConnection: @unchecked Sendable {
                 if field == "\\N" {
                     return nil
                 }
-                return unescapeTsvField(field)
+                return Self.unescapeTsvField(field)
             }
             rows.append(row)
         }
@@ -358,7 +358,7 @@ final class ClickHouseConnection: @unchecked Sendable {
     }
 
     /// Unescape TSV escape sequences: `\\` -> `\`, `\t` -> tab, `\n` -> newline
-    private func unescapeTsvField(_ field: String) -> String {
+    static func unescapeTsvField(_ field: String) -> String {
         var result = ""
         result.reserveCapacity((field as NSString).length)
         var iterator = field.makeIterator()
