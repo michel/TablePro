@@ -5,7 +5,7 @@
 <h1 align="center">TablePro</h1>
 
 <p align="center">
-  A fast, native macOS database client with AI-powered SQL assistance.
+  A fast, native macOS database client with built-in AI assistant.
 </p>
 
 <p align="center">
