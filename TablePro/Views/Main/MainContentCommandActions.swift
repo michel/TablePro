@@ -128,7 +128,7 @@ final class MainContentCommandActions {
                     AlertHelper.showErrorSheet(
                         title: String(localized: "Failed to Save Changes"),
                         message: error.localizedDescription,
-                        window: nil
+                        window: self.window
                     )
                 }
             }
@@ -183,7 +183,14 @@ final class MainContentCommandActions {
         observeKeyWindowOnly(.createView) { [weak self] _ in self?.createView() }
         observeKeyWindowOnly(.exportTables) { [weak self] _ in self?.exportTables() }
         observeKeyWindowOnly(.importTables) { [weak self] _ in self?.importTables() }
-        observeKeyWindowOnly(.explainQuery) { [weak self] _ in self?.explainQuery() }
+        observeKeyWindowOnly(.explainQuery) { [weak self] notification in
+            if let variantRaw = notification.userInfo?["variant"] as? String,
+               let variant = ClickHouseExplainVariant(rawValue: variantRaw) {
+                self?.coordinator?.runClickHouseExplain(variant: variant)
+            } else {
+                self?.explainQuery()
+            }
+        }
         observeKeyWindowOnly(.openDatabaseSwitcher) { [weak self] _ in self?.openDatabaseSwitcher() }
     }
 
@@ -264,6 +271,16 @@ final class MainContentCommandActions {
         }
     }
 
+    // MARK: - Unsaved Changes Check
+
+    private var hasUnsavedChanges: Bool {
+        let hasEditedCells = coordinator?.changeManager.hasChanges ?? false
+        let hasPendingTableOps = !pendingTruncates.wrappedValue.isEmpty
+            || !pendingDeletes.wrappedValue.isEmpty
+        let hasSidebarEdits = rightPanelState.editState.hasEdits
+        return hasEditedCells || hasPendingTableOps || hasSidebarEdits
+    }
+
     // MARK: - Tab Operations (Group A — Called Directly)
 
     func newTab(initialQuery: String? = nil) {
@@ -282,17 +299,37 @@ final class MainContentCommandActions {
     }
 
     func closeTab() {
+        if hasUnsavedChanges {
+            Task { @MainActor in
+                let keyWindow = NSApp.keyWindow
+                let result = await AlertHelper.confirmSaveChanges(
+                    message: String(localized: "Your changes will be lost if you don't save them."),
+                    window: keyWindow
+                )
+
+                switch result {
+                case .save:
+                    await saveAndClose()
+                case .dontSave:
+                    discardAndClose()
+                case .cancel:
+                    break
+                }
+            }
+        } else {
+            performClose()
+        }
+    }
+
+    private func performClose() {
         guard let keyWindow = NSApp.keyWindow else { return }
         let tabbedWindows = keyWindow.tabbedWindows ?? [keyWindow]
 
         if tabbedWindows.count > 1 {
-            // Multiple native tabs — close this window (macOS removes it from tab group)
             keyWindow.close()
         } else if coordinator?.tabManager.tabs.isEmpty == true {
-            // Already in empty state — close the connection window
             keyWindow.close()
         } else {
-            // Last tab with content — clear tabs to show empty state instead of closing
             for tab in coordinator?.tabManager.tabs ?? [] {
                 tab.rowBuffer.evict()
             }
@@ -303,6 +340,45 @@ final class MainContentCommandActions {
         }
     }
 
+    private func saveAndClose() async {
+        guard let coordinator = coordinator else {
+            performClose()
+            return
+        }
+
+        // Structure view saves are notification-based
+        if coordinator.tabManager.selectedTab?.showStructure == true {
+            NotificationCenter.default.post(name: .saveStructureChanges, object: nil)
+            performClose()
+            return
+        }
+
+        // Sidebar edits
+        if rightPanelState.editState.hasEdits {
+            rightPanelState.onSave?()
+            performClose()
+            return
+        }
+
+        // Data grid changes: await the async save via continuation
+        let saved = await withCheckedContinuation { continuation in
+            coordinator.saveCompletionContinuation = continuation
+            saveChanges()
+        }
+
+        if saved {
+            performClose()
+        }
+    }
+
+    private func discardAndClose() {
+        coordinator?.changeManager.clearChanges()
+        pendingTruncates.wrappedValue.removeAll()
+        pendingDeletes.wrappedValue.removeAll()
+        rightPanelState.editState.clearEdits()
+        performClose()
+    }
+
     func createView() {
         guard !connection.isReadOnly else { return }
 
@@ -310,7 +386,7 @@ final class MainContentCommandActions {
         switch connection.type {
         case .postgresql, .redshift:
             template = "CREATE OR REPLACE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
-        case .mysql, .mariadb:
+        case .mysql, .mariadb, .clickhouse:
             template = "CREATE VIEW view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
         case .sqlite:
             template = "CREATE VIEW IF NOT EXISTS view_name AS\nSELECT column1, column2\nFROM table_name\nWHERE condition;"
@@ -358,6 +434,9 @@ final class MainContentCommandActions {
         if coordinator?.tabManager.selectedTab?.showStructure == true {
             // Post notification for structure view to handle
             NotificationCenter.default.post(name: .saveStructureChanges, object: nil)
+        } else if rightPanelState.editState.hasEdits {
+            // Save sidebar edits if the right panel has pending changes
+            rightPanelState.onSave?()
         } else {
             // Handle data grid changes
             var truncates = pendingTruncates.wrappedValue
@@ -616,7 +695,7 @@ final class MainContentCommandActions {
                 switch connection.type {
                 case .postgresql, .redshift:
                     fallbackSQL = "CREATE OR REPLACE VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
-                case .mysql, .mariadb:
+                case .mysql, .mariadb, .clickhouse:
                     fallbackSQL = "ALTER VIEW \(viewName) AS\n-- Could not fetch view definition: \(error.localizedDescription)\nSELECT * FROM table_name;"
                 case .sqlite:
                     fallbackSQL = "-- SQLite does not support ALTER VIEW. Drop and recreate:\nDROP VIEW IF EXISTS \(viewName);\nCREATE VIEW \(viewName) AS\nSELECT * FROM table_name;"

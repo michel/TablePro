@@ -504,8 +504,8 @@ struct ExportDialog: View {
                     }
                 }
 
-            case .mysql, .mariadb:
-                // MySQL/MariaDB: fetch all databases and their tables
+            case .clickhouse, .mysql, .mariadb:
+                // MySQL/MariaDB/ClickHouse: fetch all databases and their tables
                 let databases = try await driver.fetchDatabases()
                 for dbName in databases {
                     let tables = try await fetchTablesForDatabase(dbName, driver: driver)

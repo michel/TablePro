@@ -180,6 +180,8 @@ final class DatabaseSwitcherViewModel {
             return ["postgres", "template0", "template1"].contains(name)
         case .redshift:
             return ["dev", "padb_harvest"].contains(name)
+        case .clickhouse:
+            return ["information_schema", "INFORMATION_SCHEMA", "system"].contains(name)
         case .sqlite:
             return false
         case .mongodb:

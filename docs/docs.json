@@ -39,6 +39,8 @@
                   "databases/mongodb",
                   "databases/redis",
                   "databases/redshift",
+                  "databases/oracle",
+                  "databases/clickhouse",
                   "databases/mssql",
                   "databases/oracle",
                   "databases/ssh-tunneling"
@@ -128,6 +130,8 @@
                   "vi/databases/mongodb",
                   "vi/databases/redis",
                   "vi/databases/redshift",
+                  "vi/databases/oracle",
+                  "vi/databases/clickhouse",
                   "vi/databases/mssql",
                   "vi/databases/oracle",
                   "vi/databases/ssh-tunneling"

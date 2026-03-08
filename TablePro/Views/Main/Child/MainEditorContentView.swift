@@ -45,7 +45,6 @@ struct MainEditorContentView: View {
     let onApplyFilters: ([TableFilter]) -> Void
     let onClearFilters: () -> Void
     let onQuickSearch: (String) -> Void
-    let onCommit: (String) -> Void
     let onRefresh: () -> Void
 
     // Pagination callbacks
@@ -253,6 +252,8 @@ struct MainEditorContentView: View {
                 TableStructureView(tableName: tableName, connection: connection, toolbarState: coordinator.toolbarState)
                     .id(tableName)
                     .frame(maxHeight: .infinity)
+            } else if let explainText = tab.explainText {
+                ExplainResultView(text: explainText, executionTime: tab.explainExecutionTime)
             } else if tab.resultColumns.isEmpty && tab.errorMessage == nil && tab.lastExecutedAt != nil && !tab.isExecuting {
                 QuerySuccessView(
                     rowsAffected: tab.rowsAffected,
@@ -292,7 +293,6 @@ struct MainEditorContentView: View {
             resultVersion: tab.resultVersion,
             metadataVersion: tab.metadataVersion,
             isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
-            onCommit: onCommit,
             onRefresh: onRefresh,
             onCellEdit: onCellEdit,
             onUndo: { [binding = _selectedRowIndices, coordinator] in

@@ -246,6 +246,51 @@ struct SchemaStatementGenerator {
                 isDestructive: old.dataType != new.dataType
             )
 
+        case .clickhouse:
+            // ClickHouse HTTP interface doesn't support multi-statement queries,
+            // so we combine changes into a single ALTER TABLE with comma-separated actions
+            var actions: [String] = []
+            let newQuoted = databaseType.quoteIdentifier(new.name)
+
+            if old.name != new.name {
+                let oldQuoted = databaseType.quoteIdentifier(old.name)
+                actions.append("RENAME COLUMN \(oldQuoted) TO \(newQuoted)")
+            }
+
+            if old.dataType != new.dataType || old.isNullable != new.isNullable {
+                let nullableType = new.isNullable ? "Nullable(\(new.dataType))" : new.dataType
+                actions.append("MODIFY COLUMN \(newQuoted) \(nullableType)")
+            }
+
+            if old.defaultValue != new.defaultValue {
+                if let defaultVal = new.defaultValue, !defaultVal.isEmpty {
+                    actions.append("MODIFY COLUMN \(newQuoted) DEFAULT \(defaultVal)")
+                } else {
+                    actions.append("MODIFY COLUMN \(newQuoted) REMOVE DEFAULT")
+                }
+            }
+
+            if old.comment != new.comment {
+                if let comment = new.comment, !comment.isEmpty {
+                    let escaped = comment.replacingOccurrences(of: "'", with: "''")
+                    actions.append("COMMENT COLUMN \(newQuoted) '\(escaped)'")
+                } else {
+                    actions.append("COMMENT COLUMN \(newQuoted) ''")
+                }
+            }
+
+            guard !actions.isEmpty else {
+                return SchemaStatement(sql: "", description: "No changes", isDestructive: false)
+            }
+
+            let sql = "ALTER TABLE \(tableQuoted) " + actions.joined(separator: ", ")
+            return SchemaStatement(
+                sql: sql,
+                description: "Modify column '\(old.name)' to '\(new.name)'",
+                isDestructive: old.dataType != new.dataType
+            )
+
+
         case .sqlite, .mongodb, .redis:
             // SQLite doesn't support ALTER COLUMN - requires table recreation
             // MongoDB/Redis don't use SQL ALTER TABLE
@@ -271,16 +316,22 @@ struct SchemaStatementGenerator {
         var parts: [String] = []
 
         parts.append(databaseType.quoteIdentifier(column.name))
-        parts.append(column.dataType)
 
-        // Unsigned (MySQL/MariaDB only)
-        if (databaseType == .mysql || databaseType == .mariadb) && column.unsigned {
-            parts.append("UNSIGNED")
-        }
+        // ClickHouse uses Nullable(Type) wrapper instead of NOT NULL keyword
+        if databaseType == .clickhouse {
+            parts.append(column.isNullable ? "Nullable(\(column.dataType))" : column.dataType)
+        } else {
+            parts.append(column.dataType)
 
-        // Nullable
-        if !column.isNullable {
-            parts.append("NOT NULL")
+            // Unsigned (MySQL/MariaDB only)
+            if (databaseType == .mysql || databaseType == .mariadb) && column.unsigned {
+                parts.append("UNSIGNED")
+            }
+
+            // Nullable
+            if !column.isNullable {
+                parts.append("NOT NULL")
+            }
         }
 
         // Default value
@@ -299,8 +350,8 @@ struct SchemaStatementGenerator {
                 parts[1] = "SERIAL"
             case .sqlite:
                 parts.append("AUTOINCREMENT")
-            case .mongodb, .redis:
-                break  // MongoDB/Redis auto-generate IDs
+            case .mongodb, .redis, .clickhouse:
+                break  // MongoDB/Redis auto-generate IDs; ClickHouse has no auto-increment
             case .mssql:
                 parts[1] = "INT IDENTITY(1,1)"
             case .oracle:
@@ -317,7 +368,7 @@ struct SchemaStatementGenerator {
         // Comment
         if let comment = column.comment, !comment.isEmpty {
             switch databaseType {
-            case .mysql, .mariadb:
+            case .mysql, .mariadb, .clickhouse:
                 let escapedComment = comment.replacingOccurrences(of: "'", with: "''")
                 parts.append("COMMENT '\(escapedComment)'")
             case .postgresql, .redshift:
@@ -351,7 +402,7 @@ struct SchemaStatementGenerator {
             let indexTypeClause = index.type == .btree ? "" : "USING \(index.type.rawValue)"
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) \(indexTypeClause) (\(columnsQuoted))"
 
-        case .sqlite, .mongodb, .redis, .mssql, .oracle:
+        case .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) (\(columnsQuoted))"
         }
 
@@ -380,7 +431,7 @@ struct SchemaStatementGenerator {
 
         let sql: String
         switch databaseType {
-        case .mysql, .mariadb:
+        case .mysql, .mariadb, .clickhouse:
             let tableQuoted = databaseType.quoteIdentifier(tableName)
             sql = "DROP INDEX \(indexQuoted) ON \(tableQuoted)"
 
@@ -447,7 +498,7 @@ struct SchemaStatementGenerator {
 
         case .postgresql, .redshift, .mssql, .oracle:
             sql = "ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(fkQuoted)"
-        case .sqlite, .mongodb, .redis:
+        case .sqlite, .mongodb, .redis, .clickhouse:
             throw DatabaseError.unsupportedOperation
         }
         return SchemaStatement(
@@ -493,9 +544,10 @@ struct SchemaStatementGenerator {
             ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted));
             """
 
-        case .sqlite, .mongodb, .redis:
+        case .sqlite, .mongodb, .redis, .clickhouse:
             // SQLite doesn't support modifying primary keys - requires table recreation
             // MongoDB/Redis don't use SQL ALTER TABLE
+            // ClickHouse primary keys are defined at table creation and cannot be modified
             throw DatabaseError.unsupportedOperation
         }
 

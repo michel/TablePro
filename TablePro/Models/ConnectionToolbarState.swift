@@ -157,6 +157,12 @@ final class ConnectionToolbarState {
     /// Duration of the last completed query
     var lastQueryDuration: TimeInterval?
 
+    /// Live ClickHouse query progress (rows/bytes read during execution)
+    var clickHouseProgress: ClickHouseQueryProgress?
+
+    /// Retained progress from last completed ClickHouse query (for summary display)
+    var lastClickHouseProgress: ClickHouseQueryProgress?
+
     // MARK: - Future Expansion
 
     /// Whether the connection is read-only
@@ -268,6 +274,8 @@ final class ConnectionToolbarState {
         connectionState = .disconnected
         isExecuting = false
         lastQueryDuration = nil
+        clickHouseProgress = nil
+        lastClickHouseProgress = nil
         isReadOnly = false
         isTableTab = false
         latencyMs = nil

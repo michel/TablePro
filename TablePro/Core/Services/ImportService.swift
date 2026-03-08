@@ -294,7 +294,7 @@ final class ImportService {
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = OFF"]
-        case .mongodb, .redis:
+        case .mongodb, .redis, .clickhouse:
             return []
         }
     }
@@ -307,7 +307,7 @@ final class ImportService {
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
-        case .mongodb, .redis:
+        case .mongodb, .redis, .clickhouse:
             return []
         }
     }
@@ -315,7 +315,7 @@ final class ImportService {
 
     private func commitStatement(for dbType: DatabaseType) -> String {
         switch dbType {
-        case .mongodb, .redis:
+        case .mongodb, .redis, .clickhouse:
             return ""
         default:
             return "COMMIT"
@@ -324,7 +324,7 @@ final class ImportService {
 
     private func rollbackStatement(for dbType: DatabaseType) -> String {
         switch dbType {
-        case .mongodb, .redis:
+        case .mongodb, .redis, .clickhouse:
             return ""
         default:
             return "ROLLBACK"

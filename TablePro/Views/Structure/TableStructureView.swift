@@ -107,10 +107,14 @@ struct TableStructureView: View {
     // MARK: - Toolbar
 
     private var availableTabs: [StructureTab] {
+        var tabs = StructureTab.allCases
         if !connection.type.supportsForeignKeys {
-            return StructureTab.allCases.filter { $0 != .foreignKeys }
+            tabs = tabs.filter { $0 != .foreignKeys }
         }
-        return StructureTab.allCases
+        if connection.type != .clickhouse {
+            tabs = tabs.filter { $0 != .parts }
+        }
+        return tabs
     }
 
     private var toolbar: some View {
@@ -149,6 +153,8 @@ struct TableStructureView: View {
             structureGrid
         case .ddl:
             ddlView
+        case .parts:
+            ClickHousePartsView(tableName: tableName, connectionId: connection.id)
         }
     }
 
@@ -162,7 +168,6 @@ struct TableStructureView: View {
             rowProvider: provider.asInMemoryProvider(),
             changeManager: wrappedChangeManager,
             isEditable: canEdit,
-            onCommit: nil,
             onRefresh: nil,
             onCellEdit: handleCellEdit,
             onDeleteRows: handleDeleteRows,
@@ -215,18 +220,32 @@ struct TableStructureView: View {
 
         case .ddl:
             break
+        case .parts:
+            break
         }
     }
 
     private func updateColumn(_ column: inout EditableColumnDefinition, at index: Int, with value: String) {
-        switch index {
-        case 0: column.name = value
-        case 1: column.dataType = value
-        case 2: column.isNullable = value.uppercased() == "YES" || value == "1"
-        case 3: column.defaultValue = value.isEmpty ? nil : value
-        case 4: column.autoIncrement = value.uppercased() == "YES" || value == "1"
-        case 5: column.comment = value.isEmpty ? nil : value
-        default: break
+        if connection.type == .clickhouse {
+            // ClickHouse: Name(0), Type(1), Nullable(2), Default(3), Comment(4) — no Auto Inc
+            switch index {
+            case 0: column.name = value
+            case 1: column.dataType = value
+            case 2: column.isNullable = value.uppercased() == "YES" || value == "1"
+            case 3: column.defaultValue = value.isEmpty ? nil : value
+            case 4: column.comment = value.isEmpty ? nil : value
+            default: break
+            }
+        } else {
+            switch index {
+            case 0: column.name = value
+            case 1: column.dataType = value
+            case 2: column.isNullable = value.uppercased() == "YES" || value == "1"
+            case 3: column.defaultValue = value.isEmpty ? nil : value
+            case 4: column.autoIncrement = value.uppercased() == "YES" || value == "1"
+            case 5: column.comment = value.isEmpty ? nil : value
+            default: break
+            }
         }
     }
 
@@ -285,6 +304,9 @@ struct TableStructureView: View {
                 let fk = structureChangeManager.workingForeignKeys[row]
                 structureChangeManager.deleteForeignKey(id: fk.id)
             }
+        case .parts:
+            selectedRows.removeAll()
+            return
         case .ddl:
             selectedRows.removeAll()
             return
@@ -300,6 +322,8 @@ struct TableStructureView: View {
         case .foreignKeys:
             newCount = structureChangeManager.workingForeignKeys.count
         case .ddl:
+            newCount = 0
+        case .parts:
             newCount = 0
         }
 
@@ -331,6 +355,8 @@ struct TableStructureView: View {
             structureChangeManager.addNewForeignKey()
         case .ddl:
             break
+        case .parts:
+            break
         }
     }
 
@@ -352,7 +378,7 @@ struct TableStructureView: View {
     private static let structurePasteboardType = NSPasteboard.PasteboardType("com.TablePro.structure")
 
     private func handleCopyRows(_ rowIndices: Set<Int>) {
-        guard selectedTab != .ddl, !rowIndices.isEmpty else { return }
+        guard selectedTab != .ddl, selectedTab != .parts, !rowIndices.isEmpty else { return }
 
         var copiedItems: [Any] = []
 
@@ -375,7 +401,7 @@ struct TableStructureView: View {
                 let fk = structureChangeManager.workingForeignKeys[row]
                 copiedItems.append(fk)
             }
-        case .ddl:
+        case .ddl, .parts:
             break
         }
 
@@ -488,7 +514,8 @@ struct TableStructureView: View {
             }
 
         case .ddl:
-            // DDL tab doesn't support paste
+            break
+        case .parts:
             break
         }
     }
@@ -571,7 +598,7 @@ struct TableStructureView: View {
             AlertHelper.showErrorSheet(
                 title: String(localized: "Error Applying Changes"),
                 message: error.localizedDescription,
-                window: nil
+                window: NSApp.keyWindow
             )
         }
     }
@@ -721,6 +748,8 @@ struct TableStructureView: View {
                     }
                     ddlStatement = preamble + "\n" + baseDDL
                 }
+            case .parts:
+                break
             }
             loadedTabs.insert(tab)
         } catch {
@@ -750,7 +779,7 @@ struct TableStructureView: View {
 
         copyResetTask?.cancel()
         copyResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(1500))
+            try? await Task.sleep(for: .milliseconds(1_500))
             guard !Task.isCancelled else { return }
             withAnimation {
                 showCopyConfirmation = false
@@ -778,8 +807,7 @@ struct TableStructureView: View {
     // MARK: - Lifecycle Callbacks
 
     private func onSelectedTabChanged(_ new: StructureTab) {
-        // Update AppState when switching to/from DDL tab
-        AppState.shared.isCurrentTabEditable = (new != .ddl)
+        AppState.shared.isCurrentTabEditable = (new != .ddl && new != .parts)
 
         Task {
             await loadTabDataIfNeeded(new)
@@ -815,11 +843,13 @@ struct TableStructureView: View {
         if structureChangeManager.hasChanges && !justSaved {
             // Show confirmation dialog
             Task { @MainActor in
+                let window = NSApp.keyWindow
                 let confirmed = await AlertHelper.confirmDestructive(
                     title: String(localized: "Discard Changes?"),
                     message: String(localized: "You have unsaved changes to the table structure. Refreshing will discard these changes."),
                     confirmButton: String(localized: "Discard"),
-                    cancelButton: String(localized: "Cancel")
+                    cancelButton: String(localized: "Cancel"),
+                    window: window
                 )
 
                 if confirmed {

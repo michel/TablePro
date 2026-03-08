@@ -12,6 +12,8 @@ import SwiftUI
 struct ExecutionIndicatorView: View {
     let isExecuting: Bool
     let lastDuration: TimeInterval?
+    let clickHouseProgress: ClickHouseQueryProgress?
+    let lastClickHouseProgress: ClickHouseQueryProgress?
 
     var body: some View {
         HStack(spacing: 5) {
@@ -20,8 +22,18 @@ struct ExecutionIndicatorView: View {
                     .controlSize(.small)
                     .accessibilityLabel(String(localized: "Query executing"))
                     .help("Query executing...")
+                if let progress = clickHouseProgress {
+                    Text(progress.formattedLive)
+                        .font(ToolbarDesignTokens.Typography.executionTime)
+                        .foregroundStyle(ToolbarDesignTokens.Colors.tertiaryText)
+                }
+            } else if let chProgress = lastClickHouseProgress {
+                Text(chProgress.formattedSummary)
+                    .font(ToolbarDesignTokens.Typography.executionTime)
+                    .foregroundStyle(ToolbarDesignTokens.Colors.tertiaryText)
+                    .accessibilityLabel(String(localized: "Last query: \(chProgress.formattedSummary)"))
+                    .help("Last query execution summary")
             } else if let duration = lastDuration {
-                // Show last query duration when not executing
                 Text(formattedDuration(duration))
                     .font(ToolbarDesignTokens.Typography.executionTime)
                     .foregroundStyle(ToolbarDesignTokens.Colors.tertiaryText)
@@ -63,25 +75,25 @@ struct ExecutionIndicatorView: View {
 // MARK: - Preview
 
 #Preview("Executing") {
-    ExecutionIndicatorView(isExecuting: true, lastDuration: nil)
+    ExecutionIndicatorView(isExecuting: true, lastDuration: nil, clickHouseProgress: nil, lastClickHouseProgress: nil)
         .padding()
         .background(Color(nsColor: .windowBackgroundColor))
 }
 
 #Preview("Completed Fast") {
-    ExecutionIndicatorView(isExecuting: false, lastDuration: 0.023)
+    ExecutionIndicatorView(isExecuting: false, lastDuration: 0.023, clickHouseProgress: nil, lastClickHouseProgress: nil)
         .padding()
         .background(Color(nsColor: .windowBackgroundColor))
 }
 
 #Preview("Completed Slow") {
-    ExecutionIndicatorView(isExecuting: false, lastDuration: 2.456)
+    ExecutionIndicatorView(isExecuting: false, lastDuration: 2.456, clickHouseProgress: nil, lastClickHouseProgress: nil)
         .padding()
         .background(Color(nsColor: .windowBackgroundColor))
 }
 
 #Preview("No Duration") {
-    ExecutionIndicatorView(isExecuting: false, lastDuration: nil)
+    ExecutionIndicatorView(isExecuting: false, lastDuration: nil, clickHouseProgress: nil, lastClickHouseProgress: nil)
         .padding()
         .background(Color(nsColor: .windowBackgroundColor))
 }

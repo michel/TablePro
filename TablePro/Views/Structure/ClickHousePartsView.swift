@@ -1,0 +1,115 @@
+//
+//  ClickHousePartsView.swift
+//  TablePro
+//
+//  Displays ClickHouse partition/part information from system.parts.
+//
+
+import os
+import SwiftUI
+
+struct ClickHousePartsView: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ClickHousePartsView")
+
+    let tableName: String
+    let connectionId: UUID
+
+    @State private var parts: [ClickHousePartInfo] = []
+    @State private var isLoading = true
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = errorMessage {
+                VStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if parts.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "tray")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                    Text("No parts found")
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                partsTable
+            }
+        }
+        .task { await loadParts() }
+    }
+
+    private var partsTable: some View {
+        Table(parts) {
+            TableColumn("Partition", value: \.partition)
+                .width(min: 80, ideal: 120)
+            TableColumn("Name", value: \.name)
+                .width(min: 100, ideal: 200)
+            TableColumn("Rows") { part in
+                Text(formatNumber(part.rows))
+                    .monospacedDigit()
+            }
+            .width(min: 60, ideal: 100)
+            TableColumn("Size") { part in
+                Text(formatBytes(part.bytesOnDisk))
+                    .monospacedDigit()
+            }
+            .width(min: 60, ideal: 100)
+            TableColumn("Modified", value: \.modificationTime)
+                .width(min: 100, ideal: 160)
+            TableColumn("Active") { part in
+                Image(systemName: part.active ? "checkmark.circle.fill" : "xmark.circle")
+                    .foregroundStyle(part.active ? .green : .secondary)
+            }
+            .width(min: 50, ideal: 60)
+        }
+    }
+
+    private func loadParts() async {
+        isLoading = true
+        errorMessage = nil
+
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) as? ClickHouseDriver else {
+            errorMessage = String(localized: "Not connected to ClickHouse")
+            isLoading = false
+            return
+        }
+
+        do {
+            parts = try await driver.fetchClickHouseParts(table: tableName)
+        } catch {
+            Self.logger.error("Failed to load parts: \(error.localizedDescription, privacy: .public)")
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    private func formatNumber(_ number: UInt64) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
+    }
+
+    private func formatBytes(_ bytes: UInt64) -> String {
+        switch bytes {
+        case 0..<1_024:
+            return "\(bytes) B"
+        case 1_024..<1_048_576:
+            return String(format: "%.0f KB", Double(bytes) / 1_024)
+        case 1_048_576..<1_073_741_824:
+            return String(format: "%.1f MB", Double(bytes) / 1_048_576)
+        default:
+            return String(format: "%.2f GB", Double(bytes) / 1_073_741_824)
+        }
+    }
+}

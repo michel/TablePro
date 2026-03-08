@@ -108,6 +108,8 @@ struct ConnectionURLParser {
             dbType = .mssql
         case "oracle", "jdbc:oracle:thin":
             dbType = .oracle
+        case "clickhouse", "ch":
+            dbType = .clickhouse
         default:
             return .failure(.unsupportedScheme(scheme))
         }

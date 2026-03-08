@@ -207,6 +207,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     case redis = "Redis"
     case mssql = "SQL Server"
     case oracle = "Oracle"
+    case clickhouse = "ClickHouse"
 
     var id: String { rawValue }
 
@@ -231,6 +232,8 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return "mssql-icon"
         case .oracle:
             return "oracle-icon"
+        case .clickhouse:
+            return "clickhouse-icon"
         }
     }
 
@@ -245,6 +248,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .redis: return 6_379
         case .mssql: return 1_433
         case .oracle: return 1_521
+        case .clickhouse: return 8_123
         }
     }
 
@@ -253,7 +257,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// MongoDB and SQLite commonly run without authentication.
     var requiresAuthentication: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .redshift, .mssql, .oracle: return true
+        case .mysql, .mariadb, .postgresql, .redshift, .mssql, .oracle, .clickhouse: return true
         case .sqlite, .mongodb, .redis: return false
         }
     }
@@ -263,7 +267,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .postgresql, .sqlite, .redshift, .mssql, .oracle:
             return true
-        case .mongodb, .redis:
+        case .mongodb, .redis, .clickhouse:
             return false
         }
     }
@@ -274,14 +278,14 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .postgresql, .redshift, .sqlite: return "BEGIN"
         case .mssql: return "BEGIN TRANSACTION"
         case .oracle: return ""
-        case .mongodb, .redis: return ""
+        case .mongodb, .redis, .clickhouse: return ""
         }
     }
 
     /// Whether this database type supports SQL-based schema editing (ALTER TABLE etc.)
     var supportsSchemaEditing: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle:
+        case .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle, .clickhouse:
             return true
         case .redshift, .mongodb, .redis:
             return false
@@ -292,7 +296,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// MySQL/MariaDB/SQLite use backticks, PostgreSQL uses double quotes
     var identifierQuote: String {
         switch self {
-        case .mysql, .mariadb, .sqlite:
+        case .mysql, .mariadb, .sqlite, .clickhouse:
             return "`"
         case .postgresql, .redshift, .mongodb, .redis, .oracle:
             return "\""

@@ -331,6 +331,8 @@ struct QueryTab: Identifiable, Equatable {
     var isView: Bool  // True for database views (read-only)
     var databaseName: String  // Database this tab was opened in (for multi-database restore)
     var showStructure: Bool  // Toggle to show structure view instead of data
+    var explainText: String?
+    var explainExecutionTime: TimeInterval?
 
     // Per-tab change tracking (preserves changes when switching tabs)
     var pendingChanges: TabPendingChanges

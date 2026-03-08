@@ -130,8 +130,8 @@ extension MainContentCoordinator {
         switch connection.type {
         case .postgresql:
             let schema: String
-            if let pgDriver = DatabaseManager.shared.driver(for: connectionId) as? PostgreSQLDriver {
-                schema = pgDriver.escapedSchema
+            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
+                schema = schemaDriver.escapedSchema
             } else {
                 schema = "public"
             }
@@ -151,8 +151,8 @@ extension MainContentCoordinator {
             """
         case .redshift:
             let schema: String
-            if let rsDriver = DatabaseManager.shared.driver(for: connectionId) as? RedshiftDriver {
-                schema = rsDriver.escapedSchema
+            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
+                schema = schemaDriver.escapedSchema
             } else {
                 schema = "public"
             }
@@ -169,6 +169,19 @@ extension MainContentCoordinator {
             FROM svv_table_info
             WHERE schema = '\(schema)'
             ORDER BY "table"
+            """
+        case .clickhouse:
+            sql = """
+            SELECT
+                database as `schema`,
+                name,
+                engine as kind,
+                total_rows as estimated_rows,
+                formatReadableSize(total_bytes) as total_size,
+                comment
+            FROM system.tables
+            WHERE database = currentDatabase()
+            ORDER BY name
             """
         case .mysql, .mariadb:
             sql = """
@@ -226,8 +239,8 @@ extension MainContentCoordinator {
             """
         case .oracle:
             let schema: String
-            if let oracleDriver = DatabaseManager.shared.driver(for: connectionId) as? OracleDriver {
-                schema = oracleDriver.escapedSchema
+            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
+                schema = schemaDriver.escapedSchema
             } else {
                 schema = "SYSTEM"
             }
@@ -291,8 +304,8 @@ extension MainContentCoordinator {
         }
 
         do {
-            // For MySQL/MariaDB, use USE command
-            if connection.type == .mysql || connection.type == .mariadb {
+            // For MySQL/MariaDB/ClickHouse, use USE command
+            if connection.type == .mysql || connection.type == .mariadb || connection.type == .clickhouse {
                 _ = try await driver.execute(query: "USE `\(database)`")
 
                 // Also switch metadata driver's database
@@ -338,16 +351,11 @@ extension MainContentCoordinator {
 
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .redshift {
-                // Redshift: switch schema
-                if let rsDriver = driver as? RedshiftDriver {
-                    try await rsDriver.switchSchema(to: database)
-                } else {
-                    return
-                }
+                guard let schemaDriver = driver as? SchemaSwitchable else { return }
+                try await schemaDriver.switchSchema(to: database)
 
-                // Also switch metadata driver's schema
-                if let rsMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedshiftDriver {
-                    try? await rsMeta.switchSchema(to: database)
+                if let schemaMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? SchemaSwitchable {
+                    try? await schemaMeta.switchSchema(to: database)
                 }
 
                 // Update session
@@ -372,12 +380,11 @@ extension MainContentCoordinator {
                 // even when session.tables was already [] (e.g. switching from empty schema back to public)
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .oracle {
-                if let oracleDriver = driver as? OracleDriver {
-                    try await oracleDriver.switchSchema(to: database)
-                }
+                guard let schemaDriver = driver as? SchemaSwitchable else { return }
+                try await schemaDriver.switchSchema(to: database)
 
-                if let oracleMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? OracleDriver {
-                    try? await oracleMeta.switchSchema(to: database)
+                if let schemaMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? SchemaSwitchable {
+                    try? await schemaMeta.switchSchema(to: database)
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
@@ -489,14 +496,11 @@ extension MainContentCoordinator {
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
         do {
-            if let pgDriver = driver as? PostgreSQLDriver {
-                try await pgDriver.switchSchema(to: schema)
-            } else {
-                return
-            }
+            guard let schemaDriver = driver as? SchemaSwitchable else { return }
+            try await schemaDriver.switchSchema(to: schema)
 
-            if let pgMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? PostgreSQLDriver {
-                try? await pgMeta.switchSchema(to: schema)
+            if let schemaMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? SchemaSwitchable {
+                try? await schemaMeta.switchSchema(to: schema)
             }
 
             DatabaseManager.shared.updateSession(connectionId) { session in

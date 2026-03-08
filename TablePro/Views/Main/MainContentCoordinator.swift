@@ -81,6 +81,13 @@ final class MainContentCoordinator {
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     @ObservationIgnored internal var isHandlingTabSwitch = false
 
+    /// Guards against re-entrant confirm dialogs (e.g. nested run loop during runModal)
+    @ObservationIgnored internal var isShowingConfirmAlert = false
+
+    /// Continuation for callers that need to await the result of a fire-and-forget save
+    /// (e.g. save-then-close). Set before calling `saveChanges`, resumed by `executeCommitStatements`.
+    @ObservationIgnored internal var saveCompletionContinuation: CheckedContinuation<Bool, Never>?
+
     /// True while a database switch is in progress. Guards against
     /// side-effect window creation during the switch cascade.
     var isSwitchingDatabase = false
@@ -375,7 +382,8 @@ final class MainContentCoordinator {
         if statements.count == 1 {
             // Single statement — existing path (unchanged)
             Task { @MainActor in
-                guard await confirmDangerousQueryIfNeeded(statements[0]) else {
+                let window = NSApp.keyWindow
+                guard await confirmDangerousQueryIfNeeded(statements[0], window: window) else {
                     return
                 }
                 executeQueryInternal(statements[0])
@@ -383,9 +391,10 @@ final class MainContentCoordinator {
         } else {
             // Multiple statements — batch-check dangerous queries, then execute sequentially
             Task { @MainActor in
+                let window = NSApp.keyWindow
                 let dangerousStatements = statements.filter { isDangerousQuery($0) }
                 if !dangerousStatements.isEmpty {
-                    guard await confirmDangerousQueries(dangerousStatements) else { return }
+                    guard await confirmDangerousQueries(dangerousStatements, window: window) else { return }
                 }
                 executeMultipleStatements(statements)
             }
@@ -444,6 +453,9 @@ final class MainContentCoordinator {
         switch connection.type {
         case .mssql, .oracle:
             return
+        case .clickhouse:
+            runClickHouseExplain(variant: .plan)
+            return
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
         case .mysql, .mariadb, .postgresql, .redshift:
@@ -478,6 +490,11 @@ final class MainContentCoordinator {
         tab.errorMessage = nil
         tabManager.tabs[index] = tab
         toolbarState.setExecuting(true)
+
+        if connection.type == .clickhouse,
+           let chDriver = DatabaseManager.shared.driver(for: connectionId) as? ClickHouseDriver {
+            installClickHouseProgressHandler(driver: chDriver)
+        }
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
@@ -575,6 +592,9 @@ final class MainContentCoordinator {
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     currentQueryTask = nil
+                    if self.connection.type == .clickhouse {
+                        self.clearClickHouseProgress()
+                    }
                     toolbarState.setExecuting(false)
                     toolbarState.lastQueryDuration = safeExecutionTime
 
@@ -892,13 +912,19 @@ final class MainContentCoordinator {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = "Cannot save changes: connection is read-only"
             }
+            saveCompletionContinuation?.resume(returning: false)
+            saveCompletionContinuation = nil
             return
         }
 
         let hasEditedCells = changeManager.hasChanges
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
-        guard hasEditedCells || hasPendingTableOps else { return }
+        guard hasEditedCells || hasPendingTableOps else {
+            saveCompletionContinuation?.resume(returning: true)
+            saveCompletionContinuation = nil
+            return
+        }
 
         let allStatements: [ParameterizedStatement]
         do {
@@ -911,6 +937,8 @@ final class MainContentCoordinator {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = error.localizedDescription
             }
+            saveCompletionContinuation?.resume(returning: false)
+            saveCompletionContinuation = nil
             return
         }
 
@@ -918,6 +946,8 @@ final class MainContentCoordinator {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = "Could not generate SQL for changes."
             }
+            saveCompletionContinuation?.resume(returning: false)
+            saveCompletionContinuation = nil
             return
         }
 
@@ -947,7 +977,11 @@ final class MainContentCoordinator {
         tableOperationOptions: inout [String: TableOperationOptions]
     ) {
         let validStatements = statements.filter { !$0.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        guard !validStatements.isEmpty else { return }
+        guard !validStatements.isEmpty else {
+            saveCompletionContinuation?.resume(returning: true)
+            saveCompletionContinuation = nil
+            return
+        }
 
         let deletedTables = Set(pendingDeletes)
         let truncatedTables = Set(pendingTruncates)
@@ -990,9 +1024,8 @@ final class MainContentCoordinator {
                     throw DatabaseError.notConnected
                 }
 
-                for statement in validStatements {
+                for (i, statement) in validStatements.enumerated() {
                     let statementStartTime = Date()
-
                     // Execute parameterized query if has parameters, otherwise use regular execute
                     if statement.parameters.isEmpty {
                         _ = try await driver.execute(query: statement.sql)
@@ -1035,6 +1068,9 @@ final class MainContentCoordinator {
                 if tabManager.selectedTabIndex != nil && !tabManager.tabs.isEmpty {
                     runQuery()
                 }
+
+                saveCompletionContinuation?.resume(returning: true)
+                saveCompletionContinuation = nil
             } catch {
                 let executionTime = Date().timeIntervalSince(overallStartTime)
 
@@ -1093,6 +1129,9 @@ final class MainContentCoordinator {
                         }
                     }
                 }
+
+                saveCompletionContinuation?.resume(returning: false)
+                saveCompletionContinuation = nil
             }
         }
     }
@@ -1235,28 +1274,26 @@ private extension MainContentCoordinator {
             && !updatedTab.isView && updatedTab.tableName != nil
         toolbarState.isTableTab = updatedTab.tabType == .table
 
+        let resolvedPK: String?
         if let pk = metadata?.primaryKeyColumn {
+            resolvedPK = pk
+        } else if conn.type == .redis {
+            resolvedPK = "Key"
+        } else {
+            resolvedPK = nil
+        }
+
+        if let pk = resolvedPK {
             tabManager.tabs[idx].primaryKeyColumn = pk
+        }
 
-            if tabManager.selectedTabId == tabId {
-                changeManager.configureForTable(
-                    tableName: tableName ?? "",
-                    columns: columns,
-                    primaryKeyColumn: pk,
-                    databaseType: conn.type
-                )
-            }
-        } else if conn.type == .redis, isEditable {
-            tabManager.tabs[idx].primaryKeyColumn = "Key"
-
-            if tabManager.selectedTabId == tabId {
-                changeManager.configureForTable(
-                    tableName: tableName ?? "",
-                    columns: columns,
-                    primaryKeyColumn: "Key",
-                    databaseType: .redis
-                )
-            }
+        if tabManager.selectedTabId == tabId {
+            changeManager.configureForTable(
+                tableName: tableName ?? "",
+                columns: columns,
+                primaryKeyColumn: resolvedPK,
+                databaseType: conn.type
+            )
         }
 
         QueryHistoryManager.shared.recordQuery(

@@ -103,7 +103,11 @@ struct FilterSQLGenerator {
         case .regex:
             // SQLite doesn't support REGEXP without a custom function;
             // MongoDB filters are handled natively by MongoDBQueryBuilder
-            if databaseType == .mongodb || databaseType == .redis { return nil }
+            if databaseType == .sqlite || databaseType == .mongodb || databaseType == .redis { return nil }
+            if databaseType == .clickhouse {
+                let escapedPattern = escapeStringValue(filter.value)
+                return "match(\(quotedColumn), '\(escapedPattern)')"
+            }
             return generateRegexCondition(column: quotedColumn, pattern: filter.value)
         }
     }
@@ -117,7 +121,7 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return ""
-        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .mssql, .oracle:
+        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             return " ESCAPE '\\'"
         }
     }
@@ -142,7 +146,7 @@ struct FilterSQLGenerator {
             return "\(column) REGEXP '\(escapedPattern)'"
         case .postgresql, .redshift:
             return "\(column) ~ '\(escapedPattern)'"
-        case .sqlite, .mongodb, .redis, .mssql, .oracle:
+        case .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             return "\(column) LIKE '%\(escapedPattern)%'"
         }
     }

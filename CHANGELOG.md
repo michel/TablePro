@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ClickHouse database support
+- ClickHouse query progress tracking with live rows/bytes display in toolbar
+- ClickHouse EXPLAIN variants (Plan, Pipeline, AST, Syntax, Estimate) via dropdown menu
+- ClickHouse TLS/HTTPS support for encrypted connections
+- ClickHouse server-side query cancellation (KILL QUERY)
+- ClickHouse Parts tab in Structure view showing partition/part details
+
+
 ## [0.15.0] - 2026-03-08
 
 ### Added
@@ -91,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Copy as URL" context menu action on connections to copy connection details as a URL string (e.g., `mysql://user:pass@host/db`)
 - Auto-show inspector option: automatically open the right sidebar when selecting a row (Settings > Data Grid)
 - ENUM and SET columns now open their picker on single click with a chevron indicator, matching boolean column behavior
-- Homebrew Cask installation via `brew install datlechin/tap/tablepro`
+- Homebrew Cask installation via `brew install --cask tablepro`
 
 ### Fixed
 

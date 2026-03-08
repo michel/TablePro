@@ -11,7 +11,7 @@ import OSLog
 private let logger = Logger(subsystem: "com.TablePro", category: "MSSQLDriver")
 
 /// SQL Server database driver using FreeTDS db-lib
-final class MSSQLDriver: DatabaseDriver {
+final class MSSQLDriver: DatabaseDriver, SchemaSwitchable {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 

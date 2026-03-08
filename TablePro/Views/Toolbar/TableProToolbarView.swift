@@ -39,7 +39,9 @@ struct ToolbarPrincipalContent: View {
 
             ExecutionIndicatorView(
                 isExecuting: state.isExecuting,
-                lastDuration: state.lastQueryDuration
+                lastDuration: state.lastQueryDuration,
+                clickHouseProgress: state.clickHouseProgress,
+                lastClickHouseProgress: state.lastClickHouseProgress
             )
         }
     }

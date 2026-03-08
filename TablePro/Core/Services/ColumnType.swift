@@ -243,6 +243,84 @@ enum ColumnType: Equatable {
         }
     }
 
+    // MARK: - ClickHouse Type Mapping
+
+    /// Initialize from ClickHouse type string
+    /// Unwraps Nullable(...) and LowCardinality(...) wrappers before matching the inner type.
+    init(fromClickHouseType type: String?) {
+        guard let originalType = type else {
+            self = .text(rawType: type)
+            return
+        }
+
+        // Unwrap Nullable(...) and LowCardinality(...) wrappers recursively
+        var inner = originalType
+        while true {
+            let trimmed = inner.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("Nullable(") && trimmed.hasSuffix(")") {
+                inner = String(trimmed.dropFirst(9).dropLast(1))
+            } else if trimmed.hasPrefix("LowCardinality(") && trimmed.hasSuffix(")") {
+                inner = String(trimmed.dropFirst(15).dropLast(1))
+            } else {
+                break
+            }
+        }
+
+        let upperInner = inner.trimmingCharacters(in: .whitespaces)
+
+        // Integer types
+        if upperInner.hasPrefix("UInt") || upperInner.hasPrefix("Int") {
+            // Match Int8, Int16, Int32, Int64, Int128, Int256, UInt8, UInt16, UInt32, UInt64, UInt128, UInt256
+            let suffix = upperInner.hasPrefix("UInt") ? String(upperInner.dropFirst(4)) : String(upperInner.dropFirst(3))
+            if ["8", "16", "32", "64", "128", "256"].contains(suffix) {
+                self = .integer(rawType: originalType)
+                return
+            }
+        }
+
+        // Float/Decimal types
+        if upperInner == "Float32" || upperInner == "Float64" || upperInner.hasPrefix("Decimal") {
+            self = .decimal(rawType: originalType)
+            return
+        }
+
+        // Date types
+        if upperInner == "Date" || upperInner == "Date32" {
+            self = .date(rawType: originalType)
+            return
+        }
+
+        // DateTime types
+        if upperInner.hasPrefix("DateTime") {
+            self = .datetime(rawType: originalType)
+            return
+        }
+
+        // Boolean
+        if upperInner == "Bool" {
+            self = .boolean(rawType: originalType)
+            return
+        }
+
+        // Text-like types
+        if upperInner == "String" || upperInner.hasPrefix("FixedString") ||
+            upperInner == "UUID" || upperInner == "IPv4" || upperInner == "IPv6" ||
+            upperInner.hasPrefix("Enum8") || upperInner.hasPrefix("Enum16") {
+            self = .text(rawType: originalType)
+            return
+        }
+
+        // Structured/JSON types
+        if upperInner.hasPrefix("Array") || upperInner.hasPrefix("Tuple") ||
+            upperInner.hasPrefix("Map") || upperInner == "JSON" {
+            self = .json(rawType: originalType)
+            return
+        }
+
+        // Default fallback
+        self = .text(rawType: originalType)
+    }
+
     // MARK: - Oracle Type Mapping
 
     /// Initialize from Oracle data type name string

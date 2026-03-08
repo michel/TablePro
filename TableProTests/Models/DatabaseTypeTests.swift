@@ -71,9 +71,9 @@ struct DatabaseTypeTests {
         #expect(result == "\"user\"\"s\"")
     }
 
-    @Test("CaseIterable count is 9")
+    @Test("CaseIterable count is 10")
     func testCaseIterableCount() {
-        #expect(DatabaseType.allCases.count == 9)
+        #expect(DatabaseType.allCases.count == 10)
     }
 
     @Test("Raw value matches display name", arguments: [
@@ -85,9 +85,42 @@ struct DatabaseTypeTests {
         (DatabaseType.redis, "Redis"),
         (DatabaseType.redshift, "Redshift"),
         (DatabaseType.mssql, "SQL Server"),
-        (DatabaseType.oracle, "Oracle")
+        (DatabaseType.oracle, "Oracle"),
+        (DatabaseType.clickhouse, "ClickHouse")
     ])
     func testRawValueMatchesDisplayName(dbType: DatabaseType, expectedRawValue: String) {
         #expect(dbType.rawValue == expectedRawValue)
+    }
+
+    // MARK: - ClickHouse Tests
+
+    @Test("ClickHouse default port is 8123")
+    func testClickHouseDefaultPort() {
+        #expect(DatabaseType.clickhouse.defaultPort == 8_123)
+    }
+
+    @Test("ClickHouse identifier quote is backtick")
+    func testClickHouseIdentifierQuote() {
+        #expect(DatabaseType.clickhouse.identifierQuote == "`")
+    }
+
+    @Test("ClickHouse requires authentication")
+    func testClickHouseRequiresAuth() {
+        #expect(DatabaseType.clickhouse.requiresAuthentication == true)
+    }
+
+    @Test("ClickHouse does not support foreign keys")
+    func testClickHouseSupportsForeignKeys() {
+        #expect(DatabaseType.clickhouse.supportsForeignKeys == false)
+    }
+
+    @Test("ClickHouse supports schema editing")
+    func testClickHouseSupportsSchemaEditing() {
+        #expect(DatabaseType.clickhouse.supportsSchemaEditing == true)
+    }
+
+    @Test("ClickHouse icon name is clickhouse-icon")
+    func testClickHouseIconName() {
+        #expect(DatabaseType.clickhouse.iconName == "clickhouse-icon")
     }
 }

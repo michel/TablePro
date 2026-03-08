@@ -663,6 +663,7 @@ struct ConnectionFormView: View {
         case .mysql, .mariadb: return "3306"
         case .postgresql: return "5432"
         case .redshift: return "5439"
+        case .clickhouse: return "8123"
         case .sqlite: return ""
         case .mongodb: return "27017"
         case .redis: return "6379"
