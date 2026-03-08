@@ -309,8 +309,7 @@ final class MainContentCommandActions {
 
                 switch result {
                 case .save:
-                    saveChanges()
-                    performClose()
+                    await saveAndClose()
                 case .dontSave:
                     discardAndClose()
                 case .cancel:
@@ -338,6 +337,37 @@ final class MainContentCommandActions {
             coordinator?.tabManager.selectedTabId = nil
             AppState.shared.isCurrentTabEditable = false
             coordinator?.toolbarState.isTableTab = false
+        }
+    }
+
+    private func saveAndClose() async {
+        guard let coordinator = coordinator else {
+            performClose()
+            return
+        }
+
+        // Structure view saves are notification-based
+        if coordinator.tabManager.selectedTab?.showStructure == true {
+            NotificationCenter.default.post(name: .saveStructureChanges, object: nil)
+            performClose()
+            return
+        }
+
+        // Sidebar edits
+        if rightPanelState.editState.hasEdits {
+            rightPanelState.onSave?()
+            performClose()
+            return
+        }
+
+        // Data grid changes: await the async save via continuation
+        let saved = await withCheckedContinuation { continuation in
+            coordinator.saveCompletionContinuation = continuation
+            saveChanges()
+        }
+
+        if saved {
+            performClose()
         }
     }
 

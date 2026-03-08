@@ -84,6 +84,10 @@ final class MainContentCoordinator {
     /// Guards against re-entrant confirm dialogs (e.g. nested run loop during runModal)
     @ObservationIgnored internal var isShowingConfirmAlert = false
 
+    /// Continuation for callers that need to await the result of a fire-and-forget save
+    /// (e.g. save-then-close). Set before calling `saveChanges`, resumed by `executeCommitStatements`.
+    @ObservationIgnored internal var saveCompletionContinuation: CheckedContinuation<Bool, Never>?
+
     /// True while a database switch is in progress. Guards against
     /// side-effect window creation during the switch cascade.
     var isSwitchingDatabase = false
@@ -908,6 +912,8 @@ final class MainContentCoordinator {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = "Cannot save changes: connection is read-only"
             }
+            saveCompletionContinuation?.resume(returning: false)
+            saveCompletionContinuation = nil
             return
         }
 
@@ -915,6 +921,8 @@ final class MainContentCoordinator {
         let hasPendingTableOps = !pendingTruncates.isEmpty || !pendingDeletes.isEmpty
 
         guard hasEditedCells || hasPendingTableOps else {
+            saveCompletionContinuation?.resume(returning: true)
+            saveCompletionContinuation = nil
             return
         }
 
@@ -929,6 +937,8 @@ final class MainContentCoordinator {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = error.localizedDescription
             }
+            saveCompletionContinuation?.resume(returning: false)
+            saveCompletionContinuation = nil
             return
         }
 
@@ -936,6 +946,8 @@ final class MainContentCoordinator {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = "Could not generate SQL for changes."
             }
+            saveCompletionContinuation?.resume(returning: false)
+            saveCompletionContinuation = nil
             return
         }
 
@@ -965,7 +977,11 @@ final class MainContentCoordinator {
         tableOperationOptions: inout [String: TableOperationOptions]
     ) {
         let validStatements = statements.filter { !$0.sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        guard !validStatements.isEmpty else { return }
+        guard !validStatements.isEmpty else {
+            saveCompletionContinuation?.resume(returning: true)
+            saveCompletionContinuation = nil
+            return
+        }
 
         let deletedTables = Set(pendingDeletes)
         let truncatedTables = Set(pendingTruncates)
@@ -1052,6 +1068,9 @@ final class MainContentCoordinator {
                 if tabManager.selectedTabIndex != nil && !tabManager.tabs.isEmpty {
                     runQuery()
                 }
+
+                saveCompletionContinuation?.resume(returning: true)
+                saveCompletionContinuation = nil
             } catch {
                 let executionTime = Date().timeIntervalSince(overallStartTime)
 
@@ -1110,6 +1129,9 @@ final class MainContentCoordinator {
                         }
                     }
                 }
+
+                saveCompletionContinuation?.resume(returning: false)
+                saveCompletionContinuation = nil
             }
         }
     }

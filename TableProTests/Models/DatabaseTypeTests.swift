@@ -114,9 +114,9 @@ struct DatabaseTypeTests {
         #expect(DatabaseType.clickhouse.supportsForeignKeys == false)
     }
 
-    @Test("ClickHouse does not support schema editing")
+    @Test("ClickHouse supports schema editing")
     func testClickHouseSupportsSchemaEditing() {
-        #expect(DatabaseType.clickhouse.supportsSchemaEditing == false)
+        #expect(DatabaseType.clickhouse.supportsSchemaEditing == true)
     }
 
     @Test("ClickHouse icon name is clickhouse-icon")

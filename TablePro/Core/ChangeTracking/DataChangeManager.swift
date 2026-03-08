@@ -674,7 +674,7 @@ final class DataChangeManager {
 
         let expectedUpdates = changes.count(where: { $0.type == .update })
         let actualUpdates = statements.count(where: {
-            $0.sql.hasPrefix("UPDATE") || $0.sql.contains(" UPDATE ")
+            $0.sql.hasPrefix("UPDATE") || $0.sql.hasPrefix("ALTER TABLE")
         })
 
         if expectedUpdates > 0 && actualUpdates < expectedUpdates {

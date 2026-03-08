@@ -230,7 +230,7 @@ final class ClickHouseConnection: @unchecked Sendable {
         let killSession = URLSession(configuration: config)
 
         do {
-            let escapedId = queryId.replacingOccurrences(of: "'", with: "\\'")
+            let escapedId = queryId.replacingOccurrences(of: "'", with: "''")
             let request = try buildRequest(
                 query: "KILL QUERY WHERE query_id = '\(escapedId)'",
                 database: ""
@@ -360,7 +360,7 @@ final class ClickHouseConnection: @unchecked Sendable {
     /// Unescape TSV escape sequences: `\\` -> `\`, `\t` -> tab, `\n` -> newline
     private func unescapeTsvField(_ field: String) -> String {
         var result = ""
-        result.reserveCapacity(field.count)
+        result.reserveCapacity((field as NSString).length)
         var iterator = field.makeIterator()
 
         while let char = iterator.next() {
