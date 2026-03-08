@@ -88,18 +88,39 @@ struct QueryEditorView: View {
             Divider()
                 .frame(height: 16)
 
-            // Explain button
-            Button {
-                NotificationCenter.default.post(name: .explainQuery, object: nil)
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "chart.bar.doc.horizontal")
-                    Text("Explain")
+            if databaseType == .clickhouse {
+                Menu {
+                    ForEach(ClickHouseExplainVariant.allCases) { variant in
+                        Button(variant.rawValue) {
+                            NotificationCenter.default.post(
+                                name: .explainQuery,
+                                object: nil,
+                                userInfo: ["variant": variant.rawValue]
+                            )
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chart.bar.doc.horizontal")
+                        Text("Explain")
+                    }
                 }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .disabled(!appState.hasQueryText)
+            } else {
+                Button {
+                    NotificationCenter.default.post(name: .explainQuery, object: nil)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chart.bar.doc.horizontal")
+                        Text("Explain")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!appState.hasQueryText)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .disabled(!appState.hasQueryText)
 
             // Execute button
             Button(action: onExecute) {

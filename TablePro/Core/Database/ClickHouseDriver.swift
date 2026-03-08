@@ -22,6 +22,10 @@ final class ClickHouseDriver: DatabaseDriver {
     }
     private var _serverVersion: String?
 
+    var progressHandler: ((ClickHouseQueryProgress) -> Void)?
+    private var currentQueryId: String?
+    private var progressPollingTask: Task<Void, Never>?
+
     init(connection: DatabaseConnection) {
         self.connection = connection
     }
@@ -30,12 +34,16 @@ final class ClickHouseDriver: DatabaseDriver {
 
     func connect() async throws {
         status = .connecting
+        let useTLS = connection.sslConfig.isEnabled
+        let skipVerification = connection.sslConfig.mode == .required
         let conn = ClickHouseConnection(
             host: connection.host,
             port: connection.port,
             user: connection.username,
             password: ConnectionStorage.shared.loadPassword(for: connection.id) ?? "",
-            database: connection.database
+            database: connection.database,
+            useTLS: useTLS,
+            skipTLSVerification: skipVerification
         )
         do {
             try await conn.connect()
@@ -63,9 +71,33 @@ final class ClickHouseDriver: DatabaseDriver {
         guard let conn = chConn else {
             throw DatabaseError.connectionFailed("Not connected to ClickHouse")
         }
+        let queryId = UUID().uuidString
+        currentQueryId = queryId
+
+        startProgressPolling(queryId: queryId)
+
         let startTime = Date()
-        let result = try await conn.executeQuery(query)
-        return mapToQueryResult(result, executionTime: Date().timeIntervalSince(startTime))
+        do {
+            let result = try await conn.executeQuery(query, queryId: queryId)
+            stopProgressPolling()
+
+            let queryResult = mapToQueryResult(result, executionTime: Date().timeIntervalSince(startTime))
+
+            if let summary = result.summary {
+                let progress = ClickHouseQueryProgress(
+                    rowsRead: summary.rowsRead,
+                    bytesRead: summary.bytesRead,
+                    totalRowsToRead: summary.totalRowsToRead,
+                    elapsedSeconds: Date().timeIntervalSince(startTime)
+                )
+                progressHandler?(progress)
+            }
+
+            return queryResult
+        } catch {
+            stopProgressPolling()
+            throw error
+        }
     }
 
     func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
@@ -374,7 +406,14 @@ final class ClickHouseDriver: DatabaseDriver {
     }
 
     func cancelQuery() throws {
+        let queryId = currentQueryId
         chConn?.cancel()
+        stopProgressPolling()
+        if let queryId, let conn = chConn {
+            Task.detached {
+                conn.killQuery(queryId: queryId)
+            }
+        }
     }
 
     // MARK: - Transactions
@@ -398,6 +437,100 @@ final class ClickHouseDriver: DatabaseDriver {
             throw DatabaseError.connectionFailed("Not connected to ClickHouse")
         }
         try await conn.switchDatabase(database)
+    }
+
+    // MARK: - Progress Polling
+
+    private func startProgressPolling(queryId: String) {
+        guard let conn = chConn, progressHandler != nil else { return }
+
+        progressPollingTask = Task { [weak self] in
+            var lastCallTime = Date()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { break }
+
+                let now = Date()
+                guard now.timeIntervalSince(lastCallTime) >= 0.25 else { continue }
+                lastCallTime = now
+
+                do {
+                    let escapedId = queryId.replacingOccurrences(of: "'", with: "\\'")
+                    let pollQuery = """
+                        SELECT read_rows, read_bytes, total_rows_to_read, elapsed
+                        FROM system.processes
+                        WHERE query_id = '\(escapedId)'
+                        """
+                    let pollConn = ClickHouseConnection(
+                        host: self?.connection.host ?? "",
+                        port: self?.connection.port ?? 8_123,
+                        user: self?.connection.username ?? "",
+                        password: ConnectionStorage.shared.loadPassword(for: self?.connection.id ?? UUID()) ?? "",
+                        database: "",
+                        useTLS: self?.connection.sslConfig.isEnabled ?? false,
+                        skipTLSVerification: self?.connection.sslConfig.mode == .required
+                    )
+                    try await pollConn.connect()
+                    let result = try await pollConn.executeQuery(pollQuery)
+                    pollConn.disconnect()
+
+                    if let row = result.rows.first {
+                        let rowsRead = (row[safe: 0] ?? nil).flatMap { UInt64($0) } ?? 0
+                        let bytesRead = (row[safe: 1] ?? nil).flatMap { UInt64($0) } ?? 0
+                        let totalRows = (row[safe: 2] ?? nil).flatMap { UInt64($0) } ?? 0
+                        let elapsed = (row[safe: 3] ?? nil).flatMap { Double($0) } ?? 0
+
+                        let progress = ClickHouseQueryProgress(
+                            rowsRead: rowsRead,
+                            bytesRead: bytesRead,
+                            totalRowsToRead: totalRows,
+                            elapsedSeconds: elapsed
+                        )
+                        await MainActor.run {
+                            self?.progressHandler?(progress)
+                        }
+                    }
+                } catch {
+                    // Polling failure is non-fatal — query continues
+                }
+            }
+        }
+    }
+
+    private func stopProgressPolling() {
+        progressPollingTask?.cancel()
+        progressPollingTask = nil
+        currentQueryId = nil
+    }
+
+    // MARK: - ClickHouse-Specific
+
+    func fetchClickHouseParts(table: String) async throws -> [ClickHousePartInfo] {
+        let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+        let sql = """
+            SELECT partition, name, rows, bytes_on_disk,
+                   toString(modification_time) AS mod_time, active
+            FROM system.parts
+            WHERE database = currentDatabase() AND table = '\(escapedTable)'
+            ORDER BY partition, name
+            """
+        let result = try await execute(query: sql)
+        return result.rows.compactMap { row -> ClickHousePartInfo? in
+            guard let name = row[safe: 1] ?? nil else { return nil }
+            let partition = (row[safe: 0] ?? nil) ?? ""
+            let rows = (row[safe: 2] ?? nil).flatMap { UInt64($0) } ?? 0
+            let bytesOnDisk = (row[safe: 3] ?? nil).flatMap { UInt64($0) } ?? 0
+            let modTime = (row[safe: 4] ?? nil) ?? ""
+            let active = (row[safe: 5] ?? nil) == "1"
+            return ClickHousePartInfo(
+                partition: partition,
+                name: name,
+                rows: rows,
+                bytesOnDisk: bytesOnDisk,
+                modificationTime: modTime,
+                active: active
+            )
+        }
     }
 
     // MARK: - Private Helpers

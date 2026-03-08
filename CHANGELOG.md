@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - ClickHouse database support
+- ClickHouse query progress tracking with live rows/bytes display in toolbar
+- ClickHouse EXPLAIN variants (Plan, Pipeline, AST, Syntax, Estimate) via dropdown menu
+- ClickHouse TLS/HTTPS support for encrypted connections
+- ClickHouse server-side query cancellation (KILL QUERY)
+- ClickHouse Parts tab in Structure view showing partition/part details
 
 
 ## [0.15.0] - 2026-03-08

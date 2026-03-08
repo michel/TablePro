@@ -253,6 +253,8 @@ struct MainEditorContentView: View {
                 TableStructureView(tableName: tableName, connection: connection, toolbarState: coordinator.toolbarState)
                     .id(tableName)
                     .frame(maxHeight: .infinity)
+            } else if let explainText = tab.explainText {
+                ExplainResultView(text: explainText, executionTime: tab.explainExecutionTime)
             } else if tab.resultColumns.isEmpty && tab.errorMessage == nil && tab.lastExecutedAt != nil && !tab.isExecuting {
                 QuerySuccessView(
                     rowsAffected: tab.rowsAffected,

@@ -27,6 +27,7 @@ struct ClickHouseQueryResult {
     let columnTypeNames: [String]
     let rows: [[String?]]
     let affectedRows: Int
+    var summary: ClickHouseQueryProgress?
 }
 
 // MARK: - Connection Class
@@ -42,10 +43,13 @@ final class ClickHouseConnection: @unchecked Sendable {
     private let port: Int
     private let user: String
     private let password: String
+    private let useTLS: Bool
+    private let skipTLSVerification: Bool
 
     private let lock = NSLock()
     private var _isConnected = false
     private var _currentDatabase: String
+    private var _lastQueryId: String?
     private var currentTask: URLSessionDataTask?
     private var session: URLSession?
 
@@ -60,14 +64,30 @@ final class ClickHouseConnection: @unchecked Sendable {
         return _isConnected
     }
 
+    var lastQueryId: String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _lastQueryId
+    }
+
     // MARK: - Initialization
 
-    init(host: String, port: Int, user: String, password: String, database: String) {
+    init(
+        host: String,
+        port: Int,
+        user: String,
+        password: String,
+        database: String,
+        useTLS: Bool = false,
+        skipTLSVerification: Bool = false
+    ) {
         self.host = host
         self.port = port
         self.user = user
         self.password = password
         self._currentDatabase = database
+        self.useTLS = useTLS
+        self.skipTLSVerification = skipTLSVerification
     }
 
     // MARK: - Connection
@@ -78,10 +98,13 @@ final class ClickHouseConnection: @unchecked Sendable {
         config.timeoutIntervalForResource = 300
 
         lock.lock()
-        session = URLSession(configuration: config)
+        if skipTLSVerification {
+            session = URLSession(configuration: config, delegate: InsecureTLSDelegate(), delegateQueue: nil)
+        } else {
+            session = URLSession(configuration: config)
+        }
         lock.unlock()
 
-        // Test connectivity with a simple query
         do {
             _ = try await executeQuery("SELECT 1")
         } catch {
@@ -120,16 +143,19 @@ final class ClickHouseConnection: @unchecked Sendable {
 
     // MARK: - Query Execution
 
-    func executeQuery(_ query: String) async throws -> ClickHouseQueryResult {
+    func executeQuery(_ query: String, queryId: String? = nil) async throws -> ClickHouseQueryResult {
         lock.lock()
         guard let session = self.session else {
             lock.unlock()
             throw ClickHouseError.notConnected
         }
         let database = _currentDatabase
+        if let queryId {
+            _lastQueryId = queryId
+        }
         lock.unlock()
 
-        let request = try buildRequest(query: query, database: database)
+        let request = try buildRequest(query: query, database: database, queryId: queryId)
         let isSelect = Self.isSelectLikeQuery(query)
 
         let (data, response) = try await withTaskCancellationHandler {
@@ -166,11 +192,19 @@ final class ClickHouseConnection: @unchecked Sendable {
             throw ClickHouseError(message: body.trimmingCharacters(in: .whitespacesAndNewlines))
         }
 
-        if isSelect {
-            return parseTabSeparatedResponse(data)
+        var summaryProgress: ClickHouseQueryProgress?
+        if let httpResponse = response as? HTTPURLResponse,
+           let summaryHeader = httpResponse.value(forHTTPHeaderField: "X-ClickHouse-Summary") {
+            summaryProgress = Self.parseSummaryHeader(summaryHeader)
         }
 
-        return ClickHouseQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+        if isSelect {
+            var result = parseTabSeparatedResponse(data)
+            result.summary = summaryProgress
+            return result
+        }
+
+        return ClickHouseQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0, summary: summaryProgress)
     }
 
     func cancel() {
@@ -180,17 +214,57 @@ final class ClickHouseConnection: @unchecked Sendable {
         lock.unlock()
     }
 
+    // MARK: - Kill Query
+
+    func killQuery(queryId: String) {
+        guard !queryId.isEmpty else { return }
+
+        lock.lock()
+        let hasSession = session != nil
+        lock.unlock()
+
+        guard hasSession else { return }
+
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 5
+        let killSession = URLSession(configuration: config)
+
+        do {
+            let escapedId = queryId.replacingOccurrences(of: "'", with: "\\'")
+            let request = try buildRequest(
+                query: "KILL QUERY WHERE query_id = '\(escapedId)'",
+                database: ""
+            )
+            let task = killSession.dataTask(with: request) { _, _, _ in
+                killSession.invalidateAndCancel()
+            }
+            task.resume()
+            Self.logger.debug("Sent KILL QUERY for query_id: \(queryId)")
+        } catch {
+            killSession.invalidateAndCancel()
+            Self.logger.error("Failed to send KILL QUERY: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Private Helpers
 
-    private func buildRequest(query: String, database: String) throws -> URLRequest {
+    private func buildRequest(query: String, database: String, queryId: String? = nil) throws -> URLRequest {
         var components = URLComponents()
-        components.scheme = "http"
+        components.scheme = useTLS ? "https" : "http"
         components.host = host
         components.port = port
         components.path = "/"
 
+        var queryItems = [URLQueryItem]()
         if !database.isEmpty {
-            components.queryItems = [URLQueryItem(name: "database", value: database)]
+            queryItems.append(URLQueryItem(name: "database", value: database))
+        }
+        if let queryId {
+            queryItems.append(URLQueryItem(name: "query_id", value: queryId))
+        }
+        queryItems.append(URLQueryItem(name: "send_progress_in_http_headers", value: "1"))
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
         }
 
         guard let url = components.url else {
@@ -200,7 +274,6 @@ final class ClickHouseConnection: @unchecked Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
 
-        // Basic auth
         let credentials = "\(user):\(password)"
         if let credData = credentials.data(using: .utf8) {
             request.setValue("Basic \(credData.base64EncodedString())", forHTTPHeaderField: "Authorization")
@@ -223,15 +296,34 @@ final class ClickHouseConnection: @unchecked Sendable {
         return selectPrefixes.contains(firstWord.uppercased())
     }
 
+    private static func parseSummaryHeader(_ header: String) -> ClickHouseQueryProgress? {
+        guard let data = header.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+
+        let rowsRead = (json["read_rows"] as? String).flatMap { UInt64($0) } ?? 0
+        let bytesRead = (json["read_bytes"] as? String).flatMap { UInt64($0) } ?? 0
+        let totalRows = (json["total_rows_to_read"] as? String).flatMap { UInt64($0) } ?? 0
+        let elapsed = (json["elapsed_ns"] as? String).flatMap { Double($0) }.map { $0 / 1_000_000_000 } ?? 0
+
+        return ClickHouseQueryProgress(
+            rowsRead: rowsRead,
+            bytesRead: bytesRead,
+            totalRowsToRead: totalRows,
+            elapsedSeconds: elapsed
+        )
+    }
+
     private func parseTabSeparatedResponse(_ data: Data) -> ClickHouseQueryResult {
         guard let text = String(data: data, encoding: .utf8), !text.isEmpty else {
-            return ClickHouseQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+            return ClickHouseQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0, summary: nil)
         }
 
         let lines = text.components(separatedBy: "\n")
 
         guard lines.count >= 2 else {
-            return ClickHouseQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+            return ClickHouseQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0, summary: nil)
         }
 
         let columns = lines[0].components(separatedBy: "\t")
@@ -256,7 +348,8 @@ final class ClickHouseConnection: @unchecked Sendable {
             columns: columns,
             columnTypeNames: columnTypes,
             rows: rows,
-            affectedRows: rows.count
+            affectedRows: rows.count,
+            summary: nil
         )
     }
 
@@ -286,5 +379,22 @@ final class ClickHouseConnection: @unchecked Sendable {
         }
 
         return result
+    }
+
+    // MARK: - TLS Delegate
+
+    private class InsecureTLSDelegate: NSObject, URLSessionDelegate {
+        func urlSession(
+            _ session: URLSession,
+            didReceive challenge: URLAuthenticationChallenge,
+            completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+        ) {
+            if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+               let serverTrust = challenge.protectionSpace.serverTrust {
+                completionHandler(.useCredential, URLCredential(trust: serverTrust))
+            } else {
+                completionHandler(.performDefaultHandling, nil)
+            }
+        }
     }
 }

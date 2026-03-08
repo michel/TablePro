@@ -183,7 +183,14 @@ final class MainContentCommandActions {
         observeKeyWindowOnly(.createView) { [weak self] _ in self?.createView() }
         observeKeyWindowOnly(.exportTables) { [weak self] _ in self?.exportTables() }
         observeKeyWindowOnly(.importTables) { [weak self] _ in self?.importTables() }
-        observeKeyWindowOnly(.explainQuery) { [weak self] _ in self?.explainQuery() }
+        observeKeyWindowOnly(.explainQuery) { [weak self] notification in
+            if let variantRaw = notification.userInfo?["variant"] as? String,
+               let variant = ClickHouseExplainVariant(rawValue: variantRaw) {
+                self?.coordinator?.runClickHouseExplain(variant: variant)
+            } else {
+                self?.explainQuery()
+            }
+        }
         observeKeyWindowOnly(.openDatabaseSwitcher) { [weak self] _ in self?.openDatabaseSwitcher() }
     }
 

@@ -107,10 +107,14 @@ struct TableStructureView: View {
     // MARK: - Toolbar
 
     private var availableTabs: [StructureTab] {
+        var tabs = StructureTab.allCases
         if !connection.type.supportsForeignKeys {
-            return StructureTab.allCases.filter { $0 != .foreignKeys }
+            tabs = tabs.filter { $0 != .foreignKeys }
         }
-        return StructureTab.allCases
+        if connection.type != .clickhouse {
+            tabs = tabs.filter { $0 != .parts }
+        }
+        return tabs
     }
 
     private var toolbar: some View {
@@ -149,6 +153,8 @@ struct TableStructureView: View {
             structureGrid
         case .ddl:
             ddlView
+        case .parts:
+            ClickHousePartsView(tableName: tableName, connectionId: connection.id)
         }
     }
 
@@ -214,6 +220,8 @@ struct TableStructureView: View {
             structureChangeManager.updateForeignKey(id: fk.id, with: fk)
 
         case .ddl:
+            break
+        case .parts:
             break
         }
     }
@@ -285,6 +293,9 @@ struct TableStructureView: View {
                 let fk = structureChangeManager.workingForeignKeys[row]
                 structureChangeManager.deleteForeignKey(id: fk.id)
             }
+        case .parts:
+            selectedRows.removeAll()
+            return
         case .ddl:
             selectedRows.removeAll()
             return
@@ -300,6 +311,8 @@ struct TableStructureView: View {
         case .foreignKeys:
             newCount = structureChangeManager.workingForeignKeys.count
         case .ddl:
+            newCount = 0
+        case .parts:
             newCount = 0
         }
 
@@ -331,6 +344,8 @@ struct TableStructureView: View {
             structureChangeManager.addNewForeignKey()
         case .ddl:
             break
+        case .parts:
+            break
         }
     }
 
@@ -352,7 +367,7 @@ struct TableStructureView: View {
     private static let structurePasteboardType = NSPasteboard.PasteboardType("com.TablePro.structure")
 
     private func handleCopyRows(_ rowIndices: Set<Int>) {
-        guard selectedTab != .ddl, !rowIndices.isEmpty else { return }
+        guard selectedTab != .ddl, selectedTab != .parts, !rowIndices.isEmpty else { return }
 
         var copiedItems: [Any] = []
 
@@ -375,7 +390,7 @@ struct TableStructureView: View {
                 let fk = structureChangeManager.workingForeignKeys[row]
                 copiedItems.append(fk)
             }
-        case .ddl:
+        case .ddl, .parts:
             break
         }
 
@@ -488,7 +503,8 @@ struct TableStructureView: View {
             }
 
         case .ddl:
-            // DDL tab doesn't support paste
+            break
+        case .parts:
             break
         }
     }
@@ -721,6 +737,8 @@ struct TableStructureView: View {
                     }
                     ddlStatement = preamble + "\n" + baseDDL
                 }
+            case .parts:
+                break
             }
             loadedTabs.insert(tab)
         } catch {
@@ -750,7 +768,7 @@ struct TableStructureView: View {
 
         copyResetTask?.cancel()
         copyResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(1500))
+            try? await Task.sleep(for: .milliseconds(1_500))
             guard !Task.isCancelled else { return }
             withAnimation {
                 showCopyConfirmation = false
@@ -778,8 +796,7 @@ struct TableStructureView: View {
     // MARK: - Lifecycle Callbacks
 
     private func onSelectedTabChanged(_ new: StructureTab) {
-        // Update AppState when switching to/from DDL tab
-        AppState.shared.isCurrentTabEditable = (new != .ddl)
+        AppState.shared.isCurrentTabEditable = (new != .ddl && new != .parts)
 
         Task {
             await loadTabDataIfNeeded(new)

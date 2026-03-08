@@ -56,7 +56,7 @@ final class StructureRowProvider {
                     fk.onUpdate.rawValue
                 ])
             }
-        case .ddl:
+        case .ddl, .parts:
             return []
         }
     }
@@ -95,7 +95,7 @@ final class StructureRowProvider {
                 String(localized: "On Delete"),
                 String(localized: "On Update")
             ]
-        case .ddl:
+        case .ddl, .parts:
             return []
         }
     }
@@ -117,7 +117,7 @@ final class StructureRowProvider {
             return [3] // Unique (index 3)
         case .foreignKeys:
             return [] // On Delete/Update use text for now (could add dropdown for CASCADE/SET NULL/etc later)
-        case .ddl:
+        case .ddl, .parts:
             return []
         }
     }
@@ -127,7 +127,7 @@ final class StructureRowProvider {
         switch tab {
         case .columns:
             return [1] // Type (index 1)
-        case .indexes, .foreignKeys, .ddl:
+        case .indexes, .foreignKeys, .ddl, .parts:
             return []
         }
     }

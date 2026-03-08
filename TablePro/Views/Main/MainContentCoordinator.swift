@@ -444,9 +444,12 @@ final class MainContentCoordinator {
         switch connection.type {
         case .mssql, .oracle:
             return
+        case .clickhouse:
+            runClickHouseExplain(variant: .plan)
+            return
         case .sqlite:
             explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .redshift, .clickhouse:
+        case .mysql, .mariadb, .postgresql, .redshift:
             explainSQL = "EXPLAIN \(stmt)"
         case .mongodb:
             explainSQL = Self.buildMongoExplain(for: stmt)
@@ -478,6 +481,11 @@ final class MainContentCoordinator {
         tab.errorMessage = nil
         tabManager.tabs[index] = tab
         toolbarState.setExecuting(true)
+
+        if connection.type == .clickhouse,
+           let chDriver = DatabaseManager.shared.driver(for: connectionId) as? ClickHouseDriver {
+            installClickHouseProgressHandler(driver: chDriver)
+        }
 
         let conn = connection
         let tabId = tabManager.tabs[index].id
@@ -575,6 +583,9 @@ final class MainContentCoordinator {
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     currentQueryTask = nil
+                    if self.connection.type == .clickhouse {
+                        self.clearClickHouseProgress()
+                    }
                     toolbarState.setExecuting(false)
                     toolbarState.lastQueryDuration = safeExecutionTime
 
@@ -1097,55 +1108,6 @@ final class MainContentCoordinator {
         }
     }
 
-
-
-    /// Remove shared schema provider when a connection disconnects
-    static func clearSharedSchema(for connectionId: UUID) {
-        sharedSchemaProviders.removeValue(forKey: connectionId)
-        schemaProviderRefCounts.removeValue(forKey: connectionId)
-        schemaProviderRemovalTasks[connectionId]?.cancel()
-        schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-    }
-
-    /// Increment reference count for a connection's schema provider
-    private static func retainSchemaProvider(for connectionId: UUID) {
-        schemaProviderRemovalTasks[connectionId]?.cancel()
-        schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-        schemaProviderRefCounts[connectionId, default: 0] += 1
-    }
-
-    /// Decrement reference count; schedule deferred removal when count reaches zero
-    private static func releaseSchemaProvider(for connectionId: UUID) {
-        guard var count = schemaProviderRefCounts[connectionId] else { return }
-        count -= 1
-        if count <= 0 {
-            schemaProviderRefCounts.removeValue(forKey: connectionId)
-            // Grace period: keep provider alive for 1s in case a new tab opens quickly
-            schemaProviderRemovalTasks[connectionId] = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                guard !Task.isCancelled else { return }
-                sharedSchemaProviders.removeValue(forKey: connectionId)
-                schemaProviderRemovalTasks.removeValue(forKey: connectionId)
-            }
-        } else {
-            schemaProviderRefCounts[connectionId] = count
-        }
-    }
-
-    /// Remove entries with zero or missing reference counts that lack pending removal tasks.
-    /// Guards against unbounded growth if releaseSchemaProvider fails to execute.
-    private static func purgeUnusedSchemaProviders() {
-        let orphanedIds = sharedSchemaProviders.keys.filter { connectionId in
-            let count = schemaProviderRefCounts[connectionId] ?? 0
-            let hasPendingRemoval = schemaProviderRemovalTasks[connectionId] != nil
-            return count <= 0 && !hasPendingRemoval
-        }
-        for connectionId in orphanedIds {
-            logger.info("Purging orphaned schema provider for connection \(connectionId)")
-            sharedSchemaProviders.removeValue(forKey: connectionId)
-            schemaProviderRefCounts.removeValue(forKey: connectionId)
-        }
-    }
 }
 
 // MARK: - Query Execution Helpers
