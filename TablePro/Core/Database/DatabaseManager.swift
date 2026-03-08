@@ -127,7 +127,7 @@ final class DatabaseManager {
         }
 
         // Create appropriate driver with effective connection
-        let driver = DatabaseDriverFactory.createDriver(for: effectiveConnection)
+        let driver = try DatabaseDriverFactory.createDriver(for: effectiveConnection)
 
         do {
             try await driver.connect()
@@ -145,14 +145,14 @@ final class DatabaseManager {
                 // Redis defaults to db0 on connect; SELECT the configured database if non-default
                 let initialDb = connection.redisDatabase ?? Int(connection.database) ?? 0
                 if initialDb != 0 {
-                    try? await (driver as? RedisDriver)?.selectDatabase(initialDb)
+                    try? await (driver as? PluginDriverAdapter)?.switchDatabase(to: String(initialDb))
                 }
                 activeSessions[connection.id]?.currentDatabase = String(initialDb)
             } else if connection.type == .mssql,
                       connection.database.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                      let mssqlDriver = driver as? MSSQLDriver {
+                      let adapter = driver as? PluginDriverAdapter {
                 if let savedDb = AppSettingsStorage.shared.loadLastDatabase(for: connection.id) {
-                    try? await mssqlDriver.switchDatabase(to: savedDb)
+                    try? await adapter.switchDatabase(to: savedDb)
                     activeSessions[connection.id]?.currentDatabase = savedDb
                 }
             }
@@ -185,7 +185,7 @@ final class DatabaseManager {
             Task { [weak self] in
                 guard let self else { return }
                 do {
-                    let metaDriver = DatabaseDriverFactory.createDriver(for: metaConnection)
+                    let metaDriver = try DatabaseDriverFactory.createDriver(for: metaConnection)
                     try await metaDriver.connect()
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
@@ -349,7 +349,7 @@ final class DatabaseManager {
             }
         }
 
-        let driver = DatabaseDriverFactory.createDriver(for: testConnection)
+        let driver = try DatabaseDriverFactory.createDriver(for: testConnection)
         return try await driver.testConnection()
     }
 
@@ -434,7 +434,13 @@ final class DatabaseManager {
         // queue behind long-running user queries on the main driver.
         if let session = activeSessions[connectionId] {
             let connectionForPing = session.effectiveConnection ?? session.connection
-            let dedicatedPingDriver = DatabaseDriverFactory.createDriver(for: connectionForPing)
+            let dedicatedPingDriver: DatabaseDriver
+            do {
+                dedicatedPingDriver = try DatabaseDriverFactory.createDriver(for: connectionForPing)
+            } catch {
+                Self.logger.warning("Failed to create ping driver for \(connectionId): \(error.localizedDescription)")
+                return
+            }
             do {
                 try await dedicatedPingDriver.connect()
                 pingDrivers[connectionId] = dedicatedPingDriver
@@ -479,7 +485,9 @@ final class DatabaseManager {
                     // Also reconnect the dedicated ping driver so future pings
                     // don't fail immediately after a successful main reconnect.
                     let connectionForPing = session.effectiveConnection ?? session.connection
-                    let newPingDriver = DatabaseDriverFactory.createDriver(for: connectionForPing)
+                    let newPingDriver = try await MainActor.run {
+                        try DatabaseDriverFactory.createDriver(for: connectionForPing)
+                    }
                     try await newPingDriver.connect()
                     await self.replacePingDriver(newPingDriver, for: connectionId)
 
@@ -530,7 +538,7 @@ final class DatabaseManager {
 
         // Use effective connection (tunneled) if available, otherwise original
         let connectionForDriver = session.effectiveConnection ?? session.connection
-        let driver = DatabaseDriverFactory.createDriver(for: connectionForDriver)
+        let driver = try DatabaseDriverFactory.createDriver(for: connectionForDriver)
         try await driver.connect()
 
         // Apply timeout
@@ -546,8 +554,8 @@ final class DatabaseManager {
 
         // Restore database for MSSQL if session had a non-default database
         if let savedDatabase = session.currentDatabase,
-           let mssqlDriver = driver as? MSSQLDriver {
-            try? await mssqlDriver.switchDatabase(to: savedDatabase)
+           let adapter = driver as? PluginDriverAdapter {
+            try? await adapter.switchDatabase(to: savedDatabase)
         }
 
         return driver
@@ -600,7 +608,7 @@ final class DatabaseManager {
             let effectiveConnection = try await buildEffectiveConnection(for: session.connection)
 
             // Create new driver and connect
-            let driver = DatabaseDriverFactory.createDriver(for: effectiveConnection)
+            let driver = try DatabaseDriverFactory.createDriver(for: effectiveConnection)
             try await driver.connect()
 
             // Apply timeout
@@ -616,8 +624,8 @@ final class DatabaseManager {
 
             // Restore database for MSSQL if session had a non-default database
             if let savedDatabase = activeSessions[sessionId]?.currentDatabase,
-               let mssqlDriver = driver as? MSSQLDriver {
-                try? await mssqlDriver.switchDatabase(to: savedDatabase)
+               let adapter = driver as? PluginDriverAdapter {
+                try? await adapter.switchDatabase(to: savedDatabase)
             }
 
             // Update session
@@ -634,7 +642,7 @@ final class DatabaseManager {
             Task { [weak self] in
                 guard let self else { return }
                 do {
-                    let metaDriver = DatabaseDriverFactory.createDriver(for: metaConnection)
+                    let metaDriver = try DatabaseDriverFactory.createDriver(for: metaConnection)
                     try await metaDriver.connect()
                     if metaTimeout > 0 {
                         try? await metaDriver.applyQueryTimeout(metaTimeout)
@@ -645,8 +653,8 @@ final class DatabaseManager {
                     }
                     // Restore database on metadata driver too for MSSQL
                     if let savedDatabase = self.activeSessions[metaConnectionId]?.currentDatabase,
-                       let mssqlMetaDriver = metaDriver as? MSSQLDriver {
-                        try? await mssqlMetaDriver.switchDatabase(to: savedDatabase)
+                       let adapter = metaDriver as? PluginDriverAdapter {
+                        try? await adapter.switchDatabase(to: savedDatabase)
                     }
                     activeSessions[metaConnectionId]?.metadataDriver = metaDriver
                 } catch {

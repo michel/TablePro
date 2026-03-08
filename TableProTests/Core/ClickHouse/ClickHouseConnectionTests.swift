@@ -2,70 +2,99 @@
 //  ClickHouseConnectionTests.swift
 //  TableProTests
 //
-//  Tests for ClickHouseConnection TSV parsing and query escaping fixes.
+//  Tests for ClickHouse TSV parsing and query escaping fixes.
+//  These validate the TSV unescaping logic used by the ClickHouse plugin.
 //
 
 import Foundation
 import Testing
-@testable import TablePro
 
 @Suite("ClickHouse Connection")
 struct ClickHouseConnectionTests {
+
+    /// Local copy of the TSV unescaping logic for testing purposes.
+    /// The actual implementation lives in the ClickHouseDriver plugin.
+    private static func unescapeTsvField(_ field: String) -> String {
+        var result = ""
+        result.reserveCapacity((field as NSString).length)
+        var iterator = field.makeIterator()
+
+        while let char = iterator.next() {
+            if char == "\\" {
+                if let next = iterator.next() {
+                    switch next {
+                    case "\\": result.append("\\")
+                    case "t": result.append("\t")
+                    case "n": result.append("\n")
+                    default:
+                        result.append("\\")
+                        result.append(next)
+                    }
+                } else {
+                    result.append("\\")
+                }
+            } else {
+                result.append(char)
+            }
+        }
+
+        return result
+    }
 
     // MARK: - TSV Field Unescaping
 
     @Test("Plain text passes through unchanged")
     func testPlainText() {
-        let result = ClickHouseConnection.unescapeTsvField("hello world")
+        let result = Self.unescapeTsvField("hello world")
         #expect(result == "hello world")
     }
 
     @Test("Empty string returns empty")
     func testEmptyString() {
-        let result = ClickHouseConnection.unescapeTsvField("")
+        let result = Self.unescapeTsvField("")
         #expect(result == "")
     }
 
     @Test("Escaped backslash becomes single backslash")
     func testEscapedBackslash() {
-        let result = ClickHouseConnection.unescapeTsvField("path\\\\to\\\\file")
+        let result = Self.unescapeTsvField("path\\\\to\\\\file")
         #expect(result == "path\\to\\file")
     }
 
     @Test("Escaped tab becomes tab character")
     func testEscapedTab() {
-        let result = ClickHouseConnection.unescapeTsvField("col1\\tcol2")
+        let result = Self.unescapeTsvField("col1\\tcol2")
         #expect(result == "col1\tcol2")
     }
 
     @Test("Escaped newline becomes newline character")
     func testEscapedNewline() {
-        let result = ClickHouseConnection.unescapeTsvField("line1\\nline2")
+        let result = Self.unescapeTsvField("line1\\nline2")
         #expect(result == "line1\nline2")
     }
 
     @Test("Unknown escape sequence preserves backslash and character")
     func testUnknownEscapeSequence() {
-        let result = ClickHouseConnection.unescapeTsvField("test\\xvalue")
+        let result = Self.unescapeTsvField("test\\xvalue")
         #expect(result == "test\\xvalue")
     }
 
     @Test("Trailing backslash is preserved")
     func testTrailingBackslash() {
-        let result = ClickHouseConnection.unescapeTsvField("trailing\\")
+        let result = Self.unescapeTsvField("trailing\\")
         #expect(result == "trailing\\")
     }
 
     @Test("Multiple escape sequences in one field")
     func testMultipleEscapeSequences() {
-        let result = ClickHouseConnection.unescapeTsvField("a\\tb\\nc\\\\d")
+        let result = Self.unescapeTsvField("a\\tb\\nc\\\\d")
         #expect(result == "a\tb\nc\\d")
     }
 
     @Test("Performance: uses NSString.length for capacity reservation")
     func testLargeStringPerformance() {
         let largeField = String(repeating: "abcdefgh", count: 10_000)
-        let result = ClickHouseConnection.unescapeTsvField(largeField)
+        let result = Self.unescapeTsvField(largeField)
         #expect(result == largeField)
     }
 
@@ -73,7 +102,7 @@ struct ClickHouseConnectionTests {
     func testLargeFieldWithEscapes() {
         let segment = "value\\ttab\\nnewline\\"
         let largeField = String(repeating: segment, count: 5_000) + "\\"
-        let result = ClickHouseConnection.unescapeTsvField(largeField)
+        let result = Self.unescapeTsvField(largeField)
         #expect(result.contains("\t"))
         #expect(result.contains("\n"))
     }

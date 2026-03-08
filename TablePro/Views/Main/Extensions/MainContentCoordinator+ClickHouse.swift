@@ -9,17 +9,9 @@ import CodeEditSourceEditor
 import Foundation
 
 extension MainContentCoordinator {
-    func installClickHouseProgressHandler(driver: ClickHouseDriver) {
-        var lastUpdate = Date.distantPast
-        driver.progressHandler = { [weak self] progress in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                let now = Date()
-                guard now.timeIntervalSince(lastUpdate) >= 0.25 else { return }
-                lastUpdate = now
-                self.toolbarState.clickHouseProgress = progress
-            }
-        }
+    func installClickHouseProgressHandler() {
+        // Progress polling is handled internally by the ClickHouse plugin.
+        // This is a no-op stub retained for call-site compatibility.
     }
 
     func clearClickHouseProgress() {

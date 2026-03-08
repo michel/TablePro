@@ -2,13 +2,15 @@
 //  MSSQLDriverTests.swift
 //  TableProTests
 //
-//  Tests for MSSQLDriver — parts that don't require a live connection.
+//  Tests for MSSQL driver plugin — parts that don't require a live connection.
 //
 
 import Foundation
 @testable import TablePro
+import TableProPluginKit
 import Testing
 
+@MainActor
 @Suite("MSSQL Driver")
 struct MSSQLDriverTests {
     // MARK: - Helpers
@@ -19,71 +21,90 @@ struct MSSQLDriverTests {
         return conn
     }
 
+    private func makeAdapter(mssqlSchema: String? = nil) -> PluginDriverAdapter {
+        let conn = makeConnection(mssqlSchema: mssqlSchema)
+        let config = DriverConnectionConfig(
+            host: conn.host,
+            port: conn.port,
+            username: conn.username,
+            password: "",
+            database: conn.database,
+            additionalFields: [
+                "mssqlSchema": mssqlSchema ?? "dbo"
+            ]
+        )
+        guard let plugin = PluginManager.shared.driverPlugins["SQL Server"] else {
+            fatalError("SQL Server plugin not loaded")
+        }
+        let pluginDriver = plugin.createDriver(config: config)
+        return PluginDriverAdapter(connection: conn, pluginDriver: pluginDriver)
+    }
+
     // MARK: - Initialization Tests
 
     @Test("Init sets currentSchema to dbo when mssqlSchema is nil")
     func initDefaultSchemaNil() {
-        let driver = MSSQLDriver(connection: makeConnection(mssqlSchema: nil))
-        #expect(driver.currentSchema == "dbo")
+        let adapter = makeAdapter(mssqlSchema: nil)
+        #expect(adapter.currentSchema == "dbo")
     }
 
     @Test("Init sets currentSchema to dbo when mssqlSchema is empty string")
     func initDefaultSchemaEmpty() {
-        let driver = MSSQLDriver(connection: makeConnection(mssqlSchema: ""))
-        #expect(driver.currentSchema == "dbo")
+        let adapter = makeAdapter(mssqlSchema: "")
+        #expect(adapter.currentSchema == "dbo")
     }
 
     @Test("Init uses mssqlSchema when provided and non-empty")
     func initCustomSchema() {
-        let driver = MSSQLDriver(connection: makeConnection(mssqlSchema: "sales"))
-        #expect(driver.currentSchema == "sales")
+        let adapter = makeAdapter(mssqlSchema: "sales")
+        #expect(adapter.currentSchema == "sales")
     }
 
     // MARK: - escapedSchema Tests
 
     @Test("escapedSchema returns schema unchanged when no single quotes")
     func escapedSchemaNoQuotes() {
-        let driver = MSSQLDriver(connection: makeConnection(mssqlSchema: "sales"))
-        #expect(driver.escapedSchema == "sales")
+        let adapter = makeAdapter(mssqlSchema: "sales")
+        #expect(adapter.escapedSchema == "sales")
     }
 
     @Test("escapedSchema doubles single quote in schema name")
     func escapedSchemaDoublesSingleQuote() {
-        let driver = MSSQLDriver(connection: makeConnection(mssqlSchema: "O'Brien"))
-        #expect(driver.escapedSchema == "O''Brien")
+        let adapter = makeAdapter(mssqlSchema: "O'Brien")
+        #expect(adapter.escapedSchema == "O''Brien")
     }
 
     @Test("escapedSchema doubles multiple single quotes")
     func escapedSchemaMultipleQuotes() {
-        let driver = MSSQLDriver(connection: makeConnection(mssqlSchema: "O'Bri'en"))
-        #expect(driver.escapedSchema == "O''Bri''en")
+        let adapter = makeAdapter(mssqlSchema: "O'Bri'en")
+        #expect(adapter.escapedSchema == "O''Bri''en")
     }
 
     // MARK: - switchSchema Tests
 
     @Test("switchSchema updates currentSchema")
     func switchSchemaUpdatesCurrentSchema() async throws {
-        let driver = MSSQLDriver(connection: makeConnection())
-        try await driver.switchSchema(to: "hr")
-        #expect(driver.currentSchema == "hr")
+        let adapter = makeAdapter()
+        try await adapter.switchSchema(to: "hr")
+        #expect(adapter.currentSchema == "hr")
     }
 
     @Test("switchSchema updates escapedSchema accordingly")
     func switchSchemaUpdatesEscapedSchema() async throws {
-        let driver = MSSQLDriver(connection: makeConnection())
-        try await driver.switchSchema(to: "O'Connor")
-        #expect(driver.escapedSchema == "O''Connor")
+        let adapter = makeAdapter()
+        try await adapter.switchSchema(to: "O'Connor")
+        #expect(adapter.escapedSchema == "O''Connor")
     }
 
     // MARK: - Status Tests
 
     @Test("Status starts as disconnected")
     func statusStartsDisconnected() {
-        let driver = MSSQLDriver(connection: makeConnection())
-        if case .disconnected = driver.status {
+        let adapter = makeAdapter()
+        if case .disconnected = adapter.status {
             #expect(true)
         } else {
-            Issue.record("Expected .disconnected status, got \(driver.status)")
+            Issue.record("Expected .disconnected status, got \(adapter.status)")
         }
     }
 
@@ -91,9 +112,9 @@ struct MSSQLDriverTests {
 
     @Test("Execute throws when not connected")
     func executeThrowsWhenNotConnected() async {
-        let driver = MSSQLDriver(connection: makeConnection())
+        let adapter = makeAdapter()
         await #expect(throws: (any Error).self) {
-            _ = try await driver.execute(query: "SELECT 1")
+            _ = try await adapter.execute(query: "SELECT 1")
         }
     }
 }

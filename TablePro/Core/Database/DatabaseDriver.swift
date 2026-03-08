@@ -7,12 +7,7 @@
 
 import Foundation
 import OSLog
-
-/// Row limit configuration for driver-level result capping
-enum DriverRowLimits {
-    static let defaultMax = 100_000
-    static let unlimitedMax = Int.max
-}
+import TableProPluginKit
 
 /// Protocol defining database driver operations
 protocol DatabaseDriver: AnyObject {
@@ -314,28 +309,59 @@ extension DatabaseDriver {
     }
 }
 
-/// Factory for creating database drivers
+/// Factory for creating database drivers via plugin lookup
+@MainActor
 enum DatabaseDriverFactory {
-    static func createDriver(for connection: DatabaseConnection) -> DatabaseDriver {
-        switch connection.type {
-        case .sqlite:
-            return SQLiteDriver(connection: connection)
-        case .mysql, .mariadb:
-            return MySQLDriver(connection: connection)
-        case .postgresql:
-            return PostgreSQLDriver(connection: connection)
-        case .redshift:
-            return RedshiftDriver(connection: connection)
-        case .mongodb:
-            return MongoDBDriver(connection: connection)
-        case .redis:
-            return RedisDriver(connection: connection)
-        case .mssql:
-            return MSSQLDriver(connection: connection)
-        case .oracle:
-            return OracleDriver(connection: connection)
-        case .clickhouse:
-            return ClickHouseDriver(connection: connection)
+    static func createDriver(for connection: DatabaseConnection) throws -> DatabaseDriver {
+        let pluginId = connection.type.pluginTypeId
+        guard let plugin = PluginManager.shared.driverPlugins[pluginId] else {
+            throw DatabaseError.connectionFailed(
+                "\(pluginId) driver plugin not loaded. The plugin may be disabled or missing from the PlugIns directory."
+            )
         }
+        let config = DriverConnectionConfig(
+            host: connection.host,
+            port: connection.port,
+            username: connection.username,
+            password: ConnectionStorage.shared.loadPassword(for: connection.id) ?? "",
+            database: connection.database,
+            additionalFields: buildAdditionalFields(for: connection)
+        )
+        let pluginDriver = plugin.createDriver(config: config)
+        return PluginDriverAdapter(connection: connection, pluginDriver: pluginDriver)
+    }
+
+    private static func buildAdditionalFields(for connection: DatabaseConnection) -> [String: String] {
+        var fields: [String: String] = [:]
+
+        // SSL fields (shared by most drivers)
+        let ssl = connection.sslConfig
+        fields["sslMode"] = ssl.mode.rawValue
+        fields["sslCaCertPath"] = ssl.caCertificatePath
+        fields["sslClientCertPath"] = ssl.clientCertificatePath
+        fields["sslClientKeyPath"] = ssl.clientKeyPath
+
+        // Driver-specific fields
+        switch connection.type {
+        case .postgresql:
+            fields["driverVariant"] = "PostgreSQL"
+        case .redshift:
+            fields["driverVariant"] = "Redshift"
+        case .mongodb:
+            // MongoDB uses "sslCACertPath" (capital A) — match plugin expectation
+            fields["sslCACertPath"] = ssl.caCertificatePath
+            fields["mongoReadPreference"] = connection.mongoReadPreference ?? ""
+            fields["mongoWriteConcern"] = connection.mongoWriteConcern ?? ""
+        case .redis:
+            fields["redisDatabase"] = String(connection.redisDatabase ?? 0)
+        case .mssql:
+            fields["mssqlSchema"] = connection.mssqlSchema ?? "dbo"
+        case .oracle:
+            fields["oracleServiceName"] = connection.oracleServiceName ?? ""
+        case .mysql, .mariadb, .sqlite, .clickhouse:
+            break
+        }
+
+        return fields
     }
 }

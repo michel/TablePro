@@ -491,9 +491,8 @@ final class MainContentCoordinator {
         tabManager.tabs[index] = tab
         toolbarState.setExecuting(true)
 
-        if connection.type == .clickhouse,
-           let chDriver = DatabaseManager.shared.driver(for: connectionId) as? ClickHouseDriver {
-            installClickHouseProgressHandler(driver: chDriver)
+        if connection.type == .clickhouse {
+            installClickHouseProgressHandler()
         }
 
         let conn = connection
@@ -671,16 +670,16 @@ final class MainContentCoordinator {
             }
         }
 
-        // For PostgreSQL: fetch actual enum values from pg_enum catalog
+        // For PostgreSQL: fetch actual enum values from pg_enum catalog via dependent types
         if connectionType == .postgresql {
-            if let pgDriver = driver as? PostgreSQLDriver {
+            if let enumTypes = try? await driver.fetchDependentTypes(forTable: tableName) {
+                let typeMap = Dictionary(uniqueKeysWithValues: enumTypes.map { ($0.name, $0.labels) })
                 for col in columnInfo where col.dataType.uppercased().hasPrefix("ENUM(") {
-                    // Extract type name from "ENUM(typename)"
                     let raw = col.dataType
                     if let openParen = raw.firstIndex(of: "("),
                        let closeParen = raw.lastIndex(of: ")") {
                         let typeName = String(raw[raw.index(after: openParen)..<closeParen])
-                        if let values = try? await pgDriver.fetchEnumValues(typeName: typeName) {
+                        if let values = typeMap[typeName] {
                             result[col.name] = values
                         }
                     }
@@ -688,19 +687,38 @@ final class MainContentCoordinator {
             }
         }
 
-        // For SQLite: fetch CHECK constraint pseudo-enum values
+        // For SQLite: fetch CHECK constraint pseudo-enum values from DDL
         if connectionType == .sqlite {
-            if let sqliteDriver = driver as? SQLiteDriver {
-                let checkEnumValues = try? await sqliteDriver.fetchCheckConstraintEnumValues(table: tableName)
-                if let checkValues = checkEnumValues {
-                    for (colName, values) in checkValues {
-                        result[colName] = values
+            if let createSQL = try? await driver.fetchTableDDL(table: tableName) {
+                let columns = try? await driver.fetchColumns(table: tableName)
+                for col in columns ?? [] {
+                    if let values = Self.parseSQLiteCheckConstraintValues(
+                        createSQL: createSQL, columnName: col.name
+                    ) {
+                        result[col.name] = values
                     }
                 }
             }
         }
 
         return result
+    }
+
+    private static func parseSQLiteCheckConstraintValues(createSQL: String, columnName: String) -> [String]? {
+        let escapedName = NSRegularExpression.escapedPattern(for: columnName)
+        let pattern = "CHECK\\s*\\(\\s*\"?\(escapedName)\"?\\s+IN\\s*\\(([^)]+)\\)\\s*\\)"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
+            return nil
+        }
+        let nsString = createSQL as NSString
+        guard let match = regex.firstMatch(
+            in: createSQL,
+            range: NSRange(location: 0, length: nsString.length)
+        ), match.numberOfRanges > 1 else {
+            return nil
+        }
+        let valuesString = nsString.substring(with: match.range(at: 1))
+        return ColumnType.parseEnumValues(from: "ENUM(\(valuesString))")
     }
 
     // MARK: - Query Limit Protection

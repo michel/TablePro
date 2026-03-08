@@ -101,9 +101,13 @@ struct FilterSQLGenerator {
             return "\(quotedColumn) BETWEEN \(escapeValue(filter.value)) AND \(escapeValue(secondValue))"
 
         case .regex:
-            // SQLite doesn't support REGEXP without a custom function;
             // MongoDB filters are handled natively by MongoDBQueryBuilder
-            if databaseType == .sqlite || databaseType == .mongodb || databaseType == .redis { return nil }
+            if databaseType == .mongodb || databaseType == .redis { return nil }
+            // SQLite doesn't support REGEXP without a custom function; fall back to LIKE
+            if databaseType == .sqlite {
+                let escaped = escapeSQLQuote(filter.value)
+                return "\(quotedColumn) LIKE '%\(escaped)%'"
+            }
             if databaseType == .clickhouse {
                 let escapedPattern = escapeStringValue(filter.value)
                 return "match(\(quotedColumn), '\(escapedPattern)')"
