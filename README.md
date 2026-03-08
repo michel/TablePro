@@ -15,6 +15,10 @@
 </p>
 
 <p align="center">
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
+</p>
+
+<p align="center">
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
@@ -55,4 +59,6 @@ Thanks to these amazing people for supporting TablePro:
 
 ## License
 
-This project is licensed under the [TablePro Source Available License](LICENSE).
+This project is licensed under the [GNU Affero General Public License v3.0 (AGPLv3)](LICENSE).
+
+Contributions require signing a Contributor License Agreement (CLA). See [CLA.md](CLA.md) for details.

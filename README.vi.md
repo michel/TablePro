@@ -14,6 +14,10 @@
   <a href="https://github.com/datlechin/tablepro/issues">Báo lỗi</a>
 </p>
 
+<p align="center">
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
+</p>
+
 ---
 
 <p align="center">
@@ -51,4 +55,6 @@ Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
 ## Giấy phép
 
-Dự án này được cấp phép theo [TablePro Source Available License](LICENSE).
+Dự án này được cấp phép theo [GNU Affero General Public License v3.0 (AGPLv3)](LICENSE).
+
+Đóng góp yêu cầu ký Contributor License Agreement (CLA). Xem [CLA.md](CLA.md) để biết thêm chi tiết.
