@@ -402,12 +402,12 @@ extension MainContentCoordinator {
 
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .mssql {
-                if let mssqlDriver = driver as? MSSQLDriver {
-                    try await mssqlDriver.switchDatabase(to: database)
+                if let adapter = driver as? PluginDriverAdapter {
+                    try await adapter.switchDatabase(to: database)
                 }
 
-                if let mssqlMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? MSSQLDriver {
-                    try? await mssqlMeta.switchDatabase(to: database)
+                if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connectionId) as? PluginDriverAdapter {
+                    try? await metaAdapter.switchDatabase(to: database)
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
@@ -428,13 +428,13 @@ extension MainContentCoordinator {
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .mongodb {
                 // MongoDB: update the driver's connection so fetchTables/execute use the new database
-                if let mongoDriver = driver as? MongoDBDriver {
-                    mongoDriver.switchDatabase(to: database)
+                if let adapter = driver as? PluginDriverAdapter {
+                    try await adapter.switchDatabase(to: database)
                 }
 
                 // Also update metadata driver if present
-                if let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) as? MongoDBDriver {
-                    metaDriver.switchDatabase(to: database)
+                if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connectionId) as? PluginDriverAdapter {
+                    try? await metaAdapter.switchDatabase(to: database)
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
@@ -457,12 +457,12 @@ extension MainContentCoordinator {
                 // Redis: SELECT <db index> to switch logical database
                 guard let dbIndex = Int(database) else { return }
 
-                if let redisDriver = driver as? RedisDriver {
-                    try await redisDriver.selectDatabase(dbIndex)
+                if let adapter = driver as? PluginDriverAdapter {
+                    try await adapter.switchDatabase(to: String(dbIndex))
                 }
 
-                if let metaRedisDriver = DatabaseManager.shared.metadataDriver(for: connectionId) as? RedisDriver {
-                    try? await metaRedisDriver.selectDatabase(dbIndex)
+                if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connectionId) as? PluginDriverAdapter {
+                    try? await metaAdapter.switchDatabase(to: String(dbIndex))
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
@@ -537,15 +537,15 @@ extension MainContentCoordinator {
         let database = String(dbIndex)
         Task { @MainActor in
             do {
-                if let redisDriver = DatabaseManager.shared.driver(for: connId) as? RedisDriver {
-                    try await redisDriver.selectDatabase(dbIndex)
+                if let adapter = DatabaseManager.shared.driver(for: connId) as? PluginDriverAdapter {
+                    try await adapter.switchDatabase(to: String(dbIndex))
                 }
             } catch {
                 navigationLogger.error("Failed to SELECT Redis db\(dbIndex): \(error.localizedDescription, privacy: .public)")
                 return
             }
-            if let metaRedisDriver = DatabaseManager.shared.metadataDriver(for: connId) as? RedisDriver {
-                try? await metaRedisDriver.selectDatabase(dbIndex)
+            if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connId) as? PluginDriverAdapter {
+                try? await metaAdapter.switchDatabase(to: String(dbIndex))
             }
             DatabaseManager.shared.updateSession(connId) { session in
                 session.currentDatabase = database

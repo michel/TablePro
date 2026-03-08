@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import TableProPluginKit
 
 extension MainContentCoordinator {
     /// Converts a MQL query into a `db.runCommand({"explain": ...})` command.

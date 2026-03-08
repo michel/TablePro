@@ -78,14 +78,38 @@ struct ClickHousePartsView: View {
         isLoading = true
         errorMessage = nil
 
-        guard let driver = DatabaseManager.shared.driver(for: connectionId) as? ClickHouseDriver else {
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
             errorMessage = String(localized: "Not connected to ClickHouse")
             isLoading = false
             return
         }
 
         do {
-            parts = try await driver.fetchClickHouseParts(table: tableName)
+            let escapedTable = tableName.replacingOccurrences(of: "'", with: "''")
+            let sql = """
+                SELECT partition, name, rows, bytes_on_disk,
+                       toString(modification_time) AS mod_time, active
+                FROM system.parts
+                WHERE database = currentDatabase() AND table = '\(escapedTable)'
+                ORDER BY partition, name
+                """
+            let result = try await driver.execute(query: sql)
+            parts = result.rows.compactMap { row -> ClickHousePartInfo? in
+                guard let name = row[safe: 1] ?? nil else { return nil }
+                let partition = (row[safe: 0] ?? nil) ?? ""
+                let rows = (row[safe: 2] ?? nil).flatMap { UInt64($0) } ?? 0
+                let bytesOnDisk = (row[safe: 3] ?? nil).flatMap { UInt64($0) } ?? 0
+                let modTime = (row[safe: 4] ?? nil) ?? ""
+                let active = (row[safe: 5] ?? nil) == "1"
+                return ClickHousePartInfo(
+                    partition: partition,
+                    name: name,
+                    rows: rows,
+                    bytesOnDisk: bytesOnDisk,
+                    modificationTime: modTime,
+                    active: active
+                )
+            }
         } catch {
             Self.logger.error("Failed to load parts: \(error.localizedDescription, privacy: .public)")
             errorMessage = error.localizedDescription

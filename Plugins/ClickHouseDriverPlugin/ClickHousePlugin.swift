@@ -1,0 +1,696 @@
+//
+//  ClickHousePlugin.swift
+//  TablePro
+//
+
+import Foundation
+import os
+import TableProPluginKit
+
+final class ClickHousePlugin: NSObject, TableProPlugin, DriverPlugin {
+    static let pluginName = "ClickHouse Driver"
+    static let pluginVersion = "1.0.0"
+    static let pluginDescription = "ClickHouse database support via HTTP interface"
+    static let capabilities: [PluginCapability] = [.databaseDriver]
+
+    static let databaseTypeId = "ClickHouse"
+    static let databaseDisplayName = "ClickHouse"
+    static let iconName = "bolt.fill"
+    static let defaultPort = 8123
+
+    func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
+        ClickHousePluginDriver(config: config)
+    }
+}
+
+// MARK: - Error Types
+
+private struct ClickHouseError: Error, LocalizedError {
+    let message: String
+
+    var errorDescription: String? { "ClickHouse Error: \(message)" }
+
+    static let notConnected = ClickHouseError(message: "Not connected to database")
+    static let connectionFailed = ClickHouseError(message: "Failed to establish connection")
+}
+
+// MARK: - Internal Query Result
+
+private struct CHQueryResult {
+    let columns: [String]
+    let columnTypeNames: [String]
+    let rows: [[String?]]
+    let affectedRows: Int
+}
+
+// MARK: - Plugin Driver
+
+final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
+    private let config: DriverConnectionConfig
+    private var _serverVersion: String?
+
+    private let lock = NSLock()
+    private var session: URLSession?
+    private var currentTask: URLSessionDataTask?
+    private var _currentDatabase: String
+    private var _lastQueryId: String?
+
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ClickHousePluginDriver")
+
+    private static let selectPrefixes: Set<String> = [
+        "SELECT", "SHOW", "DESCRIBE", "DESC", "EXISTS", "EXPLAIN", "WITH"
+    ]
+
+    var serverVersion: String? { _serverVersion }
+    var supportsSchemas: Bool { false }
+    var supportsTransactions: Bool { false }
+    var currentSchema: String? { nil }
+
+    init(config: DriverConnectionConfig) {
+        self.config = config
+        self._currentDatabase = config.database
+    }
+
+    // MARK: - Connection
+
+    func connect() async throws {
+        let useTLS = config.additionalFields["sslMode"] != nil
+            && config.additionalFields["sslMode"] != "disable"
+        let skipVerification = config.additionalFields["sslMode"] == "required"
+
+        let urlConfig = URLSessionConfiguration.default
+        urlConfig.timeoutIntervalForRequest = 30
+        urlConfig.timeoutIntervalForResource = 300
+
+        lock.lock()
+        if skipVerification {
+            session = URLSession(configuration: urlConfig, delegate: InsecureTLSDelegate(), delegateQueue: nil)
+        } else {
+            session = URLSession(configuration: urlConfig)
+        }
+        lock.unlock()
+
+        do {
+            _ = try await executeRaw("SELECT 1")
+        } catch {
+            lock.lock()
+            session?.invalidateAndCancel()
+            session = nil
+            lock.unlock()
+            Self.logger.error("Connection test failed: \(error.localizedDescription)")
+            throw ClickHouseError.connectionFailed
+        }
+
+        if let result = try? await executeRaw("SELECT version()"),
+           let versionStr = result.rows.first?.first ?? nil {
+            _serverVersion = versionStr
+        }
+
+        Self.logger.debug("Connected to ClickHouse at \(self.config.host):\(self.config.port)")
+    }
+
+    func disconnect() {
+        lock.lock()
+        currentTask?.cancel()
+        currentTask = nil
+        session?.invalidateAndCancel()
+        session = nil
+        lock.unlock()
+    }
+
+    func ping() async throws {
+        _ = try await execute(query: "SELECT 1")
+    }
+
+    // MARK: - Query Execution
+
+    func execute(query: String) async throws -> PluginQueryResult {
+        let startTime = Date()
+        let queryId = UUID().uuidString
+        let result = try await executeRaw(query, queryId: queryId)
+        let executionTime = Date().timeIntervalSince(startTime)
+
+        return PluginQueryResult(
+            columns: result.columns,
+            columnTypeNames: result.columnTypeNames,
+            rows: result.rows,
+            rowsAffected: result.affectedRows,
+            executionTime: executionTime
+        )
+    }
+
+    func fetchRowCount(query: String) async throws -> Int {
+        let countQuery = "SELECT count() FROM (\(query)) AS __cnt"
+        let result = try await execute(query: countQuery)
+        guard let row = result.rows.first,
+              let cell = row.first,
+              let str = cell,
+              let count = Int(str) else {
+            return 0
+        }
+        return count
+    }
+
+    func fetchRows(query: String, offset: Int, limit: Int) async throws -> PluginQueryResult {
+        var base = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        while base.hasSuffix(";") {
+            base = String(base.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        base = stripLimitOffset(from: base)
+        let paginated = "\(base) LIMIT \(limit) OFFSET \(offset)"
+        return try await execute(query: paginated)
+    }
+
+    // MARK: - Schema Operations
+
+    func fetchTables(schema: String?) async throws -> [PluginTableInfo] {
+        let sql = """
+            SELECT name, engine FROM system.tables
+            WHERE database = currentDatabase() AND name NOT LIKE '.%'
+            ORDER BY name
+            """
+        let result = try await execute(query: sql)
+        return result.rows.compactMap { row -> PluginTableInfo? in
+            guard let name = row[safe: 0] ?? nil else { return nil }
+            let engine = row[safe: 1] ?? nil
+            let tableType = (engine?.contains("View") == true) ? "VIEW" : "TABLE"
+            return PluginTableInfo(name: name, type: tableType)
+        }
+    }
+
+    func fetchColumns(table: String, schema: String?) async throws -> [PluginColumnInfo] {
+        let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+
+        let pkSql = """
+            SELECT primary_key, sorting_key FROM system.tables
+            WHERE database = currentDatabase() AND name = '\(escapedTable)'
+            """
+        let pkResult = try await execute(query: pkSql)
+        let primaryKey = pkResult.rows.first.flatMap { $0[safe: 0] ?? nil } ?? ""
+        let sortingKey = pkResult.rows.first.flatMap { $0[safe: 1] ?? nil } ?? ""
+        let keyString = primaryKey.isEmpty ? sortingKey : primaryKey
+        let pkColumns = Set(keyString.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+
+        let sql = """
+            SELECT name, type, default_kind, default_expression, comment
+            FROM system.columns
+            WHERE database = currentDatabase() AND table = '\(escapedTable)'
+            ORDER BY position
+            """
+        let result = try await execute(query: sql)
+        return result.rows.compactMap { row -> PluginColumnInfo? in
+            guard let name = row[safe: 0] ?? nil else { return nil }
+            let dataType = (row[safe: 1] ?? nil) ?? "String"
+            let defaultKind = row[safe: 2] ?? nil
+            let defaultExpr = row[safe: 3] ?? nil
+            let comment = row[safe: 4] ?? nil
+
+            let isNullable = dataType.hasPrefix("Nullable(")
+
+            var defaultValue: String?
+            if let kind = defaultKind, !kind.isEmpty, let expr = defaultExpr, !expr.isEmpty {
+                defaultValue = expr
+            }
+
+            var extra: String?
+            if let kind = defaultKind, !kind.isEmpty, kind != "DEFAULT" {
+                extra = kind
+            }
+
+            return PluginColumnInfo(
+                name: name,
+                dataType: dataType,
+                isNullable: isNullable,
+                isPrimaryKey: pkColumns.contains(name),
+                defaultValue: defaultValue,
+                extra: extra,
+                comment: (comment?.isEmpty == false) ? comment : nil
+            )
+        }
+    }
+
+    func fetchAllColumns(schema: String?) async throws -> [String: [PluginColumnInfo]] {
+        let sql = """
+            SELECT table, name, type, default_kind, default_expression, comment
+            FROM system.columns
+            WHERE database = currentDatabase()
+            ORDER BY table, position
+            """
+        let result = try await execute(query: sql)
+        var columnsByTable: [String: [PluginColumnInfo]] = [:]
+        for row in result.rows {
+            guard let tableName = row[safe: 0] ?? nil,
+                  let colName = row[safe: 1] ?? nil else { continue }
+            let dataType = (row[safe: 2] ?? nil) ?? "String"
+            let defaultKind = row[safe: 3] ?? nil
+            let defaultExpr = row[safe: 4] ?? nil
+            let comment = row[safe: 5] ?? nil
+
+            let isNullable = dataType.hasPrefix("Nullable(")
+
+            var defaultValue: String?
+            if let kind = defaultKind, !kind.isEmpty, let expr = defaultExpr, !expr.isEmpty {
+                defaultValue = expr
+            }
+
+            var extra: String?
+            if let kind = defaultKind, !kind.isEmpty, kind != "DEFAULT" {
+                extra = kind
+            }
+
+            let colInfo = PluginColumnInfo(
+                name: colName,
+                dataType: dataType,
+                isNullable: isNullable,
+                isPrimaryKey: false,
+                defaultValue: defaultValue,
+                extra: extra,
+                comment: (comment?.isEmpty == false) ? comment : nil
+            )
+            columnsByTable[tableName, default: []].append(colInfo)
+        }
+        return columnsByTable
+    }
+
+    func fetchIndexes(table: String, schema: String?) async throws -> [PluginIndexInfo] {
+        let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+        var indexes: [PluginIndexInfo] = []
+
+        let sortingKeySql = """
+            SELECT sorting_key FROM system.tables
+            WHERE database = currentDatabase() AND name = '\(escapedTable)'
+            """
+        let sortingResult = try await execute(query: sortingKeySql)
+        if let row = sortingResult.rows.first,
+           let sortingKey = row[safe: 0] ?? nil, !sortingKey.isEmpty {
+            let columns = sortingKey.components(separatedBy: ",").map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            indexes.append(PluginIndexInfo(
+                name: "PRIMARY (sorting key)",
+                columns: columns,
+                isUnique: false,
+                isPrimary: true,
+                type: "SORTING KEY"
+            ))
+        }
+
+        let skippingSql = """
+            SELECT name, expr FROM system.data_skipping_indices
+            WHERE database = currentDatabase() AND table = '\(escapedTable)'
+            """
+        let skippingResult = try await execute(query: skippingSql)
+        for row in skippingResult.rows {
+            guard let idxName = row[safe: 0] ?? nil else { continue }
+            let expr = (row[safe: 1] ?? nil) ?? ""
+            let columns = expr.components(separatedBy: ",").map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            indexes.append(PluginIndexInfo(
+                name: idxName,
+                columns: columns,
+                isUnique: false,
+                isPrimary: false,
+                type: "DATA_SKIPPING"
+            ))
+        }
+
+        return indexes
+    }
+
+    func fetchForeignKeys(table: String, schema: String?) async throws -> [PluginForeignKeyInfo] {
+        []
+    }
+
+    func fetchApproximateRowCount(table: String, schema: String?) async throws -> Int? {
+        let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+        let sql = """
+            SELECT sum(rows) FROM system.parts
+            WHERE database = currentDatabase() AND table = '\(escapedTable)' AND active = 1
+            """
+        let result = try await execute(query: sql)
+        if let row = result.rows.first, let cell = row.first, let str = cell {
+            return Int(str)
+        }
+        return nil
+    }
+
+    func fetchTableDDL(table: String, schema: String?) async throws -> String {
+        let escapedTable = table.replacingOccurrences(of: "`", with: "``")
+        let sql = "SHOW CREATE TABLE `\(escapedTable)`"
+        let result = try await execute(query: sql)
+        return result.rows.first?.first?.flatMap { $0 } ?? ""
+    }
+
+    func fetchViewDefinition(view: String, schema: String?) async throws -> String {
+        let escapedView = view.replacingOccurrences(of: "'", with: "''")
+        let sql = """
+            SELECT as_select FROM system.tables
+            WHERE database = currentDatabase() AND name = '\(escapedView)'
+            """
+        let result = try await execute(query: sql)
+        return result.rows.first?.first?.flatMap { $0 } ?? ""
+    }
+
+    func fetchTableMetadata(table: String, schema: String?) async throws -> PluginTableMetadata {
+        let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+
+        let engineSql = """
+            SELECT engine, comment FROM system.tables
+            WHERE database = currentDatabase() AND name = '\(escapedTable)'
+            """
+        let engineResult = try await execute(query: engineSql)
+        let engine = engineResult.rows.first.flatMap { $0[safe: 0] ?? nil }
+        let tableComment = engineResult.rows.first.flatMap { $0[safe: 1] ?? nil }
+
+        let partsSql = """
+            SELECT sum(rows), sum(bytes_on_disk)
+            FROM system.parts
+            WHERE database = currentDatabase() AND table = '\(escapedTable)' AND active = 1
+            """
+        let partsResult = try await execute(query: partsSql)
+        if let row = partsResult.rows.first {
+            let rowCount = (row[safe: 0] ?? nil).flatMap { Int64($0) }
+            let sizeBytes = (row[safe: 1] ?? nil).flatMap { Int64($0) } ?? 0
+            return PluginTableMetadata(
+                tableName: table,
+                dataSize: sizeBytes,
+                totalSize: sizeBytes,
+                rowCount: rowCount,
+                comment: (tableComment?.isEmpty == false) ? tableComment : nil,
+                engine: engine
+            )
+        }
+
+        return PluginTableMetadata(tableName: table, engine: engine)
+    }
+
+    func fetchDatabases() async throws -> [String] {
+        let result = try await execute(query: "SHOW DATABASES")
+        return result.rows.compactMap { $0.first ?? nil }
+    }
+
+    func fetchDatabaseMetadata(_ database: String) async throws -> PluginDatabaseMetadata {
+        let escapedDb = database.replacingOccurrences(of: "'", with: "''")
+        let sql = """
+            SELECT count() AS table_count, sum(total_bytes) AS size_bytes
+            FROM system.tables WHERE database = '\(escapedDb)'
+            """
+        let result = try await execute(query: sql)
+        if let row = result.rows.first {
+            let tableCount = (row[safe: 0] ?? nil).flatMap { Int($0) } ?? 0
+            let sizeBytes = (row[safe: 1] ?? nil).flatMap { Int64($0) }
+            return PluginDatabaseMetadata(
+                name: database,
+                tableCount: tableCount,
+                sizeBytes: sizeBytes
+            )
+        }
+        return PluginDatabaseMetadata(name: database)
+    }
+
+    func createDatabase(name: String, charset: String, collation: String?) async throws {
+        let escapedName = name.replacingOccurrences(of: "`", with: "``")
+        _ = try await execute(query: "CREATE DATABASE `\(escapedName)`")
+    }
+
+    func cancelQuery() throws {
+        let queryId: String?
+        lock.lock()
+        queryId = _lastQueryId
+        currentTask?.cancel()
+        currentTask = nil
+        lock.unlock()
+
+        if let queryId, !queryId.isEmpty {
+            killQuery(queryId: queryId)
+        }
+    }
+
+    func applyQueryTimeout(_ seconds: Int) async throws {
+        guard seconds > 0 else { return }
+        _ = try await execute(query: "SET max_execution_time = \(seconds)")
+    }
+
+    // MARK: - Database Switching
+
+    func switchDatabase(to database: String) async throws {
+        lock.lock()
+        _currentDatabase = database
+        lock.unlock()
+    }
+
+    // MARK: - Kill Query
+
+    private func killQuery(queryId: String) {
+        lock.lock()
+        let hasSession = session != nil
+        lock.unlock()
+        guard hasSession else { return }
+
+        let killConfig = URLSessionConfiguration.default
+        killConfig.timeoutIntervalForRequest = 5
+        let killSession = URLSession(configuration: killConfig)
+
+        do {
+            let escapedId = queryId.replacingOccurrences(of: "'", with: "''")
+            let request = try buildRequest(
+                query: "KILL QUERY WHERE query_id = '\(escapedId)'",
+                database: ""
+            )
+            let task = killSession.dataTask(with: request) { _, _, _ in
+                killSession.invalidateAndCancel()
+            }
+            task.resume()
+        } catch {
+            killSession.invalidateAndCancel()
+        }
+    }
+
+    // MARK: - Private HTTP Layer
+
+    private func executeRaw(_ query: String, queryId: String? = nil) async throws -> CHQueryResult {
+        lock.lock()
+        guard let session = self.session else {
+            lock.unlock()
+            throw ClickHouseError.notConnected
+        }
+        let database = _currentDatabase
+        if let queryId {
+            _lastQueryId = queryId
+        }
+        lock.unlock()
+
+        let request = try buildRequest(query: query, database: database, queryId: queryId)
+        let isSelect = Self.isSelectLikeQuery(query)
+
+        let (data, response) = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(Data, URLResponse), Error>) in
+                let task = session.dataTask(with: request) { data, response, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    guard let data, let response else {
+                        continuation.resume(throwing: ClickHouseError(message: "Empty response from server"))
+                        return
+                    }
+                    continuation.resume(returning: (data, response))
+                }
+
+                self.lock.lock()
+                self.currentTask = task
+                self.lock.unlock()
+
+                task.resume()
+            }
+        } onCancel: {
+            self.lock.lock()
+            self.currentTask?.cancel()
+            self.currentTask = nil
+            self.lock.unlock()
+        }
+
+        lock.lock()
+        currentTask = nil
+        lock.unlock()
+
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+            let body = String(data: data, encoding: .utf8) ?? "Unknown error"
+            Self.logger.error("ClickHouse HTTP \(httpResponse.statusCode): \(body)")
+            throw ClickHouseError(message: body.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+
+        if isSelect {
+            return parseTabSeparatedResponse(data)
+        }
+
+        return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+    }
+
+    private func buildRequest(query: String, database: String, queryId: String? = nil) throws -> URLRequest {
+        let useTLS = config.additionalFields["sslMode"] != nil
+            && config.additionalFields["sslMode"] != "disable"
+
+        var components = URLComponents()
+        components.scheme = useTLS ? "https" : "http"
+        components.host = config.host
+        components.port = config.port
+        components.path = "/"
+
+        var queryItems = [URLQueryItem]()
+        if !database.isEmpty {
+            queryItems.append(URLQueryItem(name: "database", value: database))
+        }
+        if let queryId {
+            queryItems.append(URLQueryItem(name: "query_id", value: queryId))
+        }
+        queryItems.append(URLQueryItem(name: "send_progress_in_http_headers", value: "1"))
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+
+        guard let url = components.url else {
+            throw ClickHouseError(message: "Failed to construct request URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+
+        let credentials = "\(config.username):\(config.password)"
+        if let credData = credentials.data(using: .utf8) {
+            request.setValue("Basic \(credData.base64EncodedString())", forHTTPHeaderField: "Authorization")
+        }
+
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ";+$", with: "", options: .regularExpression)
+
+        if Self.isSelectLikeQuery(trimmedQuery) {
+            request.httpBody = (trimmedQuery + " FORMAT TabSeparatedWithNamesAndTypes").data(using: .utf8)
+        } else {
+            request.httpBody = trimmedQuery.data(using: .utf8)
+        }
+
+        return request
+    }
+
+    private static func isSelectLikeQuery(_ query: String) -> Bool {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let firstWord = trimmed.split(separator: " ", maxSplits: 1).first else {
+            return false
+        }
+        return selectPrefixes.contains(firstWord.uppercased())
+    }
+
+    private func parseTabSeparatedResponse(_ data: Data) -> CHQueryResult {
+        guard let text = String(data: data, encoding: .utf8), !text.isEmpty else {
+            return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+        }
+
+        let lines = text.components(separatedBy: "\n")
+
+        guard lines.count >= 2 else {
+            return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+        }
+
+        let columns = lines[0].components(separatedBy: "\t")
+        let columnTypes = lines[1].components(separatedBy: "\t")
+
+        var rows: [[String?]] = []
+        for i in 2..<lines.count {
+            let line = lines[i]
+            if line.isEmpty { continue }
+
+            let fields = line.components(separatedBy: "\t")
+            let row = fields.map { field -> String? in
+                if field == "\\N" {
+                    return nil
+                }
+                return Self.unescapeTsvField(field)
+            }
+            rows.append(row)
+        }
+
+        return CHQueryResult(
+            columns: columns,
+            columnTypeNames: columnTypes,
+            rows: rows,
+            affectedRows: rows.count
+        )
+    }
+
+    private static func unescapeTsvField(_ field: String) -> String {
+        var result = ""
+        result.reserveCapacity((field as NSString).length)
+        var iterator = field.makeIterator()
+
+        while let char = iterator.next() {
+            if char == "\\" {
+                if let next = iterator.next() {
+                    switch next {
+                    case "\\": result.append("\\")
+                    case "t": result.append("\t")
+                    case "n": result.append("\n")
+                    default:
+                        result.append("\\")
+                        result.append(next)
+                    }
+                } else {
+                    result.append("\\")
+                }
+            } else {
+                result.append(char)
+            }
+        }
+
+        return result
+    }
+
+    private func stripLimitOffset(from query: String) -> String {
+        let ns = query as NSString
+        let len = ns.length
+        guard len > 0 else { return query }
+
+        let upper = query.uppercased() as NSString
+        var depth = 0
+        var i = len - 1
+
+        while i >= 4 {
+            let ch = upper.character(at: i)
+            if ch == 0x29 { depth += 1 }
+            else if ch == 0x28 { depth -= 1 }
+            else if depth == 0 && ch == 0x54 {
+                let start = i - 4
+                if start >= 0 {
+                    let candidate = upper.substring(with: NSRange(location: start, length: 5))
+                    if candidate == "LIMIT" {
+                        if start == 0 || CharacterSet.whitespacesAndNewlines
+                            .contains(UnicodeScalar(upper.character(at: start - 1)) ?? UnicodeScalar(0)) {
+                            return ns.substring(to: start)
+                                .trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+                    }
+                }
+            }
+            i -= 1
+        }
+        return query
+    }
+
+    // MARK: - TLS Delegate
+
+    private class InsecureTLSDelegate: NSObject, URLSessionDelegate {
+        func urlSession(
+            _ session: URLSession,
+            didReceive challenge: URLAuthenticationChallenge,
+            completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+        ) {
+            if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+               let serverTrust = challenge.protectionSpace.serverTrust {
+                completionHandler(.useCredential, URLCredential(trust: serverTrust))
+            } else {
+                completionHandler(.performDefaultHandling, nil)
+            }
+        }
+    }
+}

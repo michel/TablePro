@@ -6,10 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TablePro is a native macOS database client (SwiftUI + AppKit) — a fast, lightweight alternative to TablePlus. macOS 14.0+, Swift 5.9, Universal Binary (arm64 + x86_64).
 
-- **Source**: `TablePro/` — `Core/` (business logic, drivers, services), `Views/` (UI), `Models/` (data structures), `ViewModels/`, `Extensions/`, `Theme/`
-- **C bridges**: `CMariaDB/` and `CLibPQ/` in `Core/Database/` — bridging headers for MariaDB and PostgreSQL C connectors
-- **Static libs**: `Libs/` — pre-built `libmariadb*.a` (Git LFS tracked)
-- **SPM deps**: CodeEditSourceEditor (`main` branch, tree-sitter editor), Sparkle (2.8.1, auto-update). Managed via Xcode, no `Package.swift`.
+- **Source**: `TablePro/` — `Core/` (business logic, services), `Views/` (UI), `Models/` (data structures), `ViewModels/`, `Extensions/`, `Theme/`
+- **Plugins**: `Plugins/` — 8 `.tableplugin` bundles (MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, MongoDB, Redis, Oracle) + `TableProPluginKit` shared framework
+- **C bridges**: Each plugin contains its own C bridge module (e.g., `Plugins/MySQLDriverPlugin/CMariaDB/`, `Plugins/PostgreSQLDriverPlugin/CLibPQ/`)
+- **Static libs**: `Libs/` — pre-built `libmariadb*.a`, `libpq*.a`, etc. (Git LFS tracked)
+- **SPM deps**: CodeEditSourceEditor (`main` branch, tree-sitter editor), Sparkle (2.8.1, auto-update), OracleNIO. Managed via Xcode, no `Package.swift`.
 
 ## Build & Development Commands
 
@@ -42,17 +43,32 @@ scripts/create-dmg.sh
 
 ## Architecture
 
-### Database Drivers
+### Plugin System
 
-All database operations go through the `DatabaseDriver` protocol (`Core/Database/DatabaseDriver.swift`):
+All database drivers are `.tableplugin` bundles loaded at runtime by `PluginManager` (`Core/Plugins/`):
 
-- **MySQLDriver** → `MariaDBConnection` (C connector via CMariaDB)
-- **PostgreSQLDriver** → `LibPQConnection` (C connector via CLibPQ)
-- **SQLiteDriver** → Foundation's `sqlite3` directly
-- **DatabaseManager** — connection pool, lifecycle, primary interface for views/coordinators
+- **TableProPluginKit** (`Plugins/TableProPluginKit/`) — shared framework with `PluginDatabaseDriver`, `DriverPlugin`, `TableProPlugin` protocols and transfer types (`PluginQueryResult`, `PluginColumnInfo`, etc.)
+- **PluginDriverAdapter** (`Core/Plugins/PluginDriverAdapter.swift`) — bridges `PluginDatabaseDriver` → `DatabaseDriver` protocol
+- **DatabaseDriverFactory** (`Core/Database/DatabaseDriver.swift`) — looks up plugins via `DatabaseType.pluginTypeId`
+- **DatabaseManager** (`Core/Database/DatabaseManager.swift`) — connection pool, lifecycle, primary interface for views/coordinators
 - **ConnectionHealthMonitor** — 30s ping, auto-reconnect with exponential backoff
 
-When adding a new driver method: add to `DatabaseDriver` protocol, then implement in all three drivers.
+Plugin bundles under `Plugins/`:
+
+| Plugin | Database Types | C Bridge |
+|--------|---------------|----------|
+| MySQLDriverPlugin | MySQL, MariaDB | CMariaDB |
+| PostgreSQLDriverPlugin | PostgreSQL, Redshift | CLibPQ |
+| SQLiteDriverPlugin | SQLite | (Foundation sqlite3) |
+| ClickHouseDriverPlugin | ClickHouse | (URLSession HTTP) |
+| MSSQLDriverPlugin | SQL Server | CFreeTDS |
+| MongoDBDriverPlugin | MongoDB | CLibMongoc |
+| RedisDriverPlugin | Redis | CRedis |
+| OracleDriverPlugin | Oracle | OracleNIO (SPM) |
+
+When adding a new driver: create a new plugin bundle under `Plugins/`, implement `DriverPlugin` + `PluginDatabaseDriver`, add target to pbxproj. See `docs/development/plugin-system/` for details.
+
+When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (with default implementation), then update `PluginDriverAdapter` to bridge it to `DatabaseDriver`.
 
 ### Editor Architecture (CodeEditSourceEditor)
 
@@ -72,6 +88,24 @@ When adding a new driver method: add to `DatabaseDriver` protocol, then implemen
 ### Main Coordinator Pattern
 
 `MainContentCoordinator` is the central coordinator, split across 7+ extension files in `Views/Main/Extensions/` (e.g., `+Alerts`, `+Filtering`, `+Pagination`, `+RowOperations`). When adding coordinator functionality, add a new extension file rather than growing the main file.
+
+### Source Organization
+
+`Core/Services/` is split into domain subdirectories:
+
+| Subdirectory | Contents |
+|-------------|----------|
+| `Export/` | ExportService, ImportService, XLSXWriter |
+| `Formatting/` | SQLFormatterService, DateFormattingService |
+| `Infrastructure/` | AppNotifications, DeeplinkHandler, WindowOpener, UpdaterBridge, etc. |
+| `Licensing/` | LicenseManager, LicenseAPIClient, LicenseSignatureVerifier |
+| `Query/` | SQLDialectProvider, TableQueryBuilder, RowParser, RowOperationsManager |
+
+`Models/` is split into: `AI/`, `Connection/`, `Database/`, `Export/`, `Query/`, `Settings/`, `UI/`, `Schema/`, `ClickHouse/`
+
+`Core/Utilities/` is split into: `Connection/`, `SQL/`, `File/`, `UI/`
+
+`Core/QuerySupport/` contains MongoDB and Redis query builders/statement generators (non-driver query logic).
 
 ### Storage Patterns
 

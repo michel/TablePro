@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- ClickHouse database support
-- ClickHouse query progress tracking with live rows/bytes display in toolbar
-- ClickHouse EXPLAIN variants (Plan, Pipeline, AST, Syntax, Estimate) via dropdown menu
-- ClickHouse TLS/HTTPS support for encrypted connections
-- ClickHouse server-side query cancellation (KILL QUERY)
-- ClickHouse Parts tab in Structure view showing partition/part details
+- Plugin system architecture — all 8 database drivers (MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, MongoDB, Redis, Oracle) extracted into `.tableplugin` bundles loaded at runtime
+- Settings > Plugins tab for plugin management — list installed plugins, enable/disable, install from file, uninstall user plugins, view plugin details
+- TableProPluginKit framework — shared protocols and types for driver plugins
+- ClickHouse database support with query progress tracking, EXPLAIN variants, TLS/HTTPS, server-side cancellation, and Parts view
 
+### Changed
+
+- Reorganized project directory structure: Services, Utilities, Models split into domain-specific subdirectories
+- Database driver code moved from monolithic app binary into independent plugin bundles under `Plugins/`
 
 ## [0.15.0] - 2026-03-08
 

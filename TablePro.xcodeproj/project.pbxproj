@@ -7,6 +7,23 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5A860000A00000000 /* TableProPluginKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A861000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A861000D00000000 /* OracleDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A861000100000000 /* OracleDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A862000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A862000D00000000 /* SQLiteDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A862000100000000 /* SQLiteDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A863000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A863000D00000000 /* ClickHouseDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A863000100000000 /* ClickHouseDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A864000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A864000D00000000 /* MSSQLDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A864000100000000 /* MSSQLDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A865000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A865000D00000000 /* MySQLDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A865000100000000 /* MySQLDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A866000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A866000D00000000 /* MongoDBDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A866000100000000 /* MongoDBDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A867000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A867000D00000000 /* RedisDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A867000100000000 /* RedisDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A868000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A868000D00000000 /* PostgreSQLDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A868000100000000 /* PostgreSQLDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000002 /* CodeEditSourceEditor */; };
 		5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000003 /* CodeEditLanguages */; };
 		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
@@ -16,6 +33,69 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		5A860000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A860000000000000;
+			remoteInfo = TableProPluginKit;
+		};
+		5A861000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A861000000000000;
+			remoteInfo = OracleDriver;
+		};
+		5A862000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A862000000000000;
+			remoteInfo = SQLiteDriver;
+		};
+		5A863000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A863000000000000;
+			remoteInfo = ClickHouseDriver;
+		};
+		5A864000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A864000000000000;
+			remoteInfo = MSSQLDriver;
+		};
+		5A865000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A865000000000000;
+			remoteInfo = MySQLDriver;
+		};
+		5A866000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A866000000000000;
+			remoteInfo = MongoDBDriver;
+		};
+		5A867000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A867000000000000;
+			remoteInfo = RedisDriver;
+		};
+		5A868000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A868000000000000;
+			remoteInfo = PostgreSQLDriver;
+		};
 		5ABCC5AB2F43856700EAF3FC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
@@ -25,13 +105,117 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		5A86FF0000000000 /* Copy Plug-Ins */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5A861000D00000000 /* OracleDriver.tableplugin in Copy Plug-Ins */,
+				5A862000D00000000 /* SQLiteDriver.tableplugin in Copy Plug-Ins */,
+				5A863000D00000000 /* ClickHouseDriver.tableplugin in Copy Plug-Ins */,
+				5A864000D00000000 /* MSSQLDriver.tableplugin in Copy Plug-Ins */,
+				5A865000D00000000 /* MySQLDriver.tableplugin in Copy Plug-Ins */,
+				5A866000D00000000 /* MongoDBDriver.tableplugin in Copy Plug-Ins */,
+				5A867000D00000000 /* RedisDriver.tableplugin in Copy Plug-Ins */,
+				5A868000D00000000 /* PostgreSQLDriver.tableplugin in Copy Plug-Ins */,
+			);
+			name = "Copy Plug-Ins";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A86FF0100000000 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				5A860000A00000000 /* TableProPluginKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		5A1091C72EF17EDC0055EA7C /* TablePro.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TablePro.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A860000100000000 /* TableProPluginKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TableProPluginKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A861000100000000 /* OracleDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OracleDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A862000100000000 /* SQLiteDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SQLiteDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A863000100000000 /* ClickHouseDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClickHouseDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A864000100000000 /* MSSQLDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MSSQLDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A865000100000000 /* MySQLDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MySQLDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A866000100000000 /* MongoDBDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MongoDBDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A867000100000000 /* RedisDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RedisDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A868000100000000 /* PostgreSQLDriver.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PostgreSQLDriver.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
 		5ABCC5A72F43856700EAF3FC /* TableProTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TableProTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5ASECRETS000000000000001 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5A860000900000000 /* Exceptions for "Plugins/TableProPluginKit" folder in "TableProPluginKit" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A860000000000000 /* TableProPluginKit */;
+		};
+		5A861000900000000 /* Exceptions for "Plugins/OracleDriverPlugin" folder in "OracleDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A861000000000000 /* OracleDriver */;
+		};
+		5A862000900000000 /* Exceptions for "Plugins/SQLiteDriverPlugin" folder in "SQLiteDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A862000000000000 /* SQLiteDriver */;
+		};
+		5A863000900000000 /* Exceptions for "Plugins/ClickHouseDriverPlugin" folder in "ClickHouseDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A863000000000000 /* ClickHouseDriver */;
+		};
+		5A864000900000000 /* Exceptions for "Plugins/MSSQLDriverPlugin" folder in "MSSQLDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A864000000000000 /* MSSQLDriver */;
+		};
+		5A865000900000000 /* Exceptions for "Plugins/MySQLDriverPlugin" folder in "MySQLDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A865000000000000 /* MySQLDriver */;
+		};
+		5A866000900000000 /* Exceptions for "Plugins/MongoDBDriverPlugin" folder in "MongoDBDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A866000000000000 /* MongoDBDriver */;
+		};
+		5A867000900000000 /* Exceptions for "Plugins/RedisDriverPlugin" folder in "RedisDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A867000000000000 /* RedisDriver */;
+		};
+		5A868000900000000 /* Exceptions for "Plugins/PostgreSQLDriverPlugin" folder in "PostgreSQLDriver" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A868000000000000 /* PostgreSQLDriver */;
+		};
 		5AF312BE2F36FF7500E86682 /* Exceptions for "TablePro" folder in "TablePro" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -50,6 +234,78 @@
 			path = TablePro;
 			sourceTree = "<group>";
 		};
+		5A860000500000000 /* Plugins/TableProPluginKit */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A860000900000000 /* Exceptions for "Plugins/TableProPluginKit" folder in "TableProPluginKit" target */,
+			);
+			path = Plugins/TableProPluginKit;
+			sourceTree = "<group>";
+		};
+		5A861000500000000 /* Plugins/OracleDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A861000900000000 /* Exceptions for "Plugins/OracleDriverPlugin" folder in "OracleDriver" target */,
+			);
+			path = Plugins/OracleDriverPlugin;
+			sourceTree = "<group>";
+		};
+		5A862000500000000 /* Plugins/SQLiteDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A862000900000000 /* Exceptions for "Plugins/SQLiteDriverPlugin" folder in "SQLiteDriver" target */,
+			);
+			path = Plugins/SQLiteDriverPlugin;
+			sourceTree = "<group>";
+		};
+		5A863000500000000 /* Plugins/ClickHouseDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A863000900000000 /* Exceptions for "Plugins/ClickHouseDriverPlugin" folder in "ClickHouseDriver" target */,
+			);
+			path = Plugins/ClickHouseDriverPlugin;
+			sourceTree = "<group>";
+		};
+		5A864000500000000 /* Plugins/MSSQLDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A864000900000000 /* Exceptions for "Plugins/MSSQLDriverPlugin" folder in "MSSQLDriver" target */,
+			);
+			path = Plugins/MSSQLDriverPlugin;
+			sourceTree = "<group>";
+		};
+		5A865000500000000 /* Plugins/MySQLDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A865000900000000 /* Exceptions for "Plugins/MySQLDriverPlugin" folder in "MySQLDriver" target */,
+			);
+			path = Plugins/MySQLDriverPlugin;
+			sourceTree = "<group>";
+		};
+		5A866000500000000 /* Plugins/MongoDBDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A866000900000000 /* Exceptions for "Plugins/MongoDBDriverPlugin" folder in "MongoDBDriver" target */,
+			);
+			path = Plugins/MongoDBDriverPlugin;
+			sourceTree = "<group>";
+		};
+		5A867000500000000 /* Plugins/RedisDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A867000900000000 /* Exceptions for "Plugins/RedisDriverPlugin" folder in "RedisDriver" target */,
+			);
+			path = Plugins/RedisDriverPlugin;
+			sourceTree = "<group>";
+		};
+		5A868000500000000 /* Plugins/PostgreSQLDriverPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A868000900000000 /* Exceptions for "Plugins/PostgreSQLDriverPlugin" folder in "PostgreSQLDriver" target */,
+			);
+			path = Plugins/PostgreSQLDriverPlugin;
+			sourceTree = "<group>";
+		};
 		5ABCC5A82F43856700EAF3FC /* TableProTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = TableProTests;
@@ -62,12 +318,83 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5AEE5B362F5C9B7B00FA84D7 /* OracleNIO in Frameworks */,
 				5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */,
 				5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */,
 				5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */,
 				5ACE00012F4F00000000000A /* Sparkle in Frameworks */,
 				5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A860000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A861000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A861000A00000000 /* TableProPluginKit.framework in Frameworks */,
+				5AEE5B362F5C9B7B00FA84D7 /* OracleNIO in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A862000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A862000A00000000 /* TableProPluginKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A863000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A863000A00000000 /* TableProPluginKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A864000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A864000A00000000 /* TableProPluginKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A865000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A865000A00000000 /* TableProPluginKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A866000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A866000A00000000 /* TableProPluginKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A867000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A867000A00000000 /* TableProPluginKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A868000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A868000A00000000 /* TableProPluginKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -93,6 +420,15 @@
 			isa = PBXGroup;
 			children = (
 				5A1091C92EF17EDC0055EA7C /* TablePro */,
+				5A860000500000000 /* Plugins/TableProPluginKit */,
+				5A861000500000000 /* Plugins/OracleDriverPlugin */,
+				5A862000500000000 /* Plugins/SQLiteDriverPlugin */,
+				5A863000500000000 /* Plugins/ClickHouseDriverPlugin */,
+				5A864000500000000 /* Plugins/MSSQLDriverPlugin */,
+				5A865000500000000 /* Plugins/MySQLDriverPlugin */,
+				5A866000500000000 /* Plugins/MongoDBDriverPlugin */,
+				5A867000500000000 /* Plugins/RedisDriverPlugin */,
+				5A868000500000000 /* Plugins/PostgreSQLDriverPlugin */,
 				5ABCC5A82F43856700EAF3FC /* TableProTests */,
 				5A1091C82EF17EDC0055EA7C /* Products */,
 				5A05FBC72F3EDF7500819CD7 /* Recovered References */,
@@ -103,12 +439,31 @@
 			isa = PBXGroup;
 			children = (
 				5A1091C72EF17EDC0055EA7C /* TablePro.app */,
+				5A860000100000000 /* TableProPluginKit.framework */,
+				5A861000100000000 /* OracleDriver.tableplugin */,
+				5A862000100000000 /* SQLiteDriver.tableplugin */,
+				5A863000100000000 /* ClickHouseDriver.tableplugin */,
+				5A864000100000000 /* MSSQLDriver.tableplugin */,
+				5A865000100000000 /* MySQLDriver.tableplugin */,
+				5A866000100000000 /* MongoDBDriver.tableplugin */,
+				5A867000100000000 /* RedisDriver.tableplugin */,
+				5A868000100000000 /* PostgreSQLDriver.tableplugin */,
 				5ABCC5A72F43856700EAF3FC /* TableProTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		5A860000E00000000 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		5A1091C62EF17EDC0055EA7C /* TablePro */ = {
@@ -118,10 +473,21 @@
 				5A1091C32EF17EDC0055EA7C /* Sources */,
 				5A1091C42EF17EDC0055EA7C /* Frameworks */,
 				5A1091C52EF17EDC0055EA7C /* Resources */,
+				5A86FF0100000000 /* Embed Frameworks */,
+				5A86FF0000000000 /* Copy Plug-Ins */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5A860000C00000000 /* PBXTargetDependency */,
+				5A861000C00000000 /* PBXTargetDependency */,
+				5A862000C00000000 /* PBXTargetDependency */,
+				5A863000C00000000 /* PBXTargetDependency */,
+				5A864000C00000000 /* PBXTargetDependency */,
+				5A865000C00000000 /* PBXTargetDependency */,
+				5A866000C00000000 /* PBXTargetDependency */,
+				5A867000C00000000 /* PBXTargetDependency */,
+				5A868000C00000000 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A1091C92EF17EDC0055EA7C /* TablePro */,
@@ -133,11 +499,194 @@
 				5ACE00012F4F000000000007 /* CodeEditTextView */,
 				5ACE00012F4F000000000009 /* Sparkle */,
 				5ACE00012F4F00000000000C /* MarkdownUI */,
-				5ACE00012F4F00000000000F /* OracleNIO */,
 			);
 			productName = TablePro;
 			productReference = 5A1091C72EF17EDC0055EA7C /* TablePro.app */;
 			productType = "com.apple.product-type.application";
+		};
+		5A860000000000000 /* TableProPluginKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A860000800000000 /* Build configuration list for PBXNativeTarget "TableProPluginKit" */;
+			buildPhases = (
+				5A860000E00000000 /* Headers */,
+				5A860000200000000 /* Sources */,
+				5A860000300000000 /* Frameworks */,
+				5A860000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A860000500000000 /* Plugins/TableProPluginKit */,
+			);
+			name = TableProPluginKit;
+			productName = TableProPluginKit;
+			productReference = 5A860000100000000 /* TableProPluginKit.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		5A861000000000000 /* OracleDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A861000800000000 /* Build configuration list for PBXNativeTarget "OracleDriver" */;
+			buildPhases = (
+				5A861000200000000 /* Sources */,
+				5A861000300000000 /* Frameworks */,
+				5A861000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A861000500000000 /* Plugins/OracleDriverPlugin */,
+			);
+			name = OracleDriver;
+			packageProductDependencies = (
+				5ACE00012F4F00000000000F /* OracleNIO */,
+			);
+			productName = OracleDriver;
+			productReference = 5A861000100000000 /* OracleDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		5A862000000000000 /* SQLiteDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A862000800000000 /* Build configuration list for PBXNativeTarget "SQLiteDriver" */;
+			buildPhases = (
+				5A862000200000000 /* Sources */,
+				5A862000300000000 /* Frameworks */,
+				5A862000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A862000500000000 /* Plugins/SQLiteDriverPlugin */,
+			);
+			name = SQLiteDriver;
+			productName = SQLiteDriver;
+			productReference = 5A862000100000000 /* SQLiteDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		5A863000000000000 /* ClickHouseDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A863000800000000 /* Build configuration list for PBXNativeTarget "ClickHouseDriver" */;
+			buildPhases = (
+				5A863000200000000 /* Sources */,
+				5A863000300000000 /* Frameworks */,
+				5A863000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A863000500000000 /* Plugins/ClickHouseDriverPlugin */,
+			);
+			name = ClickHouseDriver;
+			productName = ClickHouseDriver;
+			productReference = 5A863000100000000 /* ClickHouseDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		5A864000000000000 /* MSSQLDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A864000800000000 /* Build configuration list for PBXNativeTarget "MSSQLDriver" */;
+			buildPhases = (
+				5A864000200000000 /* Sources */,
+				5A864000300000000 /* Frameworks */,
+				5A864000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A864000500000000 /* Plugins/MSSQLDriverPlugin */,
+			);
+			name = MSSQLDriver;
+			productName = MSSQLDriver;
+			productReference = 5A864000100000000 /* MSSQLDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		5A865000000000000 /* MySQLDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A865000800000000 /* Build configuration list for PBXNativeTarget "MySQLDriver" */;
+			buildPhases = (
+				5A865000200000000 /* Sources */,
+				5A865000300000000 /* Frameworks */,
+				5A865000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A865000500000000 /* Plugins/MySQLDriverPlugin */,
+			);
+			name = MySQLDriver;
+			productName = MySQLDriver;
+			productReference = 5A865000100000000 /* MySQLDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		5A866000000000000 /* MongoDBDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A866000800000000 /* Build configuration list for PBXNativeTarget "MongoDBDriver" */;
+			buildPhases = (
+				5A866000200000000 /* Sources */,
+				5A866000300000000 /* Frameworks */,
+				5A866000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A866000500000000 /* Plugins/MongoDBDriverPlugin */,
+			);
+			name = MongoDBDriver;
+			productName = MongoDBDriver;
+			productReference = 5A866000100000000 /* MongoDBDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		5A867000000000000 /* RedisDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A867000800000000 /* Build configuration list for PBXNativeTarget "RedisDriver" */;
+			buildPhases = (
+				5A867000200000000 /* Sources */,
+				5A867000300000000 /* Frameworks */,
+				5A867000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A867000500000000 /* Plugins/RedisDriverPlugin */,
+			);
+			name = RedisDriver;
+			productName = RedisDriver;
+			productReference = 5A867000100000000 /* RedisDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
+		5A868000000000000 /* PostgreSQLDriver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A868000800000000 /* Build configuration list for PBXNativeTarget "PostgreSQLDriver" */;
+			buildPhases = (
+				5A868000200000000 /* Sources */,
+				5A868000300000000 /* Frameworks */,
+				5A868000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A868000500000000 /* Plugins/PostgreSQLDriverPlugin */,
+			);
+			name = PostgreSQLDriver;
+			productName = PostgreSQLDriver;
+			productReference = 5A868000100000000 /* PostgreSQLDriver.tableplugin */;
+			productType = "com.apple.product-type.bundle";
 		};
 		5ABCC5A62F43856700EAF3FC /* TableProTests */ = {
 			isa = PBXNativeTarget;
@@ -173,6 +722,33 @@
 					5A1091C62EF17EDC0055EA7C = {
 						CreatedOnToolsVersion = 26.2;
 					};
+					5A860000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A861000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A862000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A863000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A864000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A865000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A866000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A867000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					5A868000000000000 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					5ABCC5A62F43856700EAF3FC = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 5A1091C62EF17EDC0055EA7C;
@@ -202,6 +778,15 @@
 			projectRoot = "";
 			targets = (
 				5A1091C62EF17EDC0055EA7C /* TablePro */,
+				5A860000000000000 /* TableProPluginKit */,
+				5A861000000000000 /* OracleDriver */,
+				5A862000000000000 /* SQLiteDriver */,
+				5A863000000000000 /* ClickHouseDriver */,
+				5A864000000000000 /* MSSQLDriver */,
+				5A865000000000000 /* MySQLDriver */,
+				5A866000000000000 /* MongoDBDriver */,
+				5A867000000000000 /* RedisDriver */,
+				5A868000000000000 /* PostgreSQLDriver */,
 				5ABCC5A62F43856700EAF3FC /* TableProTests */,
 			);
 		};
@@ -209,6 +794,69 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		5A1091C52EF17EDC0055EA7C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A860000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A861000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A862000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A863000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A864000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A865000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A866000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A867000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A868000400000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -232,6 +880,69 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A860000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A861000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A862000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A863000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A864000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A865000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A866000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A867000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A868000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5ABCC5A32F43856700EAF3FC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -242,6 +953,51 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		5A860000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A860000000000000 /* TableProPluginKit */;
+			targetProxy = 5A860000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A861000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A861000000000000 /* OracleDriver */;
+			targetProxy = 5A861000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A862000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A862000000000000 /* SQLiteDriver */;
+			targetProxy = 5A862000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A863000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A863000000000000 /* ClickHouseDriver */;
+			targetProxy = 5A863000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A864000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A864000000000000 /* MSSQLDriver */;
+			targetProxy = 5A864000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A865000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A865000000000000 /* MySQLDriver */;
+			targetProxy = 5A865000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A866000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A866000000000000 /* MongoDBDriver */;
+			targetProxy = 5A866000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A867000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A867000000000000 /* RedisDriver */;
+			targetProxy = 5A867000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A868000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A868000000000000 /* PostgreSQLDriver */;
+			targetProxy = 5A868000B00000000 /* PBXContainerItemProxy */;
+		};
 		5ABCC5AC2F43856700EAF3FC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 5A1091C62EF17EDC0055EA7C /* TablePro */;
@@ -399,15 +1155,6 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CRedis/include",
-				);
 				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
@@ -418,32 +1165,9 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.15.0;
-				OTHER_LDFLAGS = (
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmariadb.a",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libpq.a",
-					"$(PROJECT_DIR)/Libs/libpgcommon.a",
-					"$(PROJECT_DIR)/Libs/libpgport.a",
-					"$(PROJECT_DIR)/Libs/libssl.a",
-					"$(PROJECT_DIR)/Libs/libcrypto.a",
-					"-lz",
-					"-Wl,-w",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmongoc.a",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libbson.a",
-					"-lresolv",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libhiredis.a",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libhiredis_ssl.a",
-					"$(PROJECT_DIR)/Libs/libsybdb.a",
-					"-liconv",
-				);
+				OTHER_LDFLAGS = "-Wl,-w";
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -460,7 +1184,6 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.9;
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -494,15 +1217,6 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CRedis/include",
-				);
 				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
@@ -513,32 +1227,9 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.15.0;
-				OTHER_LDFLAGS = (
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmariadb.a",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libpq.a",
-					"$(PROJECT_DIR)/Libs/libpgcommon.a",
-					"$(PROJECT_DIR)/Libs/libpgport.a",
-					"$(PROJECT_DIR)/Libs/libssl.a",
-					"$(PROJECT_DIR)/Libs/libcrypto.a",
-					"-lz",
-					"-Wl,-w",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libmongoc.a",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libbson.a",
-					"-lresolv",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libhiredis.a",
-					"-force_load",
-					"$(PROJECT_DIR)/Libs/libhiredis_ssl.a",
-					"$(PROJECT_DIR)/Libs/libsybdb.a",
-					"-liconv",
-				);
+				OTHER_LDFLAGS = "-Wl,-w";
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -555,10 +1246,549 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.9;
 				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		5A860000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.TableProPluginKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		5A860000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.TableProPluginKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		5A861000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/OracleDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).OraclePlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.OracleDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A861000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/OracleDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).OraclePlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.OracleDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A862000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/SQLiteDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).SQLitePlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-lsqlite3";
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.SQLiteDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A862000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/SQLiteDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).SQLitePlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-lsqlite3";
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.SQLiteDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A863000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/ClickHouseDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).ClickHousePlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.ClickHouseDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A863000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/ClickHouseDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).ClickHousePlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.ClickHouseDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A864000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/MSSQLDriverPlugin/CFreeTDS/include";
+				INFOPLIST_FILE = Plugins/MSSQLDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).MSSQLPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libsybdb.a",
+					"-lssl",
+					"-lcrypto",
+					"-liconv",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.MSSQLDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/MSSQLDriverPlugin/CFreeTDS";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A864000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/MSSQLDriverPlugin/CFreeTDS/include";
+				INFOPLIST_FILE = Plugins/MSSQLDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).MSSQLPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libsybdb.a",
+					"-lssl",
+					"-lcrypto",
+					"-liconv",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.MSSQLDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/MSSQLDriverPlugin/CFreeTDS";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A865000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/MySQLDriverPlugin/CMariaDB/include";
+				INFOPLIST_FILE = Plugins/MySQLDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).MySQLPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmariadb.a",
+					"-lssl",
+					"-lcrypto",
+					"-liconv",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.MySQLDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/MySQLDriverPlugin/CMariaDB";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A865000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/MySQLDriverPlugin/CMariaDB/include";
+				INFOPLIST_FILE = Plugins/MySQLDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).MySQLPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmariadb.a",
+					"-lssl",
+					"-lcrypto",
+					"-liconv",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.MySQLDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/MySQLDriverPlugin/CMariaDB";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A866000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc/include",
+					"$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc/include/libbson-1.0",
+					"$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc/include/libmongoc-1.0",
+				);
+				INFOPLIST_FILE = Plugins/MongoDBDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).MongoDBPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmongoc.a",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libbson.a",
+					"-lssl",
+					"-lcrypto",
+					"-lresolv",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.MongoDBDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A866000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc/include",
+					"$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc/include/libbson-1.0",
+					"$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc/include/libmongoc-1.0",
+				);
+				INFOPLIST_FILE = Plugins/MongoDBDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).MongoDBPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libmongoc.a",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libbson.a",
+					"-lssl",
+					"-lcrypto",
+					"-lresolv",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.MongoDBDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/MongoDBDriverPlugin/CLibMongoc";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A867000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/RedisDriverPlugin/CRedis/include";
+				INFOPLIST_FILE = Plugins/RedisDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).RedisPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libhiredis.a",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libhiredis_ssl.a",
+					"-lssl",
+					"-lcrypto",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.RedisDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/RedisDriverPlugin/CRedis";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A867000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/RedisDriverPlugin/CRedis/include";
+				INFOPLIST_FILE = Plugins/RedisDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).RedisPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libhiredis.a",
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libhiredis_ssl.a",
+					"-lssl",
+					"-lcrypto",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.RedisDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/RedisDriverPlugin/CRedis";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A868000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/PostgreSQLDriverPlugin/CLibPQ/include";
+				INFOPLIST_FILE = Plugins/PostgreSQLDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).PostgreSQLPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libpq.a",
+					"$(PROJECT_DIR)/Libs/libpgcommon.a",
+					"$(PROJECT_DIR)/Libs/libpgport.a",
+					"-lssl",
+					"-lcrypto",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.PostgreSQLDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/PostgreSQLDriverPlugin/CLibPQ";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
+		5A868000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/Plugins/PostgreSQLDriverPlugin/CLibPQ/include";
+				INFOPLIST_FILE = Plugins/PostgreSQLDriverPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).PostgreSQLPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/Libs";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-force_load",
+					"$(PROJECT_DIR)/Libs/libpq.a",
+					"$(PROJECT_DIR)/Libs/libpgcommon.a",
+					"$(PROJECT_DIR)/Libs/libpgport.a",
+					"-lssl",
+					"-lcrypto",
+					"-lz",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.PostgreSQLDriver;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_INCLUDE_PATHS = "$(SRCROOT)/Plugins/PostgreSQLDriverPlugin/CLibPQ";
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
 			};
 			name = Release;
 		};
@@ -570,14 +1800,6 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
-				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ngoquocdat.TableProTests;
@@ -586,7 +1808,6 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TablePro.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TablePro";
@@ -601,14 +1822,6 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = (
-					"$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibPQ/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libbson-1.0",
-					"$(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc/include/libmongoc-1.0",
-				);
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ngoquocdat.TableProTests;
@@ -617,7 +1830,6 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_INCLUDE_PATHS = "$(PROJECT_DIR)/TablePro/Core/Database/CMariaDB $(PROJECT_DIR)/TablePro/Core/Database/CLibPQ $(PROJECT_DIR)/TablePro/Core/Database/CLibMongoc $(PROJECT_DIR)/TablePro/Core/Database/CRedis $(PROJECT_DIR)/TablePro/Core/Database/CFreeTDS";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TablePro.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/TablePro";
@@ -641,6 +1853,87 @@
 			buildConfigurations = (
 				5A1091D32EF17EDD0055EA7C /* Debug */,
 				5A1091D42EF17EDD0055EA7C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A860000800000000 /* Build configuration list for PBXNativeTarget "TableProPluginKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A860000600000000 /* Debug */,
+				5A860000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A861000800000000 /* Build configuration list for PBXNativeTarget "OracleDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A861000600000000 /* Debug */,
+				5A861000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A862000800000000 /* Build configuration list for PBXNativeTarget "SQLiteDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A862000600000000 /* Debug */,
+				5A862000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A863000800000000 /* Build configuration list for PBXNativeTarget "ClickHouseDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A863000600000000 /* Debug */,
+				5A863000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A864000800000000 /* Build configuration list for PBXNativeTarget "MSSQLDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A864000600000000 /* Debug */,
+				5A864000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A865000800000000 /* Build configuration list for PBXNativeTarget "MySQLDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A865000600000000 /* Debug */,
+				5A865000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A866000800000000 /* Build configuration list for PBXNativeTarget "MongoDBDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A866000600000000 /* Debug */,
+				5A866000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A867000800000000 /* Build configuration list for PBXNativeTarget "RedisDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A867000600000000 /* Debug */,
+				5A867000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A868000800000000 /* Build configuration list for PBXNativeTarget "PostgreSQLDriver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A868000600000000 /* Debug */,
+				5A868000700000000 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
