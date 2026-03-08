@@ -419,7 +419,7 @@ struct ExportDialog: View {
             var items: [ExportDatabaseItem] = []
 
             switch connection.type {
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 // PostgreSQL: fetch schemas within current database (can't query across databases)
                 let schemas = try await fetchPostgreSQLSchemas(driver: driver)
                 for schema in schemas {

@@ -170,27 +170,6 @@ extension MainContentCoordinator {
             WHERE schema = '\(schema)'
             ORDER BY "table"
             """
-        case .cockroachdb:
-            let schema: String
-            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
-                schema = schemaDriver.escapedSchema
-            } else {
-                schema = "public"
-            }
-            sql = """
-            SELECT
-                schemaname as schema,
-                relname as name,
-                'TABLE' as kind,
-                n_live_tup as estimated_rows,
-                pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) as total_size,
-                pg_size_pretty(pg_relation_size(schemaname||'.'||relname)) as data_size,
-                pg_size_pretty(pg_indexes_size(schemaname||'.'||relname)) as index_size,
-                obj_description((schemaname||'.'||relname)::regclass) as comment
-            FROM pg_stat_user_tables
-            WHERE schemaname = '\(schema)'
-            ORDER BY relname
-            """
         case .clickhouse:
             sql = """
             SELECT
@@ -371,7 +350,7 @@ extension MainContentCoordinator {
                 await loadSchema()
 
                 NotificationCenter.default.post(name: .refreshData, object: nil)
-            } else if connection.type == .redshift || connection.type == .cockroachdb {
+            } else if connection.type == .redshift {
                 guard let schemaDriver = driver as? SchemaSwitchable else { return }
                 try await schemaDriver.switchSchema(to: database)
 
@@ -513,7 +492,7 @@ extension MainContentCoordinator {
 
     /// Switch to a different PostgreSQL schema (used for URL-based schema selection)
     func switchSchema(to schema: String) async {
-        guard connection.type == .postgresql || connection.type == .cockroachdb else { return }
+        guard connection.type == .postgresql else { return }
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
         do {

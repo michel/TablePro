@@ -408,7 +408,7 @@ struct SQLDialectFactory {
         switch databaseType {
         case .mysql, .mariadb:
             return MySQLDialect()
-        case .postgresql, .redshift, .cockroachdb:
+        case .postgresql, .redshift:
             return PostgreSQLDialect()
         case .sqlite:
             return SQLiteDialect()

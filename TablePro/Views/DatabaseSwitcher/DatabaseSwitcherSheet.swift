@@ -62,7 +62,7 @@ struct DatabaseSwitcherSheet: View {
                 .padding(.vertical, 12)
 
             // Databases / Schemas toggle (PostgreSQL only)
-            if databaseType == .postgresql || databaseType == .cockroachdb {
+            if databaseType == .postgresql {
                 Picker("", selection: $viewModel.mode) {
                     Text(String(localized: "Databases"))
                         .tag(DatabaseSwitcherViewModel.Mode.database)
@@ -434,7 +434,7 @@ struct DatabaseSwitcherSheet: View {
         viewModel.trackAccess(database: database)
 
         // Call appropriate callback
-        if viewModel.isSchemaMode, (databaseType == .postgresql || databaseType == .cockroachdb), let onSelectSchema {
+        if viewModel.isSchemaMode, (databaseType == .postgresql), let onSelectSchema {
             onSelectSchema(database)
         } else {
             onSelect(database)

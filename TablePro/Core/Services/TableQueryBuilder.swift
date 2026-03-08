@@ -695,7 +695,7 @@ struct TableQueryBuilder {
     /// PostgreSQL and SQLite require an explicit ESCAPE declaration.
     private func buildLikeCondition(column: String, searchText: String) -> String {
         switch databaseType {
-        case .postgresql, .redshift, .cockroachdb:
+        case .postgresql, .redshift:
             return "\(column)::TEXT LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mysql, .mariadb:
             return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%'"

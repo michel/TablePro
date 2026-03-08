@@ -54,7 +54,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private static let databaseURLSchemes: Set<String> = [
         "postgresql", "postgres", "mysql", "mariadb", "sqlite",
         "mongodb", "mongodb+srv", "redis", "rediss", "redshift",
-        "mssql", "sqlserver", "oracle", "cockroachdb"
+        "mssql", "sqlserver", "oracle"
     ]
 
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {

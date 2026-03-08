@@ -21,7 +21,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "DOUBLE", "BIT"]
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 return ["SMALLINT", "INTEGER", "BIGINT", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION", "SMALLSERIAL", "SERIAL", "BIGSERIAL"]
             case .mssql:
                 return ["TINYINT", "SMALLINT", "INT", "BIGINT", "DECIMAL", "NUMERIC", "FLOAT", "REAL", "MONEY", "SMALLMONEY", "BIT"]
@@ -40,7 +40,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT"]
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 return ["CHAR", "VARCHAR", "TEXT"]
             case .mssql:
                 return ["CHAR", "VARCHAR", "NCHAR", "NVARCHAR", "TEXT", "NTEXT"]
@@ -59,7 +59,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"]
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL"]
             case .mssql:
                 return ["DATE", "TIME", "DATETIME", "DATETIME2", "SMALLDATETIME", "DATETIMEOFFSET"]
@@ -78,7 +78,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB"]
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 return ["BYTEA"]
             case .mssql:
                 return ["BINARY", "VARBINARY", "IMAGE"]
@@ -97,7 +97,7 @@ enum DataTypeCategory: String, CaseIterable {
             switch dbType {
             case .mysql, .mariadb:
                 return ["BOOLEAN", "ENUM", "SET", "JSON"]
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 return ["BOOLEAN", "UUID", "JSON", "JSONB", "ARRAY", "HSTORE", "INET", "CIDR", "MACADDR", "TSVECTOR", "TSQUERY"]
             case .mssql:
                 return ["BIT", "UNIQUEIDENTIFIER", "XML", "SQL_VARIANT", "ROWVERSION", "HIERARCHYID"]

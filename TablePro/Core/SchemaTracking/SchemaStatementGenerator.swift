@@ -158,7 +158,7 @@ struct SchemaStatementGenerator {
                 isDestructive: old.dataType != new.dataType
             )
 
-        case .postgresql, .redshift, .cockroachdb:
+        case .postgresql, .redshift:
             // PostgreSQL: Multiple ALTER COLUMN statements
             var statements: [String] = []
             let oldQuoted = databaseType.quoteIdentifier(old.name)
@@ -323,7 +323,7 @@ struct SchemaStatementGenerator {
             switch databaseType {
             case .mysql, .mariadb:
                 parts.append("AUTO_INCREMENT")
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 // PostgreSQL uses SERIAL or IDENTITY
                 // For simplicity, we'll use SERIAL
                 parts[1] = "SERIAL"
@@ -350,7 +350,7 @@ struct SchemaStatementGenerator {
             case .mysql, .mariadb, .clickhouse:
                 let escapedComment = comment.replacingOccurrences(of: "'", with: "''")
                 parts.append("COMMENT '\(escapedComment)'")
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 // PostgreSQL comments are set via separate COMMENT statement
                 break
             case .sqlite, .mongodb, .redis, .mssql, .oracle:
@@ -377,7 +377,7 @@ struct SchemaStatementGenerator {
             let indexType = index.type.rawValue
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) (\(columnsQuoted)) USING \(indexType)"
 
-        case .postgresql, .redshift, .cockroachdb:
+        case .postgresql, .redshift:
             let indexTypeClause = index.type == .btree ? "" : "USING \(index.type.rawValue)"
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) \(indexTypeClause) (\(columnsQuoted))"
 
@@ -414,7 +414,7 @@ struct SchemaStatementGenerator {
             let tableQuoted = databaseType.quoteIdentifier(tableName)
             sql = "DROP INDEX \(indexQuoted) ON \(tableQuoted)"
 
-        case .postgresql, .redshift, .cockroachdb, .sqlite, .mongodb, .redis, .oracle:
+        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .oracle:
             sql = "DROP INDEX \(indexQuoted)"
         case .mssql:
             let tableQuoted = databaseType.quoteIdentifier(tableName)
@@ -475,7 +475,7 @@ struct SchemaStatementGenerator {
         case .mysql, .mariadb:
             sql = "ALTER TABLE \(tableQuoted) DROP FOREIGN KEY \(fkQuoted)"
 
-        case .postgresql, .redshift, .cockroachdb, .mssql, .oracle:
+        case .postgresql, .redshift, .mssql, .oracle:
             sql = "ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(fkQuoted)"
         case .sqlite, .mongodb, .redis, .clickhouse:
             throw DatabaseError.unsupportedOperation
@@ -501,7 +501,7 @@ struct SchemaStatementGenerator {
             ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted));
             """
 
-        case .postgresql, .redshift, .cockroachdb:
+        case .postgresql, .redshift:
             // Use actual constraint name if available, otherwise fall back to convention
             let pkName = primaryKeyConstraintName ?? "\(tableName)_pkey"
             sql = """

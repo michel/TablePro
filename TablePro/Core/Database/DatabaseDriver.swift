@@ -275,7 +275,7 @@ extension DatabaseDriver {
                 _ = try await execute(query: "SET SESSION max_execution_time = \(ms)")
             case .mariadb:
                 _ = try await execute(query: "SET SESSION max_statement_time = \(seconds)")
-            case .postgresql, .redshift, .cockroachdb:
+            case .postgresql, .redshift:
                 _ = try await execute(query: "SET statement_timeout = '\(ms)'")
             case .sqlite:
                 break  // SQLite busy_timeout handled by driver directly
@@ -326,8 +326,6 @@ enum DatabaseDriverFactory {
             return PostgreSQLDriver(connection: connection)
         case .redshift:
             return RedshiftDriver(connection: connection)
-        case .cockroachdb:
-            return CockroachDBDriver(connection: connection)
         case .mongodb:
             return MongoDBDriver(connection: connection)
         case .redis:

@@ -98,7 +98,7 @@ struct SQLStatementGenerator {
     /// Get placeholder syntax for the database type
     private func placeholder(at index: Int) -> String {
         switch databaseType {
-        case .postgresql, .redshift, .cockroachdb:
+        case .postgresql, .redshift:
             return "$\(index + 1)"  // PostgreSQL uses $1, $2, etc.
         case .mysql, .mariadb, .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             return "?"  // MySQL, MariaDB, SQLite, MongoDB, MSSQL, Oracle, and ClickHouse use ?
@@ -277,7 +277,7 @@ struct SQLStatementGenerator {
                 sql = "UPDATE TOP (1) \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
             case .oracle:
                 sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause) AND ROWNUM = 1"
-            case .postgresql, .redshift, .cockroachdb, .mongodb, .redis, .clickhouse:
+            case .postgresql, .redshift, .mongodb, .redis, .clickhouse:
                 sql = "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
             }
 
@@ -353,7 +353,7 @@ struct SQLStatementGenerator {
             sql = "DELETE TOP (1) FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
         case .oracle:
             sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause) AND ROWNUM = 1"
-        case .postgresql, .redshift, .cockroachdb, .mongodb, .redis, .clickhouse:
+        case .postgresql, .redshift, .mongodb, .redis, .clickhouse:
             sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
         }
 
