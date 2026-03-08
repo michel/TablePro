@@ -18,6 +18,8 @@ struct ParsedConnectionURL {
     let sshPort: Int?
     let sshUsername: String?
     let usePrivateKey: Bool?
+    let useSSHAgent: Bool?
+    let agentSocket: String?
     let connectionName: String?
     let redisDatabase: Int?
     let statusColor: String?
@@ -29,14 +31,16 @@ struct ParsedConnectionURL {
     let filterOperation: String?
     let filterValue: String?
     let filterCondition: String?
+    let oracleServiceName: String?
 
     var suggestedName: String {
         if let connectionName, !connectionName.isEmpty {
             return connectionName
         }
         let typeName = type.rawValue
-        if !database.isEmpty {
-            return "\(typeName) \(host)/\(database)"
+        let displayDatabase = database.isEmpty ? (oracleServiceName ?? "") : database
+        if !displayDatabase.isEmpty {
+            return "\(typeName) \(host)/\(displayDatabase)"
         }
         if !host.isEmpty {
             return "\(typeName) \(host)"
@@ -127,6 +131,8 @@ struct ConnectionURLParser {
                 sshPort: nil,
                 sshUsername: nil,
                 usePrivateKey: nil,
+                useSSHAgent: nil,
+                agentSocket: nil,
                 connectionName: nil,
                 redisDatabase: nil,
                 statusColor: nil,
@@ -137,7 +143,8 @@ struct ConnectionURLParser {
                 filterColumn: nil,
                 filterOperation: nil,
                 filterValue: nil,
-                filterCondition: nil
+                filterCondition: nil,
+                oracleServiceName: nil
             ))
         }
 
@@ -183,6 +190,13 @@ struct ConnectionURLParser {
             }
         }
 
+        // Oracle-specific: path component is the service name, not the database name
+        var oracleServiceName: String?
+        if dbType == .oracle && !database.isEmpty {
+            oracleServiceName = database
+            database = ""
+        }
+
         return .success(ParsedConnectionURL(
             type: dbType,
             host: host,
@@ -196,6 +210,8 @@ struct ConnectionURLParser {
             sshPort: nil,
             sshUsername: nil,
             usePrivateKey: nil,
+            useSSHAgent: nil,
+            agentSocket: nil,
             connectionName: ext.connectionName,
             redisDatabase: redisDatabase,
             statusColor: ext.statusColor,
@@ -206,7 +222,8 @@ struct ConnectionURLParser {
             filterColumn: ext.filterColumn,
             filterOperation: ext.filterOperation,
             filterValue: ext.filterValue,
-            filterCondition: ext.filterCondition
+            filterCondition: ext.filterCondition,
+            oracleServiceName: oracleServiceName
         ))
     }
 
@@ -304,6 +321,13 @@ struct ConnectionURLParser {
 
         let ext = parseSSHQueryString(queryString)
 
+        // Oracle-specific: path component is the service name, not the database name
+        var oracleServiceName: String?
+        if dbType == .oracle && !database.isEmpty {
+            oracleServiceName = database
+            database = ""
+        }
+
         return .success(ParsedConnectionURL(
             type: dbType,
             host: host,
@@ -317,6 +341,8 @@ struct ConnectionURLParser {
             sshPort: sshPort,
             sshUsername: sshUsername,
             usePrivateKey: ext.usePrivateKey,
+            useSSHAgent: ext.useSSHAgent,
+            agentSocket: ext.agentSocket,
             connectionName: ext.connectionName,
             redisDatabase: nil,
             statusColor: ext.statusColor,
@@ -327,7 +353,8 @@ struct ConnectionURLParser {
             filterColumn: ext.filterColumn,
             filterOperation: ext.filterOperation,
             filterValue: ext.filterValue,
-            filterCondition: ext.filterCondition
+            filterCondition: ext.filterCondition,
+            oracleServiceName: oracleServiceName
         ))
     }
 
@@ -338,6 +365,8 @@ struct ConnectionURLParser {
         var authSource: String?
         var connectionName: String?
         var usePrivateKey: Bool?
+        var useSSHAgent: Bool?
+        var agentSocket: String?
         var statusColor: String?
         var envTag: String?
         var schema: String?
@@ -370,6 +399,14 @@ struct ConnectionURLParser {
             guard let value else { continue }
             if String(key) == "usePrivateKey" {
                 ext.usePrivateKey = value.lowercased() == "true"
+                continue
+            }
+            if String(key) == "useSSHAgent" {
+                ext.useSSHAgent = value.lowercased() == "true"
+                continue
+            }
+            if String(key) == "agentSocket" {
+                ext.agentSocket = value.removingPercentEncoding ?? value
                 continue
             }
             applyQueryParam(key: String(key), value: value, to: &ext)

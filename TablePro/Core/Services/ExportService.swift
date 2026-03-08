@@ -41,7 +41,7 @@ enum ExportError: LocalizedError {
 
 // MARK: - String Extension for Safe Encoding
 
-private extension String {
+internal extension String {
     /// Safely encode string to UTF-8 data, throwing if encoding fails
     func toUTF8Data() throws -> Data {
         guard let data = self.data(using: .utf8) else {
@@ -73,9 +73,9 @@ struct ExportState {
 /// Service responsible for exporting table data to various formats
 @MainActor @Observable
 final class ExportService {
-    private static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
+    static let logger = Logger(subsystem: "com.TablePro", category: "ExportService")
     // swiftlint:disable:next force_try
-    private static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
+    static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
     // MARK: - Published State
 
     var state = ExportState()
@@ -83,13 +83,13 @@ final class ExportService {
     // MARK: - DDL Failure Tracking
 
     /// Tables that failed DDL fetch during SQL export
-    private var ddlFailures: [String] = []
+    var ddlFailures: [String] = []
 
     // MARK: - Cancellation
 
     private let isCancelledLock = NSLock()
     private var _isCancelled: Bool = false
-    private var isCancelled: Bool {
+    var isCancelled: Bool {
         get {
             isCancelledLock.lock()
             defer { isCancelledLock.unlock() }
@@ -105,14 +105,14 @@ final class ExportService {
     // MARK: - Progress Throttling
 
     /// Number of rows to process before updating UI
-    private let progressUpdateInterval: Int = 1_000
+    let progressUpdateInterval: Int = 1_000
     /// Internal counter for processed rows (updated every row)
-    private var internalProcessedRows: Int = 0
+    var internalProcessedRows: Int = 0
 
     // MARK: - Dependencies
 
-    private let driver: DatabaseDriver
-    private let databaseType: DatabaseType
+    let driver: DatabaseDriver
+    let databaseType: DatabaseType
 
     // MARK: - Initialization
 
@@ -246,7 +246,7 @@ final class ExportService {
     }
 
     /// Check if export was cancelled and throw if so
-    private func checkCancellation() throws {
+    func checkCancellation() throws {
         if isCancelled {
             throw NSError(
                 domain: "ExportService",
@@ -259,7 +259,7 @@ final class ExportService {
     /// Increment processed rows with throttled UI updates
     /// Only updates @Published properties every `progressUpdateInterval` rows
     /// Uses Task.yield() to allow UI to refresh
-    private func incrementProgress() async {
+    func incrementProgress() async {
         internalProcessedRows += 1
 
         // Only update UI every N rows
@@ -274,7 +274,7 @@ final class ExportService {
     }
 
     /// Finalize progress for current table (ensures UI shows final count)
-    private func finalizeTableProgress() async {
+    func finalizeTableProgress() async {
         state.processedRows = internalProcessedRows
         if state.totalRows > 0 {
             state.progress = Double(internalProcessedRows) / Double(state.totalRows)
@@ -286,7 +286,7 @@ final class ExportService {
     // MARK: - Helpers
 
     /// Build fully qualified and quoted table reference (database.table or just table)
-    private func qualifiedTableRef(for table: ExportTableItem) -> String {
+    func qualifiedTableRef(for table: ExportTableItem) -> String {
         if table.databaseName.isEmpty {
             return databaseType.quoteIdentifier(table.name)
         } else {
@@ -296,7 +296,7 @@ final class ExportService {
         }
     }
 
-    private func fetchAllQuery(for table: ExportTableItem) -> String {
+    func fetchAllQuery(for table: ExportTableItem) -> String {
         switch databaseType {
         case .mongodb:
             let escaped = escapeJSIdentifier(table.name)
@@ -311,7 +311,7 @@ final class ExportService {
         }
     }
 
-    private func fetchBatch(for table: ExportTableItem, offset: Int, limit: Int) async throws -> QueryResult {
+    func fetchBatch(for table: ExportTableItem, offset: Int, limit: Int) async throws -> QueryResult {
         let query = fetchAllQuery(for: table)
         return try await driver.fetchRows(query: query, offset: offset, limit: limit)
     }
@@ -323,7 +323,7 @@ final class ExportService {
     /// - Comment sequences (/* */ --)
     ///
     /// Logs a warning when the name is modified.
-    private func sanitizeForSQLComment(_ name: String) -> String {
+    func sanitizeForSQLComment(_ name: String) -> String {
         var result = name
         // Replace newlines with spaces
         result = result.replacingOccurrences(of: "\n", with: " ")
@@ -344,7 +344,7 @@ final class ExportService {
     // MARK: - File Helpers
 
     /// Create a file at the given URL and return a FileHandle for writing
-    private func createFileHandle(at url: URL) throws -> FileHandle {
+    func createFileHandle(at url: URL) throws -> FileHandle {
         guard FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil) else {
             throw ExportError.fileWriteFailed(url.path(percentEncoded: false))
         }
@@ -354,7 +354,7 @@ final class ExportService {
     /// Close a file handle with error logging instead of silent suppression
     ///
     /// Used in defer blocks where we can't throw but want visibility into failures.
-    private func closeFileHandle(_ handle: FileHandle) {
+    func closeFileHandle(_ handle: FileHandle) {
         do {
             try handle.close()
         } catch {
@@ -362,380 +362,7 @@ final class ExportService {
         }
     }
 
-    // MARK: - XLSX Export
-
-    private func exportToXLSX(
-        tables: [ExportTableItem],
-        config: ExportConfiguration,
-        to url: URL
-    ) async throws {
-        let writer = XLSXWriter()
-        let options = config.xlsxOptions
-
-        for (index, table) in tables.enumerated() {
-            try checkCancellation()
-
-            state.currentTableIndex = index + 1
-            state.currentTable = table.qualifiedName
-
-            let batchSize = 5_000
-            var offset = 0
-            var columns: [String] = []
-            var isFirstBatch = true
-
-            while true {
-                try checkCancellation()
-                try Task.checkCancellation()
-
-                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
-
-                if result.rows.isEmpty { break }
-
-                if isFirstBatch {
-                    columns = result.columns
-                    writer.beginSheet(
-                        name: table.name,
-                        columns: columns,
-                        includeHeader: options.includeHeaderRow,
-                        convertNullToEmpty: options.convertNullToEmpty
-                    )
-                    isFirstBatch = false
-                }
-
-                // Write this batch to the sheet XML and release batch memory
-                autoreleasepool {
-                    writer.addRows(result.rows, convertNullToEmpty: options.convertNullToEmpty)
-                }
-
-                // Update progress for each row in this batch
-                for _ in result.rows {
-                    await incrementProgress()
-                }
-
-                offset += batchSize
-            }
-
-            // If we fetched at least one batch, finish the sheet
-            if !isFirstBatch {
-                writer.finishSheet()
-            } else {
-                // Table was empty - create an empty sheet with no data
-                writer.beginSheet(
-                    name: table.name,
-                    columns: [],
-                    includeHeader: false,
-                    convertNullToEmpty: options.convertNullToEmpty
-                )
-                writer.finishSheet()
-            }
-
-            await finalizeTableProgress()
-        }
-
-        // Write XLSX on background thread to avoid blocking UI
-        try await Task.detached(priority: .userInitiated) {
-            try writer.write(to: url)
-        }.value
-    }
-
-    // MARK: - CSV Export
-
-    private func exportToCSV(
-        tables: [ExportTableItem],
-        config: ExportConfiguration,
-        to url: URL
-    ) async throws {
-        // Create file and get handle for streaming writes
-        let fileHandle = try createFileHandle(at: url)
-        defer { closeFileHandle(fileHandle) }
-
-        let lineBreak = config.csvOptions.lineBreak.value
-
-        for (index, table) in tables.enumerated() {
-            try checkCancellation()
-
-            state.currentTableIndex = index + 1
-            state.currentTable = table.qualifiedName
-
-            // Add table header comment if multiple tables
-            // Sanitize name to prevent newlines from breaking the comment line
-            if tables.count > 1 {
-                let sanitizedName = sanitizeForSQLComment(table.qualifiedName)
-                try fileHandle.write(contentsOf: "# Table: \(sanitizedName)\n".toUTF8Data())
-            }
-
-            let batchSize = 10_000
-            var offset = 0
-            var isFirstBatch = true
-
-            while true {
-                try checkCancellation()
-                try Task.checkCancellation()
-
-                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
-
-                // No more rows to process
-                if result.rows.isEmpty {
-                    break
-                }
-
-                // Stream CSV content for this batch directly to file
-                // Only include headers on the first batch to avoid duplication
-                var batchOptions = config.csvOptions
-                if !isFirstBatch {
-                    batchOptions.includeFieldNames = false
-                }
-
-                try await writeCSVContentWithProgress(
-                    columns: result.columns,
-                    rows: result.rows,
-                    options: batchOptions,
-                    to: fileHandle
-                )
-
-                isFirstBatch = false
-                offset += batchSize
-            }
-            if index < tables.count - 1 {
-                try fileHandle.write(contentsOf: "\(lineBreak)\(lineBreak)".toUTF8Data())
-            }
-        }
-
-        try checkCancellation()
-        state.progress = 1.0
-    }
-
-    private func writeCSVContentWithProgress(
-        columns: [String],
-        rows: [[String?]],
-        options: CSVExportOptions,
-        to fileHandle: FileHandle
-    ) async throws {
-        let delimiter = options.delimiter.actualValue
-        let lineBreak = options.lineBreak.value
-
-        // Header row
-        if options.includeFieldNames {
-            let headerLine = columns
-                .map { escapeCSVField($0, options: options) }
-                .joined(separator: delimiter)
-            try fileHandle.write(contentsOf: (headerLine + lineBreak).toUTF8Data())
-        }
-
-        // Data rows with progress tracking - stream directly to file
-        for row in rows {
-            try checkCancellation()
-
-            let rowLine = row.map { value -> String in
-                guard let val = value else {
-                    return options.convertNullToEmpty ? "" : "NULL"
-                }
-
-                var processed = val
-
-                // Check for line breaks BEFORE converting them (for quote detection)
-                let hadLineBreaks = val.contains("\n") || val.contains("\r")
-
-                // Convert line breaks to space
-                if options.convertLineBreakToSpace {
-                    processed = processed
-                        .replacingOccurrences(of: "\r\n", with: " ")
-                        .replacingOccurrences(of: "\r", with: " ")
-                        .replacingOccurrences(of: "\n", with: " ")
-                }
-
-                // Handle decimal format
-                if options.decimalFormat == .comma {
-                    let range = NSRange(processed.startIndex..., in: processed)
-                    if Self.decimalFormatRegex.firstMatch(in: processed, range: range) != nil {
-                        processed = processed.replacingOccurrences(of: ".", with: ",")
-                    }
-                }
-
-                return escapeCSVField(processed, options: options, originalHadLineBreaks: hadLineBreaks)
-            }.joined(separator: delimiter)
-
-            // Write row directly to file
-            try fileHandle.write(contentsOf: (rowLine + lineBreak).toUTF8Data())
-
-            // Update progress (throttled)
-            await incrementProgress()
-        }
-
-        // Ensure final count is shown
-        await finalizeTableProgress()
-    }
-
-    /// Escape and quote a CSV field according to the specified options
-    /// - Parameters:
-    ///   - field: The field value to escape
-    ///   - options: CSV export options
-    ///   - originalHadLineBreaks: Whether the original value had line breaks before conversion.
-    ///                            Used for proper quote detection when convertLineBreakToSpace is enabled.
-    private func escapeCSVField(_ field: String, options: CSVExportOptions, originalHadLineBreaks: Bool = false) -> String {
-        var processed = field
-
-        // Sanitize formula-like prefixes to prevent CSV formula injection
-        // Values starting with these characters can be executed as formulas in Excel/LibreOffice
-        if options.sanitizeFormulas {
-            let dangerousPrefixes: [Character] = ["=", "+", "-", "@", "\t", "\r"]
-            if let first = processed.first, dangerousPrefixes.contains(first) {
-                // Prefix with single quote - Excel/LibreOffice treats this as text
-                processed = "'" + processed
-            }
-        }
-
-        switch options.quoteHandling {
-        case .always:
-            let escaped = processed.replacingOccurrences(of: "\"", with: "\"\"")
-            return "\"\(escaped)\""
-        case .never:
-            return processed
-        case .asNeeded:
-            // Check current content for special characters, OR if original had line breaks
-            // (important when convertLineBreakToSpace is enabled - original line breaks
-            // mean the field should still be quoted even after conversion to spaces)
-            let needsQuotes = processed.contains(options.delimiter.actualValue) ||
-                processed.contains("\"") ||
-                processed.contains("\n") ||
-                processed.contains("\r") ||
-                originalHadLineBreaks
-            if needsQuotes {
-                let escaped = processed.replacingOccurrences(of: "\"", with: "\"\"")
-                return "\"\(escaped)\""
-            }
-            return processed
-        }
-    }
-
-    // MARK: - JSON Export
-
-    private func exportToJSON(
-        tables: [ExportTableItem],
-        config: ExportConfiguration,
-        to url: URL
-    ) async throws {
-        // Stream JSON directly to file to minimize memory usage
-        let fileHandle = try createFileHandle(at: url)
-        defer { closeFileHandle(fileHandle) }
-
-        let prettyPrint = config.jsonOptions.prettyPrint
-        let indent = prettyPrint ? "  " : ""
-        let newline = prettyPrint ? "\n" : ""
-
-        // Opening brace
-        try fileHandle.write(contentsOf: "{\(newline)".toUTF8Data())
-
-        for (tableIndex, table) in tables.enumerated() {
-            try checkCancellation()
-
-            state.currentTableIndex = tableIndex + 1
-            state.currentTable = table.qualifiedName
-
-            // Write table key and opening bracket
-            let escapedTableName = escapeJSONString(table.qualifiedName)
-            try fileHandle.write(contentsOf: "\(indent)\"\(escapedTableName)\": [\(newline)".toUTF8Data())
-
-            let batchSize = 1_000
-            var offset = 0
-            var hasWrittenRow = false
-            var columns: [String]?
-
-            batchLoop: while true {
-                try checkCancellation()
-                try Task.checkCancellation()
-
-                let result = try await fetchBatch(for: table, offset: offset, limit: batchSize)
-
-                if result.rows.isEmpty {
-                    break batchLoop
-                }
-
-                if columns == nil {
-                    columns = result.columns
-                }
-
-                for row in result.rows {
-                    try checkCancellation()
-
-                    // Buffer entire row into a String, then write once (SVC-10)
-                    let rowPrefix = prettyPrint ? "\(indent)\(indent)" : ""
-                    var rowString = ""
-
-                    // Comma/newline before every row except the first
-                    if hasWrittenRow {
-                        rowString += ",\(newline)"
-                    }
-
-                    // Row prefix and opening brace
-                    rowString += rowPrefix
-                    rowString += "{"
-
-                    if let columns = columns {
-                        var isFirstField = true
-                        for (colIndex, column) in columns.enumerated() {
-                            if colIndex < row.count {
-                                let value = row[colIndex]
-                                if config.jsonOptions.includeNullValues || value != nil {
-                                    if !isFirstField {
-                                        rowString += ", "
-                                    }
-                                    isFirstField = false
-
-                                    let escapedKey = escapeJSONString(column)
-                                    let jsonValue = formatJSONValue(
-                                        value,
-                                        preserveAsString: config.jsonOptions.preserveAllAsStrings
-                                    )
-                                    rowString += "\"\(escapedKey)\": \(jsonValue)"
-                                }
-                            }
-                        }
-                    }
-
-                    // Close row object
-                    rowString += "}"
-
-                    // Single write per row instead of per field
-                    try fileHandle.write(contentsOf: rowString.toUTF8Data())
-
-                    hasWrittenRow = true
-
-                    // Update progress (throttled)
-                    await incrementProgress()
-                }
-
-                offset += result.rows.count
-            }
-
-            // Ensure final count is shown for this table
-            await finalizeTableProgress()
-
-            // Close array
-            if hasWrittenRow {
-                try fileHandle.write(contentsOf: newline.toUTF8Data())
-            }
-            let tableSuffix = tableIndex < tables.count - 1 ? ",\(newline)" : newline
-            try fileHandle.write(contentsOf: "\(indent)]\(tableSuffix)".toUTF8Data())
-        }
-
-        // Closing brace
-        try fileHandle.write(contentsOf: "}".toUTF8Data())
-
-        try checkCancellation()
-        state.progress = 1.0
-    }
-
-    /// Escape a string for JSON output per RFC 8259
-    ///
-    /// Escapes:
-    /// - Quotation mark, backslash (required)
-    /// - Control characters U+0000 to U+001F (required by spec)
-    ///
-    /// Uses UTF-8 byte iteration instead of grapheme-cluster iteration for performance.
-    /// All JSON-special characters and control codes are single-byte ASCII, so multi-byte
-    /// UTF-8 sequences (which never contain bytes < 0x80) are passed through unchanged.
-    private func escapeJSONString(_ string: String) -> String {
+    func escapeJSONString(_ string: String) -> String {
         var utf8Result = [UInt8]()
         utf8Result.reserveCapacity(string.utf8.count)
 
@@ -774,504 +401,9 @@ final class ExportService {
         return String(bytes: utf8Result, encoding: .utf8) ?? string
     }
 
-    /// Format a value for JSON output with optional type detection
-    ///
-    /// - Parameters:
-    ///   - value: The value to format
-    ///   - preserveAsString: If true, always output as string without type detection
-    ///                       (preserves leading zeros in ZIP codes, phone numbers, etc.)
-    ///
-    /// - Note: When type detection is enabled (preserveAsString = false), integers beyond
-    ///   JavaScript's Number.MAX_SAFE_INTEGER (2^53-1 = 9007199254740991) may lose precision
-    ///   when parsed by JavaScript. For large IDs or precise numeric data, enable the
-    ///   "Preserve All Values as Strings" option in export settings.
-    private func formatJSONValue(_ value: String?, preserveAsString: Bool) -> String {
-        guard let val = value else { return "null" }
-
-        // If preserving all as strings, skip type detection
-        if preserveAsString {
-            return "\"\(escapeJSONString(val))\""
-        }
-
-        // Try to detect numbers and booleans
-        // Note: Large integers (> 2^53-1) may lose precision in JavaScript consumers
-        if let intVal = Int(val) {
-            return String(intVal)
-        }
-        if let doubleVal = Double(val), !val.contains("e") && !val.contains("E") {
-            // Avoid scientific notation issues
-            let jsMaxSafeInteger = 9_007_199_254_740_991.0 // 2^53 - 1, JavaScript's Number.MAX_SAFE_INTEGER
-
-            if doubleVal.truncatingRemainder(dividingBy: 1) == 0 && !val.contains(".") {
-                // For integral values, only convert to Int when within both Int and JS safe integer bounds
-                if abs(doubleVal) <= jsMaxSafeInteger,
-                   doubleVal >= Double(Int.min),
-                   doubleVal <= Double(Int.max) {
-                    return String(Int(doubleVal))
-                } else {
-                    // Preserve original integral representation to avoid scientific notation / precision changes
-                    return val
-                }
-            }
-            return String(doubleVal)
-        }
-        if val.lowercased() == "true" || val.lowercased() == "false" {
-            return val.lowercased()
-        }
-
-        // String value - escape and quote
-        return "\"\(escapeJSONString(val))\""
-    }
-
-    // MARK: - SQL Export
-
-    private func exportToSQL(
-        tables: [ExportTableItem],
-        config: ExportConfiguration,
-        to url: URL
-    ) async throws {
-        // For gzip, write to temp file first then compress
-        // For non-gzip, stream directly to destination
-        let targetURL: URL
-        let tempFileURL: URL?
-
-        if config.sqlOptions.compressWithGzip {
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString + ".sql")
-            tempFileURL = tempURL
-            targetURL = tempURL
-        } else {
-            tempFileURL = nil
-            targetURL = url
-        }
-
-        // Create file and get handle for streaming writes
-        let fileHandle = try createFileHandle(at: targetURL)
-
-        do {
-            // Add header comment
-            let dateFormatter = ISO8601DateFormatter()
-            try fileHandle.write(contentsOf: "-- TablePro SQL Export\n".toUTF8Data())
-            try fileHandle.write(contentsOf: "-- Generated: \(dateFormatter.string(from: Date()))\n".toUTF8Data())
-            try fileHandle.write(contentsOf: "-- Database Type: \(databaseType.rawValue)\n\n".toUTF8Data())
-
-            // Collect and emit dependent sequences and enum types (PostgreSQL) in batch
-            var emittedSequenceNames: Set<String> = []
-            var emittedTypeNames: Set<String> = []
-            let structureTableNames = tables.filter { $0.sqlOptions.includeStructure }.map(\.name)
-
-            var allSequences: [String: [(name: String, ddl: String)]] = [:]
-            do {
-                allSequences = try await driver.fetchAllDependentSequences(forTables: structureTableNames)
-            } catch {
-                Self.logger.warning("Failed to fetch dependent sequences: \(error.localizedDescription)")
-            }
-
-            var allEnumTypes: [String: [(name: String, labels: [String])]] = [:]
-            do {
-                allEnumTypes = try await driver.fetchAllDependentTypes(forTables: structureTableNames)
-            } catch {
-                Self.logger.warning("Failed to fetch dependent enum types: \(error.localizedDescription)")
-            }
-
-            for table in tables where table.sqlOptions.includeStructure {
-                let sequences = allSequences[table.name] ?? []
-                for seq in sequences where !emittedSequenceNames.contains(seq.name) {
-                    emittedSequenceNames.insert(seq.name)
-                    let quotedName = "\"\(seq.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                    try fileHandle.write(contentsOf: "DROP SEQUENCE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
-                    try fileHandle.write(contentsOf: "\(seq.ddl)\n\n".toUTF8Data())
-                }
-
-                let enumTypes = allEnumTypes[table.name] ?? []
-                for enumType in enumTypes where !emittedTypeNames.contains(enumType.name) {
-                    emittedTypeNames.insert(enumType.name)
-                    let quotedName = "\"\(enumType.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                    try fileHandle.write(contentsOf: "DROP TYPE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
-                    let quotedLabels = enumType.labels.map { "'\(SQLEscaping.escapeStringLiteral($0, databaseType: databaseType))'" }
-                    try fileHandle.write(contentsOf: "CREATE TYPE \(quotedName) AS ENUM (\(quotedLabels.joined(separator: ", ")));\n\n".toUTF8Data())
-                }
-            }
-
-            for (index, table) in tables.enumerated() {
-                try checkCancellation()
-
-                state.currentTableIndex = index + 1
-                state.currentTable = table.qualifiedName
-
-                let sqlOptions = table.sqlOptions
-                let tableRef = databaseType.quoteIdentifier(table.name)
-
-                let sanitizedName = sanitizeForSQLComment(table.name)
-                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n".toUTF8Data())
-                try fileHandle.write(contentsOf: "-- Table: \(sanitizedName)\n".toUTF8Data())
-                try fileHandle.write(contentsOf: "-- --------------------------------------------------------\n\n".toUTF8Data())
-
-                // DROP statement
-                if sqlOptions.includeDrop {
-                    try fileHandle.write(contentsOf: "DROP TABLE IF EXISTS \(tableRef);\n\n".toUTF8Data())
-                }
-
-                // CREATE TABLE (structure)
-                if sqlOptions.includeStructure {
-                    do {
-                        let ddl = try await driver.fetchTableDDL(table: table.name)
-                        try fileHandle.write(contentsOf: ddl.toUTF8Data())
-                        if !ddl.hasSuffix(";") {
-                            try fileHandle.write(contentsOf: ";".toUTF8Data())
-                        }
-                        try fileHandle.write(contentsOf: "\n\n".toUTF8Data())
-                    } catch {
-                        // Track the failure for user notification
-                        ddlFailures.append(sanitizedName)
-
-                        // Use sanitizedName (already defined above) for safe comment output
-                        let ddlWarning = "Warning: failed to fetch DDL for table \(sanitizedName): \(error)"
-                        Self.logger.warning("Failed to fetch DDL for table \(sanitizedName): \(error)")
-                        try fileHandle.write(contentsOf: "-- \(sanitizeForSQLComment(ddlWarning))\n\n".toUTF8Data())
-                    }
-                }
-
-                // INSERT statements (data) - stream directly to file in batches
-                if sqlOptions.includeData {
-                    let batchSize = config.sqlOptions.batchSize
-                    var offset = 0
-                    var wroteAnyRows = false
-
-                    while true {
-                        try checkCancellation()
-                        try Task.checkCancellation()
-
-                        let query = "SELECT * FROM \(tableRef) LIMIT \(batchSize) OFFSET \(offset)"
-                        let result = try await driver.execute(query: query)
-
-                        if result.rows.isEmpty {
-                            break
-                        }
-
-                        try await writeInsertStatementsWithProgress(
-                            table: table,
-                            columns: result.columns,
-                            rows: result.rows,
-                            batchSize: batchSize,
-                            to: fileHandle
-                        )
-
-                        wroteAnyRows = true
-                        offset += batchSize
-                    }
-
-                    if wroteAnyRows {
-                        try fileHandle.write(contentsOf: "\n".toUTF8Data())
-                    }
-                }
-            }
-
-            try fileHandle.close()
-        } catch {
-            closeFileHandle(fileHandle)
-            if let tempURL = tempFileURL {
-                try? FileManager.default.removeItem(at: tempURL)
-            }
-            throw error
-        }
-
-        // Handle gzip compression
-        if config.sqlOptions.compressWithGzip, let tempURL = tempFileURL {
-            state.statusMessage = "Compressing..."
-            await Task.yield()
-
-            do {
-                defer {
-                    // Always remove the temporary file, regardless of success or failure
-                    try? FileManager.default.removeItem(at: tempURL)
-                }
-
-                try await compressFileToFile(source: tempURL, destination: url)
-            } catch {
-                // Remove the (possibly partially written) destination file on compression failure
-                try? FileManager.default.removeItem(at: url)
-                throw error
-            }
-        }
-
-        // Surface DDL failures to user as a warning
-        if !ddlFailures.isEmpty {
-            let failedTables = ddlFailures.joined(separator: ", ")
-            state.warningMessage = "Export completed with warnings: Could not fetch table structure for: \(failedTables)"
-        }
-
-        state.progress = 1.0
-    }
-
-    private func writeInsertStatementsWithProgress(
-        table: ExportTableItem,
-        columns: [String],
-        rows: [[String?]],
-        batchSize: Int,
-        to fileHandle: FileHandle
-    ) async throws {
-        // Use unqualified table name for INSERT statements (schema-agnostic export)
-        let tableRef = databaseType.quoteIdentifier(table.name)
-        let quotedColumns = columns
-            .map { databaseType.quoteIdentifier($0) }
-            .joined(separator: ", ")
-
-        let insertPrefix = "INSERT INTO \(tableRef) (\(quotedColumns)) VALUES\n"
-
-        // Effective batch size (<=1 means no batching, one row per INSERT)
-        let effectiveBatchSize = batchSize <= 1 ? 1 : batchSize
-        var valuesBatch: [String] = []
-        valuesBatch.reserveCapacity(effectiveBatchSize)
-
-        for row in rows {
-            try checkCancellation()
-
-            let values = row.map { value -> String in
-                guard let val = value else { return "NULL" }
-                // Use proper SQL escaping to prevent injection (handles backslashes, quotes, etc.)
-                let escaped = SQLEscaping.escapeStringLiteral(val, databaseType: databaseType)
-                return "'\(escaped)'"
-            }.joined(separator: ", ")
-
-            valuesBatch.append("  (\(values))")
-
-            // Write batch when full
-            if valuesBatch.count >= effectiveBatchSize {
-                let statement = insertPrefix + valuesBatch.joined(separator: ",\n") + ";\n\n"
-                try fileHandle.write(contentsOf: statement.toUTF8Data())
-                valuesBatch.removeAll(keepingCapacity: true)
-            }
-
-            // Update progress (throttled)
-            await incrementProgress()
-        }
-
-        // Write remaining rows in final batch
-        if !valuesBatch.isEmpty {
-            let statement = insertPrefix + valuesBatch.joined(separator: ",\n") + ";\n\n"
-            try fileHandle.write(contentsOf: statement.toUTF8Data())
-        }
-
-        // Ensure final count is shown
-        await finalizeTableProgress()
-    }
-
-    // MARK: - MQL Export
-
-    private func exportToMQL(
-        tables: [ExportTableItem],
-        config: ExportConfiguration,
-        to url: URL
-    ) async throws {
-        let fileHandle = try createFileHandle(at: url)
-        defer { closeFileHandle(fileHandle) }
-
-        let dateFormatter = ISO8601DateFormatter()
-        try fileHandle.write(contentsOf: "// TablePro MQL Export\n".toUTF8Data())
-        try fileHandle.write(contentsOf: "// Generated: \(dateFormatter.string(from: Date()))\n".toUTF8Data())
-
-        let dbName = tables.first?.databaseName ?? ""
-        if !dbName.isEmpty {
-            try fileHandle.write(contentsOf: "// Database: \(sanitizeForJSComment(dbName))\n".toUTF8Data())
-        }
-        try fileHandle.write(contentsOf: "\n".toUTF8Data())
-
-        let batchSize = config.mqlOptions.batchSize
-
-        for (index, table) in tables.enumerated() {
-            try checkCancellation()
-
-            state.currentTableIndex = index + 1
-            state.currentTable = table.qualifiedName
-
-            let mqlOpts = table.mqlOptions
-            let escapedCollection = escapeJSIdentifier(table.name)
-            let collectionAccessor: String
-            if escapedCollection.hasPrefix("[") {
-                collectionAccessor = "db\(escapedCollection)"
-            } else {
-                collectionAccessor = "db.\(escapedCollection)"
-            }
-
-            try fileHandle.write(contentsOf: "// Collection: \(sanitizeForJSComment(table.name))\n".toUTF8Data())
-
-            if mqlOpts.includeDrop {
-                try fileHandle.write(contentsOf: "\(collectionAccessor).drop();\n".toUTF8Data())
-            }
-
-            if mqlOpts.includeData {
-                let fetchBatchSize = 5_000
-                var offset = 0
-                var columns: [String] = []
-                var documentBatch: [String] = []
-
-                while true {
-                    try checkCancellation()
-                    try Task.checkCancellation()
-
-                    let result = try await fetchBatch(for: table, offset: offset, limit: fetchBatchSize)
-
-                    if result.rows.isEmpty { break }
-
-                    if columns.isEmpty {
-                        columns = result.columns
-                    }
-
-                    for row in result.rows {
-                        try checkCancellation()
-
-                        var fields: [String] = []
-                        for (colIndex, column) in columns.enumerated() {
-                            guard colIndex < row.count else { continue }
-                            guard let value = row[colIndex] else { continue }
-                            let jsonValue = mqlJsonValue(for: value)
-                            fields.append("\"\(escapeJSONString(column))\": \(jsonValue)")
-                        }
-                        documentBatch.append("  {\(fields.joined(separator: ", "))}")
-
-                        if documentBatch.count >= batchSize {
-                            try writeMQLInsertMany(
-                                collection: table.name,
-                                documents: documentBatch,
-                                to: fileHandle
-                            )
-                            documentBatch.removeAll(keepingCapacity: true)
-                        }
-
-                        await incrementProgress()
-                    }
-
-                    offset += fetchBatchSize
-                }
-
-                if !documentBatch.isEmpty {
-                    try writeMQLInsertMany(
-                        collection: table.name,
-                        documents: documentBatch,
-                        to: fileHandle
-                    )
-                }
-            }
-
-            // Indexes after data for performance
-            if mqlOpts.includeIndexes {
-                try await writeMQLIndexes(
-                    collection: table.name,
-                    collectionAccessor: collectionAccessor,
-                    to: fileHandle
-                )
-            }
-
-            await finalizeTableProgress()
-
-            if index < tables.count - 1 {
-                try fileHandle.write(contentsOf: "\n".toUTF8Data())
-            }
-        }
-
-        try checkCancellation()
-        state.progress = 1.0
-    }
-
-    private func writeMQLInsertMany(
-        collection: String,
-        documents: [String],
-        to fileHandle: FileHandle
-    ) throws {
-        let escapedCollection = escapeJSIdentifier(collection)
-        var statement: String
-        if escapedCollection.hasPrefix("[") {
-            statement = "db\(escapedCollection).insertMany([\n"
-        } else {
-            statement = "db.\(escapedCollection).insertMany([\n"
-        }
-        statement += documents.joined(separator: ",\n")
-        statement += "\n]);\n"
-        try fileHandle.write(contentsOf: statement.toUTF8Data())
-    }
-
-    private func writeMQLIndexes(
-        collection: String,
-        collectionAccessor: String,
-        to fileHandle: FileHandle
-    ) async throws {
-        let ddl = try await driver.fetchTableDDL(table: collection)
-
-        let lines = ddl.components(separatedBy: "\n")
-        var indexLines: [String] = []
-        var foundHeader = false
-
-        for line in lines {
-            if line.hasPrefix("// Collection:") {
-                foundHeader = true
-                continue
-            }
-            if foundHeader {
-                var processedLine = line
-                let escapedForDDL = collection.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-                let ddlAccessor = "db[\"\(escapedForDDL)\"]"
-                if processedLine.hasPrefix(ddlAccessor) {
-                    processedLine = collectionAccessor + processedLine.dropFirst(ddlAccessor.count)
-                }
-                indexLines.append(processedLine)
-            }
-        }
-
-        let indexContent = indexLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        if !indexContent.isEmpty {
-            try fileHandle.write(contentsOf: "\(indexContent)\n".toUTF8Data())
-        }
-    }
-
-    /// Convert a string value to its MQL/JSON representation with auto-detected type
-    private func mqlJsonValue(for value: String) -> String {
-        if value == "true" || value == "false" {
-            return value
-        }
-        if value == "null" {
-            return "null"
-        }
-        if Int64(value) != nil {
-            return value
-        }
-        if Double(value) != nil, value.contains(".") {
-            return value
-        }
-        // JSON object or array -- pass through if valid (no unescaped control chars)
-        if (value.hasPrefix("{") && value.hasSuffix("}")) ||
-            (value.hasPrefix("[") && value.hasSuffix("]")) {
-            let hasControlChars = value.utf8.contains(where: { $0 < 0x20 })
-            if hasControlChars {
-                return "\"\(escapeJSONString(value))\""
-            }
-            return value
-        }
-        return "\"\(escapeJSONString(value))\""
-    }
-
-    /// Escape a collection name for use as a JavaScript property identifier.
-    /// Names with special characters use bracket notation instead of dot notation.
-    private func escapeJSIdentifier(_ name: String) -> String {
-        guard let firstChar = name.first,
-              !firstChar.isNumber,
-              name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
-            return "[\"\(escapeJSONString(name))\"]"
-        }
-        return name
-    }
-
-    /// Sanitize a name for use in JavaScript single-line comments
-    private func sanitizeForJSComment(_ name: String) -> String {
-        var result = name
-        result = result.replacingOccurrences(of: "\n", with: " ")
-        result = result.replacingOccurrences(of: "\r", with: " ")
-        return result
-    }
-
     // MARK: - Compression
 
-    private func compressFileToFile(source: URL, destination: URL) async throws {
+    func compressFileToFile(source: URL, destination: URL) async throws {
         // Run compression on background thread to avoid blocking main thread
         try await Task.detached(priority: .userInitiated) {
             // Pre-flight check: verify gzip is available
@@ -1312,6 +444,7 @@ final class ExportService {
             let errorPipe = Pipe()
             process.standardError = errorPipe
 
+            // Safe: already inside Task.detached, so waitUntilExit() won't block MainActor
             try process.run()
             process.waitUntilExit()
 

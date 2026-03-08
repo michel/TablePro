@@ -40,17 +40,6 @@ enum ActiveSheet: Identifiable {
 final class MainContentCoordinator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
 
-    /// Per-connection shared schema providers so new tabs skip redundant schema loads
-    private static var sharedSchemaProviders: [UUID: SQLSchemaProvider] = [:]
-    /// Reference counts for shared schema providers (tracks how many coordinators use each)
-    private static var schemaProviderRefCounts: [UUID: Int] = [:]
-    /// Delayed removal tasks — cancelled if a new coordinator claims the provider within the grace period
-    private static var schemaProviderRemovalTasks: [UUID: Task<Void, Never>] = [:]
-
-    static func schemaProvider(for connectionId: UUID) -> SQLSchemaProvider? {
-        sharedSchemaProviders[connectionId]
-    }
-
     // MARK: - Dependencies
 
     let connection: DatabaseConnection
@@ -63,7 +52,7 @@ final class MainContentCoordinator {
     // MARK: - Services
 
     internal let queryBuilder: TableQueryBuilder
-    let tabPersistence: TabPersistenceService
+    let persistence: TabPersistenceCoordinator
     @ObservationIgnored internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
     }()
@@ -87,6 +76,7 @@ final class MainContentCoordinator {
     @ObservationIgnored internal var currentQueryTask: Task<Void, Never>?
     @ObservationIgnored private var changeManagerUpdateTask: Task<Void, Never>?
     @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var terminationObserver: NSObjectProtocol?
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     @ObservationIgnored internal var isHandlingTabSwitch = false
@@ -98,18 +88,26 @@ final class MainContentCoordinator {
     /// True once the coordinator's view has appeared (onAppear fired).
     /// Coordinators that SwiftUI creates during body re-evaluation but never
     /// adopts into @State are silently discarded — no teardown warning needed.
-    @ObservationIgnored nonisolated(unsafe) private var didActivate = false
+    @ObservationIgnored private let _didActivate = OSAllocatedUnfairLock(initialState: false)
 
     /// Tracks whether teardown() was called; used by deinit to log missed teardowns
-    @ObservationIgnored nonisolated(unsafe) private var didTeardown = false
+    @ObservationIgnored private let _didTeardown = OSAllocatedUnfairLock(initialState: false)
 
     /// Tracks whether teardown has been scheduled (but not yet executed)
     /// so deinit doesn't warn if SwiftUI deallocates before the delayed Task fires
-    @ObservationIgnored nonisolated(unsafe) private var teardownScheduled = false
+    @ObservationIgnored private let _teardownScheduled = OSAllocatedUnfairLock(initialState: false)
+
+    /// Whether teardown is scheduled or already completed — used by views to skip
+    /// persistence during window close teardown
+    var isTearingDown: Bool { _teardownScheduled.withLock { $0 } || _didTeardown.withLock { $0 } }
 
     /// Set when NSApplication is terminating — suppresses deinit warning since
     /// SwiftUI does not call onDisappear during app termination
-    nonisolated(unsafe) private static var isAppTerminating = false
+    nonisolated private static let _isAppTerminating = OSAllocatedUnfairLock(initialState: false)
+    nonisolated static var isAppTerminating: Bool {
+        get { _isAppTerminating.withLock { $0 } }
+        set { _isAppTerminating.withLock { $0 = newValue } }
+    }
 
     private static let registerTerminationObserver: Void = {
         NotificationCenter.default.addObserver(
@@ -147,39 +145,53 @@ final class MainContentCoordinator {
         self.filterStateManager = filterStateManager
         self.toolbarState = toolbarState
         self.queryBuilder = TableQueryBuilder(databaseType: connection.type)
-        self.tabPersistence = TabPersistenceService(connectionId: connection.id)
+        self.persistence = TabPersistenceCoordinator(connectionId: connection.id)
 
-        // Reuse existing schema provider for this connection, or create a new one
-        if let existing = Self.sharedSchemaProviders[connection.id] {
-            self.schemaProvider = existing
-        } else {
-            let provider = SQLSchemaProvider()
-            Self.sharedSchemaProviders[connection.id] = provider
-            self.schemaProvider = provider
-        }
-
-        Self.retainSchemaProvider(for: connection.id)
+        self.schemaProvider = SchemaProviderRegistry.shared.getOrCreate(for: connection.id)
+        SchemaProviderRegistry.shared.retain(for: connection.id)
         setupURLNotificationObservers()
+
+        // Synchronous save at quit time. NotificationCenter with queue: .main
+        // delivers the closure on the main thread, satisfying assumeIsolated's
+        // precondition. The write completes before the process exits — unlike
+        // Task-based saves that need a run loop.
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, !self.isTearingDown else { return }
+                self.persistence.saveNowSync(
+                    tabs: self.tabManager.tabs,
+                    selectedTabId: self.tabManager.selectedTabId
+                )
+            }
+        }
 
         _ = Self.registerTerminationObserver
     }
 
     func markActivated() {
-        didActivate = true
+        _didActivate.withLock { $0 = true }
     }
 
     func markTeardownScheduled() {
-        teardownScheduled = true
+        _teardownScheduled.withLock { $0 = true }
     }
 
     func clearTeardownScheduled() {
-        teardownScheduled = false
+        _teardownScheduled.withLock { $0 = false }
     }
 
     /// Explicit cleanup called from `onDisappear`. Releases schema provider
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
-        didTeardown = true
+        _didTeardown.withLock { $0 = true }
+        if let observer = terminationObserver {
+            NotificationCenter.default.removeObserver(observer)
+            terminationObserver = nil
+        }
         currentQueryTask?.cancel()
         currentQueryTask = nil
         changeManagerUpdateTask?.cancel()
@@ -196,21 +208,21 @@ final class MainContentCoordinator {
         tabManager.tabs.removeAll()
         tabManager.selectedTabId = nil
 
-        Self.releaseSchemaProvider(for: connection.id)
-        Self.purgeUnusedSchemaProviders()
+        SchemaProviderRegistry.shared.release(for: connection.id)
+        SchemaProviderRegistry.shared.purgeUnused()
     }
 
     deinit {
         let connectionId = connection.id
-        let alreadyHandled = didTeardown || teardownScheduled
+        let alreadyHandled = _didTeardown.withLock { $0 } || _teardownScheduled.withLock { $0 }
 
         // Never-activated coordinators are throwaway instances created by SwiftUI
         // during body re-evaluation — @State only keeps the first, rest are discarded
-        guard didActivate else {
+        guard _didActivate.withLock({ $0 }) else {
             if !alreadyHandled {
                 Task { @MainActor in
-                    MainContentCoordinator.releaseSchemaProvider(for: connectionId)
-                    MainContentCoordinator.purgeUnusedSchemaProviders()
+                    SchemaProviderRegistry.shared.release(for: connectionId)
+                    SchemaProviderRegistry.shared.purgeUnused()
                 }
             }
             return
@@ -223,8 +235,8 @@ final class MainContentCoordinator {
 
         if !alreadyHandled {
             Task { @MainActor in
-                MainContentCoordinator.releaseSchemaProvider(for: connectionId)
-                MainContentCoordinator.purgeUnusedSchemaProviders()
+                SchemaProviderRegistry.shared.release(for: connectionId)
+                SchemaProviderRegistry.shared.purgeUnused()
             }
         }
     }
@@ -291,15 +303,15 @@ final class MainContentCoordinator {
     /// Default row limit for query tabs to prevent unbounded result sets
     private static let defaultQueryLimit = 10_000
 
-    /// Pre-compiled regex for detecting existing LIMIT clause in SELECT queries
+    /// Pre-compiled regex for detecting existing LIMIT/FETCH/TOP clause in SELECT queries
     private static let limitClauseRegex = try? NSRegularExpression(
-        pattern: "\\bLIMIT\\s+\\d+",
+        pattern: "\\b(?:LIMIT\\s+\\d+|FETCH\\s+(?:FIRST|NEXT)\\s+\\d+\\s+ROWS?\\s+ONLY|TOP\\s+\\d+)",
         options: .caseInsensitive
     )
 
     /// Pre-compiled regex for extracting table name from SELECT queries
     private static let tableNameRegex = try? NSRegularExpression(
-        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+(?:\[(\w+)\]|[`"]?(\w+)[`"]?)\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|OFFSET|$|;)"#,
+        pattern: #"(?i)^\s*SELECT\s+.+?\s+FROM\s+(?:\[([^\]]+)\]|[`"]([^`"]+)[`"]|([\w$]+))\s*(?:WHERE|ORDER|LIMIT|GROUP|HAVING|OFFSET|FETCH|$|;)"#,
         options: []
     )
 
@@ -336,9 +348,9 @@ final class MainContentCoordinator {
             sql = nsQuery.substring(with: clampedRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            sql = extractQueryAtCursor(
-                from: fullQuery,
-                at: cursorPositions.first?.range.location ?? 0
+            sql = SQLStatementScanner.statementAtCursor(
+                in: fullQuery,
+                cursorPosition: cursorPositions.first?.range.location ?? 0
             )
         }
 
@@ -347,7 +359,7 @@ final class MainContentCoordinator {
         }
 
         // Split into individual statements for multi-statement support
-        let statements = splitStatements(from: sql)
+        let statements = SQLStatementScanner.allStatements(in: sql)
         guard !statements.isEmpty else { return }
 
         // Block write queries in read-only mode
@@ -414,9 +426,9 @@ final class MainContentCoordinator {
             sql = nsQuery.substring(with: clampedRange)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         } else {
-            sql = extractQueryAtCursor(
-                from: fullQuery,
-                at: cursorPositions.first?.range.location ?? 0
+            sql = SQLStatementScanner.statementAtCursor(
+                in: fullQuery,
+                cursorPosition: cursorPositions.first?.range.location ?? 0
             )
         }
 
@@ -424,7 +436,7 @@ final class MainContentCoordinator {
         guard !trimmed.isEmpty else { return }
 
         // Use first statement only (EXPLAIN on a single statement)
-        let statements = splitStatements(from: trimmed)
+        let statements = SQLStatementScanner.allStatements(in: trimmed)
         guard let stmt = statements.first else { return }
 
         // Build database-specific EXPLAIN prefix
@@ -473,7 +485,7 @@ final class MainContentCoordinator {
         // DAT-1: For query tabs, auto-append LIMIT if the SQL is a SELECT without one
         let effectiveSQL: String
         if tab.tabType == .query {
-            effectiveSQL = Self.addLimitIfNeeded(to: sql, limit: Self.defaultQueryLimit)
+            effectiveSQL = Self.addLimitIfNeeded(to: sql, limit: Self.defaultQueryLimit, dbType: connection.type)
         } else {
             effectiveSQL = sql
         }
@@ -586,14 +598,24 @@ final class MainContentCoordinator {
                 }
 
                 // Phase 2: Background exact COUNT + enum values.
-                if isEditable, let tableName = tableName, needsMetadataFetch {
-                    launchPhase2Work(
-                        tableName: tableName,
-                        tabId: tabId,
-                        capturedGeneration: capturedGeneration,
-                        connectionType: conn.type,
-                        schemaResult: schemaResult
-                    )
+                if isEditable, let tableName = tableName {
+                    if needsMetadataFetch {
+                        launchPhase2Work(
+                            tableName: tableName,
+                            tabId: tabId,
+                            capturedGeneration: capturedGeneration,
+                            connectionType: conn.type,
+                            schemaResult: schemaResult
+                        )
+                    } else {
+                        // Metadata cached but still need exact COUNT for pagination
+                        launchPhase2Count(
+                            tableName: tableName,
+                            tabId: tabId,
+                            capturedGeneration: capturedGeneration,
+                            connectionType: conn.type
+                        )
+                    }
                 } else if !isEditable || tableName == nil {
                     await MainActor.run { [weak self] in
                         guard let self else { return }
@@ -663,26 +685,39 @@ final class MainContentCoordinator {
 
     // MARK: - Query Limit Protection
 
-    /// Appends a LIMIT clause to SELECT queries that don't already have one.
-    /// Protects query tabs from unbounded result sets (e.g., SELECT * FROM million_row_table).
-    private static func addLimitIfNeeded(to sql: String, limit: Int) -> String {
+    /// Appends a row-limiting clause to SELECT queries that don't already have one.
+    /// Uses database-appropriate syntax (LIMIT, FETCH FIRST, TOP).
+    private static func addLimitIfNeeded(to sql: String, limit: Int, dbType: DatabaseType) -> String {
         let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
         let uppercased = trimmed.uppercased()
 
         // Only apply to SELECT statements
         guard uppercased.hasPrefix("SELECT ") else { return sql }
 
-        // Check if query already has a LIMIT clause
+        // Skip for databases that don't support row limiting via SQL
+        guard dbType != .mongodb, dbType != .redis else { return sql }
+
+        // Check if query already has a LIMIT/FETCH/TOP clause
         let range = NSRange(trimmed.startIndex..., in: trimmed)
         if limitClauseRegex?.firstMatch(in: trimmed, options: [], range: range) != nil {
             return sql
         }
 
-        // Strip trailing semicolon, append LIMIT, and re-add semicolon
+        // Strip trailing semicolon
         let withoutSemicolon = trimmed.hasSuffix(";")
             ? String(trimmed.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
             : trimmed
-        return "\(withoutSemicolon) LIMIT \(limit)"
+
+        switch dbType {
+        case .oracle:
+            return "\(withoutSemicolon) FETCH FIRST \(limit) ROWS ONLY"
+        case .mssql:
+            // MSSQL uses TOP in SELECT — inject after SELECT keyword
+            let afterSelect = withoutSemicolon.dropFirst(7) // drop "SELECT "
+            return "SELECT TOP \(limit) \(afterSelect)"
+        default:
+            return "\(withoutSemicolon) LIMIT \(limit)"
+        }
     }
 
     // MARK: - SQL Parsing
@@ -693,7 +728,7 @@ final class MainContentCoordinator {
         // SQL: SELECT ... FROM tableName  (group 1 = bracket-quoted, group 2 = plain/backtick/double-quote)
         if let regex = Self.tableNameRegex,
            let match = regex.firstMatch(in: sql, options: [], range: nsRange) {
-            for group in 1...2 {
+            for group in 1...3 {
                 let r = match.range(at: group)
                 if r.location != NSNotFound, let range = Range(r, in: sql) {
                     return String(sql[range])
@@ -716,117 +751,6 @@ final class MainContentCoordinator {
         }
 
         return nil
-    }
-
-    private func extractQueryAtCursor(from fullQuery: String, at position: Int) -> String {
-        let nsQuery = fullQuery as NSString
-        let length = nsQuery.length
-        guard length > 0 else { return "" }
-
-        // Fast check: if no semicolons, return the full query trimmed.
-        // Uses NSString range search (C-level speed) instead of Swift String.contains.
-        guard nsQuery.range(of: ";").location != NSNotFound else {
-            return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        let singleQuote = UInt16(UnicodeScalar("'").value)
-        let doubleQuote = UInt16(UnicodeScalar("\"").value)
-        let backtick = UInt16(UnicodeScalar("`").value)
-        let semicolonChar = UInt16(UnicodeScalar(";").value)
-        let dash = UInt16(UnicodeScalar("-").value)
-        let slash = UInt16(UnicodeScalar("/").value)
-        let star = UInt16(UnicodeScalar("*").value)
-        let newline = UInt16(UnicodeScalar("\n").value)
-        let backslash = UInt16(UnicodeScalar("\\").value)
-
-        let safePosition = min(max(0, position), length)
-        var currentStart = 0
-        var inString = false
-        var stringCharVal: UInt16 = 0
-        var inLineComment = false
-        var inBlockComment = false
-        var i = 0
-
-        // Scan through characters, stopping as soon as we find the statement
-        // containing the cursor. Avoids scanning the entire file.
-        while i < length {
-            let ch = nsQuery.character(at: i)
-
-            // Handle line comment end
-            if inLineComment {
-                if ch == newline { inLineComment = false }
-                i += 1
-                continue
-            }
-
-            // Handle block comment end
-            if inBlockComment {
-                if ch == star && i + 1 < length && nsQuery.character(at: i + 1) == slash {
-                    inBlockComment = false
-                    i += 2
-                    continue
-                }
-                i += 1
-                continue
-            }
-
-            // Detect line comment start (--)
-            if !inString && ch == dash && i + 1 < length && nsQuery.character(at: i + 1) == dash {
-                inLineComment = true
-                i += 2
-                continue
-            }
-
-            // Detect block comment start (/*)
-            if !inString && ch == slash && i + 1 < length && nsQuery.character(at: i + 1) == star {
-                inBlockComment = true
-                i += 2
-                continue
-            }
-
-            // Handle backslash escapes inside strings (e.g., \' \" \\)
-            if inString && ch == backslash && i + 1 < length {
-                i += 2
-                continue
-            }
-
-            // Track string/identifier literals
-            if ch == singleQuote || ch == doubleQuote || ch == backtick {
-                if !inString {
-                    inString = true
-                    stringCharVal = ch
-                } else if ch == stringCharVal {
-                    // Handle doubled (escaped) quotes: '' "" ``
-                    if i + 1 < length && nsQuery.character(at: i + 1) == stringCharVal {
-                        i += 1 // Skip the escaped quote
-                    } else {
-                        inString = false
-                    }
-                }
-            }
-
-            // Statement delimiter
-            if ch == semicolonChar && !inString {
-                let stmtEnd = i + 1
-                if safePosition >= currentStart && safePosition <= stmtEnd {
-                    let stmtRange = NSRange(location: currentStart, length: i - currentStart)
-                    return nsQuery.substring(with: stmtRange)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                }
-                currentStart = stmtEnd
-            }
-
-            i += 1
-        }
-
-        // Cursor is in the last statement (no trailing semicolon)
-        if currentStart < length {
-            let stmtRange = NSRange(location: currentStart, length: length - currentStart)
-            return nsQuery.substring(with: stmtRange)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        return fullQuery.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Sorting
@@ -933,16 +857,20 @@ final class MainContentCoordinator {
         rows: [QueryResultRow],
         sortColumns: [SortColumn]
     ) -> [Int] {
+        // Pre-extract sort keys for each row to avoid repeated access during comparison
+        let sortKeys: [[String]] = rows.map { row in
+            sortColumns.map { sortCol in
+                sortCol.columnIndex < row.values.count
+                    ? (row.values[sortCol.columnIndex] ?? "") : ""
+            }
+        }
+
         var indices = Array(0..<rows.count)
         indices.sort { i1, i2 in
-            let row1 = rows[i1]
-            let row2 = rows[i2]
-            for sortCol in sortColumns {
-                let val1 = sortCol.columnIndex < row1.values.count
-                    ? (row1.values[sortCol.columnIndex] ?? "") : ""
-                let val2 = sortCol.columnIndex < row2.values.count
-                    ? (row2.values[sortCol.columnIndex] ?? "") : ""
-                let result = val1.localizedStandardCompare(val2)
+            let keys1 = sortKeys[i1]
+            let keys2 = sortKeys[i2]
+            for (colIdx, sortCol) in sortColumns.enumerated() {
+                let result = keys1[colIdx].localizedStandardCompare(keys2[colIdx])
                 if result == .orderedSame { continue }
                 return sortCol.direction == .ascending
                     ? result == .orderedAscending
@@ -1168,6 +1096,7 @@ final class MainContentCoordinator {
             }
         }
     }
+
 
     /// Remove shared schema provider when a connection disconnects
     static func clearSharedSchema(for connectionId: UUID) {
@@ -1465,6 +1394,37 @@ private extension MainContentCoordinator {
                 if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                     tabManager.tabs[idx].columnEnumValues = columnEnumValues
                     tabManager.tabs[idx].metadataVersion += 1
+                }
+            }
+        }
+    }
+
+    /// Launch only the exact COUNT(*) query (when metadata is already cached).
+    /// Does not guard on queryGeneration — the count is the same regardless of
+    /// which re-execution triggered it, and the repeated query issue means
+    /// generation is always stale by the time COUNT finishes.
+    private func launchPhase2Count(
+        tableName: String,
+        tabId: UUID,
+        capturedGeneration: Int,
+        connectionType: DatabaseType
+    ) {
+        let quotedTable = connectionType.quoteIdentifier(tableName)
+        Task { [weak self] in
+            guard let self else { return }
+            guard let mainDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
+            let countResult = try? await mainDriver.execute(
+                query: "SELECT COUNT(*) FROM \(quotedTable)"
+            )
+            if let firstRow = countResult?.rows.first,
+               let countStr = firstRow.first ?? nil,
+               let count = Int(countStr) {
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                        tabManager.tabs[idx].pagination.totalRowCount = count
+                        tabManager.tabs[idx].pagination.isApproximateRowCount = false
+                    }
                 }
             }
         }

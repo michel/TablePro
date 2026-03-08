@@ -83,6 +83,9 @@ struct DatabaseTypeTests {
         (DatabaseType.sqlite, "SQLite"),
         (DatabaseType.mongodb, "MongoDB"),
         (DatabaseType.redis, "Redis"),
+        (DatabaseType.redshift, "Redshift"),
+        (DatabaseType.mssql, "SQL Server"),
+        (DatabaseType.oracle, "Oracle"),
         (DatabaseType.clickhouse, "ClickHouse")
     ])
     func testRawValueMatchesDisplayName(dbType: DatabaseType, expectedRawValue: String) {

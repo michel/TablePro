@@ -48,7 +48,7 @@ struct FieldEditState {
 
 /// Manages edit state for multi-row editing in sidebar
 @MainActor @Observable
-class MultiRowEditState {
+final class MultiRowEditState {
     var fields: [FieldEditState] = []
 
     var onFieldChanged: ((Int, String?) -> Void)?

@@ -79,12 +79,15 @@ struct TableOperationDialog: View {
 
     /// PostgreSQL doesn't support globally disabling FK checks; use CASCADE instead
     private var ignoreFKDisabled: Bool {
-        databaseType == .postgresql || databaseType == .redshift || databaseType == .cockroachdb
+        databaseType == .postgresql || databaseType == .redshift || databaseType == .cockroachdb || databaseType == .oracle
     }
 
     private var ignoreFKDescription: String? {
         if databaseType == .postgresql || databaseType == .redshift || databaseType == .cockroachdb {
             return "Not supported for PostgreSQL. Use CASCADE instead."
+        }
+        if databaseType == .oracle {
+            return "Not supported for Oracle."
         }
         return nil
     }

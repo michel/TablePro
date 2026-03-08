@@ -133,7 +133,7 @@ final class ImportService {
 
             // 5. Begin transaction (if enabled)
             if config.wrapInTransaction {
-                let beginStmt = beginTransactionStatement(for: connection.type)
+                let beginStmt = connection.type.beginTransactionSQL
                 if !beginStmt.isEmpty {
                     _ = try await driver.execute(query: beginStmt)
                 }
@@ -312,20 +312,6 @@ final class ImportService {
         }
     }
 
-    private func beginTransactionStatement(for dbType: DatabaseType) -> String {
-        switch dbType {
-        case .mysql, .mariadb:
-            return "START TRANSACTION"
-        case .postgresql, .redshift, .cockroachdb, .sqlite:
-            return "BEGIN"
-        case .oracle:
-            return "SET TRANSACTION READ WRITE"
-        case .mssql:
-            return "BEGIN TRANSACTION"
-        case .mongodb, .redis, .clickhouse:
-            return ""
-        }
-    }
 
     private func commitStatement(for dbType: DatabaseType) -> String {
         switch dbType {

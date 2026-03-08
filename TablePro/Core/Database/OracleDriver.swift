@@ -14,12 +14,12 @@ final class OracleDriver: DatabaseDriver, SchemaSwitchable {
     let connection: DatabaseConnection
     private(set) var status: ConnectionStatus = .disconnected
 
-    private var oracleConn: OracleConnection?
+    private var oracleConn: OracleConnectionWrapper?
 
     private(set) var currentSchema: String = ""
 
     var escapedSchema: String {
-        currentSchema.replacingOccurrences(of: "'", with: "''")
+        SQLEscaping.escapeStringLiteral(currentSchema, databaseType: .oracle)
     }
 
     var serverVersion: String? {
@@ -35,12 +35,13 @@ final class OracleDriver: DatabaseDriver, SchemaSwitchable {
 
     func connect() async throws {
         status = .connecting
-        let conn = OracleConnection(
+        let conn = OracleConnectionWrapper(
             host: connection.host,
             port: connection.port,
             user: connection.username,
             password: ConnectionStorage.shared.loadPassword(for: connection.id) ?? "",
-            database: connection.oracleServiceName ?? connection.database
+            database: connection.database,
+            serviceName: connection.oracleServiceName ?? ""
         )
         do {
             try await conn.connect()
@@ -74,14 +75,46 @@ final class OracleDriver: DatabaseDriver, SchemaSwitchable {
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> QueryResult {
-        try await executeWithReconnect(query: query, isRetry: false)
-    }
+        guard let conn = oracleConn else {
+            throw DatabaseError.connectionFailed("Not connected to Oracle")
+        }
+        let startTime = Date()
 
-    func testConnection() async throws -> Bool {
-        try await connect()
-        let isConnected = status == .connected
-        disconnect()
-        return isConnected
+        // Health monitor sends "SELECT 1" as a ping — Oracle requires FROM DUAL.
+        var effectiveQuery = query
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "select 1" {
+            effectiveQuery = "SELECT 1 FROM DUAL"
+        }
+
+        var result = try await conn.executeQuery(effectiveQuery)
+        let executionTime = Date().timeIntervalSince(startTime)
+
+        // OracleNIO may not populate column metadata for empty result sets.
+        // Fall back to ALL_TAB_COLUMNS to get column names for the table.
+        if result.columns.isEmpty && result.rows.isEmpty {
+            if let table = Self.extractTableNameFromSelect(query) {
+                let escapedTable = table.replacingOccurrences(of: "'", with: "''")
+                let colSQL = """
+                    SELECT COLUMN_NAME, DATA_TYPE FROM ALL_TAB_COLUMNS \
+                    WHERE OWNER = '\(escapedSchema)' AND TABLE_NAME = '\(escapedTable)' \
+                    ORDER BY COLUMN_ID
+                    """
+                if let colResult = try? await conn.executeQuery(colSQL) {
+                    let colNames = colResult.rows.compactMap { $0.first ?? nil }
+                    let colTypes = colResult.rows.map { ($0[safe: 1] ?? nil)?.lowercased() ?? "varchar2" }
+                    if !colNames.isEmpty {
+                        result = OracleQueryResult(
+                            columns: colNames,
+                            columnTypeNames: colTypes,
+                            rows: [],
+                            affectedRows: 0
+                        )
+                    }
+                }
+            }
+        }
+
+        return mapToQueryResult(result, executionTime: executionTime)
     }
 
     func executeParameterized(query: String, parameters: [Any?]) async throws -> QueryResult {
@@ -312,7 +345,7 @@ final class OracleDriver: DatabaseDriver, SchemaSwitchable {
                   let columnName = row[safe: 1] ?? nil,
                   let refTable = row[safe: 2] ?? nil,
                   let refColumn = row[safe: 3] ?? nil else { return nil }
-            let deleteRule = row[safe: 4] ?? nil ?? "NO ACTION"
+            let deleteRule = (row[safe: 4] ?? nil) ?? "NO ACTION"
             return ForeignKeyInfo(
                 name: constraintName,
                 column: columnName,
@@ -427,7 +460,7 @@ final class OracleDriver: DatabaseDriver, SchemaSwitchable {
         let sql = """
             SELECT
                 (SELECT COUNT(*) FROM ALL_TABLES WHERE OWNER = '\(escapedDb)') AS table_count,
-                (SELECT NVL(SUM(BYTES), 0) FROM DBA_SEGMENTS WHERE OWNER = '\(escapedDb)') AS size_bytes
+                (SELECT NVL(SUM(BYTES), 0) FROM ALL_SEGMENTS WHERE OWNER = '\(escapedDb)') AS size_bytes
             FROM DUAL
             """
         do {
@@ -452,9 +485,7 @@ final class OracleDriver: DatabaseDriver, SchemaSwitchable {
     }
 
     func createDatabase(name: String, charset: String, collation: String?) async throws {
-        // Oracle doesn't support CREATE DATABASE from a session. Create a schema (user) instead.
-        let quotedName = connection.type.quoteIdentifier(name)
-        _ = try await execute(query: "CREATE USER \(quotedName) IDENTIFIED BY temp_password DEFAULT TABLESPACE USERS QUOTA UNLIMITED ON USERS")
+        throw DatabaseError.unsupportedOperation
     }
 
     func cancelQuery() throws {
@@ -471,34 +502,33 @@ final class OracleDriver: DatabaseDriver, SchemaSwitchable {
 
     // MARK: - Private Helpers
 
-    private func executeWithReconnect(query: String, isRetry: Bool) async throws -> QueryResult {
-        guard let conn = oracleConn else {
-            throw DatabaseError.connectionFailed("Not connected to Oracle")
-        }
-        let startTime = Date()
-        do {
-            let result = try await conn.executeQuery(query)
-            return mapToQueryResult(result, executionTime: Date().timeIntervalSince(startTime))
-        } catch let error as NSError where !isRetry && isConnectionLostError(error) {
-            try await reconnect()
-            return try await executeWithReconnect(query: query, isRetry: true)
-        } catch {
-            throw DatabaseError.queryFailed(error.localizedDescription)
-        }
-    }
+    private static let fromTableRegex = try? NSRegularExpression(
+        pattern: #"FROM\s+(?:"([^"]+)"|(\w+))"#,
+        options: .caseInsensitive
+    )
 
-    private func isConnectionLostError(_ error: NSError) -> Bool {
-        let msg = error.localizedDescription.lowercased()
-        return msg.contains("connection") &&
-            (msg.contains("lost") || msg.contains("closed") ||
-             msg.contains("no connection") || msg.contains("not connected"))
-    }
-
-    private func reconnect() async throws {
-        oracleConn?.disconnect()
-        oracleConn = nil
-        status = .connecting
-        try await connect()
+    private static func extractTableNameFromSelect(_ sql: String) -> String? {
+        let trimmed = sql.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.range(of: "^SELECT\\b", options: [.regularExpression, .caseInsensitive]) != nil else {
+            return nil
+        }
+        let ns = trimmed as NSString
+        guard let match = fromTableRegex?.firstMatch(
+            in: trimmed,
+            range: NSRange(location: 0, length: ns.length)
+        ), match.numberOfRanges >= 3 else {
+            return nil
+        }
+        // Group 1 = double-quoted table, Group 2 = unquoted identifier
+        let quotedRange = match.range(at: 1)
+        if quotedRange.location != NSNotFound {
+            return ns.substring(with: quotedRange)
+        }
+        let unquotedRange = match.range(at: 2)
+        if unquotedRange.location != NSNotFound {
+            return ns.substring(with: unquotedRange)
+        }
+        return nil
     }
 
     private func mapToQueryResult(_ oracleResult: OracleQueryResult, executionTime: TimeInterval) -> QueryResult {

@@ -70,6 +70,7 @@ enum DeeplinkHandler {
             return .connect(connectionName: connectionName)
         }
 
+        logger.warning("Unrecognized connect deep link path: \(url.path, privacy: .public)")
         return nil
     }
 

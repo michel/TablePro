@@ -196,14 +196,24 @@ struct FilterSQLGenerator {
             .replacingOccurrences(of: "'", with: "''")
     }
 
-    /// Escape LIKE pattern wildcards (% and _) in user input
     private func escapeLikeWildcards(_ value: String) -> String {
-        // Fast path: most values have no special chars
         guard value.contains("\\") || value.contains("%") || value.contains("_") else { return value }
-        return value
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "%", with: "\\%")
-            .replacingOccurrences(of: "_", with: "\\_")
+
+        switch databaseType {
+        case .mysql, .mariadb:
+            // MySQL uses \ as both string escape and default LIKE escape.
+            // Need double backslash in SQL string so string layer yields single \
+            // which LIKE then uses as escape char.
+            return value
+                .replacingOccurrences(of: "\\", with: "\\\\\\\\")
+                .replacingOccurrences(of: "%", with: "\\\\%")
+                .replacingOccurrences(of: "_", with: "\\\\_")
+        default:
+            return value
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "%", with: "\\%")
+                .replacingOccurrences(of: "_", with: "\\_")
+        }
     }
 
     // MARK: - List Parsing
@@ -240,7 +250,14 @@ extension FilterSQLGenerator {
             sql += "\n\(whereClause)"
         }
 
-        sql += "\nLIMIT \(limit)"
+        switch databaseType {
+        case .oracle:
+            sql += "\nORDER BY 1 OFFSET 0 ROWS FETCH NEXT \(limit) ROWS ONLY"
+        case .mssql:
+            sql += "\nORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT \(limit) ROWS ONLY"
+        default:
+            sql += "\nLIMIT \(limit)"
+        }
         return sql
     }
 }

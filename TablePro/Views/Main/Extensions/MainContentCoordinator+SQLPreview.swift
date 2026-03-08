@@ -77,13 +77,7 @@ extension MainContentCoordinator {
         // Wrap all operations in a single transaction when we have multiple operations
         let needsTransaction = hasEditedCells && hasPendingTableOps
         if needsTransaction {
-            let beginSQL: String
-            switch dbType {
-            case .mssql: beginSQL = "BEGIN TRANSACTION"
-            case .oracle: beginSQL = "SET TRANSACTION READ WRITE"
-            case .clickhouse: beginSQL = ""
-            default: beginSQL = "BEGIN"
-            }
+            let beginSQL = dbType.beginTransactionSQL
             allStatements.append(ParameterizedStatement(sql: beginSQL, parameters: []))
         }
 

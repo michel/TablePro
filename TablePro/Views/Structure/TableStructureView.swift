@@ -750,7 +750,7 @@ struct TableStructureView: View {
 
         copyResetTask?.cancel()
         copyResetTask = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: .milliseconds(1500))
             guard !Task.isCancelled else { return }
             withAnimation {
                 showCopyConfirmation = false

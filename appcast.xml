@@ -3,56 +3,90 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.14.0</title>
-            <pubDate>Thu, 05 Mar 2026 14:39:43 +0000</pubDate>
-            <sparkle:version>26</sparkle:version>
-            <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
+            <title>0.15.0</title>
+            <pubDate>Sat, 07 Mar 2026 21:47:41 +0000</pubDate>
+            <sparkle:version>28</sparkle:version>
+            <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Microsoft SQL Server (MSSQL) database support via FreeTDS</li>
-<li>Support for editing and deleting rows in tables without a primary key</li>
+<li>Oracle Database support via OCI (Oracle Call Interface)</li>
+<li>Add database URL scheme support — open connections directly from terminal with `open "mysql://user@host/db" -a TablePro` (supports MySQL, PostgreSQL, SQLite, MongoDB, Redis, MSSQL, Oracle)</li>
+<li>SSH Agent authentication method for SSH tunnels (compatible with 1Password SSH Agent, Secretive, ssh-agent)</li>
+<li>Multi-jump SSH support — chain multiple SSH hops (ProxyJump) to reach databases through bastion hosts</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Replace CodeEditLanguages xcframework (38 grammars) with local package compiling only SQL, Bash, and JavaScript, reducing app binary size by ~55%</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>Fix MSSQL connection losing selected database after disconnect and reconnect when no default database is configured</li>
-<li>DELETE operations on tables without a primary key now show an error if row data is missing instead of being silently dropped</li>
-<li>SQLite and MSSQL now use safe single-row limits for DELETE and UPDATE on tables without a primary key</li>
-<li>Fix high CPU/RAM on app launch from blocking storage init, unsynchronized health monitors, and excessive retry loops</li>
-<li>Fix O(n log n) row cache eviction in RowProvider by replacing sorted eviction with O(n) distance-threshold filter</li>
-<li>Fix O(n) string operations in GeometryWKBParser, RedisDriver, and autocomplete scoring by switching to NSString O(1) indexing</li>
-<li>Fix slow database switcher loading by replacing N+1 metadata queries with single batched queries (MySQL, PostgreSQL, Redshift)</li>
-<li>Fix slow Redis key browsing by pipelining TYPE and TTL commands in a single round trip instead of 3 sequential commands per key</li>
-<li>Fix slow SQL export startup by batching COUNT(*) queries via UNION ALL and batching dependent sequence/type lookups</li>
-<li>Fix slow AI Chat schema loading by fetching all foreign keys in a single bulk query instead of per-table</li>
+<li>Fix memory leak where session state objects were recreated on every tab open due to SwiftUI `@State` init trap, causing 785MB usage at 5 tabs with 734MB retained after closing</li>
+<li>Fix per-cell field editor allocation in DataGrid creating 180+ NSTextView instances instead of sharing one</li>
+<li>Fix NSEvent monitor not removed on all popover dismissal paths in connection switcher</li>
+<li>Fix race condition in FreeTDS `disconnect()` where `dbproc` was set to nil without holding the lock</li>
+<li>Fix data race in `MainContentCoordinator.deinit` reading `nonisolated(unsafe)` flags from arbitrary threads</li>
+<li>Fix JSON encoding and file I/O blocking the main thread in TabStateStorage</li>
+<li>Fix MySQL/MariaDB getting `BEGIN` instead of `START TRANSACTION` in table operations and SQL preview</li>
+<li>Fix port resetting to default value when editing a connection with a custom port</li>
+<li>Replace `.onTapGesture` with `Button` in color pickers, section headers, group headers, and connection switcher for VoiceOver accessibility</li>
+<li>Fix data race on `isAppTerminating` static var in `MainContentCoordinator` using `OSAllocatedUnfairLock`</li>
+<li>Fix `MainActor.assumeIsolated` crash risk in `VimKeyInterceptor` notification observer</li>
+<li>Fix data race on `conn` pointer in `LibPQConnection` during disconnect and cancel</li>
+<li>Fix SSH askpass script written with world-readable permissions; now uses atomic `0o700` creation and immediate cleanup</li>
+<li>Fix potential dict mutation during iteration in `DatabaseManager.disconnectAll()`</li>
+<li>Fix welcome screen showing blank panel when connections have orphaned group IDs</li>
+<li>Fix multiple tabs auto-executing queries simultaneously on connection restore, causing lag</li>
+<li>Fix welcome window becoming oversized after closing main windows due to AppKit scene restoration</li>
+<li>Fix unescaped identifiers in MySQL `SHOW CREATE TABLE`/`VIEW` queries allowing SQL injection via table names</li>
+<li>Fix `QueryResultRow` equality ignoring cell values, preventing SwiftUI from re-rendering updated rows</li>
+<li>Fix status bar row info text rendering off-center due to duplicate spacer</li>
+<li>Fix `Cmd+Delete` in sidebar search or right sidebar clearing the query editor</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.14.0/TablePro-0.14.0-arm64.zip" length="22510110" type="application/octet-stream" sparkle:edSignature="IU91PHObpPpk4JMT0kMIupTSG7Rx93qptC8ZkHoEFATyGtEwI6hAZnZZhinmtdstoLgUM/sj9BiMauzfslBVDA==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.15.0/TablePro-0.15.0-arm64.zip" length="24669203" type="application/octet-stream" sparkle:edSignature="72J9xkjXFlDNf1FhstbpFBFZ4qDSaqiFmo+4z29xmZxCXgERLchlTxnXwPwf6G8IbfcOfaTcDqWKgFUEfqvmBA==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.14.0</title>
-            <pubDate>Thu, 05 Mar 2026 14:39:43 +0000</pubDate>
-            <sparkle:version>26</sparkle:version>
-            <sparkle:shortVersionString>0.14.0</sparkle:shortVersionString>
+            <title>0.15.0</title>
+            <pubDate>Sat, 07 Mar 2026 21:47:41 +0000</pubDate>
+            <sparkle:version>28</sparkle:version>
+            <sparkle:shortVersionString>0.15.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Microsoft SQL Server (MSSQL) database support via FreeTDS</li>
-<li>Support for editing and deleting rows in tables without a primary key</li>
+<li>Oracle Database support via OCI (Oracle Call Interface)</li>
+<li>Add database URL scheme support — open connections directly from terminal with `open "mysql://user@host/db" -a TablePro` (supports MySQL, PostgreSQL, SQLite, MongoDB, Redis, MSSQL, Oracle)</li>
+<li>SSH Agent authentication method for SSH tunnels (compatible with 1Password SSH Agent, Secretive, ssh-agent)</li>
+<li>Multi-jump SSH support — chain multiple SSH hops (ProxyJump) to reach databases through bastion hosts</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Replace CodeEditLanguages xcframework (38 grammars) with local package compiling only SQL, Bash, and JavaScript, reducing app binary size by ~55%</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>Fix MSSQL connection losing selected database after disconnect and reconnect when no default database is configured</li>
-<li>DELETE operations on tables without a primary key now show an error if row data is missing instead of being silently dropped</li>
-<li>SQLite and MSSQL now use safe single-row limits for DELETE and UPDATE on tables without a primary key</li>
-<li>Fix high CPU/RAM on app launch from blocking storage init, unsynchronized health monitors, and excessive retry loops</li>
-<li>Fix O(n log n) row cache eviction in RowProvider by replacing sorted eviction with O(n) distance-threshold filter</li>
-<li>Fix O(n) string operations in GeometryWKBParser, RedisDriver, and autocomplete scoring by switching to NSString O(1) indexing</li>
-<li>Fix slow database switcher loading by replacing N+1 metadata queries with single batched queries (MySQL, PostgreSQL, Redshift)</li>
-<li>Fix slow Redis key browsing by pipelining TYPE and TTL commands in a single round trip instead of 3 sequential commands per key</li>
-<li>Fix slow SQL export startup by batching COUNT(*) queries via UNION ALL and batching dependent sequence/type lookups</li>
-<li>Fix slow AI Chat schema loading by fetching all foreign keys in a single bulk query instead of per-table</li>
+<li>Fix memory leak where session state objects were recreated on every tab open due to SwiftUI `@State` init trap, causing 785MB usage at 5 tabs with 734MB retained after closing</li>
+<li>Fix per-cell field editor allocation in DataGrid creating 180+ NSTextView instances instead of sharing one</li>
+<li>Fix NSEvent monitor not removed on all popover dismissal paths in connection switcher</li>
+<li>Fix race condition in FreeTDS `disconnect()` where `dbproc` was set to nil without holding the lock</li>
+<li>Fix data race in `MainContentCoordinator.deinit` reading `nonisolated(unsafe)` flags from arbitrary threads</li>
+<li>Fix JSON encoding and file I/O blocking the main thread in TabStateStorage</li>
+<li>Fix MySQL/MariaDB getting `BEGIN` instead of `START TRANSACTION` in table operations and SQL preview</li>
+<li>Fix port resetting to default value when editing a connection with a custom port</li>
+<li>Replace `.onTapGesture` with `Button` in color pickers, section headers, group headers, and connection switcher for VoiceOver accessibility</li>
+<li>Fix data race on `isAppTerminating` static var in `MainContentCoordinator` using `OSAllocatedUnfairLock`</li>
+<li>Fix `MainActor.assumeIsolated` crash risk in `VimKeyInterceptor` notification observer</li>
+<li>Fix data race on `conn` pointer in `LibPQConnection` during disconnect and cancel</li>
+<li>Fix SSH askpass script written with world-readable permissions; now uses atomic `0o700` creation and immediate cleanup</li>
+<li>Fix potential dict mutation during iteration in `DatabaseManager.disconnectAll()`</li>
+<li>Fix welcome screen showing blank panel when connections have orphaned group IDs</li>
+<li>Fix multiple tabs auto-executing queries simultaneously on connection restore, causing lag</li>
+<li>Fix welcome window becoming oversized after closing main windows due to AppKit scene restoration</li>
+<li>Fix unescaped identifiers in MySQL `SHOW CREATE TABLE`/`VIEW` queries allowing SQL injection via table names</li>
+<li>Fix `QueryResultRow` equality ignoring cell values, preventing SwiftUI from re-rendering updated rows</li>
+<li>Fix status bar row info text rendering off-center due to duplicate spacer</li>
+<li>Fix `Cmd+Delete` in sidebar search or right sidebar clearing the query editor</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.14.0/TablePro-0.14.0-x86_64.zip" length="23112947" type="application/octet-stream" sparkle:edSignature="z85G0KR/iGmQrV2+WroLVQAHdf+/yfIeGw3dgbrTV7+205x6ng4D4l7jibU95nCHEoMmb3BBG189uJB24ddhBA==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.15.0/TablePro-0.15.0-x86_64.zip" length="25264913" type="application/octet-stream" sparkle:edSignature="rgy73WDLvTK3NqqWx358KNPJMR89nZipwvdSz4IYluQn70HLDOqy9SY8cWzE5SEZOBe3m9Ca+ZWVpPig5LuxDw==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>

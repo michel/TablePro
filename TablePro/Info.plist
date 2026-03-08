@@ -77,6 +77,9 @@
 				<string>redis</string>
 				<string>rediss</string>
 				<string>redshift</string>
+				<string>mongodb+srv</string>
+				<string>mssql</string>
+				<string>sqlserver</string>
 			</array>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>

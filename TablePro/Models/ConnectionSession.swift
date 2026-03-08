@@ -21,8 +21,6 @@ struct ConnectionSession: Identifiable {
     // Per-connection state
     var tables: [TableInfo] = []
     var selectedTables: Set<TableInfo> = []
-    var tabs: [QueryTab] = []
-    var selectedTabId: UUID?
     var pendingTruncates: Set<String> = []
     var pendingDeletes: Set<String> = []
     var tableOperationOptions: [String: TableOperationOptions] = [:]
@@ -71,8 +69,8 @@ struct ConnectionSession: Identifiable {
     }
 
     /// Compares fields used by ContentView's body to avoid unnecessary SwiftUI re-renders.
-    /// Excludes: driver/metadataDriver (protocol, non-comparable), tabs/selectedTabId
-    /// (managed by MainContentView), lastActiveAt (volatile), lastError, effectiveConnection.
+    /// Excludes: driver/metadataDriver (protocol, non-comparable),
+    /// lastActiveAt (volatile), lastError, effectiveConnection.
     func isContentViewEquivalent(to other: ConnectionSession) -> Bool {
         id == other.id
             && status == other.status
@@ -81,7 +79,6 @@ struct ConnectionSession: Identifiable {
             && pendingTruncates == other.pendingTruncates
             && pendingDeletes == other.pendingDeletes
             && tableOperationOptions == other.tableOperationOptions
-            && selectedTables == other.selectedTables
             && currentSchema == other.currentSchema
             && currentDatabase == other.currentDatabase
     }

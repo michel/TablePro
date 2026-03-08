@@ -26,7 +26,15 @@
 
 ## About
 
-TablePro is a lightweight alternative to TablePlus, built entirely with Apple-native frameworks. No Electron, no web views — just pure SwiftUI + AppKit for a truly native macOS experience.
+TablePro is a native macOS database client. Connects to MySQL, MariaDB, PostgreSQL, SQLite, MongoDB, Redis, SQL Server, and Redshift. Includes a SQL editor with autocomplete, inline editing, and AI assistance.
+
+## Install
+
+```bash
+brew install --cask tablepro
+```
+
+Or download the DMG from [GitHub Releases](https://github.com/datlechin/tablepro/releases).
 
 ## Documentation
 

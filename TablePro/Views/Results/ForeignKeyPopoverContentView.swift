@@ -132,11 +132,18 @@ struct ForeignKeyPopoverContentView: View {
         }
 
         let query: String
+        let limitSuffix: String
+        switch databaseType {
+        case .oracle, .mssql:
+            limitSuffix = "OFFSET 0 ROWS FETCH NEXT \(Self.maxFetchRows) ROWS ONLY"
+        default:
+            limitSuffix = "LIMIT \(Self.maxFetchRows)"
+        }
         if let displayCol = displayColumn {
             let quotedDisplay = databaseType.quoteIdentifier(displayCol)
-            query = "SELECT \(quotedColumn), \(quotedDisplay) FROM \(quotedTable) ORDER BY \(quotedColumn) LIMIT \(Self.maxFetchRows)"
+            query = "SELECT \(quotedColumn), \(quotedDisplay) FROM \(quotedTable) ORDER BY \(quotedColumn) \(limitSuffix)"
         } else {
-            query = "SELECT DISTINCT \(quotedColumn) FROM \(quotedTable) ORDER BY \(quotedColumn) LIMIT \(Self.maxFetchRows)"
+            query = "SELECT DISTINCT \(quotedColumn) FROM \(quotedTable) ORDER BY \(quotedColumn) \(limitSuffix)"
         }
 
         do {

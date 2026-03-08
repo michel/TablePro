@@ -160,7 +160,7 @@ final class ConnectionStorage {
 
         let addQuery = baseQuery.merging([
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]) { _, new in new }
 
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
@@ -340,6 +340,7 @@ private struct StoredConnection: Codable {
     let sshAuthMethod: String
     let sshPrivateKeyPath: String
     let sshUseSSHConfig: Bool
+    let sshAgentSocketPath: String
 
     // SSL Configuration
     let sslMode: String
@@ -361,6 +362,9 @@ private struct StoredConnection: Codable {
     // MSSQL schema
     let mssqlSchema: String?
 
+    // Oracle service name
+    let oracleServiceName: String?
+
     init(from connection: DatabaseConnection) {
         self.id = connection.id
         self.name = connection.name
@@ -378,6 +382,7 @@ private struct StoredConnection: Codable {
         self.sshAuthMethod = connection.sshConfig.authMethod.rawValue
         self.sshPrivateKeyPath = connection.sshConfig.privateKeyPath
         self.sshUseSSHConfig = connection.sshConfig.useSSHConfig
+        self.sshAgentSocketPath = connection.sshConfig.agentSocketPath
 
         // SSL Configuration
         self.sslMode = connection.sslConfig.mode.rawValue
@@ -398,6 +403,9 @@ private struct StoredConnection: Codable {
 
         // MSSQL schema
         self.mssqlSchema = connection.mssqlSchema
+
+        // Oracle service name
+        self.oracleServiceName = connection.oracleServiceName
     }
 
     // Custom decoder to handle migration from old format
@@ -419,6 +427,7 @@ private struct StoredConnection: Codable {
         sshAuthMethod = try container.decode(String.self, forKey: .sshAuthMethod)
         sshPrivateKeyPath = try container.decode(String.self, forKey: .sshPrivateKeyPath)
         sshUseSSHConfig = try container.decode(Bool.self, forKey: .sshUseSSHConfig)
+        sshAgentSocketPath = try container.decodeIfPresent(String.self, forKey: .sshAgentSocketPath) ?? ""
 
         // SSL Configuration (migration: use defaults if missing)
         sslMode = try container.decodeIfPresent(String.self, forKey: .sslMode) ?? SSLMode.disabled.rawValue
@@ -435,6 +444,7 @@ private struct StoredConnection: Codable {
         isReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
         aiPolicy = try container.decodeIfPresent(String.self, forKey: .aiPolicy)
         mssqlSchema = try container.decodeIfPresent(String.self, forKey: .mssqlSchema)
+        oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
     }
 
     func toConnection() -> DatabaseConnection {
@@ -445,7 +455,8 @@ private struct StoredConnection: Codable {
             username: sshUsername,
             authMethod: SSHAuthMethod(rawValue: sshAuthMethod) ?? .password,
             privateKeyPath: sshPrivateKeyPath,
-            useSSHConfig: sshUseSSHConfig
+            useSSHConfig: sshUseSSHConfig,
+            agentSocketPath: sshAgentSocketPath
         )
 
         let sslConfig = SSLConfiguration(
@@ -475,7 +486,8 @@ private struct StoredConnection: Codable {
             groupId: parsedGroupId,
             isReadOnly: isReadOnly,
             aiPolicy: parsedAIPolicy,
-            mssqlSchema: mssqlSchema
+            mssqlSchema: mssqlSchema,
+            oracleServiceName: oracleServiceName
         )
     }
 }

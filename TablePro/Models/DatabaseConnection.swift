@@ -15,6 +15,7 @@ import SwiftUI
 enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
     case password = "Password"
     case privateKey = "Private Key"
+    case sshAgent = "SSH Agent"
 
     var id: String { rawValue }
 
@@ -22,6 +23,7 @@ enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .password: return String(localized: "Password")
         case .privateKey: return String(localized: "Private Key")
+        case .sshAgent: return String(localized: "SSH Agent")
         }
     }
 
@@ -29,7 +31,79 @@ enum SSHAuthMethod: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .password: return "key.fill"
         case .privateKey: return "doc.text.fill"
+        case .sshAgent: return "person.badge.key.fill"
         }
+    }
+}
+
+enum SSHAgentSocketOption: String, CaseIterable, Identifiable {
+    case systemDefault
+    case onePassword
+    case custom
+
+    static let onePasswordSocketPath = "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+    private static let onePasswordAliasPath = "~/.1password/agent.sock"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .systemDefault:
+            return "SSH_AUTH_SOCK"
+        case .onePassword:
+            return "1Password"
+        case .custom:
+            return String(localized: "Custom Path")
+        }
+    }
+
+    init(socketPath: String) {
+        let trimmedPath = socketPath.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        switch trimmedPath {
+        case "":
+            self = .systemDefault
+        case Self.onePasswordSocketPath, Self.onePasswordAliasPath:
+            self = .onePassword
+        default:
+            self = .custom
+        }
+    }
+
+    func resolvedPath(customPath: String) -> String {
+        switch self {
+        case .systemDefault:
+            return ""
+        case .onePassword:
+            return Self.onePasswordSocketPath
+        case .custom:
+            return customPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+}
+
+enum SSHJumpAuthMethod: String, CaseIterable, Identifiable, Codable {
+    case privateKey = "Private Key"
+    case sshAgent = "SSH Agent"
+
+    var id: String { rawValue }
+}
+
+struct SSHJumpHost: Codable, Hashable, Identifiable {
+    var id = UUID()
+    var host: String = ""
+    var port: Int = 22
+    var username: String = ""
+    var authMethod: SSHJumpAuthMethod = .sshAgent
+    var privateKeyPath: String = ""
+
+    var isValid: Bool {
+        !host.isEmpty && !username.isEmpty &&
+        (authMethod == .sshAgent || !privateKeyPath.isEmpty)
+    }
+
+    var proxyJumpString: String {
+        "\(username)@\(host):\(port)"
     }
 }
 
@@ -42,18 +116,44 @@ struct SSHConfiguration: Codable, Hashable {
     var authMethod: SSHAuthMethod = .password
     var privateKeyPath: String = ""  // Path to identity file (e.g., ~/.ssh/id_rsa)
     var useSSHConfig: Bool = true  // Auto-fill from ~/.ssh/config when selecting host
+    var agentSocketPath: String = ""  // Custom SSH_AUTH_SOCK path (empty = use system default)
+    var jumpHosts: [SSHJumpHost] = []
 
     /// Check if SSH configuration is complete enough for connection
     var isValid: Bool {
         guard enabled else { return true }  // Not enabled = valid (skip SSH)
         guard !host.isEmpty, !username.isEmpty else { return false }
 
+        let authValid: Bool
         switch authMethod {
         case .password:
-            return true  // Password will be provided separately
+            authValid = true
         case .privateKey:
-            return !privateKeyPath.isEmpty
+            authValid = !privateKeyPath.isEmpty
+        case .sshAgent:
+            authValid = true
         }
+
+        return authValid && jumpHosts.allSatisfy(\.isValid)
+    }
+}
+
+extension SSHConfiguration {
+    enum CodingKeys: String, CodingKey {
+        case enabled, host, port, username, authMethod, privateKeyPath, useSSHConfig, agentSocketPath, jumpHosts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        host = try container.decode(String.self, forKey: .host)
+        port = try container.decode(Int.self, forKey: .port)
+        username = try container.decode(String.self, forKey: .username)
+        authMethod = try container.decode(SSHAuthMethod.self, forKey: .authMethod)
+        privateKeyPath = try container.decode(String.self, forKey: .privateKeyPath)
+        useSSHConfig = try container.decode(Bool.self, forKey: .useSSHConfig)
+        agentSocketPath = try container.decode(String.self, forKey: .agentSocketPath)
+        jumpHosts = try container.decodeIfPresent([SSHJumpHost].self, forKey: .jumpHosts) ?? []
     }
 }
 
@@ -173,6 +273,16 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return true
         case .mongodb, .redis, .clickhouse:
             return false
+        }
+    }
+
+    var beginTransactionSQL: String {
+        switch self {
+        case .mysql, .mariadb: return "START TRANSACTION"
+        case .postgresql, .redshift, .cockroachdb, .sqlite: return "BEGIN"
+        case .mssql: return "BEGIN TRANSACTION"
+        case .oracle: return ""
+        case .mongodb, .redis, .clickhouse: return ""
         }
     }
 

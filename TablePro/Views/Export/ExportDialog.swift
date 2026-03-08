@@ -447,62 +447,13 @@ struct ExportDialog: View {
                     return item1.name < item2.name
                 }
 
-            case .sqlite:
-                // SQLite: only one database, fetch tables directly
-                let tables = try await driver.fetchTables()
-                let tableItems = tables.map { table in
-                    ExportTableItem(
-                        name: table.name,
-                        databaseName: "",
-                        type: table.type,
-                        isSelected: preselectedTables.contains(table.name)
-                    )
-                }
-                if !tableItems.isEmpty {
-                    items.append(ExportDatabaseItem(
-                        name: connection.database.isEmpty ? "main" : connection.database,
-                        tables: tableItems,
-                        isExpanded: true
-                    ))
-                }
-
-            case .mongodb:
-                // MongoDB: similar to SQLite, fetch collections directly
-                let tables = try await driver.fetchTables()
-                let tableItems = tables.map { table in
-                    ExportTableItem(
-                        name: table.name,
-                        databaseName: "",
-                        type: table.type,
-                        isSelected: preselectedTables.contains(table.name)
-                    )
-                }
-                if !tableItems.isEmpty {
-                    items.append(ExportDatabaseItem(
-                        name: connection.database.isEmpty ? "main" : connection.database,
-                        tables: tableItems,
-                        isExpanded: true
-                    ))
-                }
-
-            case .redis:
-                // Redis: fetch keys as table items
-                let tables = try await driver.fetchTables()
-                let tableItems = tables.map { table in
-                    ExportTableItem(
-                        name: table.name,
-                        databaseName: "",
-                        type: table.type,
-                        isSelected: preselectedTables.contains(table.name)
-                    )
-                }
-                if !tableItems.isEmpty {
-                    items.append(ExportDatabaseItem(
-                        name: connection.database.isEmpty ? "db0" : connection.database,
-                        tables: tableItems,
-                        isExpanded: true
-                    ))
-                }
+            case .sqlite, .mongodb, .redis:
+                let fallbackName = connection.type == .redis ? "db0" : "main"
+                let dbItem = try await buildFlatDatabaseItem(
+                    driver: driver,
+                    name: connection.database.isEmpty ? fallbackName : connection.database
+                )
+                if let dbItem { items.append(dbItem) }
 
             case .mssql:
                 // MSSQL: fetch schemas within current database
@@ -612,8 +563,43 @@ struct ExportDialog: View {
         return result.rows.compactMap { $0[0] }
     }
 
+    private func buildFlatDatabaseItem(
+        driver: DatabaseDriver,
+        name: String
+    ) async throws -> ExportDatabaseItem? {
+        let tables = try await driver.fetchTables()
+        let tableItems = tables.map { table in
+            ExportTableItem(
+                name: table.name,
+                databaseName: "",
+                type: table.type,
+                isSelected: preselectedTables.contains(table.name)
+            )
+        }
+        guard !tableItems.isEmpty else { return nil }
+        return ExportDatabaseItem(name: name, tables: tableItems, isExpanded: true)
+    }
+
     private func fetchTablesForSchema(_ schema: String, driver: DatabaseDriver) async throws -> [TableInfo] {
-        // Fetch tables from information_schema and filter by schema in Swift to avoid SQL interpolation.
+        // Oracle does not have information_schema — use ALL_TABLES/ALL_VIEWS
+        if connection.type == .oracle {
+            let escapedSchema = schema.replacingOccurrences(of: "'", with: "''")
+            let query = """
+                SELECT TABLE_NAME, 'BASE TABLE' AS TABLE_TYPE FROM ALL_TABLES WHERE OWNER = '\(escapedSchema)'
+                UNION ALL
+                SELECT VIEW_NAME, 'VIEW' FROM ALL_VIEWS WHERE OWNER = '\(escapedSchema)'
+                ORDER BY 1
+                """
+            let result = try await driver.execute(query: query)
+            return result.rows.compactMap { row in
+                guard let name = row[safe: 0] ?? nil else { return nil }
+                let typeStr = (row[safe: 1] ?? nil) ?? "BASE TABLE"
+                let type: TableInfo.TableType = typeStr.uppercased().contains("VIEW") ? .view : .table
+                return TableInfo(name: name, type: type, rowCount: nil)
+            }
+        }
+
+        // MSSQL / PostgreSQL / Redshift: use information_schema
         let query = """
             SELECT table_schema, table_name, table_type
             FROM information_schema.tables

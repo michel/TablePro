@@ -29,9 +29,6 @@ struct ContentView: View {
     @State private var sessionState: SessionStateFactory.SessionState?
     @State private var inspectorContext = InspectorContext.empty
     @State private var windowTitle: String
-    /// Per-window sidebar selection (independent of other window-tabs)
-    @State private var localSelectedTables: Set<TableInfo> = []
-
     @Environment(\.openWindow)
     private var openWindow
     @Environment(AppState.self) private var appState
@@ -98,12 +95,9 @@ struct ContentView: View {
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
             .onChange(of: DatabaseManager.shared.currentSessionId, initial: true) { _, newSessionId in
                 let ourConnectionId = payload?.connectionId
-                // Windows with a payload only react to their own connection
                 if ourConnectionId != nil {
                     guard newSessionId == ourConnectionId else { return }
                 } else {
-                    // No payload (legacy path): only pick up the initial connection,
-                    // don't switch once we already have one
                     guard currentSession == nil else { return }
                 }
 
@@ -132,15 +126,12 @@ struct ContentView: View {
             }
             .onChange(of: DatabaseManager.shared.sessionVersion, initial: true) { _, _ in
                 let sessions = DatabaseManager.shared.activeSessions
-                // Use our payload's connectionId, or our current session's id if already connected,
-                // or lastly the global currentSessionId (only for initial bootstrap)
                 let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
                 guard let sid = connectionId else {
                     if currentSession != nil { currentSession = nil }
                     return
                 }
                 guard let newSession = sessions[sid] else {
-                    // Session was removed (disconnected)
                     if currentSession?.id == sid {
                         rightPanelState?.teardown()
                         rightPanelState = nil
@@ -184,15 +175,30 @@ struct ContentView: View {
                 AppState.shared.isMongoDB = newSession.connection.type == .mongodb
                 AppState.shared.isRedis = newSession.connection.type == .redis
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
-                // Sync AppState flags from this window's session when it becomes focused
-                if let connectionId = payload?.connectionId,
-                   let session = DatabaseManager.shared.activeSessions[connectionId] {
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
+                // Only process notifications for our own window to avoid every
+                // ContentView instance re-rendering on every window focus change.
+                // Match by checking if the window is registered for our connectionId
+                // in WindowLifecycleMonitor (subtitle may not be set yet on first appear).
+                guard let notificationWindow = notification.object as? NSWindow,
+                      notificationWindow.identifier?.rawValue.contains("main") == true,
+                      let connectionId = payload?.connectionId
+                else { return }
+
+                // Verify this notification is for our window. Check WindowLifecycleMonitor
+                // first (reliable after onAppear registers), fall back to subtitle match
+                // for the brief window before registration completes.
+                let isOurWindow = WindowLifecycleMonitor.shared.windows(for: connectionId)
+                    .contains(where: { $0 === notificationWindow })
+                    || notificationWindow.subtitle == currentSession?.connection.name
+                guard isOurWindow else { return }
+
+                if let session = DatabaseManager.shared.activeSessions[connectionId] {
                     AppState.shared.isConnected = true
                     AppState.shared.isReadOnly = session.connection.isReadOnly
                     AppState.shared.isMongoDB = session.connection.type == .mongodb
                     AppState.shared.isRedis = session.connection.type == .redis
-                } else if payload?.connectionId != nil {
+                } else {
                     AppState.shared.isConnected = false
                     AppState.shared.isReadOnly = false
                     AppState.shared.isMongoDB = false
@@ -211,7 +217,7 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     SidebarView(
                         tables: sessionTablesBinding,
-                        selectedTables: $localSelectedTables,
+                        sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
                         activeTableName: windowTitle,
                         onShowAllTables: {
                             showAllTablesMetadata()
@@ -221,7 +227,7 @@ struct ContentView: View {
                         tableOperationOptions: sessionTableOperationOptionsBinding,
                         databaseType: currentSession.connection.type,
                         connectionId: currentSession.connection.id,
-                        schemaProvider: MainContentCoordinator.schemaProvider(for: currentSession.connection.id)
+                        schemaProvider: SchemaProviderRegistry.shared.provider(for: currentSession.connection.id)
                     )
                 }
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 600)
@@ -232,7 +238,7 @@ struct ContentView: View {
                     payload: payload,
                     windowTitle: $windowTitle,
                     tables: sessionTablesBinding,
-                    selectedTables: $localSelectedTables,
+                    sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
                     pendingTruncates: sessionPendingTruncatesBinding,
                     pendingDeletes: sessionPendingDeletesBinding,
                     tableOperationOptions: sessionTableOperationOptionsBinding,

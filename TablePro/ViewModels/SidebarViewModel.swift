@@ -49,10 +49,6 @@ final class SidebarViewModel {
 
     var isLoading = false
     var errorMessage: String?
-    var searchText = "" {
-        didSet { debounceSearchText() }
-    }
-
     var debouncedSearchText = ""
     var isTablesExpanded: Bool = {
         let key = "sidebar.isTablesExpanded"
@@ -88,7 +84,6 @@ final class SidebarViewModel {
     private var cancellables = Set<AnyCancellable>()
     private var hasSetupNotifications = false
     private var loadTask: Task<Void, Never>?
-    private var searchDebounceTask: Task<Void, Never>?
 
     // MARK: - Convenience Accessors
 
@@ -138,15 +133,6 @@ final class SidebarViewModel {
         self.databaseType = databaseType
         self.connectionId = connectionId
         self.tableFetcher = tableFetcher ?? LiveTableFetcher(connectionId: connectionId, schemaProvider: schemaProvider)
-    }
-
-    private func debounceSearchText() {
-        searchDebounceTask?.cancel()
-        searchDebounceTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 150_000_000)
-            guard !Task.isCancelled else { return }
-            self?.debouncedSearchText = self?.searchText ?? ""
-        }
     }
 
     // MARK: - Lifecycle

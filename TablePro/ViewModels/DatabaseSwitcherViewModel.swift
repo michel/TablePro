@@ -12,7 +12,7 @@ import os
 import SwiftUI
 
 @MainActor @Observable
-class DatabaseSwitcherViewModel {
+final class DatabaseSwitcherViewModel {
     private static let logger = Logger(subsystem: "com.TablePro", category: "DatabaseSwitcherViewModel")
 
     // MARK: - Mode

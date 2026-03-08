@@ -76,7 +76,10 @@ struct ConnectionURLFormatter {
             result += ":\(connection.port)"
         }
 
-        result += "/\(connection.database)"
+        let sshPathComponent = connection.type == .oracle
+            ? (connection.oracleServiceName ?? connection.database)
+            : connection.database
+        result += "/\(sshPathComponent)"
 
         let query = buildQueryString(connection)
         if !query.isEmpty {
@@ -106,7 +109,10 @@ struct ConnectionURLFormatter {
             result += ":\(connection.port)"
         }
 
-        result += "/\(connection.database)"
+        let pathComponent = connection.type == .oracle
+            ? (connection.oracleServiceName ?? connection.database)
+            : connection.database
+        result += "/\(pathComponent)"
 
         let query = buildQueryString(connection)
         if !query.isEmpty {
@@ -131,6 +137,15 @@ struct ConnectionURLFormatter {
 
         if connection.sshConfig.enabled && connection.sshConfig.authMethod == .privateKey {
             params.append("usePrivateKey=true")
+        }
+
+        if connection.sshConfig.enabled && connection.sshConfig.authMethod == .sshAgent {
+            params.append("useSSHAgent=true")
+            if !connection.sshConfig.agentSocketPath.isEmpty {
+                let encoded = connection.sshConfig.agentSocketPath
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? connection.sshConfig.agentSocketPath
+                params.append("agentSocket=\(encoded)")
+            }
         }
 
         if let sslParam = sslModeParam(connection.sslConfig.mode) {

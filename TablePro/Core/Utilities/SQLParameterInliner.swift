@@ -35,37 +35,52 @@ struct SQLParameterInliner {
         var paramIndex = 0
         var inString = false
         var previousWasQuote = false
-        var iterator = sql.makeIterator()
+        let nsSQL = sql as NSString
+        let length = nsSQL.length
+        var i = 0
+        var rangeStart = 0
 
-        while let char = iterator.next() {
-            if char == "'" {
+        let questionMark = UInt16(UnicodeScalar("?").value)
+        let singleQuote = UInt16(UnicodeScalar("'").value)
+
+        while i < length {
+            let ch = nsSQL.character(at: i)
+
+            if ch == singleQuote {
                 if inString {
                     if previousWasQuote {
-                        // This is the second quote of an escaped '' pair — still inside string
                         previousWasQuote = false
                     } else {
-                        // Could be end of string or start of escaped ''
                         previousWasQuote = true
                     }
                 } else {
-                    // Start of string literal
                     inString = true
                     previousWasQuote = false
                 }
-                result.append(char)
+                i += 1
             } else {
                 if previousWasQuote {
-                    // Previous quote was the closing quote (not an escape)
                     inString = false
                     previousWasQuote = false
                 }
-                if char == "?" && !inString && paramIndex < parameters.count {
+                if ch == questionMark && !inString && paramIndex < parameters.count {
+                    // Flush accumulated characters before the placeholder
+                    if rangeStart < i {
+                        result += nsSQL.substring(with: NSRange(location: rangeStart, length: i - rangeStart))
+                    }
                     result += formatValue(parameters[paramIndex])
                     paramIndex += 1
+                    i += 1
+                    rangeStart = i
                 } else {
-                    result.append(char)
+                    i += 1
                 }
             }
+        }
+
+        // Flush remaining characters
+        if rangeStart < length {
+            result += nsSQL.substring(with: NSRange(location: rangeStart, length: length - rangeStart))
         }
 
         return result
@@ -80,6 +95,7 @@ struct SQLParameterInliner {
         let nsSQL = sql as NSString
         let length = nsSQL.length
         var i = 0
+        var rangeStart = 0
 
         let dollarChar = UInt16(UnicodeScalar("$").value)
         let singleQuote = UInt16(UnicodeScalar("'").value)
@@ -90,22 +106,17 @@ struct SQLParameterInliner {
             if ch == singleQuote {
                 if inString {
                     if previousWasQuote {
-                        // Second quote of an escaped '' pair — still inside string
                         previousWasQuote = false
                     } else {
-                        // Could be end of string or start of escaped ''
                         previousWasQuote = true
                     }
                 } else {
-                    // Start of string literal
                     inString = true
                     previousWasQuote = false
                 }
-                result += nsSQL.substring(with: NSRange(location: i, length: 1))
                 i += 1
             } else {
                 if previousWasQuote {
-                    // Previous quote was the closing quote (not an escape)
                     inString = false
                     previousWasQuote = false
                 }
@@ -125,17 +136,25 @@ struct SQLParameterInliner {
                     if numEnd > i + 1,
                        let paramNumber = Int(nsSQL.substring(with: NSRange(location: i + 1, length: numEnd - i - 1))),
                        paramNumber >= 1 && paramNumber <= parameters.count {
+                        // Flush accumulated characters before the placeholder
+                        if rangeStart < i {
+                            result += nsSQL.substring(with: NSRange(location: rangeStart, length: i - rangeStart))
+                        }
                         result += formatValue(parameters[paramNumber - 1])
                         i = numEnd
+                        rangeStart = i
                     } else {
-                        result += nsSQL.substring(with: NSRange(location: i, length: 1))
                         i += 1
                     }
                 } else {
-                    result += nsSQL.substring(with: NSRange(location: i, length: 1))
                     i += 1
                 }
             }
+        }
+
+        // Flush remaining characters
+        if rangeStart < length {
+            result += nsSQL.substring(with: NSRange(location: rangeStart, length: length - rangeStart))
         }
 
         return result

@@ -79,7 +79,7 @@ struct SQLPreviewSheet: View {
         copied = true
 
         // Reset after delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             copied = false
         }
     }

@@ -22,12 +22,12 @@ final class InlineSuggestionManager {
     private weak var controller: TextViewController?
     private var debounceTimer: Timer?
     private var currentTask: Task<Void, Never>?
-    nonisolated(unsafe) private var keyEventMonitor: Any?
-    nonisolated(unsafe) private var scrollObserver: NSObjectProtocol?
+    private let _keyEventMonitor = OSAllocatedUnfairLock<Any?>(initialState: nil)
+    private let _scrollObserver = OSAllocatedUnfairLock<Any?>(initialState: nil)
 
     deinit {
-        if let keyEventMonitor { NSEvent.removeMonitor(keyEventMonitor) }
-        if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
+        if let monitor = _keyEventMonitor.withLock({ $0 }) { NSEvent.removeMonitor(monitor) }
+        if let observer = _scrollObserver.withLock({ $0 }) { NotificationCenter.default.removeObserver(observer) }
     }
 
     /// The currently displayed suggestion text, nil when no suggestion is active
@@ -72,14 +72,14 @@ final class InlineSuggestionManager {
         currentTask = nil
         removeGhostLayer()
 
-        if let monitor = keyEventMonitor {
+        if let monitor = _keyEventMonitor.withLock({ $0 }) {
             NSEvent.removeMonitor(monitor)
-            keyEventMonitor = nil
+            _keyEventMonitor.withLock { $0 = nil }
         }
 
-        if let observer = scrollObserver {
+        if let observer = _scrollObserver.withLock({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
-            scrollObserver = nil
+            _scrollObserver.withLock { $0 = nil }
         }
 
         schemaProvider = nil
@@ -204,11 +204,11 @@ final class InlineSuggestionManager {
     private func fetchSuggestion(textBefore: String, fullQuery: String) async throws -> String {
         let settings = AppSettingsManager.shared.ai
 
-        guard let (config, apiKey) = resolveProvider(for: .inlineSuggest, settings: settings) else {
+        guard let (config, apiKey) = AIProviderFactory.resolveProvider(for: .inlineSuggest, settings: settings) else {
             throw AIProviderError.networkError("No AI provider configured")
         }
 
-        let model = resolveModel(for: .inlineSuggest, config: config, settings: settings)
+        let model = AIProviderFactory.resolveModel(for: .inlineSuggest, config: config, settings: settings)
         let provider = AIProviderFactory.createProvider(for: config, apiKey: apiKey)
 
         let userMessage = AIPromptTemplates.inlineSuggest(textBefore: textBefore, fullQuery: fullQuery)
@@ -245,39 +245,6 @@ final class InlineSuggestionManager {
         }
 
         return accumulated
-    }
-
-    // MARK: - Provider Resolution (mirrors AIChatViewModel)
-
-    private func resolveProvider(
-        for feature: AIFeature,
-        settings: AISettings
-    ) -> (AIProviderConfig, String?)? {
-        // Check feature routing first
-        if let route = settings.featureRouting[feature.rawValue],
-           let config = settings.providers.first(where: { $0.id == route.providerID && $0.isEnabled }) {
-            let apiKey = AIKeyStorage.shared.loadAPIKey(for: config.id)
-            return (config, apiKey)
-        }
-
-        // Fall back to first enabled provider
-        guard let config = settings.providers.first(where: { $0.isEnabled }) else {
-            return nil
-        }
-
-        let apiKey = AIKeyStorage.shared.loadAPIKey(for: config.id)
-        return (config, apiKey)
-    }
-
-    private func resolveModel(
-        for feature: AIFeature,
-        config: AIProviderConfig,
-        settings: AISettings
-    ) -> String {
-        if let route = settings.featureRouting[feature.rawValue], !route.model.isEmpty {
-            return route.model
-        }
-        return config.model
     }
 
     /// Clean the AI suggestion: strip thinking blocks, leading newlines,
@@ -395,7 +362,7 @@ final class InlineSuggestionManager {
     // MARK: - Key Event Monitor
 
     private func installKeyEventMonitor() {
-        keyEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        _keyEventMonitor.withLock { $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
 
             // Only intercept when a suggestion is active
@@ -427,7 +394,7 @@ final class InlineSuggestionManager {
                 }
                 return event // Pass through
             }
-        }
+        } }
     }
 
     // MARK: - Scroll Observer
@@ -435,16 +402,18 @@ final class InlineSuggestionManager {
     private func installScrollObserver() {
         guard let scrollView = controller?.scrollView else { return }
 
-        scrollObserver = NotificationCenter.default.addObserver(
-            forName: NSView.boundsDidChangeNotification,
-            object: scrollView.contentView,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if let suggestion = self.currentSuggestion {
-                    // Reposition the ghost layer after scroll
-                    self.showGhostText(suggestion, at: self.suggestionOffset)
+        _scrollObserver.withLock {
+            $0 = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: scrollView.contentView,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if let suggestion = self.currentSuggestion {
+                        // Reposition the ghost layer after scroll
+                        self.showGhostText(suggestion, at: self.suggestionOffset)
+                    }
                 }
             }
         }
