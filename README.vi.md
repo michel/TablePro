@@ -5,7 +5,7 @@
 <h1 align="center">TablePro</h1>
 
 <p align="center">
-  Ứng dụng quản lý cơ sở dữ liệu native cho macOS với trợ lý SQL bằng AI.
+  Ứng dụng quản lý cơ sở dữ liệu native cho macOS với trợ lý AI.
 </p>
 
 <p align="center">
