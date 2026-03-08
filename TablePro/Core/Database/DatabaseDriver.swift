@@ -310,6 +310,7 @@ extension DatabaseDriver {
 }
 
 /// Factory for creating database drivers via plugin lookup
+@MainActor
 enum DatabaseDriverFactory {
     static func createDriver(for connection: DatabaseConnection) throws -> DatabaseDriver {
         let pluginId = connection.type.pluginTypeId

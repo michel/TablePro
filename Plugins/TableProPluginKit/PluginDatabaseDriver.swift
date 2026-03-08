@@ -128,8 +128,11 @@ public extension PluginDatabaseDriver {
     }
 
     func switchDatabase(to database: String) async throws {
-        let escaped = database.replacingOccurrences(of: "]", with: "]]")
-        _ = try await execute(query: "USE [\(escaped)]")
+        throw NSError(
+            domain: "TableProPluginKit",
+            code: -1,
+            userInfo: [NSLocalizedDescriptionKey: "This driver does not support database switching"]
+        )
     }
 
     func executeParameterized(query: String, parameters: [String?]) async throws -> PluginQueryResult {

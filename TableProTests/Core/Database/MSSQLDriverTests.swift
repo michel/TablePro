@@ -10,6 +10,7 @@ import Foundation
 import TableProPluginKit
 import Testing
 
+@MainActor
 @Suite("MSSQL Driver")
 struct MSSQLDriverTests {
     // MARK: - Helpers

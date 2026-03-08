@@ -545,6 +545,13 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         _ = try await execute(query: query)
     }
 
+    // MARK: - Database Switching
+
+    func switchDatabase(to database: String) async throws {
+        let escaped = database.replacingOccurrences(of: "`", with: "``")
+        _ = try await execute(query: "USE `\(escaped)`")
+    }
+
     // MARK: - Query Timeout
 
     func applyQueryTimeout(_ seconds: Int) async throws {

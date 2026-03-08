@@ -15,7 +15,7 @@ final class PluginManager {
 
     private(set) var plugins: [PluginEntry] = []
 
-    nonisolated(unsafe) private(set) var driverPlugins: [String: any DriverPlugin] = [:]
+    private(set) var driverPlugins: [String: any DriverPlugin] = [:]
 
     private var builtInPluginsDir: URL? { Bundle.main.builtInPlugInsURL }
 
@@ -66,14 +66,15 @@ final class PluginManager {
 
         for itemURL in contents where itemURL.pathExtension == "tableplugin" {
             do {
-                try loadPlugin(at: itemURL, source: source)
+                _ = try loadPlugin(at: itemURL, source: source)
             } catch {
                 Self.logger.error("Failed to load plugin at \(itemURL.lastPathComponent): \(error.localizedDescription)")
             }
         }
     }
 
-    private func loadPlugin(at url: URL, source: PluginSource) throws {
+    @discardableResult
+    private func loadPlugin(at url: URL, source: PluginSource) throws -> PluginEntry {
         guard let bundle = Bundle(url: url) else {
             throw PluginError.invalidBundle("Cannot create bundle from \(url.lastPathComponent)")
         }
@@ -91,10 +92,7 @@ final class PluginManager {
         if let minAppVersion = infoPlist["TableProMinAppVersion"] as? String {
             let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
             if appVersion.compare(minAppVersion, options: .numeric) == .orderedAscending {
-                throw PluginError.incompatibleVersion(
-                    required: pluginKitVersion,
-                    current: Self.currentPluginKitVersion
-                )
+                throw PluginError.appVersionTooOld(minimumRequired: minAppVersion, currentApp: appVersion)
             }
         }
 
@@ -133,6 +131,8 @@ final class PluginManager {
         }
 
         Self.logger.info("Loaded plugin '\(entry.name)' v\(entry.version) [\(source == .builtIn ? "built-in" : "user")]")
+
+        return entry
     }
 
     // MARK: - Capability Registration
@@ -151,10 +151,9 @@ final class PluginManager {
     private func unregisterCapabilities(pluginId: String) {
         driverPlugins = driverPlugins.filter { _, value in
             guard let entry = plugins.first(where: { $0.id == pluginId }) else { return true }
-            let driverTypeId = type(of: value).databaseTypeId
-            // Remove if this driver was registered by the plugin being unregistered
             if let principalClass = entry.bundle.principalClass as? any DriverPlugin.Type {
-                return principalClass.databaseTypeId != driverTypeId
+                let allTypeIds = Set([principalClass.databaseTypeId] + principalClass.additionalDatabaseTypeIds)
+                return !allTypeIds.contains(type(of: value).databaseTypeId)
             }
             return true
         }
@@ -203,11 +202,21 @@ final class PluginManager {
         process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
         process.arguments = ["-xk", zipURL.path, tempDir.path]
 
-        try process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            throw PluginError.installFailed("Failed to extract archive (ditto exit code \(process.terminationStatus))")
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            process.terminationHandler = { proc in
+                if proc.terminationStatus == 0 {
+                    continuation.resume()
+                } else {
+                    continuation.resume(throwing: PluginError.installFailed(
+                        "Failed to extract archive (ditto exit code \(proc.terminationStatus))"
+                    ))
+                }
+            }
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
         }
 
         guard let extracted = try fm.contentsOfDirectory(
@@ -236,11 +245,7 @@ final class PluginManager {
         }
         try fm.copyItem(at: extracted, to: destURL)
 
-        try loadPlugin(at: destURL, source: .userInstalled)
-
-        guard let entry = plugins.last else {
-            throw PluginError.installFailed("Plugin loaded but entry not found")
-        }
+        let entry = try loadPlugin(at: destURL, source: .userInstalled)
 
         Self.logger.info("Installed plugin '\(entry.name)' v\(entry.version)")
         return entry
@@ -275,6 +280,16 @@ final class PluginManager {
 
     // MARK: - Code Signature Verification
 
+    // TODO: Replace with actual team identifier
+    private static let signingTeamId = "YOURTEAMID"
+
+    private func createSigningRequirement() -> SecRequirement? {
+        var requirement: SecRequirement?
+        let requirementString = "anchor apple generic and certificate leaf[subject.OU] = \"\(Self.signingTeamId)\"" as CFString
+        SecRequirementCreateWithString(requirementString, SecCSFlags(), &requirement)
+        return requirement
+    }
+
     private func verifyCodeSignature(bundle: Bundle) throws {
         var staticCode: SecStaticCode?
         let createStatus = SecStaticCodeCreateWithPath(
@@ -289,10 +304,12 @@ final class PluginManager {
             )
         }
 
+        let requirement = createSigningRequirement()
+
         let checkStatus = SecStaticCodeCheckValidity(
             code,
             SecCSFlags(rawValue: kSecCSCheckAllArchitectures),
-            nil
+            requirement
         )
 
         guard checkStatus == errSecSuccess else {

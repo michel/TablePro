@@ -15,6 +15,7 @@ enum PluginError: LocalizedError {
     case noCompatibleBinary
     case installFailed(String)
     case pluginConflict(existingName: String)
+    case appVersionTooOld(minimumRequired: String, currentApp: String)
 
     var errorDescription: String? {
         switch self {
@@ -36,6 +37,8 @@ enum PluginError: LocalizedError {
             return String(localized: "Plugin installation failed: \(reason)")
         case .pluginConflict(let existingName):
             return String(localized: "A built-in plugin \"\(existingName)\" already provides this bundle ID")
+        case .appVersionTooOld(let minimumRequired, let currentApp):
+            return String(localized: "Plugin requires app version \(minimumRequired) or later, but current version is \(currentApp)")
         }
     }
 }

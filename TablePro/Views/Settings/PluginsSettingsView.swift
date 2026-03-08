@@ -15,6 +15,9 @@ struct PluginsSettingsView: View {
 
     @State private var selectedPluginId: String?
     @State private var isInstalling = false
+    @State private var showErrorAlert = false
+    @State private var errorAlertTitle = ""
+    @State private var errorAlertMessage = ""
 
     var body: some View {
         Form {
@@ -44,6 +47,11 @@ struct PluginsSettingsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .alert(errorAlertTitle, isPresented: $showErrorAlert) {
+            Button("OK") {}
+        } message: {
+            Text(errorAlertMessage)
+        }
     }
 
     // MARK: - Plugin Row
@@ -164,11 +172,9 @@ struct PluginsSettingsView: View {
                 let entry = try await pluginManager.installPlugin(from: url)
                 selectedPluginId = entry.id
             } catch {
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Plugin Installation Failed"),
-                    message: error.localizedDescription,
-                    window: NSApp.keyWindow
-                )
+                errorAlertTitle = String(localized: "Plugin Installation Failed")
+                errorAlertMessage = error.localizedDescription
+                showErrorAlert = true
             }
         }
     }
@@ -188,11 +194,9 @@ struct PluginsSettingsView: View {
                 try pluginManager.uninstallPlugin(id: plugin.id)
                 selectedPluginId = nil
             } catch {
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Uninstall Failed"),
-                    message: error.localizedDescription,
-                    window: NSApp.keyWindow
-                )
+                errorAlertTitle = String(localized: "Uninstall Failed")
+                errorAlertMessage = error.localizedDescription
+                showErrorAlert = true
             }
         }
     }

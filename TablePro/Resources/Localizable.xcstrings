@@ -6909,6 +6909,16 @@
     "Plugin not found" : {
 
     },
+    "Plugin requires app version %@ or later, but current version is %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plugin requires app version %1$@ or later, but current version is %2$@"
+          }
+        }
+      }
+    },
     "Plugin requires PluginKit version %lld, but app provides version %lld" : {
       "localizations" : {
         "en" : {

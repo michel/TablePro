@@ -485,7 +485,9 @@ final class DatabaseManager {
                     // Also reconnect the dedicated ping driver so future pings
                     // don't fail immediately after a successful main reconnect.
                     let connectionForPing = session.effectiveConnection ?? session.connection
-                    let newPingDriver = try DatabaseDriverFactory.createDriver(for: connectionForPing)
+                    let newPingDriver = try await MainActor.run {
+                        try DatabaseDriverFactory.createDriver(for: connectionForPing)
+                    }
                     try await newPingDriver.connect()
                     await self.replacePingDriver(newPingDriver, for: connectionId)
 
