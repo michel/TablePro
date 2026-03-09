@@ -123,8 +123,6 @@ struct SidebarView: View {
             loadingState
         } else if tables.isEmpty {
             emptyState
-        } else if filteredTables.isEmpty {
-            noMatchState
         } else {
             tableList
         }
@@ -170,57 +168,54 @@ struct SidebarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var noMatchState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.title)
-                .foregroundStyle(.tertiary)
-            Text(sidebarLabel(mongodb: "No matching collections", redis: "No matching databases", default: "No matching tables"))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
     // MARK: - Table List
 
     private var tableList: some View {
         List(selection: selectedTablesBinding) {
-            Section(isExpanded: $viewModel.isTablesExpanded) {
-                ForEach(filteredTables) { table in
-                    TableRow(
-                        table: table,
-                        isActive: activeTableName == table.name,
-                        isPendingTruncate: pendingTruncates.contains(table.name),
-                        isPendingDelete: pendingDeletes.contains(table.name)
-                    )
-                    .tag(table)
-                    .contextMenu {
-                        SidebarContextMenu(
-                            clickedTable: table,
-                            selectedTables: selectedTablesBinding,
-                            isReadOnly: AppState.shared.isReadOnly,
-                            onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
-                            onBatchToggleDelete: { viewModel.batchToggleDelete() }
+            if filteredTables.isEmpty {
+                ContentUnavailableView(
+                    sidebarLabel(mongodb: "No matching collections", redis: "No matching databases", default: "No matching tables"),
+                    systemImage: "magnifyingglass"
+                )
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            } else {
+                Section(isExpanded: $viewModel.isTablesExpanded) {
+                    ForEach(filteredTables) { table in
+                        TableRow(
+                            table: table,
+                            isActive: activeTableName == table.name,
+                            isPendingTruncate: pendingTruncates.contains(table.name),
+                            isPendingDelete: pendingDeletes.contains(table.name)
                         )
-                    }
-                }
-            } header: {
-                Text(sidebarLabel(mongodb: "Collections", redis: "Databases", default: "Tables"))
-                    .help(sidebarLabel(
-                        mongodb: "Right-click to show all collections",
-                        redis: "Right-click to show all databases",
-                        default: "Right-click to show all tables"
-                    ))
-                    .contextMenu {
-                        Button(sidebarLabel(
-                            mongodb: String(localized: "Show All Collections"),
-                            redis: String(localized: "Show All Databases"),
-                            default: String(localized: "Show All Tables")
-                        )) {
-                            onShowAllTables?()
+                        .tag(table)
+                        .contextMenu {
+                            SidebarContextMenu(
+                                clickedTable: table,
+                                selectedTables: selectedTablesBinding,
+                                isReadOnly: AppState.shared.isReadOnly,
+                                onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
+                                onBatchToggleDelete: { viewModel.batchToggleDelete() }
+                            )
                         }
                     }
+                } header: {
+                    Text(sidebarLabel(mongodb: "Collections", redis: "Databases", default: "Tables"))
+                        .help(sidebarLabel(
+                            mongodb: "Right-click to show all collections",
+                            redis: "Right-click to show all databases",
+                            default: "Right-click to show all tables"
+                        ))
+                        .contextMenu {
+                            Button(sidebarLabel(
+                                mongodb: String(localized: "Show All Collections"),
+                                redis: String(localized: "Show All Databases"),
+                                default: String(localized: "Show All Tables")
+                            )) {
+                                onShowAllTables?()
+                            }
+                        }
+                }
             }
         }
         .listStyle(.sidebar)
