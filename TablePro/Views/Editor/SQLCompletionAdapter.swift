@@ -160,7 +160,7 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
 
     // MARK: - Fuzzy Matching
 
-    private static func fuzzyMatch(pattern: String, target: String) -> Bool {
+    nonisolated static func fuzzyMatch(pattern: String, target: String) -> Bool {
         let nsPattern = pattern as NSString
         let nsTarget = target as NSString
         var patternIndex = 0

@@ -24,11 +24,7 @@ final class InlineSuggestionManager {
     private var currentTask: Task<Void, Never>?
     private let _keyEventMonitor = OSAllocatedUnfairLock<Any?>(initialState: nil)
     private let _scrollObserver = OSAllocatedUnfairLock<Any?>(initialState: nil)
-<<<<<<< HEAD
-    private var isEditorFocused = false
-=======
     private(set) var isEditorFocused = false
->>>>>>> 6939cb8 (test: add Vim/InlineSuggestion focus lifecycle and VimTextBufferAdapter perf tests)
 
     deinit {
         if let monitor = _keyEventMonitor.withLock({ $0 }) { NSEvent.removeMonitor(monitor) }

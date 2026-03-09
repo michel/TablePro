@@ -17,11 +17,7 @@ final class VimKeyInterceptor {
     private let _monitor = OSAllocatedUnfairLock<Any?>(initialState: nil)
     private weak var controller: TextViewController?
     private let _popupCloseObserver = OSAllocatedUnfairLock<Any?>(initialState: nil)
-<<<<<<< HEAD
-    private var isEditorFocused = false
-=======
     private(set) var isEditorFocused = false
->>>>>>> 6939cb8 (test: add Vim/InlineSuggestion focus lifecycle and VimTextBufferAdapter perf tests)
 
     deinit {
         if let monitor = _monitor.withLock({ $0 }) { NSEvent.removeMonitor(monitor) }

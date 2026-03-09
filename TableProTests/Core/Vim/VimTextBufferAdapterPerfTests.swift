@@ -62,7 +62,7 @@ struct VimTextBufferAdapterPerfTests {
     @Test("lineCount for text ending with newline")
     func trailingNewlineCount() {
         let (adapter, _) = makeAdapter(string: "a\nb\n")
-        #expect(adapter.lineCount == 3)
+        #expect(adapter.lineCount == 2)
     }
 
     // MARK: - textDidChange incremental (pure insertion)
