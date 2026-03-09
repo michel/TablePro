@@ -4139,6 +4139,9 @@
         }
       }
     },
+    "Could not fetch plugin registry" : {
+
+    },
     "Count all rows" : {
       "localizations" : {
         "vi" : {
@@ -7751,9 +7754,6 @@
         }
       }
     },
-    "gunzip not found" : {
-
-    },
     "Help improve TablePro by sharing anonymous usage statistics (no personal data or queries)." : {
       "localizations" : {
         "vi" : {
@@ -8462,6 +8462,9 @@
           }
         }
       }
+    },
+    "Installing plugin..." : {
+
     },
     "Invalid argument: %@" : {
       "extractionState" : "stale",
@@ -11732,6 +11735,9 @@
           }
         }
       }
+    },
+    "Plugin Not Installed" : {
+
     },
     "Plugin requires app version %@ or later, but current version is %@" : {
       "localizations" : {
@@ -15485,6 +15491,12 @@
           }
         }
       }
+    },
+    "The %@ plugin is not installed. Would you like to download it from the plugin marketplace?" : {
+
+    },
+    "The %@ plugin is not installed. You can download it from the plugin marketplace." : {
+
     },
     "The following %lld queries may permanently modify or delete data. This action cannot be undone.\n\n%@" : {
       "localizations" : {

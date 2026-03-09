@@ -289,6 +289,10 @@ final class PluginManager {
         return driverPlugins[databaseType.pluginTypeId] != nil
     }
 
+    func isDriverLoaded(for databaseType: DatabaseType) -> Bool {
+        driverPlugins[databaseType.pluginTypeId] != nil
+    }
+
     func installMissingPlugin(
         for databaseType: DatabaseType,
         progress: @escaping @MainActor @Sendable (Double) -> Void
@@ -300,6 +304,7 @@ final class PluginManager {
         }) {
             if !existingEntry.isEnabled {
                 setEnabled(true, pluginId: existingEntry.id)
+                loadPendingPlugins()
             }
             if driverPlugins[pluginTypeId] != nil {
                 Self.logger.info("Re-enabled existing plugin '\(existingEntry.name)' for '\(databaseType.rawValue)'")
