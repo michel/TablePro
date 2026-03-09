@@ -18,6 +18,7 @@ struct RegistryPlugin: Codable, Sendable, Identifiable {
     let author: RegistryAuthor
     let homepage: String?
     let category: RegistryCategory
+    let databaseTypeIds: [String]?
     let downloadURL: String
     let sha256: String
     let minAppVersion: String?

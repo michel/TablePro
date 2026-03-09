@@ -24,19 +24,8 @@ struct ConnectionFormView: View {
     private var isNew: Bool { connectionId == nil }
 
     private var availableDatabaseTypes: [DatabaseType] {
-        let pluginManager = PluginManager.shared
-        pluginManager.loadPendingPlugins()
-        let enabled = DatabaseType.allCases.filter { dbType in
-            pluginManager.plugins.contains { entry in
-                entry.isEnabled && (entry.databaseTypeId == dbType.pluginTypeId
-                    || entry.additionalTypeIds.contains(dbType.pluginTypeId))
-            }
-        }
-        // When editing, always include the current type so the picker binding stays valid
-        if !isNew, !enabled.contains(type) {
-            return [type] + enabled
-        }
-        return enabled
+        PluginManager.shared.loadPendingPlugins()
+        return DatabaseType.allCases
     }
 
     @State private var name: String = ""
@@ -99,6 +88,12 @@ struct ConnectionFormView: View {
     @State private var isTesting: Bool = false
     @State private var testResult: TestResult?
 
+    @State private var isInstallingPlugin = false
+    @State private var pluginInstallProgress: Double = 0
+    @State private var showPluginInstallError: String?
+    @State private var pluginInstallConnection: DatabaseConnection?
+    @State private var showPluginInstallFailed: String?
+
     // Tab selection
     @State private var selectedTab: FormTab = .general
 
@@ -149,12 +144,51 @@ struct ConnectionFormView: View {
             loadConnectionData()
             loadSSHConfig()
         }
-        .onChange(of: type) {
+        .onChange(of: type) { _, newType in
             if hasLoadedData {
-                port = String(type.defaultPort)
+                port = String(newType.defaultPort)
             }
-            if type == .sqlite && (selectedTab == .ssh || selectedTab == .ssl) {
+            if newType == .sqlite && (selectedTab == .ssh || selectedTab == .ssl) {
                 selectedTab = .general
+            }
+            if newType.isDownloadablePlugin && !PluginManager.shared.isDriverAvailable(for: newType) {
+                installPluginForType(newType)
+            }
+        }
+        .alert(
+            String(localized: "Plugin Not Installed"),
+            isPresented: Binding(
+                get: { pluginInstallConnection != nil },
+                set: { if !$0 { pluginInstallConnection = nil } }
+            )
+        ) {
+            Button(String(localized: "Install")) {
+                if let connection = pluginInstallConnection {
+                    pluginInstallConnection = nil
+                    installAndConnect(connection)
+                }
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {
+                pluginInstallConnection = nil
+            }
+        } message: {
+            if let connection = pluginInstallConnection {
+                Text("The \(connection.type.rawValue) plugin is not installed. Would you like to download it from the plugin marketplace?")
+            }
+        }
+        .alert(
+            String(localized: "Plugin Installation Failed"),
+            isPresented: Binding(
+                get: { showPluginInstallFailed != nil },
+                set: { if !$0 { showPluginInstallFailed = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                showPluginInstallFailed = nil
+            }
+        } message: {
+            if let message = showPluginInstallFailed {
+                Text(message)
             }
         }
     }
@@ -195,7 +229,22 @@ struct ConnectionFormView: View {
             Section {
                 Picker(String(localized: "Type"), selection: $type) {
                     ForEach(availableDatabaseTypes) { t in
-                        Text(t.rawValue).tag(t)
+                        Label {
+                            HStack {
+                                Text(t.rawValue)
+                                if t.isDownloadablePlugin && !PluginManager.shared.isDriverAvailable(for: t) {
+                                    Image(systemName: "arrow.down.circle")
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption)
+                                }
+                            }
+                        } icon: {
+                            Image(t.iconName)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 20, height: 20)
+                        }
+                        .tag(t)
                     }
                 }
                 TextField(
@@ -653,12 +702,36 @@ struct ConnectionFormView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Error message
+            if isInstallingPlugin {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Installing plugin...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+
             if case .failure(let message) = testResult {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
                     Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+            }
+
+            if let pluginError = showPluginInstallError {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.red)
+                    Text(pluginError)
                         .font(.caption)
                         .foregroundStyle(.red)
                         .fixedSize(horizontal: false, vertical: true)
@@ -681,7 +754,7 @@ struct ConnectionFormView: View {
                         Text("Test Connection")
                     }
                 }
-                .disabled(isTesting || !isValid)
+                .disabled(isTesting || isInstallingPlugin || !isValid)
 
                 Spacer()
 
@@ -703,7 +776,7 @@ struct ConnectionFormView: View {
                 }
                 .keyboardShortcut(.return)
                 .buttonStyle(.borderedProminent)
-                .disabled(!isValid)
+                .disabled(!isValid || isInstallingPlugin)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -757,6 +830,24 @@ struct ConnectionFormView: View {
         case .success: return .green
         case .failure: return .red
         case .none: return .secondary
+        }
+    }
+
+    private func installPluginForType(_ databaseType: DatabaseType) {
+        isInstallingPlugin = true
+        pluginInstallProgress = 0
+        showPluginInstallError = nil
+
+        Task {
+            do {
+                try await PluginManager.shared.installMissingPlugin(for: databaseType) { progress in
+                    pluginInstallProgress = progress
+                }
+                isInstallingPlugin = false
+            } catch {
+                isInstallingPlugin = false
+                showPluginInstallError = error.localizedDescription
+            }
         }
     }
 
@@ -922,8 +1013,44 @@ struct ConnectionFormView: View {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
+                if case PluginError.pluginNotInstalled = error {
+                    Self.logger.info("Plugin not installed for \(connection.type.rawValue), prompting install")
+                    handleMissingPlugin(connection: connection)
+                } else {
+                    Self.logger.error(
+                        "Failed to connect: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+    }
+
+    private func handleMissingPlugin(connection: DatabaseConnection) {
+        NSApplication.shared.closeWindows(withId: "main")
+        openWindow(id: "welcome")
+        pluginInstallConnection = connection
+    }
+
+    private func installAndConnect(_ connection: DatabaseConnection) {
+        Task {
+            do {
+                try await PluginManager.shared.installMissingPlugin(for: connection.type) { _ in }
+                connectAfterInstall(connection)
+            } catch {
+                showPluginInstallFailed = error.localizedDescription
+            }
+        }
+    }
+
+    private func connectAfterInstall(_ connection: DatabaseConnection) {
+        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
+        NSApplication.shared.closeWindows(withId: "welcome")
+
+        Task {
+            do {
+                try await dbManager.connectToSession(connection)
+            } catch {
                 Self.logger.error(
-                    "Failed to connect: \(error.localizedDescription, privacy: .public)")
+                    "Failed to connect after plugin install: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

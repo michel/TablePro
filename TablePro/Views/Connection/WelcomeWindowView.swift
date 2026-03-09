@@ -34,6 +34,8 @@ struct WelcomeWindowView: View {
         return Set(strings.compactMap { UUID(uuidString: $0) })
     }()
     @State private var showNewGroupSheet = false
+    @State private var pluginInstallConnection: DatabaseConnection?
+    @State private var showPluginInstallFailed: String?
 
     @Environment(\.openWindow) private var openWindow
 
@@ -114,6 +116,42 @@ struct WelcomeWindowView: View {
                 let group = ConnectionGroup(name: name, color: color)
                 groupStorage.addGroup(group)
                 groups = groupStorage.loadGroups()
+            }
+        }
+        .alert(
+            String(localized: "Plugin Not Installed"),
+            isPresented: Binding(
+                get: { pluginInstallConnection != nil },
+                set: { if !$0 { pluginInstallConnection = nil } }
+            )
+        ) {
+            Button(String(localized: "Install")) {
+                if let connection = pluginInstallConnection {
+                    pluginInstallConnection = nil
+                    installAndConnect(connection)
+                }
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {
+                pluginInstallConnection = nil
+            }
+        } message: {
+            if let connection = pluginInstallConnection {
+                Text("The \(connection.type.rawValue) plugin is not installed. Would you like to download it from the plugin marketplace?")
+            }
+        }
+        .alert(
+            String(localized: "Plugin Installation Failed"),
+            isPresented: Binding(
+                get: { showPluginInstallFailed != nil },
+                set: { if !$0 { showPluginInstallFailed = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                showPluginInstallFailed = nil
+            }
+        } message: {
+            if let message = showPluginInstallFailed {
+                Text(message)
             }
         }
     }
@@ -468,29 +506,63 @@ struct WelcomeWindowView: View {
         openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
         NSApplication.shared.closeWindows(withId: "welcome")
 
-        // Connect in background - main window shows loading state
         Task {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
-                Self.logger.error(
-                    "Failed to connect: \(error.localizedDescription, privacy: .public)")
-                handleConnectionFailure(error: error)
+                if case PluginError.pluginNotInstalled = error {
+                    Self.logger.info("Plugin not installed for \(connection.type.rawValue), prompting install")
+                    handleMissingPlugin(connection: connection)
+                } else {
+                    Self.logger.error(
+                        "Failed to connect: \(error.localizedDescription, privacy: .public)")
+                    handleConnectionFailure(error: error)
+                }
             }
         }
     }
 
     private func handleConnectionFailure(error: Error) {
-        // Close the main window first so macOS doesn't merge it with the welcome window
         NSApplication.shared.closeWindows(withId: "main")
         openWindow(id: "welcome")
 
-        // Show error as modal — welcome window is now the only window
         AlertHelper.showErrorSheet(
             title: String(localized: "Connection Failed"),
             message: error.localizedDescription,
             window: nil
         )
+    }
+
+    private func handleMissingPlugin(connection: DatabaseConnection) {
+        NSApplication.shared.closeWindows(withId: "main")
+        openWindow(id: "welcome")
+        pluginInstallConnection = connection
+    }
+
+    private func installAndConnect(_ connection: DatabaseConnection) {
+        Task {
+            do {
+                try await PluginManager.shared.installMissingPlugin(for: connection.type) { _ in }
+                connectAfterInstall(connection)
+            } catch {
+                showPluginInstallFailed = error.localizedDescription
+            }
+        }
+    }
+
+    private func connectAfterInstall(_ connection: DatabaseConnection) {
+        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
+        NSApplication.shared.closeWindows(withId: "welcome")
+
+        Task {
+            do {
+                try await dbManager.connectToSession(connection)
+            } catch {
+                Self.logger.error(
+                    "Failed to connect after plugin install: \(error.localizedDescription, privacy: .public)")
+                handleConnectionFailure(error: error)
+            }
+        }
     }
 
     private func deleteConnection(_ connection: DatabaseConnection) {

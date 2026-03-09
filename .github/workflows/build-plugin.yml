@@ -1,0 +1,81 @@
+name: Build Plugin
+
+on:
+  push:
+    tags: ["plugin-*-v*"]
+
+env:
+  XCODE_PROJECT: TablePro.xcodeproj
+
+jobs:
+  build-plugin:
+    name: Build Plugin
+    runs-on: self-hosted
+    timeout-minutes: 30
+
+    steps:
+      - name: Extract plugin info from tag
+        id: plugin-info
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          # Tag format: plugin-<name>-v<version>
+          # e.g., plugin-oracle-v1.0.0 -> OracleDriverPlugin
+          PLUGIN_NAME=$(echo "$TAG" | sed -E 's/^plugin-([a-z]+)-v.*$/\1/')
+          VERSION=$(echo "$TAG" | sed -E 's/^plugin-[a-z]+-v(.*)$/\1/')
+
+          # Map short name to Xcode target
+          case "$PLUGIN_NAME" in
+            oracle) TARGET="OracleDriverPlugin" ;;
+            clickhouse) TARGET="ClickHouseDriverPlugin" ;;
+            *) echo "Unknown plugin: $PLUGIN_NAME"; exit 1 ;;
+          esac
+
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "plugin_name=$PLUGIN_NAME" >> "$GITHUB_OUTPUT"
+          echo "Building $TARGET v$VERSION"
+
+      - name: Install Git LFS
+        run: brew list git-lfs &>/dev/null || brew install git-lfs; git lfs install
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Pull LFS files
+        run: git lfs pull
+
+      - name: Build plugin (ARM64)
+        run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" arm64
+
+      - name: Build plugin (x86_64)
+        run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" x86_64
+
+      - name: Notarize
+        if: env.NOTARIZE == 'true'
+        env:
+          NOTARIZE: "true"
+        run: |
+          for zip in build/Plugins/*.zip; do
+            xcrun notarytool submit "$zip" \
+              --apple-id "$APPLE_ID" \
+              --team-id "D7HJ5TFYCU" \
+              --keychain-profile "notarytool-profile" \
+              --wait
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.plugin-info.outputs.target }} v${{ steps.plugin-info.outputs.version }}"
+          body: |
+            ## ${{ steps.plugin-info.outputs.target }} v${{ steps.plugin-info.outputs.version }}
+
+            Plugin release for TablePro.
+
+            ### Installation
+            Download the ZIP for your architecture and install via **Settings > Plugins > Install from File**.
+          files: build/Plugins/*.zip
+          draft: false
+          prerelease: false

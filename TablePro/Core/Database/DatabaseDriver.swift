@@ -301,6 +301,9 @@ enum DatabaseDriverFactory {
             PluginManager.shared.loadPendingPlugins()
         }
         guard let plugin = PluginManager.shared.driverPlugins[pluginId] else {
+            if connection.type.isDownloadablePlugin {
+                throw PluginError.pluginNotInstalled(connection.type.rawValue)
+            }
             throw DatabaseError.connectionFailed(
                 "\(pluginId) driver plugin not loaded. The plugin may be disabled or missing from the PlugIns directory."
             )

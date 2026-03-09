@@ -282,6 +282,52 @@ final class PluginManager {
         }
     }
 
+    // MARK: - Driver Availability
+
+    func isDriverAvailable(for databaseType: DatabaseType) -> Bool {
+        loadPendingPlugins()
+        return driverPlugins[databaseType.pluginTypeId] != nil
+    }
+
+    func installMissingPlugin(
+        for databaseType: DatabaseType,
+        progress: @escaping @MainActor @Sendable (Double) -> Void
+    ) async throws {
+        let pluginTypeId = databaseType.pluginTypeId
+
+        if let existingEntry = plugins.first(where: { entry in
+            entry.databaseTypeId == pluginTypeId || entry.additionalTypeIds.contains(pluginTypeId)
+        }) {
+            if !existingEntry.isEnabled {
+                setEnabled(true, pluginId: existingEntry.id)
+            }
+            if driverPlugins[pluginTypeId] != nil {
+                Self.logger.info("Re-enabled existing plugin '\(existingEntry.name)' for '\(databaseType.rawValue)'")
+                return
+            }
+            Self.logger.warning("Plugin '\(existingEntry.id)' exists but driver not registered, reinstalling")
+            if existingEntry.source == .userInstalled {
+                try? uninstallPlugin(id: existingEntry.id)
+            }
+        }
+
+        let registryClient = RegistryClient.shared
+        await registryClient.fetchManifest()
+
+        guard let manifest = registryClient.manifest else {
+            throw PluginError.downloadFailed(String(localized: "Could not fetch plugin registry"))
+        }
+
+        guard let registryPlugin = manifest.plugins.first(where: { plugin in
+            plugin.databaseTypeIds?.contains(pluginTypeId) == true
+        }) else {
+            throw PluginError.notFound
+        }
+
+        let entry = try await installFromRegistry(registryPlugin, progress: progress)
+        Self.logger.info("Installed missing plugin '\(entry.name)' for database type '\(databaseType.rawValue)'")
+    }
+
     // MARK: - Enable / Disable
 
     func setEnabled(_ enabled: Bool, pluginId: String) {
