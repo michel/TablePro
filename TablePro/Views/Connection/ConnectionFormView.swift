@@ -5,9 +5,9 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import os
 import SwiftUI
 import UniformTypeIdentifiers
-import os
 
 /// Form for creating or editing a database connection
 struct ConnectionFormView: View {
@@ -960,7 +960,9 @@ struct ConnectionFormView: View {
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
             mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
-            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName
+            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName,
+            startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? nil : startupCommands
         )
 
         Task {
