@@ -2,13 +2,14 @@
 //  ExportDialog.swift
 //  TablePro
 //
-//  Main export dialog for exporting tables to CSV, JSON, or SQL formats.
+//  Main export dialog for exporting tables using format plugins.
 //  Features a split layout with table selection tree on the left and format options on the right.
 //
 
 import AppKit
 import Observation
 import SwiftUI
+import TableProPluginKit
 import UniformTypeIdentifiers
 
 /// Main export dialog view
@@ -62,14 +63,11 @@ struct ExportDialog: View {
         .frame(width: dialogWidth)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
-            if connection.type == .mongodb && config.format == .sql {
-                config.format = .mql
-            }
-            if connection.type == .redis && config.format == .sql {
-                config.format = .json
-            }
-            if connection.type == .mssql && config.format == .mql {
-                config.format = .sql
+            let available = availableFormats
+            if !available.contains(where: { type(of: $0).formatId == config.formatId }) {
+                if let first = available.first {
+                    config.formatId = type(of: first).formatId
+                }
             }
         }
         .onExitCommand {
@@ -108,10 +106,37 @@ struct ExportDialog: View {
         }
     }
 
+    // MARK: - Plugin Helpers
+
+    private var availableFormats: [any ExportFormatPlugin] {
+        let dbTypeId = connection.type.rawValue
+        return PluginManager.shared.exportPlugins.values
+            .filter { plugin in
+                let pluginType = type(of: plugin)
+                if !pluginType.supportedDatabaseTypeIds.isEmpty {
+                    return pluginType.supportedDatabaseTypeIds.contains(dbTypeId)
+                }
+                if pluginType.excludedDatabaseTypeIds.contains(dbTypeId) {
+                    return false
+                }
+                return true
+            }
+            .sorted { type(of: $0).formatDisplayName < type(of: $1).formatDisplayName }
+    }
+
+    private var availableFormatIds: [String] {
+        availableFormats.map { type(of: $0).formatId }
+    }
+
+    private var currentPlugin: (any ExportFormatPlugin)? {
+        PluginManager.shared.exportPlugins[config.formatId]
+    }
+
     // MARK: - Layout Constants
 
     private var leftPanelWidth: CGFloat {
-        (config.format == .sql || config.format == .mql) ? 380 : 240
+        guard let plugin = currentPlugin else { return 240 }
+        return type(of: plugin).perTableOptionColumns.isEmpty ? 240 : 380
     }
 
     private var dialogWidth: CGFloat {
@@ -130,36 +155,13 @@ struct ExportDialog: View {
 
                 Spacer()
 
-                if config.format == .sql {
-                    Text("Structure")
-                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 56, alignment: .center)
-
-                    Text("Drop")
-                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, alignment: .center)
-
-                    Text("Data")
-                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, alignment: .center)
-                } else if config.format == .mql {
-                    Text("Drop")
-                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, alignment: .center)
-
-                    Text("Indexes")
-                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, alignment: .center)
-
-                    Text("Data")
-                        .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, alignment: .center)
+                if let plugin = currentPlugin {
+                    ForEach(type(of: plugin).perTableOptionColumns) { column in
+                        Text(column.label)
+                            .font(.system(size: DesignConstants.FontSize.small, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: column.width, alignment: .center)
+                    }
                 }
             }
             .padding(.horizontal, 12)
@@ -183,7 +185,7 @@ struct ExportDialog: View {
             } else {
                 ExportTableTreeView(
                     databaseItems: $databaseItems,
-                    format: config.format
+                    formatId: config.formatId
                 )
                 .frame(minHeight: 300, maxHeight: .infinity)
             }
@@ -199,9 +201,11 @@ struct ExportDialog: View {
                 HStack {
                     Spacer()
 
-                    Picker("", selection: $config.format) {
-                        ForEach(ExportFormat.availableCases(for: connection.type)) { format in
-                            Text(format.rawValue).tag(format)
+                    Picker("", selection: $config.formatId) {
+                        ForEach(availableFormatIds, id: \.self) { formatId in
+                            if let plugin = PluginManager.shared.exportPlugins[formatId] {
+                                Text(type(of: plugin).formatDisplayName).tag(formatId)
+                            }
                         }
                     }
                     .pickerStyle(.segmented)
@@ -211,13 +215,13 @@ struct ExportDialog: View {
                     Spacer()
                 }
 
-                // Selection count (shows exportable count for SQL format when some tables have no options)
+                // Selection count (shows exportable count when some tables have no options)
                 VStack(spacing: 2) {
                     Text("\(exportableCount) table\(exportableCount == 1 ? "" : "s") to export")
                         .font(.system(size: DesignConstants.FontSize.small))
                         .foregroundStyle(.secondary)
 
-                    if (config.format == .sql || config.format == .mql) && exportableCount < selectedCount {
+                    if let plugin = currentPlugin, !type(of: plugin).perTableOptionColumns.isEmpty, exportableCount < selectedCount {
                         Text("\(selectedCount - exportableCount) skipped (no options)")
                             .font(.system(size: DesignConstants.FontSize.small))
                             .foregroundStyle(.orange)
@@ -234,17 +238,8 @@ struct ExportDialog: View {
             // Format-specific options
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    switch config.format {
-                    case .csv:
-                        ExportCSVOptionsView(options: $config.csvOptions)
-                    case .json:
-                        ExportJSONOptionsView(options: $config.jsonOptions)
-                    case .sql:
-                        ExportSQLOptionsView(options: $config.sqlOptions)
-                    case .mql:
-                        ExportMQLOptionsView(options: $config.mqlOptions)
-                    case .xlsx:
-                        ExportXLSXOptionsView(options: $config.xlsxOptions)
+                    if let optionsView = currentPlugin?.optionsView() {
+                        optionsView
                     }
                 }
                 .padding(.horizontal, 16)
@@ -332,13 +327,8 @@ struct ExportDialog: View {
 
     private var exportableTables: [ExportTableItem] {
         let tables = selectedTables
-        if config.format == .sql {
-            return tables.filter { $0.sqlOptions.hasAnyOption }
-        }
-        if config.format == .mql {
-            return tables.filter { $0.mqlOptions.hasAnyOption }
-        }
-        return tables
+        guard let plugin = currentPlugin else { return tables }
+        return tables.filter { plugin.isTableExportable(optionValues: $0.optionValues) }
     }
 
     /// Count of tables that will actually produce output
@@ -347,10 +337,7 @@ struct ExportDialog: View {
     }
 
     private var fileExtension: String {
-        if config.format == .sql && config.sqlOptions.compressWithGzip {
-            return "sql.gz"
-        }
-        return config.format.fileExtension
+        currentPlugin?.currentFileExtension ?? config.formatId
     }
 
     /// Windows reserved device names (case-insensitive)
@@ -645,22 +632,24 @@ struct ExportDialog: View {
     }
 
     private func performExport() {
-        // Show save panel
         let savePanel = NSSavePanel()
         savePanel.canCreateDirectories = true
         savePanel.showsTagField = false
 
-        // Configure allowed file types
-        if config.format == .sql && config.sqlOptions.compressWithGzip {
-            savePanel.allowedContentTypes = [UTType(filenameExtension: "gz") ?? .data]
-            savePanel.nameFieldStringValue = "\(config.fileName).sql.gz"
+        let ext = fileExtension
+        if ext.contains(".") {
+            // Compound extension like "sql.gz"
+            let lastComponent = ext.components(separatedBy: ".").last ?? ext
+            savePanel.allowedContentTypes = [UTType(filenameExtension: lastComponent) ?? .data]
+            savePanel.nameFieldStringValue = "\(config.fileName).\(ext)"
         } else {
-            let utType = UTType(filenameExtension: config.format.fileExtension) ?? .plainText
+            let utType = UTType(filenameExtension: ext) ?? .plainText
             savePanel.allowedContentTypes = [utType]
             savePanel.nameFieldStringValue = config.fullFileName
         }
 
-        savePanel.message = "Export \(exportableCount) table(s) to \(config.format.rawValue)"
+        let formatName = currentPlugin.map { type(of: $0).formatDisplayName } ?? config.formatId.uppercased()
+        savePanel.message = "Export \(exportableCount) table(s) to \(formatName)"
 
         savePanel.begin { response in
             guard response == .OK, let url = savePanel.url else { return }
