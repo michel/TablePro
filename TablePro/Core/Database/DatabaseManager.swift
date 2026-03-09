@@ -40,8 +40,6 @@ final class DatabaseManager {
     /// Health monitors for active connections (MySQL/PostgreSQL only)
     private var healthMonitors: [UUID: ConnectionHealthMonitor] = [:]
 
-    private var metadataCreationTasks: [UUID: Task<Void, Never>] = [:]
-
     /// Current session (computed from currentSessionId)
     var currentSession: ConnectionSession? {
         guard let sessionId = currentSessionId else { return nil }
@@ -53,74 +51,9 @@ final class DatabaseManager {
         currentSession?.driver
     }
 
-    /// Dedicated driver for metadata queries (columns, FKs, count).
-    /// Runs on a separate serial queue so metadata fetches don't block the main query.
-    var activeMetadataDriver: DatabaseDriver? {
-        currentSession?.metadataDriver
-    }
-
     /// Resolve the driver for a specific connection (session-scoped, no global state)
     func driver(for connectionId: UUID) -> DatabaseDriver? {
         activeSessions[connectionId]?.driver
-    }
-
-    /// Resolve the metadata driver for a specific connection
-    func metadataDriver(for connectionId: UUID) -> DatabaseDriver? {
-        activeSessions[connectionId]?.metadataDriver
-    }
-
-    /// Lazily create the metadata driver for a connection if it doesn't exist yet.
-    /// Returns the metadata driver on success, or nil if creation fails (non-fatal).
-    /// Callers should fall back to the main driver when this returns nil.
-    @discardableResult
-    func ensureMetadataDriver(for connectionId: UUID) async -> DatabaseDriver? {
-        // Already created — return immediately
-        if let existing = activeSessions[connectionId]?.metadataDriver {
-            return existing
-        }
-
-        // Already being created — wait for the in-flight task
-        if let existingTask = metadataCreationTasks[connectionId] {
-            await existingTask.value
-            return activeSessions[connectionId]?.metadataDriver
-        }
-
-        guard let session = activeSessions[connectionId] else { return nil }
-
-        let effectiveConnection = session.effectiveConnection ?? session.connection
-        let timeoutSeconds = AppSettingsManager.shared.general.queryTimeoutSeconds
-        let startupCmds = session.connection.startupCommands
-        let connName = session.connection.name
-
-        let task = Task { [weak self] in
-            guard let self else { return }
-            defer { self.metadataCreationTasks.removeValue(forKey: connectionId) }
-            do {
-                let metaDriver = try DatabaseDriverFactory.createDriver(for: effectiveConnection)
-                try await metaDriver.connect()
-                if timeoutSeconds > 0 {
-                    try? await metaDriver.applyQueryTimeout(timeoutSeconds)
-                }
-                await self.executeStartupCommands(
-                    startupCmds, on: metaDriver, connectionName: connName
-                )
-                if let savedSchema = self.activeSessions[connectionId]?.currentSchema,
-                   let schemaMetaDriver = metaDriver as? SchemaSwitchable {
-                    try? await schemaMetaDriver.switchSchema(to: savedSchema)
-                }
-                if let savedDatabase = self.activeSessions[connectionId]?.currentDatabase,
-                   let adapter = metaDriver as? PluginDriverAdapter {
-                    try? await adapter.switchDatabase(to: savedDatabase)
-                }
-                self.activeSessions[connectionId]?.metadataDriver = metaDriver
-            } catch {
-                Self.logger.warning("Metadata connection failed: \(error.localizedDescription)")
-            }
-        }
-
-        metadataCreationTasks[connectionId] = task
-        await task.value
-        return activeSessions[connectionId]?.metadataDriver
     }
 
     /// Resolve a session by explicit connection ID
@@ -261,9 +194,6 @@ final class DatabaseManager {
                 await startHealthMonitor(for: connection.id)
             }
 
-            // Metadata driver is created lazily on first access via ensureMetadataDriver(for:)
-            // to avoid allocating ~30-50 MB for a second C-level driver when no metadata
-            // queries are needed (e.g. query-only tabs, short-lived connections).
         } catch {
             // Close tunnel if connection failed
             if connection.sshConfig.enabled {
@@ -308,14 +238,9 @@ final class DatabaseManager {
             try? await SSHTunnelManager.shared.closeTunnel(connectionId: session.connection.id)
         }
 
-        // Cancel any in-flight metadata driver creation
-        metadataCreationTasks[sessionId]?.cancel()
-        metadataCreationTasks.removeValue(forKey: sessionId)
-
         // Stop health monitoring
         await stopHealthMonitor(for: sessionId)
 
-        session.metadataDriver?.disconnect()
         session.driver?.disconnect()
         activeSessions.removeValue(forKey: sessionId)
 
@@ -343,9 +268,6 @@ final class DatabaseManager {
         for sessionId in monitorIds {
             await stopHealthMonitor(for: sessionId)
         }
-
-        for task in metadataCreationTasks.values { task.cancel() }
-        metadataCreationTasks.removeAll()
 
         let sessionIds = Array(activeSessions.keys)
         for sessionId in sessionIds {
@@ -628,7 +550,6 @@ final class DatabaseManager {
 
         do {
             // Disconnect existing drivers
-            session.metadataDriver?.disconnect()
             session.driver?.disconnect()
 
             // Recreate SSH tunnel if needed and build effective connection
@@ -665,9 +586,6 @@ final class DatabaseManager {
                 session.status = .connected
                 session.effectiveConnection = effectiveConnection
             }
-
-            // Metadata driver is created lazily via ensureMetadataDriver(for:).
-            // Previous metadata driver was already disconnected above.
 
             // Restart health monitoring
             if session.connection.type != .sqlite {

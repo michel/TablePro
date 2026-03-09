@@ -545,14 +545,18 @@ final class MainContentCoordinator {
                     let cached = isMetadataCached(tabId: tabId, tableName: tableName)
                     needsMetadataFetch = !cached
 
-                    // If metadata is NOT cached, lazily create (or reuse) the dedicated
-                    // metadata driver so Phase 2 queries run in parallel with the main query.
-                    if needsMetadataFetch, let metaDriver = await DatabaseManager.shared.ensureMetadataDriver(for: connectionId) {
+                    // Metadata queries run on the main driver. They serialize behind any
+                    // in-flight query at the C-level DispatchQueue and execute immediately after.
+                    if needsMetadataFetch {
+                        let connId = connectionId
                         parallelSchemaTask = Task {
-                            async let cols = metaDriver.fetchColumns(table: tableName)
-                            async let fks = metaDriver.fetchForeignKeys(table: tableName)
+                            guard let driver = DatabaseManager.shared.driver(for: connId) else {
+                                throw DatabaseError.notConnected
+                            }
+                            async let cols = driver.fetchColumns(table: tableName)
+                            async let fks = driver.fetchForeignKeys(table: tableName)
                             let result = try await (columnInfo: cols, fkInfo: fks)
-                            let approxCount = try? await metaDriver.fetchApproximateRowCount(table: tableName)
+                            let approxCount = try? await driver.fetchApproximateRowCount(table: tableName)
                             return (columnInfo: result.columnInfo, fkInfo: result.fkInfo, approximateRowCount: approxCount)
                         }
                     }
@@ -1387,8 +1391,7 @@ private extension MainContentCoordinator {
         }
 
         // Phase 2b: Fetch enum/set values
-        let enumDriver = DatabaseManager.shared.metadataDriver(for: connectionId)
-            ?? DatabaseManager.shared.driver(for: connectionId)
+        let enumDriver = DatabaseManager.shared.driver(for: connectionId)
         guard let enumDriver else { return }
 
         Task { [weak self] in
