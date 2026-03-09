@@ -85,6 +85,8 @@ struct MainEditorContentView: View {
     // MARK: - Body
 
     var body: some View {
+        let isHistoryVisible = appState.isHistoryPanelVisible
+
         VStack(spacing: 0) {
             // Native macOS window tabs replace the custom tab bar.
             // Each window-tab contains a single tab — no ZStack keep-alive needed.
@@ -95,7 +97,7 @@ struct MainEditorContentView: View {
             }
 
             // Global History Panel
-            if appState.isHistoryPanelVisible {
+            if isHistoryVisible {
                 Divider()
                 HistoryPanelView()
                     .frame(height: 300)
@@ -103,7 +105,7 @@ struct MainEditorContentView: View {
             }
         }
         .background(.background)
-        .animation(.easeInOut(duration: 0.2), value: appState.isHistoryPanelVisible)
+        .animation(.easeInOut(duration: 0.2), value: isHistoryVisible)
         .onChange(of: tabManager.tabs.count) {
             // Clean up caches for closed tabs
             let openTabIds = Set(tabManager.tabs.map(\.id))

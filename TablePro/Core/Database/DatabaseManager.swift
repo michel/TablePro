@@ -17,12 +17,22 @@ final class DatabaseManager {
 
     /// All active connection sessions
     private(set) var activeSessions: [UUID: ConnectionSession] = [:] {
-        didSet { sessionVersion &+= 1 }
+        didSet {
+            if Set(oldValue.keys) != Set(activeSessions.keys) {
+                connectionListVersion &+= 1
+            }
+            connectionStatusVersion &+= 1
+        }
     }
 
-    /// Monotonically increasing counter; incremented on every mutation of activeSessions.
-    /// Used by views for `.onChange` since `[UUID: ConnectionSession]` is not `Equatable`.
-    private(set) var sessionVersion: Int = 0
+    /// Incremented only when sessions are added or removed (keys change).
+    private(set) var connectionListVersion: Int = 0
+
+    /// Incremented when any session state changes (status, driver, metadata, etc.).
+    private(set) var connectionStatusVersion: Int = 0
+
+    /// Backward-compatible alias for views not yet migrated to fine-grained counters.
+    var sessionVersion: Int { connectionStatusVersion }
 
     /// Currently selected session ID (displayed in UI)
     private(set) var currentSessionId: UUID?
