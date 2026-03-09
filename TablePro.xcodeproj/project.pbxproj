@@ -24,12 +24,6 @@
 		5A867000D00000000 /* RedisDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A867000100000000 /* RedisDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A868000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A868000D00000000 /* PostgreSQLDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A868000100000000 /* PostgreSQLDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000002 /* CodeEditSourceEditor */; };
-		5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000003 /* CodeEditLanguages */; };
-		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
-		5ACE00012F4F00000000000A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000009 /* Sparkle */; };
-		5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000C /* MarkdownUI */; };
-		5AEE5B362F5C9B7B00FA84D7 /* OracleNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000F /* OracleNIO */; };
 		5A86A000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A86A000D00000000 /* CSVExport.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A86A000100000000 /* CSVExport.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A86B000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
@@ -40,6 +34,12 @@
 		5A86D000D00000000 /* XLSXExport.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A86D000100000000 /* XLSXExport.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A86E000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A86E000D00000000 /* MQLExport.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A86E000100000000 /* MQLExport.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000002 /* CodeEditSourceEditor */; };
+		5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000003 /* CodeEditLanguages */; };
+		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
+		5ACE00012F4F00000000000A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000009 /* Sparkle */; };
+		5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000C /* MarkdownUI */; };
+		5AEE5B362F5C9B7B00FA84D7 /* OracleNIO in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000F /* OracleNIO */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */

@@ -127,6 +127,18 @@ final class MainContentCoordinator {
         }
     }()
 
+    /// Evict row data for all tabs in this coordinator to free memory.
+    /// Called when the coordinator's native window-tab becomes inactive.
+    /// Data is re-fetched automatically when the tab becomes active again.
+    func evictInactiveRowData() {
+        for tab in tabManager.tabs where !tab.rowBuffer.isEvicted
+            && !tab.resultRows.isEmpty
+            && !tab.pendingChanges.hasChanges
+        {
+            tab.rowBuffer.evict()
+        }
+    }
+
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
         if querySortCache.keys.contains(where: { !openTabIds.contains($0) }) {

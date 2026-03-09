@@ -37,6 +37,8 @@ final class PluginManager {
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "PluginManager")
 
+    private var pendingPluginURLs: [(url: URL, source: PluginSource)] = []
+
     private init() {}
 
     // MARK: - Loading
@@ -52,17 +54,34 @@ final class PluginManager {
         }
 
         if let builtInDir = builtInPluginsDir {
-            loadPlugins(from: builtInDir, source: .builtIn)
+            discoverPlugins(from: builtInDir, source: .builtIn)
         }
 
-        loadPlugins(from: userPluginsDir, source: .userInstalled)
+        discoverPlugins(from: userPluginsDir, source: .userInstalled)
+
+        Self.logger.info("Discovered \(self.pendingPluginURLs.count) plugin(s), will load on first use")
+    }
+
+    /// Load all discovered but not-yet-loaded plugin bundles.
+    /// Called on first driver request or when the plugins settings screen opens.
+    func loadPendingPlugins() {
+        guard !pendingPluginURLs.isEmpty else { return }
+        let pending = pendingPluginURLs
+        pendingPluginURLs.removeAll()
+
+        for entry in pending {
+            do {
+                try loadPlugin(at: entry.url, source: entry.source)
+            } catch {
+                Self.logger.error("Failed to load plugin at \(entry.url.lastPathComponent): \(error.localizedDescription)")
+            }
+        }
 
         validateDependencies()
-
         Self.logger.info("Loaded \(self.plugins.count) plugin(s): \(self.driverPlugins.count) driver(s), \(self.exportPlugins.count) export format(s)")
     }
 
-    private func loadPlugins(from directory: URL, source: PluginSource) {
+    private func discoverPlugins(from directory: URL, source: PluginSource) {
         let fm = FileManager.default
         guard let contents = try? fm.contentsOfDirectory(
             at: directory,
@@ -74,11 +93,40 @@ final class PluginManager {
 
         for itemURL in contents where itemURL.pathExtension == "tableplugin" {
             do {
-                _ = try loadPlugin(at: itemURL, source: source)
+                try discoverPlugin(at: itemURL, source: source)
             } catch {
-                Self.logger.error("Failed to load plugin at \(itemURL.lastPathComponent): \(error.localizedDescription)")
+                Self.logger.error("Failed to discover plugin at \(itemURL.lastPathComponent): \(error.localizedDescription)")
             }
         }
+    }
+
+    private func discoverPlugin(at url: URL, source: PluginSource) throws {
+        guard let bundle = Bundle(url: url) else {
+            throw PluginError.invalidBundle("Cannot create bundle from \(url.lastPathComponent)")
+        }
+
+        let infoPlist = bundle.infoDictionary ?? [:]
+
+        let pluginKitVersion = infoPlist["TableProPluginKitVersion"] as? Int ?? 0
+        if pluginKitVersion > Self.currentPluginKitVersion {
+            throw PluginError.incompatibleVersion(
+                required: pluginKitVersion,
+                current: Self.currentPluginKitVersion
+            )
+        }
+
+        if let minAppVersion = infoPlist["TableProMinAppVersion"] as? String {
+            let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+            if appVersion.compare(minAppVersion, options: .numeric) == .orderedAscending {
+                throw PluginError.appVersionTooOld(minimumRequired: minAppVersion, currentApp: appVersion)
+            }
+        }
+
+        if source == .userInstalled {
+            try verifyCodeSignature(bundle: bundle)
+        }
+
+        pendingPluginURLs.append((url: url, source: source))
     }
 
     @discardableResult

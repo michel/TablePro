@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reduce memory: eliminate dedicated ping driver (~30-50 MB per connection), use main driver for health checks
+- Reduce memory: evict inactive native window-tab row data after 5s, re-fetch on focus
+- Reduce memory: lazy-load plugin bundles on first use instead of at startup (~20-30 MB saved)
+- Reduce memory: remove duplicate sourceQuery string from RowBuffer
 - Split DatabaseManager.sessionVersion into fine-grained connectionListVersion and connectionStatusVersion to reduce cascade re-renders
 - Extract AppState property reads into local lets in view bodies for explicit granular observation tracking
 - Reorganized project directory structure: Services, Utilities, Models split into domain-specific subdirectories

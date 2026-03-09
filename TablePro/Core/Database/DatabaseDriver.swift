@@ -297,6 +297,9 @@ extension DatabaseDriver {
 enum DatabaseDriverFactory {
     static func createDriver(for connection: DatabaseConnection) throws -> DatabaseDriver {
         let pluginId = connection.type.pluginTypeId
+        if PluginManager.shared.driverPlugins[pluginId] == nil {
+            PluginManager.shared.loadPendingPlugins()
+        }
         guard let plugin = PluginManager.shared.driverPlugins[pluginId] else {
             throw DatabaseError.connectionFailed(
                 "\(pluginId) driver plugin not loaded. The plugin may be disabled or missing from the PlugIns directory."

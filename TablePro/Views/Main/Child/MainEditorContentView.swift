@@ -321,6 +321,10 @@ struct MainEditorContentView: View {
     }
 
     private func rowProvider(for tab: QueryTab) -> InMemoryRowProvider {
+        if tab.rowBuffer.isEvicted {
+            tabRowProviders.removeValue(forKey: tab.id)
+            return makeRowProvider(for: tab)
+        }
         if let cached = tabRowProviders[tab.id],
            tabProviderVersions[tab.id] == tab.resultVersion,
            tabProviderMetaVersions[tab.id] == tab.metadataVersion {

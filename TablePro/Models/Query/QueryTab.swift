@@ -254,9 +254,6 @@ final class RowBuffer {
     /// Whether this buffer's row data has been evicted to save memory
     private(set) var isEvicted: Bool = false
 
-    /// The query that produced this data (used to re-fetch after eviction)
-    var sourceQuery: String?
-
     /// Evict row data to free memory. Column metadata is preserved.
     func evict() {
         guard !isEvicted else { return }

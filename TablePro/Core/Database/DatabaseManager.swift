@@ -40,10 +40,6 @@ final class DatabaseManager {
     /// Health monitors for active connections (MySQL/PostgreSQL only)
     private var healthMonitors: [UUID: ConnectionHealthMonitor] = [:]
 
-    /// Dedicated lightweight drivers used exclusively for health-check pings.
-    /// Separate from the main driver so pings never queue behind long-running user queries.
-    private var pingDrivers: [UUID: DatabaseDriver] = [:]
-
     private var metadataCreationTasks: [UUID: Task<Void, Never>] = [:]
 
     /// Current session (computed from currentSessionId)
@@ -475,43 +471,15 @@ final class DatabaseManager {
         // Stop any existing monitor
         await stopHealthMonitor(for: connectionId)
 
-        // Create a dedicated lightweight driver for pings so they never
-        // queue behind long-running user queries on the main driver.
-        if let session = activeSessions[connectionId] {
-            let connectionForPing = session.effectiveConnection ?? session.connection
-            let dedicatedPingDriver: DatabaseDriver
-            do {
-                dedicatedPingDriver = try DatabaseDriverFactory.createDriver(for: connectionForPing)
-            } catch {
-                Self.logger.warning("Failed to create ping driver for \(connectionId): \(error.localizedDescription)")
-                return
-            }
-            do {
-                try await dedicatedPingDriver.connect()
-                pingDrivers[connectionId] = dedicatedPingDriver
-            } catch {
-                Self.logger.warning(
-                    "Failed to create dedicated ping driver, will fall back to main driver")
-            }
-        }
-
         let monitor = ConnectionHealthMonitor(
             connectionId: connectionId,
             pingHandler: { [weak self] in
                 guard let self else { return false }
-                // Prefer the dedicated ping driver so pings are never blocked
-                // by long-running user queries on the main driver.
-                let pingDriver = await self.pingDrivers[connectionId]
-                let driver: DatabaseDriver
-                if let pingDriver {
-                    driver = pingDriver
-                } else if let mainDriver = await self.activeSessions[connectionId]?.driver {
-                    driver = mainDriver
-                } else {
+                guard let mainDriver = await self.activeSessions[connectionId]?.driver else {
                     return false
                 }
                 do {
-                    _ = try await driver.execute(query: "SELECT 1")
+                    _ = try await mainDriver.execute(query: "SELECT 1")
                     return true
                 } catch {
                     return false
@@ -526,15 +494,6 @@ final class DatabaseManager {
                         session.driver = driver
                         session.status = .connected
                     }
-
-                    // Also reconnect the dedicated ping driver so future pings
-                    // don't fail immediately after a successful main reconnect.
-                    let connectionForPing = session.effectiveConnection ?? session.connection
-                    let newPingDriver = try await MainActor.run {
-                        try DatabaseDriverFactory.createDriver(for: connectionForPing)
-                    }
-                    try await newPingDriver.connect()
-                    await self.replacePingDriver(newPingDriver, for: connectionId)
 
                     return true
                 } catch {
@@ -610,21 +569,10 @@ final class DatabaseManager {
         return driver
     }
 
-    /// Replace the dedicated ping driver for a connection, disconnecting the old one.
-    private func replacePingDriver(_ newDriver: DatabaseDriver, for connectionId: UUID) {
-        pingDrivers[connectionId]?.disconnect()
-        pingDrivers[connectionId] = newDriver
-    }
-
     /// Stop health monitoring for a connection
     private func stopHealthMonitor(for connectionId: UUID) async {
         if let monitor = healthMonitors.removeValue(forKey: connectionId) {
             await monitor.stopMonitoring()
-        }
-
-        // Disconnect and remove the dedicated ping driver
-        if let pingDriver = pingDrivers.removeValue(forKey: connectionId) {
-            pingDriver.disconnect()
         }
     }
 
