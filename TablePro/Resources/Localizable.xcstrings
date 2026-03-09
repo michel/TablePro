@@ -2875,6 +2875,9 @@
     "Database Driver" : {
 
     },
+    "Database Drivers" : {
+
+    },
     "Database File" : {
       "localizations" : {
         "vi" : {
@@ -4012,6 +4015,9 @@
     "Export Format" : {
 
     },
+    "Export Formats" : {
+
+    },
     "Export multiple tables" : {
       "localizations" : {
         "vi" : {
@@ -4166,6 +4172,9 @@
         }
       }
     },
+    "Failed to load plugin registry" : {
+
+    },
     "Failed to load preview using encoding: %@. Try selecting a different text encoding from the encoding picker and reload the preview." : {
       "localizations" : {
         "vi" : {
@@ -4228,6 +4237,9 @@
           }
         }
       }
+    },
+    "Failed to parse plugin registry" : {
+
     },
     "Failed to parse statement at line %lld: %@" : {
       "localizations" : {
@@ -4738,6 +4750,9 @@
         }
       }
     },
+    "Homepage" : {
+
+    },
     "Host" : {
       "localizations" : {
         "vi" : {
@@ -4837,6 +4852,9 @@
       }
     },
     "Import Format" : {
+
+    },
+    "Import Formats" : {
 
     },
     "Import from DDL" : {
@@ -5032,7 +5050,19 @@
         }
       }
     },
+    "Install" : {
+
+    },
     "Install from File..." : {
+
+    },
+    "Install Plugin" : {
+
+    },
+    "Installation Failed" : {
+
+    },
+    "Installed" : {
 
     },
     "Installed Plugins" : {
@@ -5450,6 +5480,9 @@
           }
         }
       }
+    },
+    "Loading plugins..." : {
+
     },
     "Loading schemas..." : {
       "localizations" : {
@@ -6188,6 +6221,9 @@
         }
       }
     },
+    "No plugins found" : {
+
+    },
     "No primary key selected (not recommended)" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6751,6 +6787,9 @@
         }
       }
     },
+    "Other" : {
+
+    },
     "Page size must be between %@ and %@" : {
       "localizations" : {
         "en" : {
@@ -6898,6 +6937,9 @@
 
     },
     "Plugin does not contain a compatible binary for this architecture" : {
+
+    },
+    "Plugin download failed: %@" : {
 
     },
     "Plugin Installation Failed" : {
@@ -8089,6 +8131,9 @@
         }
       }
     },
+    "Search plugins..." : {
+
+    },
     "Search queries..." : {
       "localizations" : {
         "vi" : {
@@ -9181,6 +9226,9 @@
         }
       }
     },
+    "Themes" : {
+
+    },
     "This database has no tables yet." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -9231,6 +9279,9 @@
           }
         }
       }
+    },
+    "This plugin requires TablePro %@ or later" : {
+
     },
     "This query may permanently modify or delete data." : {
       "localizations" : {
@@ -9585,6 +9636,9 @@
         }
       }
     },
+    "Try Again" : {
+
+    },
     "Type" : {
       "localizations" : {
         "vi" : {
@@ -9855,6 +9909,9 @@
           }
         }
       }
+    },
+    "Verified by TablePro" : {
+
     },
     "Verify certificate and hostname" : {
       "localizations" : {
