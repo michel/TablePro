@@ -495,18 +495,20 @@ build_for_arch() {
         codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$dylib"
     done
 
-    # Sign plugin bundles (stripped binaries need re-signing, preserve entitlements)
+    # Sign plugin bundles (stripped binaries need re-signing)
+    # Sign binary first, then bundle — inside-out order required for valid signatures
     if [ -d "$PLUGINS_DIR" ]; then
         for plugin in "$PLUGINS_DIR"/*.tableplugin; do
             [ -d "$plugin" ] || continue
-            local ent_file="/tmp/plugin_entitlements_$$.plist"
-            codesign -d --entitlements - "$plugin" > "$ent_file" 2>/dev/null || true
-            if [ -s "$ent_file" ]; then
-                codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp --entitlements "$ent_file" "$plugin"
-            else
-                codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin"
+            local plugin_name
+            plugin_name=$(basename "$plugin" .tableplugin)
+            local plugin_binary="$plugin/Contents/MacOS/$plugin_name"
+            # Sign the binary inside the bundle first
+            if [ -f "$plugin_binary" ]; then
+                codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin_binary"
             fi
-            rm -f "$ent_file"
+            # Then sign the bundle
+            codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin"
         done
     fi
 
