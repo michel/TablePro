@@ -186,6 +186,7 @@ final class PluginManager {
 
     private func replaceExistingPlugin(bundleId: String) {
         guard let existingIndex = plugins.firstIndex(where: { $0.id == bundleId }) else { return }
+        // Order matters: unregisterCapabilities reads from `plugins` to find the principal class
         unregisterCapabilities(pluginId: bundleId)
         plugins[existingIndex].bundle.unload()
         plugins.remove(at: existingIndex)
