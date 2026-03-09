@@ -316,37 +316,46 @@ final class PluginManager {
             }
         }
 
-        guard let extracted = try fm.contentsOfDirectory(
+        let extractedBundles = try fm.contentsOfDirectory(
             at: tempDir,
             includingPropertiesForKeys: nil,
             options: [.skipsHiddenFiles]
-        ).first(where: { $0.pathExtension == "tableplugin" }) else {
+        ).filter { $0.pathExtension == "tableplugin" }
+
+        guard !extractedBundles.isEmpty else {
             throw PluginError.installFailed("No .tableplugin bundle found in archive")
         }
 
-        guard let extractedBundle = Bundle(url: extracted) else {
-            throw PluginError.invalidBundle("Cannot create bundle from extracted plugin")
+        var lastEntry: PluginEntry?
+        for extracted in extractedBundles {
+            guard let extractedBundle = Bundle(url: extracted) else {
+                throw PluginError.invalidBundle("Cannot create bundle from extracted plugin '\(extracted.lastPathComponent)'")
+            }
+
+            try verifyCodeSignature(bundle: extractedBundle)
+
+            let newBundleId = extractedBundle.bundleIdentifier ?? extracted.lastPathComponent
+            if let existing = plugins.first(where: { $0.id == newBundleId }), existing.source == .builtIn {
+                throw PluginError.pluginConflict(existingName: existing.name)
+            }
+
+            replaceExistingPlugin(bundleId: newBundleId)
+
+            let destURL = userPluginsDir.appendingPathComponent(extracted.lastPathComponent)
+
+            if fm.fileExists(atPath: destURL.path) {
+                try fm.removeItem(at: destURL)
+            }
+            try fm.copyItem(at: extracted, to: destURL)
+
+            let entry = try loadPlugin(at: destURL, source: .userInstalled)
+            Self.logger.info("Installed plugin '\(entry.name)' v\(entry.version)")
+            lastEntry = entry
         }
 
-        try verifyCodeSignature(bundle: extractedBundle)
-
-        let newBundleId = extractedBundle.bundleIdentifier ?? extracted.lastPathComponent
-        if let existing = plugins.first(where: { $0.id == newBundleId }), existing.source == .builtIn {
-            throw PluginError.pluginConflict(existingName: existing.name)
+        guard let entry = lastEntry else {
+            throw PluginError.installFailed("No .tableplugin bundle found in archive")
         }
-
-        replaceExistingPlugin(bundleId: newBundleId)
-
-        let destURL = userPluginsDir.appendingPathComponent(extracted.lastPathComponent)
-
-        if fm.fileExists(atPath: destURL.path) {
-            try fm.removeItem(at: destURL)
-        }
-        try fm.copyItem(at: extracted, to: destURL)
-
-        let entry = try loadPlugin(at: destURL, source: .userInstalled)
-
-        Self.logger.info("Installed plugin '\(entry.name)' v\(entry.version)")
         return entry
     }
 
