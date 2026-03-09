@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Import plugin system: SQL import extracted into a `.tableplugin` bundle, matching the export plugin architecture
+- `ImportFormatPlugin` protocol in TableProPluginKit for building custom import format plugins
+- SQLImportPlugin as the first import format plugin (SQL files and .gz compressed SQL)
+
 ## [0.16.1] - 2026-03-09
 
 ### Fixed

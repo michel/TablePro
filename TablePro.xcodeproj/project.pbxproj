@@ -34,6 +34,8 @@
 		5A86D000D00000000 /* XLSXExport.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A86D000100000000 /* XLSXExport.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A86E000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A86E000D00000000 /* MQLExport.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A86E000100000000 /* MQLExport.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		5A86F000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
+		5A86F000D00000000 /* SQLImport.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A86F000100000000 /* SQLImport.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5ACE00012F4F000000000004 /* CodeEditSourceEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000002 /* CodeEditSourceEditor */; };
 		5ACE00012F4F000000000005 /* CodeEditLanguages in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000003 /* CodeEditLanguages */; };
 		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
@@ -141,6 +143,13 @@
 			remoteGlobalIDString = 5A86E000000000000;
 			remoteInfo = MQLExport;
 		};
+		5A86F000B00000000 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5A86F000000000000;
+			remoteInfo = SQLImport;
+		};
 		5ABCC5AB2F43856700EAF3FC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
@@ -170,6 +179,7 @@
 				5A86C000D00000000 /* SQLExport.tableplugin in Copy Plug-Ins */,
 				5A86D000D00000000 /* XLSXExport.tableplugin in Copy Plug-Ins */,
 				5A86E000D00000000 /* MQLExport.tableplugin in Copy Plug-Ins */,
+				5A86F000D00000000 /* SQLImport.tableplugin in Copy Plug-Ins */,
 			);
 			name = "Copy Plug-Ins";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -203,6 +213,7 @@
 		5A86C000100000000 /* SQLExport.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SQLExport.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A86D000100000000 /* XLSXExport.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XLSXExport.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A86E000100000000 /* MQLExport.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MQLExport.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
+		5A86F000100000000 /* SQLImport.tableplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SQLImport.tableplugin; sourceTree = BUILT_PRODUCTS_DIR; };
 		5ABCC5A72F43856700EAF3FC /* TableProTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TableProTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5ASECRETS000000000000001 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -305,6 +316,13 @@
 				Info.plist,
 			);
 			target = 5A86E000000000000 /* MQLExport */;
+		};
+		5A86F000900000000 /* Exceptions for "Plugins/SQLImportPlugin" folder in "SQLImport" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5A86F000000000000 /* SQLImport */;
 		};
 		5AF312BE2F36FF7500E86682 /* Exceptions for "TablePro" folder in "TablePro" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -434,6 +452,14 @@
 				5A86E000900000000 /* Exceptions for "Plugins/MQLExportPlugin" folder in "MQLExport" target */,
 			);
 			path = Plugins/MQLExportPlugin;
+			sourceTree = "<group>";
+		};
+		5A86F000500000000 /* Plugins/SQLImportPlugin */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5A86F000900000000 /* Exceptions for "Plugins/SQLImportPlugin" folder in "SQLImport" target */,
+			);
+			path = Plugins/SQLImportPlugin;
 			sourceTree = "<group>";
 		};
 		5ABCC5A82F43856700EAF3FC /* TableProTests */ = {
@@ -568,6 +594,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A86F000300000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5A86F000A00000000 /* TableProPluginKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5ABCC5A42F43856700EAF3FC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -604,6 +638,7 @@
 				5A86C000500000000 /* Plugins/SQLExportPlugin */,
 				5A86D000500000000 /* Plugins/XLSXExportPlugin */,
 				5A86E000500000000 /* Plugins/MQLExportPlugin */,
+				5A86F000500000000 /* Plugins/SQLImportPlugin */,
 				5ABCC5A82F43856700EAF3FC /* TableProTests */,
 				5A1091C82EF17EDC0055EA7C /* Products */,
 				5A05FBC72F3EDF7500819CD7 /* Recovered References */,
@@ -628,6 +663,7 @@
 				5A86C000100000000 /* SQLExport.tableplugin */,
 				5A86D000100000000 /* XLSXExport.tableplugin */,
 				5A86E000100000000 /* MQLExport.tableplugin */,
+				5A86F000100000000 /* SQLImport.tableplugin */,
 				5ABCC5A72F43856700EAF3FC /* TableProTests.xctest */,
 			);
 			name = Products;
@@ -673,6 +709,7 @@
 				5A86C000C00000000 /* PBXTargetDependency */,
 				5A86D000C00000000 /* PBXTargetDependency */,
 				5A86E000C00000000 /* PBXTargetDependency */,
+				5A86F000C00000000 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A1091C92EF17EDC0055EA7C /* TablePro */,
@@ -973,6 +1010,26 @@
 			productReference = 5A86E000100000000 /* MQLExport.tableplugin */;
 			productType = "com.apple.product-type.bundle";
 		};
+		5A86F000000000000 /* SQLImport */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5A86F000800000000 /* Build configuration list for PBXNativeTarget "SQLImport" */;
+			buildPhases = (
+				5A86F000200000000 /* Sources */,
+				5A86F000300000000 /* Frameworks */,
+				5A86F000400000000 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5A86F000500000000 /* Plugins/SQLImportPlugin */,
+			);
+			name = SQLImport;
+			productName = SQLImport;
+			productReference = 5A86F000100000000 /* SQLImport.tableplugin */;
+			productType = "com.apple.product-type.bundle";
+		};
 		5ABCC5A62F43856700EAF3FC /* TableProTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 5ABCC5AD2F43856700EAF3FC /* Build configuration list for PBXNativeTarget "TableProTests" */;
@@ -1093,6 +1150,7 @@
 				5A86C000000000000 /* SQLExport */,
 				5A86D000000000000 /* XLSXExport */,
 				5A86E000000000000 /* MQLExport */,
+				5A86F000000000000 /* SQLImport */,
 				5ABCC5A62F43856700EAF3FC /* TableProTests */,
 			);
 		};
@@ -1198,6 +1256,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5A86E000400000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5A86F000400000000 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1319,6 +1384,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5A86F000200000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5ABCC5A32F43856700EAF3FC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1398,6 +1470,11 @@
 			isa = PBXTargetDependency;
 			target = 5A86E000000000000 /* MQLExport */;
 			targetProxy = 5A86E000B00000000 /* PBXContainerItemProxy */;
+		};
+		5A86F000C00000000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5A86F000000000000 /* SQLImport */;
+			targetProxy = 5A86F000B00000000 /* PBXContainerItemProxy */;
 		};
 		5ABCC5AC2F43856700EAF3FC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2402,6 +2479,29 @@
 			};
 			name = Debug;
 		};
+		5A86F000600000000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/SQLImportPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).SQLImportPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.SQLImportPlugin;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Debug;
+		};
 		5A86E000700000000 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2416,6 +2516,29 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.MQLExportPlugin;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_VERSION = 5.9;
+				WRAPPER_EXTENSION = tableplugin;
+			};
+			name = Release;
+		};
+		5A86F000700000000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Plugins/SQLImportPlugin/Info.plist;
+				INFOPLIST_KEY_NSPrincipalClass = "$(PRODUCT_MODULE_NAME).SQLImportPlugin";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.SQLImportPlugin;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -2612,6 +2735,15 @@
 			buildConfigurations = (
 				5A86E000600000000 /* Debug */,
 				5A86E000700000000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5A86F000800000000 /* Build configuration list for PBXNativeTarget "SQLImport" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5A86F000600000000 /* Debug */,
+				5A86F000700000000 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

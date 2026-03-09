@@ -8,6 +8,23 @@
 import Foundation
 import os
 
+enum DecompressionError: LocalizedError {
+    case gunzipNotFound
+    case decompressFailed
+    case fileReadFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .gunzipNotFound:
+            return String(localized: "gunzip not found")
+        case .decompressFailed:
+            return String(localized: "Failed to decompress .gz file")
+        case .fileReadFailed(let message):
+            return String(localized: "Failed to read file: \(message)")
+        }
+    }
+}
+
 /// Utility for decompressing gzip-compressed files
 enum FileDecompressor {
     private static let logger = Logger(subsystem: "com.TablePro", category: "FileDecompressor")
@@ -26,7 +43,7 @@ enum FileDecompressor {
         // Check if gunzip exists
         let gunzipPath = "/usr/bin/gunzip"
         guard FileManager.default.fileExists(atPath: gunzipPath) else {
-            throw ImportError.fileReadFailed("gunzip not found at \(gunzipPath)")
+            throw DecompressionError.fileReadFailed("gunzip not found at \(gunzipPath)")
         }
 
         let tempURL = FileManager.default.temporaryDirectory
@@ -42,7 +59,7 @@ enum FileDecompressor {
 
             let fileManager = FileManager.default
             guard fileManager.createFile(atPath: tempURL.path, contents: nil, attributes: nil) else {
-                throw ImportError.decompressFailed
+                throw DecompressionError.decompressFailed
             }
             let outputFile = try FileHandle(forWritingTo: tempURL)
             defer {
@@ -65,7 +82,7 @@ enum FileDecompressor {
                 // Try to read error message
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                throw ImportError.fileReadFailed("Failed to decompress .gz file: \(errorMessage)")
+                throw DecompressionError.fileReadFailed("Failed to decompress .gz file: \(errorMessage)")
             }
 
             return tempURL
