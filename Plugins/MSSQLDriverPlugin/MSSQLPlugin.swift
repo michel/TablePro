@@ -374,6 +374,12 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         _ = try await execute(query: "SELECT 1")
     }
 
+    // MARK: - Transaction Management
+
+    func beginTransaction() async throws {
+        _ = try await execute(query: "BEGIN TRANSACTION")
+    }
+
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> PluginQueryResult {

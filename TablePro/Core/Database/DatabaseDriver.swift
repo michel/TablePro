@@ -290,23 +290,6 @@ extension DatabaseDriver {
                 .warning("Failed to set query timeout: \(error.localizedDescription)")
         }
     }
-
-    // MARK: - Default Transaction Implementation
-
-    /// Default transaction implementation using database-specific SQL
-    func beginTransaction() async throws {
-        let sql = connection.type.beginTransactionSQL
-        guard !sql.isEmpty else { return }
-        _ = try await execute(query: sql)
-    }
-
-    func commitTransaction() async throws {
-        _ = try await execute(query: "COMMIT")
-    }
-
-    func rollbackTransaction() async throws {
-        _ = try await execute(query: "ROLLBACK")
-    }
 }
 
 /// Factory for creating database drivers via plugin lookup

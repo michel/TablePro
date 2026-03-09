@@ -18,6 +18,10 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
 
     var serverVersion: String? { mongoConnection?.serverVersion() }
     var currentSchema: String? { nil }
+    var supportsTransactions: Bool { false }
+    func beginTransaction() async throws {}
+    func commitTransaction() async throws {}
+    func rollbackTransaction() async throws {}
 
     init(config: DriverConnectionConfig) {
         self.config = config

@@ -133,10 +133,7 @@ final class ImportService {
 
             // 5. Begin transaction (if enabled)
             if config.wrapInTransaction {
-                let beginStmt = connection.type.beginTransactionSQL
-                if !beginStmt.isEmpty {
-                    _ = try await driver.execute(query: beginStmt)
-                }
+                try await driver.beginTransaction()
             }
 
             // 6. Parse and execute statements (single pass — no prior counting pass)
@@ -174,10 +171,7 @@ final class ImportService {
 
             // 7. Commit transaction (if enabled)
             if config.wrapInTransaction {
-                let commitStmt = commitStatement(for: connection.type)
-                if !commitStmt.isEmpty {
-                    _ = try await driver.execute(query: commitStmt)
-                }
+                try await driver.commitTransaction()
             }
 
             // 8. Re-enable FK checks (if enabled) - AFTER transaction
@@ -191,10 +185,7 @@ final class ImportService {
             // Rollback on error - this is CRITICAL and must not fail silently
             if config.wrapInTransaction {
                 do {
-                    let rollbackStmt = rollbackStatement(for: connection.type)
-                    if !rollbackStmt.isEmpty {
-                        _ = try await driver.execute(query: rollbackStmt)
-                    }
+                    try await driver.rollbackTransaction()
                 } catch let rollbackError {
                     throw ImportError.rollbackFailed(rollbackError.localizedDescription)
                 }
@@ -309,25 +300,6 @@ final class ImportService {
             return ["PRAGMA foreign_keys = ON"]
         case .mongodb, .redis, .clickhouse:
             return []
-        }
-    }
-
-
-    private func commitStatement(for dbType: DatabaseType) -> String {
-        switch dbType {
-        case .mongodb, .redis, .clickhouse:
-            return ""
-        default:
-            return "COMMIT"
-        }
-    }
-
-    private func rollbackStatement(for dbType: DatabaseType) -> String {
-        switch dbType {
-        case .mongodb, .redis, .clickhouse:
-            return ""
-        default:
-            return "ROLLBACK"
         }
     }
 }

@@ -80,6 +80,12 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         _ = try await execute(query: "SELECT 1 FROM DUAL")
     }
 
+    // MARK: - Transaction Management
+
+    func beginTransaction() async throws {
+        // Oracle uses implicit transactions — no explicit BEGIN needed
+    }
+
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> PluginQueryResult {

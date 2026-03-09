@@ -64,6 +64,9 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     var serverVersion: String? { _serverVersion }
     var supportsSchemas: Bool { false }
     var supportsTransactions: Bool { false }
+    func beginTransaction() async throws {}
+    func commitTransaction() async throws {}
+    func rollbackTransaction() async throws {}
     var currentSchema: String? { nil }
 
     init(config: DriverConnectionConfig) {
