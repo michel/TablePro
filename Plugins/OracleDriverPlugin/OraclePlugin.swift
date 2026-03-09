@@ -86,14 +86,6 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         // Oracle uses implicit transactions — no explicit BEGIN needed
     }
 
-    func commitTransaction() async throws {
-        _ = try await execute(query: "COMMIT")
-    }
-
-    func rollbackTransaction() async throws {
-        _ = try await execute(query: "ROLLBACK")
-    }
-
     // MARK: - Query Execution
 
     func execute(query: String) async throws -> PluginQueryResult {
