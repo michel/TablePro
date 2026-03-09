@@ -264,7 +264,7 @@ bundle_dylibs() {
     # (e.g. strchrnul) that don't exist on earlier OS versions → launch crash.
     echo "   Verifying deployment target compatibility..."
     local deploy_target
-    deploy_target=$(echo "$build_settings" | grep -m 1 'MACOSX_DEPLOYMENT_TARGET' | awk '{print $3}')
+    deploy_target=$(echo "$build_settings" | grep -m 1 '^\s*MACOSX_DEPLOYMENT_TARGET = ' | awk '{print $3}')
     if [ -n "$deploy_target" ]; then
         local deploy_major
         deploy_major=$(echo "$deploy_target" | cut -d. -f1)
@@ -397,21 +397,6 @@ build_for_arch() {
     if [ ! -d "$BUILD_DIR/$OUTPUT_NAME" ]; then
         echo "❌ FATAL: App bundle was not copied successfully"
         exit 1
-    fi
-
-    # Fix app icon - Xcode strips larger sizes from icns in asset catalogs
-    # Copy the full source icon to ensure all sizes (16-1024px) are included
-    SOURCE_ICON="TablePro/Assets.xcassets/AppIcon.appiconset/AppIcon.icns"
-    DEST_ICON="$BUILD_DIR/$OUTPUT_NAME/Contents/Resources/AppIcon.icns"
-    if [ -f "$SOURCE_ICON" ]; then
-        echo "🎨 Restoring full app icon (Xcode strips large sizes from asset catalog)..."
-        if cp "$SOURCE_ICON" "$DEST_ICON"; then
-            echo "   ✅ Full icon restored ($(ls -lh "$SOURCE_ICON" | awk '{print $5}'))"
-        else
-            echo "   ⚠️  WARNING: Could not copy icon, DMG may have missing icon"
-        fi
-    else
-        echo "   ⚠️  WARNING: Source icon not found at $SOURCE_ICON"
     fi
 
     # Remove any stale nested .app bundles in the bundle root (breaks codesign)
