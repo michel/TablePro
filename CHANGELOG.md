@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Direct `.tableplugin` bundle installation via file picker, Finder double-click, and drag-and-drop
 - Plugin capability enforcement — registration now gated on declared capabilities, with validation warnings for mismatches
 - Plugin dependency declarations — plugins can declare required dependencies via `TableProPlugin.dependencies`, validated at load time
 - Plugin state change notification (`pluginStateDidChange`) posted when plugins are enabled/disabled
