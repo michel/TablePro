@@ -12,10 +12,6 @@ import SwiftUI
 /// Sidebar view displaying list of database tables
 struct SidebarView: View {
     @State private var viewModel: SidebarViewModel
-    /// Local search text for responsive typing; synced to/from shared state
-    @State private var localSearchText: String = ""
-    /// Debounce task for writing local search text to the shared state
-    @State private var searchSyncTask: Task<Void, Never>?
 
     // Keep @Binding on the view for SwiftUI change tracking.
     // The ViewModel stores the same bindings for write access.
@@ -56,7 +52,6 @@ struct SidebarView: View {
     ) {
         _tables = tables
         self.sidebarState = sidebarState
-        _localSearchText = State(initialValue: sidebarState.searchText)
         _pendingTruncates = pendingTruncates
         _pendingDeletes = pendingDeletes
         let selectedBinding = Binding(
@@ -84,28 +79,11 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !tables.isEmpty {
-                searchField
-            }
             content
         }
         .frame(minWidth: 280)
-        .onChange(of: localSearchText) { _, newValue in
-            viewModel.debouncedSearchText = newValue
-            searchSyncTask?.cancel()
-            searchSyncTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 150_000_000)
-                guard !Task.isCancelled else { return }
-                if sidebarState.searchText != newValue {
-                    sidebarState.searchText = newValue
-                }
-            }
-        }
         .onChange(of: sidebarState.searchText) { _, newValue in
-            if localSearchText != newValue {
-                localSearchText = newValue
-                viewModel.debouncedSearchText = newValue
-            }
+            viewModel.debouncedSearchText = newValue
         }
         .onChange(of: tables) { _, newTables in
             let hasSession = DatabaseManager.shared.activeSessions[connectionId] != nil
@@ -133,37 +111,6 @@ struct SidebarView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Search Field
-
-    private var searchField: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .font(.system(size: DesignConstants.FontSize.medium))
-
-            TextField("Filter", text: $localSearchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: DesignConstants.FontSize.body))
-
-            if !localSearchText.isEmpty {
-                Button(action: { localSearchText = "" }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: DesignConstants.FontSize.medium))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(String(localized: "Clear table filter"))
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, DesignConstants.Spacing.xxs)
-        .background(Color(nsColor: .quaternaryLabelColor))
-        .cornerRadius(6)
-        .padding(.horizontal, 10)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
     // MARK: - Content States
