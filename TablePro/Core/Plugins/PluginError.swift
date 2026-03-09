@@ -16,6 +16,8 @@ enum PluginError: LocalizedError {
     case installFailed(String)
     case pluginConflict(existingName: String)
     case appVersionTooOld(minimumRequired: String, currentApp: String)
+    case downloadFailed(String)
+    case incompatibleWithCurrentApp(minimumRequired: String)
 
     var errorDescription: String? {
         switch self {
@@ -39,6 +41,10 @@ enum PluginError: LocalizedError {
             return String(localized: "A built-in plugin \"\(existingName)\" already provides this bundle ID")
         case .appVersionTooOld(let minimumRequired, let currentApp):
             return String(localized: "Plugin requires app version \(minimumRequired) or later, but current version is \(currentApp)")
+        case .downloadFailed(let reason):
+            return String(localized: "Plugin download failed: \(reason)")
+        case .incompatibleWithCurrentApp(let minimumRequired):
+            return String(localized: "This plugin requires TablePro \(minimumRequired) or later")
         }
     }
 }
