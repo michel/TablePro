@@ -38,7 +38,7 @@ import os
         if _aiViewModel == nil {
             _aiViewModel = AIChatViewModel()
         }
-        return _aiViewModel!
+        return _aiViewModel! // swiftlint:disable:this force_unwrapping
     }
 
     init() {
@@ -59,7 +59,7 @@ import os
         onSave = nil
         _aiViewModel?.clearSessionData()
         editState.releaseData()
-        NotificationCenter.default.removeObserver(self)
+        NotificationCenter.default.removeObserver(self) // swiftlint:disable:this notification_center_detachment
     }
 
     deinit {

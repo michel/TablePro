@@ -193,7 +193,6 @@ final class DatabaseManager {
             if connection.type != .sqlite {
                 await startHealthMonitor(for: connection.id)
             }
-
         } catch {
             // Close tunnel if connection failed
             if connection.sshConfig.enabled {

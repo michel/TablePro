@@ -28,7 +28,11 @@ enum DataTypeCategory: String, CaseIterable {
             case .oracle:
                 return ["NUMBER", "BINARY_FLOAT", "BINARY_DOUBLE", "INTEGER", "SMALLINT", "FLOAT"]
             case .clickhouse:
-                return ["UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256", "Int8", "Int16", "Int32", "Int64", "Int128", "Int256", "Float32", "Float64", "Decimal", "Decimal32", "Decimal64", "Decimal128", "Decimal256", "Bool"]
+                return [
+                    "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256",
+                    "Int8", "Int16", "Int32", "Int64", "Int128", "Int256",
+                    "Float32", "Float64", "Decimal", "Decimal32", "Decimal64", "Decimal128", "Decimal256", "Bool"
+                ]
             case .sqlite:
                 return ["INTEGER", "REAL", "NUMERIC"]
             case .mongodb:

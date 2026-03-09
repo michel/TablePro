@@ -254,7 +254,6 @@ final class InMemoryRowProvider: RowProvider {
         }
         return rowBuffer.rows[displayIndex]
     }
-
 }
 
 // MARK: - Database Row Provider (for virtualized access via driver)

@@ -404,7 +404,8 @@ final class InlineSuggestionManager {
                 }
                 return event
             }
-        } }
+        }
+        }
     }
 
     private func removeKeyEventMonitor() {

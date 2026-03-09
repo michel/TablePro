@@ -22,9 +22,8 @@ final class RegistryClient {
     let session: URLSession
     private static let logger = Logger(subsystem: "com.TablePro", category: "RegistryClient")
 
-    // swiftlint:disable:next force_unwrapping
     private static let registryURL = URL(string:
-        "https://raw.githubusercontent.com/TableProApp/plugins/main/plugins.json")!
+        "https://raw.githubusercontent.com/TableProApp/plugins/main/plugins.json")! // swiftlint:disable:this force_unwrapping
 
     private static let manifestCacheKey = "registryManifestCache"
     private static let lastFetchKey = "registryLastFetch"

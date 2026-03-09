@@ -287,6 +287,7 @@ actor SSHTunnelManager {
         Array(portRangeStart...portRangeEnd).shuffled()
     }
 
+    // swiftlint:disable:next function_parameter_count
     private func createTunnelLaunch(
         localPort: Int,
         sshHost: String,

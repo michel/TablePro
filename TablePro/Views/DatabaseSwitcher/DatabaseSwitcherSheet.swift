@@ -434,7 +434,7 @@ struct DatabaseSwitcherSheet: View {
         viewModel.trackAccess(database: database)
 
         // Call appropriate callback
-        if viewModel.isSchemaMode, (databaseType == .postgresql), let onSelectSchema {
+        if viewModel.isSchemaMode, databaseType == .postgresql, let onSelectSchema {
             onSelectSchema(database)
         } else {
             onSelect(database)

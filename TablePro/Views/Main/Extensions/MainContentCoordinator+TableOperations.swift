@@ -31,7 +31,9 @@ extension MainContentCoordinator {
         let sortedDeletes = deletes.sorted()
 
         // Check if any operation needs FK disabled (not applicable to PostgreSQL or MSSQL)
-        let needsDisableFK = includeFKHandling && dbType != .postgresql && dbType != .clickhouse && dbType != .mssql && dbType != .oracle && truncates.union(deletes).contains { tableName in
+        let fkApplicable = dbType != .postgresql && dbType != .clickhouse
+            && dbType != .mssql && dbType != .oracle
+        let needsDisableFK = includeFKHandling && fkApplicable && truncates.union(deletes).contains { tableName in
             options[tableName]?.ignoreForeignKeys == true
         }
 

@@ -54,7 +54,8 @@ final class VimKeyInterceptor {
                 self.inlineSuggestionManager?.dismissSuggestion()
                 _ = self.engine.process("\u{1B}", shift: false)
             }
-        } }
+        }
+        }
     }
 
     func editorDidFocus() {
