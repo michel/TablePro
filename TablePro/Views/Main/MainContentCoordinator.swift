@@ -117,6 +117,40 @@ final class MainContentCoordinator {
         set { _isAppTerminating.withLock { $0 = newValue } }
     }
 
+    /// Registry of active coordinators for aggregated quit-time persistence.
+    /// Keyed by ObjectIdentifier of each coordinator instance.
+    private static var activeCoordinators: [ObjectIdentifier: MainContentCoordinator] = [:]
+
+    /// Register this coordinator so quit-time persistence can aggregate tabs.
+    private func registerForPersistence() {
+        Self.activeCoordinators[ObjectIdentifier(self)] = self
+    }
+
+    /// Unregister this coordinator from quit-time aggregation.
+    private func unregisterFromPersistence() {
+        Self.activeCoordinators.removeValue(forKey: ObjectIdentifier(self))
+    }
+
+    /// Collect all tabs from all active coordinators for a given connectionId.
+    private static func aggregatedTabs(for connectionId: UUID) -> [QueryTab] {
+        activeCoordinators.values
+            .filter { $0.connectionId == connectionId }
+            .flatMap { $0.tabManager.tabs }
+    }
+
+    /// Get selected tab ID from any coordinator for a given connectionId.
+    private static func aggregatedSelectedTabId(for connectionId: UUID) -> UUID? {
+        activeCoordinators.values
+            .first { $0.connectionId == connectionId && $0.tabManager.selectedTabId != nil }?
+            .tabManager.selectedTabId
+    }
+
+    /// Check if this coordinator is the first registered for its connection.
+    private func isFirstCoordinatorForConnection() -> Bool {
+        Self.activeCoordinators.values
+            .first { $0.connectionId == self.connectionId } === self
+    }
+
     private static let registerTerminationObserver: Void = {
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -182,13 +216,19 @@ final class MainContentCoordinator {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, !self.isTearingDown else { return }
+                // Only the first coordinator for this connection saves,
+                // aggregating tabs from all windows to fix last-write-wins bug
+                guard self.isFirstCoordinatorForConnection() else { return }
+                let allTabs = Self.aggregatedTabs(for: self.connectionId)
+                let selectedId = Self.aggregatedSelectedTabId(for: self.connectionId)
                 self.persistence.saveNowSync(
-                    tabs: self.tabManager.tabs,
-                    selectedTabId: self.tabManager.selectedTabId
+                    tabs: allTabs,
+                    selectedTabId: selectedId
                 )
             }
         }
 
+        registerForPersistence()
         _ = Self.registerTerminationObserver
     }
 
@@ -208,6 +248,7 @@ final class MainContentCoordinator {
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
         _didTeardown.withLock { $0 = true }
+        unregisterFromPersistence()
         for observer in urlFilterObservers {
             NotificationCenter.default.removeObserver(observer)
         }

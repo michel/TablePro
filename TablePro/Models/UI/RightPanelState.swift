@@ -33,7 +33,13 @@ import os
 
     // Owned objects — lifted from MainContentView @StateObject
     let editState = MultiRowEditState()
-    let aiViewModel = AIChatViewModel()
+    private var _aiViewModel: AIChatViewModel?
+    var aiViewModel: AIChatViewModel {
+        if _aiViewModel == nil {
+            _aiViewModel = AIChatViewModel()
+        }
+        return _aiViewModel!
+    }
 
     init() {
         self.isPresented = UserDefaults.standard.bool(forKey: Self.isPresentedKey)
@@ -51,7 +57,7 @@ import os
         guard !_didTeardown.withLock({ $0 }) else { return }
         _didTeardown.withLock { $0 = true }
         onSave = nil
-        aiViewModel.clearSessionData()
+        _aiViewModel?.clearSessionData()
         editState.releaseData()
         NotificationCenter.default.removeObserver(self)
     }

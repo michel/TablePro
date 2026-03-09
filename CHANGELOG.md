@@ -35,7 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reduce memory: remove duplicate sourceQuery string from RowBuffer
 - Reduce memory: InMemoryRowProvider references RowBuffer directly instead of copying rows (~3-10 MB per tab)
 - Reduce memory: eliminate metadata driver entirely, multiplex all queries on main driver (~30-50 MB per connection)
-- Reduce CPU: filter NSWindow.didUpdateNotification by editor's own window (N editors → 1 handler per update cycle)
+- Reduce memory: lazy AIChatViewModel initialization (deferred until AI panel is first opened)
+- Reduce memory: remove duplicate connections array from ContentView (use ConnectionStorage.shared directly)
+- Reduce CPU: consolidate per-editor NSEvent monitors into shared EditorEventRouter singleton (O(n) → O(1) per event)
+- Fix tab persistence: aggregate tabs from all windows at quit time instead of last-write-wins per-coordinator save
 - Split DatabaseManager.sessionVersion into fine-grained connectionListVersion and connectionStatusVersion to reduce cascade re-renders
 - Extract AppState property reads into local lets in view bodies for explicit granular observation tracking
 - Reorganized project directory structure: Services, Utilities, Models split into domain-specific subdirectories

@@ -17,14 +17,12 @@ struct ContentView: View {
     let payload: EditorTabPayload?
 
     @State private var currentSession: ConnectionSession?
-    @State private var connections: [DatabaseConnection] = []
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showNewConnectionSheet = false
     @State private var showEditConnectionSheet = false
     @State private var connectionToEdit: DatabaseConnection?
     @State private var connectionToDelete: DatabaseConnection?
     @State private var showDeleteConfirmation = false
-    @State private var hasLoaded = false
     @State private var rightPanelState: RightPanelState?
     @State private var sessionState: SessionStateFactory.SessionState?
     @State private var inspectorContext = InspectorContext.empty
@@ -67,9 +65,6 @@ struct ContentView: View {
                 Button("Cancel", role: .cancel) {}
             } message: { connection in
                 Text("Are you sure you want to delete \"\(connection.name)\"?")
-            }
-            .onAppear {
-                loadConnections()
             }
             .onReceive(NotificationCenter.default.publisher(for: .newConnection)) { _ in
                 openWindow(id: "connection-form", value: nil as UUID?)
@@ -364,19 +359,6 @@ struct ContentView: View {
 
     // MARK: - Persistence
 
-    private func loadConnections() {
-        guard !hasLoaded else { return }
-
-        let saved = storage.loadConnections()
-        if saved.isEmpty {
-            connections = DatabaseConnection.sampleConnections
-            storage.saveConnections(connections)
-        } else {
-            connections = saved
-        }
-        hasLoaded = true
-    }
-
     private func deleteConnection(_ connection: DatabaseConnection) {
         if DatabaseManager.shared.activeSessions[connection.id] != nil {
             Task {
@@ -384,9 +366,7 @@ struct ContentView: View {
             }
         }
 
-        connections.removeAll { $0.id == connection.id }
         storage.deleteConnection(connection)
-        storage.saveConnections(connections)
     }
 
     private func showAllTablesMetadata() {
