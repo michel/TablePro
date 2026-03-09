@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+set -euo pipefail
 
 # Build script for creating architecture-specific releases
 # Usage: ./build-release.sh [arm64|x86_64|both]
@@ -264,8 +264,7 @@ bundle_dylibs() {
     # (e.g. strchrnul) that don't exist on earlier OS versions → launch crash.
     echo "   Verifying deployment target compatibility..."
     local deploy_target
-    deploy_target=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>/dev/null \
-        | grep -m 1 'MACOSX_DEPLOYMENT_TARGET' | awk '{print $3}')
+    deploy_target=$(echo "$build_settings" | grep -m 1 'MACOSX_DEPLOYMENT_TARGET' | awk '{print $3}')
     if [ -n "$deploy_target" ]; then
         local deploy_major
         deploy_major=$(echo "$deploy_target" | cut -d. -f1)
@@ -301,13 +300,6 @@ bundle_dylibs() {
         echo "   ⚠️  WARNING: Could not determine deployment target, skipping dylib version check"
     fi
 
-    # Sign bundled dylibs (will be re-signed with proper identity later)
-    echo "   Signing bundled libraries (preliminary)..."
-    for fw in "$frameworks_dir"/*.dylib; do
-        [ -f "$fw" ] || continue
-        codesign -fs - --force "$fw" 2>/dev/null || true
-    done
-
     echo "✅ Bundled $count dynamic libraries into Frameworks/"
     ls -lh "$frameworks_dir"/*.dylib 2>/dev/null
 }
@@ -316,6 +308,9 @@ build_for_arch() {
     local arch=$1
     echo ""
     echo "🔨 Building for $arch..."
+
+    # Fetch build settings once for this arch (used by build_for_arch and bundle_dylibs)
+    build_settings=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration "$CONFIG" -arch "$arch" -showBuildSettings 2>&1)
 
     # Prepare architecture-specific libraries
     prepare_mariadb "$arch"
@@ -358,7 +353,7 @@ build_for_arch() {
     echo "✅ Build succeeded for $arch"
 
     # Get binary path with validation
-    DERIVED_DATA=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>&1 | grep -m 1 "BUILD_DIR" | awk '{print $3}')
+    DERIVED_DATA=$(echo "$build_settings" | grep -m 1 "BUILD_DIR" | awk '{print $3}')
 
     if [ -z "$DERIVED_DATA" ]; then
         echo "❌ FATAL: Failed to determine build directory from xcodebuild settings"
@@ -500,11 +495,18 @@ build_for_arch() {
         codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$dylib"
     done
 
-    # Sign plugin bundles (stripped binaries need re-signing)
+    # Sign plugin bundles (stripped binaries need re-signing, preserve entitlements)
     if [ -d "$PLUGINS_DIR" ]; then
         for plugin in "$PLUGINS_DIR"/*.tableplugin; do
             [ -d "$plugin" ] || continue
-            codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin"
+            local ent_file="/tmp/plugin_entitlements_$$.plist"
+            codesign -d --entitlements - "$plugin" > "$ent_file" 2>/dev/null || true
+            if [ -s "$ent_file" ]; then
+                codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp --entitlements "$ent_file" "$plugin"
+            else
+                codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin"
+            fi
+            rm -f "$ent_file"
         done
     fi
 

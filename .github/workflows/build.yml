@@ -62,12 +62,6 @@ jobs:
           # Link packages with --force and --overwrite (needed for keg-only formulas)
           brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
 
-          # Verify installations
-          if ! brew list mariadb-connector-c >/dev/null 2>&1; then
-            echo "❌ ERROR: mariadb-connector-c installation failed"
-            exit 1
-          fi
-
           echo "✅ ARM64 dependencies installed"
 
       - name: Prepare libraries
@@ -182,12 +176,6 @@ jobs:
 
           # Link packages with --force (needed for keg-only formulas)
           arch -x86_64 /usr/local/bin/brew link --force --overwrite mariadb-connector-c 2>/dev/null || true
-
-          # Verify installations
-          if ! arch -x86_64 /usr/local/bin/brew list mariadb-connector-c >/dev/null 2>&1; then
-            echo "❌ ERROR: mariadb-connector-c installation failed"
-            exit 1
-          fi
 
           echo "✅ x86_64 dependencies installed"
 
