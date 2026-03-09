@@ -37,6 +37,7 @@ final class DataGridCellFactory {
     // MARK: - Cached VoiceOver State
 
     private static var cachedVoiceOverEnabled: Bool = NSWorkspace.shared.isVoiceOverEnabled
+    // Observer lives for app lifetime — no removal needed since DataGridCellFactory is a static singleton cache
     private static let voiceOverObserver: NSObjectProtocol? = {
         NotificationCenter.default.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,

@@ -857,8 +857,8 @@ final class SQLContextAnalyzer {
             return .select // Column context
         }
 
-        // Window to last ~5000 chars to avoid O(n) regex on large queries
-        let windowSize = 5000
+        // Window to last N chars to avoid O(n) regex on large queries
+        let windowSize = 5000 // Also referenced by SQLContextAnalyzerWindowingTests
         let nsText = textBeforeCursor as NSString
         let windowedText: String
         if nsText.length > windowSize {

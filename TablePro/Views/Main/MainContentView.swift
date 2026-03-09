@@ -275,7 +275,7 @@ struct MainContentView: View {
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
-            .onChange(of: DatabaseManager.shared.sessionVersion, initial: true) { _, _ in
+            .onChange(of: DatabaseManager.shared.connectionStatusVersion, initial: true) { _, _ in
                 let sessions = DatabaseManager.shared.activeSessions
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {

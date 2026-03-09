@@ -71,7 +71,7 @@ actor SSHTunnelManager {
     private func startHealthCheck() {
         healthCheckTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(300))
+                try? await Task.sleep(for: .seconds(90))
                 guard !Task.isCancelled else { break }
                 await self?.checkTunnelHealth()
             }
