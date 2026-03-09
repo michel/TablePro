@@ -23,16 +23,41 @@ jobs:
           PLUGIN_NAME=$(echo "$TAG" | sed -E 's/^plugin-([a-z]+)-v.*$/\1/')
           VERSION=$(echo "$TAG" | sed -E 's/^plugin-[a-z]+-v(.*)$/\1/')
 
-          # Map short name to Xcode target
+          # Map short name to Xcode target and registry metadata
           case "$PLUGIN_NAME" in
-            oracle) TARGET="OracleDriverPlugin" ;;
-            clickhouse) TARGET="ClickHouseDriverPlugin" ;;
+            oracle)
+              TARGET="OracleDriverPlugin"
+              BUNDLE_ID="com.TablePro.OracleDriver"
+              DISPLAY_NAME="Oracle Driver"
+              SUMMARY="Oracle Database 12c+ driver via OracleNIO"
+              DB_TYPE_IDS='["Oracle"]'
+              ICON="server.rack"
+              BUNDLE_NAME="OracleDriver"
+              HOMEPAGE="https://tablepro.dev/databases/oracle"
+              ;;
+            clickhouse)
+              TARGET="ClickHouseDriverPlugin"
+              BUNDLE_ID="com.TablePro.ClickHouseDriver"
+              DISPLAY_NAME="ClickHouse Driver"
+              SUMMARY="ClickHouse OLAP database driver via HTTP interface"
+              DB_TYPE_IDS='["ClickHouse"]'
+              ICON="chart.bar.xaxis"
+              BUNDLE_NAME="ClickHouseDriver"
+              HOMEPAGE="https://tablepro.dev/databases/clickhouse"
+              ;;
             *) echo "Unknown plugin: $PLUGIN_NAME"; exit 1 ;;
           esac
 
           echo "target=$TARGET" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "plugin_name=$PLUGIN_NAME" >> "$GITHUB_OUTPUT"
+          echo "bundle_id=$BUNDLE_ID" >> "$GITHUB_OUTPUT"
+          echo "display_name=$DISPLAY_NAME" >> "$GITHUB_OUTPUT"
+          echo "summary=$SUMMARY" >> "$GITHUB_OUTPUT"
+          echo "db_type_ids=$DB_TYPE_IDS" >> "$GITHUB_OUTPUT"
+          echo "icon=$ICON" >> "$GITHUB_OUTPUT"
+          echo "bundle_name=$BUNDLE_NAME" >> "$GITHUB_OUTPUT"
+          echo "homepage=$HOMEPAGE" >> "$GITHUB_OUTPUT"
           echo "Building $TARGET v$VERSION"
 
       - name: Install Git LFS
@@ -52,6 +77,15 @@ jobs:
       - name: Build plugin (x86_64)
         run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" x86_64
 
+      - name: Capture SHA-256 hashes
+        id: sha256
+        run: |
+          BUNDLE_NAME="${{ steps.plugin-info.outputs.bundle_name }}"
+          ARM64_SHA=$(cat "build/Plugins/${BUNDLE_NAME}-arm64.zip.sha256")
+          X86_SHA=$(cat "build/Plugins/${BUNDLE_NAME}-x86_64.zip.sha256")
+          echo "arm64=$ARM64_SHA" >> "$GITHUB_OUTPUT"
+          echo "x86_64=$X86_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Notarize
         if: env.NOTARIZE == 'true'
         env:
@@ -68,14 +102,104 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "${{ steps.plugin-info.outputs.target }} v${{ steps.plugin-info.outputs.version }}"
+          name: "${{ steps.plugin-info.outputs.display_name }} v${{ steps.plugin-info.outputs.version }}"
           body: |
-            ## ${{ steps.plugin-info.outputs.target }} v${{ steps.plugin-info.outputs.version }}
+            ## ${{ steps.plugin-info.outputs.display_name }} v${{ steps.plugin-info.outputs.version }}
 
             Plugin release for TablePro.
 
             ### Installation
-            Download the ZIP for your architecture and install via **Settings > Plugins > Install from File**.
+            TablePro will prompt you to install this plugin automatically when you select the database type. You can also install manually via **Settings > Plugins > Browse**.
+
+            ### SHA-256
+            - ARM64: `${{ steps.sha256.outputs.arm64 }}`
+            - x86_64: `${{ steps.sha256.outputs.x86_64 }}`
           files: build/Plugins/*.zip
           draft: false
           prerelease: false
+
+      - name: Update plugin registry
+        env:
+          REGISTRY_DEPLOY_KEY: ${{ secrets.REGISTRY_DEPLOY_KEY }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+
+          # Registry entry uses arm64 ZIP (Apple Silicon, vast majority of users).
+          # x86_64 ZIP is available on the release page for manual install.
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${{ steps.plugin-info.outputs.bundle_name }}-arm64.zip"
+
+          # Get current app version as minAppVersion
+          MIN_APP_VERSION=$(sed -n 's/.*MARKETING_VERSION = \(.*\);/\1/p' \
+            TablePro.xcodeproj/project.pbxproj | head -1 | tr -d ' ')
+
+          # Clone the registry repo
+          WORK=$(mktemp -d)
+          eval "$(ssh-agent -s)"
+          echo "$REGISTRY_DEPLOY_KEY" | ssh-add -
+          git clone git@github.com:TableProApp/plugins.git "$WORK/registry"
+          cd "$WORK/registry"
+
+          # Update plugins.json via Python
+          python3 - \
+            "${{ steps.plugin-info.outputs.bundle_id }}" \
+            "${{ steps.plugin-info.outputs.display_name }}" \
+            "${{ steps.plugin-info.outputs.version }}" \
+            "${{ steps.plugin-info.outputs.summary }}" \
+            '${{ steps.plugin-info.outputs.db_type_ids }}' \
+            "$DOWNLOAD_URL" \
+            "${{ steps.sha256.outputs.arm64 }}" \
+            "$MIN_APP_VERSION" \
+            "${{ steps.plugin-info.outputs.icon }}" \
+            "${{ steps.plugin-info.outputs.homepage }}" \
+            <<'PYTHON_SCRIPT'
+          import json, sys
+
+          bundle_id = sys.argv[1]
+          name = sys.argv[2]
+          version = sys.argv[3]
+          summary = sys.argv[4]
+          db_type_ids = json.loads(sys.argv[5])
+          download_url = sys.argv[6]
+          sha256 = sys.argv[7]
+          min_app_version = sys.argv[8]
+          icon = sys.argv[9]
+          homepage = sys.argv[10]
+
+          with open("plugins.json", "r") as f:
+              manifest = json.load(f)
+
+          entry = {
+              "id": bundle_id,
+              "name": name,
+              "version": version,
+              "summary": summary,
+              "author": {"name": "TablePro", "url": "https://tablepro.dev"},
+              "homepage": homepage,
+              "category": "database-driver",
+              "databaseTypeIds": db_type_ids,
+              "downloadURL": download_url,
+              "sha256": sha256,
+              "minAppVersion": min_app_version,
+              "minPluginKitVersion": 1,
+              "iconName": icon,
+              "isVerified": True
+          }
+
+          manifest["plugins"] = [p for p in manifest["plugins"] if p["id"] != bundle_id]
+          manifest["plugins"].append(entry)
+
+          with open("plugins.json", "w") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\n")
+          PYTHON_SCRIPT
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add plugins.json
+          git commit -m "Update ${{ steps.plugin-info.outputs.display_name }} to v${{ steps.plugin-info.outputs.version }}"
+          git push
+
+          # Cleanup
+          ssh-add -D
+          eval "$(ssh-agent -k)"
+          rm -rf "$WORK"

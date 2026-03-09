@@ -111,6 +111,9 @@ create_zip() {
     # Print SHA-256 for registry manifest
     local sha256
     sha256=$(shasum -a 256 "$zip_path" | awk '{print $1}')
+    # Write SHA-256 to sidecar file for CI automation
+    echo "$sha256" > "${zip_path}.sha256"
+
     echo "ZIP created: $zip_path"
     echo "   SHA-256: $sha256"
     echo "   Size: $(ls -lh "$zip_path" | awk '{print $5}')"
