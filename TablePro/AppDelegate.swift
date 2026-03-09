@@ -453,6 +453,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let entry = try await PluginManager.shared.installPlugin(from: url)
             Self.logger.info("Installed plugin '\(entry.name)' from Finder")
 
+            // Navigate to Settings > Plugins tab.
+            // showSettingsWindow: is a private AppKit selector — no public API alternative exists.
             UserDefaults.standard.set(SettingsTab.plugins.rawValue, forKey: "selectedSettingsTab")
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
         } catch {

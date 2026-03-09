@@ -251,6 +251,12 @@ final class PluginManager {
             throw PluginError.pluginConflict(existingName: existing.name)
         }
 
+        if let existingIndex = plugins.firstIndex(where: { $0.id == newBundleId }) {
+            unregisterCapabilities(pluginId: newBundleId)
+            plugins[existingIndex].bundle.unload()
+            plugins.remove(at: existingIndex)
+        }
+
         let fm = FileManager.default
         let destURL = userPluginsDir.appendingPathComponent(url.lastPathComponent)
 

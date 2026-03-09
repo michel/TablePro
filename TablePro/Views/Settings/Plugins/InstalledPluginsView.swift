@@ -67,7 +67,10 @@ struct InstalledPluginsView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-            guard let provider = providers.first else { return false }
+            guard let provider = providers.first,
+                  provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else {
+                return false
+            }
             provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
                 guard let data = data as? Data,
                       let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
