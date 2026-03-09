@@ -351,6 +351,7 @@ final class MainContentCoordinator {
 
     func loadSchema() async {
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
+        await schemaProvider.invalidateCache()
         await schemaProvider.loadSchema(using: driver, connection: connection)
     }
 

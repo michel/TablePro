@@ -477,17 +477,30 @@ struct MainContentView: View {
         // No existing windows -- restore tabs from storage (first window on connection)
         let result = await coordinator.persistence.restoreFromDisk()
         if !result.tabs.isEmpty {
+            // Rebuild base queries for table tabs to strip stale filter/sort WHERE clauses.
+            // Filter state is not persisted, so the stored query may contain orphaned conditions
+            // that reference columns from a different schema — causing errors on restore.
+            var restoredTabs = result.tabs
+            for i in restoredTabs.indices where restoredTabs[i].tabType == .table {
+                if let tableName = restoredTabs[i].tableName {
+                    restoredTabs[i].query = QueryTab.buildBaseTableQuery(
+                        tableName: tableName,
+                        databaseType: connection.type
+                    )
+                }
+            }
+
             // Find the selected tab, or use the first one
             let selectedId = result.selectedTabId
-            let selectedIndex = result.tabs.firstIndex(where: { $0.id == selectedId }) ?? 0
+            let selectedIndex = restoredTabs.firstIndex(where: { $0.id == selectedId }) ?? 0
 
             // Keep only the selected tab for this window
-            let selectedTab = result.tabs[selectedIndex]
+            let selectedTab = restoredTabs[selectedIndex]
             tabManager.tabs = [selectedTab]
             tabManager.selectedTabId = selectedTab.id
 
             // Open remaining tabs as new native window-tabs
-            let remainingTabs = result.tabs.enumerated()
+            let remainingTabs = restoredTabs.enumerated()
                 .filter { $0.offset != selectedIndex }
                 .map(\.element)
 
