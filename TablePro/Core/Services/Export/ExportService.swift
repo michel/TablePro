@@ -175,6 +175,11 @@ final class ExportService {
             throw error
         }
 
+        let pluginWarnings = plugin.warnings
+        if !pluginWarnings.isEmpty {
+            state.warningMessage = pluginWarnings.joined(separator: "\n")
+        }
+
         state.progress = 1.0
     }
 

@@ -61,7 +61,7 @@ public final class PluginExportProgress: @unchecked Sendable {
         lock.lock()
         let cancelled = _isCancelled
         lock.unlock()
-        if cancelled {
+        if cancelled || Task.isCancelled {
             throw PluginExportCancellationError()
         }
     }

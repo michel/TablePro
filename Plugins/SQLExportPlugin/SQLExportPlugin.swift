@@ -44,6 +44,12 @@ final class SQLExportPlugin: ExportFormatPlugin {
         options.compressWithGzip ? "sql.gz" : "sql"
     }
 
+    var warnings: [String] {
+        guard !ddlFailures.isEmpty else { return [] }
+        let failedTables = ddlFailures.joined(separator: ", ")
+        return ["Could not fetch table structure for: \(failedTables)"]
+    }
+
     func optionsView() -> AnyView? {
         AnyView(SQLExportOptionsView(plugin: self))
     }
@@ -84,27 +90,35 @@ final class SQLExportPlugin: ExportFormatPlugin {
             let structureTables = tables.filter { optionValue($0, at: 0) }
 
             for table in structureTables {
-                let sequences = try await dataSource.fetchDependentSequences(
-                    table: table.name,
-                    databaseName: table.databaseName
-                )
-                for seq in sequences where !emittedSequenceNames.contains(seq.name) {
-                    emittedSequenceNames.insert(seq.name)
-                    let quotedName = "\"\(seq.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                    try fileHandle.write(contentsOf: "DROP SEQUENCE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
-                    try fileHandle.write(contentsOf: "\(seq.ddl)\n\n".toUTF8Data())
+                do {
+                    let sequences = try await dataSource.fetchDependentSequences(
+                        table: table.name,
+                        databaseName: table.databaseName
+                    )
+                    for seq in sequences where !emittedSequenceNames.contains(seq.name) {
+                        emittedSequenceNames.insert(seq.name)
+                        let quotedName = "\"\(seq.name.replacingOccurrences(of: "\"", with: "\"\""))\""
+                        try fileHandle.write(contentsOf: "DROP SEQUENCE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
+                        try fileHandle.write(contentsOf: "\(seq.ddl)\n\n".toUTF8Data())
+                    }
+                } catch {
+                    Self.logger.warning("Failed to fetch dependent sequences for table \(table.name): \(error)")
                 }
 
-                let enumTypes = try await dataSource.fetchDependentTypes(
-                    table: table.name,
-                    databaseName: table.databaseName
-                )
-                for enumType in enumTypes where !emittedTypeNames.contains(enumType.name) {
-                    emittedTypeNames.insert(enumType.name)
-                    let quotedName = "\"\(enumType.name.replacingOccurrences(of: "\"", with: "\"\""))\""
-                    try fileHandle.write(contentsOf: "DROP TYPE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
-                    let quotedLabels = enumType.labels.map { "'\(dataSource.escapeStringLiteral($0))'" }
-                    try fileHandle.write(contentsOf: "CREATE TYPE \(quotedName) AS ENUM (\(quotedLabels.joined(separator: ", ")));\n\n".toUTF8Data())
+                do {
+                    let enumTypes = try await dataSource.fetchDependentTypes(
+                        table: table.name,
+                        databaseName: table.databaseName
+                    )
+                    for enumType in enumTypes where !emittedTypeNames.contains(enumType.name) {
+                        emittedTypeNames.insert(enumType.name)
+                        let quotedName = "\"\(enumType.name.replacingOccurrences(of: "\"", with: "\"\""))\""
+                        try fileHandle.write(contentsOf: "DROP TYPE IF EXISTS \(quotedName) CASCADE;\n".toUTF8Data())
+                        let quotedLabels = enumType.labels.map { "'\(dataSource.escapeStringLiteral($0))'" }
+                        try fileHandle.write(contentsOf: "CREATE TYPE \(quotedName) AS ENUM (\(quotedLabels.joined(separator: ", ")));\n\n".toUTF8Data())
+                    }
+                } catch {
+                    Self.logger.warning("Failed to fetch dependent types for table \(table.name): \(error)")
                 }
             }
 

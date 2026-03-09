@@ -36,9 +36,9 @@ public enum CSVQuoteHandling: String, CaseIterable, Identifiable {
 
     public var displayName: String {
         switch self {
-        case .always: return String(localized: "Always")
-        case .asNeeded: return String(localized: "Quote if needed")
-        case .never: return String(localized: "Never")
+        case .always: return String(localized: "Always", bundle: .main)
+        case .asNeeded: return String(localized: "Quote if needed", bundle: .main)
+        case .never: return String(localized: "Never", bundle: .main)
         }
     }
 }

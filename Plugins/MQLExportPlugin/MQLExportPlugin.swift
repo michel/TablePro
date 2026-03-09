@@ -139,6 +139,7 @@ final class MQLExportPlugin: ExportFormatPlugin {
             if includeIndexes {
                 try await writeMQLIndexes(
                     collection: table.name,
+                    databaseName: table.databaseName,
                     collectionAccessor: collectionAccessor,
                     dataSource: dataSource,
                     to: fileHandle
@@ -175,13 +176,14 @@ final class MQLExportPlugin: ExportFormatPlugin {
 
     private func writeMQLIndexes(
         collection: String,
+        databaseName: String,
         collectionAccessor: String,
         dataSource: any PluginExportDataSource,
         to fileHandle: FileHandle
     ) async throws {
         let ddl = try await dataSource.fetchTableDDL(
             table: collection,
-            databaseName: ""
+            databaseName: databaseName
         )
 
         let lines = ddl.components(separatedBy: "\n")

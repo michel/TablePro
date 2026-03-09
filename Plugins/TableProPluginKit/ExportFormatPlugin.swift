@@ -19,6 +19,7 @@ public protocol ExportFormatPlugin: TableProPlugin {
     func isTableExportable(optionValues: [Bool]) -> Bool
 
     var currentFileExtension: String { get }
+    var warnings: [String] { get }
 
     func optionsView() -> AnyView?
 
@@ -38,5 +39,6 @@ public extension ExportFormatPlugin {
     func defaultTableOptionValues() -> [Bool] { [] }
     func isTableExportable(optionValues: [Bool]) -> Bool { true }
     var currentFileExtension: String { Self.defaultFileExtension }
+    var warnings: [String] { [] }
     func optionsView() -> AnyView? { nil }
 }

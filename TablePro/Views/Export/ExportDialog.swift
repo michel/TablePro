@@ -124,7 +124,11 @@ struct ExportDialog: View {
                 }
                 return true
             }
-            .sorted { type(of: $0).formatDisplayName < type(of: $1).formatDisplayName }
+            .sorted { a, b in
+                let aIndex = Self.formatDisplayOrder.firstIndex(of: type(of: a).formatId) ?? Int.max
+                let bIndex = Self.formatDisplayOrder.firstIndex(of: type(of: b).formatId) ?? Int.max
+                return aIndex < bIndex
+            }
     }
 
     private var availableFormatIds: [String] {
@@ -343,6 +347,8 @@ struct ExportDialog: View {
         currentPlugin?.currentFileExtension ?? config.formatId
     }
 
+    private static let formatDisplayOrder = ["csv", "json", "sql", "xlsx", "mql"]
+
     /// Windows reserved device names (case-insensitive)
     private static let windowsReservedNames: Set<String> = [
         "CON", "PRN", "AUX", "NUL",
@@ -392,9 +398,10 @@ struct ExportDialog: View {
     }
 
     private func resetOptionValues() {
+        let defaults = currentPlugin?.defaultTableOptionValues() ?? []
         for dbIndex in databaseItems.indices {
             for tableIndex in databaseItems[dbIndex].tables.indices {
-                databaseItems[dbIndex].tables[tableIndex].optionValues = []
+                databaseItems[dbIndex].tables[tableIndex].optionValues = defaults
             }
         }
     }
