@@ -299,46 +299,41 @@ extension MainContentCoordinator {
             isSwitchingDatabase = false
         }
 
+        // Clear stale filter state from previous database/schema
+        filterStateManager.clearAll()
+
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
             return
         }
+
+        // Immediately clear UI state so the sidebar shows a loading spinner
+        // instead of stale tables from the previous database/schema.
+        toolbarState.databaseName = database
+        closeSiblingNativeWindows()
+        tabManager.tabs = []
+        tabManager.selectedTabId = nil
+        DatabaseManager.shared.updateSession(connectionId) { session in
+            session.tables = []
+        }
+        // Yield so SwiftUI renders the empty/loading state before async work begins
+        await Task.yield()
 
         do {
             // For MySQL/MariaDB/ClickHouse, use USE command
             if connection.type == .mysql || connection.type == .mariadb || connection.type == .clickhouse {
                 _ = try await driver.execute(query: "USE `\(database)`")
 
-                // Update session with new database
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentDatabase = database
-                    session.tables = []          // triggers SidebarView.loadTables() via onChange
                 }
 
-                // Update toolbar state
-                toolbarState.databaseName = database
-
-                // Close sibling native window-tabs and clear in-app tabs —
-                // previous database's tables/queries are no longer valid
-                closeSiblingNativeWindows()
-                tabManager.tabs = []
-                tabManager.selectedTabId = nil
-
-                // Reload schema for autocomplete.
-                // session.tables was cleared above, which triggers SidebarView.loadTables() via onChange.
                 await loadSchema()
             } else if connection.type == .postgresql {
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.connection.database = database
                     session.currentDatabase = database
                     session.currentSchema = nil
-                    session.tables = []  // triggers SidebarView.loadTables() via onChange
                 }
-
-                toolbarState.databaseName = database
-
-                closeSiblingNativeWindows()
-                tabManager.tabs = []
-                tabManager.selectedTabId = nil
 
                 await DatabaseManager.shared.reconnectSession(connectionId)
 
@@ -349,26 +344,12 @@ extension MainContentCoordinator {
                 guard let schemaDriver = driver as? SchemaSwitchable else { return }
                 try await schemaDriver.switchSchema(to: database)
 
-                // Update session
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentSchema = database
-                    session.tables = []  // triggers SidebarView.loadTables() via onChange
                 }
 
-                // Update toolbar state
-                toolbarState.databaseName = database
-
-                // Close sibling native window-tabs and clear in-app tabs —
-                // previous schema's tables/queries are no longer valid
-                closeSiblingNativeWindows()
-                tabManager.tabs = []
-                tabManager.selectedTabId = nil
-
-                // Reload schema for autocomplete
                 await loadSchema()
 
-                // Force sidebar reload — posting .refreshData ensures loadTables() runs
-                // even when session.tables was already [] (e.g. switching from empty schema back to public)
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .oracle {
                 guard let schemaDriver = driver as? SchemaSwitchable else { return }
@@ -376,14 +357,7 @@ extension MainContentCoordinator {
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentSchema = database
-                    session.tables = []
                 }
-
-                toolbarState.databaseName = database
-
-                closeSiblingNativeWindows()
-                tabManager.tabs = []
-                tabManager.selectedTabId = nil
 
                 await loadSchema()
 
@@ -396,43 +370,25 @@ extension MainContentCoordinator {
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentDatabase = database
                     session.currentSchema = "dbo"
-                    session.tables = []
                 }
                 AppSettingsStorage.shared.saveLastDatabase(database, for: connectionId)
-
-                toolbarState.databaseName = database
-
-                closeSiblingNativeWindows()
-                tabManager.tabs = []
-                tabManager.selectedTabId = nil
 
                 await loadSchema()
 
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .mongodb {
-                // MongoDB: update the driver's connection so fetchTables/execute use the new database
                 if let adapter = driver as? PluginDriverAdapter {
                     try await adapter.switchDatabase(to: database)
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentDatabase = database
-                    session.tables = []
                 }
-
-                toolbarState.databaseName = database
-
-                // Close sibling native window-tabs and clear in-app tabs —
-                // previous database's collections are no longer valid
-                closeSiblingNativeWindows()
-                tabManager.tabs = []
-                tabManager.selectedTabId = nil
 
                 await loadSchema()
 
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } else if connection.type == .redis {
-                // Redis: SELECT <db index> to switch logical database
                 guard let dbIndex = Int(database) else { return }
 
                 if let adapter = driver as? PluginDriverAdapter {
@@ -441,14 +397,7 @@ extension MainContentCoordinator {
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentDatabase = database
-                    session.tables = []
                 }
-
-                toolbarState.databaseName = database
-
-                closeSiblingNativeWindows()
-                tabManager.tabs = []
-                tabManager.selectedTabId = nil
 
                 await loadSchema()
 
@@ -469,20 +418,26 @@ extension MainContentCoordinator {
         guard connection.type == .postgresql else { return }
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
+        // Clear stale filter state from previous schema
+        filterStateManager.clearAll()
+
+        // Immediately clear UI state so sidebar shows loading state
+        toolbarState.databaseName = schema
+        closeSiblingNativeWindows()
+        tabManager.tabs = []
+        tabManager.selectedTabId = nil
+        DatabaseManager.shared.updateSession(connectionId) { session in
+            session.tables = []
+        }
+        await Task.yield()
+
         do {
             guard let schemaDriver = driver as? SchemaSwitchable else { return }
             try await schemaDriver.switchSchema(to: schema)
 
             DatabaseManager.shared.updateSession(connectionId) { session in
                 session.currentSchema = schema
-                session.tables = []
             }
-
-            toolbarState.databaseName = schema
-
-            closeSiblingNativeWindows()
-            tabManager.tabs = []
-            tabManager.selectedTabId = nil
 
             await loadSchema()
 

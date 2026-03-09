@@ -424,6 +424,27 @@ struct QueryTab: Identifiable, Equatable {
         self.metadataVersion = 0
     }
 
+    /// Build a clean base query for a table tab (no filters/sort).
+    /// Used when restoring table tabs from persistence to avoid stale WHERE clauses.
+    @MainActor static func buildBaseTableQuery(tableName: String, databaseType: DatabaseType) -> String {
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+        if databaseType == .mongodb {
+            let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            return "db[\"\(escaped)\"].find({}).limit(\(pageSize))"
+        } else if databaseType == .redis {
+            return "SCAN 0 MATCH * COUNT \(pageSize)"
+        } else if databaseType == .mssql {
+            let quotedName = databaseType.quoteIdentifier(tableName)
+            return "SELECT * FROM \(quotedName) ORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
+        } else if databaseType == .oracle {
+            let quotedName = databaseType.quoteIdentifier(tableName)
+            return "SELECT * FROM \(quotedName) ORDER BY 1 OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
+        } else {
+            let quotedName = databaseType.quoteIdentifier(tableName)
+            return "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
+        }
+    }
+
     /// Maximum query size to persist (500KB). Queries larger than this are typically
     /// imported SQL dumps — serializing them to JSON blocks the main thread.
     static let maxPersistableQuerySize = 500_000
@@ -516,22 +537,7 @@ final class QueryTabManager {
         }
 
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
-        let query: String
-        if databaseType == .mongodb {
-            let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-            query = "db[\"\(escaped)\"].find({}).limit(\(pageSize))"
-        } else if databaseType == .redis {
-            query = "SCAN 0 MATCH * COUNT \(pageSize)"
-        } else if databaseType == .mssql {
-            let quotedName = databaseType.quoteIdentifier(tableName)
-            query = "SELECT * FROM \(quotedName) ORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
-        } else if databaseType == .oracle {
-            let quotedName = databaseType.quoteIdentifier(tableName)
-            query = "SELECT * FROM \(quotedName) ORDER BY 1 OFFSET 0 ROWS FETCH NEXT \(pageSize) ROWS ONLY;"
-        } else {
-            let quotedName = databaseType.quoteIdentifier(tableName)
-            query = "SELECT * FROM \(quotedName) LIMIT \(pageSize);"
-        }
+        let query = QueryTab.buildBaseTableQuery(tableName: tableName, databaseType: databaseType)
         var newTab = QueryTab(
             title: tableName,
             query: query,
