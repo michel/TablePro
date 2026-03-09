@@ -29,6 +29,10 @@
 			</array>
 		</dict>
 		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>tableplugin</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>TablePro Plugin</string>
 			<key>CFBundleTypeRole</key>

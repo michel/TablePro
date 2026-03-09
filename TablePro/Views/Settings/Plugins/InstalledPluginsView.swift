@@ -12,7 +12,6 @@ struct InstalledPluginsView: View {
     private let pluginManager = PluginManager.shared
 
     @State private var selectedPluginId: String?
-    @State private var isInstalling = false
     @State private var showErrorAlert = false
     @State private var errorAlertTitle = ""
     @State private var errorAlertMessage = ""
@@ -51,9 +50,9 @@ struct InstalledPluginsView: View {
                     Button("Install from File...") {
                         installFromFile()
                     }
-                    .disabled(isInstalling)
+                    .disabled(pluginManager.isInstalling)
 
-                    if isInstalling {
+                    if pluginManager.isInstalling {
                         ProgressView()
                             .controlSize(.small)
                     }
@@ -205,9 +204,7 @@ struct InstalledPluginsView: View {
     }
 
     private func installPlugin(from url: URL) {
-        isInstalling = true
         Task {
-            defer { isInstalling = false }
             do {
                 let entry = try await pluginManager.installPlugin(from: url)
                 selectedPluginId = entry.id

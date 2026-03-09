@@ -15,6 +15,8 @@ final class PluginManager {
 
     private(set) var plugins: [PluginEntry] = []
 
+    private(set) var isInstalling = false
+
     private(set) var needsRestart = false
 
     private(set) var driverPlugins: [String: any DriverPlugin] = [:]
@@ -182,6 +184,13 @@ final class PluginManager {
         }
     }
 
+    private func replaceExistingPlugin(bundleId: String) {
+        guard let existingIndex = plugins.firstIndex(where: { $0.id == bundleId }) else { return }
+        unregisterCapabilities(pluginId: bundleId)
+        plugins[existingIndex].bundle.unload()
+        plugins.remove(at: existingIndex)
+    }
+
     private func unregisterCapabilities(pluginId: String) {
         driverPlugins = driverPlugins.filter { _, value in
             guard let entry = plugins.first(where: { $0.id == pluginId }) else { return true }
@@ -232,14 +241,20 @@ final class PluginManager {
     // MARK: - Install / Uninstall
 
     func installPlugin(from url: URL) async throws -> PluginEntry {
+        guard !isInstalling else {
+            throw PluginError.installFailed("Another plugin installation is already in progress")
+        }
+        isInstalling = true
+        defer { isInstalling = false }
+
         if url.pathExtension == "tableplugin" {
-            return try await installBundle(from: url)
+            return try installBundle(from: url)
         } else {
             return try await installFromZip(from: url)
         }
     }
 
-    private func installBundle(from url: URL) async throws -> PluginEntry {
+    private func installBundle(from url: URL) throws -> PluginEntry {
         guard let sourceBundle = Bundle(url: url) else {
             throw PluginError.invalidBundle("Cannot create bundle from \(url.lastPathComponent)")
         }
@@ -251,19 +266,17 @@ final class PluginManager {
             throw PluginError.pluginConflict(existingName: existing.name)
         }
 
-        if let existingIndex = plugins.firstIndex(where: { $0.id == newBundleId }) {
-            unregisterCapabilities(pluginId: newBundleId)
-            plugins[existingIndex].bundle.unload()
-            plugins.remove(at: existingIndex)
-        }
+        replaceExistingPlugin(bundleId: newBundleId)
 
         let fm = FileManager.default
         let destURL = userPluginsDir.appendingPathComponent(url.lastPathComponent)
 
-        if fm.fileExists(atPath: destURL.path) {
-            try fm.removeItem(at: destURL)
+        if url.standardizedFileURL != destURL.standardizedFileURL {
+            if fm.fileExists(atPath: destURL.path) {
+                try fm.removeItem(at: destURL)
+            }
+            try fm.copyItem(at: url, to: destURL)
         }
-        try fm.copyItem(at: url, to: destURL)
 
         let entry = try loadPlugin(at: destURL, source: .userInstalled)
 
@@ -320,6 +333,8 @@ final class PluginManager {
         if let existing = plugins.first(where: { $0.id == newBundleId }), existing.source == .builtIn {
             throw PluginError.pluginConflict(existingName: existing.name)
         }
+
+        replaceExistingPlugin(bundleId: newBundleId)
 
         let destURL = userPluginsDir.appendingPathComponent(extracted.lastPathComponent)
 
