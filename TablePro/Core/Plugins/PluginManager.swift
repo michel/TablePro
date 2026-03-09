@@ -23,6 +23,8 @@ final class PluginManager {
 
     private(set) var exportPlugins: [String: any ExportFormatPlugin] = [:]
 
+    private(set) var importPlugins: [String: any ImportFormatPlugin] = [:]
+
     private var builtInPluginsDir: URL? { Bundle.main.builtInPlugInsURL }
 
     private var userPluginsDir: URL {
@@ -78,7 +80,7 @@ final class PluginManager {
         }
 
         validateDependencies()
-        Self.logger.info("Loaded \(self.plugins.count) plugin(s): \(self.driverPlugins.count) driver(s), \(self.exportPlugins.count) export format(s)")
+        Self.logger.info("Loaded \(self.plugins.count) plugin(s): \(self.driverPlugins.count) driver(s), \(self.exportPlugins.count) export format(s), \(self.importPlugins.count) import format(s)")
     }
 
     private func discoverPlugins(from directory: URL, source: PluginSource) {
@@ -217,18 +219,31 @@ final class PluginManager {
             exportPlugins[formatId] = exportPlugin
             Self.logger.debug("Registered export plugin '\(pluginId)' for format '\(formatId)'")
         }
+
+        if let importPlugin = instance as? any ImportFormatPlugin {
+            if !declared.contains(.importFormat) {
+                Self.logger.warning("Plugin '\(pluginId)' conforms to ImportFormatPlugin but does not declare .importFormat capability — registering anyway")
+            }
+            let formatId = type(of: importPlugin).formatId
+            importPlugins[formatId] = importPlugin
+            Self.logger.debug("Registered import plugin '\(pluginId)' for format '\(formatId)'")
+        }
     }
 
     private func validateCapabilityDeclarations(_ pluginType: any TableProPlugin.Type, pluginId: String) {
         let declared = Set(pluginType.capabilities)
         let isDriver = pluginType is any DriverPlugin.Type
         let isExporter = pluginType is any ExportFormatPlugin.Type
+        let isImporter = pluginType is any ImportFormatPlugin.Type
 
         if declared.contains(.databaseDriver) && !isDriver {
             Self.logger.warning("Plugin '\(pluginId)' declares .databaseDriver but does not conform to DriverPlugin")
         }
         if declared.contains(.exportFormat) && !isExporter {
             Self.logger.warning("Plugin '\(pluginId)' declares .exportFormat but does not conform to ExportFormatPlugin")
+        }
+        if declared.contains(.importFormat) && !isImporter {
+            Self.logger.warning("Plugin '\(pluginId)' declares .importFormat but does not conform to ImportFormatPlugin")
         }
     }
 
@@ -253,6 +268,14 @@ final class PluginManager {
         exportPlugins = exportPlugins.filter { _, value in
             guard let entry = plugins.first(where: { $0.id == pluginId }) else { return true }
             if let principalClass = entry.bundle.principalClass as? any ExportFormatPlugin.Type {
+                return principalClass.formatId != type(of: value).formatId
+            }
+            return true
+        }
+
+        importPlugins = importPlugins.filter { _, value in
+            guard let entry = plugins.first(where: { $0.id == pluginId }) else { return true }
+            if let principalClass = entry.bundle.principalClass as? any ImportFormatPlugin.Type {
                 return principalClass.formatId != type(of: value).formatId
             }
             return true
