@@ -77,6 +77,7 @@ final class MainContentCoordinator {
     @ObservationIgnored private var changeManagerUpdateTask: Task<Void, Never>?
     @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
+    @ObservationIgnored private var urlFilterObservers: [NSObjectProtocol] = []
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     @ObservationIgnored internal var isHandlingTabSwitch = false
@@ -156,7 +157,7 @@ final class MainContentCoordinator {
 
         self.schemaProvider = SchemaProviderRegistry.shared.getOrCreate(for: connection.id)
         SchemaProviderRegistry.shared.retain(for: connection.id)
-        setupURLNotificationObservers()
+        urlFilterObservers = setupURLNotificationObservers()
 
         // Synchronous save at quit time. NotificationCenter with queue: .main
         // delivers the closure on the main thread, satisfying assumeIsolated's
@@ -195,6 +196,10 @@ final class MainContentCoordinator {
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
         _didTeardown.withLock { $0 = true }
+        for observer in urlFilterObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        urlFilterObservers.removeAll()
         if let observer = terminationObserver {
             NotificationCenter.default.removeObserver(observer)
             terminationObserver = nil

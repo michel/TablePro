@@ -34,6 +34,8 @@ final class DatabaseManager {
     /// Separate from the main driver so pings never queue behind long-running user queries.
     private var pingDrivers: [UUID: DatabaseDriver] = [:]
 
+    private var metadataCreationTasks: [UUID: Task<Void, Never>] = [:]
+
     /// Current session (computed from currentSessionId)
     var currentSession: ConnectionSession? {
         guard let sessionId = currentSessionId else { return nil }
@@ -204,8 +206,9 @@ final class DatabaseManager {
             let metaConnection = effectiveConnection
             let metaConnectionId = connection.id
             let metaTimeout = AppSettingsManager.shared.general.queryTimeoutSeconds
-            Task { [weak self] in
+            metadataCreationTasks[metaConnectionId] = Task { [weak self] in
                 guard let self else { return }
+                defer { self.metadataCreationTasks.removeValue(forKey: metaConnectionId) }
                 do {
                     let metaDriver = try DatabaseDriverFactory.createDriver(for: metaConnection)
                     try await metaDriver.connect()
@@ -269,6 +272,10 @@ final class DatabaseManager {
             try? await SSHTunnelManager.shared.closeTunnel(connectionId: session.connection.id)
         }
 
+        // Cancel any in-flight metadata driver creation
+        metadataCreationTasks[sessionId]?.cancel()
+        metadataCreationTasks.removeValue(forKey: sessionId)
+
         // Stop health monitoring
         await stopHealthMonitor(for: sessionId)
 
@@ -300,6 +307,9 @@ final class DatabaseManager {
         for sessionId in monitorIds {
             await stopHealthMonitor(for: sessionId)
         }
+
+        for task in metadataCreationTasks.values { task.cancel() }
+        metadataCreationTasks.removeAll()
 
         let sessionIds = Array(activeSessions.keys)
         for sessionId in sessionIds {
@@ -539,7 +549,7 @@ final class DatabaseManager {
                         }
                     case .failed:
                         Self.logger.error(
-                            "Health monitoring failed for session \(id) after 3 retries")
+                            "Health monitoring failed for session \(id)")
                         self.updateSession(id) { session in
                             session.status = .error(String(localized: "Connection lost"))
                             session.clearCachedData()
@@ -674,8 +684,9 @@ final class DatabaseManager {
             let metaTimeout = AppSettingsManager.shared.general.queryTimeoutSeconds
             let startupCmds = session.connection.startupCommands
             let connName = session.connection.name
-            Task { [weak self] in
+            metadataCreationTasks[metaConnectionId] = Task { [weak self] in
                 guard let self else { return }
+                defer { self.metadataCreationTasks.removeValue(forKey: metaConnectionId) }
                 do {
                     let metaDriver = try DatabaseDriverFactory.createDriver(for: metaConnection)
                     try await metaDriver.connect()
