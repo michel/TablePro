@@ -24,6 +24,7 @@ final class InlineSuggestionManager {
     private var currentTask: Task<Void, Never>?
     private let _keyEventMonitor = OSAllocatedUnfairLock<Any?>(initialState: nil)
     private let _scrollObserver = OSAllocatedUnfairLock<Any?>(initialState: nil)
+    private var isEditorFocused = false
 
     deinit {
         if let monitor = _keyEventMonitor.withLock({ $0 }) { NSEvent.removeMonitor(monitor) }
@@ -57,14 +58,27 @@ final class InlineSuggestionManager {
     func install(controller: TextViewController, schemaProvider: SQLSchemaProvider?) {
         self.controller = controller
         self.schemaProvider = schemaProvider
-        installKeyEventMonitor()
         installScrollObserver()
+    }
+
+    func editorDidFocus() {
+        guard !isEditorFocused else { return }
+        isEditorFocused = true
+        installKeyEventMonitor()
+    }
+
+    func editorDidBlur() {
+        guard isEditorFocused else { return }
+        isEditorFocused = false
+        dismissSuggestion()
+        removeKeyEventMonitor()
     }
 
     /// Remove all observers and layers
     func uninstall() {
         guard !isUninstalled else { return }
         isUninstalled = true
+        isEditorFocused = false
 
         debounceTimer?.invalidate()
         debounceTimer = nil
@@ -72,10 +86,7 @@ final class InlineSuggestionManager {
         currentTask = nil
         removeGhostLayer()
 
-        if let monitor = _keyEventMonitor.withLock({ $0 }) {
-            NSEvent.removeMonitor(monitor)
-            _keyEventMonitor.withLock { $0 = nil }
-        }
+        removeKeyEventMonitor()
 
         if let observer = _scrollObserver.withLock({ $0 }) {
             NotificationCenter.default.removeObserver(observer)
@@ -362,13 +373,14 @@ final class InlineSuggestionManager {
     // MARK: - Key Event Monitor
 
     private func installKeyEventMonitor() {
+        removeKeyEventMonitor()
         _keyEventMonitor.withLock { $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
+            guard let self, self.isEditorFocused else { return event }
 
-            // Only intercept when a suggestion is active
+            guard AppSettingsManager.shared.ai.inlineSuggestEnabled else { return event }
+
             guard self.currentSuggestion != nil else { return event }
 
-            // Only intercept when our text view is the first responder
             guard let textView = self.controller?.textView,
                   event.window === textView.window,
                   textView.window?.firstResponder === textView else { return event }
@@ -378,23 +390,28 @@ final class InlineSuggestionManager {
                 Task { @MainActor [weak self] in
                     self?.acceptSuggestion()
                 }
-                return nil // Consume the event
+                return nil
 
             case 53: // Escape — dismiss suggestion
                 Task { @MainActor [weak self] in
                     self?.dismissSuggestion()
                 }
-                return nil // Consume the event
+                return nil
 
             default:
-                // Any other key — dismiss and pass through
-                // The text change handler will schedule a new suggestion
                 Task { @MainActor [weak self] in
                     self?.dismissSuggestion()
                 }
-                return event // Pass through
+                return event
             }
         } }
+    }
+
+    private func removeKeyEventMonitor() {
+        _keyEventMonitor.withLock {
+            if let monitor = $0 { NSEvent.removeMonitor(monitor) }
+            $0 = nil
+        }
     }
 
     // MARK: - Scroll Observer

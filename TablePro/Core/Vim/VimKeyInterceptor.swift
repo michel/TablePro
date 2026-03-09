@@ -17,6 +17,7 @@ final class VimKeyInterceptor {
     private let _monitor = OSAllocatedUnfairLock<Any?>(initialState: nil)
     private weak var controller: TextViewController?
     private let _popupCloseObserver = OSAllocatedUnfairLock<Any?>(initialState: nil)
+    private var isEditorFocused = false
 
     deinit {
         if let monitor = _monitor.withLock({ $0 }) { NSEvent.removeMonitor(monitor) }
@@ -28,22 +29,11 @@ final class VimKeyInterceptor {
         self.inlineSuggestionManager = inlineSuggestionManager
     }
 
-    /// Install the key event monitor
+    /// Install the interceptor on a controller (does not install the event monitor until editor is focused)
     func install(controller: TextViewController) {
         self.controller = controller
         uninstall()
 
-        _monitor.withLock {
-            $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self else { return event }
-                return self.handleKeyEvent(event)
-            }
-        }
-
-        // Observe autocomplete popup close. When SuggestionController's popup
-        // consumes Escape (closes itself), we also need to exit Insert/Visual mode.
-        // queue: .main → handler runs synchronously when posted from main thread,
-        // so NSApp.currentEvent is still the Escape keyDown event.
         _popupCloseObserver.withLock { $0 = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: nil,
@@ -67,14 +57,40 @@ final class VimKeyInterceptor {
         } }
     }
 
-    /// Remove the key event monitor
+    func editorDidFocus() {
+        guard !isEditorFocused else { return }
+        isEditorFocused = true
+        installMonitor()
+    }
+
+    func editorDidBlur() {
+        guard isEditorFocused else { return }
+        isEditorFocused = false
+        removeMonitor()
+    }
+
+    /// Remove all monitors and observers
     func uninstall() {
-        _monitor.withLock {
-            if let monitor = $0 { NSEvent.removeMonitor(monitor) }
-            $0 = nil
-        }
+        isEditorFocused = false
+        removeMonitor()
         _popupCloseObserver.withLock {
             if let observer = $0 { NotificationCenter.default.removeObserver(observer) }
+            $0 = nil
+        }
+    }
+
+    private func installMonitor() {
+        _monitor.withLock {
+            $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, self.isEditorFocused else { return event }
+                return self.handleKeyEvent(event)
+            }
+        }
+    }
+
+    private func removeMonitor() {
+        _monitor.withLock {
+            if let monitor = $0 { NSEvent.removeMonitor(monitor) }
             $0 = nil
         }
     }

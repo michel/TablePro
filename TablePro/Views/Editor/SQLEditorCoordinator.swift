@@ -31,6 +31,8 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     /// triggering syntax highlight viewport recalculation on every keystroke.
     @ObservationIgnored private var frameChangeWorkItem: DispatchWorkItem?
     @ObservationIgnored private var clipboardMonitor: Any?
+    @ObservationIgnored private var firstResponderObserver: NSObjectProtocol?
+    @ObservationIgnored private var wasEditorFocused = false
     @ObservationIgnored private var didDestroy = false
 
     /// Test-only accessor for destroy state
@@ -62,6 +64,9 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         if let observer = editorSettingsObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        if let observer = firstResponderObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
         frameChangeWorkItem?.cancel()
         if let monitor = clipboardMonitor {
             NSEvent.removeMonitor(monitor)
@@ -83,6 +88,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             self?.installInlineSuggestionManager(controller: controller)
             self?.installVimModeIfEnabled(controller: controller)
             self?.installClipboardMonitor(controller: controller)
+            self?.installFirstResponderObserver()
         }
     }
 
@@ -155,6 +161,11 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         if let monitor = clipboardMonitor {
             NSEvent.removeMonitor(monitor)
             clipboardMonitor = nil
+        }
+
+        if let observer = firstResponderObserver {
+            NotificationCenter.default.removeObserver(observer)
+            firstResponderObserver = nil
         }
     }
 
@@ -254,6 +265,34 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             installVimKeyInterceptor(controller: controller)
         } else if !enabled && vimKeyInterceptor != nil {
             uninstallVimKeyInterceptor()
+        }
+    }
+
+    // MARK: - First Responder Tracking
+
+    private func installFirstResponderObserver() {
+        firstResponderObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didUpdateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.checkFirstResponderChange()
+            }
+        }
+    }
+
+    private func checkFirstResponderChange() {
+        let focused = isEditorFirstResponder
+        guard focused != wasEditorFocused else { return }
+        wasEditorFocused = focused
+
+        if focused {
+            vimKeyInterceptor?.editorDidFocus()
+            inlineSuggestionManager?.editorDidFocus()
+        } else {
+            vimKeyInterceptor?.editorDidBlur()
+            inlineSuggestionManager?.editorDidBlur()
         }
     }
 
