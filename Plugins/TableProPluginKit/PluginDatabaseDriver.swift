@@ -140,12 +140,24 @@ public extension PluginDatabaseDriver {
         var paramIndex = 0
         var inSingleQuote = false
         var inDoubleQuote = false
-        var prevChar: Character = "\0"
+        var isEscaped = false
 
         for char in query {
-            if char == "'" && !inDoubleQuote && prevChar != "\\" {
+            if isEscaped {
+                isEscaped = false
+                sql.append(char)
+                continue
+            }
+
+            if char == "\\" && (inSingleQuote || inDoubleQuote) {
+                isEscaped = true
+                sql.append(char)
+                continue
+            }
+
+            if char == "'" && !inDoubleQuote {
                 inSingleQuote.toggle()
-            } else if char == "\"" && !inSingleQuote && prevChar != "\\" {
+            } else if char == "\"" && !inSingleQuote {
                 inDoubleQuote.toggle()
             }
 
@@ -162,7 +174,6 @@ public extension PluginDatabaseDriver {
             } else {
                 sql.append(char)
             }
-            prevChar = char
         }
 
         return try await execute(query: sql)

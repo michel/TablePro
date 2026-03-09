@@ -148,26 +148,24 @@ final class PluginManager {
         let declared = Set(type(of: instance).capabilities)
 
         if let driver = instance as? any DriverPlugin {
-            if declared.contains(.databaseDriver) {
-                let typeId = type(of: driver).databaseTypeId
-                driverPlugins[typeId] = driver
-                for additionalId in type(of: driver).additionalDatabaseTypeIds {
-                    driverPlugins[additionalId] = driver
-                }
-                Self.logger.debug("Registered driver plugin '\(pluginId)' for database type '\(typeId)'")
-            } else {
-                Self.logger.warning("Plugin '\(pluginId)' conforms to DriverPlugin but does not declare .databaseDriver capability — skipping registration")
+            if !declared.contains(.databaseDriver) {
+                Self.logger.warning("Plugin '\(pluginId)' conforms to DriverPlugin but does not declare .databaseDriver capability — registering anyway")
             }
+            let typeId = type(of: driver).databaseTypeId
+            driverPlugins[typeId] = driver
+            for additionalId in type(of: driver).additionalDatabaseTypeIds {
+                driverPlugins[additionalId] = driver
+            }
+            Self.logger.debug("Registered driver plugin '\(pluginId)' for database type '\(typeId)'")
         }
 
         if let exportPlugin = instance as? any ExportFormatPlugin {
-            if declared.contains(.exportFormat) {
-                let formatId = type(of: exportPlugin).formatId
-                exportPlugins[formatId] = exportPlugin
-                Self.logger.debug("Registered export plugin '\(pluginId)' for format '\(formatId)'")
-            } else {
-                Self.logger.warning("Plugin '\(pluginId)' conforms to ExportFormatPlugin but does not declare .exportFormat capability — skipping registration")
+            if !declared.contains(.exportFormat) {
+                Self.logger.warning("Plugin '\(pluginId)' conforms to ExportFormatPlugin but does not declare .exportFormat capability — registering anyway")
             }
+            let formatId = type(of: exportPlugin).formatId
+            exportPlugins[formatId] = exportPlugin
+            Self.logger.debug("Registered export plugin '\(pluginId)' for format '\(formatId)'")
         }
     }
 
@@ -228,7 +226,7 @@ final class PluginManager {
         }
 
         Self.logger.info("Plugin '\(pluginId)' \(enabled ? "enabled" : "disabled")")
-        NotificationCenter.default.post(name: .pluginStateDidChange, object: pluginId)
+        NotificationCenter.default.post(name: .pluginStateDidChange, object: nil, userInfo: ["pluginId": pluginId])
     }
 
     // MARK: - Install / Uninstall
