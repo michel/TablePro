@@ -149,6 +149,13 @@ private struct JSONSyntaxTextView: NSViewRepresentable {
         let fullRange = NSRange(location: 0, length: length)
         let font = textView.font ?? NSFont.monospacedSystemFont(ofSize: DesignConstants.FontSize.medium, weight: .regular)
         let content = textStorage.string
+        let maxHighlightLength = 10_000
+        let highlightRange: NSRange
+        if length > maxHighlightLength {
+            highlightRange = NSRange(location: 0, length: maxHighlightLength)
+        } else {
+            highlightRange = fullRange
+        }
 
         textStorage.beginEditing()
 
@@ -156,18 +163,17 @@ private struct JSONSyntaxTextView: NSViewRepresentable {
         textStorage.addAttribute(.font, value: font, range: fullRange)
         textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
 
-        applyPattern(JSONHighlightPatterns.string, color: .systemRed, in: textStorage, content: content)
+        applyPattern(JSONHighlightPatterns.string, color: .systemRed, in: textStorage, content: content, range: highlightRange)
 
-        let keyRange = NSRange(location: 0, length: length)
-        for match in JSONHighlightPatterns.key.matches(in: content, range: keyRange) {
+        for match in JSONHighlightPatterns.key.matches(in: content, range: highlightRange) {
             let captureRange = match.range(at: 1)
             if captureRange.location != NSNotFound {
                 textStorage.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: captureRange)
             }
         }
 
-        applyPattern(JSONHighlightPatterns.number, color: .systemPurple, in: textStorage, content: content)
-        applyPattern(JSONHighlightPatterns.booleanNull, color: .systemOrange, in: textStorage, content: content)
+        applyPattern(JSONHighlightPatterns.number, color: .systemPurple, in: textStorage, content: content, range: highlightRange)
+        applyPattern(JSONHighlightPatterns.booleanNull, color: .systemOrange, in: textStorage, content: content, range: highlightRange)
 
         textStorage.endEditing()
     }
@@ -176,9 +182,9 @@ private struct JSONSyntaxTextView: NSViewRepresentable {
         _ regex: NSRegularExpression,
         color: NSColor,
         in textStorage: NSTextStorage,
-        content: String
+        content: String,
+        range: NSRange
     ) {
-        let range = NSRange(location: 0, length: textStorage.length)
         for match in regex.matches(in: content, range: range) {
             textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
         }
