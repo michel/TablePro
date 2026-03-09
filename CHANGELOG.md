@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `QueryResultRow` equality ignoring cell values, preventing SwiftUI from re-rendering updated rows
 - Fix status bar row info text rendering off-center due to duplicate spacer
 - Fix `Cmd+Delete` in sidebar search or right sidebar clearing the query editor
+- Fix SSH tunnel processes not terminated when closing connection window or quitting the app
 
 ## [0.14.1] - 2026-03-06
 

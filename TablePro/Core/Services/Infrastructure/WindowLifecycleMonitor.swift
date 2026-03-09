@@ -122,9 +122,20 @@ internal final class WindowLifecycleMonitor {
             return
         }
 
+        let closedConnectionId = entry.connectionId
+
         if let observer = entry.observer {
             NotificationCenter.default.removeObserver(observer)
         }
         entries.removeValue(forKey: windowId)
+
+        let hasRemainingWindows = entries.values.contains { $0.connectionId == closedConnectionId }
+        if !hasRemainingWindows {
+            NotificationCenter.default.post(
+                name: .lastWindowDidClose,
+                object: nil,
+                userInfo: ["connectionId": closedConnectionId]
+            )
+        }
     }
 }
