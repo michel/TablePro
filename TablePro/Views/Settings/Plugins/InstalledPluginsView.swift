@@ -66,6 +66,22 @@ struct InstalledPluginsView: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            guard let provider = providers.first,
+                  provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else {
+                return false
+            }
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
+                guard let data = data as? Data,
+                      let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                let ext = url.pathExtension.lowercased()
+                guard ext == "zip" || ext == "tableplugin" else { return }
+                Task { @MainActor in
+                    installPlugin(from: url)
+                }
+            }
+            return true
+        }
         .alert(errorAlertTitle, isPresented: $showErrorAlert) {
             Button("OK") {}
         } message: {
@@ -177,13 +193,18 @@ struct InstalledPluginsView: View {
 
     private func installFromFile() {
         let panel = NSOpenPanel()
-        panel.title = String(localized: "Select Plugin Archive")
-        panel.allowedContentTypes = [.zip]
+        panel.title = String(localized: "Select Plugin")
+        panel.allowedContentTypes = [.zip] + (UTType("com.tablepro.plugin").map { [$0] } ?? [])
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
+        panel.treatsFilePackagesAsDirectories = false
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
+        installPlugin(from: url)
+    }
+
+    private func installPlugin(from url: URL) {
         isInstalling = true
         Task {
             defer { isInstalling = false }

@@ -160,6 +160,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // Handle .tableplugin files (double-click from Finder)
+        let pluginURLs = urls.filter { $0.pathExtension == "tableplugin" }
+        if !pluginURLs.isEmpty {
+            Task { @MainActor in
+                for url in pluginURLs {
+                    await self.handlePluginInstall(url)
+                }
+            }
+        }
+
         // Handle database connection URLs (e.g. postgresql://user@host/db)
         let databaseURLs = urls.filter { url in
             guard let scheme = url.scheme?.lowercased() else { return false }
@@ -434,6 +444,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 Self.logger.error("Database URL connect failed: \(error.localizedDescription)")
                 await self.handleConnectionFailure(error)
             }
+        }
+    }
+
+    @MainActor
+    private func handlePluginInstall(_ url: URL) async {
+        do {
+            let entry = try await PluginManager.shared.installPlugin(from: url)
+            Self.logger.info("Installed plugin '\(entry.name)' from Finder")
+
+            // Navigate to Settings > Plugins tab.
+            // showSettingsWindow: is a private AppKit selector — no public API alternative exists.
+            UserDefaults.standard.set(SettingsTab.plugins.rawValue, forKey: "selectedSettingsTab")
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        } catch {
+            Self.logger.error("Plugin install failed: \(error.localizedDescription)")
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Plugin Installation Failed"),
+                message: error.localizedDescription,
+                window: NSApp.keyWindow
+            )
         }
     }
 

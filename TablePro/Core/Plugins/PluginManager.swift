@@ -231,7 +231,47 @@ final class PluginManager {
 
     // MARK: - Install / Uninstall
 
-    func installPlugin(from zipURL: URL) async throws -> PluginEntry {
+    func installPlugin(from url: URL) async throws -> PluginEntry {
+        if url.pathExtension == "tableplugin" {
+            return try await installBundle(from: url)
+        } else {
+            return try await installFromZip(from: url)
+        }
+    }
+
+    private func installBundle(from url: URL) async throws -> PluginEntry {
+        guard let sourceBundle = Bundle(url: url) else {
+            throw PluginError.invalidBundle("Cannot create bundle from \(url.lastPathComponent)")
+        }
+
+        try verifyCodeSignature(bundle: sourceBundle)
+
+        let newBundleId = sourceBundle.bundleIdentifier ?? url.lastPathComponent
+        if let existing = plugins.first(where: { $0.id == newBundleId }), existing.source == .builtIn {
+            throw PluginError.pluginConflict(existingName: existing.name)
+        }
+
+        if let existingIndex = plugins.firstIndex(where: { $0.id == newBundleId }) {
+            unregisterCapabilities(pluginId: newBundleId)
+            plugins[existingIndex].bundle.unload()
+            plugins.remove(at: existingIndex)
+        }
+
+        let fm = FileManager.default
+        let destURL = userPluginsDir.appendingPathComponent(url.lastPathComponent)
+
+        if fm.fileExists(atPath: destURL.path) {
+            try fm.removeItem(at: destURL)
+        }
+        try fm.copyItem(at: url, to: destURL)
+
+        let entry = try loadPlugin(at: destURL, source: .userInstalled)
+
+        Self.logger.info("Installed plugin '\(entry.name)' v\(entry.version)")
+        return entry
+    }
+
+    private func installFromZip(from url: URL) async throws -> PluginEntry {
         let fm = FileManager.default
         let tempDir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
 
@@ -243,7 +283,7 @@ final class PluginManager {
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        process.arguments = ["-xk", zipURL.path, tempDir.path]
+        process.arguments = ["-xk", url.path, tempDir.path]
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             process.terminationHandler = { proc in

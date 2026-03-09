@@ -6112,6 +6112,9 @@
         }
       }
     },
+    "No export formats available. Enable export plugins in Settings > Plugins." : {
+
+    },
     "No Foreign Keys Yet" : {
       "localizations" : {
         "vi" : {
@@ -7788,6 +7791,9 @@
         }
       }
     },
+    "Restart TablePro to fully unload removed plugins." : {
+
+    },
     "Retention" : {
       "localizations" : {
         "vi" : {
@@ -8294,7 +8300,7 @@
         }
       }
     },
-    "Select Plugin Archive" : {
+    "Select Plugin" : {
 
     },
     "Select SQL File..." : {

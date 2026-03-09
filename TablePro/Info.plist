@@ -28,6 +28,20 @@
 				<string>com.tablepro.sql</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>TablePro Plugin</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.tablepro.plugin</string>
+			</array>
+			<key>LSTypeIsPackage</key>
+			<true/>
+		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
@@ -47,6 +61,27 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>sql</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.tablepro.plugin</string>
+			<key>UTTypeDescription</key>
+			<string>TablePro Plugin</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.bundle</string>
+				<string>com.apple.package</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>tableplugin</string>
 				</array>
 			</dict>
 		</dict>
