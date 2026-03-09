@@ -473,19 +473,24 @@ struct WelcomeWindowView: View {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
-                // Show error to user and re-open welcome window
-                await MainActor.run {
-                    AlertHelper.showErrorSheet(
-                        title: String(localized: "Connection Failed"),
-                        message: error.localizedDescription,
-                        window: nil
-                    )
-                    openWindow(id: "welcome")
-                }
                 Self.logger.error(
                     "Failed to connect: \(error.localizedDescription, privacy: .public)")
+                handleConnectionFailure(error: error)
             }
         }
+    }
+
+    private func handleConnectionFailure(error: Error) {
+        // Close the main window first so macOS doesn't merge it with the welcome window
+        NSApplication.shared.closeWindows(withId: "main")
+        openWindow(id: "welcome")
+
+        // Show error as modal — welcome window is now the only window
+        AlertHelper.showErrorSheet(
+            title: String(localized: "Connection Failed"),
+            message: error.localizedDescription,
+            window: nil
+        )
     }
 
     private func deleteConnection(_ connection: DatabaseConnection) {
