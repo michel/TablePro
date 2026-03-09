@@ -14,11 +14,12 @@ extension TableViewCoordinator {
         let currentValue = rowData.value(at: columnIndex)
         let columnType = rowProvider.columnTypes[columnIndex]
 
-        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+        guard tableView.view(atColumn: column, row: row, makeIfNecessary: false) != nil else { return }
 
+        let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
         DatePickerPopoverController.shared.show(
-            relativeTo: cellView.bounds,
-            of: cellView,
+            relativeTo: cellRect,
+            of: tableView,
             value: currentValue,
             columnType: columnType
         ) { [weak self] newValue in
@@ -48,12 +49,13 @@ extension TableViewCoordinator {
         guard let rowData = rowProvider.row(at: row) else { return }
         let currentValue = rowData.value(at: columnIndex)
 
-        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+        guard tableView.view(atColumn: column, row: row, makeIfNecessary: false) != nil else { return }
         guard let databaseType, let connectionId else { return }
 
+        let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
         PopoverPresenter.show(
-            relativeTo: cellView.bounds,
-            of: cellView,
+            relativeTo: cellRect,
+            of: tableView,
             contentSize: NSSize(width: 420, height: 320)
         ) { [weak self] dismiss in
             ForeignKeyPopoverContentView(
@@ -79,11 +81,12 @@ extension TableViewCoordinator {
         guard let rowData = rowProvider.row(at: row) else { return }
         let currentValue = rowData.value(at: columnIndex)
 
-        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false) else { return }
+        guard tableView.view(atColumn: column, row: row, makeIfNecessary: false) != nil else { return }
 
+        let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
         PopoverPresenter.show(
-            relativeTo: cellView.bounds,
-            of: cellView,
+            relativeTo: cellRect,
+            of: tableView,
             contentSize: NSSize(width: 420, height: 340)
         ) { [weak self] dismiss in
             JSONEditorContentView(
@@ -103,7 +106,7 @@ extension TableViewCoordinator {
     }
 
     func showEnumPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
-        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false),
+        guard tableView.view(atColumn: column, row: row, makeIfNecessary: false) != nil,
               let rowData = rowProvider.row(at: row) else { return }
         let columnName = rowProvider.columns[columnIndex]
         guard let allowedValues = rowProvider.columnEnumValues[columnName] else { return }
@@ -117,9 +120,10 @@ extension TableViewCoordinator {
         }
         values.append(contentsOf: allowedValues)
 
+        let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
         PopoverPresenter.show(
-            relativeTo: cellView.bounds,
-            of: cellView
+            relativeTo: cellRect,
+            of: tableView
         ) { [weak self] dismiss in
             EnumPopoverContentView(
                 allValues: values,
@@ -134,7 +138,7 @@ extension TableViewCoordinator {
     }
 
     func showSetPopover(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
-        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false),
+        guard tableView.view(atColumn: column, row: row, makeIfNecessary: false) != nil,
               let rowData = rowProvider.row(at: row) else { return }
         let columnName = rowProvider.columns[columnIndex]
         guard let allowedValues = rowProvider.columnEnumValues[columnName] else { return }
@@ -152,9 +156,10 @@ extension TableViewCoordinator {
             selections[value] = currentSet.contains(value)
         }
 
+        let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
         PopoverPresenter.show(
-            relativeTo: cellView.bounds,
-            of: cellView
+            relativeTo: cellRect,
+            of: tableView
         ) { [weak self] dismiss in
             SetPopoverContentView(
                 allowedValues: allowedValues,
@@ -168,7 +173,7 @@ extension TableViewCoordinator {
     }
 
     func showDropdownMenu(tableView: NSTableView, row: Int, column: Int, columnIndex: Int) {
-        guard let cellView = tableView.view(atColumn: column, row: row, makeIfNecessary: false),
+        guard tableView.view(atColumn: column, row: row, makeIfNecessary: false) != nil,
               let rowData = rowProvider.row(at: row) else { return }
 
         let currentValue = rowData.value(at: columnIndex)
@@ -185,8 +190,8 @@ extension TableViewCoordinator {
             menu.addItem(item)
         }
 
-        let cellRect = cellView.bounds
-        menu.popUp(positioning: nil, at: NSPoint(x: cellRect.minX, y: cellRect.maxY), in: cellView)
+        let cellRect = tableView.rect(ofRow: row).intersection(tableView.rect(ofColumn: column))
+        menu.popUp(positioning: nil, at: NSPoint(x: cellRect.minX, y: cellRect.maxY), in: tableView)
     }
 
     @objc func dropdownMenuItemSelected(_ sender: NSMenuItem) {
