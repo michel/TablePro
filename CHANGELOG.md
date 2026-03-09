@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.1] - 2026-03-09
+
 ### Fixed
 
 - Stale filter causing repeated errors when restoring tabs after schema/database switch (#237)
 - Sidebar showing old tables during database/schema switch instead of loading state
+- Sidebar search field disappearing when no tables match filter on macOS 15 and earlier (#235)
+- Disabled plugin database types still appearing in connection form picker
+- Main window not closing before reopening welcome screen on connection failure
 
 ## [0.16.0] - 2026-03-09
 
@@ -755,7 +760,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/datlechin/tablepro/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/datlechin/tablepro/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/datlechin/tablepro/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/datlechin/tablepro/compare/v0.14.0...v0.14.1
