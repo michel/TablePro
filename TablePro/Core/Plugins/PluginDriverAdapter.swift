@@ -239,15 +239,15 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
     // MARK: - Transaction Management
 
     func beginTransaction() async throws {
-        _ = try await pluginDriver.execute(query: "BEGIN")
+        try await pluginDriver.beginTransaction()
     }
 
     func commitTransaction() async throws {
-        _ = try await pluginDriver.execute(query: "COMMIT")
+        try await pluginDriver.commitTransaction()
     }
 
     func rollbackTransaction() async throws {
-        _ = try await pluginDriver.execute(query: "ROLLBACK")
+        try await pluginDriver.rollbackTransaction()
     }
 
     // MARK: - Schema Switching

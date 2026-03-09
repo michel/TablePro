@@ -1047,26 +1047,34 @@ final class MainContentCoordinator {
                     throw DatabaseError.notConnected
                 }
 
-                for (i, statement) in validStatements.enumerated() {
-                    let statementStartTime = Date()
-                    // Execute parameterized query if has parameters, otherwise use regular execute
-                    if statement.parameters.isEmpty {
-                        _ = try await driver.execute(query: statement.sql)
-                    } else {
-                        _ = try await driver.executeParameterized(query: statement.sql, parameters: statement.parameters)
+                try await driver.beginTransaction()
+
+                do {
+                    for statement in validStatements {
+                        let statementStartTime = Date()
+                        if statement.parameters.isEmpty {
+                            _ = try await driver.execute(query: statement.sql)
+                        } else {
+                            _ = try await driver.executeParameterized(query: statement.sql, parameters: statement.parameters)
+                        }
+
+                        let executionTime = Date().timeIntervalSince(statementStartTime)
+
+                        QueryHistoryManager.shared.recordQuery(
+                            query: statement.sql.trimmingCharacters(in: .whitespacesAndNewlines),
+                            connectionId: conn.id,
+                            databaseName: conn.database,
+                            executionTime: executionTime,
+                            rowCount: 0,
+                            wasSuccessful: true,
+                            errorMessage: nil
+                        )
                     }
 
-                    let executionTime = Date().timeIntervalSince(statementStartTime)
-
-                    QueryHistoryManager.shared.recordQuery(
-                        query: statement.sql.trimmingCharacters(in: .whitespacesAndNewlines),
-                        connectionId: conn.id,
-                        databaseName: conn.database,
-                        executionTime: executionTime,
-                        rowCount: 0,
-                        wasSuccessful: true,
-                        errorMessage: nil
-                    )
+                    try await driver.commitTransaction()
+                } catch {
+                    try? await driver.rollbackTransaction()
+                    throw error
                 }
 
                 changeManager.clearChanges()

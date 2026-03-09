@@ -33,7 +33,6 @@ extension MainContentCoordinator {
         let conn = connection
         let tabId = tabManager.tabs[index].id
         let totalCount = statements.count
-        let dbType = connection.type
 
         currentQueryTask = Task {
             var cumulativeTime: TimeInterval = 0
@@ -49,12 +48,12 @@ extension MainContentCoordinator {
                 }
 
                 // Wrap in a transaction for atomicity
-                _ = try await driver.execute(query: dbType.beginTransactionSQL)
+                try await driver.beginTransaction()
 
                 for (stmtIndex, sql) in statements.enumerated() {
                     guard !Task.isCancelled else { break }
                     guard capturedGeneration == queryGeneration else {
-                        _ = try? await driver.execute(query: "ROLLBACK")
+                        try? await driver.rollbackTransaction()
                         return
                     }
 
@@ -86,7 +85,7 @@ extension MainContentCoordinator {
                 }
 
                 // Commit the transaction
-                _ = try await driver.execute(query: "COMMIT")
+                try await driver.commitTransaction()
 
                 // All statements succeeded — update tab with results
                 await MainActor.run {
@@ -140,7 +139,7 @@ extension MainContentCoordinator {
             } catch {
                 // Rollback on failure
                 if let driver = DatabaseManager.shared.driver(for: conn.id) {
-                    _ = try? await driver.execute(query: "ROLLBACK")
+                    try? await driver.rollbackTransaction()
                 }
 
                 guard capturedGeneration == queryGeneration else { return }

@@ -16,32 +16,19 @@ extension MainContentCoordinator {
             throw DatabaseError.notConnected
         }
 
-        let dbType = connection.type
-        let supportsTransactions = dbType != .redis && dbType != .mongodb && dbType != .clickhouse
-        var allStatements: [ParameterizedStatement] = []
-
-        if supportsTransactions {
-            allStatements.append(ParameterizedStatement(sql: dbType.beginTransactionSQL, parameters: []))
-        }
-
-        allStatements.append(contentsOf: statements)
-
-        if supportsTransactions {
-            allStatements.append(ParameterizedStatement(sql: "COMMIT", parameters: []))
-        }
+        try await driver.beginTransaction()
 
         do {
-            for stmt in allStatements {
+            for stmt in statements {
                 if stmt.parameters.isEmpty {
                     _ = try await driver.execute(query: stmt.sql)
                 } else {
                     _ = try await driver.executeParameterized(query: stmt.sql, parameters: stmt.parameters)
                 }
             }
+            try await driver.commitTransaction()
         } catch {
-            if supportsTransactions {
-                _ = try? await driver.execute(query: "ROLLBACK")
-            }
+            try? await driver.rollbackTransaction()
             throw error
         }
     }

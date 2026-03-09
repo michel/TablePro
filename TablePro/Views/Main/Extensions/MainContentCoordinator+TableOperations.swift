@@ -15,14 +15,12 @@ extension MainContentCoordinator {
     ///   - truncates: Set of table names to truncate
     ///   - deletes: Set of table names to drop
     ///   - options: Per-table options for FK and cascade handling
-    ///   - wrapInTransaction: Whether to wrap statements in BEGIN/COMMIT
     ///   - includeFKHandling: Whether to include FK disable/enable statements (set false when caller handles FK)
     /// - Returns: Array of SQL statements to execute
     func generateTableOperationSQL(
         truncates: Set<String>,
         deletes: Set<String>,
         options: [String: TableOperationOptions],
-        wrapInTransaction: Bool = true,
         includeFKHandling: Bool = true
     ) -> [String] {
         var statements: [String] = []
@@ -42,12 +40,6 @@ extension MainContentCoordinator {
             statements.append(contentsOf: fkDisableStatements(for: dbType))
         }
 
-        // Wrap in transaction for atomicity
-        let needsTransaction = wrapInTransaction && (sortedTruncates.count + sortedDeletes.count) > 1
-        if needsTransaction {
-            statements.append(dbType.beginTransactionSQL)
-        }
-
         for tableName in sortedTruncates {
             let quotedName = dbType.quoteIdentifier(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
@@ -63,10 +55,6 @@ extension MainContentCoordinator {
             let quotedName = dbType.quoteIdentifier(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
             statements.append(dropTableStatement(tableName: tableName, quotedName: quotedName, isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType))
-        }
-
-        if needsTransaction {
-            statements.append("COMMIT")
         }
 
         // FK re-enable must be OUTSIDE transaction to ensure it runs even on rollback

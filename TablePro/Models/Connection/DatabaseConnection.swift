@@ -287,16 +287,6 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var beginTransactionSQL: String {
-        switch self {
-        case .mysql, .mariadb: return "START TRANSACTION"
-        case .postgresql, .redshift, .sqlite: return "BEGIN"
-        case .mssql: return "BEGIN TRANSACTION"
-        case .oracle: return ""
-        case .mongodb, .redis, .clickhouse: return ""
-        }
-    }
-
     /// Whether this database type supports SQL-based schema editing (ALTER TABLE etc.)
     var supportsSchemaEditing: Bool {
         switch self {
