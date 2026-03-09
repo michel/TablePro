@@ -217,17 +217,18 @@ struct DataGridView: NSViewRepresentable {
 
         coordinator.rowProvider = rowProvider
 
-        // Re-apply pending cell edits to the new rowProvider instance.
-        // SwiftUI may supply a cached rowProvider that doesn't reflect
-        // in-flight edits tracked by the changeManager.
-        for change in changeManager.changes {
-            guard let rowChange = change as? RowChange else { continue }
-            for cellChange in rowChange.cellChanges {
-                coordinator.rowProvider.updateValue(
-                    cellChange.newValue,
-                    at: rowChange.rowIndex,
-                    columnIndex: cellChange.columnIndex
-                )
+        // Re-apply pending cell edits only when changes have been modified
+        if changeManager.reloadVersion != coordinator.lastReapplyVersion {
+            coordinator.lastReapplyVersion = changeManager.reloadVersion
+            for change in changeManager.changes {
+                guard let rowChange = change as? RowChange else { continue }
+                for cellChange in rowChange.cellChanges {
+                    coordinator.rowProvider.updateValue(
+                        cellChange.newValue,
+                        at: rowChange.rowIndex,
+                        columnIndex: cellChange.columnIndex
+                    )
+                }
             }
         }
 
@@ -636,6 +637,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     fileprivate var lastIdentity: DataGridIdentity?
     var lastReloadVersion: Int = 0
+    var lastReapplyVersion: Int = -1
     private(set) var cachedRowCount: Int = 0
     private(set) var cachedColumnCount: Int = 0
     var isSyncingSortDescriptors: Bool = false

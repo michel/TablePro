@@ -126,7 +126,7 @@ struct ContentView: View {
                     columnVisibility = .detailOnly
                 }
             }
-            .onChange(of: DatabaseManager.shared.sessionVersion, initial: true) { _, _ in
+            .onChange(of: DatabaseManager.shared.connectionStatusVersion, initial: true) { _, _ in
                 let sessions = DatabaseManager.shared.activeSessions
                 let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
                 guard let sid = connectionId else {

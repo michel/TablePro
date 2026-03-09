@@ -34,7 +34,25 @@ final class DataGridCellFactory {
     private var nullDisplayString: String = AppSettingsManager.shared.dataGrid.nullDisplay
     private var settingsObserver: NSObjectProtocol?
 
+    // MARK: - Cached VoiceOver State
+
+    private static var cachedVoiceOverEnabled: Bool = NSWorkspace.shared.isVoiceOverEnabled
+    // Observer lives for app lifetime — no removal needed since DataGridCellFactory is a static singleton cache
+    private static let voiceOverObserver: NSObjectProtocol? = {
+        NotificationCenter.default.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                DataGridCellFactory.cachedVoiceOverEnabled = NSWorkspace.shared.isVoiceOverEnabled
+            }
+        }
+    }()
+
     init() {
+        _ = Self.voiceOverObserver
+
         settingsObserver = NotificationCenter.default.addObserver(
             forName: .dataGridSettingsDidChange,
             object: nil,
@@ -123,7 +141,7 @@ final class DataGridCellFactory {
 
         cell.stringValue = "\(row + 1)"
         cell.textColor = visualState.isDeleted ? CellColors.deletedText : .secondaryLabelColor
-        if NSWorkspace.shared.isVoiceOverEnabled {
+        if Self.cachedVoiceOverEnabled {
             cellView.setAccessibilityLabel(String(localized: "Row \(row + 1)"))
         }
 
@@ -295,7 +313,7 @@ final class DataGridCellFactory {
         CATransaction.commit()
 
         // Accessibility: describe cell content for VoiceOver
-        if !isLargeDataset && NSWorkspace.shared.isVoiceOverEnabled {
+        if !isLargeDataset && Self.cachedVoiceOverEnabled {
             let displayValue = value ?? String(localized: "NULL")
             cell.setAccessibilityLabel(
                 String(localized: "Row \(row + 1), column \(columnIndex + 1): \(displayValue)")
@@ -410,28 +428,27 @@ final class DataGridCellFactory {
         columnIndex: Int,
         rowProvider: InMemoryRowProvider
     ) -> CGFloat {
-        let headerAttributes: [NSAttributedString.Key: Any] = [.font: Self.headerFont]
+        // For header: use character count * average proportional char width
+        // instead of CoreText measurement. ~0.6 of mono width is a good estimate
+        // for proportional system font.
+        let headerCharCount = (columnName as NSString).length
+        var maxWidth = CGFloat(headerCharCount) * Self.monoCharWidth * 0.75 + 48
 
-        // Start with header width (proportional font — needs CoreText, but only once)
-        let headerSize = (columnName as NSString).size(withAttributes: headerAttributes)
-        var maxWidth = headerSize.width + 48 // padding for sort indicator + margins
-
-        // Sample cell content to find max width
         let totalRows = rowProvider.totalRowCount
-        let step = max(1, totalRows / Self.sampleRowCount)
+        let columnCount = rowProvider.columns.count
+        // Reduce sample count for wide tables to keep total work bounded
+        let effectiveSampleCount = columnCount > 50 ? 10 : Self.sampleRowCount
+        let step = max(1, totalRows / effectiveSampleCount)
         let charWidth = Self.monoCharWidth
 
         for i in stride(from: 0, to: totalRows, by: step) {
             guard let row = rowProvider.row(at: i),
                   let value = row.value(at: columnIndex) else { continue }
 
-            // Use O(1) NSString length, capped for width estimation.
-            // Monospaced font: width = charCount * glyphAdvance (no CoreText needed).
             let charCount = min((value as NSString).length, Self.maxMeasureChars)
-            let cellWidth = CGFloat(charCount) * charWidth + 16 // 16 = cell padding
+            let cellWidth = CGFloat(charCount) * charWidth + 16
             maxWidth = max(maxWidth, cellWidth)
 
-            // Early exit if already at max
             if maxWidth >= Self.maxColumnWidth {
                 return Self.maxColumnWidth
             }

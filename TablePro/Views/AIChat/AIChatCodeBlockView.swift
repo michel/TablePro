@@ -178,37 +178,43 @@ struct AIChatCodeBlockView: View {
         }
 
         let nsCode = code as NSString
-        let fullRange = NSRange(location: 0, length: nsCode.length)
+        let maxHighlightLength = 10_000
+        let highlightRange: NSRange
+        if nsCode.length > maxHighlightLength {
+            highlightRange = NSRange(location: 0, length: maxHighlightLength)
+        } else {
+            highlightRange = NSRange(location: 0, length: nsCode.length)
+        }
 
         // 1. Single-line comments: --.*
-        for match in SQLPatterns.singleLineComment.matches(in: code, range: fullRange) {
+        for match in SQLPatterns.singleLineComment.matches(in: code, range: highlightRange) {
             applyColor(match.range, color: .systemGreen, protect: true)
         }
 
         // 2. Multi-line comments: /* ... */
-        for match in SQLPatterns.multiLineComment.matches(in: code, range: fullRange) {
+        for match in SQLPatterns.multiLineComment.matches(in: code, range: highlightRange) {
             applyColor(match.range, color: .systemGreen, protect: true)
         }
 
         // 3. String literals: '...'
-        for match in SQLPatterns.stringLiteral.matches(in: code, range: fullRange) {
+        for match in SQLPatterns.stringLiteral.matches(in: code, range: highlightRange) {
             applyColor(match.range, color: .systemRed, protect: true)
         }
 
         // 4. Numbers: \b\d+(\.\d+)?\b
-        for match in SQLPatterns.number.matches(in: code, range: fullRange) {
+        for match in SQLPatterns.number.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemPurple)
         }
 
         // 5. NULL / TRUE / FALSE
-        for match in SQLPatterns.nullBoolLiteral.matches(in: code, range: fullRange) {
+        for match in SQLPatterns.nullBoolLiteral.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemOrange)
         }
 
         // 6. SQL keywords
-        for match in SQLPatterns.keyword.matches(in: code, range: fullRange) {
+        for match in SQLPatterns.keyword.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemBlue)
         }
@@ -281,45 +287,51 @@ struct AIChatCodeBlockView: View {
         }
 
         let nsCode = code as NSString
-        let fullRange = NSRange(location: 0, length: nsCode.length)
+        let maxHighlightLength = 10_000
+        let highlightRange: NSRange
+        if nsCode.length > maxHighlightLength {
+            highlightRange = NSRange(location: 0, length: maxHighlightLength)
+        } else {
+            highlightRange = NSRange(location: 0, length: nsCode.length)
+        }
 
-        for match in JSPatterns.singleLineComment.matches(in: code, range: fullRange) {
+        for match in JSPatterns.singleLineComment.matches(in: code, range: highlightRange) {
             applyColor(match.range, color: .systemGreen, protect: true)
         }
 
-        for match in JSPatterns.multiLineComment.matches(in: code, range: fullRange) {
+        for match in JSPatterns.multiLineComment.matches(in: code, range: highlightRange) {
             applyColor(match.range, color: .systemGreen, protect: true)
         }
 
-        for match in JSPatterns.doubleQuoteString.matches(in: code, range: fullRange) {
+        for match in JSPatterns.doubleQuoteString.matches(in: code, range: highlightRange) {
             applyColor(match.range, color: .systemRed, protect: true)
         }
 
-        for match in JSPatterns.singleQuoteString.matches(in: code, range: fullRange) {
+        for match in JSPatterns.singleQuoteString.matches(in: code, range: highlightRange) {
             applyColor(match.range, color: .systemRed, protect: true)
         }
 
-        for match in JSPatterns.number.matches(in: code, range: fullRange) {
+        for match in JSPatterns.number.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemPurple)
         }
 
-        for match in JSPatterns.boolNull.matches(in: code, range: fullRange) {
+        for match in JSPatterns.boolNull.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemOrange)
         }
 
-        for match in JSPatterns.keyword.matches(in: code, range: fullRange) {
+        for match in JSPatterns.keyword.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemPink)
         }
 
-        for match in JSPatterns.method.matches(in: code, range: fullRange) {
+        for match in JSPatterns.method.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemBlue)
         }
 
-        for match in JSPatterns.property.matches(in: code, range: fullRange) {
+        for match in JSPatterns.property.matches(in: code, range: highlightRange) {
             guard !isProtected(match.range) else { continue }
             applyColor(match.range, color: .systemTeal)
         }

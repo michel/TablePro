@@ -44,6 +44,7 @@ struct MainContentView: View {
     @State private var commandActions: MainContentCommandActions?
     @State private var queryResultsSummaryCache: (tabId: UUID, version: Int, summary: String?)?
     @State private var inspectorUpdateTask: Task<Void, Never>?
+    @State private var pendingTabSwitch: Task<Void, Never>?
     /// Stable identifier for this window in WindowLifecycleMonitor
     @State private var windowId = UUID()
     @State private var hasInitialized = false
@@ -259,8 +260,14 @@ struct MainContentView: View {
             .modifier(ToolbarTintModifier(connectionColor: connection.color))
             .task { await initializeAndRestoreTabs() }
             .onChange(of: tabManager.selectedTabId) { _, newTabId in
-                handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
-                previousSelectedTabId = newTabId
+                pendingTabSwitch?.cancel()
+                pendingTabSwitch = Task { @MainActor in
+                    // Let other onChange handlers (tabs, resultColumns) settle first
+                    try? await Task.sleep(for: .milliseconds(16))
+                    guard !Task.isCancelled else { return }
+                    handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
+                    previousSelectedTabId = newTabId
+                }
             }
             .onChange(of: tabManager.tabs) { _, newTabs in
                 handleTabsChange(newTabs)
@@ -268,7 +275,7 @@ struct MainContentView: View {
             .onChange(of: currentTab?.resultColumns) { _, newColumns in
                 handleColumnsChange(newColumns: newColumns)
             }
-            .onChange(of: DatabaseManager.shared.sessionVersion, initial: true) { _, _ in
+            .onChange(of: DatabaseManager.shared.connectionStatusVersion, initial: true) { _, _ in
                 let sessions = DatabaseManager.shared.activeSessions
                 guard let session = sessions[connection.id] else { return }
                 if session.isConnected && coordinator.needsLazyLoad {
@@ -326,6 +333,7 @@ struct MainContentView: View {
                 }
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
+                // Synchronous: cheap state updates that don't cascade
                 AppState.shared.hasRowSelection = !newIndices.isEmpty
                 if !newIndices.isEmpty,
                    AppSettingsManager.shared.dataGrid.autoShowInspector,
@@ -333,6 +341,7 @@ struct MainContentView: View {
                 {
                     rightPanelState.isPresented = true
                 }
+                // Deferred: expensive inspector rebuild coalesced with other triggers
                 scheduleInspectorUpdate()
             }
     }

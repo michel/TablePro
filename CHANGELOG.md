@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Split DatabaseManager.sessionVersion into fine-grained connectionListVersion and connectionStatusVersion to reduce cascade re-renders
+- Extract AppState property reads into local lets in view bodies for explicit granular observation tracking
 - Reorganized project directory structure: Services, Utilities, Models split into domain-specific subdirectories
 - Database driver code moved from monolithic app binary into independent plugin bundles under `Plugins/`
 

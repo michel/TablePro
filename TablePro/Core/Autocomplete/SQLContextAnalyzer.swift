@@ -857,10 +857,18 @@ final class SQLContextAnalyzer {
             return .select // Column context
         }
 
-        let upper = textBeforeCursor.uppercased()
+        // Window to last N chars to avoid O(n) regex on large queries
+        let windowSize = 5000 // Also referenced by SQLContextAnalyzerWindowingTests
+        let nsText = textBeforeCursor as NSString
+        let windowedText: String
+        if nsText.length > windowSize {
+            windowedText = nsText.substring(from: nsText.length - windowSize)
+        } else {
+            windowedText = textBeforeCursor
+        }
 
         // Remove string literals and comments for analysis
-        let cleaned = removeStringsAndComments(from: upper)
+        let cleaned = removeStringsAndComments(from: windowedText)
 
         // Run regex-based clause detection FIRST — DDL contexts (CREATE TABLE,
         // ALTER TABLE, etc.) must take priority over function-arg detection,

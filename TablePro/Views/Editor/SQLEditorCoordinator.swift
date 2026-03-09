@@ -31,6 +31,8 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     /// triggering syntax highlight viewport recalculation on every keystroke.
     @ObservationIgnored private var frameChangeWorkItem: DispatchWorkItem?
     @ObservationIgnored private var clipboardMonitor: Any?
+    @ObservationIgnored private var firstResponderObserver: NSObjectProtocol?
+    @ObservationIgnored private var wasEditorFocused = false
     @ObservationIgnored private var didDestroy = false
 
     /// Test-only accessor for destroy state
@@ -62,9 +64,33 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         if let observer = editorSettingsObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        if let observer = firstResponderObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
         frameChangeWorkItem?.cancel()
         if let monitor = clipboardMonitor {
             NSEvent.removeMonitor(monitor)
+        }
+    }
+
+    private func cleanupMonitors() {
+        if let monitor = rightClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            rightClickMonitor = nil
+        }
+        if let observer = editorSettingsObserver {
+            NotificationCenter.default.removeObserver(observer)
+            editorSettingsObserver = nil
+        }
+        if let observer = firstResponderObserver {
+            NotificationCenter.default.removeObserver(observer)
+            firstResponderObserver = nil
+        }
+        frameChangeWorkItem?.cancel()
+        frameChangeWorkItem = nil
+        if let monitor = clipboardMonitor {
+            NSEvent.removeMonitor(monitor)
+            clipboardMonitor = nil
         }
     }
 
@@ -83,6 +109,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             self?.installInlineSuggestionManager(controller: controller)
             self?.installVimModeIfEnabled(controller: controller)
             self?.installClipboardMonitor(controller: controller)
+            self?.installFirstResponderObserver()
         }
     }
 
@@ -134,28 +161,12 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     func destroy() {
         didDestroy = true
 
-        frameChangeWorkItem?.cancel()
-        frameChangeWorkItem = nil
-
         uninstallVimKeyInterceptor()
 
         inlineSuggestionManager?.uninstall()
         inlineSuggestionManager = nil
 
-        if let obs = editorSettingsObserver {
-            NotificationCenter.default.removeObserver(obs)
-            editorSettingsObserver = nil
-        }
-
-        if let monitor = rightClickMonitor {
-            NSEvent.removeMonitor(monitor)
-            rightClickMonitor = nil
-        }
-
-        if let monitor = clipboardMonitor {
-            NSEvent.removeMonitor(monitor)
-            clipboardMonitor = nil
-        }
+        cleanupMonitors()
     }
 
     // MARK: - AI Context Menu
@@ -254,6 +265,34 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             installVimKeyInterceptor(controller: controller)
         } else if !enabled && vimKeyInterceptor != nil {
             uninstallVimKeyInterceptor()
+        }
+    }
+
+    // MARK: - First Responder Tracking
+
+    private func installFirstResponderObserver() {
+        firstResponderObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didUpdateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.checkFirstResponderChange()
+            }
+        }
+    }
+
+    private func checkFirstResponderChange() {
+        let focused = isEditorFirstResponder
+        guard focused != wasEditorFocused else { return }
+        wasEditorFocused = focused
+
+        if focused {
+            vimKeyInterceptor?.editorDidFocus()
+            inlineSuggestionManager?.editorDidFocus()
+        } else {
+            vimKeyInterceptor?.editorDidBlur()
+            inlineSuggestionManager?.editorDidBlur()
         }
     }
 

@@ -181,8 +181,15 @@ struct HighlightedSQLTextView: NSViewRepresentable {
             activePatterns = Self.syntaxPatterns
         }
         let text = textStorage.string
+        let maxHighlightLength = 10_000
+        let highlightRange: NSRange
+        if textStorage.length > maxHighlightLength {
+            highlightRange = NSRange(location: 0, length: maxHighlightLength)
+        } else {
+            highlightRange = fullRange
+        }
         for (regex, color) in activePatterns {
-            let matches = regex.matches(in: text, options: [], range: fullRange)
+            let matches = regex.matches(in: text, options: [], range: highlightRange)
             for match in matches {
                 textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
             }

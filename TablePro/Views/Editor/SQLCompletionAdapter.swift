@@ -160,19 +160,18 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
 
     // MARK: - Fuzzy Matching
 
-    /// Fuzzy matching: checks if all pattern characters appear in target in order
-    private static func fuzzyMatch(pattern: String, target: String) -> Bool {
-        var patternIndex = pattern.startIndex
-        var targetIndex = target.startIndex
-
-        while patternIndex < pattern.endIndex && targetIndex < target.endIndex {
-            if pattern[patternIndex] == target[targetIndex] {
-                patternIndex = pattern.index(after: patternIndex)
+    nonisolated static func fuzzyMatch(pattern: String, target: String) -> Bool {
+        let nsPattern = pattern as NSString
+        let nsTarget = target as NSString
+        var patternIndex = 0
+        var targetIndex = 0
+        while patternIndex < nsPattern.length && targetIndex < nsTarget.length {
+            if nsPattern.character(at: patternIndex) == nsTarget.character(at: targetIndex) {
+                patternIndex += 1
             }
-            targetIndex = target.index(after: targetIndex)
+            targetIndex += 1
         }
-
-        return patternIndex == pattern.endIndex
+        return patternIndex == nsPattern.length
     }
 }
 

@@ -27,9 +27,11 @@ struct QueryEditorView: View {
     @State private var isVimEnabled = AppSettingsManager.shared.editor.vimModeEnabled
 
     var body: some View {
+        let hasQuery = appState.hasQueryText
+
         VStack(alignment: .leading, spacing: 0) {
             // Editor header with toolbar (above editor, higher z-index)
-            editorToolbar
+            editorToolbar(hasQueryText: hasQuery)
                 .zIndex(1)
 
             Divider()
@@ -58,7 +60,7 @@ struct QueryEditorView: View {
 
     // MARK: - Toolbar
 
-    private var editorToolbar: some View {
+    private func editorToolbar(hasQueryText: Bool) -> some View {
         HStack {
             Text("Query")
                 .font(.headline)
@@ -107,7 +109,7 @@ struct QueryEditorView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
-                .disabled(!appState.hasQueryText)
+                .disabled(!hasQueryText)
             } else {
                 Button {
                     NotificationCenter.default.post(name: .explainQuery, object: nil)
@@ -119,7 +121,7 @@ struct QueryEditorView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .disabled(!appState.hasQueryText)
+                .disabled(!hasQueryText)
             }
 
             // Execute button
