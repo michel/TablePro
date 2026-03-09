@@ -23,6 +23,22 @@ struct ConnectionFormView: View {
     // Computed property for isNew
     private var isNew: Bool { connectionId == nil }
 
+    private var availableDatabaseTypes: [DatabaseType] {
+        let pluginManager = PluginManager.shared
+        pluginManager.loadPendingPlugins()
+        let enabled = DatabaseType.allCases.filter { dbType in
+            pluginManager.plugins.contains { entry in
+                entry.isEnabled && (entry.databaseTypeId == dbType.pluginTypeId
+                    || entry.additionalTypeIds.contains(dbType.pluginTypeId))
+            }
+        }
+        // When editing, always include the current type so the picker binding stays valid
+        if !isNew, !enabled.contains(type) {
+            return [type] + enabled
+        }
+        return enabled
+    }
+
     @State private var name: String = ""
     @State private var host: String = ""
     @State private var port: String = ""
@@ -178,7 +194,7 @@ struct ConnectionFormView: View {
         Form {
             Section {
                 Picker(String(localized: "Type"), selection: $type) {
-                    ForEach(DatabaseType.allCases) { t in
+                    ForEach(availableDatabaseTypes) { t in
                         Text(t.rawValue).tag(t)
                     }
                 }
