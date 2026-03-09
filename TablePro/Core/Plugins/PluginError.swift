@@ -17,6 +17,7 @@ enum PluginError: LocalizedError {
     case pluginConflict(existingName: String)
     case appVersionTooOld(minimumRequired: String, currentApp: String)
     case downloadFailed(String)
+    case pluginNotInstalled(String)
     case incompatibleWithCurrentApp(minimumRequired: String)
 
     var errorDescription: String? {
@@ -43,6 +44,8 @@ enum PluginError: LocalizedError {
             return String(localized: "Plugin requires app version \(minimumRequired) or later, but current version is \(currentApp)")
         case .downloadFailed(let reason):
             return String(localized: "Plugin download failed: \(reason)")
+        case .pluginNotInstalled(let databaseType):
+            return String(localized: "The \(databaseType) plugin is not installed. You can download it from the plugin marketplace.")
         case .incompatibleWithCurrentApp(let minimumRequired):
             return String(localized: "This plugin requires TablePro \(minimumRequired) or later")
         }

@@ -226,6 +226,13 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var isDownloadablePlugin: Bool {
+        switch self {
+        case .oracle, .clickhouse: return true
+        default: return false
+        }
+    }
+
     /// Asset name for each database type icon
     var iconName: String {
         switch self {

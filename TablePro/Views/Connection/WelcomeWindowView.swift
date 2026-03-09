@@ -468,29 +468,61 @@ struct WelcomeWindowView: View {
         openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
         NSApplication.shared.closeWindows(withId: "welcome")
 
-        // Connect in background - main window shows loading state
         Task {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
-                Self.logger.error(
-                    "Failed to connect: \(error.localizedDescription, privacy: .public)")
-                handleConnectionFailure(error: error)
+                if case PluginError.pluginNotInstalled = error {
+                    Self.logger.info("Plugin not installed for \(connection.type.rawValue), prompting install")
+                    handleMissingPlugin(connection: connection)
+                } else {
+                    Self.logger.error(
+                        "Failed to connect: \(error.localizedDescription, privacy: .public)")
+                    handleConnectionFailure(error: error)
+                }
             }
         }
     }
 
     private func handleConnectionFailure(error: Error) {
-        // Close the main window first so macOS doesn't merge it with the welcome window
         NSApplication.shared.closeWindows(withId: "main")
         openWindow(id: "welcome")
 
-        // Show error as modal — welcome window is now the only window
         AlertHelper.showErrorSheet(
             title: String(localized: "Connection Failed"),
             message: error.localizedDescription,
             window: nil
         )
+    }
+
+    private func handleMissingPlugin(connection: DatabaseConnection) {
+        NSApplication.shared.closeWindows(withId: "main")
+        openWindow(id: "welcome")
+
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Plugin Not Installed")
+        alert.informativeText = String(
+            localized: "The \(connection.type.rawValue) plugin is not installed. Would you like to download it from the plugin marketplace?"
+        )
+        alert.addButton(withTitle: String(localized: "Install"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        alert.alertStyle = .informational
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            Task {
+                do {
+                    try await PluginManager.shared.installMissingPlugin(for: connection.type) { _ in }
+                    connectToDatabase(connection)
+                } catch {
+                    AlertHelper.showErrorSheet(
+                        title: String(localized: "Plugin Installation Failed"),
+                        message: error.localizedDescription,
+                        window: nil
+                    )
+                }
+            }
+        }
     }
 
     private func deleteConnection(_ connection: DatabaseConnection) {

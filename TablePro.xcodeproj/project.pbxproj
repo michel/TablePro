@@ -9,11 +9,9 @@
 /* Begin PBXBuildFile section */
 		5A860000A00000000 /* TableProPluginKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A861000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
-		5A861000D00000000 /* OracleDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A861000100000000 /* OracleDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A862000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A862000D00000000 /* SQLiteDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A862000100000000 /* SQLiteDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A863000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
-		5A863000D00000000 /* ClickHouseDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A863000100000000 /* ClickHouseDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A864000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A864000D00000000 /* MSSQLDriver.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A864000100000000 /* MSSQLDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A865000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
@@ -166,9 +164,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				5A861000D00000000 /* OracleDriver.tableplugin in Copy Plug-Ins */,
 				5A862000D00000000 /* SQLiteDriver.tableplugin in Copy Plug-Ins */,
-				5A863000D00000000 /* ClickHouseDriver.tableplugin in Copy Plug-Ins */,
 				5A864000D00000000 /* MSSQLDriver.tableplugin in Copy Plug-Ins */,
 				5A865000D00000000 /* MySQLDriver.tableplugin in Copy Plug-Ins */,
 				5A866000D00000000 /* MongoDBDriver.tableplugin in Copy Plug-Ins */,

@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import plugin system: SQL import extracted into a `.tableplugin` bundle, matching the export plugin architecture
 - `ImportFormatPlugin` protocol in TableProPluginKit for building custom import format plugins
 - SQLImportPlugin as the first import format plugin (SQL files and .gz compressed SQL)
+- Oracle and ClickHouse shipped as downloadable plugins, reducing app bundle size for most users
+- Plugin install prompt when connecting to a database whose driver plugin is not installed
+- `databaseTypeIds` field on registry plugins for mapping registry entries to database types
+- `build-plugin.sh` script and `build-plugin.yml` CI workflow for building standalone plugin releases
 
 ## [0.16.1] - 2026-03-09
 

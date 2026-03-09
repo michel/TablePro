@@ -282,6 +282,35 @@ final class PluginManager {
         }
     }
 
+    // MARK: - Driver Availability
+
+    func isDriverAvailable(for databaseType: DatabaseType) -> Bool {
+        loadPendingPlugins()
+        return driverPlugins[databaseType.pluginTypeId] != nil
+    }
+
+    func installMissingPlugin(
+        for databaseType: DatabaseType,
+        progress: @escaping @MainActor @Sendable (Double) -> Void
+    ) async throws {
+        let registryClient = RegistryClient.shared
+        await registryClient.fetchManifest()
+
+        guard let manifest = registryClient.manifest else {
+            throw PluginError.downloadFailed(String(localized: "Could not fetch plugin registry"))
+        }
+
+        let pluginTypeId = databaseType.pluginTypeId
+        guard let registryPlugin = manifest.plugins.first(where: { plugin in
+            plugin.databaseTypeIds?.contains(pluginTypeId) == true
+        }) else {
+            throw PluginError.notFound
+        }
+
+        let entry = try await installFromRegistry(registryPlugin, progress: progress)
+        Self.logger.info("Installed missing plugin '\(entry.name)' for database type '\(databaseType.rawValue)'")
+    }
+
     // MARK: - Enable / Disable
 
     func setEnabled(_ enabled: Bool, pluginId: String) {
