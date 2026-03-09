@@ -232,6 +232,11 @@ struct ContentView: View {
                         schemaProvider: SchemaProviderRegistry.shared.provider(for: currentSession.connection.id)
                     )
                 }
+                .searchable(
+                    text: sidebarSearchTextBinding(for: currentSession.connection.id),
+                    placement: .sidebar,
+                    prompt: "Filter"
+                )
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 600)
             } detail: {
                 // MARK: - Detail (Main workspace with optional right sidebar)
@@ -329,6 +334,14 @@ struct ContentView: View {
             get: { $0.pendingDeletes },
             set: { $0.pendingDeletes = $1 },
             defaultValue: []
+        )
+    }
+
+    private func sidebarSearchTextBinding(for connectionId: UUID) -> Binding<String> {
+        let state = SharedSidebarState.forConnection(connectionId)
+        return Binding(
+            get: { state.searchText },
+            set: { state.searchText = $0 }
         )
     }
 
