@@ -804,6 +804,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        SSHTunnelManager.shared.terminateAllProcessesSync()
+
         // Each MainContentCoordinator observes willTerminateNotification and
         // synchronously writes tab state via TabDiskActor.saveSync. No additional
         // action needed here — the per-coordinator observers fire before this returns.

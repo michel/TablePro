@@ -72,6 +72,7 @@ final class DatabaseManager {
     }
 
     @ObservationIgnored nonisolated(unsafe) private var sshTunnelObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var lastWindowCloseObserver: NSObjectProtocol?
 
     private init() {
         // Observe SSH tunnel failures
@@ -87,11 +88,27 @@ final class DatabaseManager {
                 await self.handleSSHTunnelDied(connectionId: connectionId)
             }
         }
+
+        lastWindowCloseObserver = NotificationCenter.default.addObserver(
+            forName: .lastWindowDidClose,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let connectionId = notification.userInfo?["connectionId"] as? UUID else { return }
+            guard let self else { return }
+
+            Task { @MainActor in
+                await self.disconnectSession(connectionId)
+            }
+        }
     }
 
     deinit {
         if let sshTunnelObserver {
             NotificationCenter.default.removeObserver(sshTunnelObserver)
+        }
+        if let lastWindowCloseObserver {
+            NotificationCenter.default.removeObserver(lastWindowCloseObserver)
         }
     }
 

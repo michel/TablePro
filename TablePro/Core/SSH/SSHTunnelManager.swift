@@ -60,6 +60,7 @@ actor SSHTunnelManager {
     private let portRangeStart = 60_000
     private let portRangeEnd = 65_000
     private var healthCheckTask: Task<Void, Never>?
+    private static let processRegistry = OSAllocatedUnfairLock(initialState: [UUID: Process]())
 
     private init() {
         Task { [weak self] in
@@ -201,6 +202,7 @@ actor SSHTunnelManager {
                 createdAt: Date()
             )
             tunnels[connectionId] = tunnel
+            Self.processRegistry.withLock { $0[connectionId] = launch.process }
 
             return localPort
         }
@@ -218,16 +220,43 @@ actor SSHTunnelManager {
         }
 
         tunnels.removeValue(forKey: connectionId)
+        Self.processRegistry.withLock { $0.removeValue(forKey: connectionId) }
     }
 
     /// Close all SSH tunnels
     func closeAllTunnels() async {
-        for (_, tunnel) in tunnels {
-            if tunnel.process.isRunning {
-                tunnel.process.terminate()
+        let currentTunnels = tunnels
+        tunnels.removeAll()
+        Self.processRegistry.withLock { $0.removeAll() }
+
+        await withTaskGroup(of: Void.self) { group in
+            for (_, tunnel) in currentTunnels where tunnel.process.isRunning {
+                group.addTask {
+                    tunnel.process.terminate()
+                    await self.waitForProcessExit(tunnel.process, timeout: .seconds(3))
+                }
             }
         }
-        tunnels.removeAll()
+    }
+
+    /// Synchronously terminate all SSH tunnel processes.
+    /// Called from `applicationWillTerminate` where async is not available.
+    nonisolated func terminateAllProcessesSync() {
+        let processes = Self.processRegistry.withLock { dict -> [Process] in
+            let procs = Array(dict.values)
+            dict.removeAll()
+            return procs
+        }
+        for process in processes where process.isRunning {
+            process.terminate()
+            let deadline = Date().addingTimeInterval(1.0)
+            while process.isRunning, Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            if process.isRunning {
+                kill(process.processIdentifier, SIGKILL)
+            }
+        }
     }
 
     /// Check if a tunnel exists for a connection
@@ -389,12 +418,26 @@ actor SSHTunnelManager {
         return scriptPath
     }
 
-    /// Wait for a Process to exit without blocking the current thread
-    private func waitForProcessExit(_ process: Process) async {
-        await withCheckedContinuation { continuation in
-            process.terminationHandler = { _ in
-                continuation.resume()
+    private func waitForProcessExit(_ process: Process, timeout: Duration = .seconds(5)) async {
+        guard process.isRunning else { return }
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    process.terminationHandler = { _ in
+                        continuation.resume()
+                    }
+                }
             }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+            }
+            _ = await group.next()
+            group.cancelAll()
+        }
+
+        if process.isRunning {
+            kill(process.processIdentifier, SIGKILL)
         }
     }
 
