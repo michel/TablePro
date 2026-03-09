@@ -500,6 +500,14 @@ build_for_arch() {
         codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$dylib"
     done
 
+    # Sign plugin bundles (stripped binaries need re-signing)
+    if [ -d "$PLUGINS_DIR" ]; then
+        for plugin in "$PLUGINS_DIR"/*.tableplugin; do
+            [ -d "$plugin" ] || continue
+            codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin"
+        done
+    fi
+
     # Sign the app bundle last
     codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$BUILD_DIR/$OUTPUT_NAME"
     echo "✅ Code signing complete"
