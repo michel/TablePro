@@ -34,6 +34,8 @@ struct WelcomeWindowView: View {
         return Set(strings.compactMap { UUID(uuidString: $0) })
     }()
     @State private var showNewGroupSheet = false
+    @State private var pluginInstallConnection: DatabaseConnection?
+    @State private var showPluginInstallFailed: String?
 
     @Environment(\.openWindow) private var openWindow
 
@@ -114,6 +116,42 @@ struct WelcomeWindowView: View {
                 let group = ConnectionGroup(name: name, color: color)
                 groupStorage.addGroup(group)
                 groups = groupStorage.loadGroups()
+            }
+        }
+        .alert(
+            String(localized: "Plugin Not Installed"),
+            isPresented: Binding(
+                get: { pluginInstallConnection != nil },
+                set: { if !$0 { pluginInstallConnection = nil } }
+            )
+        ) {
+            Button(String(localized: "Install")) {
+                if let connection = pluginInstallConnection {
+                    pluginInstallConnection = nil
+                    installAndConnect(connection)
+                }
+            }
+            Button(String(localized: "Cancel"), role: .cancel) {
+                pluginInstallConnection = nil
+            }
+        } message: {
+            if let connection = pluginInstallConnection {
+                Text("The \(connection.type.rawValue) plugin is not installed. Would you like to download it from the plugin marketplace?")
+            }
+        }
+        .alert(
+            String(localized: "Plugin Installation Failed"),
+            isPresented: Binding(
+                get: { showPluginInstallFailed != nil },
+                set: { if !$0 { showPluginInstallFailed = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                showPluginInstallFailed = nil
+            }
+        } message: {
+            if let message = showPluginInstallFailed {
+                Text(message)
             }
         }
     }
@@ -498,29 +536,31 @@ struct WelcomeWindowView: View {
     private func handleMissingPlugin(connection: DatabaseConnection) {
         NSApplication.shared.closeWindows(withId: "main")
         openWindow(id: "welcome")
+        pluginInstallConnection = connection
+    }
 
-        let alert = NSAlert()
-        alert.messageText = String(localized: "Plugin Not Installed")
-        alert.informativeText = String(
-            localized: "The \(connection.type.rawValue) plugin is not installed. Would you like to download it from the plugin marketplace?"
-        )
-        alert.addButton(withTitle: String(localized: "Install"))
-        alert.addButton(withTitle: String(localized: "Cancel"))
-        alert.alertStyle = .informational
+    private func installAndConnect(_ connection: DatabaseConnection) {
+        Task {
+            do {
+                try await PluginManager.shared.installMissingPlugin(for: connection.type) { _ in }
+                connectAfterInstall(connection)
+            } catch {
+                showPluginInstallFailed = error.localizedDescription
+            }
+        }
+    }
 
-        let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            Task {
-                do {
-                    try await PluginManager.shared.installMissingPlugin(for: connection.type) { _ in }
-                    connectToDatabase(connection)
-                } catch {
-                    AlertHelper.showErrorSheet(
-                        title: String(localized: "Plugin Installation Failed"),
-                        message: error.localizedDescription,
-                        window: nil
-                    )
-                }
+    private func connectAfterInstall(_ connection: DatabaseConnection) {
+        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
+        NSApplication.shared.closeWindows(withId: "welcome")
+
+        Task {
+            do {
+                try await dbManager.connectToSession(connection)
+            } catch {
+                Self.logger.error(
+                    "Failed to connect after plugin install: \(error.localizedDescription, privacy: .public)")
+                handleConnectionFailure(error: error)
             }
         }
     }

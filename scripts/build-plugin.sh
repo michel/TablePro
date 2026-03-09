@@ -69,11 +69,23 @@ build_plugin() {
         echo "Stripped binary: $before -> $after"
     fi
 
-    # Code sign: sign the binary first, then the bundle (inside-out)
+    # Code sign inside-out: nested frameworks/dylibs first, then binary, then bundle
     echo "Code signing with: $SIGN_IDENTITY"
+
+    # Sign nested frameworks
+    if [ -d "$plugin_bundle/Contents/Frameworks" ]; then
+        find "$plugin_bundle/Contents/Frameworks" -name "*.framework" -o -name "*.dylib" | sort | while read -r nested; do
+            echo "  Signing nested: $(basename "$nested")"
+            codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$nested"
+        done
+    fi
+
+    # Sign the main binary
     if [ -f "$plugin_binary" ]; then
         codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin_binary"
     fi
+
+    # Sign the outer bundle
     codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin_bundle"
 
     if ! codesign --verify --deep --strict "$plugin_bundle" 2>&1; then
