@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Inspector separator no longer bleeds into toolbar area with default connection color (#228)
+- Inspector toggle no longer lags due to synchronous UserDefaults writes during animation (#229)
+
 ### Added
 
 - Direct `.tableplugin` bundle installation via file picker, Finder double-click, and drag-and-drop

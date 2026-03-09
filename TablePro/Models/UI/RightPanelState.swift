@@ -13,15 +13,16 @@ import os
 @MainActor @Observable final class RightPanelState {
     private static let isPresentedKey = "com.TablePro.rightPanel.isPresented"
     private static let isPresentedChangedNotification = Notification.Name("com.TablePro.rightPanel.isPresentedChanged")
-
     private var isSyncing = false
     @ObservationIgnored private let _didTeardown = OSAllocatedUnfairLock(initialState: false)
 
     var isPresented: Bool {
         didSet {
             guard !isSyncing else { return }
-            UserDefaults.standard.set(isPresented, forKey: Self.isPresentedKey)
-            NotificationCenter.default.post(name: Self.isPresentedChangedNotification, object: self)
+            DispatchQueue.main.async { [self] in
+                UserDefaults.standard.set(self.isPresented, forKey: Self.isPresentedKey)
+                NotificationCenter.default.post(name: Self.isPresentedChangedNotification, object: self)
+            }
         }
     }
 
