@@ -19,6 +19,18 @@ struct InstalledPluginsView: View {
 
     var body: some View {
         Form {
+            if pluginManager.needsRestart {
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Restart TablePro to fully unload removed plugins.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             Section("Installed Plugins") {
                 ForEach(pluginManager.plugins) { plugin in
                     pluginRow(plugin)
