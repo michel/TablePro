@@ -9,7 +9,6 @@ struct RegistryPluginRow: View {
     let plugin: RegistryPlugin
     let isInstalled: Bool
     let installProgress: InstallProgress?
-    let isExpanded: Bool
     let onInstall: () -> Void
     let onToggleDetail: () -> Void
 

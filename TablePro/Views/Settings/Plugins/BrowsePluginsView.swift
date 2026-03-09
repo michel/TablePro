@@ -117,7 +117,6 @@ struct BrowsePluginsView: View {
                                     plugin: plugin,
                                     isInstalled: isPluginInstalled(plugin.id),
                                     installProgress: installTracker.state(for: plugin.id),
-                                    isExpanded: selectedPluginId == plugin.id,
                                     onInstall: { installPlugin(plugin) },
                                     onToggleDetail: {
                                         withAnimation(.easeInOut(duration: 0.2)) {

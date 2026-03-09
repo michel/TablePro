@@ -19,7 +19,7 @@ final class RegistryClient {
         set { UserDefaults.standard.set(newValue, forKey: "registryETag") }
     }
 
-    private let session: URLSession
+    let session: URLSession
     private static let logger = Logger(subsystem: "com.TablePro", category: "RegistryClient")
 
     // swiftlint:disable:next force_unwrapping
@@ -29,11 +29,6 @@ final class RegistryClient {
     private static let manifestCacheKey = "registryManifestCache"
     private static let lastFetchKey = "registryLastFetch"
 
-    private let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        return decoder
-    }()
-
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
@@ -42,7 +37,7 @@ final class RegistryClient {
         self.session = URLSession(configuration: config)
 
         if let cachedData = UserDefaults.standard.data(forKey: Self.manifestCacheKey),
-           let cached = try? decoder.decode(RegistryManifest.self, from: cachedData) {
+           let cached = try? JSONDecoder().decode(RegistryManifest.self, from: cachedData) {
             manifest = cached
             lastFetchDate = UserDefaults.standard.object(forKey: Self.lastFetchKey) as? Date
         }
@@ -71,7 +66,7 @@ final class RegistryClient {
                 fetchState = .loaded
 
             case 200...299:
-                let decoded = try decoder.decode(RegistryManifest.self, from: data)
+                let decoded = try JSONDecoder().decode(RegistryManifest.self, from: data)
                 manifest = decoded
 
                 UserDefaults.standard.set(data, forKey: Self.manifestCacheKey)
@@ -129,7 +124,7 @@ final class RegistryClient {
     }
 }
 
-enum RegistryFetchState: Equatable {
+enum RegistryFetchState: Equatable, Sendable {
     case idle
     case loading
     case loaded

@@ -5,7 +5,6 @@
 
 import CryptoKit
 import Foundation
-import os
 
 extension PluginManager {
     func installFromRegistry(
@@ -40,7 +39,10 @@ extension PluginManager {
             try? FileManager.default.removeItem(at: tempDir)
         }
 
-        let (asyncBytes, response) = try await URLSession.shared.bytes(from: downloadURL)
+        // Use the registry client's configured session for consistent timeouts
+        let session = await RegistryClient.shared.session
+
+        let (tempDownloadURL, response) = try await session.download(from: downloadURL)
 
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
@@ -48,25 +50,10 @@ extension PluginManager {
             throw PluginError.downloadFailed("HTTP \(statusCode)")
         }
 
-        let expectedLength = httpResponse.expectedContentLength
-        var downloadedData = Data()
-        if expectedLength > 0 {
-            downloadedData.reserveCapacity(Int(expectedLength))
-        }
+        await progress(0.5)
 
-        var bytesReceived: Int64 = 0
-        for try await byte in asyncBytes {
-            downloadedData.append(byte)
-            bytesReceived += 1
-
-            if expectedLength > 0, bytesReceived % 65_536 == 0 {
-                let fraction = Double(bytesReceived) / Double(expectedLength)
-                await progress(min(fraction, 1.0))
-            }
-        }
-
-        await progress(1.0)
-
+        // Verify SHA-256 checksum
+        let downloadedData = try Data(contentsOf: tempDownloadURL)
         let digest = SHA256.hash(data: downloadedData)
         let hexChecksum = digest.map { String(format: "%02x", $0) }.joined()
 
@@ -74,7 +61,10 @@ extension PluginManager {
             throw PluginError.checksumMismatch
         }
 
-        try downloadedData.write(to: tempZipURL)
+        await progress(1.0)
+
+        // Move to our temp directory for installPlugin
+        try FileManager.default.moveItem(at: tempDownloadURL, to: tempZipURL)
 
         return try await installPlugin(from: tempZipURL)
     }
