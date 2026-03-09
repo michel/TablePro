@@ -442,8 +442,7 @@ final class DataGridCellFactory {
         let charWidth = Self.monoCharWidth
 
         for i in stride(from: 0, to: totalRows, by: step) {
-            guard let row = rowProvider.row(at: i),
-                  let value = row.value(at: columnIndex) else { continue }
+            guard let value = rowProvider.value(atRow: i, column: columnIndex) else { continue }
 
             let charCount = min((value as NSString).length, Self.maxMeasureChars)
             let cellWidth = CGFloat(charCount) * charWidth + 16

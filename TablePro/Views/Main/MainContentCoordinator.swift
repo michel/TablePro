@@ -1367,7 +1367,8 @@ private extension MainContentCoordinator {
         } else if conn.type == .redis {
             resolvedPK = "Key"
         } else {
-            resolvedPK = nil
+            // Preserve existing PK when metadata is cached and not re-fetched
+            resolvedPK = tabManager.tabs[idx].primaryKeyColumn
         }
 
         if let pk = resolvedPK {

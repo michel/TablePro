@@ -59,20 +59,16 @@ final class TableRowData {
 // MARK: - In-Memory Row Provider
 
 /// Row provider that keeps all data in memory (for existing QueryResultRow data).
-/// Uses lazy TableRowData creation to avoid O(n) heap allocations on init.
-/// Cache is bounded to `maxCacheSize` entries; proximity-based eviction keeps
-/// the half closest to the current access point when the limit is exceeded.
-///
 /// References `RowBuffer` directly to avoid duplicating row data.
 /// An optional `sortIndices` array maps display indices to source-row indices,
 /// so sorted views don't need a reordered copy of the rows.
+///
+/// Direct-access methods `value(atRow:column:)` and `rowValues(at:)` avoid
+/// heap allocations by reading straight from the source `QueryResultRow`.
 final class InMemoryRowProvider: RowProvider {
-    private static let maxCacheSize = 5_000
-
     private let rowBuffer: RowBuffer
     private var sortIndices: [Int]?
     private var appendedRows: [QueryResultRow] = []
-    private var rowCache: [Int: TableRowData] = [:]
     private(set) var columns: [String]
     private(set) var columnDefaults: [String: String?]
     private(set) var columnTypes: [ColumnType]
@@ -139,7 +135,7 @@ final class InMemoryRowProvider: RowProvider {
         var result: [TableRowData] = []
         result.reserveCapacity(endIndex - offset)
         for i in offset..<endIndex {
-            result.append(materializeRow(at: i))
+            result.append(TableRowData(index: i, values: sourceRow(at: i).values))
         }
         return result
     }
@@ -149,7 +145,7 @@ final class InMemoryRowProvider: RowProvider {
     }
 
     func invalidateCache() {
-        rowCache.removeAll()
+        // No cache — protocol conformance only
     }
 
     /// Update a cell value
@@ -162,14 +158,26 @@ final class InMemoryRowProvider: RowProvider {
         } else if let appendedIdx = sourceIndex.appendedIndex {
             appendedRows[appendedIdx].values[columnIndex] = value
         }
-        // Update cached TableRowData if it exists
-        rowCache[rowIndex]?.setValue(value, at: columnIndex)
     }
 
     /// Get row data at index
     func row(at index: Int) -> TableRowData? {
         guard index >= 0 && index < totalRowCount else { return nil }
-        return materializeRow(at: index)
+        return TableRowData(index: index, values: sourceRow(at: index).values)
+    }
+
+    /// O(1) cell value access — no heap allocation.
+    func value(atRow rowIndex: Int, column columnIndex: Int) -> String? {
+        guard rowIndex >= 0 && rowIndex < totalRowCount else { return nil }
+        let src = sourceRow(at: rowIndex)
+        guard columnIndex >= 0 && columnIndex < src.values.count else { return nil }
+        return src.values[columnIndex]
+    }
+
+    /// Returns the source values array for a display row. No copy until caller stores it.
+    func rowValues(at rowIndex: Int) -> [String?]? {
+        guard rowIndex >= 0 && rowIndex < totalRowCount else { return nil }
+        return sourceRow(at: rowIndex).values
     }
 
     /// Update rows by replacing the buffer contents and clearing appended rows
@@ -177,7 +185,6 @@ final class InMemoryRowProvider: RowProvider {
         rowBuffer.rows = newRows
         appendedRows.removeAll()
         sortIndices = nil
-        rowCache.removeAll()
     }
 
     /// Append a new row with given values
@@ -185,8 +192,6 @@ final class InMemoryRowProvider: RowProvider {
     func appendRow(values: [String?]) -> Int {
         let newIndex = totalRowCount
         appendedRows.append(QueryResultRow(id: newIndex, values: values))
-        let rowData = TableRowData(index: newIndex, values: values)
-        rowCache[newIndex] = rowData
         return newIndex
     }
 
@@ -213,8 +218,6 @@ final class InMemoryRowProvider: RowProvider {
                 rowBuffer.rows.remove(at: index)
             }
         }
-        // Clear entire cache since indices shift
-        rowCache.removeAll()
     }
 
     /// Remove multiple rows at indices (used when discarding new rows)
@@ -252,27 +255,6 @@ final class InMemoryRowProvider: RowProvider {
         return rowBuffer.rows[displayIndex]
     }
 
-    private func materializeRow(at index: Int) -> TableRowData {
-        if let cached = rowCache[index] {
-            return cached
-        }
-        // Evict distant entries when cache exceeds the threshold.
-        // Keeps entries closest to the current index for locality.
-        if rowCache.count >= Self.maxCacheSize {
-            evictCacheIfNeeded(nearIndex: index)
-        }
-        let rowData = TableRowData(index: index, values: sourceRow(at: index).values)
-        rowCache[index] = rowData
-        return rowData
-    }
-
-    /// Evict entries furthest from the current access point.
-    /// Keeps the half closest to `nearIndex` and discards the rest.
-    private func evictCacheIfNeeded(nearIndex: Int) {
-        guard rowCache.count > Self.maxCacheSize / 2 else { return }
-        let halfSize = Self.maxCacheSize / 2
-        rowCache = rowCache.filter { abs($0.key - nearIndex) <= halfSize }
-    }
 }
 
 // MARK: - Database Row Provider (for virtualized access via driver)

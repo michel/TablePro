@@ -36,8 +36,8 @@ extension TableViewCoordinator {
         var lines: [String] = []
 
         for index in sortedIndices {
-            guard let rowData = rowProvider.row(at: index) else { continue }
-            let line = rowData.values.map { $0 ?? "NULL" }.joined(separator: "\t")
+            guard let values = rowProvider.rowValues(at: index) else { continue }
+            let line = values.map { $0 ?? "NULL" }.joined(separator: "\t")
             lines.append(line)
         }
 
@@ -53,8 +53,8 @@ extension TableViewCoordinator {
         lines.append(rowProvider.columns.joined(separator: "\t"))
 
         for index in sortedIndices {
-            guard let rowData = rowProvider.row(at: index) else { continue }
-            let line = rowData.values.map { $0 ?? "NULL" }.joined(separator: "\t")
+            guard let values = rowProvider.rowValues(at: index) else { continue }
+            let line = values.map { $0 ?? "NULL" }.joined(separator: "\t")
             lines.append(line)
         }
 
@@ -76,8 +76,8 @@ extension TableViewCoordinator {
         guard columnIndex >= 0 && columnIndex < rowProvider.columns.count else { return }
 
         let columnName = rowProvider.columns[columnIndex]
-        let oldValue = rowProvider.row(at: rowIndex)?.value(at: columnIndex)
-        let originalRow = rowProvider.row(at: rowIndex)?.values ?? []
+        let oldValue = rowProvider.value(atRow: rowIndex, column: columnIndex)
+        let originalRow = rowProvider.rowValues(at: rowIndex) ?? []
 
         changeManager.recordCellChange(
             rowIndex: rowIndex,
@@ -99,9 +99,7 @@ extension TableViewCoordinator {
     func copyCellValue(at rowIndex: Int, columnIndex: Int) {
         guard columnIndex >= 0 && columnIndex < rowProvider.columns.count else { return }
 
-        if let rowData = rowProvider.row(at: rowIndex) {
-            let value = rowData.value(at: columnIndex) ?? "NULL"
-            ClipboardService.shared.writeText(value)
-        }
+        let value = rowProvider.value(atRow: rowIndex, column: columnIndex) ?? "NULL"
+        ClipboardService.shared.writeText(value)
     }
 }
