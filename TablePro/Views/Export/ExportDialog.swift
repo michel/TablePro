@@ -205,21 +205,31 @@ struct ExportDialog: View {
         VStack(alignment: .leading, spacing: 0) {
             // Format picker with selection count
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Spacer()
+                if availableFormats.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text("No export formats available. Enable export plugins in Settings > Plugins.")
+                            .font(.system(size: DesignConstants.FontSize.small))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                } else {
+                    HStack {
+                        Spacer()
 
-                    Picker("", selection: $config.formatId) {
-                        ForEach(availableFormatIds, id: \.self) { formatId in
-                            if let plugin = PluginManager.shared.exportPlugins[formatId] {
-                                Text(type(of: plugin).formatDisplayName).tag(formatId)
+                        Picker("", selection: $config.formatId) {
+                            ForEach(availableFormatIds, id: \.self) { formatId in
+                                if let plugin = PluginManager.shared.exportPlugins[formatId] {
+                                    Text(type(of: plugin).formatDisplayName).tag(formatId)
+                                }
                             }
                         }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 180)
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .frame(width: 180)
 
-                    Spacer()
+                        Spacer()
+                    }
                 }
 
                 // Selection count (shows exportable count when some tables have no options)
@@ -316,7 +326,7 @@ struct ExportDialog: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.return, modifiers: [])
-            .disabled(exportableCount == 0 || isExporting || !isFileNameValid)
+            .disabled(exportableCount == 0 || isExporting || !isFileNameValid || availableFormats.isEmpty)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
