@@ -44,7 +44,7 @@ extension TableViewCoordinator {
             }
 
             // Multiline values use overlay editor — block inline field editor
-            if let value = rowProvider.row(at: row)?.value(at: columnIndex),
+            if let value = rowProvider.value(atRow: row, column: columnIndex),
                value.containsLineBreak {
                 let tableColumnIdx = tableView.column(withIdentifier: tableColumn.identifier)
                 guard tableColumnIdx >= 0 else { return false }
@@ -74,8 +74,7 @@ extension TableViewCoordinator {
     }
 
     func commitOverlayEdit(row: Int, columnIndex: Int, newValue: String) {
-        guard let rowData = rowProvider.row(at: row) else { return }
-        let oldValue = rowData.value(at: columnIndex)
+        let oldValue = rowProvider.value(atRow: row, column: columnIndex)
         guard oldValue != newValue else { return }
 
         let columnName = rowProvider.columns[columnIndex]
@@ -85,7 +84,7 @@ extension TableViewCoordinator {
             columnName: columnName,
             oldValue: oldValue,
             newValue: newValue,
-            originalRow: rowData.values
+            originalRow: rowProvider.rowValues(at: row) ?? []
         )
 
         rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)
@@ -126,7 +125,7 @@ extension TableViewCoordinator {
         // Check if next cell is also multiline → open overlay there
         let nextColumnIndex = nextColumn - 1
         if nextColumnIndex >= 0, nextColumnIndex < rowProvider.columns.count,
-           let value = rowProvider.row(at: nextRow)?.value(at: nextColumnIndex),
+           let value = rowProvider.value(atRow: nextRow, column: nextColumnIndex),
            value.containsLineBreak {
             showOverlayEditor(tableView: tableView, row: nextRow, column: nextColumn, columnIndex: nextColumnIndex, value: value)
         } else {
@@ -145,8 +144,7 @@ extension TableViewCoordinator {
         let columnIndex = column - 1
         let newValue: String? = textField.stringValue
 
-        guard let rowData = rowProvider.row(at: row) else { return true }
-        let oldValue = rowData.value(at: columnIndex)
+        let oldValue = rowProvider.value(atRow: row, column: columnIndex)
 
         guard oldValue != newValue else { return true }
 
@@ -157,7 +155,7 @@ extension TableViewCoordinator {
             columnName: columnName,
             oldValue: oldValue,
             newValue: newValue,
-            originalRow: rowData.values
+            originalRow: rowProvider.rowValues(at: row) ?? []
         )
 
         rowProvider.updateValue(newValue, at: row, columnIndex: columnIndex)

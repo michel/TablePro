@@ -14,7 +14,6 @@ struct ConnectionSession: Identifiable {
     /// The connection used to create the driver (may differ from `connection` for SSH tunneled connections)
     var effectiveConnection: DatabaseConnection?
     var driver: DatabaseDriver?
-    var metadataDriver: DatabaseDriver?
     var status: ConnectionStatus = .disconnected
     var lastError: String?
 
@@ -69,7 +68,7 @@ struct ConnectionSession: Identifiable {
     }
 
     /// Compares fields used by ContentView's body to avoid unnecessary SwiftUI re-renders.
-    /// Excludes: driver/metadataDriver (protocol, non-comparable),
+    /// Excludes: driver (protocol, non-comparable),
     /// lastActiveAt (volatile), lastError, effectiveConnection.
     func isContentViewEquivalent(to other: ConnectionSession) -> Bool {
         id == other.id

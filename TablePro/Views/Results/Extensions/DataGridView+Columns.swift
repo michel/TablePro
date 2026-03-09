@@ -24,12 +24,11 @@ extension TableViewCoordinator {
         guard columnId.hasPrefix("col_"), let columnIndex = Int(columnId.dropFirst(4)) else { return nil }
 
         guard row >= 0 && row < cachedRowCount,
-              columnIndex >= 0 && columnIndex < cachedColumnCount,
-              let rowData = rowProvider.row(at: row) else {
+              columnIndex >= 0 && columnIndex < cachedColumnCount else {
             return nil
         }
 
-        let value = rowData.value(at: columnIndex)
+        let value = rowProvider.value(atRow: row, column: columnIndex)
         let state = visualState(for: row)
 
         // Get column type for date formatting

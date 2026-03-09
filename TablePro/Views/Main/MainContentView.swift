@@ -45,6 +45,7 @@ struct MainContentView: View {
     @State private var queryResultsSummaryCache: (tabId: UUID, version: Int, summary: String?)?
     @State private var inspectorUpdateTask: Task<Void, Never>?
     @State private var pendingTabSwitch: Task<Void, Never>?
+    @State private var evictionTask: Task<Void, Never>?
     /// Stable identifier for this window in WindowLifecycleMonitor
     @State private var windowId = UUID()
     @State private var hasInitialized = false
@@ -303,6 +304,8 @@ struct MainContentView: View {
                 guard let notificationWindow = notification.object as? NSWindow,
                       notificationWindow === viewWindow else { return }
                 isKeyWindow = true
+                evictionTask?.cancel()
+                evictionTask = nil
                 DispatchQueue.main.async {
                     syncSidebarToCurrentTab()
                 }
@@ -320,6 +323,15 @@ struct MainContentView: View {
                 guard let notificationWindow = notification.object as? NSWindow,
                       notificationWindow === viewWindow else { return }
                 isKeyWindow = false
+
+                // Schedule row data eviction for inactive native window-tabs.
+                // 5s delay avoids thrashing when quickly switching between tabs.
+                evictionTask?.cancel()
+                evictionTask = Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(5))
+                    guard !Task.isCancelled else { return }
+                    coordinator.evictInactiveRowData()
+                }
             }
             .onChange(of: tables) { _, newTables in
                 let syncAction = SidebarSyncAction.resolveOnTablesLoad(

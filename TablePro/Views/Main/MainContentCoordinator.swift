@@ -117,6 +117,40 @@ final class MainContentCoordinator {
         set { _isAppTerminating.withLock { $0 = newValue } }
     }
 
+    /// Registry of active coordinators for aggregated quit-time persistence.
+    /// Keyed by ObjectIdentifier of each coordinator instance.
+    private static var activeCoordinators: [ObjectIdentifier: MainContentCoordinator] = [:]
+
+    /// Register this coordinator so quit-time persistence can aggregate tabs.
+    private func registerForPersistence() {
+        Self.activeCoordinators[ObjectIdentifier(self)] = self
+    }
+
+    /// Unregister this coordinator from quit-time aggregation.
+    private func unregisterFromPersistence() {
+        Self.activeCoordinators.removeValue(forKey: ObjectIdentifier(self))
+    }
+
+    /// Collect all tabs from all active coordinators for a given connectionId.
+    private static func aggregatedTabs(for connectionId: UUID) -> [QueryTab] {
+        activeCoordinators.values
+            .filter { $0.connectionId == connectionId }
+            .flatMap { $0.tabManager.tabs }
+    }
+
+    /// Get selected tab ID from any coordinator for a given connectionId.
+    private static func aggregatedSelectedTabId(for connectionId: UUID) -> UUID? {
+        activeCoordinators.values
+            .first { $0.connectionId == connectionId && $0.tabManager.selectedTabId != nil }?
+            .tabManager.selectedTabId
+    }
+
+    /// Check if this coordinator is the first registered for its connection.
+    private func isFirstCoordinatorForConnection() -> Bool {
+        Self.activeCoordinators.values
+            .first { $0.connectionId == self.connectionId } === self
+    }
+
     private static let registerTerminationObserver: Void = {
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -126,6 +160,18 @@ final class MainContentCoordinator {
             MainContentCoordinator.isAppTerminating = true
         }
     }()
+
+    /// Evict row data for all tabs in this coordinator to free memory.
+    /// Called when the coordinator's native window-tab becomes inactive.
+    /// Data is re-fetched automatically when the tab becomes active again.
+    func evictInactiveRowData() {
+        for tab in tabManager.tabs where !tab.rowBuffer.isEvicted
+            && !tab.resultRows.isEmpty
+            && !tab.pendingChanges.hasChanges
+        {
+            tab.rowBuffer.evict()
+        }
+    }
 
     /// Remove sort cache entries for tabs that no longer exist
     func cleanupSortCache(openTabIds: Set<UUID>) {
@@ -170,13 +216,19 @@ final class MainContentCoordinator {
         ) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, !self.isTearingDown else { return }
+                // Only the first coordinator for this connection saves,
+                // aggregating tabs from all windows to fix last-write-wins bug
+                guard self.isFirstCoordinatorForConnection() else { return }
+                let allTabs = Self.aggregatedTabs(for: self.connectionId)
+                let selectedId = Self.aggregatedSelectedTabId(for: self.connectionId)
                 self.persistence.saveNowSync(
-                    tabs: self.tabManager.tabs,
-                    selectedTabId: self.tabManager.selectedTabId
+                    tabs: allTabs,
+                    selectedTabId: selectedId
                 )
             }
         }
 
+        registerForPersistence()
         _ = Self.registerTerminationObserver
     }
 
@@ -196,6 +248,7 @@ final class MainContentCoordinator {
     /// synchronously on MainActor so we don't depend on deinit + Task scheduling.
     func teardown() {
         _didTeardown.withLock { $0 = true }
+        unregisterFromPersistence()
         for observer in urlFilterObservers {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -533,15 +586,18 @@ final class MainContentCoordinator {
                     let cached = isMetadataCached(tabId: tabId, tableName: tableName)
                     needsMetadataFetch = !cached
 
-                    // If metadata is NOT cached and a dedicated metadata driver exists,
-                    // start fetching columns+FKs on the separate connection so it runs
-                    // in parallel with the main query.
-                    if needsMetadataFetch, let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) {
+                    // Metadata queries run on the main driver. They serialize behind any
+                    // in-flight query at the C-level DispatchQueue and execute immediately after.
+                    if needsMetadataFetch {
+                        let connId = connectionId
                         parallelSchemaTask = Task {
-                            async let cols = metaDriver.fetchColumns(table: tableName)
-                            async let fks = metaDriver.fetchForeignKeys(table: tableName)
+                            guard let driver = DatabaseManager.shared.driver(for: connId) else {
+                                throw DatabaseError.notConnected
+                            }
+                            async let cols = driver.fetchColumns(table: tableName)
+                            async let fks = driver.fetchForeignKeys(table: tableName)
                             let result = try await (columnInfo: cols, fkInfo: fks)
-                            let approxCount = try? await metaDriver.fetchApproximateRowCount(table: tableName)
+                            let approxCount = try? await driver.fetchApproximateRowCount(table: tableName)
                             return (columnInfo: result.columnInfo, fkInfo: result.fkInfo, approximateRowCount: approxCount)
                         }
                     }
@@ -1311,7 +1367,8 @@ private extension MainContentCoordinator {
         } else if conn.type == .redis {
             resolvedPK = "Key"
         } else {
-            resolvedPK = nil
+            // Preserve existing PK when metadata is cached and not re-fetched
+            resolvedPK = tabManager.tabs[idx].primaryKeyColumn
         }
 
         if let pk = resolvedPK {
@@ -1376,8 +1433,7 @@ private extension MainContentCoordinator {
         }
 
         // Phase 2b: Fetch enum/set values
-        let enumDriver = DatabaseManager.shared.metadataDriver(for: connectionId)
-            ?? DatabaseManager.shared.driver(for: connectionId)
+        let enumDriver = DatabaseManager.shared.driver(for: connectionId)
         guard let enumDriver else { return }
 
         Task { [weak self] in

@@ -308,11 +308,6 @@ extension MainContentCoordinator {
             if connection.type == .mysql || connection.type == .mariadb || connection.type == .clickhouse {
                 _ = try await driver.execute(query: "USE `\(database)`")
 
-                // Also switch metadata driver's database
-                if let metaDriver = DatabaseManager.shared.metadataDriver(for: connectionId) {
-                    _ = try? await metaDriver.execute(query: "USE `\(database)`")
-                }
-
                 // Update session with new database
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentDatabase = database
@@ -354,10 +349,6 @@ extension MainContentCoordinator {
                 guard let schemaDriver = driver as? SchemaSwitchable else { return }
                 try await schemaDriver.switchSchema(to: database)
 
-                if let schemaMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? SchemaSwitchable {
-                    try? await schemaMeta.switchSchema(to: database)
-                }
-
                 // Update session
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentSchema = database
@@ -383,10 +374,6 @@ extension MainContentCoordinator {
                 guard let schemaDriver = driver as? SchemaSwitchable else { return }
                 try await schemaDriver.switchSchema(to: database)
 
-                if let schemaMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? SchemaSwitchable {
-                    try? await schemaMeta.switchSchema(to: database)
-                }
-
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentSchema = database
                     session.tables = []
@@ -404,10 +391,6 @@ extension MainContentCoordinator {
             } else if connection.type == .mssql {
                 if let adapter = driver as? PluginDriverAdapter {
                     try await adapter.switchDatabase(to: database)
-                }
-
-                if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connectionId) as? PluginDriverAdapter {
-                    try? await metaAdapter.switchDatabase(to: database)
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
@@ -432,11 +415,6 @@ extension MainContentCoordinator {
                     try await adapter.switchDatabase(to: database)
                 }
 
-                // Also update metadata driver if present
-                if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connectionId) as? PluginDriverAdapter {
-                    try? await metaAdapter.switchDatabase(to: database)
-                }
-
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.currentDatabase = database
                     session.tables = []
@@ -459,10 +437,6 @@ extension MainContentCoordinator {
 
                 if let adapter = driver as? PluginDriverAdapter {
                     try await adapter.switchDatabase(to: String(dbIndex))
-                }
-
-                if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connectionId) as? PluginDriverAdapter {
-                    try? await metaAdapter.switchDatabase(to: String(dbIndex))
                 }
 
                 DatabaseManager.shared.updateSession(connectionId) { session in
@@ -498,10 +472,6 @@ extension MainContentCoordinator {
         do {
             guard let schemaDriver = driver as? SchemaSwitchable else { return }
             try await schemaDriver.switchSchema(to: schema)
-
-            if let schemaMeta = DatabaseManager.shared.metadataDriver(for: connectionId) as? SchemaSwitchable {
-                try? await schemaMeta.switchSchema(to: schema)
-            }
 
             DatabaseManager.shared.updateSession(connectionId) { session in
                 session.currentSchema = schema
@@ -543,9 +513,6 @@ extension MainContentCoordinator {
             } catch {
                 navigationLogger.error("Failed to SELECT Redis db\(dbIndex): \(error.localizedDescription, privacy: .public)")
                 return
-            }
-            if let metaAdapter = DatabaseManager.shared.metadataDriver(for: connId) as? PluginDriverAdapter {
-                try? await metaAdapter.switchDatabase(to: String(dbIndex))
             }
             DatabaseManager.shared.updateSession(connId) { session in
                 session.currentDatabase = database

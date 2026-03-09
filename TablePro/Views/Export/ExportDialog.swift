@@ -63,6 +63,7 @@ struct ExportDialog: View {
         .frame(width: dialogWidth)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
+            PluginManager.shared.loadPendingPlugins()
             let available = availableFormats
             if !available.contains(where: { type(of: $0).formatId == config.formatId }) {
                 if let first = available.first {

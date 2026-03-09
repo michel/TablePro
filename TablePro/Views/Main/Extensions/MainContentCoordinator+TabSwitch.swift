@@ -124,7 +124,6 @@ extension MainContentCoordinator {
         let toEvict = sorted.dropLast(maxInactiveLoaded)
 
         for tab in toEvict {
-            tab.rowBuffer.sourceQuery = tab.query
             tab.rowBuffer.evict()
         }
     }

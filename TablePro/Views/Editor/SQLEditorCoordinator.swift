@@ -24,14 +24,11 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     /// Shared schema provider for inline AI suggestions (avoids duplicate schema fetches)
     @ObservationIgnored var schemaProvider: SQLSchemaProvider?
     @ObservationIgnored private var contextMenu: AIEditorContextMenu?
-    @ObservationIgnored private var rightClickMonitor: Any?
     @ObservationIgnored private var inlineSuggestionManager: InlineSuggestionManager?
     @ObservationIgnored private var editorSettingsObserver: NSObjectProtocol?
     /// Debounce work item for frame-change notification to avoid
     /// triggering syntax highlight viewport recalculation on every keystroke.
     @ObservationIgnored private var frameChangeWorkItem: DispatchWorkItem?
-    @ObservationIgnored private var clipboardMonitor: Any?
-    @ObservationIgnored private var firstResponderObserver: NSObjectProtocol?
     @ObservationIgnored private var wasEditorFocused = false
     @ObservationIgnored private var didDestroy = false
 
@@ -58,40 +55,19 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     }
 
     deinit {
-        if let monitor = rightClickMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
         if let observer = editorSettingsObserver {
             NotificationCenter.default.removeObserver(observer)
         }
-        if let observer = firstResponderObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
         frameChangeWorkItem?.cancel()
-        if let monitor = clipboardMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
     }
 
     private func cleanupMonitors() {
-        if let monitor = rightClickMonitor {
-            NSEvent.removeMonitor(monitor)
-            rightClickMonitor = nil
-        }
         if let observer = editorSettingsObserver {
             NotificationCenter.default.removeObserver(observer)
             editorSettingsObserver = nil
         }
-        if let observer = firstResponderObserver {
-            NotificationCenter.default.removeObserver(observer)
-            firstResponderObserver = nil
-        }
         frameChangeWorkItem?.cancel()
         frameChangeWorkItem = nil
-        if let monitor = clipboardMonitor {
-            NSEvent.removeMonitor(monitor)
-            clipboardMonitor = nil
-        }
     }
 
     // MARK: - TextViewCoordinator
@@ -102,14 +78,15 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         // Deferred to next run loop because prepareCoordinator runs during
         // TextViewController.init, before the view hierarchy is fully loaded.
         DispatchQueue.main.async { [weak self] in
-            guard self != nil else { return }
-            self?.fixFindPanelHitTesting(controller: controller)
-            self?.applyHorizontalScrollFix(controller: controller)
-            self?.installAIContextMenu(controller: controller)
-            self?.installInlineSuggestionManager(controller: controller)
-            self?.installVimModeIfEnabled(controller: controller)
-            self?.installClipboardMonitor(controller: controller)
-            self?.installFirstResponderObserver()
+            guard let self else { return }
+            self.fixFindPanelHitTesting(controller: controller)
+            self.applyHorizontalScrollFix(controller: controller)
+            self.installAIContextMenu(controller: controller)
+            self.installInlineSuggestionManager(controller: controller)
+            self.installVimModeIfEnabled(controller: controller)
+            if let textView = controller.textView {
+                EditorEventRouter.shared.register(self, textView: textView)
+            }
         }
     }
 
@@ -166,6 +143,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         inlineSuggestionManager?.uninstall()
         inlineSuggestionManager = nil
 
+        EditorEventRouter.shared.unregister(self)
         cleanupMonitors()
     }
 
@@ -185,20 +163,12 @@ final class SQLEditorCoordinator: TextViewCoordinator {
             return (textView.string as NSString).substring(with: range)
         }
         contextMenu = menu
+    }
 
-        // CodeEditTextView's TextView overrides menu(for:) with a hardcoded
-        // Cut/Copy/Paste menu, ignoring the stored `menu` property. Intercept
-        // right-clicks via a local event monitor and show our custom menu instead.
-        rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak textView, weak menu] event in
-            guard let textView, let menu,
-                  event.window === textView.window else { return event }
-
-            let locationInView = textView.convert(event.locationInWindow, from: nil)
-            guard textView.bounds.contains(locationInView) else { return event }
-
-            NSMenu.popUpContextMenu(menu, with: event, for: textView)
-            return nil // Consume event to prevent default menu
-        }
+    /// Called by EditorEventRouter when a right-click is detected in this editor's text view.
+    func showContextMenu(for event: NSEvent, in textView: TextView) {
+        guard let menu = contextMenu else { return }
+        NSMenu.popUpContextMenu(menu, with: event, for: textView)
     }
 
     // MARK: - Inline Suggestion Manager
@@ -270,19 +240,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
 
     // MARK: - First Responder Tracking
 
-    private func installFirstResponderObserver() {
-        firstResponderObserver = NotificationCenter.default.addObserver(
-            forName: NSWindow.didUpdateNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.checkFirstResponderChange()
-            }
-        }
-    }
-
-    private func checkFirstResponderChange() {
+    func checkFirstResponderChange() {
         let focused = isEditorFirstResponder
         guard focused != wasEditorFocused else { return }
         wasEditorFocused = focused
@@ -293,46 +251,6 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         } else {
             vimKeyInterceptor?.editorDidBlur()
             inlineSuggestionManager?.editorDidBlur()
-        }
-    }
-
-    // MARK: - Clipboard Monitor
-
-    private func installClipboardMonitor(controller: TextViewController) {
-        guard let textView = controller.textView else { return }
-
-        clipboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak textView] event in
-            guard let textView,
-                  event.window === textView.window,
-                  textView.window?.firstResponder === textView else {
-                return event
-            }
-
-            let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard mods.contains(.command),
-                  !mods.contains(.shift), !mods.contains(.option), !mods.contains(.control) else {
-                return event
-            }
-
-            let range = textView.selectedRange()
-            guard range.length > 0 else { return event }
-            let text = (textView.string as NSString).substring(with: range)
-
-            switch event.keyCode {
-            case 8: // Cmd+C
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-                return nil
-            case 7: // Cmd+X
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-                textView.replaceCharacters(in: range, with: "")
-                return nil
-            default:
-                break
-            }
-
-            return event
         }
     }
 
