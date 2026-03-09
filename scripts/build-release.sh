@@ -424,6 +424,46 @@ build_for_arch() {
         [ -d "$nested" ] && rm -rf "$nested"
     done
 
+    # Strip plugin binaries — removes debug symbols, code coverage (__LLVM_COV),
+    # and dead LINKEDIT metadata that bloat the bundle (e.g., OracleDriver 43MB → ~15MB)
+    echo "🔪 Stripping plugin binaries..."
+    PLUGINS_DIR="$BUILD_DIR/$OUTPUT_NAME/Contents/PlugIns"
+    if [ -d "$PLUGINS_DIR" ]; then
+        for plugin in "$PLUGINS_DIR"/*.tableplugin; do
+            [ -d "$plugin" ] || continue
+            local plugin_name
+            plugin_name=$(basename "$plugin" .tableplugin)
+            local plugin_binary="$plugin/Contents/MacOS/$plugin_name"
+            if [ -f "$plugin_binary" ]; then
+                local before
+                before=$(ls -lh "$plugin_binary" | awk '{print $5}')
+                strip -x "$plugin_binary"
+                local after
+                after=$(ls -lh "$plugin_binary" | awk '{print $5}')
+                echo "   $plugin_name: $before → $after"
+            fi
+        done
+        echo "✅ Plugin binaries stripped"
+    fi
+
+    # Strip main binary
+    local main_binary="$BUILD_DIR/$OUTPUT_NAME/Contents/MacOS/TablePro"
+    if [ -f "$main_binary" ]; then
+        local before
+        before=$(ls -lh "$main_binary" | awk '{print $5}')
+        strip -x "$main_binary"
+        local after
+        after=$(ls -lh "$main_binary" | awk '{print $5}')
+        echo "🔪 Main binary: $before → $after"
+    fi
+
+    # Strip PluginKit framework
+    local pluginkit_binary="$BUILD_DIR/$OUTPUT_NAME/Contents/Frameworks/TableProPluginKit.framework/Versions/A/TableProPluginKit"
+    if [ -f "$pluginkit_binary" ]; then
+        strip -x "$pluginkit_binary"
+        echo "   TableProPluginKit framework stripped"
+    fi
+
     # Bundle non-system dynamic libraries (libpq, OpenSSL, etc.)
     bundle_dylibs "$BUILD_DIR/$OUTPUT_NAME"
 
