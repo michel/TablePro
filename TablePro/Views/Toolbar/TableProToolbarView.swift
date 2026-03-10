@@ -34,8 +34,10 @@ struct ToolbarPrincipalContent: View {
                 connectionState: state.connectionState,
                 displayColor: state.displayColor,
                 tagName: state.tagId.flatMap { TagStorage.shared.tag(for: $0)?.name },
-                isReadOnly: state.isReadOnly
+                safeModeLevel: state.safeModeLevel
             )
+
+            SafeModeBadgeView(safeModeLevel: Bindable(state).safeModeLevel)
 
             ExecutionIndicatorView(
                 isExecuting: state.isExecuting,
@@ -173,7 +175,7 @@ struct TableProToolbar: ViewModifier {
                             Label("Import", systemImage: "square.and.arrow.down")
                         }
                         .help("Import Data (⌘⇧I)")
-                        .disabled(state.connectionState != .connected || state.isReadOnly)
+                        .disabled(state.connectionState != .connected || state.safeModeLevel.blocksAllWrites)
                     }
                 }
             }

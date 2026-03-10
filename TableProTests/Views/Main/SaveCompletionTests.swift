@@ -20,7 +20,7 @@ struct SaveCompletionTests {
         type: DatabaseType = .mysql
     ) -> (MainContentCoordinator, QueryTabManager, DataChangeManager) {
         var conn = TestFixtures.makeConnection(type: type)
-        conn.isReadOnly = isReadOnly
+        conn.safeModeLevel = isReadOnly ? .readOnly : .silent
         let state = SessionStateFactory.create(connection: conn, payload: nil)
         return (state.coordinator, state.tabManager, state.changeManager)
     }

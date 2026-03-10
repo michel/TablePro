@@ -292,7 +292,7 @@ struct MainEditorContentView: View {
             changeManager: currentChangeManager,
             resultVersion: tab.resultVersion,
             metadataVersion: tab.metadataVersion,
-            isEditable: tab.isEditable && !tab.isView && !connection.isReadOnly,
+            isEditable: tab.isEditable && !tab.isView && !connection.safeModeLevel.blocksAllWrites,
             onRefresh: onRefresh,
             onCellEdit: onCellEdit,
             onUndo: { [binding = _selectedRowIndices, coordinator] in

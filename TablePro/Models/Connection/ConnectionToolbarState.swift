@@ -165,8 +165,10 @@ final class ConnectionToolbarState {
 
     // MARK: - Future Expansion
 
-    /// Whether the connection is read-only
-    var isReadOnly: Bool = false
+    /// Safe mode level for this connection
+    var safeModeLevel: SafeModeLevel = .silent
+
+    var isReadOnly: Bool { safeModeLevel == .readOnly }
 
     /// Whether the current tab is a table tab (enables filter/sort actions)
     var isTableTab: Bool = false
@@ -210,8 +212,8 @@ final class ConnectionToolbarState {
             parts.append(String(localized: "Replication lag: \(lag)s"))
         }
 
-        if isReadOnly {
-            parts.append(String(localized: "Read-only"))
+        if safeModeLevel != .silent {
+            parts.append(safeModeLevel.displayName)
         }
 
         return parts.joined(separator: " • ")
@@ -246,7 +248,7 @@ final class ConnectionToolbarState {
         databaseType = connection.type
         displayColor = connection.displayColor
         tagId = connection.tagId
-        isReadOnly = connection.isReadOnly
+        safeModeLevel = connection.safeModeLevel
     }
 
     /// Update connection state from ConnectionStatus
@@ -276,7 +278,7 @@ final class ConnectionToolbarState {
         lastQueryDuration = nil
         clickHouseProgress = nil
         lastClickHouseProgress = nil
-        isReadOnly = false
+        safeModeLevel = .silent
         isTableTab = false
         latencyMs = nil
         replicationLagSeconds = nil

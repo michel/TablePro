@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Safe mode levels: per-connection setting with 6 levels (Silent, Alert, Alert Full, Safe Mode, Safe Mode Full, Read-Only) replacing the boolean read-only toggle, with confirmation dialogs and Touch ID/password authentication for stricter levels
 - Preview tabs: single-click opens a temporary preview tab, double-click or editing promotes it to a permanent tab
 - Import plugin system: SQL import extracted into a `.tableplugin` bundle, matching the export plugin architecture
 - `ImportFormatPlugin` protocol in TableProPluginKit for building custom import format plugins

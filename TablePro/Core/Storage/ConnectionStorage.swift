@@ -119,7 +119,7 @@ final class ConnectionStorage {
             color: connection.color,
             tagId: connection.tagId,
             groupId: connection.groupId,
-            isReadOnly: connection.isReadOnly,
+            safeModeLevel: connection.safeModeLevel,
             aiPolicy: connection.aiPolicy,
             mongoReadPreference: connection.mongoReadPreference,
             mongoWriteConcern: connection.mongoWriteConcern,
@@ -362,8 +362,8 @@ private struct StoredConnection: Codable {
     let tagId: String?
     let groupId: String?
 
-    // Read-only mode
-    let isReadOnly: Bool
+    // Safe mode level
+    let safeModeLevel: String
 
     // AI policy
     let aiPolicy: String?
@@ -407,8 +407,8 @@ private struct StoredConnection: Codable {
         self.tagId = connection.tagId?.uuidString
         self.groupId = connection.groupId?.uuidString
 
-        // Read-only mode
-        self.isReadOnly = connection.isReadOnly
+        // Safe mode level
+        self.safeModeLevel = connection.safeModeLevel.rawValue
 
         // AI policy
         self.aiPolicy = connection.aiPolicy?.rawValue
@@ -421,6 +421,48 @@ private struct StoredConnection: Codable {
 
         // Startup commands
         self.startupCommands = connection.startupCommands
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, host, port, database, username, type
+        case sshEnabled, sshHost, sshPort, sshUsername, sshAuthMethod, sshPrivateKeyPath
+        case sshUseSSHConfig, sshAgentSocketPath
+        case sslMode, sslCaCertificatePath, sslClientCertificatePath, sslClientKeyPath
+        case color, tagId, groupId
+        case safeModeLevel
+        case isReadOnly // Legacy key for migration reading only
+        case aiPolicy, mssqlSchema, oracleServiceName, startupCommands
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(host, forKey: .host)
+        try container.encode(port, forKey: .port)
+        try container.encode(database, forKey: .database)
+        try container.encode(username, forKey: .username)
+        try container.encode(type, forKey: .type)
+        try container.encode(sshEnabled, forKey: .sshEnabled)
+        try container.encode(sshHost, forKey: .sshHost)
+        try container.encode(sshPort, forKey: .sshPort)
+        try container.encode(sshUsername, forKey: .sshUsername)
+        try container.encode(sshAuthMethod, forKey: .sshAuthMethod)
+        try container.encode(sshPrivateKeyPath, forKey: .sshPrivateKeyPath)
+        try container.encode(sshUseSSHConfig, forKey: .sshUseSSHConfig)
+        try container.encode(sshAgentSocketPath, forKey: .sshAgentSocketPath)
+        try container.encode(sslMode, forKey: .sslMode)
+        try container.encode(sslCaCertificatePath, forKey: .sslCaCertificatePath)
+        try container.encode(sslClientCertificatePath, forKey: .sslClientCertificatePath)
+        try container.encode(sslClientKeyPath, forKey: .sslClientKeyPath)
+        try container.encode(color, forKey: .color)
+        try container.encodeIfPresent(tagId, forKey: .tagId)
+        try container.encodeIfPresent(groupId, forKey: .groupId)
+        try container.encode(safeModeLevel, forKey: .safeModeLevel)
+        try container.encodeIfPresent(aiPolicy, forKey: .aiPolicy)
+        try container.encodeIfPresent(mssqlSchema, forKey: .mssqlSchema)
+        try container.encodeIfPresent(oracleServiceName, forKey: .oracleServiceName)
+        try container.encodeIfPresent(startupCommands, forKey: .startupCommands)
     }
 
     // Custom decoder to handle migration from old format
@@ -456,7 +498,13 @@ private struct StoredConnection: Codable {
         color = try container.decodeIfPresent(String.self, forKey: .color) ?? ConnectionColor.none.rawValue
         tagId = try container.decodeIfPresent(String.self, forKey: .tagId)
         groupId = try container.decodeIfPresent(String.self, forKey: .groupId)
-        isReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
+        // Migration: read new safeModeLevel first, fall back to old isReadOnly boolean
+        if let levelString = try container.decodeIfPresent(String.self, forKey: .safeModeLevel) {
+            safeModeLevel = levelString
+        } else {
+            let wasReadOnly = try container.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
+            safeModeLevel = wasReadOnly ? SafeModeLevel.readOnly.rawValue : SafeModeLevel.silent.rawValue
+        }
         aiPolicy = try container.decodeIfPresent(String.self, forKey: .aiPolicy)
         mssqlSchema = try container.decodeIfPresent(String.self, forKey: .mssqlSchema)
         oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
@@ -500,7 +548,7 @@ private struct StoredConnection: Codable {
             color: parsedColor,
             tagId: parsedTagId,
             groupId: parsedGroupId,
-            isReadOnly: isReadOnly,
+            safeModeLevel: SafeModeLevel(rawValue: safeModeLevel) ?? .silent,
             aiPolicy: parsedAIPolicy,
             mssqlSchema: mssqlSchema,
             oracleServiceName: oracleServiceName,

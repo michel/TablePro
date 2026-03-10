@@ -1803,6 +1803,12 @@
         }
       }
     },
+    "Alert" : {
+
+    },
+    "Alert (Full)" : {
+
+    },
     "All %lld rows selected" : {
       "localizations" : {
         "vi" : {
@@ -2156,6 +2162,9 @@
         }
       }
     },
+    "Are you sure you want to execute this query?\n\n%@" : {
+
+    },
     "Ask about your database..." : {
       "localizations" : {
         "vi" : {
@@ -2236,6 +2245,9 @@
         }
       }
     },
+    "Authenticate to execute database operations" : {
+
+    },
     "Authentication" : {
       "localizations" : {
         "vi" : {
@@ -2283,6 +2295,12 @@
           }
         }
       }
+    },
+    "Authentication required to execute operations" : {
+
+    },
+    "Authentication required to execute write operations" : {
+
     },
     "AUTO" : {
       "extractionState" : "stale",
@@ -2589,6 +2607,9 @@
           }
         }
       }
+    },
+    "Cannot execute write queries: connection is read-only" : {
+
     },
     "Cannot format empty SQL" : {
       "localizations" : {
@@ -6368,6 +6389,9 @@
           }
         }
       }
+    },
+    "Execute Query" : {
+
     },
     "Executed %lld statements" : {
       "localizations" : {
@@ -11267,6 +11291,9 @@
         }
       }
     },
+    "Operation cancelled by user" : {
+
+    },
     "Optimize Query" : {
       "localizations" : {
         "vi" : {
@@ -12001,6 +12028,7 @@
       }
     },
     "Prevent write operations (INSERT, UPDATE, DELETE, DROP, etc.)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -12549,6 +12577,7 @@
       }
     },
     "Read-only" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -12581,6 +12610,7 @@
       }
     },
     "Read-only connection" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -13348,6 +13378,15 @@
         }
       }
     },
+    "Safe Mode" : {
+
+    },
+    "Safe Mode (Full)" : {
+
+    },
+    "Safe Mode: %@" : {
+
+    },
     "Same options will be applied to all selected tables." : {
       "localizations" : {
         "vi" : {
@@ -13509,6 +13548,9 @@
           }
         }
       }
+    },
+    "Save Sidebar Changes" : {
+
     },
     "Save Table Template" : {
       "extractionState" : "stale",
@@ -14369,6 +14411,9 @@
           }
         }
       }
+    },
+    "Silent" : {
+
     },
     "Single-clicking a table opens a temporary tab that gets replaced on next click." : {
       "localizations" : {

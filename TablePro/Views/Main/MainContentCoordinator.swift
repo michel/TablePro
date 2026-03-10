@@ -88,6 +88,9 @@ final class MainContentCoordinator {
     /// Guards against re-entrant confirm dialogs (e.g. nested run loop during runModal)
     @ObservationIgnored internal var isShowingConfirmAlert = false
 
+    /// Guards against duplicate safe mode confirmation prompts
+    @ObservationIgnored private var isShowingSafeModePrompt = false
+
     /// Continuation for callers that need to await the result of a fire-and-forget save
     /// (e.g. save-then-close). Set before calling `saveChanges`, resumed by `executeCommitStatements`.
     @ObservationIgnored internal var saveCompletionContinuation: CheckedContinuation<Bool, Never>?
@@ -438,8 +441,10 @@ final class MainContentCoordinator {
         let statements = SQLStatementScanner.allStatements(in: sql)
         guard !statements.isEmpty else { return }
 
-        // Block write queries in read-only mode
-        if connection.isReadOnly {
+        // Safe mode enforcement for query execution
+        let level = connection.safeModeLevel
+
+        if level == .readOnly {
             let writeStatements = statements.filter { isWriteQuery($0) }
             if !writeStatements.isEmpty {
                 tabManager.tabs[index].errorMessage =
@@ -448,31 +453,64 @@ final class MainContentCoordinator {
             }
         }
 
-        if statements.count == 1 {
-            // Single statement — existing path (unchanged)
-            Task { @MainActor in
-                let window = NSApp.keyWindow
-                guard await confirmDangerousQueryIfNeeded(statements[0], window: window) else {
-                    return
+        if level == .silent {
+            if statements.count == 1 {
+                Task { @MainActor in
+                    let window = NSApp.keyWindow
+                    guard await confirmDangerousQueryIfNeeded(statements[0], window: window) else { return }
+                    executeQueryInternal(statements[0])
                 }
-                executeQueryInternal(statements[0])
+            } else {
+                Task { @MainActor in
+                    let window = NSApp.keyWindow
+                    let dangerousStatements = statements.filter { isDangerousQuery($0) }
+                    if !dangerousStatements.isEmpty {
+                        guard await confirmDangerousQueries(dangerousStatements, window: window) else { return }
+                    }
+                    executeMultipleStatements(statements)
+                }
+            }
+        } else if level.requiresConfirmation {
+            guard !isShowingSafeModePrompt else { return }
+            isShowingSafeModePrompt = true
+            Task { @MainActor in
+                defer { isShowingSafeModePrompt = false }
+                let window = NSApp.keyWindow
+                let combinedSQL = statements.joined(separator: "\n")
+                let hasWrite = statements.contains { isWriteQuery($0) }
+                let permission = await SafeModeGuard.checkPermission(
+                    level: level,
+                    isWriteOperation: hasWrite,
+                    sql: combinedSQL,
+                    operationDescription: String(localized: "Execute Query"),
+                    window: window,
+                    databaseType: connection.type
+                )
+                switch permission {
+                case .allowed:
+                    if statements.count == 1 {
+                        executeQueryInternal(statements[0])
+                    } else {
+                        executeMultipleStatements(statements)
+                    }
+                case .blocked(let reason):
+                    if index < tabManager.tabs.count {
+                        tabManager.tabs[index].errorMessage = reason
+                    }
+                }
             }
         } else {
-            // Multiple statements — batch-check dangerous queries, then execute sequentially
-            Task { @MainActor in
-                let window = NSApp.keyWindow
-                let dangerousStatements = statements.filter { isDangerousQuery($0) }
-                if !dangerousStatements.isEmpty {
-                    guard await confirmDangerousQueries(dangerousStatements, window: window) else { return }
-                }
+            if statements.count == 1 {
+                executeQueryInternal(statements[0])
+            } else {
                 executeMultipleStatements(statements)
             }
         }
     }
 
-    /// Execute table tab query directly without the Task wrapper.
-    /// Safe because table tab queries are always app-generated SELECTs.
-    /// Bypasses the 15-40ms scheduling delay of `Task { @MainActor in }`.
+    /// Execute table tab query directly.
+    /// Table tab queries are always app-generated SELECTs, so they skip dangerous-query
+    /// checks but still respect safe mode levels that apply to all queries.
     func executeTableTabQueryDirectly() {
         guard let index = tabManager.selectedTabIndex else { return }
         guard !tabManager.tabs[index].isExecuting else { return }
@@ -480,7 +518,33 @@ final class MainContentCoordinator {
         let sql = tabManager.tabs[index].query
         guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        executeQueryInternal(sql)
+        let level = connection.safeModeLevel
+        if level.appliesToAllQueries && level.requiresConfirmation,
+           tabManager.tabs[index].lastExecutedAt == nil
+        {
+            guard !isShowingSafeModePrompt else { return }
+            isShowingSafeModePrompt = true
+            Task { @MainActor in
+                defer { isShowingSafeModePrompt = false }
+                let window = NSApp.keyWindow
+                let permission = await SafeModeGuard.checkPermission(
+                    level: level,
+                    isWriteOperation: false,
+                    sql: sql,
+                    operationDescription: String(localized: "Execute Query"),
+                    window: window,
+                    databaseType: connection.type
+                )
+                switch permission {
+                case .allowed:
+                    executeQueryInternal(sql)
+                case .blocked:
+                    break
+                }
+            }
+        } else {
+            executeQueryInternal(sql)
+        }
     }
 
     /// Run EXPLAIN on the current query (database-type-aware prefix)
@@ -535,8 +599,26 @@ final class MainContentCoordinator {
             explainSQL = Self.buildRedisDebugCommand(for: stmt)
         }
 
-        Task { @MainActor in
-            executeQueryInternal(explainSQL)
+        let level = connection.safeModeLevel
+        if level.appliesToAllQueries && level.requiresConfirmation {
+            Task { @MainActor in
+                let window = NSApp.keyWindow
+                let permission = await SafeModeGuard.checkPermission(
+                    level: level,
+                    isWriteOperation: false,
+                    sql: explainSQL,
+                    operationDescription: String(localized: "Execute Query"),
+                    window: window,
+                    databaseType: connection.type
+                )
+                if case .allowed = permission {
+                    executeQueryInternal(explainSQL)
+                }
+            }
+        } else {
+            Task { @MainActor in
+                executeQueryInternal(explainSQL)
+            }
         }
     }
 
@@ -998,7 +1080,7 @@ final class MainContentCoordinator {
         pendingDeletes: inout Set<String>,
         tableOperationOptions: inout [String: TableOperationOptions]
     ) {
-        guard !connection.isReadOnly else {
+        guard !connection.safeModeLevel.blocksAllWrites else {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = "Cannot save changes: connection is read-only"
             }
@@ -1038,6 +1120,64 @@ final class MainContentCoordinator {
             }
             saveCompletionContinuation?.resume(returning: false)
             saveCompletionContinuation = nil
+            return
+        }
+
+        let level = connection.safeModeLevel
+        if level.requiresConfirmation {
+            let sqlPreview = allStatements.map(\.sql).joined(separator: "\n")
+            // Snapshot inout values before clearing — needed for executeCommitStatements
+            let snapshotTruncates = pendingTruncates
+            let snapshotDeletes = pendingDeletes
+            let snapshotOptions = tableOperationOptions
+            // Clear pending ops immediately so caller's bindings update the session.
+            // On cancel: restored via DatabaseManager.updateSession.
+            // On execution failure: restored by executeCommitStatements' existing restore logic.
+            if hasPendingTableOps {
+                pendingTruncates.removeAll()
+                pendingDeletes.removeAll()
+                for table in snapshotTruncates.union(snapshotDeletes) {
+                    tableOperationOptions.removeValue(forKey: table)
+                }
+            }
+            let connId = connection.id
+            Task { @MainActor in
+                let window = NSApp.keyWindow
+                let permission = await SafeModeGuard.checkPermission(
+                    level: level,
+                    isWriteOperation: true,
+                    sql: sqlPreview,
+                    operationDescription: String(localized: "Save Changes"),
+                    window: window,
+                    databaseType: connection.type
+                )
+                switch permission {
+                case .allowed:
+                    var truncs = snapshotTruncates
+                    var dels = snapshotDeletes
+                    var opts = snapshotOptions
+                    executeCommitStatements(
+                        allStatements,
+                        clearTableOps: hasPendingTableOps,
+                        pendingTruncates: &truncs,
+                        pendingDeletes: &dels,
+                        tableOperationOptions: &opts
+                    )
+                case .blocked:
+                    // Restore pending ops since user cancelled
+                    if hasPendingTableOps {
+                        DatabaseManager.shared.updateSession(connId) { session in
+                            session.pendingTruncates = snapshotTruncates
+                            session.pendingDeletes = snapshotDeletes
+                            for (table, opts) in snapshotOptions {
+                                session.tableOperationOptions[table] = opts
+                            }
+                        }
+                    }
+                    saveCompletionContinuation?.resume(returning: false)
+                    saveCompletionContinuation = nil
+                }
+            }
             return
         }
 
@@ -1098,10 +1238,6 @@ final class MainContentCoordinator {
                 tableOperationOptions.removeValue(forKey: table)
             }
         }
-
-        // Capture inout references for async restoration via notification
-        // This avoids the race condition of async updateSession
-        let restoreNotificationName = Notification.Name("RestorePendingTableOperations_\(conn.id)")
 
         Task { @MainActor in
             let overallStartTime = Date()
@@ -1205,20 +1341,8 @@ final class MainContentCoordinator {
                     window: NSApplication.shared.keyWindow
                 )
 
-                // Restore operations on failure so user can retry.
-                // Use notification to restore via MainContentView's bindings for synchronous update.
+                // Restore operations on failure so user can retry
                 if clearTableOps {
-                    NotificationCenter.default.post(
-                        name: restoreNotificationName,
-                        object: nil,
-                        userInfo: [
-                            "truncates": truncatedTables,
-                            "deletes": deletedTables,
-                            "options": capturedOptions
-                        ]
-                    )
-
-                    // Also update session for persistence
                     DatabaseManager.shared.updateSession(conn.id) { session in
                         session.pendingTruncates = truncatedTables
                         session.pendingDeletes = deletedTables

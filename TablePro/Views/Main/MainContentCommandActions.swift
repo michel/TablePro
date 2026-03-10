@@ -380,7 +380,7 @@ final class MainContentCommandActions {
     }
 
     func createView() {
-        guard !connection.isReadOnly else { return }
+        guard !connection.safeModeLevel.blocksAllWrites else { return }
 
         let template: String
         switch connection.type {
@@ -462,7 +462,7 @@ final class MainContentCommandActions {
     }
 
     func importTables() {
-        guard !connection.isReadOnly else { return }
+        guard !connection.safeModeLevel.blocksAllWrites else { return }
         guard connection.type != .mongodb && connection.type != .redis else {
             let typeName = connection.type == .mongodb ? "MongoDB" : "Redis"
             AlertHelper.showErrorSheet(

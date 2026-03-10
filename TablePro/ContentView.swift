@@ -112,7 +112,7 @@ struct ContentView: View {
                             )
                         }
                         AppState.shared.isConnected = true
-                        AppState.shared.isReadOnly = session.connection.isReadOnly
+                        AppState.shared.safeModeLevel = session.connection.safeModeLevel
                         AppState.shared.isMongoDB = session.connection.type == .mongodb
                         AppState.shared.isRedis = session.connection.type == .redis
                     }
@@ -137,7 +137,7 @@ struct ContentView: View {
                         currentSession = nil
                         columnVisibility = .detailOnly
                         AppState.shared.isConnected = false
-                        AppState.shared.isReadOnly = false
+                        AppState.shared.safeModeLevel = .silent
                         AppState.shared.isMongoDB = false
                         AppState.shared.isRedis = false
 
@@ -168,7 +168,7 @@ struct ContentView: View {
                     )
                 }
                 AppState.shared.isConnected = true
-                AppState.shared.isReadOnly = newSession.connection.isReadOnly
+                AppState.shared.safeModeLevel = newSession.connection.safeModeLevel
                 AppState.shared.isMongoDB = newSession.connection.type == .mongodb
                 AppState.shared.isRedis = newSession.connection.type == .redis
             }
@@ -196,12 +196,12 @@ struct ContentView: View {
 
                 if let session = DatabaseManager.shared.activeSessions[connectionId] {
                     AppState.shared.isConnected = true
-                    AppState.shared.isReadOnly = session.connection.isReadOnly
+                    AppState.shared.safeModeLevel = session.connection.safeModeLevel
                     AppState.shared.isMongoDB = session.connection.type == .mongodb
                     AppState.shared.isRedis = session.connection.type == .redis
                 } else {
                     AppState.shared.isConnected = false
-                    AppState.shared.isReadOnly = false
+                    AppState.shared.safeModeLevel = .silent
                     AppState.shared.isMongoDB = false
                     AppState.shared.isRedis = false
                 }

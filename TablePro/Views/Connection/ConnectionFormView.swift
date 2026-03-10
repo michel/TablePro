@@ -65,8 +65,8 @@ struct ConnectionFormView: View {
     @State private var selectedTagId: UUID?
     @State private var selectedGroupId: UUID?
 
-    // Read-only mode
-    @State private var isReadOnly: Bool = false
+    // Safe mode level
+    @State private var safeModeLevel: SafeModeLevel = .silent
 
     // AI policy
     @State private var aiPolicy: AIConnectionPolicy?
@@ -276,8 +276,11 @@ struct ConnectionFormView: View {
                 LabeledContent(String(localized: "Group")) {
                     ConnectionGroupPicker(selectedGroupId: $selectedGroupId)
                 }
-                Toggle(String(localized: "Read-Only"), isOn: $isReadOnly)
-                    .help("Prevent write operations (INSERT, UPDATE, DELETE, DROP, etc.)")
+                Picker(String(localized: "Safe Mode"), selection: $safeModeLevel) {
+                    ForEach(SafeModeLevel.allCases) { level in
+                        Text(level.displayName).tag(level)
+                    }
+                }
             }
         }
         .formStyle(.grouped)
@@ -806,7 +809,7 @@ struct ConnectionFormView: View {
             connectionColor = existing.color
             selectedTagId = existing.tagId
             selectedGroupId = existing.groupId
-            isReadOnly = existing.isReadOnly
+            safeModeLevel = existing.safeModeLevel
             aiPolicy = existing.aiPolicy
 
             // Load MongoDB settings
@@ -879,7 +882,7 @@ struct ConnectionFormView: View {
             color: connectionColor,
             tagId: selectedTagId,
             groupId: selectedGroupId,
-            isReadOnly: isReadOnly,
+            safeModeLevel: safeModeLevel,
             aiPolicy: aiPolicy,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
