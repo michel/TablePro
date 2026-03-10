@@ -323,6 +323,133 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }
     }
 
+    func fetchAllColumns(schema: String?) async throws -> [String: [PluginColumnInfo]] {
+        let escaped = effectiveSchemaEscaped(schema)
+        let sql = """
+            SELECT
+                c.TABLE_NAME,
+                c.COLUMN_NAME,
+                c.DATA_TYPE,
+                c.DATA_LENGTH,
+                c.DATA_PRECISION,
+                c.DATA_SCALE,
+                c.NULLABLE,
+                c.DATA_DEFAULT,
+                CASE WHEN cc.COLUMN_NAME IS NOT NULL THEN 'Y' ELSE 'N' END AS IS_PK
+            FROM ALL_TAB_COLUMNS c
+            LEFT JOIN (
+                SELECT acc.TABLE_NAME, acc.COLUMN_NAME
+                FROM ALL_CONS_COLUMNS acc
+                JOIN ALL_CONSTRAINTS ac ON acc.CONSTRAINT_NAME = ac.CONSTRAINT_NAME
+                    AND acc.OWNER = ac.OWNER
+                WHERE ac.CONSTRAINT_TYPE = 'P' AND ac.OWNER = '\(escaped)'
+            ) cc ON c.TABLE_NAME = cc.TABLE_NAME AND c.COLUMN_NAME = cc.COLUMN_NAME
+            WHERE c.OWNER = '\(escaped)'
+            ORDER BY c.TABLE_NAME, c.COLUMN_ID
+            """
+        let result = try await execute(query: sql)
+        var columnsByTable: [String: [PluginColumnInfo]] = [:]
+        for row in result.rows {
+            guard let tableName = row[safe: 0] ?? nil,
+                  let name = row[safe: 1] ?? nil else { continue }
+            let dataType = (row[safe: 2] ?? nil)?.lowercased() ?? "varchar2"
+            let dataLength = row[safe: 3] ?? nil
+            let precision = row[safe: 4] ?? nil
+            let scale = row[safe: 5] ?? nil
+            let isNullable = (row[safe: 6] ?? nil) == "Y"
+            let defaultValue = (row[safe: 7] ?? nil)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isPk = (row[safe: 8] ?? nil) == "Y"
+
+            let fixedTypes: Set<String> = [
+                "date", "clob", "nclob", "blob", "bfile", "long", "long raw",
+                "rowid", "urowid", "binary_float", "binary_double", "xmltype"
+            ]
+            var fullType = dataType
+            if fixedTypes.contains(dataType) {
+                // No suffix needed
+            } else if dataType == "number" {
+                if let p = precision, let pInt = Int(p) {
+                    if let s = scale, let sInt = Int(s), sInt > 0 {
+                        fullType = "number(\(pInt),\(sInt))"
+                    } else {
+                        fullType = "number(\(pInt))"
+                    }
+                }
+            } else if let len = dataLength, let lenInt = Int(len), lenInt > 0 {
+                fullType = "\(dataType)(\(lenInt))"
+            }
+
+            let col = PluginColumnInfo(
+                name: name,
+                dataType: fullType,
+                isNullable: isNullable,
+                isPrimaryKey: isPk,
+                defaultValue: defaultValue
+            )
+            columnsByTable[tableName, default: []].append(col)
+        }
+        return columnsByTable
+    }
+
+    func fetchAllForeignKeys(schema: String?) async throws -> [String: [PluginForeignKeyInfo]] {
+        let escaped = effectiveSchemaEscaped(schema)
+        let sql = """
+            SELECT
+                ac.TABLE_NAME,
+                ac.CONSTRAINT_NAME,
+                acc.COLUMN_NAME,
+                rc.TABLE_NAME AS REF_TABLE,
+                rcc.COLUMN_NAME AS REF_COLUMN,
+                ac.DELETE_RULE
+            FROM ALL_CONSTRAINTS ac
+            JOIN ALL_CONS_COLUMNS acc ON ac.CONSTRAINT_NAME = acc.CONSTRAINT_NAME
+                AND ac.OWNER = acc.OWNER
+            JOIN ALL_CONSTRAINTS rc ON ac.R_CONSTRAINT_NAME = rc.CONSTRAINT_NAME
+                AND ac.R_OWNER = rc.OWNER
+            JOIN ALL_CONS_COLUMNS rcc ON rc.CONSTRAINT_NAME = rcc.CONSTRAINT_NAME
+                AND rc.OWNER = rcc.OWNER AND acc.POSITION = rcc.POSITION
+            WHERE ac.CONSTRAINT_TYPE = 'R' AND ac.OWNER = '\(escaped)'
+            ORDER BY ac.TABLE_NAME, ac.CONSTRAINT_NAME, acc.POSITION
+            """
+        let result = try await execute(query: sql)
+        var fksByTable: [String: [PluginForeignKeyInfo]] = [:]
+        for row in result.rows {
+            guard let tableName = row[safe: 0] ?? nil,
+                  let constraintName = row[safe: 1] ?? nil,
+                  let columnName = row[safe: 2] ?? nil,
+                  let refTable = row[safe: 3] ?? nil,
+                  let refColumn = row[safe: 4] ?? nil else { continue }
+            let deleteRule = (row[safe: 5] ?? nil) ?? "NO ACTION"
+            let fk = PluginForeignKeyInfo(
+                name: constraintName,
+                column: columnName,
+                referencedTable: refTable,
+                referencedColumn: refColumn,
+                onDelete: deleteRule,
+                onUpdate: "NO ACTION"
+            )
+            fksByTable[tableName, default: []].append(fk)
+        }
+        return fksByTable
+    }
+
+    func fetchAllDatabaseMetadata() async throws -> [PluginDatabaseMetadata] {
+        let sql = """
+            SELECT u.USERNAME,
+                   (SELECT COUNT(*) FROM ALL_TABLES WHERE OWNER = u.USERNAME) AS table_count,
+                   (SELECT NVL(SUM(BYTES), 0) FROM ALL_SEGMENTS WHERE OWNER = u.USERNAME) AS size_bytes
+            FROM ALL_USERS u
+            ORDER BY u.USERNAME
+            """
+        let result = try await execute(query: sql)
+        return result.rows.compactMap { row -> PluginDatabaseMetadata? in
+            guard let name = row[safe: 0] ?? nil else { return nil }
+            let tableCount = (row[safe: 1] ?? nil).flatMap { Int($0) } ?? 0
+            let sizeBytes = (row[safe: 2] ?? nil).flatMap { Int64($0) }
+            return PluginDatabaseMetadata(name: name, tableCount: tableCount, sizeBytes: sizeBytes)
+        }
+    }
+
     func fetchTableDDL(table: String, schema: String?) async throws -> String {
         let escapedTable = table.replacingOccurrences(of: "'", with: "''")
         let escaped = effectiveSchemaEscaped(schema)

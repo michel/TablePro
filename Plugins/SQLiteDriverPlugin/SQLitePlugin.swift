@@ -98,7 +98,7 @@ private actor SQLiteConnectionActor {
         var rowsAffected = 0
 
         while sqlite3_step(statement) == SQLITE_ROW {
-            if rows.count >= 100_000 {
+            if rows.count >= PluginRowLimits.defaultMax {
                 break
             }
 
@@ -195,7 +195,7 @@ private actor SQLiteConnectionActor {
         var rowsAffected = 0
 
         while sqlite3_step(statement) == SQLITE_ROW {
-            if rows.count >= 100_000 {
+            if rows.count >= PluginRowLimits.defaultMax {
                 break
             }
 
@@ -418,6 +418,16 @@ final class SQLitePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }
 
         return allColumns
+    }
+
+    func fetchAllForeignKeys(schema: String?) async throws -> [String: [PluginForeignKeyInfo]] {
+        let tables = try await fetchTables(schema: schema)
+        var result: [String: [PluginForeignKeyInfo]] = [:]
+        for table in tables {
+            let fks = try await fetchForeignKeys(table: table.name, schema: schema)
+            if !fks.isEmpty { result[table.name] = fks }
+        }
+        return result
     }
 
     func fetchIndexes(table: String, schema: String?) async throws -> [PluginIndexInfo] {
@@ -658,6 +668,17 @@ enum SQLitePluginError: LocalizedError {
         case .notConnected: return "Not connected to database"
         case .queryFailed(let message): return "Query failed: \(message)"
         case .unsupportedOperation: return "Operation not supported"
+        }
+    }
+}
+
+extension SQLitePluginError: PluginDriverError {
+    var pluginErrorMessage: String {
+        switch self {
+        case .connectionFailed(let msg): return msg
+        case .notConnected: return String(localized: "Not connected to database")
+        case .queryFailed(let msg): return msg
+        case .unsupportedOperation: return String(localized: "Operation not supported")
         }
     }
 }

@@ -7,8 +7,6 @@ import Foundation
 import os
 import TableProPluginKit
 
-private let defaultMaxRows = 100_000
-
 final class MongoDBPluginDriver: PluginDatabaseDriver {
     private let config: DriverConnectionConfig
     private var mongoConnection: MongoDBConnection?
@@ -437,6 +435,87 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
         currentDb = database
     }
 
+    // MARK: - Query Building
+
+    func buildBrowseQuery(
+        table: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = MongoDBQueryBuilder()
+        return builder.buildBaseQuery(
+            collection: table, sortColumns: sortColumns,
+            columns: columns, limit: limit, offset: offset
+        )
+    }
+
+    func buildFilteredQuery(
+        table: String,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = MongoDBQueryBuilder()
+        return builder.buildFilteredQuery(
+            collection: table, filters: filters, logicMode: logicMode,
+            sortColumns: sortColumns, columns: columns, limit: limit, offset: offset
+        )
+    }
+
+    func buildQuickSearchQuery(
+        table: String,
+        searchText: String,
+        columns: [String],
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = MongoDBQueryBuilder()
+        return builder.buildQuickSearchQuery(
+            collection: table, searchText: searchText, columns: columns,
+            sortColumns: sortColumns, limit: limit, offset: offset
+        )
+    }
+
+    func buildCombinedQuery(
+        table: String,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String,
+        searchText: String,
+        searchColumns: [String],
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = MongoDBQueryBuilder()
+        return builder.buildCombinedQuery(
+            collection: table, filters: filters, logicMode: logicMode,
+            searchText: searchText, searchColumns: searchColumns,
+            sortColumns: sortColumns, columns: columns, limit: limit, offset: offset
+        )
+    }
+
+    func generateStatements(
+        table: String,
+        columns: [String],
+        changes: [PluginRowChange],
+        insertedRowData: [Int: [String?]],
+        deletedRowIndices: Set<Int>,
+        insertedRowIndices: Set<Int>
+    ) -> [(statement: String, parameters: [String?])]? {
+        let generator = MongoDBStatementGenerator(collectionName: table, columns: columns)
+        return generator.generateStatements(
+            from: changes, insertedRowData: insertedRowData,
+            deletedRowIndices: deletedRowIndices, insertedRowIndices: insertedRowIndices
+        )
+    }
+
     // MARK: - Operation Dispatch
 
     private func executeOperation(
@@ -451,7 +530,7 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
             let docs = try await conn.find(
                 database: db, collection: collection, filter: filter,
                 sort: options.sort, projection: options.projection,
-                skip: options.skip ?? 0, limit: options.limit ?? defaultMaxRows
+                skip: options.skip ?? 0, limit: options.limit ?? PluginRowLimits.defaultMax
             )
             if docs.isEmpty {
                 return PluginQueryResult(
@@ -710,6 +789,15 @@ enum MongoDBPluginError: Error, LocalizedError {
         switch self {
         case .notConnected: return "Not connected to MongoDB"
         case .unsupportedOperation: return "Operation not supported for MongoDB"
+        }
+    }
+}
+
+extension MongoDBPluginError: PluginDriverError {
+    var pluginErrorMessage: String {
+        switch self {
+        case .notConnected: return String(localized: "Not connected to MongoDB")
+        case .unsupportedOperation: return String(localized: "Operation not supported for MongoDB")
         }
     }
 }

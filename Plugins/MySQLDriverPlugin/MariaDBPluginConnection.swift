@@ -9,6 +9,7 @@
 import CMariaDB
 import Foundation
 import OSLog
+import TableProPluginKit
 
 // MySQL/MariaDB field flag constants
 private let mysqlBinaryFlag: UInt = 0x0080   // 128
@@ -75,11 +76,6 @@ struct MySQLSSLConfig {
     }
 }
 
-// MARK: - Row Limits
-
-private enum PluginRowLimits {
-    static let defaultMax = 100_000
-}
 
 // MARK: - Type Mapping
 
@@ -849,4 +845,12 @@ final class MariaDBPluginConnection: @unchecked Sendable {
 
         return MariaDBPluginError(code: code, message: message, sqlState: sqlState)
     }
+}
+
+// MARK: - PluginDriverError Conformance
+
+extension MariaDBPluginError: PluginDriverError {
+    var pluginErrorMessage: String { message }
+    var pluginErrorCode: Int? { Int(code) }
+    var pluginSqlState: String? { sqlState }
 }

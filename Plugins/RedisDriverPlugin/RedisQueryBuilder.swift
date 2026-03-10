@@ -1,12 +1,13 @@
 //
 //  RedisQueryBuilder.swift
-//  TablePro
+//  RedisDriverPlugin
 //
 //  Builds Redis command strings for key browsing and filtering.
-//  Parallel to MongoDBQueryBuilder for MongoDB and TableQueryBuilder for SQL databases.
+//  Plugin-local version using primitive types instead of Core types.
 //
 
 import Foundation
+import TableProPluginKit
 
 struct RedisQueryBuilder {
     // MARK: - Base Query
@@ -15,7 +16,7 @@ struct RedisQueryBuilder {
     /// Returns: SCAN 0 MATCH namespace:* COUNT limit
     func buildBaseQuery(
         namespace: String,
-        sortState: SortState? = nil,
+        sortColumns: [(columnIndex: Int, ascending: Bool)] = [],
         columns: [String] = [],
         limit: Int = 200,
         offset: Int = 0
@@ -29,8 +30,8 @@ struct RedisQueryBuilder {
     /// complex filters are applied client-side after SCAN results are returned.
     func buildFilteredQuery(
         namespace: String,
-        filters: [TableFilter],
-        logicMode: FilterLogicMode = .and,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String = "and",
         limit: Int = 200
     ) -> String {
         // Check if any filter targets the Key column with a pattern-compatible operator
@@ -70,21 +71,24 @@ struct RedisQueryBuilder {
     // MARK: - Private Helpers
 
     /// Try to extract a SCAN-compatible glob pattern from key-column filters
-    private func extractKeyPattern(from filters: [TableFilter], namespace: String) -> String? {
-        let keyFilters = filters.filter { $0.isEnabled && $0.columnName == "Key" }
+    private func extractKeyPattern(
+        from filters: [(column: String, op: String, value: String)],
+        namespace: String
+    ) -> String? {
+        let keyFilters = filters.filter { $0.column == "Key" }
         guard keyFilters.count == 1, let filter = keyFilters.first else { return nil }
 
         let prefix = namespace.isEmpty ? "" : namespace
         let value = escapeGlobChars(filter.value)
 
-        switch filter.filterOperator {
-        case .contains:
+        switch filter.op {
+        case "CONTAINS":
             return "\(prefix)*\(value)*"
-        case .startsWith:
+        case "STARTS WITH":
             return "\(prefix)\(value)*"
-        case .endsWith:
+        case "ENDS WITH":
             return "\(prefix)*\(value)"
-        case .equal:
+        case "=":
             return "\(prefix)\(value)"
         default:
             return nil

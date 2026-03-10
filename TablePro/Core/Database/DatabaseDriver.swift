@@ -137,6 +137,9 @@ protocol DatabaseDriver: AnyObject {
 
     /// Rollback the current transaction
     func rollbackTransaction() async throws
+
+    /// Access to the underlying plugin driver for NoSQL query dispatch
+    var noSqlPluginDriver: (any PluginDatabaseDriver)? { get }
 }
 
 // MARK: - Schema Switching
@@ -154,6 +157,8 @@ extension DatabaseDriver {
     /// Default implementation returns nil
     /// Override in drivers that support version querying
     var serverVersion: String? { nil }
+
+    var noSqlPluginDriver: (any PluginDatabaseDriver)? { nil }
 
     func testConnection() async throws -> Bool {
         try await connect()
@@ -314,30 +319,30 @@ enum DatabaseDriverFactory {
             username: connection.username,
             password: ConnectionStorage.shared.loadPassword(for: connection.id) ?? "",
             database: connection.database,
-            additionalFields: buildAdditionalFields(for: connection)
+            additionalFields: buildAdditionalFields(for: connection, plugin: plugin)
         )
         let pluginDriver = plugin.createDriver(config: config)
         return PluginDriverAdapter(connection: connection, pluginDriver: pluginDriver)
     }
 
-    private static func buildAdditionalFields(for connection: DatabaseConnection) -> [String: String] {
+    private static func buildAdditionalFields(
+        for connection: DatabaseConnection,
+        plugin: any DriverPlugin
+    ) -> [String: String] {
         var fields: [String: String] = [:]
 
-        // SSL fields (shared by most drivers)
         let ssl = connection.sslConfig
         fields["sslMode"] = ssl.mode.rawValue
         fields["sslCaCertPath"] = ssl.caCertificatePath
         fields["sslClientCertPath"] = ssl.clientCertificatePath
         fields["sslClientKeyPath"] = ssl.clientKeyPath
 
-        // Driver-specific fields
+        if let variant = type(of: plugin).driverVariant(for: connection.type.rawValue) {
+            fields["driverVariant"] = variant
+        }
+
         switch connection.type {
-        case .postgresql:
-            fields["driverVariant"] = "PostgreSQL"
-        case .redshift:
-            fields["driverVariant"] = "Redshift"
         case .mongodb:
-            // MongoDB uses "sslCACertPath" (capital A) — match plugin expectation
             fields["sslCACertPath"] = ssl.caCertificatePath
             fields["mongoReadPreference"] = connection.mongoReadPreference ?? ""
             fields["mongoWriteConcern"] = connection.mongoWriteConcern ?? ""
@@ -347,7 +352,7 @@ enum DatabaseDriverFactory {
             fields["mssqlSchema"] = connection.mssqlSchema ?? "dbo"
         case .oracle:
             fields["oracleServiceName"] = connection.oracleServiceName ?? ""
-        case .mysql, .mariadb, .sqlite, .clickhouse:
+        case .mysql, .mariadb, .sqlite, .clickhouse, .postgresql, .redshift:
             break
         }
 

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import TableProPluginKit
 
 /// Generates SQL WHERE clauses from filter definitions
 struct FilterSQLGenerator {
@@ -236,14 +237,24 @@ struct FilterSQLGenerator {
 
 extension FilterSQLGenerator {
     /// Generate a preview-friendly query string (for display, not execution)
-    func generatePreviewSQL(tableName: String, filters: [TableFilter], limit: Int = 1_000) -> String {
-        if databaseType == .mongodb {
-            let mongoBuilder = MongoDBQueryBuilder()
-            return mongoBuilder.buildFilteredQuery(
-                collection: tableName,
-                filters: filters,
-                limit: limit
-            )
+    func generatePreviewSQL(
+        tableName: String,
+        filters: [TableFilter],
+        limit: Int = 1_000,
+        pluginDriver: (any PluginDatabaseDriver)? = nil
+    ) -> String {
+        // Use plugin dispatch for NoSQL drivers (MongoDB, Redis, etc.)
+        if let pluginDriver {
+            let filterTuples = filters
+                .filter { $0.isEnabled && !$0.columnName.isEmpty }
+                .map { ($0.columnName, $0.filterOperator.rawValue, $0.value) }
+            if let result = pluginDriver.buildFilteredQuery(
+                table: tableName, filters: filterTuples,
+                logicMode: "and", sortColumns: [], columns: [],
+                limit: limit, offset: 0
+            ) {
+                return result
+            }
         }
 
         let quotedTable = databaseType.quoteIdentifier(tableName)

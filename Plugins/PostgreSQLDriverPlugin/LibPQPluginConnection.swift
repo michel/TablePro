@@ -10,6 +10,7 @@
 import CLibPQ
 import Foundation
 import OSLog
+import TableProPluginKit
 
 private let logger = Logger(subsystem: "com.TablePro.PostgreSQLDriver", category: "LibPQPluginConnection")
 
@@ -142,8 +143,6 @@ final class LibPQPluginConnection: @unchecked Sendable {
     private var _isShuttingDown: Bool = false
     private var _cachedServerVersion: String?
     private var _isCancelled: Bool = false
-
-    private static let maxRows = 100_000
 
     var isConnected: Bool {
         stateLock.lock()
@@ -497,7 +496,7 @@ final class LibPQPluginConnection: @unchecked Sendable {
             columnTypeNames.append(pgOidToTypeName(UInt32(oid)))
         }
 
-        let maxRows = Self.maxRows
+        let maxRows = PluginRowLimits.defaultMax
         let effectiveRowCount = min(numRows, maxRows)
         let truncated = numRows > maxRows
 
@@ -598,4 +597,12 @@ final class LibPQPluginConnection: @unchecked Sendable {
         }
         return nil
     }
+}
+
+// MARK: - PluginDriverError Conformance
+
+extension LibPQPluginError: PluginDriverError {
+    var pluginErrorMessage: String { message }
+    var pluginSqlState: String? { sqlState }
+    var pluginErrorDetail: String? { detail }
 }

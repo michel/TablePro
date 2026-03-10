@@ -51,7 +51,7 @@ final class MainContentCoordinator {
 
     // MARK: - Services
 
-    internal let queryBuilder: TableQueryBuilder
+    internal var queryBuilder: TableQueryBuilder
     let persistence: TabPersistenceCoordinator
     @ObservationIgnored internal lazy var rowOperationsManager: RowOperationsManager = {
         RowOperationsManager(changeManager: changeManager)
@@ -247,6 +247,16 @@ final class MainContentCoordinator {
 
     func markActivated() {
         _didActivate.withLock { $0 = true }
+        setupPluginDriver()
+    }
+
+    /// Set up the plugin driver for NoSQL query dispatch on the query builder and change manager.
+    /// Called once when the coordinator's view first appears.
+    private func setupPluginDriver() {
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
+        let noSqlDriver = driver.noSqlPluginDriver
+        queryBuilder.setPluginDriver(noSqlDriver)
+        changeManager.pluginDriver = noSqlDriver
     }
 
     func markTeardownScheduled() {

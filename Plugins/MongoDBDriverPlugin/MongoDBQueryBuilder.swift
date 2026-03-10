@@ -1,12 +1,13 @@
 //
 //  MongoDBQueryBuilder.swift
-//  TablePro
+//  MongoDBDriverPlugin
 //
 //  Builds MongoDB Shell syntax query strings for collection browsing.
-//  Parallel to TableQueryBuilder for SQL databases.
+//  Plugin-local version using primitive types instead of Core types.
 //
 
 import Foundation
+import TableProPluginKit
 
 struct MongoDBQueryBuilder {
     // MARK: - Base Query
@@ -14,14 +15,14 @@ struct MongoDBQueryBuilder {
     /// Build: db.collection.find({}).sort({}).skip(offset).limit(limit)
     func buildBaseQuery(
         collection: String,
-        sortState: SortState? = nil,
+        sortColumns: [(columnIndex: Int, ascending: Bool)] = [],
         columns: [String] = [],
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
         var query = "\(Self.mongoCollectionAccessor(collection)).find({})"
 
-        if let sort = buildSortDocument(sortState: sortState, columns: columns) {
+        if let sort = buildSortDocument(sortColumns: sortColumns, columns: columns) {
             query += ".sort(\(sort))"
         }
 
@@ -36,9 +37,9 @@ struct MongoDBQueryBuilder {
     /// Build: db.collection.find({filter}).sort({}).skip(offset).limit(limit)
     func buildFilteredQuery(
         collection: String,
-        filters: [TableFilter],
-        logicMode: FilterLogicMode = .and,
-        sortState: SortState? = nil,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String = "and",
+        sortColumns: [(columnIndex: Int, ascending: Bool)] = [],
         columns: [String] = [],
         limit: Int = 200,
         offset: Int = 0
@@ -46,7 +47,7 @@ struct MongoDBQueryBuilder {
         let filterDoc = buildFilterDocument(from: filters, logicMode: logicMode)
         var query = "\(Self.mongoCollectionAccessor(collection)).find(\(filterDoc))"
 
-        if let sort = buildSortDocument(sortState: sortState, columns: columns) {
+        if let sort = buildSortDocument(sortColumns: sortColumns, columns: columns) {
             query += ".sort(\(sort))"
         }
 
@@ -63,7 +64,7 @@ struct MongoDBQueryBuilder {
         collection: String,
         searchText: String,
         columns: [String],
-        sortState: SortState? = nil,
+        sortColumns: [(columnIndex: Int, ascending: Bool)] = [],
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
@@ -81,7 +82,7 @@ struct MongoDBQueryBuilder {
 
         var query = "\(Self.mongoCollectionAccessor(collection)).find(\(filter))"
 
-        if let sort = buildSortDocument(sortState: sortState, columns: columns) {
+        if let sort = buildSortDocument(sortColumns: sortColumns, columns: columns) {
             query += ".sort(\(sort))"
         }
 
@@ -96,11 +97,11 @@ struct MongoDBQueryBuilder {
     /// Build a query combining filter rows AND quick search with $and
     func buildCombinedQuery(
         collection: String,
-        filters: [TableFilter],
-        logicMode: FilterLogicMode = .and,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String = "and",
         searchText: String,
         searchColumns: [String],
-        sortState: SortState? = nil,
+        sortColumns: [(columnIndex: Int, ascending: Bool)] = [],
         columns: [String] = [],
         limit: Int = 200,
         offset: Int = 0
@@ -117,7 +118,7 @@ struct MongoDBQueryBuilder {
 
         var query = "\(Self.mongoCollectionAccessor(collection)).find(\(combinedFilter))"
 
-        if let sort = buildSortDocument(sortState: sortState, columns: columns) {
+        if let sort = buildSortDocument(sortColumns: sortColumns, columns: columns) {
             query += ".sort(\(sort))"
         }
 
@@ -138,13 +139,15 @@ struct MongoDBQueryBuilder {
 
     // MARK: - Filter Document
 
-    /// Convert TableFilter array to MongoDB filter document string
-    func buildFilterDocument(from filters: [TableFilter], logicMode: FilterLogicMode = .and) -> String {
-        let activeFilters = filters.filter { $0.isEnabled && !$0.columnName.isEmpty }
-        guard !activeFilters.isEmpty else { return "{}" }
+    /// Convert filter tuples to MongoDB filter document string
+    func buildFilterDocument(
+        from filters: [(column: String, op: String, value: String)],
+        logicMode: String = "and"
+    ) -> String {
+        guard !filters.isEmpty else { return "{}" }
 
-        let conditions = activeFilters.compactMap { filter -> String? in
-            buildCondition(from: filter)
+        let conditions = filters.compactMap { filter -> String? in
+            buildCondition(column: filter.column, op: filter.op, value: filter.value)
         }
 
         guard !conditions.isEmpty else { return "{}" }
@@ -153,7 +156,7 @@ struct MongoDBQueryBuilder {
             return "{\(conditions[0])}"
         }
 
-        let logicOp = logicMode == .and ? "$and" : "$or"
+        let logicOp = logicMode == "and" ? "$and" : "$or"
         let conditionDocs = conditions.map { "{\($0)}" }
         return "{\"\(logicOp)\": [\(conditionDocs.joined(separator: ", "))]}"
     }
@@ -169,63 +172,67 @@ struct MongoDBQueryBuilder {
         return "db.\(name)"
     }
 
-    private func buildCondition(from filter: TableFilter) -> String? {
-        let field = Self.escapeJsonString(filter.columnName)
-        let value = filter.value
+    private func buildCondition(column: String, op: String, value: String) -> String? {
+        let field = Self.escapeJsonString(column)
 
-        switch filter.filterOperator {
-        case .equal:
+        switch op {
+        case "=":
             return "\"\(field)\": \(jsonValue(value))"
-        case .notEqual:
+        case "!=":
             return "\"\(field)\": {\"$ne\": \(jsonValue(value))}"
-        case .greaterThan:
+        case ">":
             return "\"\(field)\": {\"$gt\": \(jsonValue(value))}"
-        case .greaterOrEqual:
+        case ">=":
             return "\"\(field)\": {\"$gte\": \(jsonValue(value))}"
-        case .lessThan:
+        case "<":
             return "\"\(field)\": {\"$lt\": \(jsonValue(value))}"
-        case .lessOrEqual:
+        case "<=":
             return "\"\(field)\": {\"$lte\": \(jsonValue(value))}"
-        case .contains:
+        case "CONTAINS":
             return "\"\(field)\": {\"$regex\": \"\(escapeRegexChars(value))\", \"$options\": \"i\"}"
-        case .notContains:
+        case "NOT CONTAINS":
             return "\"\(field)\": {\"$not\": {\"$regex\": \"\(escapeRegexChars(value))\", \"$options\": \"i\"}}"
-        case .startsWith:
+        case "STARTS WITH":
             return "\"\(field)\": {\"$regex\": \"^\(escapeRegexChars(value))\", \"$options\": \"i\"}"
-        case .endsWith:
+        case "ENDS WITH":
             return "\"\(field)\": {\"$regex\": \"\(escapeRegexChars(value))$\", \"$options\": \"i\"}"
-        case .isNull:
+        case "IS NULL":
             return "\"\(field)\": null"
-        case .isNotNull:
+        case "IS NOT NULL":
             return "\"\(field)\": {\"$ne\": null}"
-        case .isEmpty:
+        case "IS EMPTY":
             return "\"\(field)\": \"\""
-        case .isNotEmpty:
+        case "IS NOT EMPTY":
             return "\"\(field)\": {\"$ne\": \"\"}"
-        case .regex:
+        case "REGEX":
             return "\"\(field)\": {\"$regex\": \"\(value)\", \"$options\": \"i\"}"
-        case .inList:
+        case "IN":
             let items = value.split(separator: ",")
                 .map { jsonValue(String($0).trimmingCharacters(in: .whitespaces)) }
             return "\"\(field)\": {\"$in\": [\(items.joined(separator: ", "))]}"
-        case .notInList:
+        case "NOT IN":
             let items = value.split(separator: ",")
                 .map { jsonValue(String($0).trimmingCharacters(in: .whitespaces)) }
             return "\"\(field)\": {\"$nin\": [\(items.joined(separator: ", "))]}"
-        case .between:
+        case "BETWEEN":
             let parts = value.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
             guard parts.count == 2 else { return nil }
             return "\"\(field)\": {\"$gte\": \(jsonValue(parts[0])), \"$lte\": \(jsonValue(parts[1]))}"
+        default:
+            return nil
         }
     }
 
-    private func buildSortDocument(sortState: SortState?, columns: [String]) -> String? {
-        guard let state = sortState, state.isSorting else { return nil }
+    private func buildSortDocument(
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String]
+    ) -> String? {
+        guard !sortColumns.isEmpty else { return nil }
 
-        let parts = state.columns.compactMap { sortCol -> String? in
+        let parts = sortColumns.compactMap { sortCol -> String? in
             guard sortCol.columnIndex >= 0, sortCol.columnIndex < columns.count else { return nil }
             let columnName = Self.escapeJsonString(columns[sortCol.columnIndex])
-            let direction = sortCol.direction == .ascending ? 1 : -1
+            let direction = sortCol.ascending ? 1 : -1
             return "\"\(columnName)\": \(direction)"
         }
 

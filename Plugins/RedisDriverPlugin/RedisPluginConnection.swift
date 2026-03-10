@@ -12,6 +12,7 @@ import CRedis
 #endif
 import Foundation
 import OSLog
+import TableProPluginKit
 
 private let logger = Logger(subsystem: "com.TablePro.RedisDriver", category: "RedisPluginConnection")
 
@@ -86,6 +87,11 @@ struct RedisPluginError: Error, LocalizedError {
         code: 0,
         message: "Redis support requires hiredis. Run scripts/build-hiredis.sh first."
     )
+}
+
+extension RedisPluginError: PluginDriverError {
+    var pluginErrorMessage: String { message }
+    var pluginErrorCode: Int? { code }
 }
 
 // MARK: - Connection Class
