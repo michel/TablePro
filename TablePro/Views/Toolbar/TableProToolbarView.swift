@@ -139,6 +139,9 @@ struct TableProToolbar: ViewModifier {
                         : state.databaseType == .redis ? "Preview Commands (⌘⇧P)"
                         : "Preview SQL (⌘⇧P)")
                     .disabled(!state.hasPendingChanges || state.connectionState != .connected)
+                    .popover(isPresented: $state.showSQLReviewPopover) {
+                        SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
+                    }
                 }
 
                 ToolbarItem(placement: .primaryAction) {
@@ -178,9 +181,6 @@ struct TableProToolbar: ViewModifier {
                         .disabled(state.connectionState != .connected || state.safeModeLevel.blocksAllWrites)
                     }
                 }
-            }
-            .popover(isPresented: $state.showSQLReviewPopover) {
-                SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
             }
             .onReceive(NotificationCenter.default.publisher(for: .openConnectionSwitcher)) { _ in
                 showConnectionSwitcher = true
