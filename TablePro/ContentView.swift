@@ -278,6 +278,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity)
 
                     if rightPanelState.isPresented {
+                        PanelResizeHandle(panelWidth: Bindable(rightPanelState).panelWidth)
                         Divider()
                         UnifiedRightPanelView(
                             state: rightPanelState,
@@ -285,7 +286,7 @@ struct ContentView: View {
                             connection: currentSession.connection,
                             tables: currentSession.tables
                         )
-                        .frame(width: 320)
+                        .frame(width: rightPanelState.panelWidth)
                         .transition(.move(edge: .trailing))
                     }
                 }

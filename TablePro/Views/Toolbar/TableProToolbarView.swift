@@ -21,7 +21,7 @@ struct ToolbarPrincipalContent: View {
     var body: some View {
         HStack(spacing: 10) {
             if let tagId = state.tagId,
-                let tag = TagStorage.shared.tag(for: tagId)
+               let tag = TagStorage.shared.tag(for: tagId)
             {
                 TagBadgeView(tag: tag)
             }
@@ -130,20 +130,14 @@ struct TableProToolbar: ViewModifier {
                         actions?.previewSQL()
                     } label: {
                         Label(
-                            state.databaseType == .mongodb
-                                ? "Preview MQL"
-                                : state.databaseType == .redis
-                                    ? "Preview Commands"
-                                    : "Preview SQL",
+                            state.databaseType == .mongodb ? "Preview MQL"
+                                : state.databaseType == .redis ? "Preview Commands"
+                                : "Preview SQL",
                             systemImage: "eye")
                     }
-                    .help(
-                        state.databaseType == .mongodb
-                            ? "Preview MQL (⌘⇧P)"
-                            : state.databaseType == .redis
-                                ? "Preview Commands (⌘⇧P)"
-                                : "Preview SQL (⌘⇧P)"
-                    )
+                    .help(state.databaseType == .mongodb ? "Preview MQL (⌘⇧P)"
+                        : state.databaseType == .redis ? "Preview Commands (⌘⇧P)"
+                        : "Preview SQL (⌘⇧P)")
                     .disabled(!state.hasPendingChanges || state.connectionState != .connected)
                 }
 
@@ -181,15 +175,12 @@ struct TableProToolbar: ViewModifier {
                             Label("Import", systemImage: "square.and.arrow.down")
                         }
                         .help("Import Data (⌘⇧I)")
-                        .disabled(
-                            state.connectionState != .connected
-                                || state.safeModeLevel.blocksAllWrites)
+                        .disabled(state.connectionState != .connected || state.safeModeLevel.blocksAllWrites)
                     }
                 }
             }
             .popover(isPresented: $state.showSQLReviewPopover) {
-                SQLReviewPopover(
-                    statements: state.previewStatements, databaseType: state.databaseType)
+                SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
             }
             .onReceive(NotificationCenter.default.publisher(for: .openConnectionSwitcher)) { _ in
                 showConnectionSwitcher = true
