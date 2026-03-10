@@ -12,8 +12,13 @@ import os
 
 @MainActor @Observable final class RightPanelState {
     private static let isPresentedKey = "com.TablePro.rightPanel.isPresented"
+    private static let panelWidthKey = "com.TablePro.rightPanel.width"
     private static let isPresentedChangedNotification = Notification.Name("com.TablePro.rightPanel.isPresentedChanged")
     private var isSyncing = false
+
+    static let minWidth: CGFloat = 280
+    static let maxWidth: CGFloat = 500
+    static let defaultWidth: CGFloat = 320
     @ObservationIgnored private let _didTeardown = OSAllocatedUnfairLock(initialState: false)
 
     var isPresented: Bool {
@@ -23,6 +28,14 @@ import os
                 UserDefaults.standard.set(self.isPresented, forKey: Self.isPresentedKey)
                 NotificationCenter.default.post(name: Self.isPresentedChangedNotification, object: self)
             }
+        }
+    }
+
+    var panelWidth: CGFloat {
+        didSet {
+            let clamped = min(max(panelWidth, Self.minWidth), Self.maxWidth)
+            if panelWidth != clamped { panelWidth = clamped }
+            UserDefaults.standard.set(Double(clamped), forKey: Self.panelWidthKey)
         }
     }
 
@@ -43,6 +56,8 @@ import os
 
     init() {
         self.isPresented = UserDefaults.standard.bool(forKey: Self.isPresentedKey)
+        let savedWidth = UserDefaults.standard.double(forKey: Self.panelWidthKey)
+        self.panelWidth = savedWidth > 0 ? min(max(savedWidth, Self.minWidth), Self.maxWidth) : Self.defaultWidth
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleIsPresentedChanged(_:)),

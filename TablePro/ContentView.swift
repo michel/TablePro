@@ -257,33 +257,40 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 600)
             } detail: {
                 // MARK: - Detail (Main workspace with optional right sidebar)
-                MainContentView(
-                    connection: currentSession.connection,
-                    payload: payload,
-                    windowTitle: $windowTitle,
-                    tables: sessionTablesBinding,
-                    sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
-                    pendingTruncates: sessionPendingTruncatesBinding,
-                    pendingDeletes: sessionPendingDeletesBinding,
-                    tableOperationOptions: sessionTableOperationOptionsBinding,
-                    inspectorContext: $inspectorContext,
-                    rightPanelState: rightPanelState,
-                    tabManager: sessionState.tabManager,
-                    changeManager: sessionState.changeManager,
-                    filterStateManager: sessionState.filterStateManager,
-                    toolbarState: sessionState.toolbarState,
-                    coordinator: sessionState.coordinator
-                )
-                .inspector(isPresented: Bindable(rightPanelState).isPresented) {
-                    UnifiedRightPanelView(
-                        state: rightPanelState,
-                        inspectorContext: inspectorContext,
+                HStack(spacing: 0) {
+                    MainContentView(
                         connection: currentSession.connection,
-                        tables: currentSession.tables
+                        payload: payload,
+                        windowTitle: $windowTitle,
+                        tables: sessionTablesBinding,
+                        sidebarState: SharedSidebarState.forConnection(currentSession.connection.id),
+                        pendingTruncates: sessionPendingTruncatesBinding,
+                        pendingDeletes: sessionPendingDeletesBinding,
+                        tableOperationOptions: sessionTableOperationOptionsBinding,
+                        inspectorContext: $inspectorContext,
+                        rightPanelState: rightPanelState,
+                        tabManager: sessionState.tabManager,
+                        changeManager: sessionState.changeManager,
+                        filterStateManager: sessionState.filterStateManager,
+                        toolbarState: sessionState.toolbarState,
+                        coordinator: sessionState.coordinator
                     )
-                    .frame(minWidth: 280, maxWidth: 500)
-                    .inspectorColumnWidth(min: 280, ideal: 320, max: 500)
+                    .frame(maxWidth: .infinity)
+
+                    if rightPanelState.isPresented {
+                        PanelResizeHandle(panelWidth: Bindable(rightPanelState).panelWidth)
+                        Divider()
+                        UnifiedRightPanelView(
+                            state: rightPanelState,
+                            inspectorContext: inspectorContext,
+                            connection: currentSession.connection,
+                            tables: currentSession.tables
+                        )
+                        .frame(width: rightPanelState.panelWidth)
+                        .transition(.move(edge: .trailing))
+                    }
                 }
+                .animation(.easeInOut(duration: 0.2), value: rightPanelState.isPresented)
             }
             .navigationTitle(windowTitle)
             .navigationSubtitle(currentSession.connection.name)
