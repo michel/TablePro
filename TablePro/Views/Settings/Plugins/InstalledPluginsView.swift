@@ -177,6 +177,12 @@ struct InstalledPluginsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if let instance = pluginManager.pluginInstances[plugin.id],
+               let settingsView = instance.settingsView() {
+                Divider()
+                settingsView
+            }
+
             if plugin.source == .userInstalled {
                 HStack {
                     Spacer()
@@ -247,10 +253,6 @@ private extension PluginCapability {
         case .databaseDriver: String(localized: "Database Driver")
         case .exportFormat: String(localized: "Export Format")
         case .importFormat: String(localized: "Import Format")
-        case .sqlDialect: String(localized: "SQL Dialect")
-        case .aiProvider: String(localized: "AI Provider")
-        case .cellRenderer: String(localized: "Cell Renderer")
-        case .sidebarPanel: String(localized: "Sidebar Panel")
         }
     }
 }

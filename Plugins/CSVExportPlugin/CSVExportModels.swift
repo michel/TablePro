@@ -5,7 +5,7 @@
 
 import Foundation
 
-public enum CSVDelimiter: String, CaseIterable, Identifiable {
+public enum CSVDelimiter: String, CaseIterable, Identifiable, Codable {
     case comma = ","
     case semicolon = ";"
     case tab = "\\t"
@@ -27,7 +27,7 @@ public enum CSVDelimiter: String, CaseIterable, Identifiable {
     }
 }
 
-public enum CSVQuoteHandling: String, CaseIterable, Identifiable {
+public enum CSVQuoteHandling: String, CaseIterable, Identifiable, Codable {
     case always = "Always"
     case asNeeded = "Quote if needed"
     case never = "Never"
@@ -43,7 +43,7 @@ public enum CSVQuoteHandling: String, CaseIterable, Identifiable {
     }
 }
 
-public enum CSVLineBreak: String, CaseIterable, Identifiable {
+public enum CSVLineBreak: String, CaseIterable, Identifiable, Codable {
     case lf = "\\n"
     case crlf = "\\r\\n"
     case cr = "\\r"
@@ -59,7 +59,7 @@ public enum CSVLineBreak: String, CaseIterable, Identifiable {
     }
 }
 
-public enum CSVDecimalFormat: String, CaseIterable, Identifiable {
+public enum CSVDecimalFormat: String, CaseIterable, Identifiable, Codable {
     case period = "."
     case comma = ","
 
@@ -68,7 +68,7 @@ public enum CSVDecimalFormat: String, CaseIterable, Identifiable {
     public var separator: String { rawValue }
 }
 
-public struct CSVExportOptions: Equatable {
+public struct CSVExportOptions: Equatable, Codable {
     public var convertNullToEmpty: Bool = true
     public var convertLineBreakToSpace: Bool = false
     public var includeFieldNames: Bool = true

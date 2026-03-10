@@ -177,6 +177,9 @@ struct BrowsePluginsView: View {
             do {
                 _ = try await pluginManager.installFromRegistry(plugin) { fraction in
                     installTracker.updateProgress(pluginId: plugin.id, fraction: fraction)
+                    if fraction >= 1.0 {
+                        installTracker.markInstalling(pluginId: plugin.id)
+                    }
                 }
                 installTracker.completeInstall(pluginId: plugin.id)
             } catch {

@@ -17,12 +17,24 @@ final class XLSXExportPlugin: ExportFormatPlugin {
     static let defaultFileExtension = "xlsx"
     static let iconName = "tablecells"
 
-    var options = XLSXExportOptions()
+    private let storage = PluginSettingsStorage(pluginId: "xlsx")
 
-    required init() {}
+    var options = XLSXExportOptions() {
+        didSet { storage.save(options) }
+    }
+
+    required init() {
+        if let saved = PluginSettingsStorage(pluginId: "xlsx").load(XLSXExportOptions.self) {
+            options = saved
+        }
+    }
 
     func optionsView() -> AnyView? {
         AnyView(XLSXExportOptionsView(plugin: self))
+    }
+
+    func settingsView() -> AnyView? {
+        optionsView()
     }
 
     func export(

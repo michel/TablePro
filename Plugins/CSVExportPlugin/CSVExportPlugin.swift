@@ -20,12 +20,24 @@ final class CSVExportPlugin: ExportFormatPlugin {
     // swiftlint:disable:next force_try
     static let decimalFormatRegex = try! NSRegularExpression(pattern: #"^[+-]?\d+\.\d+$"#)
 
-    var options = CSVExportOptions()
+    private let storage = PluginSettingsStorage(pluginId: "csv")
 
-    required init() {}
+    var options = CSVExportOptions() {
+        didSet { storage.save(options) }
+    }
+
+    required init() {
+        if let saved = PluginSettingsStorage(pluginId: "csv").load(CSVExportOptions.self) {
+            options = saved
+        }
+    }
 
     func optionsView() -> AnyView? {
         AnyView(CSVExportOptionsView(plugin: self))
+    }
+
+    func settingsView() -> AnyView? {
+        optionsView()
     }
 
     func export(

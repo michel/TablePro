@@ -17,12 +17,24 @@ final class JSONExportPlugin: ExportFormatPlugin {
     static let defaultFileExtension = "json"
     static let iconName = "curlybraces"
 
-    var options = JSONExportOptions()
+    private let storage = PluginSettingsStorage(pluginId: "json")
 
-    required init() {}
+    var options = JSONExportOptions() {
+        didSet { storage.save(options) }
+    }
+
+    required init() {
+        if let saved = PluginSettingsStorage(pluginId: "json").load(JSONExportOptions.self) {
+            options = saved
+        }
+    }
 
     func optionsView() -> AnyView? {
         AnyView(JSONExportOptionsView(plugin: self))
+    }
+
+    func settingsView() -> AnyView? {
+        optionsView()
     }
 
     func export(

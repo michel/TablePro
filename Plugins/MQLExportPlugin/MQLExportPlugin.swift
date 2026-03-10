@@ -24,9 +24,17 @@ final class MQLExportPlugin: ExportFormatPlugin {
         PluginExportOptionColumn(id: "data", label: "Data", width: 44)
     ]
 
-    var options = MQLExportOptions()
+    private let storage = PluginSettingsStorage(pluginId: "mql")
 
-    required init() {}
+    var options = MQLExportOptions() {
+        didSet { storage.save(options) }
+    }
+
+    required init() {
+        if let saved = PluginSettingsStorage(pluginId: "mql").load(MQLExportOptions.self) {
+            options = saved
+        }
+    }
 
     func defaultTableOptionValues() -> [Bool] {
         [true, true, true]
@@ -38,6 +46,10 @@ final class MQLExportPlugin: ExportFormatPlugin {
 
     func optionsView() -> AnyView? {
         AnyView(MQLExportOptionsView(plugin: self))
+    }
+
+    func settingsView() -> AnyView? {
+        optionsView()
     }
 
     func export(
