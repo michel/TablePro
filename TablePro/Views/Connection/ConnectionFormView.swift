@@ -85,7 +85,7 @@ struct ConnectionFormView: View {
     @State private var startupCommands: String = ""
 
     @State private var isTesting: Bool = false
-    @State private var testResult: TestResult?
+    @State private var testSucceeded: Bool = false
 
     @State private var isInstallingPlugin = false
     @State private var pluginInstallProgress: Double = 0
@@ -99,10 +99,6 @@ struct ConnectionFormView: View {
     @State private var originalConnection: DatabaseConnection?
 
     // MARK: - Enums
-
-    enum TestResult {
-        case success
-    }
 
     private enum FormTab: String, CaseIterable {
         case general = "General"
@@ -686,8 +682,8 @@ struct ConnectionFormView: View {
                             ProgressView()
                                 .controlSize(.small)
                         } else {
-                            Image(systemName: testResultIcon)
-                                .foregroundStyle(testResultColor)
+                            Image(systemName: testSucceeded ? "checkmark.circle.fill" : "bolt.horizontal")
+                                .foregroundStyle(testSucceeded ? .green : .secondary)
                         }
                         Text("Test Connection")
                     }
@@ -755,23 +751,10 @@ struct ConnectionFormView: View {
         return basicValid
     }
 
-    private var testResultIcon: String {
-        switch testResult {
-        case .success: return "checkmark.circle.fill"
-        case .none: return "bolt.horizontal"
-        }
-    }
-
-    private var testResultColor: Color {
-        switch testResult {
-        case .success: return .green
-        case .none: return .secondary
-        }
-    }
-
     private func installPluginForType(_ databaseType: DatabaseType) {
         isInstallingPlugin = true
         pluginInstallProgress = 0
+        let window = NSApp.keyWindow
 
         Task {
             do {
@@ -784,7 +767,7 @@ struct ConnectionFormView: View {
                 AlertHelper.showErrorSheet(
                     title: String(localized: "Plugin Installation Failed"),
                     message: error.localizedDescription,
-                    window: NSApp.keyWindow
+                    window: window
                 )
             }
         }
@@ -985,7 +968,8 @@ struct ConnectionFormView: View {
 
     func testConnection() {
         isTesting = true
-        testResult = nil
+        testSucceeded = false
+        let window = NSApp.keyWindow
 
         // Build SSH config
         let sshConfig = SSHConfiguration(
@@ -1054,24 +1038,22 @@ struct ConnectionFormView: View {
                 await MainActor.run {
                     isTesting = false
                     if success {
-                        testResult = .success
+                        testSucceeded = true
                     } else {
-                        testResult = nil
                         AlertHelper.showErrorSheet(
                             title: String(localized: "Connection Test Failed"),
                             message: String(localized: "Connection test failed"),
-                            window: NSApp.keyWindow
+                            window: window
                         )
                     }
                 }
             } catch {
                 await MainActor.run {
                     isTesting = false
-                    testResult = nil
                     AlertHelper.showErrorSheet(
                         title: String(localized: "Connection Test Failed"),
                         message: error.localizedDescription,
-                        window: NSApp.keyWindow
+                        window: window
                     )
                 }
             }
