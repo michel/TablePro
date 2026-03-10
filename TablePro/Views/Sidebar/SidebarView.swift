@@ -201,7 +201,7 @@ struct SidebarView: View {
                             SidebarContextMenu(
                                 clickedTable: table,
                                 selectedTables: selectedTablesBinding,
-                                isReadOnly: AppState.shared.isReadOnly,
+                                isReadOnly: AppState.shared.safeModeLevel.blocksAllWrites,
                                 onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
                                 onBatchToggleDelete: { viewModel.batchToggleDelete() }
                             )
@@ -232,7 +232,7 @@ struct SidebarView: View {
             SidebarContextMenu(
                 clickedTable: nil,
                 selectedTables: selectedTablesBinding,
-                isReadOnly: AppState.shared.isReadOnly,
+                isReadOnly: AppState.shared.safeModeLevel.blocksAllWrites,
                 onBatchToggleTruncate: { viewModel.batchToggleTruncate() },
                 onBatchToggleDelete: { viewModel.batchToggleDelete() }
             )

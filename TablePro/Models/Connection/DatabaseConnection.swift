@@ -398,7 +398,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var color: ConnectionColor
     var tagId: UUID?
     var groupId: UUID?
-    var isReadOnly: Bool
+    var safeModeLevel: SafeModeLevel
     var aiPolicy: AIConnectionPolicy?
     var mongoReadPreference: String?
     var mongoWriteConcern: String?
@@ -420,7 +420,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         color: ConnectionColor = .none,
         tagId: UUID? = nil,
         groupId: UUID? = nil,
-        isReadOnly: Bool = false,
+        safeModeLevel: SafeModeLevel = .silent,
         aiPolicy: AIConnectionPolicy? = nil,
         mongoReadPreference: String? = nil,
         mongoWriteConcern: String? = nil,
@@ -441,7 +441,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.color = color
         self.tagId = tagId
         self.groupId = groupId
-        self.isReadOnly = isReadOnly
+        self.safeModeLevel = safeModeLevel
         self.aiPolicy = aiPolicy
         self.mongoReadPreference = mongoReadPreference
         self.mongoWriteConcern = mongoWriteConcern

@@ -17,7 +17,8 @@ import SwiftUI
 final class AppState {
     static let shared = AppState()
     var isConnected: Bool = false
-    var isReadOnly: Bool = false  // True when current connection is read-only
+    var safeModeLevel: SafeModeLevel = .silent
+    var isReadOnly: Bool { safeModeLevel.blocksAllWrites }
     var isMongoDB: Bool = false
     var isRedis: Bool = false
     var isCurrentTabEditable: Bool = false  // True when current tab is an editable table

@@ -17,7 +17,7 @@ struct ConnectionStatusView: View {
     let connectionState: ToolbarConnectionState
     let displayColor: Color
     let tagName: String?  // Tag name to avoid duplication
-    var isReadOnly: Bool = false
+    var safeModeLevel: SafeModeLevel = .silent
 
     var body: some View {
         HStack(spacing: 10) {
@@ -61,7 +61,7 @@ struct ConnectionStatusView: View {
                 databaseNameLabel
             }
             .buttonStyle(.plain)
-            .help(isReadOnly
+            .help(safeModeLevel == .readOnly
                 ? String(localized: "Current database: \(databaseName) (read-only, ⌘K to switch)")
                 : String(localized: "Current database: \(databaseName) (⌘K to switch)"))
         }
@@ -73,12 +73,12 @@ struct ConnectionStatusView: View {
                 .font(.system(size: 13))
                 .foregroundStyle(ToolbarDesignTokens.Colors.secondaryText)
                 .overlay(alignment: .bottomTrailing) {
-                    if isReadOnly {
-                        Image(systemName: "lock.fill")
+                    if safeModeLevel != .silent {
+                        Image(systemName: safeModeLevel.iconName)
                             .font(.system(size: 7, weight: .bold))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(safeModeLevel.badgeColor)
                             .offset(x: 3, y: 2)
-                            .help("Read-only connection")
+                            .help(safeModeLevel.displayName)
                     }
                 }
 

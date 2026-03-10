@@ -11,7 +11,7 @@ extension MainContentCoordinator {
     // MARK: - Row Operations
 
     func addNewRow(selectedRowIndices: inout Set<Int>, editingCell: inout CellPosition?) {
-        guard !connection.isReadOnly,
+        guard !connection.safeModeLevel.blocksAllWrites,
               let tabIndex = tabManager.selectedTabIndex,
               tabIndex < tabManager.tabs.count else { return }
 
@@ -31,7 +31,7 @@ extension MainContentCoordinator {
     }
 
     func deleteSelectedRows(indices: Set<Int>, selectedRowIndices: inout Set<Int>) {
-        guard !connection.isReadOnly,
+        guard !connection.safeModeLevel.blocksAllWrites,
               let tabIndex = tabManager.selectedTabIndex,
               tabIndex < tabManager.tabs.count,
               tabManager.tabs[tabIndex].isEditable,
@@ -53,7 +53,7 @@ extension MainContentCoordinator {
     }
 
     func duplicateSelectedRow(index: Int, selectedRowIndices: inout Set<Int>, editingCell: inout CellPosition?) {
-        guard !connection.isReadOnly,
+        guard !connection.safeModeLevel.blocksAllWrites,
               let tabIndex = tabManager.selectedTabIndex,
               tabIndex < tabManager.tabs.count else { return }
 
@@ -138,7 +138,7 @@ extension MainContentCoordinator {
     }
 
     func pasteRows(selectedRowIndices: inout Set<Int>, editingCell: inout CellPosition?) {
-        guard !connection.isReadOnly,
+        guard !connection.safeModeLevel.blocksAllWrites,
               let index = tabManager.selectedTabIndex else { return }
 
         var tab = tabManager.tabs[index]
