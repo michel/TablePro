@@ -913,30 +913,38 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         var paramIndex = 0
         var inSingleQuote = false
         var inDoubleQuote = false
-        var isEscaped = false
+        let chars = Array(query)
+        let length = chars.count
 
-        for char in query {
-            if isEscaped {
-                isEscaped = false
-                converted.append(char)
+        var i = 0
+        while i < length {
+            let char = chars[i]
+
+            // Handle doubled quotes (T-SQL escape: '' inside strings, "" inside identifiers)
+            if char == "'" && inSingleQuote && i + 1 < length && chars[i + 1] == "'" {
+                converted.append("''")
+                i += 2
                 continue
             }
-            if char == "\\" && (inSingleQuote || inDoubleQuote) {
-                isEscaped = true
-                converted.append(char)
+            if char == "\"" && inDoubleQuote && i + 1 < length && chars[i + 1] == "\"" {
+                converted.append("\"\"")
+                i += 2
                 continue
             }
+
             if char == "'" && !inDoubleQuote {
                 inSingleQuote.toggle()
             } else if char == "\"" && !inSingleQuote {
                 inDoubleQuote.toggle()
             }
+
             if char == "?" && !inSingleQuote && !inDoubleQuote && paramIndex < parameters.count {
                 paramIndex += 1
                 converted.append("@p\(paramIndex)")
             } else {
                 converted.append(char)
             }
+            i += 1
         }
 
         let count = paramIndex

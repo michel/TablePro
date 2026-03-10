@@ -626,7 +626,13 @@ final class DataChangeManager {
             let pluginChanges = changes.map { change -> PluginRowChange in
                 PluginRowChange(
                     rowIndex: change.rowIndex,
-                    type: change.type == .insert ? .insert : change.type == .update ? .update : .delete,
+                    type: {
+                        switch change.type {
+                        case .insert: return .insert
+                        case .update: return .update
+                        case .delete: return .delete
+                        }
+                    }(),
                     cellChanges: change.cellChanges.map {
                         ($0.columnIndex, $0.columnName, $0.oldValue, $0.newValue)
                     },
@@ -644,7 +650,7 @@ final class DataChangeManager {
                 // Validate MongoDB _id requirement
                 if databaseType == .mongodb {
                     let expectedUpdates = changes.count(where: { $0.type == .update })
-                    let actualUpdates = statements.count(where: { $0.statement.contains(".updateOne(") })
+                    let actualUpdates = statements.count(where: { $0.statement.contains("updateOne(") || $0.statement.contains("updateMany(") })
 
                     if expectedUpdates > 0 && actualUpdates < expectedUpdates {
                         throw DatabaseError.queryFailed(

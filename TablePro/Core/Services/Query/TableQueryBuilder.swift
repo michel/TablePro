@@ -46,10 +46,7 @@ struct TableQueryBuilder {
     ) -> String {
         // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
         if let pluginDriver {
-            let sortCols = sortState?.columns.compactMap { sortCol -> (columnIndex: Int, ascending: Bool)? in
-                guard sortCol.columnIndex >= 0 else { return nil }
-                return (sortCol.columnIndex, sortCol.direction == .ascending)
-            } ?? []
+            let sortCols = sortColumnsAsTuples(sortState)
             if let result = pluginDriver.buildBrowseQuery(
                 table: tableName, sortColumns: sortCols,
                 columns: columns, limit: limit, offset: offset
@@ -105,10 +102,7 @@ struct TableQueryBuilder {
     ) -> String {
         // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
         if let pluginDriver {
-            let sortCols = sortState?.columns.compactMap { sortCol -> (columnIndex: Int, ascending: Bool)? in
-                guard sortCol.columnIndex >= 0 else { return nil }
-                return (sortCol.columnIndex, sortCol.direction == .ascending)
-            } ?? []
+            let sortCols = sortColumnsAsTuples(sortState)
             let filterTuples = filters
                 .filter { $0.isEnabled && !$0.columnName.isEmpty }
                 .map { ($0.columnName, $0.filterOperator.rawValue, $0.value) }
@@ -183,10 +177,7 @@ struct TableQueryBuilder {
     ) -> String {
         // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
         if let pluginDriver {
-            let sortCols = sortState?.columns.compactMap { sortCol -> (columnIndex: Int, ascending: Bool)? in
-                guard sortCol.columnIndex >= 0 else { return nil }
-                return (sortCol.columnIndex, sortCol.direction == .ascending)
-            } ?? []
+            let sortCols = sortColumnsAsTuples(sortState)
             if let result = pluginDriver.buildQuickSearchQuery(
                 table: tableName, searchText: searchText, columns: columns,
                 sortColumns: sortCols, limit: limit, offset: offset
@@ -257,10 +248,7 @@ struct TableQueryBuilder {
     ) -> String {
         // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
         if let pluginDriver {
-            let sortCols = sortState?.columns.compactMap { sortCol -> (columnIndex: Int, ascending: Bool)? in
-                guard sortCol.columnIndex >= 0 else { return nil }
-                return (sortCol.columnIndex, sortCol.direction == .ascending)
-            } ?? []
+            let sortCols = sortColumnsAsTuples(sortState)
             let filterTuples = filters
                 .filter { $0.isEnabled && !$0.columnName.isEmpty }
                 .map { ($0.columnName, $0.filterOperator.rawValue, $0.value) }
@@ -414,6 +402,14 @@ struct TableQueryBuilder {
     }
 
     // MARK: - Private Helpers
+
+    /// Extract sort columns as tuples from sort state for plugin driver dispatch
+    private func sortColumnsAsTuples(_ sortState: SortState?) -> [(columnIndex: Int, ascending: Bool)] {
+        sortState?.columns.compactMap { sortCol -> (columnIndex: Int, ascending: Bool)? in
+            guard sortCol.columnIndex >= 0 else { return nil }
+            return (sortCol.columnIndex, sortCol.direction == .ascending)
+        } ?? []
+    }
 
     /// Build ORDER BY clause from sort state (supports multi-column)
     private func buildOrderByClause(sortState: SortState?, columns: [String]) -> String? {

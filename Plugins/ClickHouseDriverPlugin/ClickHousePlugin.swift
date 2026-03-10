@@ -837,9 +837,8 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }
 
         var paramMap: [String: String?] = [:]
-        for i in 1...max(1, paramIndex) {
-            guard i - 1 < parameters.count else { break }
-            paramMap["p\(i)"] = parameters[i - 1]
+        for i in 0..<paramIndex where i < parameters.count {
+            paramMap["p\(i + 1)"] = parameters[i]
         }
 
         return (converted, paramMap)

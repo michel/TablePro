@@ -81,6 +81,7 @@ final class MainContentCoordinator {
     @ObservationIgnored private var activeSortTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
     @ObservationIgnored private var urlFilterObservers: [NSObjectProtocol] = []
+    @ObservationIgnored private var pluginDriverObserver: NSObjectProtocol?
 
     /// Set during handleTabChange to suppress redundant onChange(of: resultColumns) reconfiguration
     @ObservationIgnored internal var isHandlingTabSwitch = false
@@ -248,15 +249,27 @@ final class MainContentCoordinator {
     func markActivated() {
         _didActivate.withLock { $0 = true }
         setupPluginDriver()
+        // Retry when driver becomes available (connection may still be in progress)
+        if changeManager.pluginDriver == nil {
+            pluginDriverObserver = NotificationCenter.default.addObserver(
+                forName: .databaseDidConnect, object: nil, queue: .main
+            ) { [weak self] _ in
+                self?.setupPluginDriver()
+            }
+        }
     }
 
     /// Set up the plugin driver for NoSQL query dispatch on the query builder and change manager.
-    /// Called once when the coordinator's view first appears.
     private func setupPluginDriver() {
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
         let noSqlDriver = driver.noSqlPluginDriver
         queryBuilder.setPluginDriver(noSqlDriver)
         changeManager.pluginDriver = noSqlDriver
+        // Remove observer once successfully set up
+        if noSqlDriver != nil, let observer = pluginDriverObserver {
+            NotificationCenter.default.removeObserver(observer)
+            pluginDriverObserver = nil
+        }
     }
 
     func markTeardownScheduled() {
@@ -279,6 +292,10 @@ final class MainContentCoordinator {
         if let observer = terminationObserver {
             NotificationCenter.default.removeObserver(observer)
             terminationObserver = nil
+        }
+        if let observer = pluginDriverObserver {
+            NotificationCenter.default.removeObserver(observer)
+            pluginDriverObserver = nil
         }
         currentQueryTask?.cancel()
         currentQueryTask = nil

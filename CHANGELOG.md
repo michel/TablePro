@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - True prepared statements for MSSQL (`sp_executesql`) and ClickHouse (HTTP query parameters), eliminating string interpolation for parameterized queries
-- Batch query operations for MSSQL, Oracle, SQLite, and ClickHouse, eliminating N+1 query patterns for column, foreign key, and database metadata fetching
+- Batch query operations for MSSQL, Oracle, and ClickHouse, eliminating N+1 query patterns for column, foreign key, and database metadata fetching; SQLite adds a batched `fetchAllForeignKeys` override within PRAGMA limitations
 - `PluginDriverError` protocol in TableProPluginKit for structured error reporting from driver plugins, with richer connection error messages showing error codes and SQL states
 - `pluginDispatchAsync` concurrency helper in TableProPluginKit for standardized async bridging in plugins
 - Shared `PluginRowLimits` constant in TableProPluginKit with 100K row default, enforced across all 8 driver plugins (ClickHouse, MSSQL, Oracle previously had no cap)

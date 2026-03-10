@@ -217,24 +217,7 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             let defaultValue = (row[safe: 6] ?? nil)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let isPk = (row[safe: 7] ?? nil) == "Y"
 
-            let fixedTypes: Set<String> = [
-                "date", "clob", "nclob", "blob", "bfile", "long", "long raw",
-                "rowid", "urowid", "binary_float", "binary_double", "xmltype"
-            ]
-            var fullType = dataType
-            if fixedTypes.contains(dataType) {
-                // No suffix needed
-            } else if dataType == "number" {
-                if let p = precision, let pInt = Int(p) {
-                    if let s = scale, let sInt = Int(s), sInt > 0 {
-                        fullType = "number(\(pInt),\(sInt))"
-                    } else {
-                        fullType = "number(\(pInt))"
-                    }
-                }
-            } else if let len = dataLength, let lenInt = Int(len), lenInt > 0 {
-                fullType = "\(dataType)(\(lenInt))"
-            }
+            let fullType = buildOracleFullType(dataType: dataType, dataLength: dataLength, precision: precision, scale: scale)
 
             return PluginColumnInfo(
                 name: name,
@@ -360,24 +343,7 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             let defaultValue = (row[safe: 7] ?? nil)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let isPk = (row[safe: 8] ?? nil) == "Y"
 
-            let fixedTypes: Set<String> = [
-                "date", "clob", "nclob", "blob", "bfile", "long", "long raw",
-                "rowid", "urowid", "binary_float", "binary_double", "xmltype"
-            ]
-            var fullType = dataType
-            if fixedTypes.contains(dataType) {
-                // No suffix needed
-            } else if dataType == "number" {
-                if let p = precision, let pInt = Int(p) {
-                    if let s = scale, let sInt = Int(s), sInt > 0 {
-                        fullType = "number(\(pInt),\(sInt))"
-                    } else {
-                        fullType = "number(\(pInt))"
-                    }
-                }
-            } else if let len = dataLength, let lenInt = Int(len), lenInt > 0 {
-                fullType = "\(dataType)(\(lenInt))"
-            }
+            let fullType = buildOracleFullType(dataType: dataType, dataLength: dataLength, precision: precision, scale: scale)
 
             let col = PluginColumnInfo(
                 name: name,
@@ -436,9 +402,15 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     func fetchAllDatabaseMetadata() async throws -> [PluginDatabaseMetadata] {
         let sql = """
             SELECT u.USERNAME,
-                   (SELECT COUNT(*) FROM ALL_TABLES WHERE OWNER = u.USERNAME) AS table_count,
-                   (SELECT NVL(SUM(BYTES), 0) FROM ALL_SEGMENTS WHERE OWNER = u.USERNAME) AS size_bytes
+                   NVL(t.table_count, 0) AS table_count,
+                   NVL(s.size_bytes, 0) AS size_bytes
             FROM ALL_USERS u
+            LEFT JOIN (
+                SELECT OWNER, COUNT(*) AS table_count FROM ALL_TABLES GROUP BY OWNER
+            ) t ON u.USERNAME = t.OWNER
+            LEFT JOIN (
+                SELECT OWNER, SUM(BYTES) AS size_bytes FROM ALL_SEGMENTS GROUP BY OWNER
+            ) s ON u.USERNAME = s.OWNER
             ORDER BY u.USERNAME
             """
         let result = try await execute(query: sql)
@@ -559,6 +531,33 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     // MARK: - Private Helpers
+
+    private func buildOracleFullType(
+        dataType: String,
+        dataLength: String?,
+        precision: String?,
+        scale: String?
+    ) -> String {
+        let fixedTypes: Set<String> = [
+            "date", "clob", "nclob", "blob", "bfile", "long", "long raw",
+            "rowid", "urowid", "binary_float", "binary_double", "xmltype"
+        ]
+        var fullType = dataType
+        if fixedTypes.contains(dataType) {
+            // No suffix needed
+        } else if dataType == "number" {
+            if let p = precision, let pInt = Int(p) {
+                if let s = scale, let sInt = Int(s), sInt > 0 {
+                    fullType = "number(\(pInt),\(sInt))"
+                } else {
+                    fullType = "number(\(pInt))"
+                }
+            }
+        } else if let len = dataLength, let lenInt = Int(len), lenInt > 0 {
+            fullType = "\(dataType)(\(lenInt))"
+        }
+        return fullType
+    }
 
     private func effectiveSchemaEscaped(_ schema: String?) -> String {
         let raw = schema ?? _currentSchema ?? config.username.uppercased()

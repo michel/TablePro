@@ -375,6 +375,7 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         )
     }
 
+    // Redis SCAN only supports key pattern matching; sortColumns, columns, and offset are unused
     func buildFilteredQuery(
         table: String,
         filters: [(column: String, op: String, value: String)],
@@ -391,6 +392,7 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         )
     }
 
+    // Redis SCAN matches keys by pattern; sortColumns, columns, and offset are unused
     func buildQuickSearchQuery(
         table: String,
         searchText: String,
