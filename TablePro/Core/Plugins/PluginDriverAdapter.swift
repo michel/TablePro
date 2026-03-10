@@ -42,18 +42,7 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
             try await pluginDriver.connect()
             status = .connected
         } catch {
-            if let driverError = error as? any PluginDriverError {
-                var message = driverError.pluginErrorMessage
-                if let code = driverError.pluginErrorCode {
-                    message = "[\(code)] \(message)"
-                }
-                if let state = driverError.pluginSqlState {
-                    message += " (SQLSTATE: \(state))"
-                }
-                status = .error(message)
-            } else {
-                status = .error(error.localizedDescription)
-            }
+            status = .error(error.localizedDescription)
             throw error
         }
     }
@@ -288,7 +277,7 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
 
     private func mapQueryResult(_ pluginResult: PluginQueryResult) -> QueryResult {
         let columnTypes = pluginResult.columnTypeNames.map { mapColumnType(rawTypeName: $0) }
-        return QueryResult(
+        var result = QueryResult(
             columns: pluginResult.columns,
             columnTypes: columnTypes,
             rows: pluginResult.rows,
@@ -296,6 +285,8 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
             executionTime: pluginResult.executionTime,
             error: nil
         )
+        result.isTruncated = pluginResult.isTruncated
+        return result
     }
 
     private func mapColumnType(rawTypeName: String) -> ColumnType {

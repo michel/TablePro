@@ -28,11 +28,10 @@ final class ClickHousePlugin: NSObject, TableProPlugin, DriverPlugin {
 private struct ClickHouseError: Error, PluginDriverError {
     let message: String
 
-    var errorDescription: String? { "ClickHouse Error: \(message)" }
     var pluginErrorMessage: String { message }
 
-    static let notConnected = ClickHouseError(message: "Not connected to database")
-    static let connectionFailed = ClickHouseError(message: "Failed to establish connection")
+    static let notConnected = ClickHouseError(message: String(localized: "Not connected to database"))
+    static let connectionFailed = ClickHouseError(message: String(localized: "Failed to establish connection"))
 }
 
 // MARK: - Internal Query Result
@@ -42,6 +41,7 @@ private struct CHQueryResult {
     let columnTypeNames: [String]
     let rows: [[String?]]
     let affectedRows: Int
+    let isTruncated: Bool
 }
 
 // MARK: - Plugin Driver
@@ -139,7 +139,8 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: result.columnTypeNames,
             rows: result.rows,
             rowsAffected: result.affectedRows,
-            executionTime: executionTime
+            executionTime: executionTime,
+            isTruncated: result.isTruncated
         )
     }
 
@@ -159,7 +160,8 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: result.columnTypeNames,
             rows: result.rows,
             rowsAffected: result.affectedRows,
-            executionTime: executionTime
+            executionTime: executionTime,
+            isTruncated: result.isTruncated
         )
     }
 
@@ -584,7 +586,7 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             return parseTabSeparatedResponse(data)
         }
 
-        return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+        return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0, isTruncated: false)
     }
 
     private func executeRawWithParams(_ query: String, params: [String: String?], queryId: String? = nil) async throws -> CHQueryResult {
@@ -641,7 +643,7 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             return parseTabSeparatedResponse(data)
         }
 
-        return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+        return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0, isTruncated: false)
     }
 
     private func buildRequest(query: String, database: String, queryId: String? = nil, params: [String: String?]? = nil) throws -> URLRequest {
@@ -705,19 +707,20 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     private func parseTabSeparatedResponse(_ data: Data) -> CHQueryResult {
         guard let text = String(data: data, encoding: .utf8), !text.isEmpty else {
-            return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+            return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0, isTruncated: false)
         }
 
         let lines = text.components(separatedBy: "\n")
 
         guard lines.count >= 2 else {
-            return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+            return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0, isTruncated: false)
         }
 
         let columns = lines[0].components(separatedBy: "\t")
         let columnTypes = lines[1].components(separatedBy: "\t")
 
         var rows: [[String?]] = []
+        var truncated = false
         for i in 2..<lines.count {
             let line = lines[i]
             if line.isEmpty { continue }
@@ -731,6 +734,7 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             }
             rows.append(row)
             if rows.count >= PluginRowLimits.defaultMax {
+                truncated = true
                 break
             }
         }
@@ -739,7 +743,8 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columns: columns,
             columnTypeNames: columnTypes,
             rows: rows,
-            affectedRows: rows.count
+            affectedRows: rows.count,
+            isTruncated: truncated
         )
     }
 

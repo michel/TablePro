@@ -20,24 +20,17 @@ private let logger = Logger(subsystem: "com.TablePro", category: "MariaDBPluginC
 
 // MARK: - Error Types
 
-struct MariaDBPluginError: Error, LocalizedError {
+struct MariaDBPluginError: Error {
     let code: UInt32
     let message: String
     let sqlState: String?
 
-    var errorDescription: String? {
-        if let state = sqlState {
-            return "MySQL Error \(code) (\(state)): \(message)"
-        }
-        return "MySQL Error \(code): \(message)"
-    }
-
     static let notConnected = MariaDBPluginError(
-        code: 0, message: "Not connected to database", sqlState: nil)
+        code: 0, message: String(localized: "Not connected to database"), sqlState: nil)
     static let connectionFailed = MariaDBPluginError(
-        code: 0, message: "Failed to establish connection", sqlState: nil)
+        code: 0, message: String(localized: "Failed to establish connection"), sqlState: nil)
     static let initFailed = MariaDBPluginError(
-        code: 0, message: "Failed to initialize MySQL client", sqlState: nil)
+        code: 0, message: String(localized: "Failed to initialize MySQL client"), sqlState: nil)
 }
 
 // MARK: - Query Result
@@ -194,137 +187,131 @@ final class MariaDBPluginConnection: @unchecked Sendable {
     // MARK: - Connection Management
 
     func connect() async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            queue.async { [self] in
-                guard let mysql = mysql_init(nil) else {
-                    continuation.resume(throwing: MariaDBPluginError.initFailed)
-                    return
+        try await pluginDispatchAsync(on: queue) { [self] in
+            guard let mysql = mysql_init(nil) else {
+                throw MariaDBPluginError.initFailed
+            }
+
+            self.mysql = mysql
+
+            var reconnect: my_bool = 0
+            mysql_options(mysql, MYSQL_OPT_RECONNECT, &reconnect)
+
+            var timeout: UInt32 = 10
+            mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout)
+
+            var readTimeout: UInt32 = 30
+            mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, &readTimeout)
+
+            var writeTimeout: UInt32 = 30
+            mysql_options(mysql, MYSQL_OPT_WRITE_TIMEOUT, &writeTimeout)
+
+            var protocol_tcp = UInt32(MYSQL_PROTOCOL_TCP.rawValue)
+            mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol_tcp)
+
+            switch self.sslConfig.mode {
+            case .disabled, .preferred:
+                var sslEnforce: my_bool = 0
+                mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                var sslVerify: my_bool = 0
+                mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+
+            case .required:
+                var sslEnforce: my_bool = 1
+                mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                var sslVerify: my_bool = 0
+                mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+
+            case .verifyCa, .verifyIdentity:
+                var sslEnforce: my_bool = 1
+                mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+                var sslVerify: my_bool = 1
+                mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+            }
+
+            if !self.sslConfig.caCertificatePath.isEmpty {
+                _ = self.sslConfig.caCertificatePath.withCString { path in
+                    mysql_options(mysql, MYSQL_OPT_SSL_CA, path)
                 }
-
-                self.mysql = mysql
-
-                var reconnect: my_bool = 0
-                mysql_options(mysql, MYSQL_OPT_RECONNECT, &reconnect)
-
-                var timeout: UInt32 = 10
-                mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, &timeout)
-
-                var readTimeout: UInt32 = 30
-                mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, &readTimeout)
-
-                var writeTimeout: UInt32 = 30
-                mysql_options(mysql, MYSQL_OPT_WRITE_TIMEOUT, &writeTimeout)
-
-                var protocol_tcp = UInt32(MYSQL_PROTOCOL_TCP.rawValue)
-                mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol_tcp)
-
-                // SSL/TLS configuration
-                switch self.sslConfig.mode {
-                case .disabled, .preferred:
-                    var sslEnforce: my_bool = 0
-                    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
-                    var sslVerify: my_bool = 0
-                    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
-
-                case .required:
-                    var sslEnforce: my_bool = 1
-                    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
-                    var sslVerify: my_bool = 0
-                    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
-
-                case .verifyCa, .verifyIdentity:
-                    var sslEnforce: my_bool = 1
-                    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
-                    var sslVerify: my_bool = 1
-                    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+            }
+            if !self.sslConfig.clientCertificatePath.isEmpty {
+                _ = self.sslConfig.clientCertificatePath.withCString { path in
+                    mysql_options(mysql, MYSQL_OPT_SSL_CERT, path)
                 }
-
-                if !self.sslConfig.caCertificatePath.isEmpty {
-                    _ = self.sslConfig.caCertificatePath.withCString { path in
-                        mysql_options(mysql, MYSQL_OPT_SSL_CA, path)
-                    }
+            }
+            if !self.sslConfig.clientKeyPath.isEmpty {
+                _ = self.sslConfig.clientKeyPath.withCString { path in
+                    mysql_options(mysql, MYSQL_OPT_SSL_KEY, path)
                 }
-                if !self.sslConfig.clientCertificatePath.isEmpty {
-                    _ = self.sslConfig.clientCertificatePath.withCString { path in
-                        mysql_options(mysql, MYSQL_OPT_SSL_CERT, path)
-                    }
-                }
-                if !self.sslConfig.clientKeyPath.isEmpty {
-                    _ = self.sslConfig.clientKeyPath.withCString { path in
-                        mysql_options(mysql, MYSQL_OPT_SSL_KEY, path)
-                    }
-                }
+            }
 
-                mysql_options(mysql, MYSQL_SET_CHARSET_NAME, "utf8mb4")
+            mysql_options(mysql, MYSQL_SET_CHARSET_NAME, "utf8mb4")
 
-                let dbToUse = self.database.isEmpty ? nil : self.database
-                let passToUse = self.password
+            let dbToUse = self.database.isEmpty ? nil : self.database
+            let passToUse = self.password
 
-                let result: UnsafeMutablePointer<MYSQL>?
+            let result: UnsafeMutablePointer<MYSQL>?
 
-                if let db = dbToUse, let pass = passToUse {
-                    result = self.host.withCString { hostPtr in
-                        self.user.withCString { userPtr in
-                            pass.withCString { passPtr in
-                                db.withCString { dbPtr in
-                                    mysql_real_connect(
-                                        mysql, hostPtr, userPtr, passPtr, dbPtr,
-                                        self.port, nil, 0
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else if let db = dbToUse {
-                    result = self.host.withCString { hostPtr in
-                        self.user.withCString { userPtr in
+            if let db = dbToUse, let pass = passToUse {
+                result = self.host.withCString { hostPtr in
+                    self.user.withCString { userPtr in
+                        pass.withCString { passPtr in
                             db.withCString { dbPtr in
                                 mysql_real_connect(
-                                    mysql, hostPtr, userPtr, nil, dbPtr,
+                                    mysql, hostPtr, userPtr, passPtr, dbPtr,
                                     self.port, nil, 0
                                 )
                             }
                         }
                     }
-                } else if let pass = passToUse {
-                    result = self.host.withCString { hostPtr in
-                        self.user.withCString { userPtr in
-                            pass.withCString { passPtr in
-                                mysql_real_connect(
-                                    mysql, hostPtr, userPtr, passPtr, nil,
-                                    self.port, nil, 0
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    result = self.host.withCString { hostPtr in
-                        self.user.withCString { userPtr in
+                }
+            } else if let db = dbToUse {
+                result = self.host.withCString { hostPtr in
+                    self.user.withCString { userPtr in
+                        db.withCString { dbPtr in
                             mysql_real_connect(
-                                mysql, hostPtr, userPtr, nil, nil,
+                                mysql, hostPtr, userPtr, nil, dbPtr,
                                 self.port, nil, 0
                             )
                         }
                     }
                 }
-
-                if result == nil {
-                    let error = self.getError()
-                    mysql_close(mysql)
-                    self.mysql = nil
-                    continuation.resume(throwing: error)
-                    return
+            } else if let pass = passToUse {
+                result = self.host.withCString { hostPtr in
+                    self.user.withCString { userPtr in
+                        pass.withCString { passPtr in
+                            mysql_real_connect(
+                                mysql, hostPtr, userPtr, passPtr, nil,
+                                self.port, nil, 0
+                            )
+                        }
+                    }
                 }
-
-                if let versionPtr = mysql_get_server_info(mysql) {
-                    self._cachedServerVersion = String(cString: versionPtr)
+            } else {
+                result = self.host.withCString { hostPtr in
+                    self.user.withCString { userPtr in
+                        mysql_real_connect(
+                            mysql, hostPtr, userPtr, nil, nil,
+                            self.port, nil, 0
+                        )
+                    }
                 }
-
-                self.stateLock.lock()
-                self._isConnected = true
-                self.stateLock.unlock()
-                continuation.resume()
             }
+
+            if result == nil {
+                let error = self.getError()
+                mysql_close(mysql)
+                self.mysql = nil
+                throw error
+            }
+
+            if let versionPtr = mysql_get_server_info(mysql) {
+                self._cachedServerVersion = String(cString: versionPtr)
+            }
+
+            self.stateLock.lock()
+            self._isConnected = true
+            self.stateLock.unlock()
         }
     }
 
@@ -391,20 +378,9 @@ final class MariaDBPluginConnection: @unchecked Sendable {
     func executeQuery(_ query: String) async throws -> MariaDBPluginQueryResult {
         let queryToRun = String(query)
 
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<MariaDBPluginQueryResult, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown else {
-                    cont.resume(throwing: MariaDBPluginError.notConnected)
-                    return
-                }
-
-                do {
-                    let result = try executeQuerySync(queryToRun)
-                    cont.resume(returning: result)
-                } catch {
-                    cont.resume(throwing: error)
-                }
-            }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown else { throw MariaDBPluginError.notConnected }
+            return try executeQuerySync(queryToRun)
         }
     }
 
@@ -412,20 +388,9 @@ final class MariaDBPluginConnection: @unchecked Sendable {
         let queryToRun = String(query)
         let params = parameters
 
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<MariaDBPluginQueryResult, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown else {
-                    cont.resume(throwing: MariaDBPluginError.notConnected)
-                    return
-                }
-
-                do {
-                    let result = try executeParameterizedQuerySync(queryToRun, parameters: params)
-                    cont.resume(returning: result)
-                } catch {
-                    cont.resume(throwing: error)
-                }
-            }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown else { throw MariaDBPluginError.notConnected }
+            return try executeParameterizedQuerySync(queryToRun, parameters: params)
         }
     }
 

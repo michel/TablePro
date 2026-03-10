@@ -92,7 +92,8 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: result.columnTypeNames,
             rows: result.rows,
             rowsAffected: Int(result.affectedRows),
-            executionTime: Date().timeIntervalSince(startTime)
+            executionTime: Date().timeIntervalSince(startTime),
+            isTruncated: result.isTruncated
         )
     }
 
@@ -120,7 +121,8 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                         columnTypeNames: Array(repeating: "TEXT", count: columns.count),
                         rows: [],
                         rowsAffected: Int(result.affectedRows),
-                        executionTime: Date().timeIntervalSince(startTime)
+                        executionTime: Date().timeIntervalSince(startTime),
+                        isTruncated: result.isTruncated
                     )
                 }
             }
@@ -130,7 +132,8 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 columnTypeNames: result.columnTypeNames,
                 rows: result.rows,
                 rowsAffected: Int(result.affectedRows),
-                executionTime: Date().timeIntervalSince(startTime)
+                executionTime: Date().timeIntervalSince(startTime),
+                isTruncated: result.isTruncated
             )
         } catch let error as MariaDBPluginError where !isRetry && isConnectionLostError(error) {
             try await reconnect()

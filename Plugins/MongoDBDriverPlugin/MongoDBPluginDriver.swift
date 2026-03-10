@@ -538,7 +538,8 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
                     rows: [], rowsAffected: 0, executionTime: Date().timeIntervalSince(startTime)
                 )
             }
-            return buildPluginResult(from: docs, startTime: startTime)
+            let truncated = docs.count >= PluginRowLimits.defaultMax
+            return buildPluginResult(from: docs, startTime: startTime, isTruncated: truncated)
 
         case .findOne(let collection, let filter):
             let docs = try await conn.find(
@@ -709,7 +710,11 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
 
     // MARK: - Result Building
 
-    private func buildPluginResult(from documents: [[String: Any]], startTime: Date) -> PluginQueryResult {
+    private func buildPluginResult(
+        from documents: [[String: Any]],
+        startTime: Date,
+        isTruncated: Bool = false
+    ) -> PluginQueryResult {
         if documents.isEmpty {
             return PluginQueryResult(
                 columns: [], columnTypeNames: [],
@@ -726,7 +731,8 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
         return PluginQueryResult(
             columns: columns, columnTypeNames: typeNames,
             rows: rows, rowsAffected: 0,
-            executionTime: Date().timeIntervalSince(startTime)
+            executionTime: Date().timeIntervalSince(startTime),
+            isTruncated: isTruncated
         )
     }
 
@@ -781,16 +787,9 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
 
 // MARK: - Error
 
-enum MongoDBPluginError: Error, LocalizedError {
+enum MongoDBPluginError: Error {
     case notConnected
     case unsupportedOperation
-
-    var errorDescription: String? {
-        switch self {
-        case .notConnected: return "Not connected to MongoDB"
-        case .unsupportedOperation: return "Operation not supported for MongoDB"
-        }
-    }
 }
 
 extension MongoDBPluginError: PluginDriverError {

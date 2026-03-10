@@ -17,14 +17,12 @@ private let osLogger = Logger(subsystem: "com.TablePro", category: "OracleConnec
 
 // MARK: - Error Types
 
-struct OracleError: Error, LocalizedError {
+struct OracleError: Error {
     let message: String
 
-    var errorDescription: String? { "Oracle Error: \(message)" }
-
-    static let notConnected = OracleError(message: "Not connected to database")
-    static let connectionFailed = OracleError(message: "Failed to establish connection")
-    static let queryFailed = OracleError(message: "Query execution failed")
+    static let notConnected = OracleError(message: String(localized: "Not connected to database"))
+    static let connectionFailed = OracleError(message: String(localized: "Failed to establish connection"))
+    static let queryFailed = OracleError(message: String(localized: "Query execution failed"))
 }
 
 extension OracleError: PluginDriverError {
@@ -38,6 +36,7 @@ struct OracleQueryResult {
     let columnTypeNames: [String]
     let rows: [[String?]]
     let affectedRows: Int
+    let isTruncated: Bool
 }
 
 // MARK: - Connection Class
@@ -158,6 +157,7 @@ final class OracleConnectionWrapper: @unchecked Sendable {
             var columnTypeNames: [String] = []
             var allRows: [[String?]] = []
             var didReadTypes = false
+            var truncated = false
 
             for try await row in stream {
                 var rowValues: [String?] = []
@@ -174,11 +174,11 @@ final class OracleConnectionWrapper: @unchecked Sendable {
                 didReadTypes = true
                 allRows.append(rowValues)
                 if allRows.count >= PluginRowLimits.defaultMax {
+                    truncated = true
                     break
                 }
             }
 
-            // If no rows were returned, fill type names with "unknown"
             if !didReadTypes {
                 columnTypeNames = Array(repeating: "unknown", count: columns.count)
             }
@@ -187,7 +187,8 @@ final class OracleConnectionWrapper: @unchecked Sendable {
                 columns: columns,
                 columnTypeNames: columnTypeNames,
                 rows: allRows,
-                affectedRows: allRows.count
+                affectedRows: allRows.count,
+                isTruncated: truncated
             )
         } catch let sqlError as OracleSQLError {
             let detail = sqlError.serverInfo?.message ?? sqlError.description

@@ -79,6 +79,7 @@ private struct FreeTDSQueryResult {
     let columnTypeNames: [String]
     let rows: [[String?]]
     let affectedRows: Int
+    let isTruncated: Bool
 }
 
 private final class FreeTDSConnection: @unchecked Sendable {
@@ -109,15 +110,8 @@ private final class FreeTDSConnection: @unchecked Sendable {
     }
 
     func connect() async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            queue.async { [self] in
-                do {
-                    try self.connectSync()
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
+        try await pluginDispatchAsync(on: queue) { [self] in
+            try self.connectSync()
         }
     }
 
@@ -153,17 +147,12 @@ private final class FreeTDSConnection: @unchecked Sendable {
     }
 
     func switchDatabase(_ database: String) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            queue.async { [self] in
-                guard let proc = self.dbproc else {
-                    continuation.resume(throwing: MSSQLPluginError.notConnected)
-                    return
-                }
-                if dbuse(proc, database) == FAIL {
-                    continuation.resume(throwing: MSSQLPluginError.queryFailed("Cannot switch to database '\(database)'"))
-                } else {
-                    continuation.resume()
-                }
+        try await pluginDispatchAsync(on: queue) { [self] in
+            guard let proc = self.dbproc else {
+                throw MSSQLPluginError.notConnected
+            }
+            if dbuse(proc, database) == FAIL {
+                throw MSSQLPluginError.queryFailed("Cannot switch to database '\(database)'")
             }
         }
     }
@@ -185,15 +174,8 @@ private final class FreeTDSConnection: @unchecked Sendable {
 
     func executeQuery(_ query: String) async throws -> FreeTDSQueryResult {
         let queryToRun = String(query)
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<FreeTDSQueryResult, Error>) in
-            queue.async { [self] in
-                do {
-                    let result = try self.executeQuerySync(queryToRun)
-                    cont.resume(returning: result)
-                } catch {
-                    cont.resume(throwing: error)
-                }
-            }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            try self.executeQuerySync(queryToRun)
         }
     }
 
@@ -217,6 +199,7 @@ private final class FreeTDSConnection: @unchecked Sendable {
         var allTypeNames: [String] = []
         var allRows: [[String?]] = []
         var firstResultSet = true
+        var truncated = false
 
         while true {
             let resCode = dbresults(proc)
@@ -264,6 +247,7 @@ private final class FreeTDSConnection: @unchecked Sendable {
                 }
                 allRows.append(row)
                 if allRows.count >= PluginRowLimits.defaultMax {
+                    truncated = true
                     break
                 }
             }
@@ -274,7 +258,8 @@ private final class FreeTDSConnection: @unchecked Sendable {
             columns: allColumns,
             columnTypeNames: allTypeNames,
             rows: allRows,
-            affectedRows: affectedRows
+            affectedRows: affectedRows,
+            isTruncated: truncated
         )
     }
 
@@ -396,7 +381,8 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: result.columnTypeNames,
             rows: result.rows,
             rowsAffected: result.affectedRows,
-            executionTime: Date().timeIntervalSince(startTime)
+            executionTime: Date().timeIntervalSince(startTime),
+            isTruncated: result.isTruncated
         )
     }
 
@@ -1043,18 +1029,10 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
 // MARK: - Errors
 
-enum MSSQLPluginError: LocalizedError {
+enum MSSQLPluginError: Error {
     case connectionFailed(String)
     case notConnected
     case queryFailed(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .connectionFailed(let message): return "SQL Server Error: \(message)"
-        case .notConnected: return "SQL Server Error: Not connected to database"
-        case .queryFailed(let message): return "SQL Server Error: \(message)"
-        }
-    }
 }
 
 extension MSSQLPluginError: PluginDriverError {

@@ -534,7 +534,10 @@ private extension RedisPluginDriver {
                 return buildEmptyKeyResult(startTime: startTime)
             }
             let capped = Array(keys.prefix(PluginRowLimits.defaultMax))
-            return try await buildKeyBrowseResult(keys: capped, connection: conn, startTime: startTime)
+            let keysTruncated = keys.count > PluginRowLimits.defaultMax
+            return try await buildKeyBrowseResult(
+                keys: capped, connection: conn, startTime: startTime, isTruncated: keysTruncated
+            )
 
         case .scan(let cursor, let pattern, let count):
             var args = ["SCAN", String(cursor)]
@@ -1005,7 +1008,10 @@ private extension RedisPluginDriver {
         }
 
         let capped = Array(keys.prefix(PluginRowLimits.defaultMax))
-        return try await buildKeyBrowseResult(keys: capped, connection: conn, startTime: startTime)
+        let keysTruncated = keys.count > PluginRowLimits.defaultMax
+        return try await buildKeyBrowseResult(
+            keys: capped, connection: conn, startTime: startTime, isTruncated: keysTruncated
+        )
     }
 }
 
@@ -1018,7 +1024,8 @@ private extension RedisPluginDriver {
     func buildKeyBrowseResult(
         keys: [String],
         connection conn: RedisPluginConnection,
-        startTime: Date
+        startTime: Date,
+        isTruncated: Bool = false
     ) async throws -> PluginQueryResult {
         guard !keys.isEmpty else {
             return buildEmptyKeyResult(startTime: startTime)
@@ -1047,7 +1054,8 @@ private extension RedisPluginDriver {
             columnTypeNames: ["String", "RedisType", "RedisInt", "RedisRaw"],
             rows: rows,
             rowsAffected: 0,
-            executionTime: Date().timeIntervalSince(startTime)
+            executionTime: Date().timeIntervalSince(startTime),
+            isTruncated: isTruncated
         )
     }
 
