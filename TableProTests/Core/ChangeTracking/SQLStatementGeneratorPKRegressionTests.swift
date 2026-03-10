@@ -34,6 +34,22 @@ struct SQLStatementGeneratorPKRegressionTests {
         )
     }
 
+    private func makeUpdateChange(
+        rowIndex: Int,
+        columnIndex: Int,
+        columnName: String,
+        oldValue: String?,
+        newValue: String?,
+        originalRow: [String?]
+    ) -> RowChange {
+        RowChange(
+            rowIndex: rowIndex,
+            type: .update,
+            cellChanges: [CellChange(rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName, oldValue: oldValue, newValue: newValue)],
+            originalRow: originalRow
+        )
+    }
+
     // MARK: - PostgreSQL DELETE with PK
 
     @Test("PostgreSQL delete with PK uses $N placeholder and PK-only WHERE")
@@ -128,6 +144,54 @@ struct SQLStatementGeneratorPKRegressionTests {
         #expect(stmt.sql.contains("`id`"))
         #expect(!stmt.sql.contains("`name`"))
         #expect(!stmt.sql.contains("`email`"))
+    }
+
+    // MARK: - UPDATE with PK
+
+    @Test("PostgreSQL update with PK uses PK-only WHERE")
+    func testPostgreSQLUpdateWithPK() {
+        let generator = makeGenerator(databaseType: .postgresql)
+        let changes = [makeUpdateChange(
+            rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Jane",
+            originalRow: ["1", "John", "john@test.com"]
+        )]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("UPDATE"))
+        #expect(stmt.sql.contains("\"name\" = $1"))
+        #expect(stmt.sql.contains("\"id\" = $2"))
+        #expect(!stmt.sql.contains("\"email\""))
+    }
+
+    @Test("MSSQL update with PK uses PK-only WHERE")
+    func testMSSQLUpdateWithPK() {
+        let generator = makeGenerator(databaseType: .mssql)
+        let changes = [makeUpdateChange(
+            rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Jane",
+            originalRow: ["1", "John", "john@test.com"]
+        )]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("UPDATE"))
+        #expect(stmt.sql.contains("[name] = ?"))
+        #expect(stmt.sql.contains("[id] = ?"))
+        #expect(!stmt.sql.contains("[email]"))
     }
 
     // MARK: - Redshift DELETE with PK
