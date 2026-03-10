@@ -8,6 +8,7 @@
 
 import Foundation
 import os
+import TableProPluginKit
 
 /// A parsed Redis command ready for execution
 enum RedisOperation {
@@ -90,6 +91,16 @@ enum RedisParseError: Error, LocalizedError {
             return String(localized: "Invalid argument: \(msg)")
         case .missingArgument(let msg):
             return String(localized: "Missing argument: \(msg)")
+        }
+    }
+}
+
+extension RedisParseError: PluginDriverError {
+    var pluginErrorMessage: String {
+        switch self {
+        case .emptySyntax: return String(localized: "Empty Redis command")
+        case .invalidArgument(let msg): return msg
+        case .missingArgument(let msg): return msg
         }
     }
 }

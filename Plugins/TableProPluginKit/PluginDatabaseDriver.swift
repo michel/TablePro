@@ -1,5 +1,30 @@
 import Foundation
 
+public struct PluginRowChange: Sendable {
+    public enum ChangeType: Sendable {
+        case insert
+        case update
+        case delete
+    }
+
+    public let rowIndex: Int
+    public let type: ChangeType
+    public let cellChanges: [(columnIndex: Int, columnName: String, oldValue: String?, newValue: String?)]
+    public let originalRow: [String?]?
+
+    public init(
+        rowIndex: Int,
+        type: ChangeType,
+        cellChanges: [(columnIndex: Int, columnName: String, oldValue: String?, newValue: String?)],
+        originalRow: [String?]?
+    ) {
+        self.rowIndex = rowIndex
+        self.type = type
+        self.cellChanges = cellChanges
+        self.originalRow = originalRow
+    }
+}
+
 public protocol PluginDatabaseDriver: AnyObject, Sendable {
     // Connection
     func connect() async throws
@@ -48,6 +73,15 @@ public protocol PluginDatabaseDriver: AnyObject, Sendable {
     func fetchDependentSequences(table: String, schema: String?) async throws -> [(name: String, ddl: String)]
     func createDatabase(name: String, charset: String, collation: String?) async throws
     func executeParameterized(query: String, parameters: [String?]) async throws -> PluginQueryResult
+
+    // Query building (optional, for NoSQL plugins)
+    func buildBrowseQuery(table: String, sortColumns: [(columnIndex: Int, ascending: Bool)], columns: [String], limit: Int, offset: Int) -> String?
+    func buildFilteredQuery(table: String, filters: [(column: String, op: String, value: String)], logicMode: String, sortColumns: [(columnIndex: Int, ascending: Bool)], columns: [String], limit: Int, offset: Int) -> String?
+    func buildQuickSearchQuery(table: String, searchText: String, columns: [String], sortColumns: [(columnIndex: Int, ascending: Bool)], limit: Int, offset: Int) -> String?
+    func buildCombinedQuery(table: String, filters: [(column: String, op: String, value: String)], logicMode: String, searchText: String, searchColumns: [String], sortColumns: [(columnIndex: Int, ascending: Bool)], columns: [String], limit: Int, offset: Int) -> String?
+
+    // Statement generation (optional, for NoSQL plugins)
+    func generateStatements(table: String, columns: [String], changes: [PluginRowChange], insertedRowData: [Int: [String?]], deletedRowIndices: Set<Int>, insertedRowIndices: Set<Int>) -> [(statement: String, parameters: [String?])]?
 
     // Database switching (SQL Server USE, ClickHouse database switch, etc.)
     func switchDatabase(to database: String) async throws
@@ -135,7 +169,16 @@ public extension PluginDatabaseDriver {
         )
     }
 
+    func buildBrowseQuery(table: String, sortColumns: [(columnIndex: Int, ascending: Bool)], columns: [String], limit: Int, offset: Int) -> String? { nil }
+    func buildFilteredQuery(table: String, filters: [(column: String, op: String, value: String)], logicMode: String, sortColumns: [(columnIndex: Int, ascending: Bool)], columns: [String], limit: Int, offset: Int) -> String? { nil }
+    func buildQuickSearchQuery(table: String, searchText: String, columns: [String], sortColumns: [(columnIndex: Int, ascending: Bool)], limit: Int, offset: Int) -> String? { nil }
+    func buildCombinedQuery(table: String, filters: [(column: String, op: String, value: String)], logicMode: String, searchText: String, searchColumns: [String], sortColumns: [(columnIndex: Int, ascending: Bool)], columns: [String], limit: Int, offset: Int) -> String? { nil }
+    func generateStatements(table: String, columns: [String], changes: [PluginRowChange], insertedRowData: [Int: [String?]], deletedRowIndices: Set<Int>, insertedRowIndices: Set<Int>) -> [(statement: String, parameters: [String?])]? { nil }
+
     func executeParameterized(query: String, parameters: [String?]) async throws -> PluginQueryResult {
+        guard !parameters.isEmpty else {
+            return try await execute(query: query)
+        }
         var sql = ""
         var paramIndex = 0
         var inSingleQuote = false
@@ -163,10 +206,7 @@ public extension PluginDatabaseDriver {
 
             if char == "?" && !inSingleQuote && !inDoubleQuote && paramIndex < parameters.count {
                 if let value = parameters[paramIndex] {
-                    let escaped = value
-                        .replacingOccurrences(of: "\\", with: "\\\\")
-                        .replacingOccurrences(of: "'", with: "''")
-                    sql.append("'\(escaped)'")
+                    sql.append(Self.escapedParameterValue(value))
                 } else {
                     sql.append("NULL")
                 }
@@ -177,6 +217,21 @@ public extension PluginDatabaseDriver {
         }
 
         return try await execute(query: sql)
+    }
+
+    /// Escape a parameter value for safe interpolation into SQL.
+    /// Numeric values are unquoted; strings are single-quoted with proper escaping.
+    private static func escapedParameterValue(_ value: String) -> String {
+        // Numeric: don't quote
+        if Int64(value) != nil || (Double(value) != nil && value.contains(".")) {
+            return value
+        }
+        // String: escape and quote
+        let escaped = value
+            .replacingOccurrences(of: "\0", with: "")
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "''")
+        return "'\(escaped)'"
     }
 
     func fetchRowCount(query: String) async throws -> Int {

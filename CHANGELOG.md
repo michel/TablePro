@@ -14,8 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Redis sidebar click showing data briefly then going empty due to double-navigation race condition (#251)
 - MongoDB showing "Invalid database name: ''" when connecting without a database name
 
+### Changed
+
+- NoSQL query building moved from Core to MongoDB/Redis plugins via optional `PluginDatabaseDriver` protocol methods
+- Standardized parameter binding across all database drivers with improved default escaping (type-aware numeric handling, NUL byte stripping, NULL literal support)
+
 ### Added
 
+- True prepared statements for MSSQL (`sp_executesql`) and ClickHouse (HTTP query parameters), eliminating string interpolation for parameterized queries
+- Batch query operations for MSSQL, Oracle, and ClickHouse, eliminating N+1 query patterns for column, foreign key, and database metadata fetching; SQLite adds a batched `fetchAllForeignKeys` override within PRAGMA limitations
+- `PluginDriverError` protocol in TableProPluginKit for structured error reporting from driver plugins, with richer connection error messages showing error codes and SQL states
+- `pluginDispatchAsync` concurrency helper in TableProPluginKit for standardized async bridging in plugins
+- Shared `PluginRowLimits` constant in TableProPluginKit with 100K row default, enforced across all 8 driver plugins (ClickHouse, MSSQL, Oracle previously had no cap)
+- `driverVariant(for:)` method on `DriverPlugin` protocol for dynamic multi-type plugin dispatch, replacing hardcoded variant mapping
 - Safe mode levels: per-connection setting with 6 levels (Silent, Alert, Alert Full, Safe Mode, Safe Mode Full, Read-Only) replacing the boolean read-only toggle, with confirmation dialogs and Touch ID/password authentication for stricter levels
 - Preview tabs: single-click opens a temporary preview tab, double-click or editing promotes it to a permanent tab
 - Import plugin system: SQL import extracted into a `.tableplugin` bundle, matching the export plugin architecture

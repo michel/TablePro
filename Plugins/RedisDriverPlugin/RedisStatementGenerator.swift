@@ -1,13 +1,14 @@
 //
 //  RedisStatementGenerator.swift
-//  TablePro
+//  RedisDriverPlugin
 //
 //  Generates Redis commands from tracked cell changes (edit tracking).
-//  Parallel to MongoDBStatementGenerator for MongoDB and SQLStatementGenerator for SQL databases.
+//  Plugin-local version using PluginRowChange instead of Core types.
 //
 
 import Foundation
 import os
+import TableProPluginKit
 
 struct RedisStatementGenerator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "RedisStatementGenerator")
@@ -34,12 +35,12 @@ struct RedisStatementGenerator {
 
     /// Generate Redis commands from changes
     func generateStatements(
-        from changes: [RowChange],
+        from changes: [PluginRowChange],
         insertedRowData: [Int: [String?]],
         deletedRowIndices: Set<Int>,
         insertedRowIndices: Set<Int>
-    ) -> [ParameterizedStatement] {
-        var statements: [ParameterizedStatement] = []
+    ) -> [(statement: String, parameters: [String?])] {
+        var statements: [(statement: String, parameters: [String?])] = []
         var deleteKeys: [String] = []
 
         for change in changes {
@@ -63,7 +64,7 @@ struct RedisStatementGenerator {
         if !deleteKeys.isEmpty {
             let keyList = deleteKeys.map { escapeArgument($0) }.joined(separator: " ")
             let cmd = "DEL \(keyList)"
-            statements.append(ParameterizedStatement(sql: cmd, parameters: []))
+            statements.append((statement: cmd, parameters: []))
         }
 
         return statements
@@ -72,10 +73,10 @@ struct RedisStatementGenerator {
     // MARK: - INSERT
 
     private func generateInsert(
-        for change: RowChange,
+        for change: PluginRowChange,
         insertedRowData: [Int: [String?]]
-    ) -> [ParameterizedStatement] {
-        var statements: [ParameterizedStatement] = []
+    ) -> [(statement: String, parameters: [String?])] {
+        var statements: [(statement: String, parameters: [String?])] = []
 
         var key: String?
         var value: String?
@@ -110,11 +111,11 @@ struct RedisStatementGenerator {
 
         let v = value ?? ""
         let cmd = "SET \(escapeArgument(k)) \(escapeArgument(v))"
-        statements.append(ParameterizedStatement(sql: cmd, parameters: []))
+        statements.append((statement: cmd, parameters: []))
 
         if let ttlSeconds = ttl, ttlSeconds > 0 {
             let expireCmd = "EXPIRE \(escapeArgument(k)) \(ttlSeconds)"
-            statements.append(ParameterizedStatement(sql: expireCmd, parameters: []))
+            statements.append((statement: expireCmd, parameters: []))
         }
 
         return statements
@@ -122,7 +123,7 @@ struct RedisStatementGenerator {
 
     // MARK: - UPDATE
 
-    private func generateUpdate(for change: RowChange) -> [ParameterizedStatement] {
+    private func generateUpdate(for change: PluginRowChange) -> [(statement: String, parameters: [String?])] {
         guard !change.cellChanges.isEmpty else { return [] }
 
         guard let key = extractKey(from: change) else {
@@ -130,13 +131,13 @@ struct RedisStatementGenerator {
             return []
         }
 
-        var statements: [ParameterizedStatement] = []
+        var statements: [(statement: String, parameters: [String?])] = []
 
         // Check for key rename
         if let keyChange = change.cellChanges.first(where: { $0.columnName == "Key" }),
            let newKey = keyChange.newValue, newKey != key {
             let renameCmd = "RENAME \(escapeArgument(key)) \(escapeArgument(newKey))"
-            statements.append(ParameterizedStatement(sql: renameCmd, parameters: []))
+            statements.append((statement: renameCmd, parameters: []))
         }
 
         let effectiveKey: String = {
@@ -154,15 +155,15 @@ struct RedisStatementGenerator {
             case "Value":
                 if let newValue = cellChange.newValue {
                     let cmd = "SET \(escapeArgument(effectiveKey)) \(escapeArgument(newValue))"
-                    statements.append(ParameterizedStatement(sql: cmd, parameters: []))
+                    statements.append((statement: cmd, parameters: []))
                 }
             case "TTL":
                 if let ttlStr = cellChange.newValue, let ttlSeconds = Int(ttlStr), ttlSeconds > 0 {
                     let cmd = "EXPIRE \(escapeArgument(effectiveKey)) \(ttlSeconds)"
-                    statements.append(ParameterizedStatement(sql: cmd, parameters: []))
+                    statements.append((statement: cmd, parameters: []))
                 } else if cellChange.newValue == nil || cellChange.newValue == "-1" {
                     let cmd = "PERSIST \(escapeArgument(effectiveKey))"
-                    statements.append(ParameterizedStatement(sql: cmd, parameters: []))
+                    statements.append((statement: cmd, parameters: []))
                 }
             default:
                 break
@@ -174,8 +175,8 @@ struct RedisStatementGenerator {
 
     // MARK: - Helpers
 
-    /// Extract the key value from a RowChange's original row
-    private func extractKey(from change: RowChange) -> String? {
+    /// Extract the key value from a PluginRowChange's original row
+    private func extractKey(from change: PluginRowChange) -> String? {
         guard let keyIndex = keyColumnIndex,
               let originalRow = change.originalRow,
               keyIndex < originalRow.count else {

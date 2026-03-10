@@ -25,10 +25,11 @@ final class ClickHousePlugin: NSObject, TableProPlugin, DriverPlugin {
 
 // MARK: - Error Types
 
-private struct ClickHouseError: Error, LocalizedError {
+private struct ClickHouseError: Error, PluginDriverError {
     let message: String
 
     var errorDescription: String? { "ClickHouse Error: \(message)" }
+    var pluginErrorMessage: String { message }
 
     static let notConnected = ClickHouseError(message: "Not connected to database")
     static let connectionFailed = ClickHouseError(message: "Failed to establish connection")
@@ -131,6 +132,26 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let startTime = Date()
         let queryId = UUID().uuidString
         let result = try await executeRaw(query, queryId: queryId)
+        let executionTime = Date().timeIntervalSince(startTime)
+
+        return PluginQueryResult(
+            columns: result.columns,
+            columnTypeNames: result.columnTypeNames,
+            rows: result.rows,
+            rowsAffected: result.affectedRows,
+            executionTime: executionTime
+        )
+    }
+
+    func executeParameterized(query: String, parameters: [String?]) async throws -> PluginQueryResult {
+        guard !parameters.isEmpty else {
+            return try await execute(query: query)
+        }
+
+        let startTime = Date()
+        let queryId = UUID().uuidString
+        let (convertedQuery, paramMap) = Self.buildClickHouseParams(query: query, parameters: parameters)
+        let result = try await executeRawWithParams(convertedQuery, params: paramMap, queryId: queryId)
         let executionTime = Date().timeIntervalSince(startTime)
 
         return PluginQueryResult(
@@ -431,6 +452,22 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         return PluginDatabaseMetadata(name: database)
     }
 
+    func fetchAllDatabaseMetadata() async throws -> [PluginDatabaseMetadata] {
+        let sql = """
+            SELECT database, count() AS table_count, sum(total_bytes) AS size_bytes
+            FROM system.tables
+            GROUP BY database
+            ORDER BY database
+            """
+        let result = try await execute(query: sql)
+        return result.rows.compactMap { row -> PluginDatabaseMetadata? in
+            guard let name = row[safe: 0] ?? nil else { return nil }
+            let tableCount = (row[safe: 1] ?? nil).flatMap { Int($0) } ?? 0
+            let sizeBytes = (row[safe: 2] ?? nil).flatMap { Int64($0) }
+            return PluginDatabaseMetadata(name: name, tableCount: tableCount, sizeBytes: sizeBytes)
+        }
+    }
+
     func createDatabase(name: String, charset: String, collation: String?) async throws {
         let escapedName = name.replacingOccurrences(of: "`", with: "``")
         _ = try await execute(query: "CREATE DATABASE `\(escapedName)`")
@@ -550,7 +587,64 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
     }
 
-    private func buildRequest(query: String, database: String, queryId: String? = nil) throws -> URLRequest {
+    private func executeRawWithParams(_ query: String, params: [String: String?], queryId: String? = nil) async throws -> CHQueryResult {
+        lock.lock()
+        guard let session = self.session else {
+            lock.unlock()
+            throw ClickHouseError.notConnected
+        }
+        let database = _currentDatabase
+        if let queryId {
+            _lastQueryId = queryId
+        }
+        lock.unlock()
+
+        let request = try buildRequest(query: query, database: database, queryId: queryId, params: params)
+        let isSelect = Self.isSelectLikeQuery(query)
+
+        let (data, response) = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(Data, URLResponse), Error>) in
+                let task = session.dataTask(with: request) { data, response, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    guard let data, let response else {
+                        continuation.resume(throwing: ClickHouseError(message: "Empty response from server"))
+                        return
+                    }
+                    continuation.resume(returning: (data, response))
+                }
+                self.lock.lock()
+                self.currentTask = task
+                self.lock.unlock()
+                task.resume()
+            }
+        } onCancel: {
+            self.lock.lock()
+            self.currentTask?.cancel()
+            self.currentTask = nil
+            self.lock.unlock()
+        }
+
+        lock.lock()
+        currentTask = nil
+        lock.unlock()
+
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+            let body = String(data: data, encoding: .utf8) ?? "Unknown error"
+            Self.logger.error("ClickHouse HTTP \(httpResponse.statusCode): \(body)")
+            throw ClickHouseError(message: body.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+
+        if isSelect {
+            return parseTabSeparatedResponse(data)
+        }
+
+        return CHQueryResult(columns: [], columnTypeNames: [], rows: [], affectedRows: 0)
+    }
+
+    private func buildRequest(query: String, database: String, queryId: String? = nil, params: [String: String?]? = nil) throws -> URLRequest {
         let useTLS = config.additionalFields["sslMode"] != nil
             && config.additionalFields["sslMode"] != "Disabled"
 
@@ -568,6 +662,11 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             queryItems.append(URLQueryItem(name: "query_id", value: queryId))
         }
         queryItems.append(URLQueryItem(name: "send_progress_in_http_headers", value: "1"))
+        if let params {
+            for (key, value) in params.sorted(by: { $0.key < $1.key }) {
+                queryItems.append(URLQueryItem(name: "param_\(key)", value: value))
+            }
+        }
         if !queryItems.isEmpty {
             components.queryItems = queryItems
         }
@@ -631,6 +730,9 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 return Self.unescapeTsvField(field)
             }
             rows.append(row)
+            if rows.count >= PluginRowLimits.defaultMax {
+                break
+            }
         }
 
         return CHQueryResult(
@@ -697,6 +799,49 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             i -= 1
         }
         return query
+    }
+
+    /// Convert `?` placeholders to `{p1:String}` and build parameter map for ClickHouse HTTP params.
+    private static func buildClickHouseParams(
+        query: String,
+        parameters: [String?]
+    ) -> (String, [String: String?]) {
+        var converted = ""
+        var paramIndex = 0
+        var inSingleQuote = false
+        var inDoubleQuote = false
+        var isEscaped = false
+
+        for char in query {
+            if isEscaped {
+                isEscaped = false
+                converted.append(char)
+                continue
+            }
+            if char == "\\" && (inSingleQuote || inDoubleQuote) {
+                isEscaped = true
+                converted.append(char)
+                continue
+            }
+            if char == "'" && !inDoubleQuote {
+                inSingleQuote.toggle()
+            } else if char == "\"" && !inSingleQuote {
+                inDoubleQuote.toggle()
+            }
+            if char == "?" && !inSingleQuote && !inDoubleQuote && paramIndex < parameters.count {
+                paramIndex += 1
+                converted.append("{p\(paramIndex):String}")
+            } else {
+                converted.append(char)
+            }
+        }
+
+        var paramMap: [String: String?] = [:]
+        for i in 0..<paramIndex where i < parameters.count {
+            paramMap["p\(i + 1)"] = parameters[i]
+        }
+
+        return (converted, paramMap)
     }
 
     // MARK: - TLS Delegate

@@ -1,13 +1,14 @@
 //
 //  MongoDBStatementGenerator.swift
-//  TablePro
+//  MongoDBDriverPlugin
 //
 //  Generates MongoDB shell commands (insertOne, replaceOne, deleteOne) from tracked changes.
-//  Parallel to SQLStatementGenerator for SQL databases.
+//  Plugin-local version using PluginRowChange instead of Core types.
 //
 
 import Foundation
 import os
+import TableProPluginKit
 
 struct MongoDBStatementGenerator {
     private static let logger = Logger(subsystem: "com.TablePro", category: "MongoDBStatementGenerator")
@@ -29,13 +30,13 @@ struct MongoDBStatementGenerator {
 
     /// Generate MongoDB shell statements from changes
     func generateStatements(
-        from changes: [RowChange],
+        from changes: [PluginRowChange],
         insertedRowData: [Int: [String?]],
         deletedRowIndices: Set<Int>,
         insertedRowIndices: Set<Int>
-    ) -> [ParameterizedStatement] {
-        var statements: [ParameterizedStatement] = []
-        var deleteChanges: [RowChange] = []
+    ) -> [(statement: String, parameters: [String?])] {
+        var statements: [(statement: String, parameters: [String?])] = []
+        var deleteChanges: [PluginRowChange] = []
 
         for change in changes {
             switch change.type {
@@ -71,9 +72,9 @@ struct MongoDBStatementGenerator {
     // MARK: - INSERT
 
     private func generateInsert(
-        for change: RowChange,
+        for change: PluginRowChange,
         insertedRowData: [Int: [String?]]
-    ) -> ParameterizedStatement? {
+    ) -> (statement: String, parameters: [String?])? {
         var doc: [String: String] = [:]
 
         if let values = insertedRowData[change.rowIndex] {
@@ -103,49 +104,12 @@ struct MongoDBStatementGenerator {
 
         let docJson = serializeDocument(doc)
         let shell = "\(collectionAccessor).insertOne(\(docJson))"
-        return ParameterizedStatement(sql: shell, parameters: [])
-    }
-
-    // MARK: - INSERT MANY
-
-    /// Generate an insertMany statement from multiple inserted rows
-    func generateBulkInsert(
-        from changes: [RowChange],
-        insertedRowData: [Int: [String?]],
-        insertedRowIndices: Set<Int>
-    ) -> ParameterizedStatement? {
-        let insertChanges = changes.filter { $0.type == .insert && insertedRowIndices.contains($0.rowIndex) }
-        guard insertChanges.count > 1 else { return nil }
-
-        var docs: [String] = []
-        for change in insertChanges {
-            var doc: [String: String] = [:]
-            if let values = insertedRowData[change.rowIndex] {
-                for (index, value) in values.enumerated() {
-                    guard index < columns.count else { continue }
-                    let column = columns[index]
-                    if column == "_id" { continue }
-                    if value == "__DEFAULT__" { continue }
-                    if let val = value {
-                        doc[column] = val
-                    }
-                }
-            }
-            if !doc.isEmpty {
-                docs.append(serializeDocument(doc))
-            }
-        }
-
-        guard docs.count > 1 else { return nil }
-
-        let docsArray = "[\(docs.joined(separator: ", "))]"
-        let shell = "\(collectionAccessor).insertMany(\(docsArray))"
-        return ParameterizedStatement(sql: shell, parameters: [])
+        return (statement: shell, parameters: [])
     }
 
     // MARK: - UPDATE (updateOne with $set/$unset)
 
-    private func generateUpdate(for change: RowChange) -> ParameterizedStatement? {
+    private func generateUpdate(for change: PluginRowChange) -> (statement: String, parameters: [String?])? {
         guard !change.cellChanges.isEmpty else { return nil }
 
         guard let idIndex = idColumnIndex,
@@ -185,13 +149,13 @@ struct MongoDBStatementGenerator {
 
         let updateJson = "{\(updateParts.joined(separator: ", "))}"
         let shell = "\(collectionAccessor).updateOne(\(filterJson), \(updateJson))"
-        return ParameterizedStatement(sql: shell, parameters: [])
+        return (statement: shell, parameters: [])
     }
 
     // MARK: - DELETE MANY
 
     /// Batch multiple deletes into a single deleteMany with $in when all rows have _id
-    private func generateBulkDelete(from changes: [RowChange]) -> ParameterizedStatement? {
+    private func generateBulkDelete(from changes: [PluginRowChange]) -> (statement: String, parameters: [String?])? {
         guard changes.count > 1, let idIndex = idColumnIndex else { return nil }
 
         var idValues: [String] = []
@@ -212,12 +176,12 @@ struct MongoDBStatementGenerator {
 
         let inList = idValues.joined(separator: ", ")
         let shell = "\(collectionAccessor).deleteMany({\"_id\": {\"$in\": [\(inList)]}})"
-        return ParameterizedStatement(sql: shell, parameters: [])
+        return (statement: shell, parameters: [])
     }
 
     // MARK: - DELETE
 
-    private func generateDelete(for change: RowChange) -> ParameterizedStatement? {
+    private func generateDelete(for change: PluginRowChange) -> (statement: String, parameters: [String?])? {
         guard let originalRow = change.originalRow else { return nil }
 
         // Try to use _id first
@@ -226,7 +190,7 @@ struct MongoDBStatementGenerator {
            let idValue = originalRow[idIndex] {
             let filterJson = buildIdFilter(idValue)
             let shell = "\(collectionAccessor).deleteOne(\(filterJson))"
-            return ParameterizedStatement(sql: shell, parameters: [])
+            return (statement: shell, parameters: [])
         }
 
         // Fallback: match all fields
@@ -242,7 +206,7 @@ struct MongoDBStatementGenerator {
 
         let filterJson = serializeDocument(filter)
         let shell = "\(collectionAccessor).deleteOne(\(filterJson))"
-        return ParameterizedStatement(sql: shell, parameters: [])
+        return (statement: shell, parameters: [])
     }
 
     // MARK: - Helpers
@@ -256,17 +220,6 @@ struct MongoDBStatementGenerator {
             return "{\"_id\": \(idValue)}"
         }
         return "{\"_id\": \"\(escapeJsonString(idValue))\"}"
-    }
-
-    /// Format an _id value for display in MQL preview (shell-friendly syntax).
-    private func formatIdValueForDisplay(_ idValue: String) -> String {
-        if isObjectIdString(idValue) {
-            return "ObjectId(\"\(idValue)\")"
-        }
-        if Int64(idValue) != nil {
-            return idValue
-        }
-        return "\"\(escapeJsonString(idValue))\""
     }
 
     /// Check if a string looks like a MongoDB ObjectId (24 hex characters)
@@ -306,7 +259,7 @@ struct MongoDBStatementGenerator {
         return "\"\(escapeJsonString(value))\""
     }
 
-    /// Escape special characters for JSON strings (handles Unicode control chars U+0000–U+001F)
+    /// Escape special characters for JSON strings (handles Unicode control chars U+0000-U+001F)
     private func escapeJsonString(_ value: String) -> String {
         var result = ""
         result.reserveCapacity((value as NSString).length)

@@ -11,6 +11,7 @@ import CLibMongoc
 #endif
 import Foundation
 import OSLog
+import TableProPluginKit
 
 private let logger = Logger(subsystem: "com.TablePro", category: "MongoDBConnection")
 
@@ -28,6 +29,11 @@ struct MongoDBError: Error, LocalizedError {
         code: 0,
         message: "MongoDB support requires libmongoc. Run scripts/build-libmongoc.sh first."
     )
+}
+
+extension MongoDBError: PluginDriverError {
+    var pluginErrorMessage: String { message }
+    var pluginErrorCode: Int? { Int(code) }
 }
 
 // MARK: - Connection Class
@@ -916,8 +922,8 @@ private extension MongoDBConnection {
                 results.append(bsonToDict(doc))
             }
 
-            if results.count >= 100_000 {
-                logger.warning("Result set truncated at 100000 documents")
+            if results.count >= PluginRowLimits.defaultMax {
+                logger.warning("Result set truncated at \(PluginRowLimits.defaultMax) documents")
                 break
             }
         }

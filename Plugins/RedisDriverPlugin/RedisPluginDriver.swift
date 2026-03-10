@@ -11,15 +11,13 @@ import Foundation
 import OSLog
 import TableProPluginKit
 
-private let pluginRowLimitDefault = 100_000
-
 final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     private let config: DriverConnectionConfig
     private var redisConnection: RedisPluginConnection?
 
     private static let logger = Logger(subsystem: "com.TablePro.RedisDriver", category: "RedisPluginDriver")
 
-    private static let maxScanKeys = 100_000
+    private static let maxScanKeys = PluginRowLimits.defaultMax
 
     var serverVersion: String? {
         redisConnection?.serverVersion()
@@ -360,6 +358,100 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }
         try await conn.selectDatabase(dbIndex)
     }
+
+    // MARK: - Query Building
+
+    func buildBrowseQuery(
+        table: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = RedisQueryBuilder()
+        return builder.buildBaseQuery(
+            namespace: "", sortColumns: sortColumns,
+            columns: columns, limit: limit, offset: offset
+        )
+    }
+
+    // Redis SCAN only supports key pattern matching; sortColumns, columns, and offset are unused
+    func buildFilteredQuery(
+        table: String,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = RedisQueryBuilder()
+        return builder.buildFilteredQuery(
+            namespace: "", filters: filters,
+            logicMode: logicMode, limit: limit
+        )
+    }
+
+    // Redis SCAN matches keys by pattern; sortColumns, columns, and offset are unused
+    func buildQuickSearchQuery(
+        table: String,
+        searchText: String,
+        columns: [String],
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = RedisQueryBuilder()
+        return builder.buildQuickSearchQuery(
+            namespace: "", searchText: searchText, limit: limit
+        )
+    }
+
+    func buildCombinedQuery(
+        table: String,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String,
+        searchText: String,
+        searchColumns: [String],
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let builder = RedisQueryBuilder()
+        let hasFilters = !filters.isEmpty
+        let hasSearch = !searchText.isEmpty
+
+        if hasSearch {
+            return builder.buildQuickSearchQuery(
+                namespace: "", searchText: searchText, limit: limit
+            )
+        } else if hasFilters {
+            return builder.buildFilteredQuery(
+                namespace: "", filters: filters,
+                logicMode: logicMode, limit: limit
+            )
+        } else {
+            return builder.buildBaseQuery(
+                namespace: "", limit: limit, offset: offset
+            )
+        }
+    }
+
+    func generateStatements(
+        table: String,
+        columns: [String],
+        changes: [PluginRowChange],
+        insertedRowData: [Int: [String?]],
+        deletedRowIndices: Set<Int>,
+        insertedRowIndices: Set<Int>
+    ) -> [(statement: String, parameters: [String?])]? {
+        let generator = RedisStatementGenerator(namespaceName: table, columns: columns)
+        return generator.generateStatements(
+            from: changes, insertedRowData: insertedRowData,
+            deletedRowIndices: deletedRowIndices, insertedRowIndices: insertedRowIndices
+        )
+    }
 }
 
 // MARK: - Operation Dispatch
@@ -441,7 +533,7 @@ private extension RedisPluginDriver {
             guard let keys = result.stringArrayValue else {
                 return buildEmptyKeyResult(startTime: startTime)
             }
-            let capped = Array(keys.prefix(pluginRowLimitDefault))
+            let capped = Array(keys.prefix(PluginRowLimits.defaultMax))
             return try await buildKeyBrowseResult(keys: capped, connection: conn, startTime: startTime)
 
         case .scan(let cursor, let pattern, let count):
@@ -912,7 +1004,7 @@ private extension RedisPluginDriver {
             return nil
         }
 
-        let capped = Array(keys.prefix(pluginRowLimitDefault))
+        let capped = Array(keys.prefix(PluginRowLimits.defaultMax))
         return try await buildKeyBrowseResult(keys: capped, connection: conn, startTime: startTime)
     }
 }

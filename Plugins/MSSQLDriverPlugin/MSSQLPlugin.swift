@@ -263,6 +263,9 @@ private final class FreeTDSConnection: @unchecked Sendable {
                     }
                 }
                 allRows.append(row)
+                if allRows.count >= PluginRowLimits.defaultMax {
+                    break
+                }
             }
         }
 
@@ -395,6 +398,24 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             rowsAffected: result.affectedRows,
             executionTime: Date().timeIntervalSince(startTime)
         )
+    }
+
+    func executeParameterized(query: String, parameters: [String?]) async throws -> PluginQueryResult {
+        guard !parameters.isEmpty else {
+            return try await execute(query: query)
+        }
+
+        let (convertedQuery, paramDecls, paramAssigns) = Self.buildSpExecuteSql(
+            query: query, parameters: parameters
+        )
+
+        // If no placeholders were found, execute the query as-is
+        guard !paramDecls.isEmpty else {
+            return try await execute(query: query)
+        }
+
+        let sql = "EXEC sp_executesql N'\(Self.escapeNString(convertedQuery))', N'\(paramDecls)', \(paramAssigns)"
+        return try await execute(query: sql)
     }
 
     func fetchRowCount(query: String) async throws -> Int {
@@ -602,6 +623,172 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }
     }
 
+    func fetchAllColumns(schema: String?) async throws -> [String: [PluginColumnInfo]] {
+        let esc = effectiveSchemaEscaped(schema)
+        let sql = """
+            SELECT
+                c.TABLE_NAME,
+                c.COLUMN_NAME,
+                c.DATA_TYPE,
+                c.CHARACTER_MAXIMUM_LENGTH,
+                c.NUMERIC_PRECISION,
+                c.NUMERIC_SCALE,
+                c.IS_NULLABLE,
+                c.COLUMN_DEFAULT,
+                COLUMNPROPERTY(OBJECT_ID(c.TABLE_SCHEMA + '.' + c.TABLE_NAME), c.COLUMN_NAME, 'IsIdentity') AS IS_IDENTITY,
+                CASE WHEN pk.COLUMN_NAME IS NOT NULL THEN 1 ELSE 0 END AS IS_PK
+            FROM INFORMATION_SCHEMA.COLUMNS c
+            LEFT JOIN (
+                SELECT kcu.TABLE_NAME, kcu.COLUMN_NAME
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                    ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                    AND tc.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+                WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+                    AND tc.TABLE_SCHEMA = '\(esc)'
+            ) pk ON c.TABLE_NAME = pk.TABLE_NAME AND c.COLUMN_NAME = pk.COLUMN_NAME
+            WHERE c.TABLE_SCHEMA = '\(esc)'
+            ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION
+            """
+        let result = try await execute(query: sql)
+        var columnsByTable: [String: [PluginColumnInfo]] = [:]
+        for row in result.rows {
+            guard let tableName = row[safe: 0] ?? nil,
+                  let name = row[safe: 1] ?? nil else { continue }
+            let dataType = row[safe: 2] ?? nil
+            let charLen = row[safe: 3] ?? nil
+            let numPrecision = row[safe: 4] ?? nil
+            let numScale = row[safe: 5] ?? nil
+            let isNullable = (row[safe: 6] ?? nil) == "YES"
+            let defaultValue = row[safe: 7] ?? nil
+            let isIdentity = (row[safe: 8] ?? nil) == "1"
+            let isPk = (row[safe: 9] ?? nil) == "1"
+
+            let baseType = (dataType ?? "nvarchar").lowercased()
+            let fixedSizeTypes: Set<String> = [
+                "int", "bigint", "smallint", "tinyint", "bit",
+                "money", "smallmoney", "float", "real",
+                "datetime", "datetime2", "smalldatetime", "date", "time",
+                "uniqueidentifier", "text", "ntext", "image", "xml",
+                "timestamp", "rowversion"
+            ]
+            var fullType = baseType
+            if fixedSizeTypes.contains(baseType) {
+                // No suffix
+            } else if let charLen, let len = Int(charLen), len > 0 {
+                fullType += "(\(len))"
+            } else if charLen == "-1" {
+                fullType += "(max)"
+            } else if let prec = numPrecision, let scale = numScale,
+                      let p = Int(prec), let s = Int(scale) {
+                fullType += "(\(p),\(s))"
+            }
+
+            let col = PluginColumnInfo(
+                name: name,
+                dataType: fullType,
+                isNullable: isNullable,
+                isPrimaryKey: isPk,
+                defaultValue: defaultValue,
+                extra: isIdentity ? "IDENTITY" : nil
+            )
+            columnsByTable[tableName, default: []].append(col)
+        }
+        return columnsByTable
+    }
+
+    func fetchAllForeignKeys(schema: String?) async throws -> [String: [PluginForeignKeyInfo]] {
+        let esc = effectiveSchemaEscaped(schema)
+        let sql = """
+            SELECT
+                tp.name AS table_name,
+                fk.name AS constraint_name,
+                cp.name AS column_name,
+                tr.name AS ref_table,
+                cr.name AS ref_column
+            FROM sys.foreign_keys fk
+            JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+            JOIN sys.tables tp ON fkc.parent_object_id = tp.object_id
+            JOIN sys.schemas s ON tp.schema_id = s.schema_id
+            JOIN sys.columns cp
+                ON fkc.parent_object_id = cp.object_id AND fkc.parent_column_id = cp.column_id
+            JOIN sys.tables tr ON fkc.referenced_object_id = tr.object_id
+            JOIN sys.columns cr
+                ON fkc.referenced_object_id = cr.object_id AND fkc.referenced_column_id = cr.column_id
+            WHERE s.name = '\(esc)'
+            ORDER BY tp.name, fk.name
+            """
+        let result = try await execute(query: sql)
+        var fksByTable: [String: [PluginForeignKeyInfo]] = [:]
+        for row in result.rows {
+            guard let tableName = row[safe: 0] ?? nil,
+                  let constraintName = row[safe: 1] ?? nil,
+                  let columnName = row[safe: 2] ?? nil,
+                  let refTable = row[safe: 3] ?? nil,
+                  let refColumn = row[safe: 4] ?? nil else { continue }
+            let fk = PluginForeignKeyInfo(
+                name: constraintName,
+                column: columnName,
+                referencedTable: refTable,
+                referencedColumn: refColumn
+            )
+            fksByTable[tableName, default: []].append(fk)
+        }
+        return fksByTable
+    }
+
+    func fetchAllDatabaseMetadata() async throws -> [PluginDatabaseMetadata] {
+        let sql = """
+            SELECT d.name,
+                   SUM(mf.size) * 8 * 1024 AS size_bytes
+            FROM sys.databases d
+            LEFT JOIN sys.master_files mf ON d.database_id = mf.database_id
+            GROUP BY d.name
+            ORDER BY d.name
+            """
+        do {
+            let result = try await execute(query: sql)
+            var metadata = result.rows.compactMap { row -> PluginDatabaseMetadata? in
+                guard let name = row[safe: 0] ?? nil else { return nil }
+                let sizeBytes = (row[safe: 1] ?? nil).flatMap { Int64($0) }
+                return PluginDatabaseMetadata(name: name, sizeBytes: sizeBytes)
+            }
+
+            for i in metadata.indices {
+                let dbName = metadata[i].name.replacingOccurrences(of: "]", with: "]]")
+                do {
+                    let countResult = try await execute(
+                        query: "SELECT COUNT(*) FROM [\(dbName)].sys.tables"
+                    )
+                    if let countStr = countResult.rows.first?[safe: 0] ?? nil,
+                       let count = Int(countStr) {
+                        metadata[i] = PluginDatabaseMetadata(
+                            name: metadata[i].name,
+                            tableCount: count,
+                            sizeBytes: metadata[i].sizeBytes
+                        )
+                    }
+                } catch {
+                    // Database offline or permission denied — leave tableCount as nil
+                }
+            }
+
+            return metadata
+        } catch {
+            // Fall back to N+1 if permission denied on sys.master_files
+            let dbs = try await fetchDatabases()
+            var result: [PluginDatabaseMetadata] = []
+            for db in dbs {
+                do {
+                    result.append(try await fetchDatabaseMetadata(db))
+                } catch {
+                    result.append(PluginDatabaseMetadata(name: db))
+                }
+            }
+            return result
+        }
+    }
+
     func fetchTableDDL(table: String, schema: String?) async throws -> String {
         let escapedTable = table.replacingOccurrences(of: "'", with: "''")
         let esc = effectiveSchemaEscaped(schema)
@@ -737,6 +924,70 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     // MARK: - Private Helpers
 
+    /// Convert `?` placeholders to `@p1, @p2, ...` and build sp_executesql components.
+    /// Returns: (convertedQuery, paramDeclarations, paramAssignments)
+    private static func buildSpExecuteSql(
+        query: String,
+        parameters: [String?]
+    ) -> (String, String, String) {
+        var converted = ""
+        var paramIndex = 0
+        var inSingleQuote = false
+        var inDoubleQuote = false
+        let chars = Array(query)
+        let length = chars.count
+
+        var i = 0
+        while i < length {
+            let char = chars[i]
+
+            // Handle doubled quotes (T-SQL escape: '' inside strings, "" inside identifiers)
+            if char == "'" && inSingleQuote && i + 1 < length && chars[i + 1] == "'" {
+                converted.append("''")
+                i += 2
+                continue
+            }
+            if char == "\"" && inDoubleQuote && i + 1 < length && chars[i + 1] == "\"" {
+                converted.append("\"\"")
+                i += 2
+                continue
+            }
+
+            if char == "'" && !inDoubleQuote {
+                inSingleQuote.toggle()
+            } else if char == "\"" && !inSingleQuote {
+                inDoubleQuote.toggle()
+            }
+
+            if char == "?" && !inSingleQuote && !inDoubleQuote && paramIndex < parameters.count {
+                paramIndex += 1
+                converted.append("@p\(paramIndex)")
+            } else {
+                converted.append(char)
+            }
+            i += 1
+        }
+
+        let count = paramIndex
+        guard count > 0 else {
+            return (converted, "", "")
+        }
+        let decls = (1...count).map { "@p\($0) NVARCHAR(MAX)" }.joined(separator: ", ")
+        let assigns = (1...count).map { i -> String in
+            if let value = parameters[i - 1] {
+                return "@p\(i) = N'\(escapeNString(value))'"
+            }
+            return "@p\(i) = NULL"
+        }.joined(separator: ", ")
+
+        return (converted, decls, assigns)
+    }
+
+    /// Escape single quotes for N'...' string literals in SQL Server.
+    private static func escapeNString(_ value: String) -> String {
+        value.replacingOccurrences(of: "'", with: "''")
+    }
+
     private func effectiveSchemaEscaped(_ schema: String?) -> String {
         let raw = schema ?? _currentSchema
         return raw.replacingOccurrences(of: "'", with: "''")
@@ -802,6 +1053,16 @@ enum MSSQLPluginError: LocalizedError {
         case .connectionFailed(let message): return "SQL Server Error: \(message)"
         case .notConnected: return "SQL Server Error: Not connected to database"
         case .queryFailed(let message): return "SQL Server Error: \(message)"
+        }
+    }
+}
+
+extension MSSQLPluginError: PluginDriverError {
+    var pluginErrorMessage: String {
+        switch self {
+        case .connectionFailed(let msg): return msg
+        case .notConnected: return String(localized: "Not connected to database")
+        case .queryFailed(let msg): return msg
         }
     }
 }

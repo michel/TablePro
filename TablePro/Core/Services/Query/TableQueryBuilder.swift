@@ -7,17 +7,24 @@
 //
 
 import Foundation
+import TableProPluginKit
 
 /// Service for building SQL queries for table operations
 struct TableQueryBuilder {
     // MARK: - Properties
 
     private let databaseType: DatabaseType
+    private var pluginDriver: (any PluginDatabaseDriver)?
 
     // MARK: - Initialization
 
-    init(databaseType: DatabaseType) {
+    init(databaseType: DatabaseType, pluginDriver: (any PluginDatabaseDriver)? = nil) {
         self.databaseType = databaseType
+        self.pluginDriver = pluginDriver
+    }
+
+    mutating func setPluginDriver(_ driver: (any PluginDatabaseDriver)?) {
+        pluginDriver = driver
     }
 
     // MARK: - Query Building
@@ -37,19 +44,15 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
-        if databaseType == .mongodb {
-            return buildMongoBaseQuery(
-                tableName: tableName, sortState: sortState,
+        // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
+        if let pluginDriver {
+            let sortCols = sortColumnsAsTuples(sortState)
+            if let result = pluginDriver.buildBrowseQuery(
+                table: tableName, sortColumns: sortCols,
                 columns: columns, limit: limit, offset: offset
-            )
-        }
-
-        if databaseType == .redis {
-            let redisBuilder = RedisQueryBuilder()
-            return redisBuilder.buildBaseQuery(
-                namespace: "", sortState: sortState,
-                columns: columns, limit: limit, offset: offset
-            )
+            ) {
+                return result
+            }
         }
 
         if databaseType == .mssql {
@@ -97,27 +100,19 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
-        if databaseType == .mongodb {
-            let mongoBuilder = MongoDBQueryBuilder()
-            return mongoBuilder.buildFilteredQuery(
-                collection: tableName,
-                filters: filters,
-                logicMode: logicMode,
-                sortState: sortState,
-                columns: columns,
-                limit: limit,
-                offset: offset
-            )
-        }
-
-        if databaseType == .redis {
-            let redisBuilder = RedisQueryBuilder()
-            return redisBuilder.buildFilteredQuery(
-                namespace: "",
-                filters: filters,
-                logicMode: logicMode,
-                limit: limit
-            )
+        // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
+        if let pluginDriver {
+            let sortCols = sortColumnsAsTuples(sortState)
+            let filterTuples = filters
+                .filter { $0.isEnabled && !$0.columnName.isEmpty }
+                .map { ($0.columnName, $0.filterOperator.rawValue, $0.value) }
+            if let result = pluginDriver.buildFilteredQuery(
+                table: tableName, filters: filterTuples,
+                logicMode: logicMode == .and ? "and" : "or",
+                sortColumns: sortCols, columns: columns, limit: limit, offset: offset
+            ) {
+                return result
+            }
         }
 
         if databaseType == .mssql {
@@ -180,20 +175,15 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
-        if databaseType == .mongodb {
-            return buildMongoQuickSearchQuery(
-                tableName: tableName, searchText: searchText, columns: columns,
-                sortState: sortState, limit: limit, offset: offset
-            )
-        }
-
-        if databaseType == .redis {
-            let redisBuilder = RedisQueryBuilder()
-            return redisBuilder.buildQuickSearchQuery(
-                namespace: "",
-                searchText: searchText,
-                limit: limit
-            )
+        // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
+        if let pluginDriver {
+            let sortCols = sortColumnsAsTuples(sortState)
+            if let result = pluginDriver.buildQuickSearchQuery(
+                table: tableName, searchText: searchText, columns: columns,
+                sortColumns: sortCols, limit: limit, offset: offset
+            ) {
+                return result
+            }
         }
 
         if databaseType == .mssql {
@@ -256,77 +246,19 @@ struct TableQueryBuilder {
         limit: Int = 200,
         offset: Int = 0
     ) -> String {
-        if databaseType == .redis {
-            let redisBuilder = RedisQueryBuilder()
-            let hasFilters = !filters.isEmpty
-            let hasSearch = !searchText.isEmpty
-
-            if hasSearch {
-                return redisBuilder.buildQuickSearchQuery(
-                    namespace: "",
-                    searchText: searchText,
-                    limit: limit
-                )
-            } else if hasFilters {
-                return redisBuilder.buildFilteredQuery(
-                    namespace: "",
-                    filters: filters,
-                    logicMode: logicMode,
-                    limit: limit
-                )
-            } else {
-                return redisBuilder.buildBaseQuery(
-                    namespace: "",
-                    limit: limit,
-                    offset: offset
-                )
-            }
-        }
-
-        if databaseType == .mongodb {
-            let mongoBuilder = MongoDBQueryBuilder()
-            let hasFilters = !filters.isEmpty
-            let hasSearch = !searchText.isEmpty && !searchColumns.isEmpty
-
-            if hasFilters && hasSearch {
-                return mongoBuilder.buildCombinedQuery(
-                    collection: tableName,
-                    filters: filters,
-                    logicMode: logicMode,
-                    searchText: searchText,
-                    searchColumns: searchColumns,
-                    sortState: sortState,
-                    columns: columns,
-                    limit: limit,
-                    offset: offset
-                )
-            } else if hasSearch {
-                return mongoBuilder.buildQuickSearchQuery(
-                    collection: tableName,
-                    searchText: searchText,
-                    columns: searchColumns,
-                    sortState: sortState,
-                    limit: limit,
-                    offset: offset
-                )
-            } else if hasFilters {
-                return mongoBuilder.buildFilteredQuery(
-                    collection: tableName,
-                    filters: filters,
-                    logicMode: logicMode,
-                    sortState: sortState,
-                    columns: columns,
-                    limit: limit,
-                    offset: offset
-                )
-            } else {
-                return mongoBuilder.buildBaseQuery(
-                    collection: tableName,
-                    sortState: sortState,
-                    columns: columns,
-                    limit: limit,
-                    offset: offset
-                )
+        // Try plugin dispatch first (handles MongoDB, Redis, and any future NoSQL plugins)
+        if let pluginDriver {
+            let sortCols = sortColumnsAsTuples(sortState)
+            let filterTuples = filters
+                .filter { $0.isEnabled && !$0.columnName.isEmpty }
+                .map { ($0.columnName, $0.filterOperator.rawValue, $0.value) }
+            if let result = pluginDriver.buildCombinedQuery(
+                table: tableName, filters: filterTuples,
+                logicMode: logicMode == .and ? "and" : "or",
+                searchText: searchText, searchColumns: searchColumns,
+                sortColumns: sortCols, columns: columns, limit: limit, offset: offset
+            ) {
+                return result
             }
         }
 
@@ -394,16 +326,9 @@ struct TableQueryBuilder {
         columnName: String,
         ascending: Bool
     ) -> String {
-        // Redis SCAN does not support server-side sorting
-        if databaseType == .redis {
+        // Plugin-based drivers handle sorting at query-build time, not via query rewriting
+        if pluginDriver != nil {
             return baseQuery
-        }
-
-        if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
-            let sortDoc = "\"\(Self.escapeMongoString(columnName))\": \(ascending ? 1 : -1)"
-            return "\(Self.mongoCollectionAccessor(parsed.collection)).find(\(parsed.filter))"
-                + ".sort({\(sortDoc)})"
-                + ".limit(\(parsed.limit)).skip(\(parsed.skip))"
         }
 
         var query = removeOrderBy(from: baseQuery)
@@ -445,17 +370,8 @@ struct TableQueryBuilder {
         sortState: SortState,
         columns: [String]
     ) -> String {
-        // Redis SCAN does not support server-side sorting
-        if databaseType == .redis {
-            return baseQuery
-        }
-
-        if databaseType == .mongodb, let parsed = parseMongoQuery(baseQuery) {
-            if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
-                return "\(Self.mongoCollectionAccessor(parsed.collection)).find(\(parsed.filter))"
-                    + ".sort({\(sortDoc)})"
-                    + ".limit(\(parsed.limit)).skip(\(parsed.skip))"
-            }
+        // Plugin-based drivers handle sorting at query-build time, not via query rewriting
+        if pluginDriver != nil {
             return baseQuery
         }
 
@@ -485,152 +401,15 @@ struct TableQueryBuilder {
         return query
     }
 
-    // MARK: - MongoDB Query Helpers
-
-    private func buildMongoBaseQuery(
-        tableName: String,
-        sortState: SortState? = nil,
-        columns: [String] = [],
-        limit: Int = 200,
-        offset: Int = 0
-    ) -> String {
-        var query = "\(Self.mongoCollectionAccessor(tableName)).find({})"
-
-        if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
-            query += ".sort({\(sortDoc)})"
-        }
-
-        query += ".limit(\(limit)).skip(\(offset))"
-        return query
-    }
-
-    private func buildMongoQuickSearchQuery(
-        tableName: String,
-        searchText: String,
-        columns: [String],
-        sortState: SortState? = nil,
-        limit: Int = 200,
-        offset: Int = 0
-    ) -> String {
-        let escaped = Self.escapeMongoString(searchText)
-        let orConditions = columns.map { column in
-            "{\"" + Self.escapeMongoString(column) + "\": {\"$regex\": \"" + escaped + "\", \"$options\": \"i\"}}"
-        }
-
-        let filter: String
-        if orConditions.isEmpty {
-            filter = "{}"
-        } else {
-            filter = "{\"$or\": [" + orConditions.joined(separator: ", ") + "]}"
-        }
-
-        var query = "\(Self.mongoCollectionAccessor(tableName)).find(\(filter))"
-
-        if let sortDoc = buildMongoSortDoc(sortState: sortState, columns: columns) {
-            query += ".sort({\(sortDoc)})"
-        }
-
-        query += ".limit(\(limit)).skip(\(offset))"
-        return query
-    }
-
-    private func buildMongoSortDoc(sortState: SortState?, columns: [String]) -> String? {
-        guard let state = sortState, state.isSorting else { return nil }
-
-        let parts = state.columns.compactMap { sortCol -> String? in
-            guard sortCol.columnIndex >= 0, sortCol.columnIndex < columns.count else { return nil }
-            let columnName = columns[sortCol.columnIndex]
-            let direction = sortCol.direction == .ascending ? 1 : -1
-            return "\"\(Self.escapeMongoString(columnName))\": \(direction)"
-        }
-
-        guard !parts.isEmpty else { return nil }
-        return parts.joined(separator: ", ")
-    }
-
-    private struct MongoQueryParts {
-        let collection: String
-        let filter: String
-        let limit: Int
-        let skip: Int
-    }
-
-    private func parseMongoQuery(_ query: String) -> MongoQueryParts? {
-        let nsQuery = query as NSString
-        guard nsQuery.hasPrefix("db.") else { return nil }
-
-        let afterDb = nsQuery.substring(from: 3)
-        let nsAfterDb = afterDb as NSString
-
-        let findRange = nsAfterDb.range(of: ".find(")
-        guard findRange.location != NSNotFound else { return nil }
-
-        let collection = nsAfterDb.substring(to: findRange.location)
-
-        // Extract filter: content between .find( and the matching )
-        let filterStart = findRange.location + findRange.length
-        var depth = 1
-        var filterEnd = filterStart
-        while filterEnd < nsAfterDb.length, depth > 0 {
-            let ch = nsAfterDb.character(at: filterEnd)
-            if ch == 0x28 { depth += 1 } // (
-            if ch == 0x29 { depth -= 1 } // )
-            if depth > 0 { filterEnd += 1 }
-        }
-        let filter = nsAfterDb.substring(with: NSRange(location: filterStart, length: filterEnd - filterStart))
-
-        // Extract .limit(N)
-        var limit = 200
-        let limitPattern = try? NSRegularExpression(pattern: #"\.limit\((\d+)\)"#)
-        if let match = limitPattern?.firstMatch(in: afterDb, range: NSRange(location: 0, length: nsAfterDb.length)),
-           match.numberOfRanges > 1 {
-            limit = Int(nsAfterDb.substring(with: match.range(at: 1))) ?? 200
-        }
-
-        // Extract .skip(N)
-        var skip = 0
-        let skipPattern = try? NSRegularExpression(pattern: #"\.skip\((\d+)\)"#)
-        if let match = skipPattern?.firstMatch(in: afterDb, range: NSRange(location: 0, length: nsAfterDb.length)),
-           match.numberOfRanges > 1 {
-            skip = Int(nsAfterDb.substring(with: match.range(at: 1))) ?? 0
-        }
-
-        return MongoQueryParts(collection: collection, filter: filter, limit: limit, skip: skip)
-    }
-
-    /// Escape special characters for MongoDB string values (handles Unicode control chars U+0000–U+001F)
-    private static func escapeMongoString(_ value: String) -> String {
-        var result = ""
-        result.reserveCapacity((value as NSString).length)
-        for char in value {
-            switch char {
-            case "\\": result += "\\\\"
-            case "\"": result += "\\\""
-            case "\n": result += "\\n"
-            case "\r": result += "\\r"
-            case "\t": result += "\\t"
-            default:
-                if let ascii = char.asciiValue, ascii < 0x20 {
-                    result += String(format: "\\u%04X", ascii)
-                } else {
-                    result.append(char)
-                }
-            }
-        }
-        return result
-    }
-
-    /// Access a MongoDB collection, using bracket notation for names with special chars
-    private static func mongoCollectionAccessor(_ name: String) -> String {
-        guard let firstChar = name.first,
-              !firstChar.isNumber,
-              name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" }) else {
-            return "db[\"\(escapeMongoString(name))\"]"
-        }
-        return "db.\(name)"
-    }
-
     // MARK: - Private Helpers
+
+    /// Extract sort columns as tuples from sort state for plugin driver dispatch
+    private func sortColumnsAsTuples(_ sortState: SortState?) -> [(columnIndex: Int, ascending: Bool)] {
+        sortState?.columns.compactMap { sortCol -> (columnIndex: Int, ascending: Bool)? in
+            guard sortCol.columnIndex >= 0 else { return nil }
+            return (sortCol.columnIndex, sortCol.direction == .ascending)
+        } ?? []
+    }
 
     /// Build ORDER BY clause from sort state (supports multi-column)
     private func buildOrderByClause(sortState: SortState?, columns: [String]) -> String? {

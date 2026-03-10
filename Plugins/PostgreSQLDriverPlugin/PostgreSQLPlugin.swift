@@ -24,6 +24,14 @@ final class PostgreSQLPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let additionalConnectionFields: [ConnectionField] = []
     static let additionalDatabaseTypeIds: [String] = ["Redshift"]
 
+    static func driverVariant(for databaseTypeId: String) -> String? {
+        switch databaseTypeId {
+        case "PostgreSQL": return "PostgreSQL"
+        case "Redshift": return "Redshift"
+        default: return nil
+        }
+    }
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         let variant = config.additionalFields["driverVariant"] ?? ""
         if variant == "Redshift" {

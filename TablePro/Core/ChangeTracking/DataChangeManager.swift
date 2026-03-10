@@ -10,6 +10,7 @@
 import Foundation
 import Observation
 import os
+import TableProPluginKit
 
 /// Manager for tracking and applying data changes
 /// @MainActor ensures thread-safe access - critical for avoiding EXC_BAD_ACCESS
@@ -27,6 +28,7 @@ final class DataChangeManager {
     var tableName: String = ""
     var primaryKeyColumn: String?
     var databaseType: DatabaseType = .mysql
+    var pluginDriver: (any PluginDatabaseDriver)?
 
     // Simple storage with explicit deep copy to avoid memory corruption
     private var _columnsStorage: [String] = []
@@ -619,43 +621,52 @@ final class DataChangeManager {
     // MARK: - SQL Generation
 
     func generateSQL() throws -> [ParameterizedStatement] {
-        // MongoDB uses its own statement generator (shell syntax instead of SQL)
-        if databaseType == .mongodb {
-            let generator = MongoDBStatementGenerator(
-                collectionName: tableName,
-                columns: columns
-            )
-            let statements = generator.generateStatements(
-                from: changes,
-                insertedRowData: insertedRowData,
-                deletedRowIndices: deletedRowIndices,
-                insertedRowIndices: insertedRowIndices
-            )
-
-            let expectedUpdates = changes.count(where: { $0.type == .update })
-            let actualUpdates = statements.count(where: { $0.sql.contains(".updateOne(") })
-
-            if expectedUpdates > 0 && actualUpdates < expectedUpdates {
-                throw DatabaseError.queryFailed(
-                    "Cannot save UPDATE changes to collection '\(tableName)' without an _id field. " +
-                        "Please ensure the collection has _id values."
+        // Try plugin dispatch first (handles MongoDB, Redis, and future NoSQL plugins)
+        if let pluginDriver {
+            let pluginChanges = changes.map { change -> PluginRowChange in
+                PluginRowChange(
+                    rowIndex: change.rowIndex,
+                    type: {
+                        switch change.type {
+                        case .insert: return .insert
+                        case .update: return .update
+                        case .delete: return .delete
+                        }
+                    }(),
+                    cellChanges: change.cellChanges.map {
+                        ($0.columnIndex, $0.columnName, $0.oldValue, $0.newValue)
+                    },
+                    originalRow: change.originalRow
                 )
             }
-
-            return statements
-        }
-
-        // Redis uses its own statement generator (Redis commands instead of SQL)
-        if databaseType == .redis {
-            let generator = RedisStatementGenerator(
-                namespaceName: tableName,
-                columns: columns
-            )
-            return generator.generateStatements(
-                from: changes,
+            if let statements = pluginDriver.generateStatements(
+                table: tableName,
+                columns: columns,
+                changes: pluginChanges,
                 insertedRowData: insertedRowData,
                 deletedRowIndices: deletedRowIndices,
                 insertedRowIndices: insertedRowIndices
+            ) {
+                // Validate MongoDB _id requirement
+                if databaseType == .mongodb {
+                    let expectedUpdates = changes.count(where: { $0.type == .update })
+                    let actualUpdates = statements.count(where: { $0.statement.contains("updateOne(") || $0.statement.contains("updateMany(") })
+
+                    if expectedUpdates > 0 && actualUpdates < expectedUpdates {
+                        throw DatabaseError.queryFailed(
+                            "Cannot save UPDATE changes to collection '\(tableName)' without an _id field. " +
+                                "Please ensure the collection has _id values."
+                        )
+                    }
+                }
+                return statements.map { ParameterizedStatement(sql: $0.statement, parameters: $0.parameters) }
+            }
+        }
+
+        // Safety: prevent SQL generation for NoSQL databases if plugin driver is unavailable
+        if databaseType == .mongodb || databaseType == .redis {
+            throw DatabaseError.queryFailed(
+                "Cannot generate statements for \(databaseType.rawValue) — plugin driver not initialized"
             )
         }
 

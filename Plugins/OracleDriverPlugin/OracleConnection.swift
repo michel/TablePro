@@ -11,6 +11,7 @@ import Logging
 import NIOCore
 import OracleNIO
 import OSLog
+import TableProPluginKit
 
 private let osLogger = Logger(subsystem: "com.TablePro", category: "OracleConnection")
 
@@ -24,6 +25,10 @@ struct OracleError: Error, LocalizedError {
     static let notConnected = OracleError(message: "Not connected to database")
     static let connectionFailed = OracleError(message: "Failed to establish connection")
     static let queryFailed = OracleError(message: "Query execution failed")
+}
+
+extension OracleError: PluginDriverError {
+    var pluginErrorMessage: String { message }
 }
 
 // MARK: - Query Result
@@ -168,6 +173,9 @@ final class OracleConnectionWrapper: @unchecked Sendable {
                 }
                 didReadTypes = true
                 allRows.append(rowValues)
+                if allRows.count >= PluginRowLimits.defaultMax {
+                    break
+                }
             }
 
             // If no rows were returned, fill type names with "unknown"

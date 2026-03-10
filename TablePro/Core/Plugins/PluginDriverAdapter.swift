@@ -13,6 +13,17 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
     private let pluginDriver: any PluginDatabaseDriver
 
     var serverVersion: String? { pluginDriver.serverVersion }
+    var noSqlPluginDriver: (any PluginDatabaseDriver)? {
+        // Only expose plugin driver for NoSQL dispatch if it actually handles query building.
+        // SQL drivers (MySQL, PostgreSQL, etc.) return nil from buildBrowseQuery and should
+        // use standard SQL query rewriting for sort/filter instead.
+        guard pluginDriver.buildBrowseQuery(
+            table: "_probe", sortColumns: [], columns: [], limit: 1, offset: 0
+        ) != nil else {
+            return nil
+        }
+        return pluginDriver
+    }
     var currentSchema: String { pluginDriver.currentSchema ?? connection.username }
     var escapedSchema: String { SQLEscaping.escapeStringLiteral(currentSchema, databaseType: connection.type) }
 
@@ -31,7 +42,18 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
             try await pluginDriver.connect()
             status = .connected
         } catch {
-            status = .error(error.localizedDescription)
+            if let driverError = error as? any PluginDriverError {
+                var message = driverError.pluginErrorMessage
+                if let code = driverError.pluginErrorCode {
+                    message = "[\(code)] \(message)"
+                }
+                if let state = driverError.pluginSqlState {
+                    message += " (SQLSTATE: \(state))"
+                }
+                status = .error(message)
+            } else {
+                status = .error(error.localizedDescription)
+            }
             throw error
         }
     }
