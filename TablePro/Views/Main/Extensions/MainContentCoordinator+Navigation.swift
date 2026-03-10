@@ -179,11 +179,7 @@ extension MainContentCoordinator {
 
         if let wid = windowId {
             WindowLifecycleMonitor.shared.setPreview(false, for: wid)
-        }
-
-        // Update window subtitle to remove preview indicator
-        if let window = WindowLifecycleMonitor.shared.findWindow(for: connectionId) {
-            window.subtitle = connection.name
+            WindowLifecycleMonitor.shared.window(for: wid)?.subtitle = connection.name
         }
     }
 

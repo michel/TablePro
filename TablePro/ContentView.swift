@@ -187,7 +187,11 @@ struct ContentView: View {
                 // for the brief window before registration completes.
                 let isOurWindow = WindowLifecycleMonitor.shared.windows(for: connectionId)
                     .contains(where: { $0 === notificationWindow })
-                    || notificationWindow.subtitle.hasPrefix(currentSession?.connection.name ?? "")
+                    || {
+                        guard let name = currentSession?.connection.name, !name.isEmpty else { return false }
+                        return notificationWindow.subtitle == name
+                            || notificationWindow.subtitle == "\(name) — Preview"
+                    }()
                 guard isOurWindow else { return }
 
                 if let session = DatabaseManager.shared.activeSessions[connectionId] {

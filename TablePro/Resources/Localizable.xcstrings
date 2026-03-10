@@ -6006,7 +6006,14 @@
       }
     },
     "Enable preview tabs" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bật tab xem trước"
+          }
+        }
+      }
     },
     "Enable SSH Tunnel" : {
       "localizations" : {
@@ -14364,7 +14371,14 @@
       }
     },
     "Single-clicking a table opens a temporary tab that gets replaced on next click." : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhấp một lần vào bảng sẽ mở tab tạm thời, tab này sẽ được thay thế khi nhấp tiếp."
+          }
+        }
+      }
     },
     "Size" : {
       "localizations" : {

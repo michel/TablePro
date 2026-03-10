@@ -44,10 +44,11 @@ internal final class TabPersistenceCoordinator {
         }
         let persisted = nonPreviewTabs.map { convertToPersistedTab($0) }
         let connId = connectionId
-        let selectedId = selectedTabId
+        let normalizedSelectedId = nonPreviewTabs.contains(where: { $0.id == selectedTabId })
+            ? selectedTabId : nonPreviewTabs.first?.id
 
         Task {
-            await TabDiskActor.shared.save(connectionId: connId, tabs: persisted, selectedTabId: selectedId)
+            await TabDiskActor.shared.save(connectionId: connId, tabs: persisted, selectedTabId: normalizedSelectedId)
         }
     }
 
@@ -67,7 +68,7 @@ internal final class TabPersistenceCoordinator {
     internal func saveNowSync(tabs: [QueryTab], selectedTabId: UUID?) {
         let nonPreviewTabs = tabs.filter { !$0.isPreview }
         guard !nonPreviewTabs.isEmpty else {
-            // Don't clear on sync path (termination) — just skip saving
+            TabDiskActor.saveSync(connectionId: connectionId, tabs: [], selectedTabId: nil)
             return
         }
         let persisted = nonPreviewTabs.map { convertToPersistedTab($0) }

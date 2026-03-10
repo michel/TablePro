@@ -123,6 +123,11 @@ internal final class WindowLifecycleMonitor {
             .map { ($0.key, $0.value.window) }
     }
 
+    /// Look up the NSWindow for a given windowId.
+    internal func window(for windowId: UUID) -> NSWindow? {
+        entries[windowId]?.window
+    }
+
     /// Update the preview flag for a registered window.
     internal func setPreview(_ isPreview: Bool, for windowId: UUID) {
         entries[windowId]?.isPreview = isPreview

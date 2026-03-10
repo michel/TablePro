@@ -198,7 +198,8 @@ struct MainContentView: View {
                     let window = NSApp.keyWindow
                         ?? NSApp.windows.first { $0.isVisible && $0.title == targetTitle }
                     guard let window else { return }
-                    if payload?.isPreview == true {
+                    let isPreview = tabManager.selectedTab?.isPreview ?? payload?.isPreview ?? false
+                    if isPreview {
                         window.subtitle = "\(connection.name) — Preview"
                     } else {
                         window.subtitle = connection.name
@@ -211,7 +212,7 @@ struct MainContentView: View {
                         window: window,
                         connectionId: connection.id,
                         windowId: windowId,
-                        isPreview: payload?.isPreview == true
+                        isPreview: isPreview
                     )
                     viewWindow = window
                     isKeyWindow = window.isKeyWindow
@@ -249,7 +250,8 @@ struct MainContentView: View {
                     guard !WindowLifecycleMonitor.shared.hasWindows(for: connectionId) else { return }
 
                     let hasVisibleWindow = NSApp.windows.contains { window in
-                        window.isVisible && window.subtitle.hasPrefix(connectionName)
+                        window.isVisible && (window.subtitle == connectionName
+                            || window.subtitle == "\(connectionName) — Preview")
                     }
                     if !hasVisibleWindow {
                         await DatabaseManager.shared.disconnectSession(connectionId)
@@ -641,9 +643,11 @@ struct MainContentView: View {
         if persistableTabs.isEmpty {
             coordinator.persistence.clearSavedState()
         } else {
+            let normalizedSelectedId = persistableTabs.contains(where: { $0.id == tabManager.selectedTabId })
+                ? tabManager.selectedTabId : persistableTabs.first?.id
             coordinator.persistence.saveNow(
                 tabs: persistableTabs,
-                selectedTabId: tabManager.selectedTabId
+                selectedTabId: normalizedSelectedId
             )
         }
     }

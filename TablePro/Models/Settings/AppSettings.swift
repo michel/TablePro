@@ -484,4 +484,13 @@ struct HistorySettings: Codable, Equatable {
 struct TabSettings: Codable, Equatable {
     var enablePreviewTabs: Bool = true
     static let `default` = TabSettings()
+
+    init(enablePreviewTabs: Bool = true) {
+        self.enablePreviewTabs = enablePreviewTabs
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enablePreviewTabs = try container.decodeIfPresent(Bool.self, forKey: .enablePreviewTabs) ?? true
+    }
 }
