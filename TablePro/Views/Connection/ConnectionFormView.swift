@@ -89,7 +89,7 @@ struct ConnectionFormView: View {
 
     @State private var isInstallingPlugin = false
     @State private var pluginInstallProgress: Double = 0
-    @State private var showPluginInstallError: String?
+
     @State private var pluginInstallConnection: DatabaseConnection?
 
     // Tab selection
@@ -102,7 +102,6 @@ struct ConnectionFormView: View {
 
     enum TestResult {
         case success
-        case failure(String)
     }
 
     private enum FormTab: String, CaseIterable {
@@ -679,32 +678,6 @@ struct ConnectionFormView: View {
                 .padding(.top, 8)
             }
 
-            if case .failure(let message) = testResult {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-            }
-
-            if let pluginError = showPluginInstallError {
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                    Text(pluginError)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 8)
-            }
-
             HStack {
                 // Test connection
                 Button(action: testConnection) {
@@ -785,7 +758,6 @@ struct ConnectionFormView: View {
     private var testResultIcon: String {
         switch testResult {
         case .success: return "checkmark.circle.fill"
-        case .failure: return "xmark.circle.fill"
         case .none: return "bolt.horizontal"
         }
     }
@@ -793,7 +765,6 @@ struct ConnectionFormView: View {
     private var testResultColor: Color {
         switch testResult {
         case .success: return .green
-        case .failure: return .red
         case .none: return .secondary
         }
     }
@@ -801,7 +772,6 @@ struct ConnectionFormView: View {
     private func installPluginForType(_ databaseType: DatabaseType) {
         isInstallingPlugin = true
         pluginInstallProgress = 0
-        showPluginInstallError = nil
 
         Task {
             do {
@@ -811,7 +781,11 @@ struct ConnectionFormView: View {
                 isInstallingPlugin = false
             } catch {
                 isInstallingPlugin = false
-                showPluginInstallError = error.localizedDescription
+                AlertHelper.showErrorSheet(
+                    title: String(localized: "Plugin Installation Failed"),
+                    message: error.localizedDescription,
+                    window: NSApp.keyWindow
+                )
             }
         }
     }
@@ -1079,13 +1053,26 @@ struct ConnectionFormView: View {
                     testConn, sshPassword: sshPassword)
                 await MainActor.run {
                     isTesting = false
-                    testResult =
-                        success ? .success : .failure(String(localized: "Connection test failed"))
+                    if success {
+                        testResult = .success
+                    } else {
+                        testResult = nil
+                        AlertHelper.showErrorSheet(
+                            title: String(localized: "Connection Test Failed"),
+                            message: String(localized: "Connection test failed"),
+                            window: NSApp.keyWindow
+                        )
+                    }
                 }
             } catch {
                 await MainActor.run {
                     isTesting = false
-                    testResult = .failure(error.localizedDescription)
+                    testResult = nil
+                    AlertHelper.showErrorSheet(
+                        title: String(localized: "Connection Test Failed"),
+                        message: error.localizedDescription,
+                        window: NSApp.keyWindow
+                    )
                 }
             }
         }
