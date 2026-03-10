@@ -21,8 +21,7 @@ build_plugin() {
     local arch=$1
     local build_dir="$BUILD_DIR/$arch"
 
-    echo ""
-    echo "Building $PLUGIN_TARGET ($arch)..."
+    echo "Building $PLUGIN_TARGET ($arch)..." >&2
 
     # Persistent SPM package cache (speeds up CI on self-hosted runners)
     SPM_CACHE_DIR="${HOME}/.spm-cache"
@@ -40,9 +39,9 @@ build_plugin() {
         DEVELOPMENT_TEAM="$TEAM_ID" \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
-        build 2>&1 | tee "build-plugin-${arch}.log"; then
-        echo "FATAL: xcodebuild failed for $PLUGIN_TARGET ($arch)"
-        echo "Check build-plugin-${arch}.log for details"
+        build 2>&1 | tee "build-plugin-${arch}.log" >&2; then
+        echo "FATAL: xcodebuild failed for $PLUGIN_TARGET ($arch)" >&2
+        echo "Check build-plugin-${arch}.log for details" >&2
         exit 1
     fi
 
@@ -51,11 +50,11 @@ build_plugin() {
     plugin_bundle=$(find "$build_dir" -name "*.tableplugin" -maxdepth 1 | head -1)
 
     if [ -z "$plugin_bundle" ]; then
-        echo "FATAL: No .tableplugin bundle found in $build_dir"
+        echo "FATAL: No .tableplugin bundle found in $build_dir" >&2
         exit 1
     fi
 
-    echo "Built: $plugin_bundle"
+    echo "Built: $plugin_bundle" >&2
 
     # Strip the plugin binary to reduce size
     local plugin_name
@@ -66,16 +65,16 @@ build_plugin() {
         before=$(ls -lh "$plugin_binary" | awk '{print $5}')
         strip -x "$plugin_binary"
         after=$(ls -lh "$plugin_binary" | awk '{print $5}')
-        echo "Stripped binary: $before -> $after"
+        echo "Stripped binary: $before -> $after" >&2
     fi
 
     # Code sign inside-out: nested frameworks/dylibs first, then binary, then bundle
-    echo "Code signing with: $SIGN_IDENTITY"
+    echo "Code signing with: $SIGN_IDENTITY" >&2
 
     # Sign nested frameworks
     if [ -d "$plugin_bundle/Contents/Frameworks" ]; then
         find "$plugin_bundle/Contents/Frameworks" -name "*.framework" -o -name "*.dylib" | sort | while read -r nested; do
-            echo "  Signing nested: $(basename "$nested")"
+            echo "  Signing nested: $(basename "$nested")" >&2
             codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$nested"
         done
     fi
@@ -89,11 +88,12 @@ build_plugin() {
     codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp "$plugin_bundle"
 
     if ! codesign --verify --deep --strict "$plugin_bundle" 2>&1; then
-        echo "FATAL: Code signature verification failed"
+        echo "FATAL: Code signature verification failed" >&2
         exit 1
     fi
-    echo "Code signature verified"
+    echo "Code signature verified" >&2
 
+    # Only the path goes to stdout (return value)
     echo "$plugin_bundle"
 }
 
