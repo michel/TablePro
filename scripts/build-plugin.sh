@@ -39,7 +39,7 @@ build_plugin() {
         DEVELOPMENT_TEAM="$TEAM_ID" \
         -skipPackagePluginValidation \
         -derivedDataPath "$DERIVED_DATA_DIR" \
-        clean build 2>&1 | tee "build-plugin-${arch}.log" >&2; then
+        build 2>&1 | tee "build-plugin-${arch}.log" >&2; then
         echo "FATAL: xcodebuild failed for $PLUGIN_TARGET ($arch)" >&2
         echo "Check build-plugin-${arch}.log for details" >&2
         exit 1
@@ -140,8 +140,8 @@ notarize_zip() {
     fi
 }
 
-# Clean build directory
-rm -rf "$BUILD_DIR"
+# Clean build directories
+rm -rf "$BUILD_DIR" build/DerivedData
 mkdir -p "$BUILD_DIR"
 
 case "$ARCH" in
