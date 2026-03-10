@@ -62,13 +62,26 @@ extension MainContentCoordinator {
             }
         }
 
-        // If no tabs exist (empty state), add a table tab directly
+        // If no tabs exist (empty state), add a table tab directly.
+        // In preview mode, mark it as preview so subsequent clicks replace it.
         if tabManager.tabs.isEmpty {
-            tabManager.addTableTab(
-                tableName: tableName,
-                databaseType: connection.type,
-                databaseName: currentDatabase
-            )
+            if AppSettingsManager.shared.tabs.enablePreviewTabs {
+                tabManager.addPreviewTableTab(
+                    tableName: tableName,
+                    databaseType: connection.type,
+                    databaseName: currentDatabase
+                )
+                if let wid = windowId {
+                    WindowLifecycleMonitor.shared.setPreview(true, for: wid)
+                    WindowLifecycleMonitor.shared.window(for: wid)?.subtitle = "\(connection.name) — Preview"
+                }
+            } else {
+                tabManager.addTableTab(
+                    tableName: tableName,
+                    databaseType: connection.type,
+                    databaseName: currentDatabase
+                )
+            }
             if let tabIndex = tabManager.selectedTabIndex {
                 tabManager.tabs[tabIndex].isView = isView
                 tabManager.tabs[tabIndex].isEditable = !isView
@@ -159,7 +172,26 @@ extension MainContentCoordinator {
             }
         }
 
-        // No preview window exists: create one
+        // No preview window exists but current tab is already a preview: replace in-place
+        if let selectedTab = tabManager.selectedTab, selectedTab.isPreview {
+            tabManager.replaceTabContent(
+                tableName: tableName,
+                databaseType: connection.type,
+                isView: isView,
+                databaseName: databaseName,
+                isPreview: true
+            )
+            if let tabIndex = tabManager.selectedTabIndex {
+                tabManager.tabs[tabIndex].showStructure = showStructure
+                tabManager.tabs[tabIndex].pagination.reset()
+                AppState.shared.isCurrentTabEditable = !isView && !tableName.isEmpty
+                toolbarState.isTableTab = true
+            }
+            runQuery()
+            return
+        }
+
+        // No preview tab anywhere: create a new native preview tab
         let payload = EditorTabPayload(
             connectionId: connection.id,
             tabType: .table,
