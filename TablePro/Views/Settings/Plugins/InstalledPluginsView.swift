@@ -81,9 +81,6 @@ struct InstalledPluginsView: View {
             }
             return true
         }
-        .onAppear {
-            pluginManager.loadPendingPlugins()
-        }
         .alert(errorAlertTitle, isPresented: $showErrorAlert) {
             Button("OK") {}
         } message: {

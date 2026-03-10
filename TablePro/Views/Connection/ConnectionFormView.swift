@@ -139,7 +139,6 @@ struct ConnectionFormView: View {
             isNew ? String(localized: "New Connection") : String(localized: "Edit Connection")
         )
         .onAppear {
-            PluginManager.shared.loadPendingPlugins()
             loadConnectionData()
             loadSSHConfig()
         }
