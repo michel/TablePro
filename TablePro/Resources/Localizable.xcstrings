@@ -6005,6 +6005,9 @@
         }
       }
     },
+    "Enable preview tabs" : {
+
+    },
     "Enable SSH Tunnel" : {
       "localizations" : {
         "vi" : {
@@ -14359,6 +14362,9 @@
           }
         }
       }
+    },
+    "Single-clicking a table opens a temporary tab that gets replaced on next click." : {
+
     },
     "Size" : {
       "localizations" : {

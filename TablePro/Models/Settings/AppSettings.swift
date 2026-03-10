@@ -482,5 +482,6 @@ struct HistorySettings: Codable, Equatable {
 
 /// Tab behavior settings
 struct TabSettings: Codable, Equatable {
+    var enablePreviewTabs: Bool = true
     static let `default` = TabSettings()
 }

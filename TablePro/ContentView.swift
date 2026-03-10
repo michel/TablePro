@@ -187,7 +187,7 @@ struct ContentView: View {
                 // for the brief window before registration completes.
                 let isOurWindow = WindowLifecycleMonitor.shared.windows(for: connectionId)
                     .contains(where: { $0 === notificationWindow })
-                    || notificationWindow.subtitle == currentSession?.connection.name
+                    || notificationWindow.subtitle.hasPrefix(currentSession?.connection.name ?? "")
                 guard isOurWindow else { return }
 
                 if let session = DatabaseManager.shared.activeSessions[connectionId] {
@@ -218,6 +218,9 @@ struct ContentView: View {
                         activeTableName: windowTitle,
                         onShowAllTables: {
                             showAllTablesMetadata()
+                        },
+                        onDoubleClick: { _ in
+                            sessionState.coordinator.promotePreviewTab()
                         },
                         pendingTruncates: sessionPendingTruncatesBinding,
                         pendingDeletes: sessionPendingDeletesBinding,

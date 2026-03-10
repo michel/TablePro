@@ -353,6 +353,9 @@ struct QueryTab: Identifiable, Equatable {
     // Per-tab column layout (widths/order persist across reloads within tab session)
     var columnLayout: ColumnLayoutState
 
+    // Whether this tab is a preview (temporary) tab that gets replaced on next navigation
+    var isPreview: Bool
+
     // Version counter incremented when resultRows changes (used for sort caching)
     var resultVersion: Int
 
@@ -389,6 +392,7 @@ struct QueryTab: Identifiable, Equatable {
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
+        self.isPreview = false
         self.resultVersion = 0
         self.metadataVersion = 0
     }
@@ -420,6 +424,7 @@ struct QueryTab: Identifiable, Equatable {
         self.pagination = PaginationState()
         self.filterState = TabFilterState()
         self.columnLayout = ColumnLayoutState()
+        self.isPreview = false
         self.resultVersion = 0
         self.metadataVersion = 0
     }
@@ -484,6 +489,8 @@ struct QueryTab: Identifiable, Equatable {
             && lhs.isView == rhs.isView
             && lhs.tabType == rhs.tabType
             && lhs.rowsAffected == rhs.rowsAffected
+            && lhs.isPreview == rhs.isPreview
+            && lhs.hasUserInteraction == rhs.hasUserInteraction
     }
 }
 
@@ -550,13 +557,30 @@ final class QueryTabManager {
         selectedTabId = newTab.id
     }
 
+    func addPreviewTableTab(tableName: String, databaseType: DatabaseType = .mysql, databaseName: String = "") {
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+        let query = QueryTab.buildBaseTableQuery(tableName: tableName, databaseType: databaseType)
+        var newTab = QueryTab(
+            title: tableName,
+            query: query,
+            tabType: .table,
+            tableName: tableName
+        )
+        newTab.pagination = PaginationState(pageSize: pageSize)
+        newTab.databaseName = databaseName
+        newTab.isPreview = true
+        tabs.append(newTab)
+        selectedTabId = newTab.id
+    }
+
     /// Replace the currently selected tab's content with a new table.
     /// - Returns: `true` if the replacement happened (caller should run the query),
     ///   `false` if there is no selected tab.
     @discardableResult
     func replaceTabContent(
         tableName: String, databaseType: DatabaseType = .mysql,
-        isView: Bool = false, databaseName: String = ""
+        isView: Bool = false, databaseName: String = "",
+        isPreview: Bool = false
     ) -> Bool {
         guard let selectedId = selectedTabId,
               let selectedIndex = tabs.firstIndex(where: { $0.id == selectedId })
@@ -603,6 +627,7 @@ final class QueryTabManager {
         tab.columnLayout = ColumnLayoutState()
         tab.pagination = PaginationState(pageSize: pageSize)
         tab.databaseName = databaseName
+        tab.isPreview = isPreview
         tabs[selectedIndex] = tab
         return true
     }

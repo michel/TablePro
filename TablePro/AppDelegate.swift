@@ -518,7 +518,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleConnectionFailure(_ error: Error) async {
         for window in NSApp.windows where isMainWindow(window) {
             let hasActiveSession = DatabaseManager.shared.activeSessions.values.contains {
-                window.subtitle == $0.connection.name
+                window.subtitle.hasPrefix($0.connection.name)
             }
             if !hasActiveSession {
                 window.close()

@@ -18,6 +18,7 @@ internal final class WindowLifecycleMonitor {
         let connectionId: UUID
         let window: NSWindow
         var observer: NSObjectProtocol?
+        var isPreview: Bool = false
     }
 
     private var entries: [UUID: Entry] = [:]
@@ -36,7 +37,7 @@ internal final class WindowLifecycleMonitor {
     // MARK: - Registration
 
     /// Register a window and start observing its willCloseNotification.
-    internal func register(window: NSWindow, connectionId: UUID, windowId: UUID) {
+    internal func register(window: NSWindow, connectionId: UUID, windowId: UUID, isPreview: Bool = false) {
         // Remove any existing entry for this windowId to avoid duplicate observers
         if let existing = entries[windowId] {
             if let observer = existing.observer {
@@ -58,7 +59,8 @@ internal final class WindowLifecycleMonitor {
         entries[windowId] = Entry(
             connectionId: connectionId,
             window: window,
-            observer: observer
+            observer: observer,
+            isPreview: isPreview
         )
     }
 
@@ -113,6 +115,17 @@ internal final class WindowLifecycleMonitor {
     /// Check if a specific window is still registered
     internal func isRegistered(windowId: UUID) -> Bool {
         entries[windowId] != nil
+    }
+
+    /// Find the first preview window for a connection.
+    internal func previewWindow(for connectionId: UUID) -> (windowId: UUID, window: NSWindow)? {
+        entries.first { $0.value.connectionId == connectionId && $0.value.isPreview }
+            .map { ($0.key, $0.value.window) }
+    }
+
+    /// Update the preview flag for a registered window.
+    internal func setPreview(_ isPreview: Bool, for windowId: UUID) {
+        entries[windowId]?.isPreview = isPreview
     }
 
     // MARK: - Private

@@ -37,7 +37,12 @@ internal final class TabPersistenceCoordinator {
     /// Save tab state to disk. Called explicitly at named business events
     /// (tab switch, window close, quit, etc.).
     internal func saveNow(tabs: [QueryTab], selectedTabId: UUID?) {
-        let persisted = tabs.map { convertToPersistedTab($0) }
+        let nonPreviewTabs = tabs.filter { !$0.isPreview }
+        guard !nonPreviewTabs.isEmpty else {
+            clearSavedState()
+            return
+        }
+        let persisted = nonPreviewTabs.map { convertToPersistedTab($0) }
         let connId = connectionId
         let selectedId = selectedTabId
 
@@ -60,7 +65,12 @@ internal final class TabPersistenceCoordinator {
     /// Synchronous save for `applicationWillTerminate` where no run loop
     /// remains to service async Tasks. Bypasses the actor and writes directly.
     internal func saveNowSync(tabs: [QueryTab], selectedTabId: UUID?) {
-        let persisted = tabs.map { convertToPersistedTab($0) }
+        let nonPreviewTabs = tabs.filter { !$0.isPreview }
+        guard !nonPreviewTabs.isEmpty else {
+            // Don't clear on sync path (termination) — just skip saving
+            return
+        }
+        let persisted = nonPreviewTabs.map { convertToPersistedTab($0) }
         TabDiskActor.saveSync(connectionId: connectionId, tabs: persisted, selectedTabId: selectedTabId)
     }
 
