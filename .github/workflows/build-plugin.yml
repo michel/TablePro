@@ -33,7 +33,7 @@ jobs:
               DB_TYPE_IDS='["Oracle"]'
               ICON="server.rack"
               BUNDLE_NAME="OracleDriver"
-              HOMEPAGE="https://tablepro.dev/databases/oracle"
+              HOMEPAGE="https://tablepro.app/databases/oracle"
               ;;
             clickhouse)
               TARGET="ClickHouseDriver"
@@ -43,7 +43,7 @@ jobs:
               DB_TYPE_IDS='["ClickHouse"]'
               ICON="chart.bar.xaxis"
               BUNDLE_NAME="ClickHouseDriver"
-              HOMEPAGE="https://tablepro.dev/databases/clickhouse"
+              HOMEPAGE="https://tablepro.app/databases/clickhouse"
               ;;
             *) echo "Unknown plugin: $PLUGIN_NAME"; exit 1 ;;
           esac
@@ -173,7 +173,7 @@ jobs:
               "name": name,
               "version": version,
               "summary": summary,
-              "author": {"name": "TablePro", "url": "https://tablepro.dev"},
+              "author": {"name": "TablePro", "url": "https://tablepro.app"},
               "homepage": homepage,
               "category": "database-driver",
               "databaseTypeIds": db_type_ids,
