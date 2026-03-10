@@ -57,6 +57,9 @@ final class MainContentCoordinator {
         RowOperationsManager(changeManager: changeManager)
     }()
 
+    /// Stable identifier for this coordinator's window (set by MainContentView on appear)
+    var windowId: UUID?
+
     // MARK: - Published State
 
     var schemaProvider: SQLSchemaProvider
@@ -131,11 +134,18 @@ final class MainContentCoordinator {
         Self.activeCoordinators.removeValue(forKey: ObjectIdentifier(self))
     }
 
+    /// Find a coordinator by its window identifier.
+    static func coordinator(for windowId: UUID) -> MainContentCoordinator? {
+        activeCoordinators.values.first { $0.windowId == windowId }
+    }
+
     /// Collect all tabs from all active coordinators for a given connectionId.
+    /// Preview tabs are excluded from persistence since they are temporary.
     private static func aggregatedTabs(for connectionId: UUID) -> [QueryTab] {
         activeCoordinators.values
             .filter { $0.connectionId == connectionId }
             .flatMap { $0.tabManager.tabs }
+            .filter { !$0.isPreview }
     }
 
     /// Get selected tab ID from any coordinator for a given connectionId.

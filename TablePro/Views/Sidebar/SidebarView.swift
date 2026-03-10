@@ -22,6 +22,7 @@ struct SidebarView: View {
 
     var activeTableName: String?
     var onShowAllTables: (() -> Void)?
+    var onDoubleClick: ((TableInfo) -> Void)?
     var connectionId: UUID
 
     /// Computed on the view (not ViewModel) so SwiftUI tracks both
@@ -43,6 +44,7 @@ struct SidebarView: View {
         sidebarState: SharedSidebarState,
         activeTableName: String? = nil,
         onShowAllTables: (() -> Void)? = nil,
+        onDoubleClick: ((TableInfo) -> Void)? = nil,
         pendingTruncates: Binding<Set<String>>,
         pendingDeletes: Binding<Set<String>>,
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
@@ -52,6 +54,7 @@ struct SidebarView: View {
     ) {
         _tables = tables
         self.sidebarState = sidebarState
+        self.onDoubleClick = onDoubleClick
         _pendingTruncates = pendingTruncates
         _pendingDeletes = pendingDeletes
         let selectedBinding = Binding(
@@ -189,6 +192,11 @@ struct SidebarView: View {
                             isPendingDelete: pendingDeletes.contains(table.name)
                         )
                         .tag(table)
+                        .overlay {
+                            DoubleClickDetector {
+                                onDoubleClick?(table)
+                            }
+                        }
                         .contextMenu {
                             SidebarContextMenu(
                                 clickedTable: table,

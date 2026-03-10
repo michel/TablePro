@@ -37,12 +37,18 @@ internal final class TabPersistenceCoordinator {
     /// Save tab state to disk. Called explicitly at named business events
     /// (tab switch, window close, quit, etc.).
     internal func saveNow(tabs: [QueryTab], selectedTabId: UUID?) {
-        let persisted = tabs.map { convertToPersistedTab($0) }
+        let nonPreviewTabs = tabs.filter { !$0.isPreview }
+        guard !nonPreviewTabs.isEmpty else {
+            clearSavedState()
+            return
+        }
+        let persisted = nonPreviewTabs.map { convertToPersistedTab($0) }
         let connId = connectionId
-        let selectedId = selectedTabId
+        let normalizedSelectedId = nonPreviewTabs.contains(where: { $0.id == selectedTabId })
+            ? selectedTabId : nonPreviewTabs.first?.id
 
         Task {
-            await TabDiskActor.shared.save(connectionId: connId, tabs: persisted, selectedTabId: selectedId)
+            await TabDiskActor.shared.save(connectionId: connId, tabs: persisted, selectedTabId: normalizedSelectedId)
         }
     }
 
@@ -60,8 +66,15 @@ internal final class TabPersistenceCoordinator {
     /// Synchronous save for `applicationWillTerminate` where no run loop
     /// remains to service async Tasks. Bypasses the actor and writes directly.
     internal func saveNowSync(tabs: [QueryTab], selectedTabId: UUID?) {
-        let persisted = tabs.map { convertToPersistedTab($0) }
-        TabDiskActor.saveSync(connectionId: connectionId, tabs: persisted, selectedTabId: selectedTabId)
+        let nonPreviewTabs = tabs.filter { !$0.isPreview }
+        guard !nonPreviewTabs.isEmpty else {
+            TabDiskActor.saveSync(connectionId: connectionId, tabs: [], selectedTabId: nil)
+            return
+        }
+        let persisted = nonPreviewTabs.map { convertToPersistedTab($0) }
+        let normalizedSelectedId = nonPreviewTabs.contains(where: { $0.id == selectedTabId })
+            ? selectedTabId : nonPreviewTabs.first?.id
+        TabDiskActor.saveSync(connectionId: connectionId, tabs: persisted, selectedTabId: normalizedSelectedId)
     }
 
     // MARK: - Clear

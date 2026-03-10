@@ -187,7 +187,11 @@ struct ContentView: View {
                 // for the brief window before registration completes.
                 let isOurWindow = WindowLifecycleMonitor.shared.windows(for: connectionId)
                     .contains(where: { $0 === notificationWindow })
-                    || notificationWindow.subtitle == currentSession?.connection.name
+                    || {
+                        guard let name = currentSession?.connection.name, !name.isEmpty else { return false }
+                        return notificationWindow.subtitle == name
+                            || notificationWindow.subtitle == "\(name) — Preview"
+                    }()
                 guard isOurWindow else { return }
 
                 if let session = DatabaseManager.shared.activeSessions[connectionId] {
@@ -218,6 +222,24 @@ struct ContentView: View {
                         activeTableName: windowTitle,
                         onShowAllTables: {
                             showAllTablesMetadata()
+                        },
+                        onDoubleClick: { table in
+                            let isView = table.type == .view
+                            if let preview = WindowLifecycleMonitor.shared.previewWindow(for: currentSession.connection.id),
+                               let previewCoordinator = MainContentCoordinator.coordinator(for: preview.windowId) {
+                                // If the preview tab shows this table, promote it
+                                if previewCoordinator.tabManager.selectedTab?.tableName == table.name {
+                                    previewCoordinator.promotePreviewTab()
+                                } else {
+                                    // Preview shows a different table — promote it first, then open this table permanently
+                                    previewCoordinator.promotePreviewTab()
+                                    sessionState.coordinator.openTableTab(table.name, isView: isView)
+                                }
+                            } else {
+                                // No preview tab — promote current if it's a preview, otherwise open permanently
+                                sessionState.coordinator.promotePreviewTab()
+                                sessionState.coordinator.openTableTab(table.name, isView: isView)
+                            }
                         },
                         pendingTruncates: sessionPendingTruncatesBinding,
                         pendingDeletes: sessionPendingDeletesBinding,

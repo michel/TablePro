@@ -519,6 +519,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         for window in NSApp.windows where isMainWindow(window) {
             let hasActiveSession = DatabaseManager.shared.activeSessions.values.contains {
                 window.subtitle == $0.connection.name
+                    || window.subtitle == "\($0.connection.name) — Preview"
             }
             if !hasActiveSession {
                 window.close()

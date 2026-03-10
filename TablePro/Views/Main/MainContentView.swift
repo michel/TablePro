@@ -198,14 +198,21 @@ struct MainContentView: View {
                     let window = NSApp.keyWindow
                         ?? NSApp.windows.first { $0.isVisible && $0.title == targetTitle }
                     guard let window else { return }
-                    window.subtitle = connection.name
+                    let isPreview = tabManager.selectedTab?.isPreview ?? payload?.isPreview ?? false
+                    if isPreview {
+                        window.subtitle = "\(connection.name) — Preview"
+                    } else {
+                        window.subtitle = connection.name
+                    }
                     window.tabbingIdentifier = "com.TablePro.main.\(connection.id.uuidString)"
                     window.tabbingMode = .preferred
+                    coordinator.windowId = windowId
 
                     WindowLifecycleMonitor.shared.register(
                         window: window,
                         connectionId: connection.id,
-                        windowId: windowId
+                        windowId: windowId,
+                        isPreview: isPreview
                     )
                     viewWindow = window
                     isKeyWindow = window.isKeyWindow
@@ -243,7 +250,8 @@ struct MainContentView: View {
                     guard !WindowLifecycleMonitor.shared.hasWindows(for: connectionId) else { return }
 
                     let hasVisibleWindow = NSApp.windows.contains { window in
-                        window.isVisible && window.subtitle == connectionName
+                        window.isVisible && (window.subtitle == connectionName
+                            || window.subtitle == "\(connectionName) — Preview")
                     }
                     if !hasVisibleWindow {
                         await DatabaseManager.shared.disconnectSession(connectionId)
@@ -309,11 +317,12 @@ struct MainContentView: View {
                 DispatchQueue.main.async {
                     syncSidebarToCurrentTab()
                 }
-                // Lazy-load: execute query for restored tabs that skipped auto-execute
+                // Lazy-load: execute query for restored tabs that skipped auto-execute,
+                // or re-query tabs whose row data was evicted while inactive.
                 if let tab = tabManager.selectedTab,
                    tab.tabType == .table,
-                   tab.resultRows.isEmpty,
-                   tab.lastExecutedAt == nil,
+                   (tab.resultRows.isEmpty || tab.rowBuffer.isEvicted),
+                   (tab.lastExecutedAt == nil || tab.rowBuffer.isEvicted),
                    !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 {
                     coordinator.runQuery()
@@ -625,13 +634,21 @@ struct MainContentView: View {
         // as the view is being deallocated
         guard !coordinator.isTearingDown else { return }
 
-        // Persist tab changes explicitly
-        if newTabs.isEmpty {
+        // Promote preview tab if user has interacted with it
+        if let tab = tabManager.selectedTab, tab.isPreview, tab.hasUserInteraction {
+            coordinator.promotePreviewTab()
+        }
+
+        // Persist tab changes (exclude preview tabs from persistence)
+        let persistableTabs = newTabs.filter { !$0.isPreview }
+        if persistableTabs.isEmpty {
             coordinator.persistence.clearSavedState()
         } else {
+            let normalizedSelectedId = persistableTabs.contains(where: { $0.id == tabManager.selectedTabId })
+                ? tabManager.selectedTabId : persistableTabs.first?.id
             coordinator.persistence.saveNow(
-                tabs: newTabs,
-                selectedTabId: tabManager.selectedTabId
+                tabs: persistableTabs,
+                selectedTabId: normalizedSelectedId
             )
         }
     }
@@ -676,10 +693,15 @@ struct MainContentView: View {
             return
         }
 
+        let isPreviewMode = AppSettingsManager.shared.tabs.enablePreviewTabs
+        let hasPreview = WindowLifecycleMonitor.shared.previewWindow(for: connection.id) != nil
+
         let result = SidebarNavigationResult.resolve(
             clickedTableName: tableName,
             currentTabTableName: tabManager.selectedTab?.tableName,
-            hasExistingTabs: !tabManager.tabs.isEmpty
+            hasExistingTabs: !tabManager.tabs.isEmpty,
+            isPreviewTabMode: isPreviewMode,
+            hasPreviewTab: hasPreview
         )
 
         switch result {
@@ -690,6 +712,8 @@ struct MainContentView: View {
             selectedRowIndices = []
             coordinator.openTableTab(tableName, isView: isView)
         case .revertAndOpenNewWindow:
+            coordinator.openTableTab(tableName, isView: isView)
+        case .replacePreviewTab, .openNewPreviewTab:
             coordinator.openTableTab(tableName, isView: isView)
         }
 
