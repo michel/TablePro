@@ -81,6 +81,8 @@ jobs:
         run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" x86_64
 
       - name: Capture SHA-256 hashes
+        # Hashes are captured before notarize intentionally: notarytool does not
+        # modify the ZIP on disk, and stapling applies to app bundles, not ZIPs.
         id: sha256
         run: |
           BUNDLE_NAME="${{ steps.plugin-info.outputs.bundle_name }}"

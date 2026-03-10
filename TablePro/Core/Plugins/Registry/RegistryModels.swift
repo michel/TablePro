@@ -7,7 +7,7 @@ import Foundation
 
 enum PluginArchitecture: String, Codable, Sendable {
     case arm64
-    case x86_64 = "x86_64"
+    case x86_64
 
     static var current: PluginArchitecture {
         #if arch(arm64)
