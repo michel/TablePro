@@ -26,7 +26,7 @@ jobs:
           # Map short name to Xcode target and registry metadata
           case "$PLUGIN_NAME" in
             oracle)
-              TARGET="OracleDriverPlugin"
+              TARGET="OracleDriver"
               BUNDLE_ID="com.TablePro.OracleDriver"
               DISPLAY_NAME="Oracle Driver"
               SUMMARY="Oracle Database 12c+ driver via OracleNIO"
@@ -36,7 +36,7 @@ jobs:
               HOMEPAGE="https://tablepro.dev/databases/oracle"
               ;;
             clickhouse)
-              TARGET="ClickHouseDriverPlugin"
+              TARGET="ClickHouseDriver"
               BUNDLE_ID="com.TablePro.ClickHouseDriver"
               DISPLAY_NAME="ClickHouse Driver"
               SUMMARY="ClickHouse OLAP database driver via HTTP interface"
