@@ -87,9 +87,7 @@ jobs:
           echo "x86_64=$X86_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Notarize
-        if: env.NOTARIZE == 'true'
-        env:
-          NOTARIZE: "true"
+        if: vars.NOTARIZE_PLUGINS == 'true'
         run: |
           for zip in build/Plugins/*.zip; do
             xcrun notarytool submit "$zip" \
