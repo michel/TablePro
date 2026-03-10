@@ -140,8 +140,8 @@ notarize_zip() {
     fi
 }
 
-# Clean build directories
-rm -rf "$BUILD_DIR" build/DerivedData
+# Clean DerivedData for fresh builds; preserve BUILD_DIR across arch invocations
+rm -rf build/DerivedData
 mkdir -p "$BUILD_DIR"
 
 case "$ARCH" in
