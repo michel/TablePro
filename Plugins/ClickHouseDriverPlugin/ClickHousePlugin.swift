@@ -233,6 +233,25 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchAllColumns(schema: String?) async throws -> [String: [PluginColumnInfo]] {
+        // Pre-fetch PK columns for all tables. Falls back to sorting_key when
+        // primary_key is empty (MergeTree without explicit PRIMARY KEY clause).
+        // Note: expression-based keys like toDate(col) won't match bare column names.
+        let pkSql = """
+            SELECT name, primary_key, sorting_key FROM system.tables
+            WHERE database = currentDatabase()
+            """
+        let pkResult = try await execute(query: pkSql)
+        var pkLookup: [String: Set<String>] = [:]
+        for row in pkResult.rows {
+            guard let tableName = row[safe: 0] ?? nil else { continue }
+            let primaryKey = (row[safe: 1] ?? nil) ?? ""
+            let sortingKey = (row[safe: 2] ?? nil) ?? ""
+            let keyString = primaryKey.isEmpty ? sortingKey : primaryKey
+            guard !keyString.isEmpty else { continue }
+            let cols = Set(keyString.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) })
+            pkLookup[tableName] = cols
+        }
+
         let sql = """
             SELECT table, name, type, default_kind, default_expression, comment
             FROM system.columns
@@ -265,7 +284,7 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 name: colName,
                 dataType: dataType,
                 isNullable: isNullable,
-                isPrimaryKey: false,
+                isPrimaryKey: pkLookup[tableName]?.contains(colName) == true,
                 defaultValue: defaultValue,
                 extra: extra,
                 comment: (comment?.isEmpty == false) ? comment : nil
