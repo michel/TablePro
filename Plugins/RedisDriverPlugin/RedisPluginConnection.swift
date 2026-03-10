@@ -26,8 +26,8 @@ struct RedisSSLConfig {
     init() {}
 
     init(additionalFields: [String: String]) {
-        let sslMode = additionalFields["sslMode"] ?? "disable"
-        self.isEnabled = sslMode != "disable"
+        let sslMode = additionalFields["sslMode"] ?? "Disabled"
+        self.isEnabled = sslMode != "Disabled"
         self.caCertificatePath = additionalFields["sslCaCertPath"] ?? ""
         self.clientCertificatePath = additionalFields["sslClientCertPath"] ?? ""
         self.clientKeyPath = additionalFields["sslClientKeyPath"] ?? ""

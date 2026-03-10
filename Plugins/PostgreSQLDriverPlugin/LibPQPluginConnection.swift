@@ -16,7 +16,7 @@ private let logger = Logger(subsystem: "com.TablePro.PostgreSQLDriver", category
 // MARK: - SSL Configuration
 
 struct PQSSLConfig {
-    var mode: String = "disable"
+    var mode: String = "Disabled"
     var caCertificatePath: String = ""
     var clientCertificatePath: String = ""
     var clientKeyPath: String = ""
@@ -24,7 +24,7 @@ struct PQSSLConfig {
     init() {}
 
     init(additionalFields: [String: String]) {
-        self.mode = additionalFields["sslMode"] ?? "disable"
+        self.mode = additionalFields["sslMode"] ?? "Disabled"
         self.caCertificatePath = additionalFields["sslCaCertPath"] ?? ""
         self.clientCertificatePath = additionalFields["sslClientCertPath"] ?? ""
         self.clientKeyPath = additionalFields["sslClientKeyPath"] ?? ""

@@ -104,7 +104,7 @@ final class MongoDBConnection: @unchecked Sendable {
         user: String,
         password: String?,
         database: String,
-        sslMode: String = "disabled",
+        sslMode: String = "Disabled",
         sslCACertPath: String = "",
         sslClientCertPath: String = "",
         readPreference: String? = nil,
@@ -169,10 +169,10 @@ final class MongoDBConnection: @unchecked Sendable {
             "authSource=admin"
         ]
 
-        let sslEnabled = sslMode != "disabled" && !sslMode.isEmpty
+        let sslEnabled = ["Preferred", "Required", "Verify CA", "Verify Identity"].contains(sslMode)
         if sslEnabled {
             params.append("tls=true")
-            let verifiesCert = sslMode == "verify_ca" || sslMode == "verify_identity"
+            let verifiesCert = sslMode == "Verify CA" || sslMode == "Verify Identity"
             if !verifiesCert {
                 params.append("tlsAllowInvalidCertificates=true")
             }

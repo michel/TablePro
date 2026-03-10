@@ -733,6 +733,10 @@ struct MainContentView: View {
             target = []
         }
         if sidebarState.selectedTables != target {
+            // Don't clear sidebar selection while the table list is still loading.
+            // Clearing it prematurely triggers SidebarSyncAction to re-select on
+            // tables load, causing a double-navigation race condition.
+            if target.isEmpty && tables.isEmpty { return }
             sidebarState.selectedTables = target
         }
     }

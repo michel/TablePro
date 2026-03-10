@@ -55,11 +55,11 @@ struct MariaDBPluginQueryResult {
 
 struct MySQLSSLConfig {
     enum Mode: String {
-        case disabled
-        case preferred
-        case required
-        case verifyCa = "verify_ca"
-        case verifyIdentity = "verify_identity"
+        case disabled = "Disabled"
+        case preferred = "Preferred"
+        case required = "Required"
+        case verifyCa = "Verify CA"
+        case verifyIdentity = "Verify Identity"
     }
 
     let mode: Mode
@@ -68,7 +68,7 @@ struct MySQLSSLConfig {
     let clientKeyPath: String
 
     init(from fields: [String: String]) {
-        self.mode = Mode(rawValue: fields["sslMode"] ?? "disabled") ?? .disabled
+        self.mode = Mode(rawValue: fields["sslMode"] ?? "Disabled") ?? .disabled
         self.caCertificatePath = fields["sslCaCertPath"] ?? ""
         self.clientCertificatePath = fields["sslClientCertPath"] ?? ""
         self.clientKeyPath = fields["sslClientKeyPath"] ?? ""
