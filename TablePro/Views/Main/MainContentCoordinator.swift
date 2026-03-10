@@ -538,8 +538,10 @@ final class MainContentCoordinator {
                 switch permission {
                 case .allowed:
                     executeQueryInternal(sql)
-                case .blocked:
-                    break
+                case .blocked(let reason):
+                    if index < tabManager.tabs.count {
+                        tabManager.tabs[index].errorMessage = reason
+                    }
                 }
             }
         } else {

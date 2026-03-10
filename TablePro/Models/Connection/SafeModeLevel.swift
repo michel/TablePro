@@ -5,14 +5,16 @@
 
 import SwiftUI
 
-enum SafeModeLevel: String, Codable, CaseIterable, Identifiable {
+internal enum SafeModeLevel: String, Codable, CaseIterable, Identifiable {
     case silent = "silent"
     case alert = "alert"
     case alertFull = "alertFull"
     case safeMode = "safeMode"
     case safeModeFull = "safeModeFull"
     case readOnly = "readOnly"
+}
 
+internal extension SafeModeLevel {
     var id: String { rawValue }
 
     var displayName: String {

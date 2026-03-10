@@ -8,15 +8,15 @@ import LocalAuthentication
 import os
 
 @MainActor
-final class SafeModeGuard {
+internal final class SafeModeGuard {
     private static let logger = Logger(subsystem: "com.TablePro", category: "SafeModeGuard")
 
-    enum Permission {
+    internal enum Permission {
         case allowed
         case blocked(String)
     }
 
-    static func checkPermission(
+    internal static func checkPermission(
         level: SafeModeLevel,
         isWriteOperation: Bool,
         sql: String,

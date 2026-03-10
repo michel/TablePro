@@ -14,21 +14,18 @@ extension MainContentCoordinator {
     /// Execute sidebar changes immediately (single transaction)
     /// Respects safe mode levels that require confirmation for write operations.
     func executeSidebarChanges(statements: [ParameterizedStatement]) async throws {
-        let level = connection.safeModeLevel
-        if level.requiresConfirmation {
-            let sqlPreview = statements.map(\.sql).joined(separator: "\n")
-            let window = await MainActor.run { NSApp.keyWindow }
-            let permission = await SafeModeGuard.checkPermission(
-                level: level,
-                isWriteOperation: true,
-                sql: sqlPreview,
-                operationDescription: String(localized: "Save Sidebar Changes"),
-                window: window,
-                databaseType: connection.type
-            )
-            if case .blocked = permission {
-                return
-            }
+        let sqlPreview = statements.map(\.sql).joined(separator: "\n")
+        let window = await MainActor.run { NSApp.keyWindow }
+        let permission = await SafeModeGuard.checkPermission(
+            level: connection.safeModeLevel,
+            isWriteOperation: true,
+            sql: sqlPreview,
+            operationDescription: String(localized: "Save Sidebar Changes"),
+            window: window,
+            databaseType: connection.type
+        )
+        if case .blocked = permission {
+            return
         }
 
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
