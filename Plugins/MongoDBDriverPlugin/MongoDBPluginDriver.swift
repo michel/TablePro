@@ -28,6 +28,8 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
         self.currentDb = config.database
     }
 
+    private static let systemDatabases: Set<String> = ["admin", "local", "config"]
+
     // MARK: - Connection Management
 
     func connect() async throws {
@@ -37,7 +39,7 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
             user: config.username,
             password: config.password,
             database: currentDb,
-            sslMode: config.additionalFields["sslMode"] ?? "disabled",
+            sslMode: config.additionalFields["sslMode"] ?? "Disabled",
             sslCACertPath: config.additionalFields["sslCACertPath"] ?? "",
             sslClientCertPath: config.additionalFields["sslClientCertPath"] ?? "",
             readPreference: config.additionalFields["mongoReadPreference"],
@@ -46,6 +48,11 @@ final class MongoDBPluginDriver: PluginDatabaseDriver {
 
         try await conn.connect()
         mongoConnection = conn
+
+        if currentDb.isEmpty {
+            let dbs = try await conn.listDatabases()
+            currentDb = dbs.first { !Self.systemDatabases.contains($0) } ?? dbs.first ?? "test"
+        }
     }
 
     func disconnect() {

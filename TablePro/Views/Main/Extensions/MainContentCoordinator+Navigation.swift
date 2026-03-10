@@ -89,7 +89,13 @@ extension MainContentCoordinator {
                 AppState.shared.isCurrentTabEditable = !isView && tableName.isEmpty == false
                 toolbarState.isTableTab = true
             }
-            runQuery()
+            // Redis needs selectRedisDatabaseAndQuery to ensure the correct
+            // database is SELECTed and session state is updated before querying.
+            if connection.type == .redis, let dbIndex = Int(currentDatabase) {
+                selectRedisDatabaseAndQuery(dbIndex)
+            } else {
+                runQuery()
+            }
             return
         }
 

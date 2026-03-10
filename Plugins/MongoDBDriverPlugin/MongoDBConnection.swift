@@ -169,10 +169,10 @@ final class MongoDBConnection: @unchecked Sendable {
             "authSource=admin"
         ]
 
-        let sslEnabled = sslMode != "disabled" && !sslMode.isEmpty
+        let sslEnabled = sslMode != "Disabled" && !sslMode.isEmpty
         if sslEnabled {
             params.append("tls=true")
-            let verifiesCert = sslMode == "verify_ca" || sslMode == "verify_identity"
+            let verifiesCert = sslMode == "Verify CA" || sslMode == "Verify Identity"
             if !verifiesCert {
                 params.append("tlsAllowInvalidCertificates=true")
             }

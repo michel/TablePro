@@ -24,7 +24,7 @@ struct PQSSLConfig {
     init() {}
 
     init(additionalFields: [String: String]) {
-        self.mode = additionalFields["sslMode"] ?? "disable"
+        self.mode = additionalFields["sslMode"] ?? "Disabled"
         self.caCertificatePath = additionalFields["sslCaCertPath"] ?? ""
         self.clientCertificatePath = additionalFields["sslClientCertPath"] ?? ""
         self.clientKeyPath = additionalFields["sslClientKeyPath"] ?? ""

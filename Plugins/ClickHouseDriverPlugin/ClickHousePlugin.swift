@@ -78,8 +78,8 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     func connect() async throws {
         let useTLS = config.additionalFields["sslMode"] != nil
-            && config.additionalFields["sslMode"] != "disable"
-        let skipVerification = config.additionalFields["sslMode"] == "required"
+            && config.additionalFields["sslMode"] != "Disabled"
+        let skipVerification = config.additionalFields["sslMode"] == "Required"
 
         let urlConfig = URLSessionConfiguration.default
         urlConfig.timeoutIntervalForRequest = 30
@@ -533,7 +533,7 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     private func buildRequest(query: String, database: String, queryId: String? = nil) throws -> URLRequest {
         let useTLS = config.additionalFields["sslMode"] != nil
-            && config.additionalFields["sslMode"] != "disable"
+            && config.additionalFields["sslMode"] != "Disabled"
 
         var components = URLComponents()
         components.scheme = useTLS ? "https" : "http"

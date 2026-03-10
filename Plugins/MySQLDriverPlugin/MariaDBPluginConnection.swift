@@ -68,7 +68,7 @@ struct MySQLSSLConfig {
     let clientKeyPath: String
 
     init(from fields: [String: String]) {
-        self.mode = Mode(rawValue: fields["sslMode"] ?? "disabled") ?? .disabled
+        self.mode = Mode(rawValue: fields["sslMode"] ?? "Disabled") ?? .disabled
         self.caCertificatePath = fields["sslCaCertPath"] ?? ""
         self.clientCertificatePath = fields["sslClientCertPath"] ?? ""
         self.clientKeyPath = fields["sslClientKeyPath"] ?? ""
