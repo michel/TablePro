@@ -3749,6 +3749,16 @@
         }
       }
     },
+    "Connection Test Failed" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra kết nối thất bại"
+          }
+        }
+      }
+    },
     "Connection URL" : {
       "localizations" : {
         "vi" : {

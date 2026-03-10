@@ -67,7 +67,6 @@ struct ImportDialog: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
-            PluginManager.shared.loadPendingPlugins()
             let available = availableFormats
             if !available.contains(where: { type(of: $0).formatId == selectedFormatId }) {
                 if let first = available.first {

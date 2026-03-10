@@ -612,8 +612,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Enable native macOS window tabbing (Finder/Safari-style tabs)
         NSWindow.allowsAutomaticWindowTabbing = true
 
-        // Load plugins (driver plugins, etc.) before any connections are created
-        PluginManager.shared.loadAllPlugins()
+        // Discover and load plugins (discovery is synchronous, bundle loading is deferred)
+        PluginManager.shared.loadPlugins()
 
         // Start license periodic validation
         Task { @MainActor in

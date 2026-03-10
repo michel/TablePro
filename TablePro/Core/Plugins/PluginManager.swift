@@ -45,7 +45,16 @@ final class PluginManager {
 
     // MARK: - Loading
 
-    func loadAllPlugins() {
+    /// Discover and load all plugins. Discovery is synchronous (reads Info.plist),
+    /// then bundle loading is deferred to the next run loop iteration so it doesn't block app launch.
+    func loadPlugins() {
+        discoverAllPlugins()
+        Task { @MainActor in
+            self.loadPendingPlugins()
+        }
+    }
+
+    private func discoverAllPlugins() {
         let fm = FileManager.default
         if !fm.fileExists(atPath: userPluginsDir.path) {
             do {
@@ -65,7 +74,7 @@ final class PluginManager {
     }
 
     /// Load all discovered but not-yet-loaded plugin bundles.
-    /// Called on first driver request or when the plugins settings screen opens.
+    /// Safety fallback for code paths that need plugins before the deferred Task completes.
     func loadPendingPlugins() {
         guard !pendingPluginURLs.isEmpty else { return }
         let pending = pendingPluginURLs
@@ -285,6 +294,7 @@ final class PluginManager {
     // MARK: - Driver Availability
 
     func isDriverAvailable(for databaseType: DatabaseType) -> Bool {
+        // Safety fallback: loads pending plugins if the deferred startup Task hasn't completed yet
         loadPendingPlugins()
         return driverPlugins[databaseType.pluginTypeId] != nil
     }
