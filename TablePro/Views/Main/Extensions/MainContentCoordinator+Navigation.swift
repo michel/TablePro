@@ -153,6 +153,13 @@ extension MainContentCoordinator {
         // Check if a preview window already exists for this connection
         if let preview = WindowLifecycleMonitor.shared.previewWindow(for: connectionId) {
             if let previewCoordinator = Self.coordinator(for: preview.windowId) {
+                // Skip if preview tab already shows this table
+                if let current = previewCoordinator.tabManager.selectedTab,
+                   current.tableName == tableName,
+                   current.databaseName == databaseName {
+                    preview.window.makeKeyAndOrderFront(nil)
+                    return
+                }
                 previewCoordinator.tabManager.replaceTabContent(
                     tableName: tableName,
                     databaseType: connection.type,
@@ -174,6 +181,10 @@ extension MainContentCoordinator {
 
         // No preview window exists but current tab is already a preview: replace in-place
         if let selectedTab = tabManager.selectedTab, selectedTab.isPreview {
+            // Skip if already showing this table
+            if selectedTab.tableName == tableName, selectedTab.databaseName == databaseName {
+                return
+            }
             tabManager.replaceTabContent(
                 tableName: tableName,
                 databaseType: connection.type,
