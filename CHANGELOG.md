@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- SQLite driver extracted from built-in bundle to downloadable plugin, reducing app size
 - Unified error formatting across all database drivers via default `PluginDriverError.errorDescription`, removing 10 per-driver implementations
 - Standardized async bridging: 5 queue-based drivers (MySQL, PostgreSQL, MongoDB, Redis, MSSQL) now use shared `pluginDispatchAsync` helper
 - Added localization to remaining driver error messages (MySQL, PostgreSQL, ClickHouse, Oracle, Redis, MongoDB)

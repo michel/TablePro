@@ -228,7 +228,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
 
     var isDownloadablePlugin: Bool {
         switch self {
-        case .oracle, .clickhouse: return true
+        case .oracle, .clickhouse, .sqlite: return true
         default: return false
         }
     }
