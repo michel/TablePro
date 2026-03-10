@@ -25,6 +25,16 @@ struct SaveCompletionTests {
         return (state.coordinator, state.tabManager, state.changeManager)
     }
 
+    private func makeCoordinatorWithLevel(
+        _ level: SafeModeLevel,
+        type: DatabaseType = .mysql
+    ) -> (MainContentCoordinator, QueryTabManager, DataChangeManager) {
+        var conn = TestFixtures.makeConnection(type: type)
+        conn.safeModeLevel = level
+        let state = SessionStateFactory.create(connection: conn, payload: nil)
+        return (state.coordinator, state.tabManager, state.changeManager)
+    }
+
     // MARK: - No Changes
 
     @Test("saveChanges with no changes returns immediately without error")
@@ -170,5 +180,128 @@ struct SaveCompletionTests {
         #expect(tabManager.tabs.first?.errorMessage == nil)
         #expect(truncates.isEmpty)
         #expect(deletes.isEmpty)
+    }
+
+    // MARK: - Safe Mode Confirmation Path
+
+    @Test("saveChanges with alert level and pending truncates clears inout params immediately")
+    func alertLevel_pendingTruncates_clearsParams() {
+        let (coordinator, tabManager, _) = makeCoordinatorWithLevel(.alert)
+        tabManager.addTab(databaseName: "testdb")
+
+        var truncates: Set<String> = ["users"]
+        var deletes: Set<String> = []
+        var options: [String: TableOperationOptions] = [:]
+
+        coordinator.saveChanges(
+            pendingTruncates: &truncates,
+            pendingDeletes: &deletes,
+            tableOperationOptions: &options
+        )
+
+        // Confirmation path clears inout params before returning to prevent double-execution
+        #expect(truncates.isEmpty)
+    }
+
+    @Test("saveChanges with safeMode level and pending deletes clears inout params")
+    func safeModeLevel_pendingDeletes_clearsParams() {
+        let (coordinator, tabManager, _) = makeCoordinatorWithLevel(.safeMode)
+        tabManager.addTab(databaseName: "testdb")
+
+        var truncates: Set<String> = []
+        var deletes: Set<String> = ["orders"]
+        var options: [String: TableOperationOptions] = [:]
+
+        coordinator.saveChanges(
+            pendingTruncates: &truncates,
+            pendingDeletes: &deletes,
+            tableOperationOptions: &options
+        )
+
+        #expect(deletes.isEmpty)
+    }
+
+    @Test("saveChanges with alert level and no changes does nothing")
+    func alertLevel_noChanges_noop() {
+        let (coordinator, tabManager, _) = makeCoordinatorWithLevel(.alert)
+        tabManager.addTab(databaseName: "testdb")
+
+        var truncates: Set<String> = []
+        var deletes: Set<String> = []
+        var options: [String: TableOperationOptions] = [:]
+
+        coordinator.saveChanges(
+            pendingTruncates: &truncates,
+            pendingDeletes: &deletes,
+            tableOperationOptions: &options
+        )
+
+        #expect(tabManager.tabs.first?.errorMessage == nil)
+        #expect(truncates.isEmpty)
+        #expect(deletes.isEmpty)
+    }
+
+    @Test("saveChanges with silent level and pending truncates clears via normal path")
+    func silentLevel_pendingTruncates_clearsViaNormalPath() {
+        let (coordinator, tabManager, _) = makeCoordinatorWithLevel(.silent)
+        tabManager.addTab(databaseName: "testdb")
+
+        var truncates: Set<String> = ["users"]
+        var deletes: Set<String> = []
+        var options: [String: TableOperationOptions] = [:]
+
+        coordinator.saveChanges(
+            pendingTruncates: &truncates,
+            pendingDeletes: &deletes,
+            tableOperationOptions: &options
+        )
+
+        // Silent level takes the normal (non-confirmation) path which also clears immediately
+        #expect(truncates.isEmpty)
+    }
+
+    // MARK: - Row Operations and Safe Mode
+
+    @Test("row operations blocked by readOnly level")
+    func rowOperations_blockedByReadOnly() {
+        let (coordinator, tabManager, _) = makeCoordinatorWithLevel(.readOnly)
+        tabManager.addTab(databaseName: "testdb")
+        if let index = tabManager.selectedTabIndex {
+            tabManager.tabs[index].isEditable = true
+            tabManager.tabs[index].tableName = "users"
+        }
+
+        var selectedRows: Set<Int> = []
+        var editingCell: CellPosition?
+
+        coordinator.addNewRow(selectedRowIndices: &selectedRows, editingCell: &editingCell)
+        #expect(selectedRows.isEmpty)
+        #expect(editingCell == nil)
+
+        selectedRows = [0]
+        coordinator.deleteSelectedRows(indices: Set([0]), selectedRowIndices: &selectedRows)
+        #expect(selectedRows == [0])
+
+        selectedRows = []
+        coordinator.duplicateSelectedRow(index: 0, selectedRowIndices: &selectedRows, editingCell: &editingCell)
+        #expect(selectedRows.isEmpty)
+        #expect(editingCell == nil)
+    }
+
+    @Test("row operations allowed by alert level")
+    func rowOperations_allowedByAlertLevel() {
+        let (coordinator, tabManager, _) = makeCoordinatorWithLevel(.alert)
+        tabManager.addTab(databaseName: "testdb")
+        if let index = tabManager.selectedTabIndex {
+            tabManager.tabs[index].isEditable = true
+            tabManager.tabs[index].tableName = "users"
+        }
+
+        var selectedRows: Set<Int> = []
+        var editingCell: CellPosition?
+
+        // Alert level doesn't block row staging — only gates at execution time
+        coordinator.addNewRow(selectedRowIndices: &selectedRows, editingCell: &editingCell)
+        #expect(tabManager.tabs.first?.errorMessage == nil)
     }
 }
