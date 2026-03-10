@@ -71,6 +71,16 @@ jobs:
       - name: Pull LFS files
         run: git lfs pull
 
+      - name: Resolve SPM dependencies
+        run: |
+          # Clear stale SPM cache to avoid module resolution failures
+          rm -rf ~/.spm-cache/checkouts ~/.spm-cache/artifacts
+          xcodebuild -project TablePro.xcodeproj \
+            -target "${{ steps.plugin-info.outputs.target }}" \
+            -clonedSourcePackagesDirPath "$HOME/.spm-cache" \
+            -skipPackagePluginValidation \
+            -resolvePackageDependencies
+
       - name: Build plugin (ARM64)
         run: ./scripts/build-plugin.sh "${{ steps.plugin-info.outputs.target }}" arm64
 
