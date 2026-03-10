@@ -55,16 +55,16 @@ All database drivers are `.tableplugin` bundles loaded at runtime by `PluginMana
 
 Plugin bundles under `Plugins/`:
 
-| Plugin | Database Types | C Bridge |
-|--------|---------------|----------|
-| MySQLDriverPlugin | MySQL, MariaDB | CMariaDB |
-| PostgreSQLDriverPlugin | PostgreSQL, Redshift | CLibPQ |
-| SQLiteDriverPlugin | SQLite | (Foundation sqlite3) |
-| ClickHouseDriverPlugin | ClickHouse | (URLSession HTTP) |
-| MSSQLDriverPlugin | SQL Server | CFreeTDS |
-| MongoDBDriverPlugin | MongoDB | CLibMongoc |
-| RedisDriverPlugin | Redis | CRedis |
-| OracleDriverPlugin | Oracle | OracleNIO (SPM) |
+| Plugin                 | Database Types       | C Bridge             |
+| ---------------------- | -------------------- | -------------------- |
+| MySQLDriverPlugin      | MySQL, MariaDB       | CMariaDB             |
+| PostgreSQLDriverPlugin | PostgreSQL, Redshift | CLibPQ               |
+| SQLiteDriverPlugin     | SQLite               | (Foundation sqlite3) |
+| ClickHouseDriverPlugin | ClickHouse           | (URLSession HTTP)    |
+| MSSQLDriverPlugin      | SQL Server           | CFreeTDS             |
+| MongoDBDriverPlugin    | MongoDB              | CLibMongoc           |
+| RedisDriverPlugin      | Redis                | CRedis               |
+| OracleDriverPlugin     | Oracle               | OracleNIO (SPM)      |
 
 When adding a new driver: create a new plugin bundle under `Plugins/`, implement `DriverPlugin` + `PluginDatabaseDriver`, add target to pbxproj. See `docs/development/plugin-system/` for details.
 
@@ -93,13 +93,13 @@ When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (
 
 `Core/Services/` is split into domain subdirectories:
 
-| Subdirectory | Contents |
-|-------------|----------|
-| `Export/` | ExportService, ImportService, XLSXWriter |
-| `Formatting/` | SQLFormatterService, DateFormattingService |
-| `Infrastructure/` | AppNotifications, DeeplinkHandler, WindowOpener, UpdaterBridge, etc. |
-| `Licensing/` | LicenseManager, LicenseAPIClient, LicenseSignatureVerifier |
-| `Query/` | SQLDialectProvider, TableQueryBuilder, RowParser, RowOperationsManager |
+| Subdirectory      | Contents                                                               |
+| ----------------- | ---------------------------------------------------------------------- |
+| `Export/`         | ExportService, ImportService, XLSXWriter                               |
+| `Formatting/`     | SQLFormatterService, DateFormattingService                             |
+| `Infrastructure/` | AppNotifications, DeeplinkHandler, WindowOpener, UpdaterBridge, etc.   |
+| `Licensing/`      | LicenseManager, LicenseAPIClient, LicenseSignatureVerifier             |
+| `Query/`          | SQLDialectProvider, TableQueryBuilder, RowParser, RowOperationsManager |
 
 `Models/` is split into: `AI/`, `Connection/`, `Database/`, `Export/`, `Query/`, `Settings/`, `UI/`, `Schema/`, `ClickHouse/`
 
@@ -109,13 +109,13 @@ When adding a new method to the driver protocol: add to `PluginDatabaseDriver` (
 
 ### Storage Patterns
 
-| What | How | Where |
-|------|-----|-------|
-| Connection passwords | Keychain | `ConnectionStorage` |
-| User preferences | UserDefaults | `AppSettingsStorage` / `AppSettingsManager` |
-| Query history | SQLite FTS5 | `QueryHistoryStorage` |
-| Tab state | JSON persistence | `TabPersistenceService` / `TabStateStorage` |
-| Filter presets | — | `FilterSettingsStorage` |
+| What                 | How              | Where                                       |
+| -------------------- | ---------------- | ------------------------------------------- |
+| Connection passwords | Keychain         | `ConnectionStorage`                         |
+| User preferences     | UserDefaults     | `AppSettingsStorage` / `AppSettingsManager` |
+| Query history        | SQLite FTS5      | `QueryHistoryStorage`                       |
+| Tab state            | JSON persistence | `TabPersistenceService` / `TabStateStorage` |
+| Filter presets       | —                | `FilterSettingsStorage`                     |
 
 ### Logging
 
@@ -148,12 +148,12 @@ private static let logger = Logger(subsystem: "com.TablePro", category: "Compone
 
 ### SwiftLint Limits
 
-| Metric | Warning | Error |
-|--------|---------|-------|
-| File length | 1200 | 1800 |
-| Type body | 1100 | 1500 |
-| Function body | 160 | 250 |
-| Cyclomatic complexity | 40 | 60 |
+| Metric                | Warning | Error |
+| --------------------- | ------- | ----- |
+| File length           | 1200    | 1800  |
+| Type body             | 1100    | 1500  |
+| Function body         | 160     | 250   |
+| Cyclomatic complexity | 40      | 60    |
 
 When approaching limits: extract into `TypeName+Category.swift` extension files in an `Extensions/` subfolder. Group by domain logic, not arbitrary line counts.
 
@@ -166,11 +166,11 @@ These are **non-negotiable** — never skip them:
 2. **Localization**: Use `String(localized:)` for new user-facing strings in computed properties, AppKit code, alerts, and error descriptions. SwiftUI view literals (`Text("literal")`, `Button("literal")`) auto-localize. Do NOT localize technical terms (font names, database types, SQL keywords, encoding names).
 
 3. **Documentation**: Update docs in `docs/` (Mintlify-based) when adding/changing features. Key mappings:
-   - New keyboard shortcuts → `docs/features/keyboard-shortcuts.mdx`
-   - UI/feature changes → relevant `docs/features/*.mdx` page
-   - Settings changes → `docs/customization/settings.mdx`
-   - Database driver changes → `docs/databases/*.mdx`
-   - Update both English (`docs/`) and Vietnamese (`docs/vi/`) pages
+    - New keyboard shortcuts → `docs/features/keyboard-shortcuts.mdx`
+    - UI/feature changes → relevant `docs/features/*.mdx` page
+    - Settings changes → `docs/customization/settings.mdx`
+    - Database driver changes → `docs/databases/*.mdx`
+    - Update both English (`docs/`) and Vietnamese (`docs/vi/`) pages
 
 4. **Test-first correctness**: When tests fail, fix the **source code** — never adjust tests to match incorrect output. Tests define expected behavior.
 
@@ -180,11 +180,12 @@ These are **non-negotiable** — never skip them:
 
 ## Agent Execution Strategy
 
-- **Always use subagents** for implementation work. Delegate coding tasks to Task subagents to preserve main context tokens.
-- **Always parallelize** independent tasks. Launch all subagents in a single message with multiple Task tool calls.
-- **Main context = orchestrator only.** Read files, launch subagents, summarize results, update tracking. Never do heavy implementation directly.
-- **Subagent prompts must be self-contained.** Include file paths, the specific problem, and clear instructions.
-- **Every implementation must run in a separate worktree.** Use `isolation: "worktree"` when spawning Task subagents for any code changes. This keeps the main branch clean and allows parallel work without conflicts.
+- **Always use team agents** for implementation work. Use the Agent tool (not subagents/tasks) to delegate coding to specialized agents (e.g., `feature-dev:feature-dev`, `feature-dev:code-architect`, `code-simplifier:code-simplifier`).
+- **Always parallelize** independent tasks. Launch multiple agents in a single message.
+- **Main context = orchestrator only.** Read files, launch agents, summarize results, update tracking. Never do heavy implementation directly.
+- **Agent prompts must be self-contained.** Include file paths, the specific problem, and clear instructions.
+- **Use worktree isolation** (`isolation: "worktree"`) for agents making code changes. This keeps the main branch clean and allows parallel work without conflicts.
+- **Implementation standards** (apply to ALL new features and refactors): Clean architecture, correct macOS/Apple platform approach, proper design patterns, no backward compatibility hacks, easy to maintain and extensible. Always include these requirements in agent prompts.
 
 ## Performance Pitfalls
 
