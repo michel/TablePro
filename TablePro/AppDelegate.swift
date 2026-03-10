@@ -612,15 +612,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Enable native macOS window tabbing (Finder/Safari-style tabs)
         NSWindow.allowsAutomaticWindowTabbing = true
 
-        // Discover plugins synchronously (fast — just reads Info.plist)
-        PluginManager.shared.loadAllPlugins()
-
-        // Load plugin bundles on next run loop iteration so it doesn't block app launch.
-        // By the time the user opens a connection form, plugins will be loaded.
-        // DatabaseDriverFactory has a fallback loadPendingPlugins() if needed.
-        Task { @MainActor in
-            PluginManager.shared.loadPendingPlugins()
-        }
+        // Discover and load plugins (discovery is synchronous, bundle loading is deferred)
+        PluginManager.shared.loadPlugins()
 
         // Start license periodic validation
         Task { @MainActor in
