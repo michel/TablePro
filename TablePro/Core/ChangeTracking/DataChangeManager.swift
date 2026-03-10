@@ -657,6 +657,13 @@ final class DataChangeManager {
             }
         }
 
+        // Safety: prevent SQL generation for NoSQL databases if plugin driver is unavailable
+        if databaseType == .mongodb || databaseType == .redis {
+            throw DatabaseError.queryFailed(
+                "Cannot generate statements for \(databaseType.rawValue) — plugin driver not initialized"
+            )
+        }
+
         let generator = SQLStatementGenerator(
             tableName: tableName,
             columns: columns,

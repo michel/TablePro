@@ -409,6 +409,11 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             query: query, parameters: parameters
         )
 
+        // If no placeholders were found, execute the query as-is
+        guard !paramDecls.isEmpty else {
+            return try await execute(query: query)
+        }
+
         let sql = "EXEC sp_executesql N'\(Self.escapeNString(convertedQuery))', N'\(paramDecls)', \(paramAssigns)"
         return try await execute(query: sql)
     }
@@ -735,7 +740,6 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     func fetchAllDatabaseMetadata() async throws -> [PluginDatabaseMetadata] {
         let sql = """
             SELECT d.name,
-                   (SELECT COUNT(*) FROM sys.tables) AS table_count,
                    SUM(mf.size) * 8 * 1024 AS size_bytes
             FROM sys.databases d
             LEFT JOIN sys.master_files mf ON d.database_id = mf.database_id
@@ -746,9 +750,8 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             let result = try await execute(query: sql)
             return result.rows.compactMap { row -> PluginDatabaseMetadata? in
                 guard let name = row[safe: 0] ?? nil else { return nil }
-                let tableCount = (row[safe: 1] ?? nil).flatMap { Int($0) } ?? 0
-                let sizeBytes = (row[safe: 2] ?? nil).flatMap { Int64($0) }
-                return PluginDatabaseMetadata(name: name, tableCount: tableCount, sizeBytes: sizeBytes)
+                let sizeBytes = (row[safe: 1] ?? nil).flatMap { Int64($0) }
+                return PluginDatabaseMetadata(name: name, sizeBytes: sizeBytes)
             }
         } catch {
             // Fall back to N+1 if permission denied on sys.master_files
@@ -937,6 +940,9 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }
 
         let count = paramIndex
+        guard count > 0 else {
+            return (converted, "", "")
+        }
         let decls = (1...count).map { "@p\($0) NVARCHAR(MAX)" }.joined(separator: ", ")
         let assigns = (1...count).map { i -> String in
             if let value = parameters[i - 1] {

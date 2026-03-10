@@ -222,10 +222,6 @@ public extension PluginDatabaseDriver {
     /// Escape a parameter value for safe interpolation into SQL.
     /// Numeric values are unquoted; strings are single-quoted with proper escaping.
     private static func escapedParameterValue(_ value: String) -> String {
-        // NULL literal
-        if value.caseInsensitiveCompare("NULL") == .orderedSame {
-            return "NULL"
-        }
         // Numeric: don't quote
         if Int64(value) != nil || (Double(value) != nil && value.contains(".")) {
             return value

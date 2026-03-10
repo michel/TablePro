@@ -13,7 +13,17 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
     private let pluginDriver: any PluginDatabaseDriver
 
     var serverVersion: String? { pluginDriver.serverVersion }
-    var noSqlPluginDriver: (any PluginDatabaseDriver)? { pluginDriver }
+    var noSqlPluginDriver: (any PluginDatabaseDriver)? {
+        // Only expose plugin driver for NoSQL dispatch if it actually handles query building.
+        // SQL drivers (MySQL, PostgreSQL, etc.) return nil from buildBrowseQuery and should
+        // use standard SQL query rewriting for sort/filter instead.
+        guard pluginDriver.buildBrowseQuery(
+            table: "_probe", sortColumns: [], columns: [], limit: 1, offset: 0
+        ) != nil else {
+            return nil
+        }
+        return pluginDriver
+    }
     var currentSchema: String { pluginDriver.currentSchema ?? connection.username }
     var escapedSchema: String { SQLEscaping.escapeStringLiteral(currentSchema, databaseType: connection.type) }
 
