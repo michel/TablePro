@@ -748,11 +748,32 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             """
         do {
             let result = try await execute(query: sql)
-            return result.rows.compactMap { row -> PluginDatabaseMetadata? in
+            var metadata = result.rows.compactMap { row -> PluginDatabaseMetadata? in
                 guard let name = row[safe: 0] ?? nil else { return nil }
                 let sizeBytes = (row[safe: 1] ?? nil).flatMap { Int64($0) }
                 return PluginDatabaseMetadata(name: name, sizeBytes: sizeBytes)
             }
+
+            for i in metadata.indices {
+                let dbName = metadata[i].name.replacingOccurrences(of: "]", with: "]]")
+                do {
+                    let countResult = try await execute(
+                        query: "SELECT COUNT(*) FROM [\(dbName)].sys.tables"
+                    )
+                    if let countStr = countResult.rows.first?[safe: 0] ?? nil,
+                       let count = Int(countStr) {
+                        metadata[i] = PluginDatabaseMetadata(
+                            name: metadata[i].name,
+                            tableCount: count,
+                            sizeBytes: metadata[i].sizeBytes
+                        )
+                    }
+                } catch {
+                    // Database offline or permission denied — leave tableCount as nil
+                }
+            }
+
+            return metadata
         } catch {
             // Fall back to N+1 if permission denied on sys.master_files
             let dbs = try await fetchDatabases()
