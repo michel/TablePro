@@ -220,7 +220,12 @@ struct ContentView: View {
                             showAllTablesMetadata()
                         },
                         onDoubleClick: { _ in
-                            sessionState.coordinator.promotePreviewTab()
+                            if let preview = WindowLifecycleMonitor.shared.previewWindow(for: currentSession.connection.id),
+                               let previewCoordinator = MainContentCoordinator.coordinator(for: preview.windowId) {
+                                previewCoordinator.promotePreviewTab()
+                            } else {
+                                sessionState.coordinator.promotePreviewTab()
+                            }
                         },
                         pendingTruncates: sessionPendingTruncatesBinding,
                         pendingDeletes: sessionPendingDeletesBinding,
