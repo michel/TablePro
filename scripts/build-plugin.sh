@@ -23,6 +23,9 @@ build_plugin() {
 
     echo "Building $PLUGIN_TARGET ($arch)..." >&2
 
+    # Use a dedicated DerivedData path to avoid stale artifacts from other builds
+    DERIVED_DATA_DIR="build/DerivedData"
+
     if ! xcodebuild \
         -project "$PROJECT" \
         -target "$PLUGIN_TARGET" \
@@ -34,7 +37,8 @@ build_plugin() {
         CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
         -skipPackagePluginValidation \
-        build 2>&1 | tee "build-plugin-${arch}.log" >&2; then
+        -derivedDataPath "$DERIVED_DATA_DIR" \
+        clean build 2>&1 | tee "build-plugin-${arch}.log" >&2; then
         echo "FATAL: xcodebuild failed for $PLUGIN_TARGET ($arch)" >&2
         echo "Check build-plugin-${arch}.log for details" >&2
         exit 1
