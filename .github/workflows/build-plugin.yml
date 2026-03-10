@@ -4,6 +4,9 @@ on:
   push:
     tags: ["plugin-*-v*"]
 
+permissions:
+  contents: write
+
 env:
   XCODE_PROJECT: TablePro.xcodeproj
 
