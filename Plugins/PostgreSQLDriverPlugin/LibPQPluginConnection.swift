@@ -49,26 +49,15 @@ struct PQSSLConfig {
 
 // MARK: - Error Types
 
-struct LibPQPluginError: Error, LocalizedError {
+struct LibPQPluginError: Error {
     let message: String
     let sqlState: String?
     let detail: String?
 
-    var errorDescription: String? {
-        var desc = "PostgreSQL Error: \(message)"
-        if let state = sqlState {
-            desc += " (SQLSTATE: \(state))"
-        }
-        if let detail = detail, !detail.isEmpty {
-            desc += "\nDetail: \(detail)"
-        }
-        return desc
-    }
-
     static let notConnected = LibPQPluginError(
-        message: "Not connected to database", sqlState: nil, detail: nil)
+        message: String(localized: "Not connected to database"), sqlState: nil, detail: nil)
     static let connectionFailed = LibPQPluginError(
-        message: "Failed to establish connection", sqlState: nil, detail: nil)
+        message: String(localized: "Failed to establish connection"), sqlState: nil, detail: nil)
 }
 
 // MARK: - Query Result
@@ -193,69 +182,64 @@ final class LibPQPluginConnection: @unchecked Sendable {
     // MARK: - Connection Management
 
     func connect() async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            queue.async { [self] in
-                func escapeConnParam(_ value: String) -> String {
-                    value.replacingOccurrences(of: "\\", with: "\\\\")
-                         .replacingOccurrences(of: "'", with: "\\'")
-                }
-
-                var connStr = "host='\(escapeConnParam(host))' port='\(port)' dbname='\(escapeConnParam(database))' connect_timeout='10'"
-
-                if !user.isEmpty {
-                    connStr += " user='\(escapeConnParam(user))'"
-                }
-
-                if let password = password, !password.isEmpty {
-                    connStr += " password='\(escapeConnParam(password))'"
-                }
-
-                connStr += " sslmode='\(sslConfig.libpqSslMode)'"
-
-                if sslConfig.verifiesCertificate, !sslConfig.caCertificatePath.isEmpty {
-                    connStr += " sslrootcert='\(escapeConnParam(sslConfig.caCertificatePath))'"
-                }
-                if !sslConfig.clientCertificatePath.isEmpty {
-                    connStr += " sslcert='\(escapeConnParam(sslConfig.clientCertificatePath))'"
-                }
-                if !sslConfig.clientKeyPath.isEmpty {
-                    connStr += " sslkey='\(escapeConnParam(sslConfig.clientKeyPath))'"
-                }
-
-                let connection = connStr.withCString { cStr in
-                    PQconnectdb(cStr)
-                }
-
-                guard let connection = connection else {
-                    continuation.resume(throwing: LibPQPluginError.connectionFailed)
-                    return
-                }
-
-                if PQstatus(connection) != CONNECTION_OK {
-                    let error = self.getError(from: connection)
-                    PQfinish(connection)
-                    continuation.resume(throwing: error)
-                    return
-                }
-
-                _ = "SET client_encoding TO 'UTF8'".withCString { cStr in
-                    PQexec(connection, cStr)
-                }
-
-                let version = PQserverVersion(connection)
-                if version > 0 {
-                    let major = version / 10_000
-                    let minor = (version / 100) % 100
-                    let revision = version % 100
-                    self._cachedServerVersion = "\(major).\(minor).\(revision)"
-                }
-
-                self.stateLock.lock()
-                self.conn = connection
-                self._isConnected = true
-                self.stateLock.unlock()
-                continuation.resume()
+        try await pluginDispatchAsync(on: queue) { [self] in
+            func escapeConnParam(_ value: String) -> String {
+                value.replacingOccurrences(of: "\\", with: "\\\\")
+                     .replacingOccurrences(of: "'", with: "\\'")
             }
+
+            var connStr = "host='\(escapeConnParam(host))' port='\(port)' dbname='\(escapeConnParam(database))' connect_timeout='10'"
+
+            if !user.isEmpty {
+                connStr += " user='\(escapeConnParam(user))'"
+            }
+
+            if let password = password, !password.isEmpty {
+                connStr += " password='\(escapeConnParam(password))'"
+            }
+
+            connStr += " sslmode='\(sslConfig.libpqSslMode)'"
+
+            if sslConfig.verifiesCertificate, !sslConfig.caCertificatePath.isEmpty {
+                connStr += " sslrootcert='\(escapeConnParam(sslConfig.caCertificatePath))'"
+            }
+            if !sslConfig.clientCertificatePath.isEmpty {
+                connStr += " sslcert='\(escapeConnParam(sslConfig.clientCertificatePath))'"
+            }
+            if !sslConfig.clientKeyPath.isEmpty {
+                connStr += " sslkey='\(escapeConnParam(sslConfig.clientKeyPath))'"
+            }
+
+            let connection = connStr.withCString { cStr in
+                PQconnectdb(cStr)
+            }
+
+            guard let connection = connection else {
+                throw LibPQPluginError.connectionFailed
+            }
+
+            if PQstatus(connection) != CONNECTION_OK {
+                let error = self.getError(from: connection)
+                PQfinish(connection)
+                throw error
+            }
+
+            _ = "SET client_encoding TO 'UTF8'".withCString { cStr in
+                PQexec(connection, cStr)
+            }
+
+            let version = PQserverVersion(connection)
+            if version > 0 {
+                let major = version / 10_000
+                let minor = (version / 100) % 100
+                let revision = version % 100
+                self._cachedServerVersion = "\(major).\(minor).\(revision)"
+            }
+
+            self.stateLock.lock()
+            self.conn = connection
+            self._isConnected = true
+            self.stateLock.unlock()
         }
     }
 
@@ -299,20 +283,9 @@ final class LibPQPluginConnection: @unchecked Sendable {
     func executeQuery(_ query: String) async throws -> LibPQPluginQueryResult {
         let queryToRun = String(query)
 
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<LibPQPluginQueryResult, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown else {
-                    cont.resume(throwing: LibPQPluginError.notConnected)
-                    return
-                }
-
-                do {
-                    let result = try executeQuerySync(queryToRun)
-                    cont.resume(returning: result)
-                } catch {
-                    cont.resume(throwing: error)
-                }
-            }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown else { throw LibPQPluginError.notConnected }
+            return try executeQuerySync(queryToRun)
         }
     }
 
@@ -320,20 +293,9 @@ final class LibPQPluginConnection: @unchecked Sendable {
         let queryToRun = String(query)
         let params = parameters
 
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<LibPQPluginQueryResult, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown else {
-                    cont.resume(throwing: LibPQPluginError.notConnected)
-                    return
-                }
-
-                do {
-                    let result = try executeParameterizedQuerySync(queryToRun, parameters: params)
-                    cont.resume(returning: result)
-                } catch {
-                    cont.resume(throwing: error)
-                }
-            }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown else { throw LibPQPluginError.notConnected }
+            return try executeParameterizedQuerySync(queryToRun, parameters: params)
         }
     }
 

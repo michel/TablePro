@@ -31,3 +31,27 @@ public func pluginDispatchAsync(
         }
     }
 }
+
+public func pluginDispatchAsync<T: Sendable>(
+    on queue: DispatchQueue,
+    cancellationCheck: (@Sendable () -> Bool)? = nil,
+    execute work: @escaping @Sendable () throws -> T
+) async throws -> T {
+    try Task.checkCancellation()
+    return try await withTaskCancellationHandler {
+        try await withCheckedThrowingContinuation { continuation in
+            queue.async {
+                if let check = cancellationCheck, check() {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                do {
+                    let result = try work()
+                    continuation.resume(returning: result)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    } onCancel: {}
+}

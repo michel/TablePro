@@ -75,17 +75,15 @@ enum RedisReply {
 
 // MARK: - Error Type
 
-struct RedisPluginError: Error, LocalizedError {
+struct RedisPluginError: Error {
     let code: Int
     let message: String
 
-    var errorDescription: String? { "Redis Error \(code): \(message)" }
-
-    static let notConnected = RedisPluginError(code: 0, message: "Not connected to Redis")
-    static let connectionFailed = RedisPluginError(code: 0, message: "Failed to establish connection")
+    static let notConnected = RedisPluginError(code: 0, message: String(localized: "Not connected to Redis"))
+    static let connectionFailed = RedisPluginError(code: 0, message: String(localized: "Failed to establish connection"))
     static let hiredisUnavailable = RedisPluginError(
         code: 0,
-        message: "Redis support requires hiredis. Run scripts/build-hiredis.sh first."
+        message: String(localized: "Redis support requires hiredis. Run scripts/build-hiredis.sh first.")
     )
 }
 
@@ -186,102 +184,88 @@ final class RedisPluginConnection: @unchecked Sendable {
     func connect() async throws {
         #if canImport(CRedis)
         _ = Self.initOnce
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            queue.async { [self] in
-                logger.debug("Connecting to Redis at \(self.host):\(self.port)")
+        try await pluginDispatchAsync(on: queue) { [self] in
+            logger.debug("Connecting to Redis at \(self.host):\(self.port)")
 
-                guard let ctx = redisConnect(host, Int32(port)) else {
-                    logger.error("Failed to create Redis context")
-                    continuation.resume(throwing: RedisPluginError.connectionFailed)
-                    return
+            guard let ctx = redisConnect(host, Int32(port)) else {
+                logger.error("Failed to create Redis context")
+                throw RedisPluginError.connectionFailed
+            }
+
+            if ctx.pointee.err != 0 {
+                let errMsg = withUnsafePointer(to: &ctx.pointee.errstr) { ptr in
+                    ptr.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
                 }
+                logger.error("Redis connection error: \(errMsg)")
+                let errCode = Int(ctx.pointee.err)
+                redisFree(ctx)
+                throw RedisPluginError(code: errCode, message: errMsg)
+            }
 
-                if ctx.pointee.err != 0 {
-                    let errMsg = withUnsafePointer(to: &ctx.pointee.errstr) { ptr in
-                        ptr.withMemoryRebound(to: CChar.self, capacity: 128) { String(cString: $0) }
-                    }
-                    logger.error("Redis connection error: \(errMsg)")
-                    let errCode = Int(ctx.pointee.err)
-                    redisFree(ctx)
-                    continuation.resume(throwing: RedisPluginError(code: errCode, message: errMsg))
-                    return
-                }
+            self.context = ctx
 
-                self.context = ctx
-
-                if sslConfig.isEnabled {
-                    do {
-                        try connectSSL(ctx)
-                    } catch {
-                        redisFree(ctx)
-                        self.context = nil
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                }
-
-                if let password = password, !password.isEmpty {
-                    do {
-                        let reply = try executeCommandSync(["AUTH", password])
-                        if case .error(let msg) = reply {
-                            redisFree(ctx)
-                            self.context = nil
-                            continuation.resume(throwing: RedisPluginError(code: 1, message: "AUTH failed: \(msg)"))
-                            return
-                        }
-                    } catch {
-                        redisFree(ctx)
-                        self.context = nil
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                }
-
-                if database != 0 {
-                    do {
-                        let reply = try executeCommandSync(["SELECT", String(database)])
-                        if case .error(let msg) = reply {
-                            redisFree(ctx)
-                            self.context = nil
-                            continuation.resume(
-                                throwing: RedisPluginError(code: 2, message: "SELECT \(database) failed: \(msg)")
-                            )
-                            return
-                        }
-                    } catch {
-                        redisFree(ctx)
-                        self.context = nil
-                        continuation.resume(throwing: error)
-                        return
-                    }
-                }
-
+            if sslConfig.isEnabled {
                 do {
-                    let reply = try executeCommandSync(["PING"])
+                    try connectSSL(ctx)
+                } catch {
+                    redisFree(ctx)
+                    self.context = nil
+                    throw error
+                }
+            }
+
+            if let password = password, !password.isEmpty {
+                do {
+                    let reply = try executeCommandSync(["AUTH", password])
                     if case .error(let msg) = reply {
                         redisFree(ctx)
                         self.context = nil
-                        continuation.resume(throwing: RedisPluginError(code: 3, message: "PING failed: \(msg)"))
-                        return
+                        throw RedisPluginError(code: 1, message: "AUTH failed: \(msg)")
                     }
                 } catch {
                     redisFree(ctx)
                     self.context = nil
-                    continuation.resume(throwing: error)
-                    return
+                    throw error
                 }
-
-                let versionString = fetchServerVersionSync()
-
-                stateLock.lock()
-                _cachedServerVersion = versionString
-                _isConnected = true
-                _currentDatabase = database
-                stateLock.unlock()
-
-                logger.info("Connected to Redis \(versionString ?? "unknown")")
-                continuation.resume()
             }
+
+            if database != 0 {
+                do {
+                    let reply = try executeCommandSync(["SELECT", String(database)])
+                    if case .error(let msg) = reply {
+                        redisFree(ctx)
+                        self.context = nil
+                        throw RedisPluginError(code: 2, message: "SELECT \(database) failed: \(msg)")
+                    }
+                } catch {
+                    redisFree(ctx)
+                    self.context = nil
+                    throw error
+                }
+            }
+
+            do {
+                let reply = try executeCommandSync(["PING"])
+                if case .error(let msg) = reply {
+                    redisFree(ctx)
+                    self.context = nil
+                    throw RedisPluginError(code: 3, message: "PING failed: \(msg)")
+                }
+            } catch {
+                redisFree(ctx)
+                self.context = nil
+                throw error
+            }
+
+            let versionString = fetchServerVersionSync()
+
+            stateLock.lock()
+            _cachedServerVersion = versionString
+            _isConnected = true
+            _currentDatabase = database
+            stateLock.unlock()
+
+            logger.info("Connected to Redis \(versionString ?? "unknown")")
         }
         #else
         throw RedisPluginError.hiredisUnavailable
@@ -362,21 +346,14 @@ final class RedisPluginConnection: @unchecked Sendable {
     func executeCommand(_ args: [String]) async throws -> RedisReply {
         #if canImport(CRedis)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<RedisReply, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, context != nil else {
-                    cont.resume(throwing: RedisPluginError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let result = try executeCommandSync(args)
-                    try checkCancelled()
-                    cont.resume(returning: result)
-                } catch {
-                    cont.resume(throwing: error)
-                }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, context != nil else {
+                throw RedisPluginError.notConnected
             }
+            try checkCancelled()
+            let result = try executeCommandSync(args)
+            try checkCancelled()
+            return result
         }
         #else
         throw RedisPluginError.hiredisUnavailable
@@ -386,21 +363,14 @@ final class RedisPluginConnection: @unchecked Sendable {
     func executePipeline(_ commands: [[String]]) async throws -> [RedisReply] {
         #if canImport(CRedis)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[RedisReply], Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, context != nil else {
-                    cont.resume(throwing: RedisPluginError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let results = try executePipelineSync(commands)
-                    try checkCancelled()
-                    cont.resume(returning: results)
-                } catch {
-                    cont.resume(throwing: error)
-                }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, context != nil else {
+                throw RedisPluginError.notConnected
             }
+            try checkCancelled()
+            let results = try executePipelineSync(commands)
+            try checkCancelled()
+            return results
         }
         #else
         throw RedisPluginError.hiredisUnavailable
@@ -412,29 +382,18 @@ final class RedisPluginConnection: @unchecked Sendable {
     func selectDatabase(_ index: Int) async throws {
         #if canImport(CRedis)
         resetCancellation()
-        try await withCheckedThrowingContinuation { [self] (continuation: CheckedContinuation<Void, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, context != nil else {
-                    continuation.resume(throwing: RedisPluginError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let reply = try executeCommandSync(["SELECT", String(index)])
-                    if case .error(let msg) = reply {
-                        continuation.resume(
-                            throwing: RedisPluginError(code: 2, message: "SELECT \(index) failed: \(msg)")
-                        )
-                        return
-                    }
-                    stateLock.lock()
-                    _currentDatabase = index
-                    stateLock.unlock()
-                    continuation.resume()
-                } catch {
-                    continuation.resume(throwing: error)
-                }
+        try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, context != nil else {
+                throw RedisPluginError.notConnected
             }
+            try checkCancelled()
+            let reply = try executeCommandSync(["SELECT", String(index)])
+            if case .error(let msg) = reply {
+                throw RedisPluginError(code: 2, message: "SELECT \(index) failed: \(msg)")
+            }
+            stateLock.lock()
+            _currentDatabase = index
+            stateLock.unlock()
         }
         #else
         throw RedisPluginError.hiredisUnavailable

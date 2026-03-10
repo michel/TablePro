@@ -121,7 +121,8 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                             columns: colNames,
                             columnTypeNames: colTypes,
                             rows: [],
-                            affectedRows: 0
+                            affectedRows: 0,
+                            isTruncated: false
                         )
                     }
                 }
@@ -133,7 +134,8 @@ final class OraclePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: result.columnTypeNames,
             rows: result.rows,
             rowsAffected: result.affectedRows,
-            executionTime: executionTime
+            executionTime: executionTime,
+            isTruncated: result.isTruncated
         )
     }
 

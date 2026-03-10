@@ -78,21 +78,10 @@ struct RedisSetOptions {
 }
 
 /// Error from parsing Redis CLI syntax
-enum RedisParseError: Error, LocalizedError {
+enum RedisParseError: Error {
     case emptySyntax
     case invalidArgument(String)
     case missingArgument(String)
-
-    var errorDescription: String? {
-        switch self {
-        case .emptySyntax:
-            return String(localized: "Empty Redis command")
-        case .invalidArgument(let msg):
-            return String(localized: "Invalid argument: \(msg)")
-        case .missingArgument(let msg):
-            return String(localized: "Missing argument: \(msg)")
-        }
-    }
 }
 
 extension RedisParseError: PluginDriverError {

@@ -91,7 +91,8 @@ final class RedshiftPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 columnTypeNames: result.columnTypeNames,
                 rows: result.rows,
                 rowsAffected: result.affectedRows,
-                executionTime: Date().timeIntervalSince(startTime)
+                executionTime: Date().timeIntervalSince(startTime),
+                isTruncated: result.isTruncated
             )
         } catch let error as NSError where !isRetry && isConnectionLostError(error) {
             try await reconnect()
@@ -110,7 +111,8 @@ final class RedshiftPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: result.columnTypeNames,
             rows: result.rows,
             rowsAffected: result.affectedRows,
-            executionTime: Date().timeIntervalSince(startTime)
+            executionTime: Date().timeIntervalSince(startTime),
+            isTruncated: result.isTruncated
         )
     }
 

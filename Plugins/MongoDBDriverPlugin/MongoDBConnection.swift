@@ -17,17 +17,15 @@ private let logger = Logger(subsystem: "com.TablePro", category: "MongoDBConnect
 
 // MARK: - Error Types
 
-struct MongoDBError: Error, LocalizedError {
+struct MongoDBError: Error {
     let code: UInt32
     let message: String
 
-    var errorDescription: String? { "MongoDB Error \(code): \(message)" }
-
-    static let notConnected = MongoDBError(code: 0, message: "Not connected to database")
-    static let connectionFailed = MongoDBError(code: 0, message: "Failed to establish connection")
+    static let notConnected = MongoDBError(code: 0, message: String(localized: "Not connected to database"))
+    static let connectionFailed = MongoDBError(code: 0, message: String(localized: "Failed to establish connection"))
     static let libmongocUnavailable = MongoDBError(
         code: 0,
-        message: "MongoDB support requires libmongoc. Run scripts/build-libmongoc.sh first."
+        message: String(localized: "MongoDB support requires libmongoc. Run scripts/build-libmongoc.sh first.")
     )
 }
 
@@ -212,53 +210,46 @@ final class MongoDBConnection: @unchecked Sendable {
     func connect() async throws {
         #if canImport(CLibMongoc)
         _ = Self.initOnce
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            queue.async { [self] in
-                let uriString = buildUri()
-                logger.debug("Connecting to MongoDB at \(self.host):\(self.port)")
+        try await pluginDispatchAsync(on: queue) { [self] in
+            let uriString = buildUri()
+            logger.debug("Connecting to MongoDB at \(self.host):\(self.port)")
 
-                guard let newClient = mongoc_client_new(uriString) else {
-                    logger.error("Failed to create MongoDB client")
-                    continuation.resume(throwing: MongoDBError.connectionFailed)
-                    return
-                }
-
-                // Verify connection with a ping
-                var error = bson_error_t()
-                guard let pingCmd = jsonToBson("{\"ping\": 1}") else {
-                    mongoc_client_destroy(newClient)
-                    continuation.resume(throwing: MongoDBError.connectionFailed)
-                    return
-                }
-                defer { bson_destroy(pingCmd) }
-
-                let reply = bson_new()
-                defer { bson_destroy(reply) }
-
-                let dbName = database.isEmpty ? "admin" : database
-                let success = dbName.withCString { dbNamePtr in
-                    mongoc_client_command_simple(newClient, dbNamePtr, pingCmd, nil, reply, &error)
-                }
-
-                guard success else {
-                    let errorMsg = bsonErrorMessage(&error)
-                    mongoc_client_destroy(newClient)
-                    logger.error("MongoDB ping failed: \(errorMsg)")
-                    continuation.resume(throwing: MongoDBError(code: error.code, message: errorMsg))
-                    return
-                }
-
-                self.client = newClient
-                let versionString = self.fetchServerVersionSync()
-
-                self.stateLock.lock()
-                self._cachedServerVersion = versionString
-                self._isConnected = true
-                self.stateLock.unlock()
-
-                logger.info("Connected to MongoDB \(versionString ?? "unknown")")
-                continuation.resume()
+            guard let newClient = mongoc_client_new(uriString) else {
+                logger.error("Failed to create MongoDB client")
+                throw MongoDBError.connectionFailed
             }
+
+            var error = bson_error_t()
+            guard let pingCmd = jsonToBson("{\"ping\": 1}") else {
+                mongoc_client_destroy(newClient)
+                throw MongoDBError.connectionFailed
+            }
+            defer { bson_destroy(pingCmd) }
+
+            let reply = bson_new()
+            defer { bson_destroy(reply) }
+
+            let dbName = database.isEmpty ? "admin" : database
+            let success = dbName.withCString { dbNamePtr in
+                mongoc_client_command_simple(newClient, dbNamePtr, pingCmd, nil, reply, &error)
+            }
+
+            guard success else {
+                let errorMsg = bsonErrorMessage(&error)
+                mongoc_client_destroy(newClient)
+                logger.error("MongoDB ping failed: \(errorMsg)")
+                throw MongoDBError(code: error.code, message: errorMsg)
+            }
+
+            self.client = newClient
+            let versionString = self.fetchServerVersionSync()
+
+            self.stateLock.lock()
+            self._cachedServerVersion = versionString
+            self._isConnected = true
+            self.stateLock.unlock()
+
+            logger.info("Connected to MongoDB \(versionString ?? "unknown")")
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -317,27 +308,23 @@ final class MongoDBConnection: @unchecked Sendable {
 
     func ping() async throws -> Bool {
         #if canImport(CLibMongoc)
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<Bool, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                var error = bson_error_t()
-                guard let command = jsonToBson("{\"ping\": 1}") else {
-                    cont.resume(returning: false)
-                    return
-                }
-                defer { bson_destroy(command) }
-                let reply = bson_new()
-                defer { bson_destroy(reply) }
-
-                let dbName = database.isEmpty ? "admin" : database
-                let ok = dbName.withCString { ptr in
-                    mongoc_client_command_simple(client, ptr, command, nil, reply, &error)
-                }
-                cont.resume(returning: ok)
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            var error = bson_error_t()
+            guard let command = jsonToBson("{\"ping\": 1}") else {
+                return false
+            }
+            defer { bson_destroy(command) }
+            let reply = bson_new()
+            defer { bson_destroy(reply) }
+
+            let dbName = database.isEmpty ? "admin" : database
+            let ok = dbName.withCString { ptr in
+                mongoc_client_command_simple(client, ptr, command, nil, reply, &error)
+            }
+            return ok
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -358,21 +345,14 @@ final class MongoDBConnection: @unchecked Sendable {
     func runCommand(_ command: String, database: String? = nil) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let result = try runCommandSync(client: client, command: command, database: database)
-                    try checkCancelled()
-                    cont.resume(returning: result)
-                } catch {
-                    cont.resume(throwing: error)
-                }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            let result = try runCommandSync(client: client, command: command, database: database)
+            try checkCancelled()
+            return result
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -392,21 +372,15 @@ final class MongoDBConnection: @unchecked Sendable {
     ) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let result = try findSync(
-                        client: client, database: database, collection: collection,
-                        filter: filter, sort: sort, projection: projection, skip: skip, limit: limit
-                    )
-                    cont.resume(returning: result)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try findSync(
+                client: client, database: database, collection: collection,
+                filter: filter, sort: sort, projection: projection, skip: skip, limit: limit
+            )
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -416,20 +390,14 @@ final class MongoDBConnection: @unchecked Sendable {
     func aggregate(database: String, collection: String, pipeline: String) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let result = try aggregateSync(
-                        client: client, database: database, collection: collection, pipeline: pipeline
-                    )
-                    cont.resume(returning: result)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try aggregateSync(
+                client: client, database: database, collection: collection, pipeline: pipeline
+            )
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -439,21 +407,16 @@ final class MongoDBConnection: @unchecked Sendable {
     func countDocuments(database: String, collection: String, filter: String) async throws -> Int64 {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<Int64, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let count = try countDocumentsSync(
-                        client: client, database: database, collection: collection, filter: filter
-                    )
-                    try checkCancelled()
-                    cont.resume(returning: count)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            let count = try countDocumentsSync(
+                client: client, database: database, collection: collection, filter: filter
+            )
+            try checkCancelled()
+            return count
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -463,20 +426,14 @@ final class MongoDBConnection: @unchecked Sendable {
     func insertOne(database: String, collection: String, document: String) async throws -> String? {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<String?, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let id = try insertOneSync(
-                        client: client, database: database, collection: collection, document: document
-                    )
-                    cont.resume(returning: id)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try insertOneSync(
+                client: client, database: database, collection: collection, document: document
+            )
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -486,20 +443,14 @@ final class MongoDBConnection: @unchecked Sendable {
     func updateOne(database: String, collection: String, filter: String, update: String) async throws -> Int64 {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<Int64, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let modified = try updateOneSync(
-                        client: client, database: database, collection: collection, filter: filter, update: update
-                    )
-                    cont.resume(returning: modified)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try updateOneSync(
+                client: client, database: database, collection: collection, filter: filter, update: update
+            )
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -509,20 +460,14 @@ final class MongoDBConnection: @unchecked Sendable {
     func deleteOne(database: String, collection: String, filter: String) async throws -> Int64 {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<Int64, Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let deleted = try deleteOneSync(
-                        client: client, database: database, collection: collection, filter: filter
-                    )
-                    cont.resume(returning: deleted)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try deleteOneSync(
+                client: client, database: database, collection: collection, filter: filter
+            )
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -532,18 +477,12 @@ final class MongoDBConnection: @unchecked Sendable {
     func listDatabases() async throws -> [String] {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[String], Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let dbs = try listDatabasesSync(client: client)
-                    cont.resume(returning: dbs)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try listDatabasesSync(client: client)
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -553,18 +492,12 @@ final class MongoDBConnection: @unchecked Sendable {
     func listCollections(database: String) async throws -> [String] {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[String], Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let cols = try listCollectionsSync(client: client, database: database)
-                    cont.resume(returning: cols)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try listCollectionsSync(client: client, database: database)
         }
         #else
         throw MongoDBError.libmongocUnavailable
@@ -574,20 +507,14 @@ final class MongoDBConnection: @unchecked Sendable {
     func listIndexes(database: String, collection: String) async throws -> [[String: Any]] {
         #if canImport(CLibMongoc)
         resetCancellation()
-        return try await withCheckedThrowingContinuation { [self] (cont: CheckedContinuation<[[String: Any]], Error>) in
-            queue.async { [self] in
-                guard !isShuttingDown, let client = self.client else {
-                    cont.resume(throwing: MongoDBError.notConnected)
-                    return
-                }
-                do {
-                    try checkCancelled()
-                    let indexes = try listIndexesSync(
-                        client: client, database: database, collection: collection
-                    )
-                    cont.resume(returning: indexes)
-                } catch { cont.resume(throwing: error) }
+        return try await pluginDispatchAsync(on: queue) { [self] in
+            guard !isShuttingDown, let client = self.client else {
+                throw MongoDBError.notConnected
             }
+            try checkCancelled()
+            return try listIndexesSync(
+                client: client, database: database, collection: collection
+            )
         }
         #else
         throw MongoDBError.libmongocUnavailable

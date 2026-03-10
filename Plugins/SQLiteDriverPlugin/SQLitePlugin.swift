@@ -96,9 +96,11 @@ private actor SQLiteConnectionActor {
 
         var rows: [[String?]] = []
         var rowsAffected = 0
+        var truncated = false
 
         while sqlite3_step(statement) == SQLITE_ROW {
             if rows.count >= PluginRowLimits.defaultMax {
+                truncated = true
                 break
             }
 
@@ -128,7 +130,8 @@ private actor SQLiteConnectionActor {
             columnTypeNames: columnTypeNames,
             rows: rows,
             rowsAffected: rowsAffected,
-            executionTime: executionTime
+            executionTime: executionTime,
+            isTruncated: truncated
         )
     }
 
@@ -193,9 +196,11 @@ private actor SQLiteConnectionActor {
 
         var rows: [[String?]] = []
         var rowsAffected = 0
+        var truncated = false
 
         while sqlite3_step(statement) == SQLITE_ROW {
             if rows.count >= PluginRowLimits.defaultMax {
+                truncated = true
                 break
             }
 
@@ -225,7 +230,8 @@ private actor SQLiteConnectionActor {
             columnTypeNames: columnTypeNames,
             rows: rows,
             rowsAffected: rowsAffected,
-            executionTime: executionTime
+            executionTime: executionTime,
+            isTruncated: truncated
         )
     }
 }
@@ -236,6 +242,7 @@ private struct SQLiteRawResult: Sendable {
     let rows: [[String?]]
     let rowsAffected: Int
     let executionTime: TimeInterval
+    let isTruncated: Bool
 }
 
 // MARK: - SQLite Plugin Driver
@@ -300,7 +307,8 @@ final class SQLitePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: rawResult.columnTypeNames,
             rows: rawResult.rows,
             rowsAffected: rawResult.rowsAffected,
-            executionTime: rawResult.executionTime
+            executionTime: rawResult.executionTime,
+            isTruncated: rawResult.isTruncated
         )
     }
 
@@ -311,7 +319,8 @@ final class SQLitePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             columnTypeNames: rawResult.columnTypeNames,
             rows: rawResult.rows,
             rowsAffected: rawResult.rowsAffected,
-            executionTime: rawResult.executionTime
+            executionTime: rawResult.executionTime,
+            isTruncated: rawResult.isTruncated
         )
     }
 
@@ -656,20 +665,11 @@ final class SQLitePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
 // MARK: - Errors
 
-enum SQLitePluginError: LocalizedError {
+enum SQLitePluginError: Error {
     case connectionFailed(String)
     case notConnected
     case queryFailed(String)
     case unsupportedOperation
-
-    var errorDescription: String? {
-        switch self {
-        case .connectionFailed(let message): return "Connection failed: \(message)"
-        case .notConnected: return "Not connected to database"
-        case .queryFailed(let message): return "Query failed: \(message)"
-        case .unsupportedOperation: return "Operation not supported"
-        }
-    }
 }
 
 extension SQLitePluginError: PluginDriverError {

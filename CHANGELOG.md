@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Result truncation at 100K rows now reported to UI via `PluginQueryResult.isTruncated` instead of being silently discarded
 - DELETE and UPDATE queries using all columns in WHERE clause instead of just the primary key for PostgreSQL, Redshift, MSSQL, and ClickHouse
 - SSL/TLS always being enabled for MongoDB, Redis, and ClickHouse connections due to case mismatch in SSL mode string comparison (#249)
 - Redis sidebar click showing data briefly then going empty due to double-navigation race condition (#251)
@@ -16,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Unified error formatting across all database drivers via default `PluginDriverError.errorDescription`, removing 10 per-driver implementations
+- Standardized async bridging: 5 queue-based drivers (MySQL, PostgreSQL, MongoDB, Redis, MSSQL) now use shared `pluginDispatchAsync` helper
+- Added localization to remaining driver error messages (MySQL, PostgreSQL, ClickHouse, Oracle, Redis, MongoDB)
 - NoSQL query building moved from Core to MongoDB/Redis plugins via optional `PluginDatabaseDriver` protocol methods
 - Standardized parameter binding across all database drivers with improved default escaping (type-aware numeric handling, NUL byte stripping, NULL literal support)
 
