@@ -23,10 +23,6 @@ build_plugin() {
 
     echo "Building $PLUGIN_TARGET ($arch)..." >&2
 
-    # Persistent SPM package cache (speeds up CI on self-hosted runners)
-    SPM_CACHE_DIR="${HOME}/.spm-cache"
-    mkdir -p "$SPM_CACHE_DIR"
-
     if ! xcodebuild \
         -project "$PROJECT" \
         -target "$PLUGIN_TARGET" \
@@ -38,7 +34,6 @@ build_plugin() {
         CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
         -skipPackagePluginValidation \
-        -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
         build 2>&1 | tee "build-plugin-${arch}.log" >&2; then
         echo "FATAL: xcodebuild failed for $PLUGIN_TARGET ($arch)" >&2
         echo "Check build-plugin-${arch}.log for details" >&2
