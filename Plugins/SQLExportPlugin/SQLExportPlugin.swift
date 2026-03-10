@@ -63,10 +63,6 @@ final class SQLExportPlugin: ExportFormatPlugin {
         AnyView(SQLExportOptionsView(plugin: self))
     }
 
-    func settingsView() -> AnyView? {
-        optionsView()
-    }
-
     func export(
         tables: [PluginExportTable],
         dataSource: any PluginExportDataSource,

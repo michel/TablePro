@@ -33,10 +33,6 @@ final class JSONExportPlugin: ExportFormatPlugin {
         AnyView(JSONExportOptionsView(plugin: self))
     }
 
-    func settingsView() -> AnyView? {
-        optionsView()
-    }
-
     func export(
         tables: [PluginExportTable],
         dataSource: any PluginExportDataSource,

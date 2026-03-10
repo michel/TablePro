@@ -48,10 +48,6 @@ final class MQLExportPlugin: ExportFormatPlugin {
         AnyView(MQLExportOptionsView(plugin: self))
     }
 
-    func settingsView() -> AnyView? {
-        optionsView()
-    }
-
     func export(
         tables: [PluginExportTable],
         dataSource: any PluginExportDataSource,

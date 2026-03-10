@@ -177,10 +177,10 @@ struct InstalledPluginsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let instance = pluginManager.pluginInstances[plugin.id],
-               let settingsView = instance.settingsView() {
+            if let exportPlugin = pluginManager.pluginInstances[plugin.id] as? any ExportFormatPlugin,
+               let exportSettings = exportPlugin.optionsView() {
                 Divider()
-                settingsView
+                exportSettings
             }
 
             if plugin.source == .userInstalled {

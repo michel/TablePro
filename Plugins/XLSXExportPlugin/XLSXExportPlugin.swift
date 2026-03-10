@@ -33,10 +33,6 @@ final class XLSXExportPlugin: ExportFormatPlugin {
         AnyView(XLSXExportOptionsView(plugin: self))
     }
 
-    func settingsView() -> AnyView? {
-        optionsView()
-    }
-
     func export(
         tables: [PluginExportTable],
         dataSource: any PluginExportDataSource,
