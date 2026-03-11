@@ -216,6 +216,41 @@ existing Vietnamese entries in the file.
 **Important:** These changelog files are staged and committed together
 with the release in Step 3 — no separate commit needed.
 
+### Step 7: Check for Separate Plugin Changes
+
+After the app release is pushed, check if any **separate plugin bundles**
+(Oracle, ClickHouse, SQLite, DuckDB) have changes since their last
+release. Also check `Plugins/TableProPluginKit/` — changes there affect
+all plugins.
+
+**Detection**: For each separate plugin, find its latest tag and check
+for commits:
+
+```bash
+# Separate plugins and their directory + tag-name mappings:
+#   Oracle:     Plugins/OracleDriverPlugin/     plugin-oracle
+#   ClickHouse: Plugins/ClickHouseDriverPlugin/  plugin-clickhouse
+#   SQLite:     Plugins/SQLiteDriverPlugin/      plugin-sqlite
+#   DuckDB:     Plugins/DuckDBDriverPlugin/      plugin-duckdb
+
+# For each plugin, find the latest tag:
+LAST_TAG=$(git tag -l "plugin-<name>-v*" --sort=-version:refname | head -1)
+
+# Check for changes since that tag (include PluginKit as shared dependency):
+git log --oneline "$LAST_TAG"..HEAD -- Plugins/<PluginDir>/ Plugins/TableProPluginKit/
+```
+
+If `LAST_TAG` is empty (never released), check for changes since the
+beginning of the repo.
+
+**If changes are found**: Tell the user which plugins have changes, show
+the relevant commits, and ask if they want to release them. Suggest
+bumping the patch version from the last tag (e.g., `1.0.0` → `1.0.1`).
+If the user confirms, proceed with the plugin release steps below for
+each plugin.
+
+**If no changes**: Skip — do not release plugins unnecessarily.
+
 ## Post-release Summary
 
 After all pushes, print a summary:
@@ -228,13 +263,21 @@ Monitor: https://github.com/datlechin/TablePro/actions
 Release: https://github.com/datlechin/TablePro/releases/tag/v<version>
 ```
 
+If plugin releases were also triggered, append:
+
+```
+Plugin releases:
+- <DisplayName> v<plugin-version>: https://github.com/datlechin/TablePro/releases/tag/plugin-<name>-v<plugin-version>
+```
+
 ---
 
 ## Plugin Releases
 
 Separate plugin bundles (Oracle, ClickHouse, SQLite, DuckDB) are released
 independently from the main app via a dedicated workflow
-(`.github/workflows/build-plugin.yml`).
+(`.github/workflows/build-plugin.yml`). They are also checked
+automatically during app releases (Step 7 above).
 
 ### Usage
 
@@ -253,7 +296,7 @@ plugin-<name>-v<version>
 Examples: `plugin-oracle-v1.0.0`, `plugin-clickhouse-v1.2.0`
 
 The `<name>` must match one of the cases in the workflow's mapping:
-`oracle`, `clickhouse` (redis and duckdb need to be added to the
+`oracle`, `clickhouse` (sqlite and duckdb need to be added to the
 workflow's case statement when ready).
 
 ### Plugin Release Steps
