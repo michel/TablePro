@@ -823,6 +823,11 @@ struct ConnectionFormView: View {
             mongoReadPreference = existing.mongoReadPreference ?? ""
             mongoWriteConcern = existing.mongoWriteConcern ?? ""
 
+            // Load Redis settings
+            if existing.type == .redis, let rdb = existing.redisDatabase {
+                database = String(rdb)
+            }
+
             // Load MSSQL settings
             mssqlSchema = existing.mssqlSchema ?? "dbo"
 
@@ -894,6 +899,7 @@ struct ConnectionFormView: View {
             mongoAuthSource: mongoAuthSource.isEmpty ? nil : mongoAuthSource,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
+            redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
             mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
             oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -1026,6 +1032,7 @@ struct ConnectionFormView: View {
             mongoAuthSource: mongoAuthSource.isEmpty ? nil : mongoAuthSource,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
+            redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
             mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
             oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

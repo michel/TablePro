@@ -171,10 +171,12 @@ final class MongoDBConnection: @unchecked Sendable {
         uri += database.isEmpty ? "/" : "/\(encodedDb)"
 
         let effectiveAuthSource = authSource.flatMap { $0.isEmpty ? nil : $0 } ?? "admin"
+        let encodedAuthSource = effectiveAuthSource
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? effectiveAuthSource
         var params: [String] = [
             "connectTimeoutMS=10000",
             "serverSelectionTimeoutMS=10000",
-            "authSource=\(effectiveAuthSource)"
+            "authSource=\(encodedAuthSource)"
         ]
 
         let sslEnabled = ["Preferred", "Required", "Verify CA", "Verify Identity"].contains(sslMode)
