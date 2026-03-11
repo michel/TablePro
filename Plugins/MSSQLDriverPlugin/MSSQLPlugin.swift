@@ -92,6 +92,7 @@ private final class FreeTDSConnection: @unchecked Sendable {
     private let database: String
     private let lock = NSLock()
     private var _isConnected = false
+    private var _isCancelled = false
 
     var isConnected: Bool {
         lock.lock()
@@ -172,6 +173,16 @@ private final class FreeTDSConnection: @unchecked Sendable {
         }
     }
 
+    func cancelCurrentQuery() {
+        lock.lock()
+        _isCancelled = true
+        let proc = dbproc
+        lock.unlock()
+
+        guard let proc else { return }
+        dbcancel(proc)
+    }
+
     func executeQuery(_ query: String) async throws -> FreeTDSQueryResult {
         let queryToRun = String(query)
         return try await pluginDispatchAsync(on: queue) { [self] in
@@ -185,6 +196,10 @@ private final class FreeTDSConnection: @unchecked Sendable {
         }
 
         _ = dbcanquery(proc)
+
+        lock.lock()
+        _isCancelled = false
+        lock.unlock()
 
         freetdsLastError = ""
         if dbcmd(proc, query) == FAIL {
@@ -231,6 +246,14 @@ private final class FreeTDSConnection: @unchecked Sendable {
                 let rowCode = dbnextrow(proc)
                 if rowCode == Int32(NO_MORE_ROWS) { break }
                 if rowCode == FAIL { break }
+
+                lock.lock()
+                let cancelled = _isCancelled
+                if cancelled { _isCancelled = false }
+                lock.unlock()
+                if cancelled {
+                    throw MSSQLPluginError.queryFailed("Query cancelled")
+                }
 
                 var row: [String?] = []
                 for i in 1...numCols {
@@ -384,6 +407,16 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             executionTime: Date().timeIntervalSince(startTime),
             isTruncated: result.isTruncated
         )
+    }
+
+    func cancelQuery() throws {
+        freeTDSConn?.cancelCurrentQuery()
+    }
+
+    func applyQueryTimeout(_ seconds: Int) async throws {
+        guard seconds > 0 else { return }
+        let ms = seconds * 1_000
+        _ = try await execute(query: "SET LOCK_TIMEOUT \(ms)")
     }
 
     func executeParameterized(query: String, parameters: [String?]) async throws -> PluginQueryResult {
