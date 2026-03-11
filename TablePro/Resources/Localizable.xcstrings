@@ -2715,6 +2715,9 @@
         }
       }
     },
+    "Cell Value" : {
+
+    },
     "Change Color" : {
       "localizations" : {
         "vi" : {
@@ -4098,6 +4101,7 @@
       }
     },
     "Copy Cell Value" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -17189,6 +17193,9 @@
           }
         }
       }
+    },
+    "With Headers" : {
+
     },
     "Word wrap" : {
       "localizations" : {
