@@ -60,6 +60,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         "mssql", "sqlserver", "oracle"
     ]
 
+    private static let sqliteFileExtensions: Set<String> = [
+        "sqlite", "sqlite3", "db3", "s3db", "sl3", "sqlitedb"
+    ]
+
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
 
@@ -200,8 +204,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Handle SQLite database files (double-click from Finder)
-        let sqliteExtensions: Set<String> = ["sqlite", "sqlite3", "db3", "s3db", "sl3", "sqlitedb"]
-        let sqliteFileURLs = urls.filter { sqliteExtensions.contains($0.pathExtension.lowercased()) }
+        let sqliteFileURLs = urls.filter { Self.sqliteFileExtensions.contains($0.pathExtension.lowercased()) }
         if !sqliteFileURLs.isEmpty {
             isHandlingFileOpen = true
             fileOpenSuppressionCount += 1
@@ -217,34 +220,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Handle SQL files (existing logic unchanged)
+        // Handle SQL files
         let sqlURLs = urls.filter { $0.pathExtension.lowercased() == "sql" }
-        guard !sqlURLs.isEmpty else { return }
+        if !sqlURLs.isEmpty {
+            if DatabaseManager.shared.currentSession != nil {
+                // Suppress any welcome window that SwiftUI may create as a
+                // side-effect of the app being activated by the file-open event.
+                isHandlingFileOpen = true
+                fileOpenSuppressionCount += 1
 
-        if DatabaseManager.shared.currentSession != nil {
-            // Suppress any welcome window that SwiftUI may create as a
-            // side-effect of the app being activated by the file-open event.
-            isHandlingFileOpen = true
-            fileOpenSuppressionCount += 1
+                // Already connected — bring main window to front and open files
+                for window in NSApp.windows where isMainWindow(window) {
+                    window.makeKeyAndOrderFront(nil)
+                }
+                // Close welcome window if it's already open
+                for window in NSApp.windows where isWelcomeWindow(window) {
+                    window.close()
+                }
+                NotificationCenter.default.post(name: .openSQLFiles, object: sqlURLs)
 
-            // Already connected — bring main window to front and open files
-            for window in NSApp.windows where isMainWindow(window) {
-                window.makeKeyAndOrderFront(nil)
+                // SwiftUI may asynchronously create a welcome window after this
+                // method returns (scene restoration on activation).  Schedule
+                // multiple cleanup passes so we catch windows that appear late.
+                scheduleWelcomeWindowSuppression()
+            } else {
+                // Not connected — queue and show welcome window
+                queuedFileURLs.append(contentsOf: sqlURLs)
+                openWelcomeWindow()
             }
-            // Close welcome window if it's already open
-            for window in NSApp.windows where isWelcomeWindow(window) {
-                window.close()
-            }
-            NotificationCenter.default.post(name: .openSQLFiles, object: sqlURLs)
-
-            // SwiftUI may asynchronously create a welcome window after this
-            // method returns (scene restoration on activation).  Schedule
-            // multiple cleanup passes so we catch windows that appear late.
-            scheduleWelcomeWindowSuppression()
-        } else {
-            // Not connected — queue and show welcome window
-            queuedFileURLs.append(contentsOf: sqlURLs)
-            openWelcomeWindow()
         }
     }
 
