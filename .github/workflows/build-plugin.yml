@@ -48,6 +48,26 @@ jobs:
               BUNDLE_NAME="ClickHouseDriver"
               HOMEPAGE="https://tablepro.app/databases/clickhouse"
               ;;
+            sqlite)
+              TARGET="SQLiteDriver"
+              BUNDLE_ID="com.TablePro.SQLiteDriver"
+              DISPLAY_NAME="SQLite Driver"
+              SUMMARY="SQLite embedded database driver"
+              DB_TYPE_IDS='["SQLite"]'
+              ICON="internaldrive"
+              BUNDLE_NAME="SQLiteDriver"
+              HOMEPAGE="https://tablepro.app/databases/sqlite"
+              ;;
+            duckdb)
+              TARGET="DuckDBDriver"
+              BUNDLE_ID="com.TablePro.DuckDBDriver"
+              DISPLAY_NAME="DuckDB Driver"
+              SUMMARY="DuckDB analytical database driver"
+              DB_TYPE_IDS='["DuckDB"]'
+              ICON="bird"
+              BUNDLE_NAME="DuckDBDriver"
+              HOMEPAGE="https://tablepro.app/databases/duckdb"
+              ;;
             *) echo "Unknown plugin: $PLUGIN_NAME"; exit 1 ;;
           esac
 
