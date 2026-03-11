@@ -424,7 +424,8 @@ final class DatabaseManager {
             username: connection.username,
             type: connection.type,
             sshConfig: SSHConfiguration(),
-            sslConfig: tunnelSSL
+            sslConfig: tunnelSSL,
+            additionalFields: connection.additionalFields
         )
     }
 

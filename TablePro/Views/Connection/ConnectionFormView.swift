@@ -84,6 +84,7 @@ struct ConnectionFormView: View {
 
     // Pgpass
     @State private var usePgpass: Bool = false
+    @State private var pgpassStatus: PgpassStatus = .notChecked
 
     // Pre-connect script
     @State private var preConnectScript: String = ""
@@ -164,6 +165,11 @@ struct ConnectionFormView: View {
         .pluginInstallPrompt(connection: $pluginInstallConnection) { connection in
             connectAfterInstall(connection)
         }
+        .onChange(of: usePgpass) { _, _ in updatePgpassStatus() }
+        .onChange(of: host) { _, _ in updatePgpassStatus() }
+        .onChange(of: port) { _, _ in updatePgpassStatus() }
+        .onChange(of: database) { _, _ in updatePgpassStatus() }
+        .onChange(of: username) { _, _ in updatePgpassStatus() }
     }
 
     // MARK: - Tab Picker Helpers
@@ -361,42 +367,37 @@ struct ConnectionFormView: View {
 
     @ViewBuilder
     private var pgpassStatusView: some View {
-        if !PgpassReader.fileExists() {
+        switch pgpassStatus {
+        case .notChecked:
+            EmptyView()
+        case .fileNotFound:
             Label(
                 String(localized: "~/.pgpass not found"),
                 systemImage: "exclamationmark.triangle.fill"
             )
             .foregroundStyle(.yellow)
             .font(.caption)
-        } else if !PgpassReader.filePermissionsAreValid() {
+        case .badPermissions:
             Label(
                 String(localized: "~/.pgpass has incorrect permissions (needs chmod 0600)"),
                 systemImage: "xmark.circle.fill"
             )
             .foregroundStyle(.red)
             .font(.caption)
-        } else {
-            let match = PgpassReader.resolve(
-                host: host.isEmpty ? "localhost" : host,
-                port: Int(port) ?? DatabaseType.postgresql.defaultPort,
-                database: database,
-                username: username.isEmpty ? "root" : username
+        case .matchFound:
+            Label(
+                String(localized: "~/.pgpass found — matching entry exists"),
+                systemImage: "checkmark.circle.fill"
             )
-            if match != nil {
-                Label(
-                    String(localized: "~/.pgpass found — matching entry exists"),
-                    systemImage: "checkmark.circle.fill"
-                )
-                .foregroundStyle(.green)
-                .font(.caption)
-            } else {
-                Label(
-                    String(localized: "~/.pgpass found — no matching entry"),
-                    systemImage: "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(.yellow)
-                .font(.caption)
-            }
+            .foregroundStyle(.green)
+            .font(.caption)
+        case .noMatch:
+            Label(
+                String(localized: "~/.pgpass found — no matching entry"),
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.yellow)
+            .font(.caption)
         }
     }
 
@@ -823,6 +824,19 @@ struct ConnectionFormView: View {
                 )
             }
         }
+    }
+
+    private func updatePgpassStatus() {
+        guard usePgpass, type == .postgresql || type == .redshift else {
+            pgpassStatus = .notChecked
+            return
+        }
+        pgpassStatus = PgpassStatus.check(
+            host: host.isEmpty ? "localhost" : host,
+            port: Int(port) ?? type.defaultPort,
+            database: database,
+            username: username.isEmpty ? "root" : username
+        )
     }
 
     private func loadConnectionData() {
@@ -1277,6 +1291,25 @@ struct ConnectionFormView: View {
         } else {
             customSSHAgentSocketPath = ""
         }
+    }
+}
+
+// MARK: - Pgpass Status
+
+private enum PgpassStatus {
+    case notChecked
+    case fileNotFound
+    case badPermissions
+    case matchFound
+    case noMatch
+
+    static func check(host: String, port: Int, database: String, username: String) -> PgpassStatus {
+        guard PgpassReader.fileExists() else { return .fileNotFound }
+        guard PgpassReader.filePermissionsAreValid() else { return .badPermissions }
+        if PgpassReader.resolve(host: host, port: port, database: database, username: username) != nil {
+            return .matchFound
+        }
+        return .noMatch
     }
 }
 
