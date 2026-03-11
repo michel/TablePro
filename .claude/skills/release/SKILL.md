@@ -3,24 +3,28 @@ name: release
 description: >
   Prepares and ships a new TablePro release — bumps version numbers in
   project.pbxproj, finalizes CHANGELOG.md, commits, tags, and pushes.
-  Use this skill whenever the user says "release", "bump version",
-  "ship version", "tag a release", "cut a release", or provides a
-  version number they want to release (e.g., "/release 0.5.0").
+  Also handles separate plugin releases (Redis, Oracle, ClickHouse,
+  DuckDB). Use this skill whenever the user says "release", "bump
+  version", "ship version", "tag a release", "cut a release", or
+  provides a version number they want to release (e.g., "/release 0.5.0",
+  "/release plugin-oracle 1.0.0").
 ---
 
 # Release Version
 
-Automate the full release pipeline for TablePro. The user provides the
-target version (e.g., `0.5.0`). You handle everything from version bump
-through git push.
+Automate the full release pipeline for TablePro. Supports two modes:
+
+- **App release**: `/release <version>` — bumps versions, finalizes
+  changelog, commits, tags, and pushes.
+- **Plugin release**: `/release plugin-<name> <version>` — tags and
+  pushes a separate plugin bundle release.
 
 ## Usage
 
 ```
-/release <version>
+/release <version>              # App release (e.g., /release 0.5.0)
+/release plugin-<name> <version> # Plugin release (e.g., /release plugin-oracle 1.0.0)
 ```
-
-Example: `/release 0.5.0`
 
 ## Pre-flight Checks
 
@@ -67,25 +71,31 @@ fails, stop and tell the user what's wrong.
 
 File: `TablePro.xcodeproj/project.pbxproj`
 
-There are exactly **4 lines** to update — 2 for `MARKETING_VERSION` and
-2 for `CURRENT_PROJECT_VERSION`, all belonging to the **main app target**
-(Debug + Release configs).
+Update the **main app target only** (Debug + Release configs = 2 lines
+each):
 
 - Set `MARKETING_VERSION` to the new version (e.g., `0.5.0`)
 - Increment `CURRENT_PROJECT_VERSION` by 1 from its current value
 
-**Do NOT touch** the test target's version lines (they have
-`MARKETING_VERSION = 1.0` and `CURRENT_PROJECT_VERSION = 1`).
+**Do NOT touch** any other target's version lines. The pbxproj contains
+many targets beyond the main app — all with `MARKETING_VERSION = 1.0`
+and `CURRENT_PROJECT_VERSION = 1`:
 
-To identify the right lines: the main target's versions appear around
-lines 380-510 in pbxproj. The test target's are around lines 550-590.
-Always read the file and verify context before editing.
+- **Test target** (TableProTests)
+- **TableProPluginKit** framework
+- **Bundled plugins** (included in app bundle): MySQLDriverPlugin,
+  PostgreSQLDriverPlugin, MSSQLDriverPlugin, MongoDBDriverPlugin,
+  SQLiteDriverPlugin, plus export/import plugins (CSV, JSON, SQL,
+  XLSX, MQL export; SQL import)
+- **Separate plugin bundles** (not included in app bundle, distributed
+  independently): RedisDriverPlugin, OracleDriverPlugin,
+  ClickHouseDriverPlugin, DuckDBDriverPlugin
 
-Use `replace_all: true` for each edit — the main target's values are
-always different from the test target's values (test target has
-`MARKETING_VERSION = 1.0` and `CURRENT_PROJECT_VERSION = 1`), so
-`replace_all` safely targets only the correct occurrences. This is
-simpler than editing each of the 4 lines individually.
+Use `replace_all: true` for each edit — the main app target's version
+values are always unique (e.g., `MARKETING_VERSION = 0.16.1` and
+`CURRENT_PROJECT_VERSION = 30`), distinct from the `1.0` / `1` used by
+all other targets, so `replace_all` safely targets only the correct
+occurrences.
 
 ### Step 2: Finalize CHANGELOG.md
 
@@ -216,4 +226,65 @@ Release v<version> (build <build-number>) pushed successfully.
 CI will now build arm64 + x86_64, create DMG/ZIP, update appcast.xml, create GitHub Release.
 Monitor: https://github.com/datlechin/TablePro/actions
 Release: https://github.com/datlechin/TablePro/releases/tag/v<version>
+```
+
+---
+
+## Plugin Releases
+
+Separate plugin bundles (Redis, Oracle, ClickHouse, DuckDB) are released
+independently from the main app via a dedicated workflow
+(`.github/workflows/build-plugin.yml`).
+
+### Usage
+
+```
+/release plugin-<name> <version>
+```
+
+Example: `/release plugin-oracle 1.0.0`
+
+### Tag Format
+
+```
+plugin-<name>-v<version>
+```
+
+Examples: `plugin-oracle-v1.0.0`, `plugin-clickhouse-v1.2.0`
+
+The `<name>` must match one of the cases in the workflow's mapping:
+`oracle`, `clickhouse` (redis and duckdb need to be added to the
+workflow's case statement when ready).
+
+### Plugin Release Steps
+
+1. **Verify tag is available** — `git tag -l "plugin-<name>-v<version>"`
+2. **Tag** — `git tag plugin-<name>-v<version>`
+3. **Push tag** — `git push origin plugin-<name>-v<version>`
+
+No version bumps or changelog edits needed — plugin bundles keep
+`MARKETING_VERSION = 1.0` and `CURRENT_PROJECT_VERSION = 1` in pbxproj.
+The version is embedded via the tag only.
+
+### What CI Does
+
+The `build-plugin.yml` workflow:
+
+1. Extracts plugin name and version from the tag
+2. Builds ARM64 and x86_64 via `scripts/build-plugin.sh`
+3. Strips binaries, code signs, creates ZIPs with SHA-256 checksums
+4. Optionally notarizes (if `NOTARIZE_PLUGINS` var is set)
+5. Creates a GitHub Release with both arch ZIPs
+6. Updates the plugin registry (`datlechin/tablepro-plugins` repo's
+   `plugins.json`) with download URLs, SHA-256 hashes, and
+   `minAppVersion` (read from the current `MARKETING_VERSION`)
+
+### Post-plugin-release Summary
+
+```
+Plugin <DisplayName> v<version> tag pushed.
+
+CI will build arm64 + x86_64, create ZIPs, update plugin registry.
+Monitor: https://github.com/datlechin/TablePro/actions
+Release: https://github.com/datlechin/TablePro/releases/tag/plugin-<name>-v<version>
 ```
