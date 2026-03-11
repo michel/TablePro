@@ -179,6 +179,12 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .switchConnection))
             .disabled(!appState.isConnected || appState.isRedis)
 
+            Button("Quick Switcher...") {
+                actions?.openQuickSwitcher()
+            }
+            .optionalKeyboardShortcut(shortcut(for: .quickSwitcher))
+            .disabled(!appState.isConnected)
+
             Divider()
 
             Button("Save Changes") {

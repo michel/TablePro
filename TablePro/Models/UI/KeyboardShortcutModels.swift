@@ -47,6 +47,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case explainQuery
     case export
     case importData
+    case quickSwitcher
 
     // Edit
     case undo
@@ -84,7 +85,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .newConnection, .newTab, .openDatabase, .switchConnection,
              .saveChanges, .previewSQL, .closeTab, .refresh,
-             .explainQuery, .export, .importData:
+             .explainQuery, .export, .importData, .quickSwitcher:
             return .file
         case .undo, .redo, .cut, .copy, .copyWithHeaders, .paste,
              .delete, .selectAll, .clearSelection, .addRow,
@@ -113,6 +114,7 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .explainQuery: return String(localized: "Explain Query")
         case .export: return String(localized: "Export")
         case .importData: return String(localized: "Import")
+        case .quickSwitcher: return String(localized: "Quick Switcher")
         case .undo: return String(localized: "Undo")
         case .redo: return String(localized: "Redo")
         case .cut: return String(localized: "Cut")
@@ -408,6 +410,7 @@ struct KeyboardSettings: Codable, Equatable {
         .explainQuery: KeyCombo(key: "e", command: true, option: true),
         .export: KeyCombo(key: "e", command: true, shift: true),
         .importData: KeyCombo(key: "i", command: true, shift: true),
+        .quickSwitcher: KeyCombo(key: "p", command: true),
 
         // Edit
         .undo: KeyCombo(key: "z", command: true),

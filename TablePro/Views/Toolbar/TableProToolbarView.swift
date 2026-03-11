@@ -108,6 +108,16 @@ struct TableProToolbar: ViewModifier {
 
                 ToolbarItem(placement: .primaryAction) {
                     Button {
+                        actions?.openQuickSwitcher()
+                    } label: {
+                        Label("Quick Switcher", systemImage: "magnifyingglass")
+                    }
+                    .help("Quick Switcher (⌘P)")
+                    .disabled(state.connectionState != .connected)
+                }
+
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
                         actions?.newTab()
                     } label: {
                         Label("New Tab", systemImage: "plus.rectangle")
