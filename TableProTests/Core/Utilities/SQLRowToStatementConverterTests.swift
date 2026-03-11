@@ -4,8 +4,8 @@
 //
 
 import Foundation
-import Testing
 @testable import TablePro
+import Testing
 
 @Suite("SQL Row To Statement Converter")
 struct SQLRowToStatementConverterTests {
@@ -92,6 +92,13 @@ struct SQLRowToStatementConverterTests {
         #expect(result == "UPDATE `users` SET `id` = '1', `name` = NULL, `email` = 'alice@example.com' WHERE `id` = '1' AND `name` IS NULL AND `email` = 'alice@example.com';")
     }
 
+    @Test("UPDATE with PK uses IS NULL in WHERE when PK value is NULL")
+    func updateNullPrimaryKeyValue() {
+        let converter = makeConverter()
+        let result = converter.generateUpdates(rows: [[nil, "Alice", "alice@example.com"]])
+        #expect(result == "UPDATE `users` SET `name` = 'Alice', `email` = 'alice@example.com' WHERE `id` IS NULL;")
+    }
+
     // MARK: - Database-Specific Quoting
 
     @Test("ClickHouse uses ALTER TABLE ... UPDATE syntax")
@@ -120,6 +127,15 @@ struct SQLRowToStatementConverterTests {
         let converter = makeConverter(databaseType: .mysql)
         let result = converter.generateInserts(rows: [["1", "Alice", "alice@example.com"]])
         #expect(result == "INSERT INTO `users` (`id`, `name`, `email`) VALUES ('1', 'Alice', 'alice@example.com');")
+    }
+
+    @Test("DuckDB uses double-quote quoting and standard UPDATE syntax")
+    func duckdbUsesDoubleQuoteAndStandardUpdate() {
+        let converter = makeConverter(databaseType: .duckdb)
+        let insert = converter.generateInserts(rows: [["1", "Alice", "alice@example.com"]])
+        #expect(insert == "INSERT INTO \"users\" (\"id\", \"name\", \"email\") VALUES ('1', 'Alice', 'alice@example.com');")
+        let update = converter.generateUpdates(rows: [["1", "Alice", "alice@example.com"]])
+        #expect(update == "UPDATE \"users\" SET \"name\" = 'Alice', \"email\" = 'alice@example.com' WHERE \"id\" = '1';")
     }
 
     // MARK: - Edge Cases

@@ -49,7 +49,11 @@ struct SQLRowToStatementConverter {
                 return "\(quoteColumn(col)) = \(formatValue(value))"
             }
             setClause = setClauses.joined(separator: ", ")
-            whereClause = "\(quoteColumn(pkColumn)) = \(formatValue(pkValue))"
+            if pkValue == nil {
+                whereClause = "\(quoteColumn(pkColumn)) IS NULL"
+            } else {
+                whereClause = "\(quoteColumn(pkColumn)) = \(formatValue(pkValue))"
+            }
         } else {
             let allClauses = columns.enumerated().map { index, col -> String in
                 let value = row.indices.contains(index) ? row[index] : nil
