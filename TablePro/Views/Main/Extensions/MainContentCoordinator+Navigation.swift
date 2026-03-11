@@ -361,6 +361,22 @@ extension MainContentCoordinator {
             WHERE OWNER = '\(schema)'
             ORDER BY TABLE_NAME
             """
+        case .duckdb:
+            let schema: String
+            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
+                schema = schemaDriver.escapedSchema
+            } else {
+                schema = "main"
+            }
+            sql = """
+            SELECT
+                table_schema as schema_name,
+                table_name as name,
+                table_type as kind
+            FROM information_schema.tables
+            WHERE table_schema = '\(schema)'
+            ORDER BY table_name
+            """
         case .mongodb:
             tabManager.addTab(
                 initialQuery: "db.runCommand({\"listCollections\": 1, \"nameOnly\": false})",

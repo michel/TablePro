@@ -400,6 +400,79 @@ struct ClickHouseDialect: SQLDialectProvider {
     ]
 }
 
+// MARK: - DuckDB Dialect
+
+struct DuckDBDialect: SQLDialectProvider {
+    let identifierQuote = "\""
+
+    let keywords: Set<String> = [
+        // Core DML keywords
+        "SELECT", "FROM", "WHERE", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "FULL",
+        "ON", "USING", "AND", "OR", "NOT", "IN", "LIKE", "ILIKE", "BETWEEN", "AS",
+        "ORDER", "BY", "GROUP", "HAVING", "LIMIT", "OFFSET", "FETCH", "FIRST", "ROWS", "ONLY",
+        "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE",
+
+        // DDL keywords
+        "CREATE", "ALTER", "DROP", "TABLE", "INDEX", "VIEW", "DATABASE", "SCHEMA",
+        "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CONSTRAINT",
+        "ADD", "MODIFY", "COLUMN", "RENAME",
+
+        // Data attributes
+        "NULL", "IS", "ASC", "DESC", "DISTINCT", "ALL", "ANY", "SOME",
+
+        // Control flow
+        "CASE", "WHEN", "THEN", "ELSE", "END", "COALESCE", "NULLIF",
+
+        // Set operations
+        "UNION", "INTERSECT", "EXCEPT",
+
+        // DuckDB-specific
+        "COPY", "PRAGMA", "DESCRIBE", "SUMMARIZE", "PIVOT", "UNPIVOT",
+        "QUALIFY", "SAMPLE", "TABLESAMPLE", "RETURNING",
+        "INSTALL", "LOAD", "FORCE", "ATTACH", "DETACH",
+        "EXPORT", "IMPORT",
+        "WITH", "RECURSIVE", "MATERIALIZED",
+        "EXPLAIN", "ANALYZE",
+        "WINDOW", "OVER", "PARTITION"
+    ]
+
+    let functions: Set<String> = [
+        // Aggregate
+        "COUNT", "SUM", "AVG", "MAX", "MIN",
+        "LIST_AGG", "STRING_AGG", "ARRAY_AGG",
+
+        // String
+        "CONCAT", "SUBSTRING", "LEFT", "RIGHT", "LENGTH", "LOWER", "UPPER",
+        "TRIM", "LTRIM", "RTRIM", "REPLACE", "SPLIT_PART",
+
+        // Date/Time
+        "NOW", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+        "DATE_TRUNC", "EXTRACT", "AGE", "TO_CHAR", "TO_DATE",
+        "EPOCH_MS",
+
+        // Math
+        "ROUND", "CEIL", "CEILING", "FLOOR", "ABS", "MOD", "POW", "POWER", "SQRT",
+
+        // Conversion
+        "CAST",
+
+        // DuckDB-specific
+        "REGEXP_MATCHES", "READ_CSV", "READ_PARQUET", "READ_JSON",
+        "GLOB", "STRUCT_PACK", "LIST_VALUE", "MAP", "UNNEST",
+        "GENERATE_SERIES", "RANGE"
+    ]
+
+    let dataTypes: Set<String> = [
+        "INTEGER", "BIGINT", "HUGEINT", "UHUGEINT",
+        "DOUBLE", "FLOAT", "DECIMAL",
+        "VARCHAR", "TEXT", "BLOB",
+        "BOOLEAN",
+        "DATE", "TIME", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "INTERVAL",
+        "UUID", "JSON",
+        "LIST", "MAP", "STRUCT", "UNION", "ENUM", "BIT"
+    ]
+}
+
 // MARK: - Dialect Factory
 
 struct SQLDialectFactory {
@@ -422,6 +495,8 @@ struct SQLDialectFactory {
             return OracleDialect()
         case .clickhouse:
             return ClickHouseDialect()
+        case .duckdb:
+            return DuckDBDialect()
         }
     }
 }

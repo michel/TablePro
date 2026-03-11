@@ -35,6 +35,8 @@ enum DataTypeCategory: String, CaseIterable {
                 ]
             case .sqlite:
                 return ["INTEGER", "REAL", "NUMERIC"]
+            case .duckdb:
+                return ["INTEGER", "BIGINT", "HUGEINT", "SMALLINT", "TINYINT", "DOUBLE", "FLOAT", "DECIMAL", "REAL", "NUMERIC"]
             case .mongodb:
                 return ["Int32", "Int64", "Double", "Decimal128"]
             case .redis:
@@ -54,6 +56,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["String", "FixedString", "UUID", "IPv4", "IPv6"]
             case .sqlite:
                 return ["TEXT"]
+            case .duckdb:
+                return ["VARCHAR", "TEXT", "CHAR", "BPCHAR"]
             case .mongodb:
                 return ["String", "ObjectId", "UUID"]
             case .redis:
@@ -73,6 +77,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["Date", "Date32", "DateTime", "DateTime64"]
             case .sqlite:
                 return ["DATE", "DATETIME"]
+            case .duckdb:
+                return ["DATE", "TIME", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "INTERVAL"]
             case .mongodb:
                 return ["Date", "Timestamp"]
             case .redis:
@@ -92,6 +98,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return []
             case .sqlite:
                 return ["BLOB"]
+            case .duckdb:
+                return ["BLOB", "BYTEA"]
             case .mongodb:
                 return ["BinData"]
             case .redis:
@@ -111,6 +119,8 @@ enum DataTypeCategory: String, CaseIterable {
                 return ["Array", "Tuple", "Map", "Nested", "JSON", "Nullable", "LowCardinality", "Enum8", "Enum16", "Nothing"]
             case .sqlite:
                 return ["BOOLEAN"]
+            case .duckdb:
+                return ["BOOLEAN", "UUID", "JSON", "LIST", "MAP", "STRUCT", "ENUM", "BIT", "UNION"]
             case .mongodb:
                 return ["Boolean", "Object", "Array", "Null", "Regex"]
             case .redis:

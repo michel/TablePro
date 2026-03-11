@@ -68,6 +68,23 @@
 				<string>com.tablepro.sqlite-db</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>DuckDB Database</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>duckdb</string>
+				<string>ddb</string>
+			</array>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.tablepro.duckdb</string>
+			</array>
+		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
@@ -110,6 +127,24 @@
 					<string>s3db</string>
 					<string>sl3</string>
 					<string>sqlitedb</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>DuckDB Database</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.tablepro.duckdb</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>duckdb</string>
+					<string>ddb</string>
 				</array>
 			</dict>
 		</dict>
@@ -164,6 +199,7 @@
 				<string>mongodb+srv</string>
 				<string>mssql</string>
 				<string>sqlserver</string>
+				<string>duckdb</string>
 			</array>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>

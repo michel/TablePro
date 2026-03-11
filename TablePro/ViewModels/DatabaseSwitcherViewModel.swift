@@ -184,6 +184,8 @@ final class DatabaseSwitcherViewModel {
             return ["information_schema", "INFORMATION_SCHEMA", "system"].contains(name)
         case .sqlite:
             return false
+        case .duckdb:
+            return ["information_schema", "pg_catalog"].contains(name.lowercased())
         case .mongodb:
             return false
         case .redis:

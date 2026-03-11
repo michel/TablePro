@@ -126,7 +126,7 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return ""
-        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
+        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse, .duckdb:
             return " ESCAPE '\\'"
         }
     }
@@ -151,6 +151,8 @@ struct FilterSQLGenerator {
             return "\(column) REGEXP '\(escapedPattern)'"
         case .postgresql, .redshift:
             return "\(column) ~ '\(escapedPattern)'"
+        case .duckdb:
+            return "regexp_matches(\(column), '\(escapedPattern)')"
         case .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             return "\(column) LIKE '%\(escapedPattern)%'"
         }
@@ -169,10 +171,10 @@ struct FilterSQLGenerator {
 
         // Check for boolean literals
         if trimmed.caseInsensitiveCompare("TRUE") == .orderedSame {
-            return databaseType == .postgresql || databaseType == .redshift ? "TRUE" : "1"
+            return databaseType == .postgresql || databaseType == .redshift || databaseType == .duckdb ? "TRUE" : "1"
         }
         if trimmed.caseInsensitiveCompare("FALSE") == .orderedSame {
-            return databaseType == .postgresql || databaseType == .redshift ? "FALSE" : "0"
+            return databaseType == .postgresql || databaseType == .redshift || databaseType == .duckdb ? "FALSE" : "0"
         }
 
         // Try to detect numeric values

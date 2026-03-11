@@ -141,7 +141,7 @@ struct ConnectionFormView: View {
             if hasLoadedData {
                 port = String(newType.defaultPort)
             }
-            if newType == .sqlite && (selectedTab == .ssh || selectedTab == .ssl) {
+            if (newType == .sqlite || newType == .duckdb) && (selectedTab == .ssh || selectedTab == .ssl) {
                 selectedTab = .general
             }
             if newType.isDownloadablePlugin && !PluginManager.shared.isDriverAvailable(for: newType) {
@@ -156,7 +156,7 @@ struct ConnectionFormView: View {
     // MARK: - Tab Picker Helpers
 
     private var visibleTabs: [FormTab] {
-        if type == .sqlite {
+        if type == .sqlite || type == .duckdb {
             return [.general, .advanced]
         }
         return FormTab.allCases
@@ -219,13 +219,13 @@ struct ConnectionFormView: View {
                 }
             }
 
-            if type == .sqlite {
+            if type == .sqlite || type == .duckdb {
                 Section(String(localized: "Database File")) {
                     HStack {
                         TextField(
                             String(localized: "File Path"),
                             text: $database,
-                            prompt: Text("/path/to/database.sqlite")
+                            prompt: Text(type == .duckdb ? "/path/to/database.duckdb" : "/path/to/database.sqlite")
                         )
                         Button(String(localized: "Browse...")) { browseForFile() }
                             .controlSize(.small)
@@ -732,7 +732,7 @@ struct ConnectionFormView: View {
         case .postgresql: return "5432"
         case .redshift: return "5439"
         case .clickhouse: return "8123"
-        case .sqlite: return ""
+        case .sqlite, .duckdb: return ""
         case .mongodb: return "27017"
         case .redis: return "6379"
         case .mssql: return "1433"
@@ -742,7 +742,7 @@ struct ConnectionFormView: View {
 
     private var isValid: Bool {
         // Host and port can be empty (will use defaults: localhost and default port)
-        let basicValid = !name.isEmpty && (type == .sqlite ? !database.isEmpty : true)
+        let basicValid = !name.isEmpty && (type == .sqlite || type == .duckdb ? !database.isEmpty : true)
         if sshEnabled {
             let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty
             let authValid =

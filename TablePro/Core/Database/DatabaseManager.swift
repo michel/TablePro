@@ -189,8 +189,8 @@ final class DatabaseManager {
             // Post notification for reliable delivery
             NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
 
-            // Start health monitoring for network databases (skip SQLite)
-            if connection.type != .sqlite {
+            // Start health monitoring for network databases (skip SQLite and DuckDB)
+            if connection.type != .sqlite && connection.type != .duckdb {
                 await startHealthMonitor(for: connection.id)
             }
         } catch {
@@ -587,7 +587,7 @@ final class DatabaseManager {
             }
 
             // Restart health monitoring
-            if session.connection.type != .sqlite {
+            if session.connection.type != .sqlite && session.connection.type != .duckdb {
                 await startHealthMonitor(for: sessionId)
             }
 
@@ -748,7 +748,7 @@ final class DatabaseManager {
         driver: DatabaseDriver
     ) async -> String? {
         // Only needed for PostgreSQL PK modifications
-        guard databaseType == .postgresql || databaseType == .redshift else { return nil }
+        guard databaseType == .postgresql || databaseType == .redshift || databaseType == .duckdb else { return nil }
         guard
             changes.contains(where: {
                 if case .modifyPrimaryKey = $0 { return true }

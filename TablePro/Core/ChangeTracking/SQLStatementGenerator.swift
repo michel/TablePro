@@ -98,8 +98,8 @@ struct SQLStatementGenerator {
     /// Get placeholder syntax for the database type
     private func placeholder(at index: Int) -> String {
         switch databaseType {
-        case .postgresql, .redshift:
-            return "$\(index + 1)"  // PostgreSQL uses $1, $2, etc.
+        case .postgresql, .redshift, .duckdb:
+            return "$\(index + 1)"  // PostgreSQL/DuckDB uses $1, $2, etc.
         case .mysql, .mariadb, .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             return "?"  // MySQL, MariaDB, SQLite, MongoDB, MSSQL, Oracle, and ClickHouse use ?
         }
@@ -309,7 +309,7 @@ struct SQLStatementGenerator {
             case .clickhouse:
                 sql =
                     "ALTER TABLE \(databaseType.quoteIdentifier(tableName)) UPDATE \(setClauses) WHERE \(whereClause)"
-            case .postgresql, .redshift, .mongodb, .redis:
+            case .postgresql, .redshift, .duckdb, .mongodb, .redis:
                 sql =
                     "UPDATE \(databaseType.quoteIdentifier(tableName)) SET \(setClauses) WHERE \(whereClause)"
             }
@@ -401,7 +401,7 @@ struct SQLStatementGenerator {
         case .clickhouse:
             sql =
                 "ALTER TABLE \(databaseType.quoteIdentifier(tableName)) DELETE WHERE \(whereClause)"
-        case .postgresql, .redshift, .mongodb, .redis:
+        case .postgresql, .redshift, .duckdb, .mongodb, .redis:
             sql = "DELETE FROM \(databaseType.quoteIdentifier(tableName)) WHERE \(whereClause)"
         }
 

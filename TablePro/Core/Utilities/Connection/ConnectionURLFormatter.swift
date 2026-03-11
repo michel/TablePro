@@ -13,6 +13,10 @@ struct ConnectionURLFormatter {
             return formatSQLite(connection.database)
         }
 
+        if connection.type == .duckdb {
+            return formatDuckDB(connection.database)
+        }
+
         if connection.sshConfig.enabled {
             return formatSSH(connection, scheme: scheme, password: password)
         }
@@ -34,6 +38,7 @@ struct ConnectionURLFormatter {
         case .mssql: return "sqlserver"
         case .oracle: return "oracle"
         case .clickhouse: return "clickhouse"
+        case .duckdb: return "duckdb"
         }
     }
 
@@ -42,6 +47,13 @@ struct ConnectionURLFormatter {
             return "sqlite:///\(database.dropFirst())"
         }
         return "sqlite://\(database)"
+    }
+
+    private static func formatDuckDB(_ database: String) -> String {
+        if database.hasPrefix("/") {
+            return "duckdb:///\(database.dropFirst())"
+        }
+        return "duckdb://\(database)"
     }
 
     private static func formatSSH(

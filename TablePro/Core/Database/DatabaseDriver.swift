@@ -279,6 +279,8 @@ extension DatabaseDriver {
                 _ = try await execute(query: "SET statement_timeout = '\(ms)'")
             case .sqlite:
                 break  // SQLite busy_timeout handled by driver directly
+            case .duckdb:
+                break
             case .mongodb:
                 break  // MongoDB timeout handled per-operation by MongoDBDriver
             case .redis:
@@ -352,7 +354,7 @@ enum DatabaseDriverFactory {
             fields["mssqlSchema"] = connection.mssqlSchema ?? "dbo"
         case .oracle:
             fields["oracleServiceName"] = connection.oracleServiceName ?? ""
-        case .mysql, .mariadb, .sqlite, .clickhouse, .postgresql, .redshift:
+        case .mysql, .mariadb, .sqlite, .clickhouse, .postgresql, .redshift, .duckdb:
             break
         }
 
