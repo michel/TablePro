@@ -38,16 +38,30 @@ private actor DuckDBConnectionActor {
 
     func open(path: String) throws {
         var db: duckdb_database?
-        let state = duckdb_open(path, &db)
+        var errorPtr: UnsafeMutablePointer<CChar>?
+        let state = duckdb_open_ext(path, &db, nil, &errorPtr)
 
         if state == DuckDBError {
+            let detail: String
+            if let errPtr = errorPtr {
+                detail = String(cString: errPtr)
+                duckdb_free(errPtr)
+            } else {
+                detail = "unknown error"
+            }
+            throw DuckDBPluginError.connectionFailed(
+                "Failed to open DuckDB database at '\(path)': \(detail)"
+            )
+        }
+
+        guard let openedDB = db else {
             throw DuckDBPluginError.connectionFailed(
                 "Failed to open DuckDB database at '\(path)'"
             )
         }
 
         var conn: duckdb_connection?
-        let connState = duckdb_connect(db, &conn)
+        let connState = duckdb_connect(openedDB, &conn)
 
         if connState == DuckDBError {
             duckdb_close(&db)
@@ -59,12 +73,12 @@ private actor DuckDBConnectionActor {
     }
 
     func close() {
-        if var conn = connection {
-            duckdb_disconnect(&conn)
+        if connection != nil {
+            duckdb_disconnect(&connection)
             connection = nil
         }
-        if var db = database {
-            duckdb_close(&db)
+        if database != nil {
+            duckdb_close(&database)
             database = nil
         }
     }
@@ -103,22 +117,26 @@ private actor DuckDBConnectionActor {
         }
 
         let startTime = Date()
-        var stmt: duckdb_prepared_statement?
+        var stmtOpt: duckdb_prepared_statement?
 
-        let prepState = duckdb_prepare(conn, query, &stmt)
+        let prepState = duckdb_prepare(conn, query, &stmtOpt)
         if prepState == DuckDBError {
             let errorMsg: String
-            if let errPtr = duckdb_prepare_error(stmt) {
+            if let s = stmtOpt, let errPtr = duckdb_prepare_error(s) {
                 errorMsg = String(cString: errPtr)
             } else {
                 errorMsg = "Failed to prepare statement"
             }
-            duckdb_destroy_prepare(&stmt)
+            duckdb_destroy_prepare(&stmtOpt)
             throw DuckDBPluginError.queryFailed(errorMsg)
         }
 
+        guard let stmt = stmtOpt else {
+            throw DuckDBPluginError.queryFailed("Failed to prepare statement")
+        }
+
         defer {
-            duckdb_destroy_prepare(&stmt)
+            duckdb_destroy_prepare(&stmtOpt)
         }
 
         for (index, param) in parameters.enumerated() {
@@ -297,6 +315,10 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }
 
         try await connectionActor.open(path: path)
+
+        // Enable auto-install and auto-load of extensions (e.g. core_functions)
+        try? await connectionActor.executeQuery("SET autoinstall_known_extensions=1")
+        try? await connectionActor.executeQuery("SET autoload_known_extensions=1")
 
         if let conn = await connectionActor.connectionHandleForInterrupt {
             setInterruptHandle(conn)
