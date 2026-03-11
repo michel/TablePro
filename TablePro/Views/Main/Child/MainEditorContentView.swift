@@ -312,6 +312,8 @@ struct MainEditorContentView: View {
             },
             connectionId: connection.id,
             databaseType: connection.type,
+            tableName: tab.tableName,
+            primaryKeyColumn: changeManager.primaryKeyColumn,
             selectedRowIndices: $selectedRowIndices,
             sortState: sortStateBinding(for: tab),
             editingCell: $editingCell,

@@ -102,4 +102,30 @@ extension TableViewCoordinator {
         let value = rowProvider.value(atRow: rowIndex, column: columnIndex) ?? "NULL"
         ClipboardService.shared.writeText(value)
     }
+
+    func copyRowsAsInsert(at indices: Set<Int>) {
+        guard let tableName, let databaseType else { return }
+        let converter = SQLRowToStatementConverter(
+            tableName: tableName,
+            columns: rowProvider.columns,
+            primaryKeyColumn: primaryKeyColumn,
+            databaseType: databaseType
+        )
+        let rows = indices.sorted().compactMap { rowProvider.rowValues(at: $0) }
+        guard !rows.isEmpty else { return }
+        ClipboardService.shared.writeText(converter.generateInserts(rows: rows))
+    }
+
+    func copyRowsAsUpdate(at indices: Set<Int>) {
+        guard let tableName, let databaseType else { return }
+        let converter = SQLRowToStatementConverter(
+            tableName: tableName,
+            columns: rowProvider.columns,
+            primaryKeyColumn: primaryKeyColumn,
+            databaseType: databaseType
+        )
+        let rows = indices.sorted().compactMap { rowProvider.rowValues(at: $0) }
+        guard !rows.isEmpty else { return }
+        ClipboardService.shared.writeText(converter.generateUpdates(rows: rows))
+    }
 }

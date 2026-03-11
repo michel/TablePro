@@ -88,6 +88,34 @@ final class TableRowViewWithMenu: NSTableRowView {
             copyWithHeadersItem.target = self
             menu.addItem(copyWithHeadersItem)
 
+            // "Copy as" submenu — only for SQL databases with a known table
+            if let dbType = coordinator.databaseType,
+               dbType != .mongodb && dbType != .redis,
+               coordinator.tableName != nil {
+                let copyAsMenu = NSMenu()
+
+                let insertItem = NSMenuItem(
+                    title: String(localized: "INSERT Statement(s)"),
+                    action: #selector(copyAsInsert),
+                    keyEquivalent: "")
+                insertItem.target = self
+                copyAsMenu.addItem(insertItem)
+
+                let updateItem = NSMenuItem(
+                    title: String(localized: "UPDATE Statement(s)"),
+                    action: #selector(copyAsUpdate),
+                    keyEquivalent: "")
+                updateItem.target = self
+                copyAsMenu.addItem(updateItem)
+
+                let copyAsItem = NSMenuItem(
+                    title: String(localized: "Copy as"),
+                    action: nil,
+                    keyEquivalent: "")
+                copyAsItem.submenu = copyAsMenu
+                menu.addItem(copyAsItem)
+            }
+
             if coordinator.isEditable {
                 let pasteItem = NSMenuItem(
                     title: String(localized: "Paste"), action: #selector(pasteRows), keyEquivalent: "v")
@@ -193,5 +221,21 @@ final class TableRowViewWithMenu: NSTableRowView {
     @objc private func setDefaultValue(_ sender: NSMenuItem) {
         guard let columnIndex = sender.representedObject as? Int else { return }
         coordinator?.setCellValueAtColumn("__DEFAULT__", at: rowIndex, columnIndex: columnIndex)
+    }
+
+    @objc private func copyAsInsert() {
+        guard let coordinator else { return }
+        let indices: Set<Int> = !coordinator.selectedRowIndices.isEmpty
+            ? coordinator.selectedRowIndices
+            : [rowIndex]
+        coordinator.copyRowsAsInsert(at: indices)
+    }
+
+    @objc private func copyAsUpdate() {
+        guard let coordinator else { return }
+        let indices: Set<Int> = !coordinator.selectedRowIndices.isEmpty
+            ? coordinator.selectedRowIndices
+            : [rowIndex]
+        coordinator.copyRowsAsUpdate(at: indices)
     }
 }
