@@ -284,19 +284,30 @@ private struct DuckDBRawResult: Sendable {
 final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     private let config: DriverConnectionConfig
     private let connectionActor = DuckDBConnectionActor()
-    private let interruptLock = NSLock()
+    private let stateLock = NSLock()
     nonisolated(unsafe) private var _connectionForInterrupt: duckdb_connection?
-    private var _currentSchema: String = "main"
+    nonisolated(unsafe) private var _currentSchema: String = "main"
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "DuckDBPluginDriver")
 
-    var currentSchema: String? { _currentSchema }
+    var currentSchema: String? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _currentSchema
+    }
     var serverVersion: String? { String(cString: duckdb_library_version()) }
     var supportsSchemas: Bool { true }
     var supportsTransactions: Bool { true }
 
     init(config: DriverConnectionConfig) {
         self.config = config
+    }
+
+    private func resolveSchema(_ schema: String?) -> String {
+        if let schema { return schema }
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _currentSchema
     }
 
     // MARK: - Connection
@@ -326,9 +337,9 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func disconnect() {
-        interruptLock.lock()
+        stateLock.lock()
         _connectionForInterrupt = nil
-        interruptLock.unlock()
+        stateLock.unlock()
         let actor = connectionActor
         Task { await actor.close() }
     }
@@ -371,9 +382,9 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func cancelQuery() throws {
-        interruptLock.lock()
+        stateLock.lock()
         let conn = _connectionForInterrupt
-        interruptLock.unlock()
+        stateLock.unlock()
         guard let conn else { return }
         duckdb_interrupt(conn)
     }
@@ -397,7 +408,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     // MARK: - Schema Operations
 
     func fetchTables(schema: String?) async throws -> [PluginTableInfo] {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
         let query = """
             SELECT table_name, table_type
             FROM information_schema.tables
@@ -414,7 +425,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchColumns(table: String, schema: String?) async throws -> [PluginColumnInfo] {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
         let query = """
             SELECT column_name, data_type, is_nullable, column_default, ordinal_position
             FROM information_schema.columns
@@ -447,7 +458,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchAllColumns(schema: String?) async throws -> [String: [PluginColumnInfo]] {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
         let query = """
             SELECT table_name, column_name, data_type, is_nullable, column_default, ordinal_position
             FROM information_schema.columns
@@ -501,7 +512,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchIndexes(table: String, schema: String?) async throws -> [PluginIndexInfo] {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
         let query = """
             SELECT index_name, is_unique, sql, index_oid
             FROM duckdb_indexes()
@@ -536,7 +547,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchForeignKeys(table: String, schema: String?) async throws -> [PluginForeignKeyInfo] {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
         let query = """
             SELECT
                 rc.constraint_name,
@@ -587,7 +598,29 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchTableDDL(table: String, schema: String?) async throws -> String {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
+
+        // Try native DDL from duckdb_tables() first (preserves complex types like LIST, STRUCT, MAP)
+        let nativeQuery = "SELECT sql FROM duckdb_tables() WHERE schema_name = $1 AND table_name = $2"
+        let nativeResult = try await executeParameterized(query: nativeQuery, parameters: [schemaName, table])
+
+        if let firstRow = nativeResult.rows.first, let sql = firstRow[0] {
+            var ddl = sql.hasSuffix(";") ? sql : sql + ";"
+
+            // Append index definitions
+            let indexes = try await fetchIndexes(table: table, schema: schemaName)
+            for index in indexes where !index.isPrimary {
+                let uniqueStr = index.isUnique ? "UNIQUE " : ""
+                let cols = index.columns.map { "\"\(escapeIdentifier($0))\"" }.joined(separator: ", ")
+                ddl += "\n\nCREATE \(uniqueStr)INDEX \"\(escapeIdentifier(index.name))\""
+                    + " ON \"\(escapeIdentifier(schemaName))\".\"\(escapeIdentifier(table))\""
+                    + " (\(cols));"
+            }
+
+            return ddl
+        }
+
+        // Fallback: synthesize DDL from schema metadata
         let columns = try await fetchColumns(table: table, schema: schemaName)
         let indexes = try await fetchIndexes(table: table, schema: schemaName)
         let fks = try await fetchForeignKeys(table: table, schema: schemaName)
@@ -633,7 +666,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchViewDefinition(view: String, schema: String?) async throws -> String {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
         let query = """
             SELECT view_definition
             FROM information_schema.views
@@ -653,7 +686,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchTableMetadata(table: String, schema: String?) async throws -> PluginTableMetadata {
-        let schemaName = schema ?? _currentSchema
+        let schemaName = resolveSchema(schema)
         let safeTable = escapeIdentifier(table)
         let safeSchema = escapeIdentifier(schemaName)
         let countQuery =
@@ -680,18 +713,20 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func switchSchema(to schema: String) async throws {
-        let escaped = schema.replacingOccurrences(of: "'", with: "''")
-        _ = try await execute(query: "SET schema = '\(escaped)'")
+        let safeSchema = escapeIdentifier(schema)
+        _ = try await execute(query: "SET schema = \"\(safeSchema)\"")
+        stateLock.lock()
         _currentSchema = schema
+        stateLock.unlock()
     }
 
     // MARK: - Database Operations
 
     func fetchDatabases() async throws -> [String] {
-        let query = "PRAGMA database_list"
+        let query = "SELECT database_name FROM duckdb_databases() ORDER BY database_name"
         let result = try await execute(query: query)
         return result.rows.compactMap { row in
-            row[safe: 1] ?? nil
+            row[safe: 0] ?? nil
         }
     }
 
@@ -706,9 +741,9 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     // MARK: - Private Helpers
 
     nonisolated private func setInterruptHandle(_ handle: duckdb_connection?) {
-        interruptLock.lock()
+        stateLock.lock()
         _connectionForInterrupt = handle
-        interruptLock.unlock()
+        stateLock.unlock()
     }
 
     private func expandPath(_ path: String) -> String {
@@ -752,9 +787,11 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let parenOpen = UInt16(UnicodeScalar("(").value)
         let parenClose = UInt16(UnicodeScalar(")").value)
         let singleQuote = UInt16(UnicodeScalar("'").value)
+        let doubleQuote = UInt16(UnicodeScalar("\"").value)
 
         var depth = 0
         var inString = false
+        var inIdentifier = false
         var i = length - 1
 
         while i >= 0 {
@@ -762,16 +799,25 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
             if inString {
                 if ch == singleQuote {
-                    // Check for escaped quote ('')
                     if i > 0 && upper.character(at: i - 1) == singleQuote {
-                        i -= 1 // Skip escaped quote pair
+                        i -= 1
                     } else {
                         inString = false
+                    }
+                }
+            } else if inIdentifier {
+                if ch == doubleQuote {
+                    if i > 0 && upper.character(at: i - 1) == doubleQuote {
+                        i -= 1
+                    } else {
+                        inIdentifier = false
                     }
                 }
             } else {
                 if ch == singleQuote {
                     inString = true
+                } else if ch == doubleQuote {
+                    inIdentifier = true
                 } else if ch == parenClose {
                     depth += 1
                 } else if ch == parenOpen {
