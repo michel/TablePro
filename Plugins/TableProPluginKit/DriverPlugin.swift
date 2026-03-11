@@ -11,10 +11,64 @@ public protocol DriverPlugin: TableProPlugin {
     static func driverVariant(for databaseTypeId: String) -> String?
 
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver
+
+    // MARK: - UI/Capability Metadata
+
+    static var requiresAuthentication: Bool { get }
+    static var connectionMode: ConnectionMode { get }
+    static var urlSchemes: [String] { get }
+    static var fileExtensions: [String] { get }
+    static var brandColorHex: String { get }
+    static var queryLanguageName: String { get }
+    static var editorLanguage: EditorLanguage { get }
+    static var supportsForeignKeys: Bool { get }
+    static var supportsSchemaEditing: Bool { get }
+    static var supportsDatabaseSwitching: Bool { get }
+    static var supportsSchemaSwitching: Bool { get }
+    static var supportsImport: Bool { get }
+    static var supportsExport: Bool { get }
+    static var supportsHealthMonitor: Bool { get }
+    static var systemDatabaseNames: [String] { get }
+    static var systemSchemaNames: [String] { get }
+    static var databaseGroupingStrategy: GroupingStrategy { get }
+    static var defaultGroupName: String { get }
+    static var columnTypesByCategory: [String: [String]] { get }
 }
 
 public extension DriverPlugin {
     static var additionalConnectionFields: [ConnectionField] { [] }
     static var additionalDatabaseTypeIds: [String] { [] }
     static func driverVariant(for databaseTypeId: String) -> String? { nil }
+
+    // MARK: - UI/Capability Metadata Defaults
+
+    static var requiresAuthentication: Bool { true }
+    static var connectionMode: ConnectionMode { .network }
+    static var urlSchemes: [String] { [] }
+    static var fileExtensions: [String] { [] }
+    static var brandColorHex: String { "#808080" }
+    static var queryLanguageName: String { "SQL" }
+    static var editorLanguage: EditorLanguage { .sql }
+    static var supportsForeignKeys: Bool { true }
+    static var supportsSchemaEditing: Bool { true }
+    static var supportsDatabaseSwitching: Bool { true }
+    static var supportsSchemaSwitching: Bool { false }
+    static var supportsImport: Bool { true }
+    static var supportsExport: Bool { true }
+    static var supportsHealthMonitor: Bool { true }
+    static var systemDatabaseNames: [String] { [] }
+    static var systemSchemaNames: [String] { [] }
+    static var databaseGroupingStrategy: GroupingStrategy { .byDatabase }
+    static var defaultGroupName: String { "main" }
+    static var columnTypesByCategory: [String: [String]] {
+        [
+            "Integer": ["INTEGER", "INT", "SMALLINT", "BIGINT", "TINYINT"],
+            "Float": ["FLOAT", "DOUBLE", "DECIMAL", "NUMERIC", "REAL"],
+            "String": ["VARCHAR", "CHAR", "TEXT", "NVARCHAR", "NCHAR"],
+            "Date": ["DATE", "TIME", "DATETIME", "TIMESTAMP"],
+            "Binary": ["BLOB", "BINARY", "VARBINARY"],
+            "Boolean": ["BOOLEAN", "BOOL"],
+            "JSON": ["JSON"]
+        ]
+    }
 }

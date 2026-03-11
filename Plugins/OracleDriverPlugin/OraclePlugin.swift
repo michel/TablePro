@@ -21,6 +21,23 @@ final class OraclePlugin: NSObject, TableProPlugin, DriverPlugin {
         ConnectionField(id: "oracleServiceName", label: "Service Name", placeholder: "ORCL")
     ]
 
+    // MARK: - UI/Capability Metadata
+
+    static let brandColorHex = "#C3160B"
+    static let systemDatabaseNames: [String] = ["SYS", "SYSTEM", "OUTLN", "DBSNMP", "APPQOSSYS", "WMSYS", "XDB"]
+    static let databaseGroupingStrategy: GroupingStrategy = .bySchema
+    static let columnTypesByCategory: [String: [String]] = [
+        "Integer": ["NUMBER", "INTEGER", "INT", "SMALLINT"],
+        "Float": ["FLOAT", "BINARY_FLOAT", "BINARY_DOUBLE", "DECIMAL", "NUMERIC", "REAL", "DOUBLE PRECISION"],
+        "String": ["VARCHAR2", "NVARCHAR2", "CHAR", "NCHAR", "CLOB", "NCLOB", "LONG"],
+        "Date": ["DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "INTERVAL YEAR TO MONTH", "INTERVAL DAY TO SECOND"],
+        "Binary": ["RAW", "LONG RAW", "BLOB", "BFILE"],
+        "Boolean": [],
+        "XML": ["XMLTYPE"],
+        "Spatial": ["SDO_GEOMETRY"],
+        "Other": ["ROWID", "UROWID"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         OraclePluginDriver(config: config)
     }

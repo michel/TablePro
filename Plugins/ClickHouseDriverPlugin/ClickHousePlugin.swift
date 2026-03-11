@@ -18,6 +18,30 @@ final class ClickHousePlugin: NSObject, TableProPlugin, DriverPlugin {
     static let iconName = "bolt.fill"
     static let defaultPort = 8123
 
+    // MARK: - UI/Capability Metadata
+
+    static let brandColorHex = "#FFD100"
+    static let supportsForeignKeys = false
+    static let systemDatabaseNames: [String] = ["information_schema", "INFORMATION_SCHEMA", "system"]
+    static let columnTypesByCategory: [String: [String]] = [
+        "Integer": [
+            "UInt8", "UInt16", "UInt32", "UInt64", "UInt128", "UInt256",
+            "Int8", "Int16", "Int32", "Int64", "Int128", "Int256"
+        ],
+        "Float": ["Float32", "Float64", "Decimal", "Decimal32", "Decimal64", "Decimal128", "Decimal256"],
+        "String": ["String", "FixedString", "Enum8", "Enum16"],
+        "Date": ["Date", "Date32", "DateTime", "DateTime64"],
+        "Binary": [],
+        "Boolean": ["Bool"],
+        "JSON": ["JSON"],
+        "UUID": ["UUID"],
+        "Array": ["Array"],
+        "Map": ["Map"],
+        "Tuple": ["Tuple"],
+        "IP": ["IPv4", "IPv6"],
+        "Geo": ["Point", "Ring", "Polygon", "MultiPolygon"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         ClickHousePluginDriver(config: config)
     }

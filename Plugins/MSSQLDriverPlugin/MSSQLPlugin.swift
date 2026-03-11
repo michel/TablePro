@@ -22,6 +22,24 @@ final class MSSQLPlugin: NSObject, TableProPlugin, DriverPlugin {
         ConnectionField(id: "mssqlSchema", label: "Schema", placeholder: "dbo")
     ]
 
+    // MARK: - UI/Capability Metadata
+
+    static let brandColorHex = "#E34517"
+    static let systemDatabaseNames: [String] = ["master", "tempdb", "model", "msdb"]
+    static let databaseGroupingStrategy: GroupingStrategy = .bySchema
+    static let columnTypesByCategory: [String: [String]] = [
+        "Integer": ["TINYINT", "SMALLINT", "INT", "BIGINT"],
+        "Float": ["FLOAT", "REAL", "DECIMAL", "NUMERIC", "MONEY", "SMALLMONEY"],
+        "String": ["CHAR", "VARCHAR", "TEXT", "NCHAR", "NVARCHAR", "NTEXT"],
+        "Date": ["DATE", "TIME", "DATETIME", "DATETIME2", "SMALLDATETIME", "DATETIMEOFFSET"],
+        "Binary": ["BINARY", "VARBINARY", "IMAGE"],
+        "Boolean": ["BIT"],
+        "XML": ["XML"],
+        "UUID": ["UNIQUEIDENTIFIER"],
+        "Spatial": ["GEOMETRY", "GEOGRAPHY"],
+        "Other": ["SQL_VARIANT", "TIMESTAMP", "ROWVERSION", "CURSOR", "TABLE", "HIERARCHYID"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         MSSQLPluginDriver(config: config)
     }
