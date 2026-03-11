@@ -11,7 +11,7 @@ import SwiftUI
 // MARK: - Sheet
 
 /// Native SwiftUI sheet for the quick switcher, matching the project's ActiveSheet pattern.
-struct QuickSwitcherSheet: View {
+internal struct QuickSwitcherSheet: View {
     @Binding var isPresented: Bool
     @Environment(\.dismiss) private var dismiss
 
@@ -65,11 +65,11 @@ struct QuickSwitcherSheet: View {
             return .handled
         }
         .onKeyPress(.upArrow) {
-            Task { @MainActor in viewModel.moveUp() }
+            viewModel.moveUp()
             return .handled
         }
         .onKeyPress(.downArrow) {
-            Task { @MainActor in viewModel.moveDown() }
+            viewModel.moveDown()
             return .handled
         }
     }
@@ -144,18 +144,18 @@ struct QuickSwitcherSheet: View {
 
         return HStack(spacing: 10) {
             Image(systemName: item.iconName)
-                .font(.system(size: 14))
+                .font(.system(size: DesignConstants.IconSize.default))
                 .foregroundStyle(isSelected ? .white : .secondary)
 
             Text(item.name)
-                .font(.system(size: 13))
+                .font(.system(size: DesignConstants.FontSize.body))
                 .foregroundStyle(isSelected ? .white : .primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             if !item.subtitle.isEmpty {
                 Text(item.subtitle)
-                    .font(.system(size: 11))
+                    .font(.system(size: DesignConstants.FontSize.small))
                     .foregroundStyle(isSelected ? Color.white.opacity(0.7) : Color.secondary)
                     .lineLimit(1)
             }
@@ -163,7 +163,7 @@ struct QuickSwitcherSheet: View {
             Spacer()
 
             Text(item.kindLabel)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: DesignConstants.FontSize.caption, weight: .medium))
                 .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)

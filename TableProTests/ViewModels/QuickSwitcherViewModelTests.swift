@@ -111,8 +111,10 @@ struct QuickSwitcherViewModelTests {
     func selectedItemReturnsCorrectItem() {
         let vm = makeViewModel(items: sampleItems())
         vm.searchText = ""
-        vm.selectedItemId = vm.filteredItems[1].id
-        #expect(vm.selectedItem?.name == "orders")
+        let secondItem = vm.filteredItems[1]
+        vm.selectedItemId = secondItem.id
+        #expect(vm.selectedItem?.id == secondItem.id)
+        #expect(vm.selectedItem?.name == secondItem.name)
     }
 
     @Test("selectedItem returns nil for empty list")

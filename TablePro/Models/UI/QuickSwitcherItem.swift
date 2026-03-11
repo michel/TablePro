@@ -8,7 +8,7 @@
 import Foundation
 
 /// The type of database object represented by a quick switcher item
-enum QuickSwitcherItemKind: Hashable, Sendable {
+internal enum QuickSwitcherItemKind: Hashable, Sendable {
     case table
     case view
     case systemTable
@@ -18,7 +18,7 @@ enum QuickSwitcherItemKind: Hashable, Sendable {
 }
 
 /// A single item in the quick switcher results list
-struct QuickSwitcherItem: Identifiable, Hashable {
+internal struct QuickSwitcherItem: Identifiable, Hashable {
     let id: String
     let name: String
     let kind: QuickSwitcherItemKind

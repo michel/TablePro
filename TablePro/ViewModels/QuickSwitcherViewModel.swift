@@ -11,7 +11,7 @@ import os
 
 /// ViewModel managing quick switcher search, filtering, and keyboard navigation
 @MainActor @Observable
-final class QuickSwitcherViewModel {
+internal final class QuickSwitcherViewModel {
     private static let logger = Logger(subsystem: "com.TablePro", category: "QuickSwitcherViewModel")
 
     // MARK: - State
@@ -28,6 +28,7 @@ final class QuickSwitcherViewModel {
     var isLoading = false
 
     @ObservationIgnored private var filterTask: Task<Void, Never>?
+    @ObservationIgnored private var activeLoadId = UUID()
 
     /// Maximum number of results to display
     private let maxResults = 100
@@ -41,6 +42,8 @@ final class QuickSwitcherViewModel {
         databaseType: DatabaseType
     ) async {
         isLoading = true
+        let loadId = UUID()
+        activeLoadId = loadId
         var items: [QuickSwitcherItem] = []
 
         // Tables, views, system tables from cached schema
@@ -116,6 +119,11 @@ final class QuickSwitcherViewModel {
             ))
         }
 
+        guard activeLoadId == loadId, !Task.isCancelled else {
+            isLoading = false
+            return
+        }
+
         allItems = items
         isLoading = false
     }
@@ -136,7 +144,10 @@ final class QuickSwitcherViewModel {
         if searchText.isEmpty {
             // Show all items grouped by kind: tables, views, system tables, databases, schemas, history
             filteredItems = allItems.sorted { a, b in
-                kindSortOrder(a.kind) < kindSortOrder(b.kind)
+                let aOrder = kindSortOrder(a.kind)
+                let bOrder = kindSortOrder(b.kind)
+                if aOrder != bOrder { return aOrder < bOrder }
+                return a.name < b.name
             }
             if filteredItems.count > maxResults {
                 filteredItems = Array(filteredItems.prefix(maxResults))
@@ -144,12 +155,18 @@ final class QuickSwitcherViewModel {
         } else {
             filteredItems = allItems.compactMap { item in
                 let matchScore = FuzzyMatcher.score(query: searchText, candidate: item.name)
-                guard matchScore > 0 else { return nil as QuickSwitcherItem? }
+                guard matchScore > 0 else { return nil }
                 var scored = item
                 scored.score = matchScore
                 return scored
             }
-            .sorted { $0.score > $1.score }
+            .sorted { a, b in
+                if a.score != b.score { return a.score > b.score }
+                let aOrder = kindSortOrder(a.kind)
+                let bOrder = kindSortOrder(b.kind)
+                if aOrder != bOrder { return aOrder < bOrder }
+                return a.name < b.name
+            }
 
             if filteredItems.count > maxResults {
                 filteredItems = Array(filteredItems.prefix(maxResults))

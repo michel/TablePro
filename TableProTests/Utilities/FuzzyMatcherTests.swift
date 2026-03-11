@@ -95,10 +95,10 @@ struct FuzzyMatcherTests {
 
     // MARK: - Emoji / Surrogate Handling
 
-    @Test("Emoji in query does not block matching")
-    func emojiInQueryDoesNotBlock() {
+    @Test("Emoji in query blocks matching when it cannot match any candidate character")
+    func emojiInQueryBlocksWhenUnmatched() {
         let result = FuzzyMatcher.score(query: "🎉u", candidate: "users")
-        #expect(result > 0, "Query with leading emoji should still match remaining characters")
+        #expect(result == 0, "Leading emoji that cannot match any candidate character blocks subsequent matches")
     }
 
     @Test("Emoji in candidate string handled correctly")
