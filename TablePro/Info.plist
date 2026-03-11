@@ -104,6 +104,8 @@
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
+					<string>sqlite</string>
+					<string>sqlite3</string>
 					<string>db3</string>
 					<string>s3db</string>
 					<string>sl3</string>

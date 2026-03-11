@@ -90,7 +90,7 @@ extension AppDelegate {
             return
         }
 
-        let filePath = url.path
+        let filePath = url.path(percentEncoded: false)
         let connectionName = url.deletingPathExtension().lastPathComponent
 
         for (sessionId, session) in DatabaseManager.shared.activeSessions {
@@ -129,7 +129,12 @@ extension AppDelegate {
     // MARK: - Unified Queue
 
     func scheduleQueuedURLProcessing() {
+        guard !isProcessingQueuedURLs else { return }
+        isProcessingQueuedURLs = true
+
         Task { @MainActor [weak self] in
+            defer { self?.isProcessingQueuedURLs = false }
+
             var ready = false
             for _ in 0..<25 {
                 if WindowOpener.shared.openWindow != nil { ready = true; break }
@@ -143,6 +148,8 @@ extension AppDelegate {
                 self.queuedURLEntries.removeAll()
                 return
             }
+
+            self.suppressWelcomeWindow()
             let entries = self.queuedURLEntries
             self.queuedURLEntries.removeAll()
             for entry in entries {
@@ -151,6 +158,7 @@ extension AppDelegate {
                 case .sqliteFile(let url): self.handleSQLiteFile(url)
                 }
             }
+            self.scheduleWelcomeWindowSuppression()
         }
     }
 

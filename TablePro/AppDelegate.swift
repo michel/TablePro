@@ -41,6 +41,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Counter for outstanding suppressions; welcome window is suppressed while > 0
     var fileOpenSuppressionCount = 0
 
+    /// True while a queued URL polling task is active — prevents duplicate pollers
+    var isProcessingQueuedURLs = false
+
     // MARK: - NSApplicationDelegate
 
     func application(_ application: NSApplication, open urls: [URL]) {
