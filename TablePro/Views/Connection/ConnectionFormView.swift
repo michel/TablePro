@@ -72,6 +72,7 @@ struct ConnectionFormView: View {
     @State private var aiPolicy: AIConnectionPolicy?
 
     // MongoDB-specific settings
+    @State private var mongoAuthSource: String = ""
     @State private var mongoReadPreference: String = ""
     @State private var mongoWriteConcern: String = ""
 
@@ -572,6 +573,11 @@ struct ConnectionFormView: View {
         Form {
             if type == .mongodb {
                 Section("MongoDB") {
+                    TextField(
+                        String(localized: "Auth Database"),
+                        text: $mongoAuthSource,
+                        prompt: Text("admin")
+                    )
                     Picker(String(localized: "Read Preference"), selection: $mongoReadPreference) {
                         Text(String(localized: "Default")).tag("")
                         Text("Primary").tag("primary")
@@ -813,6 +819,7 @@ struct ConnectionFormView: View {
             aiPolicy = existing.aiPolicy
 
             // Load MongoDB settings
+            mongoAuthSource = existing.mongoAuthSource ?? ""
             mongoReadPreference = existing.mongoReadPreference ?? ""
             mongoWriteConcern = existing.mongoWriteConcern ?? ""
 
@@ -884,6 +891,7 @@ struct ConnectionFormView: View {
             groupId: selectedGroupId,
             safeModeLevel: safeModeLevel,
             aiPolicy: aiPolicy,
+            mongoAuthSource: mongoAuthSource.isEmpty ? nil : mongoAuthSource,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
             mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
@@ -1015,6 +1023,7 @@ struct ConnectionFormView: View {
             color: connectionColor,
             tagId: selectedTagId,
             groupId: selectedGroupId,
+            mongoAuthSource: mongoAuthSource.isEmpty ? nil : mongoAuthSource,
             mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
             mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
             mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
@@ -1153,6 +1162,9 @@ struct ConnectionFormView: View {
                     sshAuthMethod = .sshAgent
                     applySSHAgentSocketPath(parsed.agentSocket ?? "")
                 }
+            }
+            if let authSourceValue = parsed.authSource, !authSourceValue.isEmpty {
+                mongoAuthSource = authSourceValue
             }
             if let connectionName = parsed.connectionName, !connectionName.isEmpty {
                 name = connectionName
