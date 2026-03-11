@@ -19,6 +19,32 @@ final class DuckDBPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let iconName = "duckdb-icon"
     static let defaultPort = 0
 
+    // MARK: - UI/Capability Metadata
+
+    static let requiresAuthentication = false
+    static let connectionMode: ConnectionMode = .fileBased
+    static let urlSchemes: [String] = ["duckdb"]
+    static let fileExtensions: [String] = ["duckdb", "db"]
+    static let brandColorHex = "#FFD900"
+    static let supportsDatabaseSwitching = false
+    static let systemDatabaseNames: [String] = ["information_schema", "pg_catalog"]
+    static let databaseGroupingStrategy: GroupingStrategy = .flat
+    static let columnTypesByCategory: [String: [String]] = [
+        "Integer": ["TINYINT", "SMALLINT", "INTEGER", "BIGINT", "HUGEINT", "UTINYINT", "USMALLINT", "UINTEGER", "UBIGINT"],
+        "Float": ["FLOAT", "DOUBLE", "DECIMAL", "NUMERIC"],
+        "String": ["VARCHAR", "TEXT", "CHAR", "BPCHAR"],
+        "Date": ["DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "TIMESTAMP_S", "TIMESTAMP_MS", "TIMESTAMP_NS", "INTERVAL"],
+        "Binary": ["BLOB", "BYTEA", "BIT", "BITSTRING"],
+        "Boolean": ["BOOLEAN"],
+        "JSON": ["JSON"],
+        "UUID": ["UUID"],
+        "List": ["LIST"],
+        "Struct": ["STRUCT"],
+        "Map": ["MAP"],
+        "Union": ["UNION"],
+        "Enum": ["ENUM"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         DuckDBPluginDriver(config: config)
     }

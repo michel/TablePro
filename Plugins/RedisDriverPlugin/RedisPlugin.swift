@@ -24,6 +24,31 @@ final class RedisPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let additionalConnectionFields: [ConnectionField] = []
     static let additionalDatabaseTypeIds: [String] = []
 
+    // MARK: - UI/Capability Metadata
+
+    static let requiresAuthentication = false
+    static let urlSchemes: [String] = ["redis"]
+    static let brandColorHex = "#DC382D"
+    static let queryLanguageName = "Redis CLI"
+    static let editorLanguage: EditorLanguage = .bash
+    static let supportsForeignKeys = false
+    static let supportsSchemaEditing = false
+    static let supportsDatabaseSwitching = false
+    static let supportsImport = false
+    static let databaseGroupingStrategy: GroupingStrategy = .flat
+    static let defaultGroupName = "db0"
+    static let columnTypesByCategory: [String: [String]] = [
+        "String": ["string"],
+        "List": ["list"],
+        "Set": ["set"],
+        "Sorted Set": ["zset"],
+        "Hash": ["hash"],
+        "Stream": ["stream"],
+        "HyperLogLog": ["hyperloglog"],
+        "Bitmap": ["bitmap"],
+        "Geospatial": ["geo"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         RedisPluginDriver(config: config)
     }

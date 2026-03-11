@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Plugin UI/capability metadata: each driver plugin now self-declares brand color, connection mode, supported features, column types, URL schemes, and grouping strategy via the `DriverPlugin` protocol
 - Copy as INSERT/UPDATE SQL statements from data grid context menu
 - Plugin download count display in Browse Plugins — fetched from GitHub Releases API and cached for 1 hour
 - MSSQL query cancellation (`cancelQuery`) and lock timeout (`applyQueryTimeout`) support

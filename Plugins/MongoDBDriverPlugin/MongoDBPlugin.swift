@@ -22,6 +22,28 @@ final class MongoDBPlugin: NSObject, TableProPlugin, DriverPlugin {
         ConnectionField(id: "mongoWriteConcern", label: "Write Concern", placeholder: "majority")
     ]
 
+    // MARK: - UI/Capability Metadata
+
+    static let requiresAuthentication = false
+    static let urlSchemes: [String] = ["mongodb", "mongodb+srv"]
+    static let brandColorHex = "#00ED63"
+    static let queryLanguageName = "MQL"
+    static let editorLanguage: EditorLanguage = .javascript
+    static let supportsForeignKeys = false
+    static let supportsSchemaEditing = false
+    static let databaseGroupingStrategy: GroupingStrategy = .flat
+    static let columnTypesByCategory: [String: [String]] = [
+        "String": ["string", "objectId", "regex"],
+        "Number": ["int", "long", "double", "decimal"],
+        "Date": ["date", "timestamp"],
+        "Binary": ["binData"],
+        "Boolean": ["bool"],
+        "Array": ["array"],
+        "Object": ["object"],
+        "Null": ["null"],
+        "Other": ["javascript", "minKey", "maxKey"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         MongoDBPluginDriver(config: config)
     }

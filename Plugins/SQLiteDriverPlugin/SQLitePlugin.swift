@@ -19,6 +19,24 @@ final class SQLitePlugin: NSObject, TableProPlugin, DriverPlugin {
     static let iconName = "doc.fill"
     static let defaultPort = 0
 
+    // MARK: - UI/Capability Metadata
+
+    static let requiresAuthentication = false
+    static let connectionMode: ConnectionMode = .fileBased
+    static let urlSchemes: [String] = ["sqlite"]
+    static let fileExtensions: [String] = ["db", "sqlite", "sqlite3"]
+    static let brandColorHex = "#003B57"
+    static let supportsDatabaseSwitching = false
+    static let databaseGroupingStrategy: GroupingStrategy = .flat
+    static let columnTypesByCategory: [String: [String]] = [
+        "Integer": ["INTEGER", "INT", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT"],
+        "Float": ["REAL", "DOUBLE", "FLOAT", "NUMERIC", "DECIMAL"],
+        "String": ["TEXT", "VARCHAR", "CHARACTER", "CHAR", "CLOB", "NVARCHAR", "NCHAR"],
+        "Date": ["DATE", "TIME", "DATETIME", "TIMESTAMP"],
+        "Binary": ["BLOB"],
+        "Boolean": ["BOOLEAN"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         SQLitePluginDriver(config: config)
     }

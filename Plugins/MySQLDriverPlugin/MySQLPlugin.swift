@@ -25,6 +25,22 @@ final class MySQLPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let additionalConnectionFields: [ConnectionField] = []
     static let additionalDatabaseTypeIds: [String] = ["MariaDB"]
 
+    // MARK: - UI/Capability Metadata
+
+    static let urlSchemes: [String] = ["mysql"]
+    static let brandColorHex = "#FF9500"
+    static let systemDatabaseNames: [String] = ["information_schema", "mysql", "performance_schema", "sys"]
+    static let columnTypesByCategory: [String: [String]] = [
+        "Integer": ["TINYINT", "SMALLINT", "MEDIUMINT", "INT", "INTEGER", "BIGINT"],
+        "Float": ["FLOAT", "DOUBLE", "DECIMAL", "NUMERIC", "REAL"],
+        "String": ["CHAR", "VARCHAR", "TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT", "ENUM", "SET"],
+        "Date": ["DATE", "TIME", "DATETIME", "TIMESTAMP", "YEAR"],
+        "Binary": ["BINARY", "VARBINARY", "TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB", "BIT"],
+        "Boolean": ["BOOLEAN", "BOOL"],
+        "JSON": ["JSON"],
+        "Spatial": ["GEOMETRY", "POINT", "LINESTRING", "POLYGON"]
+    ]
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         MySQLPluginDriver(config: config)
     }
