@@ -482,12 +482,7 @@ private struct StoredConnection: Codable {
         try container.encodeIfPresent(groupId, forKey: .groupId)
         try container.encode(safeModeLevel, forKey: .safeModeLevel)
         try container.encodeIfPresent(aiPolicy, forKey: .aiPolicy)
-        try container.encodeIfPresent(mongoAuthSource, forKey: .mongoAuthSource)
-        try container.encodeIfPresent(mongoReadPreference, forKey: .mongoReadPreference)
-        try container.encodeIfPresent(mongoWriteConcern, forKey: .mongoWriteConcern)
         try container.encodeIfPresent(redisDatabase, forKey: .redisDatabase)
-        try container.encodeIfPresent(mssqlSchema, forKey: .mssqlSchema)
-        try container.encodeIfPresent(oracleServiceName, forKey: .oracleServiceName)
         try container.encodeIfPresent(startupCommands, forKey: .startupCommands)
         try container.encodeIfPresent(additionalFields, forKey: .additionalFields)
     }

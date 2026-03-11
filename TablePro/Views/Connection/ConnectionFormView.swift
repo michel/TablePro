@@ -575,7 +575,7 @@ struct ConnectionFormView: View {
     private var advancedForm: some View {
         Form {
             if !additionalConnectionFields.isEmpty {
-                Section(type.rawValue) {
+                Section(type.displayName) {
                     ForEach(additionalConnectionFields, id: \.id) { field in
                         ConnectionFieldRow(
                             field: field,

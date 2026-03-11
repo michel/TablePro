@@ -212,6 +212,8 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
+    var displayName: String { rawValue }
+
     /// Plugin type ID used for PluginManager lookup.
     /// Maps database types that share a plugin (e.g., MySQL/MariaDB, PostgreSQL/Redshift).
     var pluginTypeId: String {

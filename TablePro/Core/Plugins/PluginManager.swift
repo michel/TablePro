@@ -73,7 +73,7 @@ final class PluginManager {
         migrateDisabledPluginsKey()
         discoverAllPlugins()
         Task { @MainActor in
-            self.loadPendingPlugins()
+            self.loadPendingPlugins(clearRestartFlag: true)
         }
     }
 
@@ -98,7 +98,7 @@ final class PluginManager {
 
     /// Load all discovered but not-yet-loaded plugin bundles.
     /// Safety fallback for code paths that need plugins before the deferred Task completes.
-    func loadPendingPlugins() {
+    func loadPendingPlugins(clearRestartFlag: Bool = false) {
         guard !pendingPluginURLs.isEmpty else { return }
         let pending = pendingPluginURLs
         pendingPluginURLs.removeAll()
@@ -112,7 +112,9 @@ final class PluginManager {
         }
 
         validateDependencies()
-        _needsRestart = false
+        if clearRestartFlag {
+            _needsRestart = false
+        }
         Self.logger.info("Loaded \(self.plugins.count) plugin(s): \(self.driverPlugins.count) driver(s), \(self.exportPlugins.count) export format(s), \(self.importPlugins.count) import format(s)")
     }
 
