@@ -254,7 +254,9 @@ final class MainContentCoordinator {
             pluginDriverObserver = NotificationCenter.default.addObserver(
                 forName: .databaseDidConnect, object: nil, queue: .main
             ) { [weak self] _ in
-                self?.setupPluginDriver()
+                MainActor.assumeIsolated {
+                    self?.setupPluginDriver()
+                }
             }
         }
     }

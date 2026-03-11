@@ -5,7 +5,7 @@
 //  Intercepts key events for Vim mode via NSEvent local monitor
 //
 
-import AppKit
+@preconcurrency import AppKit
 import CodeEditSourceEditor
 import os
 
@@ -82,9 +82,12 @@ final class VimKeyInterceptor {
 
     private func installMonitor() {
         _monitor.withLock {
-            $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard let self, self.isEditorFocused else { return event }
-                return self.handleKeyEvent(event)
+            $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] nsEvent in
+                nonisolated(unsafe) let event = nsEvent
+                return MainActor.assumeIsolated {
+                    guard let self, self.isEditorFocused else { return event }
+                    return self.handleKeyEvent(event)
+                }
             }
         }
     }

@@ -6,7 +6,7 @@
 //  and dispatches to the correct editor by window, replacing per-editor monitors.
 //
 
-import AppKit
+@preconcurrency import AppKit
 import CodeEditTextView
 
 @MainActor
@@ -64,15 +64,17 @@ internal final class EditorEventRouter {
     // MARK: - Monitor Installation
 
     private func installMonitors() {
-        rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] event in
-            guard let self else { return event }
+        rightClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { [weak self] nsEvent in
+            guard let self else { return nsEvent }
+            nonisolated(unsafe) let event = nsEvent
             return MainActor.assumeIsolated {
                 self.handleRightClick(event)
             }
         }
 
-        clipboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
+        clipboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] nsEvent in
+            guard let self else { return nsEvent }
+            nonisolated(unsafe) let event = nsEvent
             return MainActor.assumeIsolated {
                 self.handleKeyDown(event)
             }

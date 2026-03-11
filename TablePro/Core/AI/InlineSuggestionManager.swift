@@ -7,7 +7,7 @@
 //  ghost text as a CATextLayer overlay on the text view.
 //
 
-import AppKit
+@preconcurrency import AppKit
 import CodeEditSourceEditor
 import CodeEditTextView
 import os
@@ -374,35 +374,38 @@ final class InlineSuggestionManager {
 
     private func installKeyEventMonitor() {
         removeKeyEventMonitor()
-        _keyEventMonitor.withLock { $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self, self.isEditorFocused else { return event }
+        _keyEventMonitor.withLock { $0 = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] nsEvent in
+            nonisolated(unsafe) let event = nsEvent
+            return MainActor.assumeIsolated {
+                guard let self, self.isEditorFocused else { return event }
 
-            guard AppSettingsManager.shared.ai.inlineSuggestEnabled else { return event }
+                guard AppSettingsManager.shared.ai.inlineSuggestEnabled else { return event }
 
-            guard self.currentSuggestion != nil else { return event }
+                guard self.currentSuggestion != nil else { return event }
 
-            guard let textView = self.controller?.textView,
-                  event.window === textView.window,
-                  textView.window?.firstResponder === textView else { return event }
+                guard let textView = self.controller?.textView,
+                      event.window === textView.window,
+                      textView.window?.firstResponder === textView else { return event }
 
-            switch event.keyCode {
-            case 48: // Tab — accept suggestion
-                Task { @MainActor [weak self] in
-                    self?.acceptSuggestion()
+                switch event.keyCode {
+                case 48: // Tab — accept suggestion
+                    Task { @MainActor [weak self] in
+                        self?.acceptSuggestion()
+                    }
+                    return nil
+
+                case 53: // Escape — dismiss suggestion
+                    Task { @MainActor [weak self] in
+                        self?.dismissSuggestion()
+                    }
+                    return nil
+
+                default:
+                    Task { @MainActor [weak self] in
+                        self?.dismissSuggestion()
+                    }
+                    return event
                 }
-                return nil
-
-            case 53: // Escape — dismiss suggestion
-                Task { @MainActor [weak self] in
-                    self?.dismissSuggestion()
-                }
-                return nil
-
-            default:
-                Task { @MainActor [weak self] in
-                    self?.dismissSuggestion()
-                }
-                return event
             }
         }
         }
@@ -419,11 +422,12 @@ final class InlineSuggestionManager {
 
     private func installScrollObserver() {
         guard let scrollView = controller?.scrollView else { return }
+        let contentView = scrollView.contentView
 
         _scrollObserver.withLock {
             $0 = NotificationCenter.default.addObserver(
                 forName: NSView.boundsDidChangeNotification,
-                object: scrollView.contentView,
+                object: contentView,
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor [weak self] in

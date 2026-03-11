@@ -89,7 +89,7 @@ actor SSHTunnelManager {
 
     private func handleTunnelDeath(connectionId: UUID) async {
         guard tunnels.removeValue(forKey: connectionId) != nil else { return }
-        Self.processRegistry.withLock { $0.removeValue(forKey: connectionId) }
+        Self.processRegistry.withLock { $0[connectionId] = nil }
         await notifyTunnelDied(connectionId: connectionId)
     }
 
@@ -228,14 +228,14 @@ actor SSHTunnelManager {
         }
 
         tunnels.removeValue(forKey: connectionId)
-        Self.processRegistry.withLock { $0.removeValue(forKey: connectionId) }
+        Self.processRegistry.withLock { $0[connectionId] = nil }
     }
 
     /// Close all SSH tunnels
     func closeAllTunnels() async {
         let currentTunnels = tunnels
         tunnels.removeAll()
-        Self.processRegistry.withLock { $0.removeAll() }
+        Self.processRegistry.withLock { $0.removeAll(); return }
 
         await withTaskGroup(of: Void.self) { group in
             for (_, tunnel) in currentTunnels where tunnel.process.isRunning {

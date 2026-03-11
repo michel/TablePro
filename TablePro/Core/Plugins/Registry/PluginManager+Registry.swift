@@ -42,7 +42,7 @@ extension PluginManager {
         }
 
         // Use the registry client's configured session for consistent timeouts
-        let session = await RegistryClient.shared.session
+        let session = RegistryClient.shared.session
 
         let (tempDownloadURL, response) = try await session.download(from: downloadURL)
 
@@ -52,7 +52,7 @@ extension PluginManager {
             throw PluginError.downloadFailed("HTTP \(statusCode)")
         }
 
-        await progress(0.5)
+        progress(0.5)
 
         // Verify SHA-256 checksum
         let downloadedData = try Data(contentsOf: tempDownloadURL)
@@ -63,7 +63,7 @@ extension PluginManager {
             throw PluginError.checksumMismatch
         }
 
-        await progress(1.0)
+        progress(1.0)
 
         // Move to our temp directory for installPlugin
         try FileManager.default.moveItem(at: tempDownloadURL, to: tempZipURL)

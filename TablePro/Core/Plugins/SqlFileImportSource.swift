@@ -14,8 +14,7 @@ final class SqlFileImportSource: PluginImportSource, @unchecked Sendable {
     private let encoding: String.Encoding
     private let parser = SQLFileParser()
 
-    private let lock = NSLock()
-    private var decompressedURL: URL?
+    private let _decompressedURL = OSAllocatedUnfairLock<URL?>(initialState: nil)
 
     init(url: URL, encoding: String.Encoding) {
         self.url = url
@@ -43,23 +42,20 @@ final class SqlFileImportSource: PluginImportSource, @unchecked Sendable {
 
         return AsyncThrowingStream { continuation in
             Task {
-                do {
-                    for try await item in stream {
-                        continuation.yield(item)
-                    }
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
+                for try await item in stream {
+                    continuation.yield(item)
                 }
+                continuation.finish()
             }
         }
     }
 
     func cleanup() {
-        lock.lock()
-        let tempURL = decompressedURL
-        decompressedURL = nil
-        lock.unlock()
+        let tempURL = _decompressedURL.withLock {
+            let url = $0
+            $0 = nil
+            return url
+        }
 
         if let tempURL {
             do {
@@ -71,10 +67,7 @@ final class SqlFileImportSource: PluginImportSource, @unchecked Sendable {
     }
 
     deinit {
-        // Best-effort cleanup — decompressedURL is non-isolated, use lock
-        lock.lock()
-        let tempURL = decompressedURL
-        lock.unlock()
+        let tempURL = _decompressedURL.withLock { $0 }
         if let tempURL {
             try? FileManager.default.removeItem(at: tempURL)
         }
@@ -83,19 +76,14 @@ final class SqlFileImportSource: PluginImportSource, @unchecked Sendable {
     // MARK: - Private
 
     private func decompressIfNeeded() async throws -> URL {
-        lock.lock()
-        if let existing = decompressedURL {
-            lock.unlock()
+        if let existing = _decompressedURL.withLock({ $0 }) {
             return existing
         }
-        lock.unlock()
 
         let result = try await FileDecompressor.decompressIfNeeded(url) { $0.path() }
 
         if result != url {
-            lock.lock()
-            decompressedURL = result
-            lock.unlock()
+            _decompressedURL.withLock { $0 = result }
         }
 
         return result

@@ -645,6 +645,8 @@ final class DatabaseManager {
 
     // MARK: - Startup Commands
 
+    nonisolated private static let startupLogger = Logger(subsystem: "com.TablePro", category: "DatabaseManager")
+
     nonisolated private func executeStartupCommands(
         _ commands: String?, on driver: DatabaseDriver, connectionName: String
     ) async {
@@ -660,11 +662,11 @@ final class DatabaseManager {
         for statement in statements {
             do {
                 _ = try await driver.execute(query: statement)
-                Self.logger.info(
+                Self.startupLogger.info(
                     "Startup command succeeded for '\(connectionName)': \(statement)"
                 )
             } catch {
-                Self.logger.warning(
+                Self.startupLogger.warning(
                     "Startup command failed for '\(connectionName)': \(statement) — \(error.localizedDescription)"
                 )
             }

@@ -150,7 +150,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     // MARK: - AI Context Menu
 
     private func installAIContextMenu(controller: TextViewController) {
-        guard let textView = controller.textView else { return }
+        guard controller.textView != nil else { return }
         let menu = AIEditorContextMenu(title: "")
         menu.hasSelection = { [weak controller] in
             guard let controller else { return false }
