@@ -217,6 +217,14 @@ private final class FreeTDSConnection: @unchecked Sendable {
         var truncated = false
 
         while true {
+            lock.lock()
+            let cancelledBetweenResults = _isCancelled
+            if cancelledBetweenResults { _isCancelled = false }
+            lock.unlock()
+            if cancelledBetweenResults {
+                throw MSSQLPluginError.queryFailed("Query cancelled")
+            }
+
             let resCode = dbresults(proc)
             if resCode == FAIL {
                 throw MSSQLPluginError.queryFailed("Query execution failed")
