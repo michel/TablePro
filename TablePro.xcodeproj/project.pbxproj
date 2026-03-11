@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		5A73D5402F611FA600C3D121 /* DuckDBDriver.tableplugin in Copy Plug-Ins (12 items) */ = {isa = PBXBuildFile; fileRef = 5A869000100000000 /* DuckDBDriver.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A860000A00000000 /* TableProPluginKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A861000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A862000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
@@ -172,7 +171,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				5A73D5402F611FA600C3D121 /* DuckDBDriver.tableplugin in Copy Plug-Ins (12 items) */,
 				5A864000D00000000 /* MSSQLDriver.tableplugin in Copy Plug-Ins (12 items) */,
 				5A865000D00000000 /* MySQLDriver.tableplugin in Copy Plug-Ins (12 items) */,
 				5A866000D00000000 /* MongoDBDriver.tableplugin in Copy Plug-Ins (12 items) */,
