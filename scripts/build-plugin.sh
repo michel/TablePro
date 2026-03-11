@@ -39,9 +39,10 @@ build_plugin() {
         DEVELOPMENT_TEAM="$TEAM_ID" \
         -skipPackagePluginValidation \
         -derivedDataPath "$DERIVED_DATA_DIR" \
-        build 2>&1 | tee "build-plugin-${arch}.log" >&2; then
+        build > "build-plugin-${arch}.log" 2>&1; then
         echo "FATAL: xcodebuild failed for $PLUGIN_TARGET ($arch)" >&2
-        echo "Check build-plugin-${arch}.log for details" >&2
+        echo "Last 30 lines of build log:" >&2
+        tail -30 "build-plugin-${arch}.log" >&2
         exit 1
     fi
 
