@@ -106,7 +106,7 @@ final class CSVExportPlugin: ExportFormatPlugin, SettablePlugin {
         progress: PluginExportProgress
     ) throws {
         let delimiter = options.delimiter.actualValue
-        let lineBreak = settings.lineBreak.value
+        let lineBreak = options.lineBreak.value
 
         if options.includeFieldNames {
             let headerLine = columns
