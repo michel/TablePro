@@ -25,12 +25,21 @@ final class SQLExportPlugin: ExportFormatPlugin {
         PluginExportOptionColumn(id: "data", label: "Data", width: 44)
     ]
 
-    var options = SQLExportOptions()
+    private let storage = PluginSettingsStorage(pluginId: "sql")
+
+    var options = SQLExportOptions() {
+        didSet { storage.save(options) }
+    }
+
     var ddlFailures: [String] = []
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "SQLExportPlugin")
 
-    required init() {}
+    required init() {
+        if let saved = storage.load(SQLExportOptions.self) {
+            options = saved
+        }
+    }
 
     func defaultTableOptionValues() -> [Bool] {
         [true, true, true]

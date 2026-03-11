@@ -5,7 +5,7 @@
 
 import Foundation
 
-public struct SQLExportOptions: Equatable {
+public struct SQLExportOptions: Equatable, Codable {
     public var compressWithGzip: Bool = false
     public var batchSize: Int = 500
 

@@ -12,6 +12,8 @@ import TableProPluginKit
 final class PluginManager {
     static let shared = PluginManager()
     static let currentPluginKitVersion = 1
+    private static let disabledPluginsKey = "com.TablePro.disabledPlugins"
+    private static let legacyDisabledPluginsKey = "disabledPlugins"
 
     private(set) var plugins: [PluginEntry] = []
 
@@ -25,6 +27,8 @@ final class PluginManager {
 
     private(set) var importPlugins: [String: any ImportFormatPlugin] = [:]
 
+    private(set) var pluginInstances: [String: any TableProPlugin] = [:]
+
     private var builtInPluginsDir: URL? { Bundle.main.builtInPlugInsURL }
 
     private var userPluginsDir: URL {
@@ -33,8 +37,8 @@ final class PluginManager {
     }
 
     var disabledPluginIds: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: "disabledPlugins") ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: "disabledPlugins") }
+        get { Set(UserDefaults.standard.stringArray(forKey: Self.disabledPluginsKey) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: Self.disabledPluginsKey) }
     }
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "PluginManager")
@@ -43,11 +47,22 @@ final class PluginManager {
 
     private init() {}
 
+    private func migrateDisabledPluginsKey() {
+        let defaults = UserDefaults.standard
+        if let legacy = defaults.stringArray(forKey: Self.legacyDisabledPluginsKey) {
+            if defaults.stringArray(forKey: Self.disabledPluginsKey) == nil {
+                defaults.set(legacy, forKey: Self.disabledPluginsKey)
+            }
+            defaults.removeObject(forKey: Self.legacyDisabledPluginsKey)
+        }
+    }
+
     // MARK: - Loading
 
     /// Discover and load all plugins. Discovery is synchronous (reads Info.plist),
     /// then bundle loading is deferred to the next run loop iteration so it doesn't block app launch.
     func loadPlugins() {
+        migrateDisabledPluginsKey()
         discoverAllPlugins()
         Task { @MainActor in
             self.loadPendingPlugins()
@@ -206,6 +221,7 @@ final class PluginManager {
     // MARK: - Capability Registration
 
     private func registerCapabilities(_ instance: any TableProPlugin, pluginId: String) {
+        pluginInstances[pluginId] = instance
         let declared = Set(type(of: instance).capabilities)
 
         if let driver = instance as? any DriverPlugin {
@@ -265,6 +281,7 @@ final class PluginManager {
     }
 
     private func unregisterCapabilities(pluginId: String) {
+        pluginInstances.removeValue(forKey: pluginId)
         driverPlugins = driverPlugins.filter { _, value in
             guard let entry = plugins.first(where: { $0.id == pluginId }) else { return true }
             if let principalClass = entry.bundle.principalClass as? any DriverPlugin.Type {
@@ -510,6 +527,8 @@ final class PluginManager {
         if fm.fileExists(atPath: entry.url.path) {
             try fm.removeItem(at: entry.url)
         }
+
+        PluginSettingsStorage(pluginId: id).removeAll()
 
         var disabled = disabledPluginIds
         disabled.remove(id)

@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Namespaced `disabledPlugins` UserDefaults key to `com.TablePro.disabledPlugins` with automatic migration
+- Removed unused plugin capability types (sqlDialect, aiProvider, cellRenderer, sidebarPanel)
 - SQLite driver extracted from built-in bundle to downloadable plugin, reducing app size
 - Unified error formatting across all database drivers via default `PluginDriverError.errorDescription`, removing 10 per-driver implementations
 - Standardized async bridging: 5 queue-based drivers (MySQL, PostgreSQL, MongoDB, Redis, MSSQL) now use shared `pluginDispatchAsync` helper
@@ -26,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export plugin options (CSV, XLSX, JSON, SQL, MQL) now persist across app restarts
+- Plugins can declare settings views rendered in Settings > Plugins
 - True prepared statements for MSSQL (`sp_executesql`) and ClickHouse (HTTP query parameters), eliminating string interpolation for parameterized queries
 - Batch query operations for MSSQL, Oracle, and ClickHouse, eliminating N+1 query patterns for column, foreign key, and database metadata fetching; SQLite adds a batched `fetchAllForeignKeys` override within PRAGMA limitations
 - `PluginDriverError` protocol in TableProPluginKit for structured error reporting from driver plugins, with richer connection error messages showing error codes and SQL states
