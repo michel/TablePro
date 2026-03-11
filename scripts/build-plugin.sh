@@ -45,12 +45,11 @@ build_plugin() {
         exit 1
     fi
 
-    # Find the built plugin bundle
-    local plugin_bundle
-    plugin_bundle=$(find "$build_dir" -name "*.tableplugin" -maxdepth 1 | head -1)
+    # Find the built plugin bundle by target name
+    local plugin_bundle="$build_dir/${PLUGIN_TARGET}.tableplugin"
 
-    if [ -z "$plugin_bundle" ]; then
-        echo "FATAL: No .tableplugin bundle found in $build_dir" >&2
+    if [ ! -d "$plugin_bundle" ]; then
+        echo "FATAL: Plugin bundle not found at $plugin_bundle" >&2
         exit 1
     fi
 
