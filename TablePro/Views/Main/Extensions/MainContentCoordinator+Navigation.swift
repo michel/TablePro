@@ -233,16 +233,21 @@ extension MainContentCoordinator {
     }
 
     func showAllTablesMetadata() {
-        let sql: String
+        guard let sql = allTablesMetadataSQL() else { return }
+
+        let payload = EditorTabPayload(
+            connectionId: connection.id,
+            tabType: .query,
+            initialQuery: sql
+        )
+        WindowOpener.shared.openNativeTab(payload)
+    }
+
+    private func allTablesMetadataSQL() -> String? {
         switch connection.type {
         case .postgresql:
-            let schema: String
-            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
-                schema = schemaDriver.escapedSchema
-            } else {
-                schema = "public"
-            }
-            sql = """
+            let schema = (DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable)?.escapedSchema ?? "public"
+            return """
             SELECT
                 schemaname as schema,
                 relname as name,
@@ -257,13 +262,8 @@ extension MainContentCoordinator {
             ORDER BY relname
             """
         case .redshift:
-            let schema: String
-            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
-                schema = schemaDriver.escapedSchema
-            } else {
-                schema = "public"
-            }
-            sql = """
+            let schema = (DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable)?.escapedSchema ?? "public"
+            return """
             SELECT
                 schema,
                 "table" as name,
@@ -278,7 +278,7 @@ extension MainContentCoordinator {
             ORDER BY "table"
             """
         case .clickhouse:
-            sql = """
+            return """
             SELECT
                 database as `schema`,
                 name,
@@ -291,7 +291,7 @@ extension MainContentCoordinator {
             ORDER BY name
             """
         case .mysql, .mariadb:
-            sql = """
+            return """
             SELECT
                 TABLE_SCHEMA as `schema`,
                 TABLE_NAME as name,
@@ -310,7 +310,7 @@ extension MainContentCoordinator {
             ORDER BY TABLE_NAME
             """
         case .sqlite:
-            sql = """
+            return """
             SELECT
                 '' as schema,
                 name,
@@ -328,7 +328,7 @@ extension MainContentCoordinator {
             ORDER BY name
             """
         case .mssql:
-            sql = """
+            return """
             SELECT
                 s.name as schema_name,
                 t.name as name,
@@ -345,13 +345,8 @@ extension MainContentCoordinator {
             ORDER BY t.name
             """
         case .oracle:
-            let schema: String
-            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
-                schema = schemaDriver.escapedSchema
-            } else {
-                schema = "SYSTEM"
-            }
-            sql = """
+            let schema = (DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable)?.escapedSchema ?? "SYSTEM"
+            return """
             SELECT
                 OWNER as schema_name,
                 TABLE_NAME as name,
@@ -362,13 +357,8 @@ extension MainContentCoordinator {
             ORDER BY TABLE_NAME
             """
         case .duckdb:
-            let schema: String
-            if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
-                schema = schemaDriver.escapedSchema
-            } else {
-                schema = "main"
-            }
-            sql = """
+            let schema = (DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable)?.escapedSchema ?? "main"
+            return """
             SELECT
                 table_schema as schema_name,
                 table_name as name,
@@ -383,22 +373,15 @@ extension MainContentCoordinator {
                 databaseName: connection.database
             )
             runQuery()
-            return
+            return nil
         case .redis:
             tabManager.addTab(
                 initialQuery: "SCAN 0 MATCH * COUNT 100",
                 databaseName: connection.database
             )
             runQuery()
-            return
+            return nil
         }
-
-        let payload = EditorTabPayload(
-            connectionId: connection.id,
-            tabType: .query,
-            initialQuery: sql
-        )
-        WindowOpener.shared.openNativeTab(payload)
     }
 
     // MARK: - Database Switching

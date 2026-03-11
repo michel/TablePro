@@ -321,8 +321,8 @@ struct MainContentView: View {
                 // or re-query tabs whose row data was evicted while inactive.
                 if let tab = tabManager.selectedTab,
                    tab.tabType == .table,
-                   (tab.resultRows.isEmpty || tab.rowBuffer.isEvicted),
-                   (tab.lastExecutedAt == nil || tab.rowBuffer.isEvicted),
+                   tab.resultRows.isEmpty || tab.rowBuffer.isEvicted,
+                   tab.lastExecutedAt == nil || tab.rowBuffer.isEvicted,
                    !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 {
                     coordinator.runQuery()
