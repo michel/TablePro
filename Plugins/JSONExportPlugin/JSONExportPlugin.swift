@@ -24,7 +24,7 @@ final class JSONExportPlugin: ExportFormatPlugin {
     }
 
     required init() {
-        if let saved = PluginSettingsStorage(pluginId: "json").load(JSONExportOptions.self) {
+        if let saved = storage.load(JSONExportOptions.self) {
             options = saved
         }
     }

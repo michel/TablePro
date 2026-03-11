@@ -36,7 +36,7 @@ final class SQLExportPlugin: ExportFormatPlugin {
     private static let logger = Logger(subsystem: "com.TablePro", category: "SQLExportPlugin")
 
     required init() {
-        if let saved = PluginSettingsStorage(pluginId: "sql").load(SQLExportOptions.self) {
+        if let saved = storage.load(SQLExportOptions.self) {
             options = saved
         }
     }

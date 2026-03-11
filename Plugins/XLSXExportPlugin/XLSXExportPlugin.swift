@@ -24,7 +24,7 @@ final class XLSXExportPlugin: ExportFormatPlugin {
     }
 
     required init() {
-        if let saved = PluginSettingsStorage(pluginId: "xlsx").load(XLSXExportOptions.self) {
+        if let saved = storage.load(XLSXExportOptions.self) {
             options = saved
         }
     }

@@ -27,7 +27,7 @@ final class CSVExportPlugin: ExportFormatPlugin {
     }
 
     required init() {
-        if let saved = PluginSettingsStorage(pluginId: "csv").load(CSVExportOptions.self) {
+        if let saved = storage.load(CSVExportOptions.self) {
             options = saved
         }
     }

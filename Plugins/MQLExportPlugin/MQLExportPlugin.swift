@@ -31,7 +31,7 @@ final class MQLExportPlugin: ExportFormatPlugin {
     }
 
     required init() {
-        if let saved = PluginSettingsStorage(pluginId: "mql").load(MQLExportOptions.self) {
+        if let saved = storage.load(MQLExportOptions.self) {
             options = saved
         }
     }

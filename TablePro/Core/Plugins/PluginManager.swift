@@ -50,7 +50,9 @@ final class PluginManager {
     private func migrateDisabledPluginsKey() {
         let defaults = UserDefaults.standard
         if let legacy = defaults.stringArray(forKey: Self.legacyDisabledPluginsKey) {
-            defaults.set(legacy, forKey: Self.disabledPluginsKey)
+            if defaults.stringArray(forKey: Self.disabledPluginsKey) == nil {
+                defaults.set(legacy, forKey: Self.disabledPluginsKey)
+            }
             defaults.removeObject(forKey: Self.legacyDisabledPluginsKey)
         }
     }

@@ -195,7 +195,9 @@ struct DisabledPluginsMigrationTests {
 
         // Simulate what migrateDisabledPluginsKey does
         if let legacy = defaults.stringArray(forKey: testKey) {
-            defaults.set(legacy, forKey: namespacedKey)
+            if defaults.stringArray(forKey: namespacedKey) == nil {
+                defaults.set(legacy, forKey: namespacedKey)
+            }
             defaults.removeObject(forKey: testKey)
         }
 
@@ -230,10 +232,49 @@ struct DisabledPluginsMigrationTests {
 
         // Simulate migration
         if let legacy = defaults.stringArray(forKey: testKey) {
-            defaults.set(legacy, forKey: namespacedKey)
+            if defaults.stringArray(forKey: namespacedKey) == nil {
+                defaults.set(legacy, forKey: namespacedKey)
+            }
             defaults.removeObject(forKey: testKey)
         }
 
         #expect(defaults.stringArray(forKey: namespacedKey) == ["existing.plugin"])
+    }
+
+    @Test("migration preserves namespaced key when both keys exist")
+    func migrationPreservesNamespacedWhenBothExist() {
+        let testKey = "disabledPlugins"
+        let namespacedKey = "com.TablePro.disabledPlugins"
+        let defaults = UserDefaults.standard
+
+        let savedNamespaced = defaults.stringArray(forKey: namespacedKey)
+        let savedLegacy = defaults.stringArray(forKey: testKey)
+
+        defer {
+            if let saved = savedNamespaced {
+                defaults.set(saved, forKey: namespacedKey)
+            } else {
+                defaults.removeObject(forKey: namespacedKey)
+            }
+            if let saved = savedLegacy {
+                defaults.set(saved, forKey: testKey)
+            } else {
+                defaults.removeObject(forKey: testKey)
+            }
+        }
+
+        defaults.set(["legacy.plugin"], forKey: testKey)
+        defaults.set(["current.plugin"], forKey: namespacedKey)
+
+        // Simulate migration
+        if let legacy = defaults.stringArray(forKey: testKey) {
+            if defaults.stringArray(forKey: namespacedKey) == nil {
+                defaults.set(legacy, forKey: namespacedKey)
+            }
+            defaults.removeObject(forKey: testKey)
+        }
+
+        #expect(defaults.stringArray(forKey: namespacedKey) == ["current.plugin"])
+        #expect(defaults.stringArray(forKey: testKey) == nil)
     }
 }
