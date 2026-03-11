@@ -1772,6 +1772,7 @@
       }
     },
     "AI Provider" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2660,6 +2661,7 @@
       }
     },
     "Cell Renderer" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -14397,6 +14399,7 @@
       }
     },
     "Sidebar Panel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -14570,6 +14573,7 @@
       }
     },
     "SQL Dialect" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
