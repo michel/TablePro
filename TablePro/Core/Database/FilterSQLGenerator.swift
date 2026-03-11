@@ -149,8 +149,10 @@ struct FilterSQLGenerator {
         switch databaseType {
         case .mysql, .mariadb:
             return "\(column) REGEXP '\(escapedPattern)'"
-        case .postgresql, .redshift, .duckdb:
+        case .postgresql, .redshift:
             return "\(column) ~ '\(escapedPattern)'"
+        case .duckdb:
+            return "regexp_matches(\(column), '\(escapedPattern)')"
         case .sqlite, .mongodb, .redis, .mssql, .oracle, .clickhouse:
             return "\(column) LIKE '%\(escapedPattern)%'"
         }

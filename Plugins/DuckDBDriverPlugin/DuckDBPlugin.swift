@@ -271,8 +271,6 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     private var _currentSchema: String = "main"
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "DuckDBPluginDriver")
-    private static let limitRegex = try? NSRegularExpression(pattern: "(?i)\\s+LIMIT\\s+\\d+")
-    private static let offsetRegex = try? NSRegularExpression(pattern: "(?i)\\s+OFFSET\\s+\\d+")
 
     var currentSchema: String? { _currentSchema }
     var serverVersion: String? { String(cString: duckdb_library_version()) }
@@ -703,23 +701,60 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     private func stripLimitOffset(from query: String) -> String {
-        var result = query
+        var result = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if let limitRegex = Self.limitRegex {
-            let range = NSRange(result.startIndex..., in: result)
-            result = limitRegex.stringByReplacingMatches(
-                in: result, range: range, withTemplate: ""
-            )
+        // Strip trailing semicolons
+        while result.hasSuffix(";") {
+            result = String(result.dropLast()).trimmingCharacters(in: .whitespaces)
         }
 
-        if let offsetRegex = Self.offsetRegex {
-            let range = NSRange(result.startIndex..., in: result)
-            result = offsetRegex.stringByReplacingMatches(
-                in: result, range: range, withTemplate: ""
-            )
+        // Only strip LIMIT/OFFSET at the top level (depth 0) from the end.
+        // Strip OFFSET first (comes after LIMIT), then LIMIT.
+        for keyword in ["OFFSET", "LIMIT"] {
+            let upper = result.uppercased() as NSString
+            if let pos = findLastTopLevelKeyword(keyword, upper: upper, length: upper.length) {
+                result = (result as NSString).substring(to: pos)
+                    .trimmingCharacters(in: .whitespaces)
+            }
         }
 
-        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+        return result
+    }
+
+    private func findLastTopLevelKeyword(
+        _ keyword: String,
+        upper: NSString,
+        length: Int
+    ) -> Int? {
+        let keyLen = keyword.count
+        var depth = 0
+        var i = length - 1
+
+        while i >= keyLen {
+            let ch = upper.character(at: i)
+            if ch == UInt16(UnicodeScalar(")").value) {
+                depth += 1
+            } else if ch == UInt16(UnicodeScalar("(").value) {
+                depth -= 1
+            } else if depth == 0 {
+                let start = i - keyLen + 1
+                if start >= 0 {
+                    let candidate = upper.substring(with: NSRange(location: start, length: keyLen))
+                    if candidate == keyword {
+                        let beforeOk = start == 0
+                            || CharacterSet.whitespaces.contains(
+                                Unicode.Scalar(upper.character(at: start - 1))!
+                            )
+                        if beforeOk {
+                            return start
+                        }
+                    }
+                }
+            }
+            i -= 1
+        }
+
+        return nil
     }
 
     private func fetchPrimaryKeyColumns(
@@ -741,7 +776,8 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     private static let indexColumnsRegex = try? NSRegularExpression(
-        pattern: #"ON\s+(?:"[^"]*"|[^\s(]+)\s*\(([^)]+)\)"#, options: .caseInsensitive
+        pattern: #"ON\s+(?:(?:"[^"]*"|[^\s(]+)\s*\.\s*)*(?:"[^"]*"|[^\s(]+)\s*\(([^)]+)\)"#,
+        options: .caseInsensitive
     )
 
     private func extractIndexColumns(from sql: String?) -> [String] {

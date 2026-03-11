@@ -545,7 +545,11 @@ final class SQLCompletionProvider {
 
         case .duckdb:
             types += [
-                "HUGEINT", "LIST", "MAP", "STRUCT", "UNION", "ENUM", "UUID", "JSON", "BIT", "INTERVAL",
+                "HUGEINT", "TINYINT", "SMALLINT", "REAL", "NUMERIC",
+                "CHAR", "BPCHAR",
+                "BLOB", "BYTEA",
+                "TIMESTAMP WITH TIME ZONE",
+                "LIST", "MAP", "STRUCT", "UNION", "ENUM", "UUID", "JSON", "BIT", "INTERVAL",
             ]
 
         case .mongodb:

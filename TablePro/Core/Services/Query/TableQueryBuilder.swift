@@ -480,7 +480,9 @@ struct TableQueryBuilder {
             return "CAST(\(column) AS CHAR) LIKE '%\(searchText)%'"
         case .clickhouse:
             return "toString(\(column)) LIKE '%\(searchText)%' ESCAPE '\\'"
-        case .sqlite, .mongodb, .redis, .duckdb:
+        case .duckdb:
+            return "CAST(\(column) AS VARCHAR) LIKE '%\(searchText)%' ESCAPE '\\'"
+        case .sqlite, .mongodb, .redis:
             return "\(column) LIKE '%\(searchText)%' ESCAPE '\\'"
         case .mssql:
             return "CAST(\(column) AS NVARCHAR(MAX)) LIKE '%\(searchText)%' ESCAPE '\\'"

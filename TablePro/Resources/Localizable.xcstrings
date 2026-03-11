@@ -232,6 +232,9 @@
         }
       }
     },
+    "/path/to/database.duckdb" : {
+
+    },
     "/path/to/database.sqlite" : {
       "localizations" : {
         "vi" : {
