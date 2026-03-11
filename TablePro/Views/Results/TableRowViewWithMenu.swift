@@ -94,7 +94,9 @@ final class TableRowViewWithMenu: NSTableRowView {
                 menu.addItem(pasteItem)
             }
 
-            menu.addItem(NSMenuItem.separator())
+            if coordinator.isEditable {
+                menu.addItem(NSMenuItem.separator())
+            }
 
             // Set Value (editable + column clicked)
             if coordinator.isEditable && dataColumnIndex >= 0 {
