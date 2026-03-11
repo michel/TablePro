@@ -9,12 +9,13 @@ struct RegistryPluginRow: View {
     let plugin: RegistryPlugin
     let isInstalled: Bool
     let installProgress: InstallProgress?
+    let downloadCount: Int?
     let onInstall: () -> Void
     let onToggleDetail: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: plugin.iconName ?? "puzzlepiece")
+            pluginIcon(plugin.iconName ?? "puzzlepiece")
                 .frame(width: 24, height: 24)
                 .foregroundStyle(.secondary)
 
@@ -42,6 +43,16 @@ struct RegistryPluginRow: View {
                     Text(plugin.author.name)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    if let downloadCount {
+                        Text("\u{2022}")
+                            .font(.caption2)
+                            .foregroundStyle(.quaternary)
+
+                        Text(formattedCount(downloadCount))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -54,6 +65,29 @@ struct RegistryPluginRow: View {
         .onTapGesture {
             onToggleDetail()
         }
+    }
+
+    @ViewBuilder
+    private func pluginIcon(_ name: String) -> some View {
+        if NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil {
+            Image(systemName: name)
+        } else {
+            Image(name)
+                .renderingMode(.template)
+        }
+    }
+
+    private static let decimalFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter
+    }()
+
+    private func formattedCount(_ count: Int) -> String {
+        let formatted = Self.decimalFormatter.string(from: NSNumber(value: count)) ?? "\(count)"
+        return count == 1
+            ? String(localized: "\(formatted) download")
+            : String(localized: "\(formatted) downloads")
     }
 
     @ViewBuilder
