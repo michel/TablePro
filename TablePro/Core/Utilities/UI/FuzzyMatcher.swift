@@ -23,15 +23,22 @@ enum FuzzyMatcher {
 
         var score = 0
         var queryIndex = 0
+        var candidateIndex = 0
         var consecutiveBonus = 0
         var firstMatchPosition = -1
 
-        for candidateIndex in 0..<candidateLen {
-            guard queryIndex < queryLen else { break }
+        // Skip leading surrogate halves in query (emoji etc.)
+        while queryIndex < queryLen, UnicodeScalar(queryNS.character(at: queryIndex)) == nil {
+            queryIndex += 1
+        }
 
-            guard let queryScalar = UnicodeScalar(queryNS.character(at: queryIndex)),
-                  let candidateScalar = UnicodeScalar(candidateNS.character(at: candidateIndex))
-            else {
+        while candidateIndex < candidateLen, queryIndex < queryLen {
+            guard let queryScalar = UnicodeScalar(queryNS.character(at: queryIndex)) else {
+                queryIndex += 1
+                continue
+            }
+            guard let candidateScalar = UnicodeScalar(candidateNS.character(at: candidateIndex)) else {
+                candidateIndex += 1
                 consecutiveBonus = 0
                 continue
             }
@@ -40,6 +47,7 @@ enum FuzzyMatcher {
             let candidateChar = Character(candidateScalar)
 
             guard queryChar.lowercased() == candidateChar.lowercased() else {
+                candidateIndex += 1
                 consecutiveBonus = 0
                 continue
             }
@@ -65,6 +73,7 @@ enum FuzzyMatcher {
                 guard let prevScalar = UnicodeScalar(candidateNS.character(at: candidateIndex - 1)) else {
                     score += matchScore
                     queryIndex += 1
+                    candidateIndex += 1
                     continue
                 }
                 let prevChar = Character(prevScalar)
@@ -85,10 +94,16 @@ enum FuzzyMatcher {
 
             score += matchScore
             queryIndex += 1
+            candidateIndex += 1
         }
 
-        // All query characters must be matched
-        guard queryIndex == queryLen else { return 0 }
+        // Skip trailing surrogate halves in query
+        while queryIndex < queryLen, UnicodeScalar(queryNS.character(at: queryIndex)) == nil {
+            queryIndex += 1
+        }
+
+        // All query characters must be matched, and at least one real match must exist
+        guard queryIndex == queryLen, score > 0 else { return 0 }
 
         // Position bonus: earlier matches score higher
         if firstMatchPosition >= 0 {

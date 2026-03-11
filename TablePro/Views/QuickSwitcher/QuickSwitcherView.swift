@@ -240,7 +240,6 @@ struct QuickSwitcherSheet: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.selectedItem == nil)
-            .keyboardShortcut(.return, modifiers: [])
         }
         .padding(12)
     }

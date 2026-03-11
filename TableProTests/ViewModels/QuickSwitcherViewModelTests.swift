@@ -5,8 +5,8 @@
 //  Tests for QuickSwitcherViewModel filtering and navigation
 //
 
-import Testing
 @testable import TablePro
+import Testing
 
 @MainActor
 struct QuickSwitcherViewModelTests {
@@ -129,5 +129,48 @@ struct QuickSwitcherViewModelTests {
         vm.searchText = "users"
         try await Task.sleep(for: .milliseconds(100))
         #expect(vm.selectedItemId == vm.filteredItems.first?.id)
+    }
+
+    // MARK: - Grouped Items
+
+    @Test("groupedItems returns correct section kinds when not searching")
+    func groupedItemsReturnsSections() {
+        let vm = makeViewModel(items: sampleItems())
+        vm.searchText = ""
+        let groups = vm.groupedItems
+        let kinds = groups.map(\.kind)
+        #expect(kinds.contains(.table))
+        #expect(kinds.contains(.view))
+        #expect(kinds.contains(.database))
+        #expect(kinds.contains(.queryHistory))
+    }
+
+    @Test("groupedItems is empty when no items")
+    func groupedItemsEmptyWhenNoItems() {
+        let vm = makeViewModel(items: [])
+        #expect(vm.groupedItems.isEmpty)
+    }
+
+    @Test("selectedItem returns nil when selectedItemId does not match any item")
+    func selectedItemNilForBogusId() {
+        let vm = makeViewModel(items: sampleItems())
+        vm.selectedItemId = "nonexistent_id"
+        #expect(vm.selectedItem == nil)
+    }
+
+    @Test("moveUp does nothing when selectedItemId is nil")
+    func moveUpDoesNothingWhenNil() {
+        let vm = makeViewModel(items: sampleItems())
+        vm.selectedItemId = nil
+        vm.moveUp()
+        #expect(vm.selectedItemId == nil)
+    }
+
+    @Test("moveDown does nothing when selectedItemId is nil")
+    func moveDownDoesNothingWhenNil() {
+        let vm = makeViewModel(items: sampleItems())
+        vm.selectedItemId = nil
+        vm.moveDown()
+        #expect(vm.selectedItemId == nil)
     }
 }

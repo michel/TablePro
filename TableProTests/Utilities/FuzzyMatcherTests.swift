@@ -5,8 +5,8 @@
 //  Tests for FuzzyMatcher fuzzy string matching
 //
 
-import Testing
 @testable import TablePro
+import Testing
 
 struct FuzzyMatcherTests {
     // MARK: - Basic Matching
@@ -91,5 +91,35 @@ struct FuzzyMatcherTests {
     func singleCharacterQuery() {
         #expect(FuzzyMatcher.score(query: "u", candidate: "users") > 0)
         #expect(FuzzyMatcher.score(query: "z", candidate: "users") == 0)
+    }
+
+    // MARK: - Emoji / Surrogate Handling
+
+    @Test("Emoji in query does not block matching")
+    func emojiInQueryDoesNotBlock() {
+        let result = FuzzyMatcher.score(query: "🎉u", candidate: "users")
+        #expect(result > 0, "Query with leading emoji should still match remaining characters")
+    }
+
+    @Test("Emoji in candidate string handled correctly")
+    func emojiInCandidateHandled() {
+        let result = FuzzyMatcher.score(query: "ab", candidate: "a🎉b")
+        #expect(result > 0, "Candidate with emoji between matches should still match")
+    }
+
+    @Test("Pure emoji query against plain candidate returns 0")
+    func pureEmojiQueryReturnsZero() {
+        let result = FuzzyMatcher.score(query: "🎉🔥", candidate: "users")
+        #expect(result == 0)
+    }
+
+    // MARK: - Performance
+
+    @Test("Very long strings complete in reasonable time")
+    func veryLongStringsPerformance() {
+        let longCandidate = String(repeating: "abcdefghij", count: 1_000)
+        let query = "aej"
+        let result = FuzzyMatcher.score(query: query, candidate: longCandidate)
+        #expect(result > 0)
     }
 }

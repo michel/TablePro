@@ -47,16 +47,23 @@ final class QuickSwitcherViewModel {
         let tables = await schemaProvider.getTables()
         for table in tables {
             let kind: QuickSwitcherItemKind
+            let subtitle: String
             switch table.type {
-            case .table: kind = .table
-            case .view: kind = .view
-            case .systemTable: kind = .systemTable
+            case .table:
+                kind = .table
+                subtitle = ""
+            case .view:
+                kind = .view
+                subtitle = String(localized: "View")
+            case .systemTable:
+                kind = .systemTable
+                subtitle = String(localized: "System")
             }
             items.append(QuickSwitcherItem(
                 id: "table_\(table.name)_\(table.type.rawValue)",
                 name: table.name,
                 kind: kind,
-                subtitle: ""
+                subtitle: subtitle
             ))
         }
 

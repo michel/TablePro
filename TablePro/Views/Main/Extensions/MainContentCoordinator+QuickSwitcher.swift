@@ -6,9 +6,6 @@
 //
 
 import Foundation
-import os
-
-private let quickSwitcherLogger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator+QuickSwitcher")
 
 extension MainContentCoordinator {
     /// Handle selection from the quick switcher palette
