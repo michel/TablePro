@@ -14,6 +14,10 @@ import Testing
 
 private final class MockMSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     private var schema: String?
+    var cancelQueryCallCount = 0
+    var applyQueryTimeoutValues: [Int] = []
+    var executedQueries: [String] = []
+    var shouldFailExecute = true
 
     init(initialSchema: String?) {
         schema = initialSchema
@@ -29,12 +33,25 @@ private final class MockMSSQLPluginDriver: PluginDatabaseDriver, @unchecked Send
     func connect() async throws {}
     func disconnect() {}
 
+    func cancelQuery() throws {
+        cancelQueryCallCount += 1
+    }
+
+    func applyQueryTimeout(_ seconds: Int) async throws {
+        applyQueryTimeoutValues.append(seconds)
+        executedQueries.append("SET LOCK_TIMEOUT \(seconds * 1_000)")
+    }
+
     func execute(query: String) async throws -> PluginQueryResult {
-        throw NSError(
-            domain: "MockMSSQLPluginDriver",
-            code: -1,
-            userInfo: [NSLocalizedDescriptionKey: "Not connected"]
-        )
+        executedQueries.append(query)
+        if shouldFailExecute {
+            throw NSError(
+                domain: "MockMSSQLPluginDriver",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Not connected"]
+            )
+        }
+        return PluginQueryResult(columns: [], columnTypeNames: [], rows: [], rowsAffected: 0, executionTime: 0)
     }
 
     func fetchTables(schema: String?) async throws -> [PluginTableInfo] { [] }
@@ -64,10 +81,16 @@ struct MSSQLDriverTests {
     }
 
     private func makeAdapter(mssqlSchema: String? = nil) -> PluginDriverAdapter {
+        let (adapter, _) = makeAdapterWithMock(mssqlSchema: mssqlSchema)
+        return adapter
+    }
+
+    private func makeAdapterWithMock(mssqlSchema: String? = nil) -> (PluginDriverAdapter, MockMSSQLPluginDriver) {
         let conn = makeConnection(mssqlSchema: mssqlSchema)
         let effectiveSchema: String? = if let s = mssqlSchema, !s.isEmpty { s } else { "dbo" }
-        let pluginDriver = MockMSSQLPluginDriver(initialSchema: effectiveSchema)
-        return PluginDriverAdapter(connection: conn, pluginDriver: pluginDriver)
+        let mock = MockMSSQLPluginDriver(initialSchema: effectiveSchema)
+        let adapter = PluginDriverAdapter(connection: conn, pluginDriver: mock)
+        return (adapter, mock)
     }
 
     // MARK: - Initialization Tests
@@ -146,5 +169,50 @@ struct MSSQLDriverTests {
         await #expect(throws: (any Error).self) {
             _ = try await adapter.execute(query: "SELECT 1")
         }
+    }
+
+    // MARK: - cancelQuery Tests
+
+    @Test("cancelQuery delegates to plugin driver")
+    func cancelQueryDelegatesToPlugin() throws {
+        let (adapter, mock) = makeAdapterWithMock()
+        try adapter.cancelQuery()
+        #expect(mock.cancelQueryCallCount == 1)
+    }
+
+    @Test("cancelQuery can be called multiple times")
+    func cancelQueryMultipleCalls() throws {
+        let (adapter, mock) = makeAdapterWithMock()
+        try adapter.cancelQuery()
+        try adapter.cancelQuery()
+        try adapter.cancelQuery()
+        #expect(mock.cancelQueryCallCount == 3)
+    }
+
+    // MARK: - applyQueryTimeout Tests
+
+    @Test("applyQueryTimeout delegates to plugin driver with correct value")
+    func applyQueryTimeoutDelegates() async throws {
+        let (adapter, mock) = makeAdapterWithMock()
+        mock.shouldFailExecute = false
+        try await adapter.applyQueryTimeout(30)
+        #expect(mock.applyQueryTimeoutValues == [30])
+    }
+
+    @Test("applyQueryTimeout with zero is handled by plugin")
+    func applyQueryTimeoutZero() async throws {
+        let (adapter, mock) = makeAdapterWithMock()
+        mock.shouldFailExecute = false
+        try await adapter.applyQueryTimeout(0)
+        #expect(mock.applyQueryTimeoutValues == [0])
+    }
+
+    @Test("applyQueryTimeout with different values records each call")
+    func applyQueryTimeoutMultipleCalls() async throws {
+        let (adapter, mock) = makeAdapterWithMock()
+        mock.shouldFailExecute = false
+        try await adapter.applyQueryTimeout(10)
+        try await adapter.applyQueryTimeout(60)
+        #expect(mock.applyQueryTimeoutValues == [10, 60])
     }
 }
