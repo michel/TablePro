@@ -19,7 +19,15 @@ final class PluginManager {
 
     private(set) var isInstalling = false
 
-    private(set) var needsRestart = false
+    private static let needsRestartKey = "com.TablePro.needsRestart"
+
+    private var _needsRestart: Bool = UserDefaults.standard.bool(
+        forKey: needsRestartKey
+    ) {
+        didSet { UserDefaults.standard.set(_needsRestart, forKey: Self.needsRestartKey) }
+    }
+
+    var needsRestart: Bool { _needsRestart }
 
     private(set) var driverPlugins: [String: any DriverPlugin] = [:]
 
@@ -104,6 +112,7 @@ final class PluginManager {
         }
 
         validateDependencies()
+        _needsRestart = false
         Self.logger.info("Loaded \(self.plugins.count) plugin(s): \(self.driverPlugins.count) driver(s), \(self.exportPlugins.count) export format(s), \(self.importPlugins.count) import format(s)")
     }
 
@@ -318,6 +327,12 @@ final class PluginManager {
 
     func isDriverLoaded(for databaseType: DatabaseType) -> Bool {
         driverPlugins[databaseType.pluginTypeId] != nil
+    }
+
+    func additionalConnectionFields(for databaseType: DatabaseType) -> [ConnectionField] {
+        loadPendingPlugins()
+        guard let plugin = driverPlugins[databaseType.pluginTypeId] else { return [] }
+        return Swift.type(of: plugin).additionalConnectionFields
     }
 
     func installMissingPlugin(
@@ -535,7 +550,7 @@ final class PluginManager {
         disabledPluginIds = disabled
 
         Self.logger.info("Uninstalled plugin '\(id)'")
-        needsRestart = true
+        _needsRestart = true
     }
 
     // MARK: - Dependency Validation

@@ -18,8 +18,29 @@ final class MongoDBPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let defaultPort = 27017
     static let additionalConnectionFields: [ConnectionField] = [
         ConnectionField(id: "mongoAuthSource", label: "Auth Database", placeholder: "admin"),
-        ConnectionField(id: "mongoReadPreference", label: "Read Preference", placeholder: "primary"),
-        ConnectionField(id: "mongoWriteConcern", label: "Write Concern", placeholder: "majority")
+        ConnectionField(
+            id: "mongoReadPreference",
+            label: "Read Preference",
+            fieldType: .dropdown(options: [
+                .init(value: "", label: "Default"),
+                .init(value: "primary", label: "Primary"),
+                .init(value: "primaryPreferred", label: "Primary Preferred"),
+                .init(value: "secondary", label: "Secondary"),
+                .init(value: "secondaryPreferred", label: "Secondary Preferred"),
+                .init(value: "nearest", label: "Nearest"),
+            ])
+        ),
+        ConnectionField(
+            id: "mongoWriteConcern",
+            label: "Write Concern",
+            fieldType: .dropdown(options: [
+                .init(value: "", label: "Default"),
+                .init(value: "majority", label: "Majority"),
+                .init(value: "1", label: "1"),
+                .init(value: "2", label: "2"),
+                .init(value: "3", label: "3"),
+            ])
+        ),
     ]
 
     // MARK: - UI/Capability Metadata

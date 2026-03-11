@@ -193,6 +193,18 @@ struct InstalledPluginsView: View {
                 exportSettings
             }
 
+            if let importPlugin = pluginManager.pluginInstances[plugin.id] as? any ImportFormatPlugin,
+               let importSettings = importPlugin.optionsView() {
+                Divider()
+                importSettings
+            }
+
+            if let driverPlugin = pluginManager.pluginInstances[plugin.id] as? any DriverPlugin,
+               let driverSettings = driverPlugin.settingsView() {
+                Divider()
+                driverSettings
+            }
+
             if plugin.source == .userInstalled {
                 HStack {
                     Spacer()

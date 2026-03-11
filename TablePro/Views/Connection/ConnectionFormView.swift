@@ -7,6 +7,7 @@
 
 import os
 import SwiftUI
+import TableProPluginKit
 import UniformTypeIdentifiers
 
 /// Form for creating or editing a database connection
@@ -25,6 +26,10 @@ struct ConnectionFormView: View {
 
     private var availableDatabaseTypes: [DatabaseType] {
         DatabaseType.allCases
+    }
+
+    private var additionalConnectionFields: [ConnectionField] {
+        PluginManager.shared.additionalConnectionFields(for: type)
     }
 
     @State private var name: String = ""
@@ -71,16 +76,8 @@ struct ConnectionFormView: View {
     // AI policy
     @State private var aiPolicy: AIConnectionPolicy?
 
-    // MongoDB-specific settings
-    @State private var mongoAuthSource: String = ""
-    @State private var mongoReadPreference: String = ""
-    @State private var mongoWriteConcern: String = ""
-
-    // MSSQL-specific settings
-    @State private var mssqlSchema: String = "dbo"
-
-    // Oracle-specific settings
-    @State private var oracleServiceName: String = ""
+    // Plugin-driven additional connection fields
+    @State private var additionalFieldValues: [String: String] = [:]
 
     // Startup commands
     @State private var startupCommands: String = ""
@@ -147,6 +144,12 @@ struct ConnectionFormView: View {
             }
             if newType.isDownloadablePlugin && !PluginManager.shared.isDriverAvailable(for: newType) {
                 installPluginForType(newType)
+            }
+            additionalFieldValues = [:]
+            for field in PluginManager.shared.additionalConnectionFields(for: newType) {
+                if let defaultValue = field.defaultValue {
+                    additionalFieldValues[field.id] = defaultValue
+                }
             }
         }
         .pluginInstallPrompt(connection: $pluginInstallConnection) { connection in
@@ -571,27 +574,19 @@ struct ConnectionFormView: View {
 
     private var advancedForm: some View {
         Form {
-            if type == .mongodb {
-                Section("MongoDB") {
-                    TextField(
-                        String(localized: "Auth Database"),
-                        text: $mongoAuthSource,
-                        prompt: Text("admin")
-                    )
-                    Picker(String(localized: "Read Preference"), selection: $mongoReadPreference) {
-                        Text(String(localized: "Default")).tag("")
-                        Text("Primary").tag("primary")
-                        Text("Primary Preferred").tag("primaryPreferred")
-                        Text("Secondary").tag("secondary")
-                        Text("Secondary Preferred").tag("secondaryPreferred")
-                        Text("Nearest").tag("nearest")
-                    }
-                    Picker(String(localized: "Write Concern"), selection: $mongoWriteConcern) {
-                        Text(String(localized: "Default")).tag("")
-                        Text("Majority").tag("majority")
-                        Text("1").tag("1")
-                        Text("2").tag("2")
-                        Text("3").tag("3")
+            if !additionalConnectionFields.isEmpty {
+                Section(type.rawValue) {
+                    ForEach(additionalConnectionFields, id: \.id) { field in
+                        ConnectionFieldRow(
+                            field: field,
+                            value: Binding(
+                                get: {
+                                    additionalFieldValues[field.id]
+                                        ?? field.defaultValue ?? ""
+                                },
+                                set: { additionalFieldValues[field.id] = $0 }
+                            )
+                        )
                     }
                 }
             }
@@ -607,32 +602,6 @@ struct ConnectionFormView: View {
                     ) {
                         Text(String(localized: "Database Index: \(Int(database) ?? 0)"))
                     }
-                }
-            }
-
-            if type == .mssql {
-                Section("SQL Server") {
-                    TextField(
-                        String(localized: "Schema"),
-                        text: Binding(
-                            get: { mssqlSchema },
-                            set: { mssqlSchema = $0 }
-                        )
-                    )
-                    .textFieldStyle(.roundedBorder)
-                }
-            }
-
-            if type == .oracle {
-                Section(String(localized: "Oracle")) {
-                    TextField(
-                        String(localized: "Service Name"),
-                        text: Binding(
-                            get: { oracleServiceName },
-                            set: { oracleServiceName = $0 }
-                        )
-                    )
-                    .textFieldStyle(.roundedBorder)
                 }
             }
 
@@ -818,21 +787,18 @@ struct ConnectionFormView: View {
             safeModeLevel = existing.safeModeLevel
             aiPolicy = existing.aiPolicy
 
-            // Load MongoDB settings
-            mongoAuthSource = existing.mongoAuthSource ?? ""
-            mongoReadPreference = existing.mongoReadPreference ?? ""
-            mongoWriteConcern = existing.mongoWriteConcern ?? ""
+            // Load additional fields from connection
+            additionalFieldValues = existing.additionalFields
+            for field in PluginManager.shared.additionalConnectionFields(for: existing.type) {
+                if additionalFieldValues[field.id] == nil, let defaultValue = field.defaultValue {
+                    additionalFieldValues[field.id] = defaultValue
+                }
+            }
 
-            // Load Redis settings
+            // Load Redis settings (special case)
             if existing.type == .redis, let rdb = existing.redisDatabase {
                 database = String(rdb)
             }
-
-            // Load MSSQL settings
-            mssqlSchema = existing.mssqlSchema ?? "dbo"
-
-            // Load Oracle settings
-            oracleServiceName = existing.oracleServiceName ?? ""
 
             // Load startup commands
             startupCommands = existing.startupCommands ?? ""
@@ -896,14 +862,10 @@ struct ConnectionFormView: View {
             groupId: selectedGroupId,
             safeModeLevel: safeModeLevel,
             aiPolicy: aiPolicy,
-            mongoAuthSource: mongoAuthSource.isEmpty ? nil : mongoAuthSource,
-            mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
-            mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
             redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
-            mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
-            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? nil : startupCommands
+                ? nil : startupCommands,
+            additionalFields: additionalFieldValues.isEmpty ? nil : additionalFieldValues
         )
 
         // Save passwords to Keychain
@@ -1029,14 +991,10 @@ struct ConnectionFormView: View {
             color: connectionColor,
             tagId: selectedTagId,
             groupId: selectedGroupId,
-            mongoAuthSource: mongoAuthSource.isEmpty ? nil : mongoAuthSource,
-            mongoReadPreference: mongoReadPreference.isEmpty ? nil : mongoReadPreference,
-            mongoWriteConcern: mongoWriteConcern.isEmpty ? nil : mongoWriteConcern,
             redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
-            mssqlSchema: mssqlSchema.isEmpty ? nil : mssqlSchema,
-            oracleServiceName: oracleServiceName.isEmpty ? nil : oracleServiceName,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? nil : startupCommands
+                ? nil : startupCommands,
+            additionalFields: additionalFieldValues.isEmpty ? nil : additionalFieldValues
         )
 
         Task {
@@ -1171,7 +1129,7 @@ struct ConnectionFormView: View {
                 }
             }
             if let authSourceValue = parsed.authSource, !authSourceValue.isEmpty {
-                mongoAuthSource = authSourceValue
+                additionalFieldValues["mongoAuthSource"] = authSourceValue
             }
             if let connectionName = parsed.connectionName, !connectionName.isEmpty {
                 name = connectionName

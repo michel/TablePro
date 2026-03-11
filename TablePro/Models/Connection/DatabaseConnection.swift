@@ -405,13 +405,34 @@ struct DatabaseConnection: Identifiable, Hashable {
     var groupId: UUID?
     var safeModeLevel: SafeModeLevel
     var aiPolicy: AIConnectionPolicy?
-    var mongoAuthSource: String?
-    var mongoReadPreference: String?
-    var mongoWriteConcern: String?
+    var additionalFields: [String: String] = [:]
     var redisDatabase: Int?
-    var mssqlSchema: String?
-    var oracleServiceName: String?
     var startupCommands: String?
+
+    var mongoAuthSource: String? {
+        get { additionalFields["mongoAuthSource"]?.nilIfEmpty }
+        set { additionalFields["mongoAuthSource"] = newValue ?? "" }
+    }
+
+    var mongoReadPreference: String? {
+        get { additionalFields["mongoReadPreference"]?.nilIfEmpty }
+        set { additionalFields["mongoReadPreference"] = newValue ?? "" }
+    }
+
+    var mongoWriteConcern: String? {
+        get { additionalFields["mongoWriteConcern"]?.nilIfEmpty }
+        set { additionalFields["mongoWriteConcern"] = newValue ?? "" }
+    }
+
+    var mssqlSchema: String? {
+        get { additionalFields["mssqlSchema"]?.nilIfEmpty }
+        set { additionalFields["mssqlSchema"] = newValue ?? "" }
+    }
+
+    var oracleServiceName: String? {
+        get { additionalFields["oracleServiceName"]?.nilIfEmpty }
+        set { additionalFields["oracleServiceName"] = newValue ?? "" }
+    }
 
     init(
         id: UUID = UUID(),
@@ -434,7 +455,8 @@ struct DatabaseConnection: Identifiable, Hashable {
         redisDatabase: Int? = nil,
         mssqlSchema: String? = nil,
         oracleServiceName: String? = nil,
-        startupCommands: String? = nil
+        startupCommands: String? = nil,
+        additionalFields: [String: String]? = nil
     ) {
         self.id = id
         self.name = name
@@ -450,13 +472,19 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.groupId = groupId
         self.safeModeLevel = safeModeLevel
         self.aiPolicy = aiPolicy
-        self.mongoAuthSource = mongoAuthSource
-        self.mongoReadPreference = mongoReadPreference
-        self.mongoWriteConcern = mongoWriteConcern
         self.redisDatabase = redisDatabase
-        self.mssqlSchema = mssqlSchema
-        self.oracleServiceName = oracleServiceName
         self.startupCommands = startupCommands
+        if let additionalFields {
+            self.additionalFields = additionalFields
+        } else {
+            var fields: [String: String] = [:]
+            if let v = mongoAuthSource { fields["mongoAuthSource"] = v }
+            if let v = mongoReadPreference { fields["mongoReadPreference"] = v }
+            if let v = mongoWriteConcern { fields["mongoWriteConcern"] = v }
+            if let v = mssqlSchema { fields["mssqlSchema"] = v }
+            if let v = oracleServiceName { fields["oracleServiceName"] = v }
+            self.additionalFields = fields
+        }
     }
 
     /// Returns the display color (custom color or database type color)
@@ -474,3 +502,11 @@ extension DatabaseConnection {
 // MARK: - Codable Conformance
 
 extension DatabaseConnection: Codable {}
+
+// MARK: - String Helpers
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
+    }
+}

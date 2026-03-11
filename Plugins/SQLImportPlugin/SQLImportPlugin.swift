@@ -17,9 +17,17 @@ final class SQLImportPlugin: ImportFormatPlugin {
     static let acceptedFileExtensions = ["sql", "gz"]
     static let iconName = "doc.text"
 
-    var options = SQLImportOptions()
+    private let storage = PluginSettingsStorage(pluginId: "sql-import")
 
-    required init() {}
+    var options = SQLImportOptions() {
+        didSet { storage.save(options) }
+    }
+
+    required init() {
+        if let saved = storage.load(SQLImportOptions.self) {
+            options = saved
+        }
+    }
 
     func optionsView() -> AnyView? {
         AnyView(SQLImportOptionsView(plugin: self))

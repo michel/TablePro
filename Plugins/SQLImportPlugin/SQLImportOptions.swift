@@ -5,8 +5,7 @@
 
 import Foundation
 
-@Observable
-final class SQLImportOptions {
+struct SQLImportOptions: Equatable, Codable {
     var wrapInTransaction: Bool = true
     var disableForeignKeyChecks: Bool = true
 }

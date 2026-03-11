@@ -121,13 +121,9 @@ final class ConnectionStorage {
             groupId: connection.groupId,
             safeModeLevel: connection.safeModeLevel,
             aiPolicy: connection.aiPolicy,
-            mongoAuthSource: connection.mongoAuthSource,
-            mongoReadPreference: connection.mongoReadPreference,
-            mongoWriteConcern: connection.mongoWriteConcern,
             redisDatabase: connection.redisDatabase,
-            mssqlSchema: connection.mssqlSchema,
-            oracleServiceName: connection.oracleServiceName,
-            startupCommands: connection.startupCommands
+            startupCommands: connection.startupCommands,
+            additionalFields: connection.additionalFields.isEmpty ? nil : connection.additionalFields
         )
 
         // Save the duplicate connection
@@ -386,6 +382,9 @@ private struct StoredConnection: Codable {
     // Startup commands
     let startupCommands: String?
 
+    // Plugin-driven additional fields
+    let additionalFields: [String: String]?
+
     init(from connection: DatabaseConnection) {
         self.id = connection.id
         self.name = connection.name
@@ -438,6 +437,9 @@ private struct StoredConnection: Codable {
 
         // Startup commands
         self.startupCommands = connection.startupCommands
+
+        // Plugin-driven additional fields
+        self.additionalFields = connection.additionalFields.isEmpty ? nil : connection.additionalFields
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -451,6 +453,7 @@ private struct StoredConnection: Codable {
         case aiPolicy
         case mongoAuthSource, mongoReadPreference, mongoWriteConcern, redisDatabase
         case mssqlSchema, oracleServiceName, startupCommands
+        case additionalFields
     }
 
     func encode(to encoder: Encoder) throws {
@@ -486,6 +489,7 @@ private struct StoredConnection: Codable {
         try container.encodeIfPresent(mssqlSchema, forKey: .mssqlSchema)
         try container.encodeIfPresent(oracleServiceName, forKey: .oracleServiceName)
         try container.encodeIfPresent(startupCommands, forKey: .startupCommands)
+        try container.encodeIfPresent(additionalFields, forKey: .additionalFields)
     }
 
     // Custom decoder to handle migration from old format
@@ -536,6 +540,7 @@ private struct StoredConnection: Codable {
         mssqlSchema = try container.decodeIfPresent(String.self, forKey: .mssqlSchema)
         oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
         startupCommands = try container.decodeIfPresent(String.self, forKey: .startupCommands)
+        additionalFields = try container.decodeIfPresent([String: String].self, forKey: .additionalFields)
     }
 
     func toConnection() -> DatabaseConnection {
@@ -562,6 +567,23 @@ private struct StoredConnection: Codable {
         let parsedGroupId = groupId.flatMap { UUID(uuidString: $0) }
         let parsedAIPolicy = aiPolicy.flatMap { AIConnectionPolicy(rawValue: $0) }
 
+        // Merge legacy named keys into additionalFields as fallback
+        let mergedFields: [String: String]? = {
+            var fields = additionalFields ?? [:]
+            if fields["mongoAuthSource"] == nil, let v = mongoAuthSource { fields["mongoAuthSource"] = v }
+            if fields["mongoReadPreference"] == nil, let v = mongoReadPreference {
+                fields["mongoReadPreference"] = v
+            }
+            if fields["mongoWriteConcern"] == nil, let v = mongoWriteConcern {
+                fields["mongoWriteConcern"] = v
+            }
+            if fields["mssqlSchema"] == nil, let v = mssqlSchema { fields["mssqlSchema"] = v }
+            if fields["oracleServiceName"] == nil, let v = oracleServiceName {
+                fields["oracleServiceName"] = v
+            }
+            return fields.isEmpty ? nil : fields
+        }()
+
         return DatabaseConnection(
             id: id,
             name: name,
@@ -577,13 +599,9 @@ private struct StoredConnection: Codable {
             groupId: parsedGroupId,
             safeModeLevel: SafeModeLevel(rawValue: safeModeLevel) ?? .silent,
             aiPolicy: parsedAIPolicy,
-            mongoAuthSource: mongoAuthSource,
-            mongoReadPreference: mongoReadPreference,
-            mongoWriteConcern: mongoWriteConcern,
             redisDatabase: redisDatabase,
-            mssqlSchema: mssqlSchema,
-            oracleServiceName: oracleServiceName,
-            startupCommands: startupCommands
+            startupCommands: startupCommands,
+            additionalFields: mergedFields
         )
     }
 }

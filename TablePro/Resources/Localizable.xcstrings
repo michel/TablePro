@@ -1021,6 +1021,7 @@
       }
     },
     "1" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1102,6 +1103,7 @@
       }
     },
     "2" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -1134,6 +1136,7 @@
       }
     },
     "3" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -2280,9 +2283,6 @@
           }
         }
       }
-    },
-    "Auth Database" : {
-
     },
     "Authenticate to execute database operations" : {
 
@@ -9376,6 +9376,7 @@
       }
     },
     "Majority" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -9665,6 +9666,7 @@
       }
     },
     "MongoDB" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -9829,6 +9831,7 @@
       }
     },
     "Nearest" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -11462,6 +11465,7 @@
       }
     },
     "Oracle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -12290,6 +12294,7 @@
       }
     },
     "Primary" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -12306,6 +12311,7 @@
       }
     },
     "Primary Preferred" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -12630,6 +12636,7 @@
       }
     },
     "Read Preference" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -13705,6 +13712,7 @@
       }
     },
     "Schema" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -13913,6 +13921,7 @@
       }
     },
     "Secondary" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -13929,6 +13938,7 @@
       }
     },
     "Secondary Preferred" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -14145,6 +14155,7 @@
       }
     },
     "Service Name" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -14705,6 +14716,7 @@
       }
     },
     "SQL Server" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -17215,6 +17227,7 @@
       }
     },
     "Write Concern" : {
+      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {

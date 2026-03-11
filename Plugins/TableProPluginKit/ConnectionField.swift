@@ -1,12 +1,34 @@
 import Foundation
 
 public struct ConnectionField: Codable, Sendable {
+    public enum FieldType: Codable, Sendable, Equatable {
+        case text
+        case secure
+        case dropdown(options: [DropdownOption])
+    }
+
+    public struct DropdownOption: Codable, Sendable, Equatable {
+        public let value: String
+        public let label: String
+
+        public init(value: String, label: String) {
+            self.value = value
+            self.label = label
+        }
+    }
+
     public let id: String
     public let label: String
     public let placeholder: String
     public let isRequired: Bool
-    public let isSecure: Bool
     public let defaultValue: String?
+    public let fieldType: FieldType
+
+    /// Backward-compatible convenience: true when fieldType is .secure
+    public var isSecure: Bool {
+        if case .secure = fieldType { return true }
+        return false
+    }
 
     public init(
         id: String,
@@ -14,13 +36,14 @@ public struct ConnectionField: Codable, Sendable {
         placeholder: String = "",
         required: Bool = false,
         secure: Bool = false,
-        defaultValue: String? = nil
+        defaultValue: String? = nil,
+        fieldType: FieldType? = nil
     ) {
         self.id = id
         self.label = label
         self.placeholder = placeholder
         self.isRequired = required
-        self.isSecure = secure
         self.defaultValue = defaultValue
+        self.fieldType = fieldType ?? (secure ? .secure : .text)
     }
 }

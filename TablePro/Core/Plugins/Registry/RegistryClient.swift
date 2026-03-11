@@ -22,8 +22,19 @@ final class RegistryClient {
     let session: URLSession
     private static let logger = Logger(subsystem: "com.TablePro", category: "RegistryClient")
 
-    private static let registryURL = URL(string:
+    private static let defaultRegistryURL = URL(string:
         "https://raw.githubusercontent.com/datlechin/tablepro-plugins/main/plugins.json")! // swiftlint:disable:this force_unwrapping
+
+    static let customRegistryURLKey = "com.TablePro.customRegistryURL"
+    private static let lastRegistryURLKey = "com.TablePro.lastRegistryURL"
+
+    private var registryURL: URL {
+        if let raw = UserDefaults.standard.string(forKey: Self.customRegistryURLKey),
+           let custom = URL(string: raw) {
+            return custom
+        }
+        return Self.defaultRegistryURL
+    }
 
     private static let manifestCacheKey = "registryManifestCache"
     private static let lastFetchKey = "registryLastFetch"
@@ -47,7 +58,15 @@ final class RegistryClient {
     func fetchManifest(forceRefresh: Bool = false) async {
         fetchState = .loading
 
-        var request = URLRequest(url: Self.registryURL)
+        // Invalidate ETag cache when registry URL changes
+        let currentURL = registryURL.absoluteString
+        let lastURL = UserDefaults.standard.string(forKey: Self.lastRegistryURLKey)
+        if currentURL != lastURL {
+            cachedETag = nil
+            UserDefaults.standard.set(currentURL, forKey: Self.lastRegistryURLKey)
+        }
+
+        var request = URLRequest(url: registryURL)
         if !forceRefresh, let etag = cachedETag {
             request.setValue(etag, forHTTPHeaderField: "If-None-Match")
         }

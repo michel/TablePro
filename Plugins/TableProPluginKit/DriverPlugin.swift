@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 public protocol DriverPlugin: TableProPlugin {
     static var databaseTypeId: String { get }
@@ -11,6 +12,8 @@ public protocol DriverPlugin: TableProPlugin {
     static func driverVariant(for databaseTypeId: String) -> String?
 
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver
+
+    func settingsView() -> AnyView?
 
     // MARK: - UI/Capability Metadata
 
@@ -39,6 +42,7 @@ public extension DriverPlugin {
     static var additionalConnectionFields: [ConnectionField] { [] }
     static var additionalDatabaseTypeIds: [String] { [] }
     static func driverVariant(for databaseTypeId: String) -> String? { nil }
+    func settingsView() -> AnyView? { nil }
 
     // MARK: - UI/Capability Metadata Defaults
 
