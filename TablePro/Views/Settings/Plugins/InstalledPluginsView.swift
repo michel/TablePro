@@ -93,7 +93,7 @@ struct InstalledPluginsView: View {
     @ViewBuilder
     private func pluginRow(_ plugin: PluginEntry) -> some View {
         HStack {
-            Image(systemName: plugin.iconName)
+            pluginIcon(plugin.iconName)
                 .frame(width: 20)
                 .foregroundStyle(plugin.isEnabled ? .primary : .tertiary)
 
@@ -134,6 +134,16 @@ struct InstalledPluginsView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
                 selectedPluginId = selectedPluginId == plugin.id ? nil : plugin.id
             }
+        }
+    }
+
+    @ViewBuilder
+    private func pluginIcon(_ name: String) -> some View {
+        if NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil {
+            Image(systemName: name)
+        } else {
+            Image(name)
+                .renderingMode(.template)
         }
     }
 
