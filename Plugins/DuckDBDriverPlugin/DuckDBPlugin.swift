@@ -94,6 +94,73 @@ private actor DuckDBConnectionActor {
             duckdb_destroy_result(&result)
         }
 
+        return Self.extractResult(from: &result, startTime: startTime)
+    }
+
+    func executePrepared(_ query: String, parameters: [String?]) throws -> DuckDBRawResult {
+        guard let conn = connection else {
+            throw DuckDBPluginError.notConnected
+        }
+
+        let startTime = Date()
+        var stmt: duckdb_prepared_statement?
+
+        let prepState = duckdb_prepare(conn, query, &stmt)
+        if prepState == DuckDBError {
+            let errorMsg: String
+            if let errPtr = duckdb_prepare_error(stmt) {
+                errorMsg = String(cString: errPtr)
+            } else {
+                errorMsg = "Failed to prepare statement"
+            }
+            duckdb_destroy_prepare(&stmt)
+            throw DuckDBPluginError.queryFailed(errorMsg)
+        }
+
+        defer {
+            duckdb_destroy_prepare(&stmt)
+        }
+
+        for (index, param) in parameters.enumerated() {
+            let paramIdx = idx_t(index + 1)
+            if let value = param {
+                let bindState = duckdb_bind_varchar(stmt, paramIdx, value)
+                if bindState == DuckDBError {
+                    throw DuckDBPluginError.queryFailed("Failed to bind parameter at index \(index)")
+                }
+            } else {
+                let bindState = duckdb_bind_null(stmt, paramIdx)
+                if bindState == DuckDBError {
+                    throw DuckDBPluginError.queryFailed("Failed to bind NULL at index \(index)")
+                }
+            }
+        }
+
+        var result = duckdb_result()
+        let execState = duckdb_execute_prepared(stmt, &result)
+
+        if execState == DuckDBError {
+            let errorMsg: String
+            if let errPtr = duckdb_result_error(&result) {
+                errorMsg = String(cString: errPtr)
+            } else {
+                errorMsg = "Failed to execute prepared statement"
+            }
+            duckdb_destroy_result(&result)
+            throw DuckDBPluginError.queryFailed(errorMsg)
+        }
+
+        defer {
+            duckdb_destroy_result(&result)
+        }
+
+        return Self.extractResult(from: &result, startTime: startTime)
+    }
+
+    private static func extractResult(
+        from result: inout duckdb_result,
+        startTime: Date
+    ) -> DuckDBRawResult {
         let colCount = duckdb_column_count(&result)
         let rowCount = duckdb_row_count(&result)
         let rowsChanged = duckdb_rows_changed(&result)
@@ -272,18 +339,15 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         query: String,
         parameters: [String?]
     ) async throws -> PluginQueryResult {
-        var processedQuery = query
-        for param in parameters {
-            if let range = processedQuery.range(of: "?") {
-                if let value = param {
-                    let escaped = value.replacingOccurrences(of: "'", with: "''")
-                    processedQuery.replaceSubrange(range, with: "'\(escaped)'")
-                } else {
-                    processedQuery.replaceSubrange(range, with: "NULL")
-                }
-            }
-        }
-        return try await execute(query: processedQuery)
+        let rawResult = try await connectionActor.executePrepared(query, parameters: parameters)
+        return PluginQueryResult(
+            columns: rawResult.columns,
+            columnTypeNames: rawResult.columnTypeNames,
+            rows: rawResult.rows,
+            rowsAffected: rawResult.rowsAffected,
+            executionTime: rawResult.executionTime,
+            isTruncated: rawResult.isTruncated
+        )
     }
 
     func cancelQuery() throws {
@@ -317,10 +381,10 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let query = """
             SELECT table_name, table_type
             FROM information_schema.tables
-            WHERE table_schema = '\(escapeStringLiteral(schemaName))'
+            WHERE table_schema = $1
             ORDER BY table_name
         """
-        let result = try await execute(query: query)
+        let result = try await executeParameterized(query: query, parameters: [schemaName])
         return result.rows.compactMap { row in
             guard let name = row[safe: 0] ?? nil else { return nil }
             let typeString = (row[safe: 1] ?? nil) ?? "BASE TABLE"
@@ -334,11 +398,11 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let query = """
             SELECT column_name, data_type, is_nullable, column_default, ordinal_position
             FROM information_schema.columns
-            WHERE table_schema = '\(escapeStringLiteral(schemaName))'
-              AND table_name = '\(escapeStringLiteral(table))'
+            WHERE table_schema = $1
+              AND table_name = $2
             ORDER BY ordinal_position
         """
-        let result = try await execute(query: query)
+        let result = try await executeParameterized(query: query, parameters: [schemaName, table])
 
         let pkColumns = try await fetchPrimaryKeyColumns(table: table, schema: schemaName)
 
@@ -367,10 +431,10 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let query = """
             SELECT table_name, column_name, data_type, is_nullable, column_default, ordinal_position
             FROM information_schema.columns
-            WHERE table_schema = '\(escapeStringLiteral(schemaName))'
+            WHERE table_schema = $1
             ORDER BY table_name, ordinal_position
         """
-        let result = try await execute(query: query)
+        let result = try await executeParameterized(query: query, parameters: [schemaName])
 
         let pkQuery = """
             SELECT tc.table_name, kcu.column_name
@@ -379,9 +443,9 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
               ON tc.constraint_name = kcu.constraint_name
               AND tc.table_schema = kcu.table_schema
             WHERE tc.constraint_type = 'PRIMARY KEY'
-              AND tc.table_schema = '\(escapeStringLiteral(schemaName))'
+              AND tc.table_schema = $1
         """
-        let pkResult = try await execute(query: pkQuery)
+        let pkResult = try await executeParameterized(query: pkQuery, parameters: [schemaName])
         var pkMap: [String: Set<String>] = [:]
         for row in pkResult.rows {
             if let tableName = row[safe: 0] ?? nil, let colName = row[safe: 1] ?? nil {
@@ -421,12 +485,14 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let query = """
             SELECT index_name, is_unique, sql, index_oid
             FROM duckdb_indexes()
-            WHERE schema_name = '\(escapeStringLiteral(schemaName))'
-              AND table_name = '\(escapeStringLiteral(table))'
+            WHERE schema_name = $1
+              AND table_name = $2
         """
 
         do {
-            let result = try await execute(query: query)
+            let result = try await executeParameterized(
+                query: query, parameters: [schemaName, table]
+            )
             return result.rows.compactMap { row in
                 guard let name = row[safe: 0] ?? nil else { return nil }
                 let isUnique = (row[safe: 1] ?? nil) == "true"
@@ -467,12 +533,14 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 ON rc.unique_constraint_name = kcu2.constraint_name
                 AND rc.unique_constraint_schema = kcu2.constraint_schema
                 AND kcu.ordinal_position = kcu2.ordinal_position
-            WHERE kcu.table_schema = '\(escapeStringLiteral(schemaName))'
-              AND kcu.table_name = '\(escapeStringLiteral(table))'
+            WHERE kcu.table_schema = $1
+              AND kcu.table_name = $2
         """
 
         do {
-            let result = try await execute(query: query)
+            let result = try await executeParameterized(
+                query: query, parameters: [schemaName, table]
+            )
             return result.rows.compactMap { row in
                 guard let name = row[safe: 0] ?? nil,
                       let column = row[safe: 1] ?? nil,
@@ -549,10 +617,10 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let query = """
             SELECT view_definition
             FROM information_schema.views
-            WHERE table_schema = '\(escapeStringLiteral(schemaName))'
-              AND table_name = '\(escapeStringLiteral(view))'
+            WHERE table_schema = $1
+              AND table_name = $2
         """
-        let result = try await execute(query: query)
+        let result = try await executeParameterized(query: query, parameters: [schemaName, view])
 
         guard let firstRow = result.rows.first,
               let definition = firstRow[0] else {
@@ -569,7 +637,7 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let safeTable = escapeIdentifier(table)
         let safeSchema = escapeIdentifier(schemaName)
         let countQuery =
-            "SELECT COUNT(*) FROM (SELECT 1 FROM \"\(safeSchema)\".\"\(safeTable)\" LIMIT 100001)"
+            "SELECT COUNT(*) FROM (SELECT 1 FROM \"\(safeSchema)\".\"\(safeTable)\" LIMIT 100001) AS _t"
         let countResult = try await execute(query: countQuery)
         let rowCount: Int64? = {
             guard let row = countResult.rows.first, let countStr = row.first else { return nil }
@@ -592,7 +660,8 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func switchSchema(to schema: String) async throws {
-        _ = try await execute(query: "SET schema = '\(escapeStringLiteral(schema))'")
+        let escaped = schema.replacingOccurrences(of: "'", with: "''")
+        _ = try await execute(query: "SET schema = '\(escaped)'")
         _currentSchema = schema
     }
 
@@ -627,10 +696,6 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             return NSString(string: path).expandingTildeInPath
         }
         return path
-    }
-
-    private func escapeStringLiteral(_ value: String) -> String {
-        value.replacingOccurrences(of: "'", with: "''")
     }
 
     private func escapeIdentifier(_ value: String) -> String {
@@ -668,23 +733,28 @@ final class DuckDBPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
               ON tc.constraint_name = kcu.constraint_name
               AND tc.table_schema = kcu.table_schema
             WHERE tc.constraint_type = 'PRIMARY KEY'
-              AND tc.table_schema = '\(escapeStringLiteral(schema))'
-              AND tc.table_name = '\(escapeStringLiteral(table))'
+              AND tc.table_schema = $1
+              AND tc.table_name = $2
         """
-        let result = try await execute(query: query)
+        let result = try await executeParameterized(query: query, parameters: [schema, table])
         return Set(result.rows.compactMap { $0[safe: 0] ?? nil })
     }
 
-    private func extractIndexColumns(from sql: String?) -> [String] {
-        guard let sql else { return [] }
+    private static let indexColumnsRegex = try? NSRegularExpression(
+        pattern: #"ON\s+(?:"[^"]*"|[^\s(]+)\s*\(([^)]+)\)"#, options: .caseInsensitive
+    )
 
-        guard let parenRange = sql.range(of: "(", options: .backwards),
-              let closeRange = sql.range(of: ")", options: .backwards) else {
+    private func extractIndexColumns(from sql: String?) -> [String] {
+        guard let sql, let regex = Self.indexColumnsRegex else { return [] }
+
+        let range = NSRange(sql.startIndex..., in: sql)
+        guard let match = regex.firstMatch(in: sql, range: range),
+              match.numberOfRanges > 1,
+              let columnsRange = Range(match.range(at: 1), in: sql) else {
             return []
         }
 
-        let columnsStr = String(sql[parenRange.upperBound..<closeRange.lowerBound])
-        return columnsStr.split(separator: ",").map {
+        return String(sql[columnsRange]).split(separator: ",").map {
             $0.trimmingCharacters(in: .whitespaces)
                 .replacingOccurrences(of: "\"", with: "")
         }
