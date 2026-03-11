@@ -462,7 +462,7 @@ struct ExportDialog: View {
                     return item1.name < item2.name
                 }
 
-            case .sqlite, .mongodb, .redis:
+            case .sqlite, .mongodb, .redis, .duckdb:
                 let fallbackName = connection.type == .redis ? "db0" : "main"
                 let dbItem = try await buildFlatDatabaseItem(
                     driver: driver,

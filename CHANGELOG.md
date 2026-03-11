@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- DuckDB database support — connect to `.duckdb` files, query CSV/Parquet/JSON files via SQL, schema navigation, and DuckDB extension management
+
 ### Fixed
 
 - Result truncation at 100K rows now reported to UI via `PluginQueryResult.isTruncated` instead of being silently discarded

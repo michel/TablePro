@@ -208,6 +208,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     case mssql = "SQL Server"
     case oracle = "Oracle"
     case clickhouse = "ClickHouse"
+    case duckdb = "DuckDB"
 
     var id: String { rawValue }
 
@@ -223,12 +224,13 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .redis: return "Redis"
         case .oracle: return "Oracle"
         case .clickhouse: return "ClickHouse"
+        case .duckdb: return "DuckDB"
         }
     }
 
     var isDownloadablePlugin: Bool {
         switch self {
-        case .oracle, .clickhouse, .sqlite: return true
+        case .oracle, .clickhouse, .sqlite, .duckdb: return true
         default: return false
         }
     }
@@ -256,6 +258,8 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
             return "oracle-icon"
         case .clickhouse:
             return "clickhouse-icon"
+        case .duckdb:
+            return "duckdb-icon"
         }
     }
 
@@ -271,6 +275,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         case .mssql: return 1_433
         case .oracle: return 1_521
         case .clickhouse: return 8_123
+        case .duckdb: return 0
         }
     }
 
@@ -280,14 +285,14 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     var requiresAuthentication: Bool {
         switch self {
         case .mysql, .mariadb, .postgresql, .redshift, .mssql, .oracle, .clickhouse: return true
-        case .sqlite, .mongodb, .redis: return false
+        case .sqlite, .duckdb, .mongodb, .redis: return false
         }
     }
 
     /// Whether this database type supports foreign key constraints
     var supportsForeignKeys: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .sqlite, .redshift, .mssql, .oracle:
+        case .mysql, .mariadb, .postgresql, .sqlite, .redshift, .mssql, .oracle, .duckdb:
             return true
         case .mongodb, .redis, .clickhouse:
             return false
@@ -297,7 +302,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
     /// Whether this database type supports SQL-based schema editing (ALTER TABLE etc.)
     var supportsSchemaEditing: Bool {
         switch self {
-        case .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle, .clickhouse:
+        case .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle, .clickhouse, .duckdb:
             return true
         case .redshift, .mongodb, .redis:
             return false
@@ -310,7 +315,7 @@ enum DatabaseType: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .mysql, .mariadb, .sqlite, .clickhouse:
             return "`"
-        case .postgresql, .redshift, .mongodb, .redis, .oracle:
+        case .postgresql, .redshift, .mongodb, .redis, .oracle, .duckdb:
             return "\""
         case .mssql:
             return "["

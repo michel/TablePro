@@ -58,7 +58,7 @@ final class ImportDataSinkAdapter: PluginImportDataSink, @unchecked Sendable {
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = OFF"]
-        case .mongodb, .redis, .clickhouse:
+        case .mongodb, .redis, .clickhouse, .duckdb:
             return []
         }
     }
@@ -71,7 +71,7 @@ final class ImportDataSinkAdapter: PluginImportDataSink, @unchecked Sendable {
             return []
         case .sqlite:
             return ["PRAGMA foreign_keys = ON"]
-        case .mongodb, .redis, .clickhouse:
+        case .mongodb, .redis, .clickhouse, .duckdb:
             return []
         }
     }

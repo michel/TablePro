@@ -84,7 +84,7 @@ struct TableProToolbar: ViewModifier {
                         }
                         .help("Open Database (⌘K)")
                         .disabled(
-                            state.connectionState != .connected || state.databaseType == .sqlite)
+                            state.connectionState != .connected || state.databaseType == .sqlite || state.databaseType == .duckdb)
                     }
                 }
 

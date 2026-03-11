@@ -293,7 +293,7 @@ struct ConnectionSwitcherPopover: View {
     // MARK: - Helpers
 
     private func connectionSubtitle(_ connection: DatabaseConnection) -> String {
-        if connection.type == .sqlite {
+        if connection.type == .sqlite || connection.type == .duckdb {
             return connection.database
         }
         let port = connection.port != connection.type.defaultPort ? ":\(connection.port)" : ""

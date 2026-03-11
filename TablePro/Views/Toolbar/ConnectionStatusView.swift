@@ -51,7 +51,7 @@ struct ConnectionStatusView: View {
     /// Database name (clickable to open database switcher, plain label for SQLite)
     @ViewBuilder
     private var databaseNameSection: some View {
-        if databaseType == .sqlite {
+        if databaseType == .sqlite || databaseType == .duckdb {
             databaseNameLabel
                 .help("Database: \(databaseName)")
         } else {

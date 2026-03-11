@@ -543,6 +543,11 @@ final class SQLCompletionProvider {
                 "BLOB",
             ]
 
+        case .duckdb:
+            types += [
+                "HUGEINT", "LIST", "MAP", "STRUCT", "UNION", "ENUM", "UUID", "JSON", "BIT", "INTERVAL",
+            ]
+
         case .mongodb:
             // MongoDB types are case-sensitive — return directly without uppercasing
             let mongoTypes = [

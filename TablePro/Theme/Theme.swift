@@ -24,6 +24,7 @@ enum Theme {
     static let mssqlColor = Color(red: 0.89, green: 0.27, blue: 0.09)
     static let oracleColor = Color(red: 0.76, green: 0.09, blue: 0.07) // #C3160B Oracle red
     static let clickhouseColor = Color(red: 1.0, green: 0.82, blue: 0.0)
+    static let duckdbColor = Color(red: 1.0, green: 0.85, blue: 0.0)
 
     // MARK: - Semantic Colors
 
@@ -120,6 +121,8 @@ extension DatabaseType {
             return Theme.oracleColor
         case .clickhouse:
             return Theme.clickhouseColor
+        case .duckdb:
+            return Theme.duckdbColor
         }
     }
 }

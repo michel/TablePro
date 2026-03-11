@@ -17,12 +17,14 @@ extension AppDelegate {
     private static let databaseURLSchemes: Set<String> = [
         "postgresql", "postgres", "mysql", "mariadb", "sqlite",
         "mongodb", "mongodb+srv", "redis", "rediss", "redshift",
-        "mssql", "sqlserver", "oracle"
+        "mssql", "sqlserver", "oracle", "duckdb"
     ]
 
     static let sqliteFileExtensions: Set<String> = [
         "sqlite", "sqlite3", "db3", "s3db", "sl3", "sqlitedb"
     ]
+
+    static let duckdbFileExtensions: Set<String> = ["duckdb", "ddb"]
 
     private func isDatabaseURL(_ url: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased() else { return false }
@@ -34,6 +36,10 @@ extension AppDelegate {
 
     private func isSQLiteFile(_ url: URL) -> Bool {
         Self.sqliteFileExtensions.contains(url.pathExtension.lowercased())
+    }
+
+    private func isDuckDBFile(_ url: URL) -> Bool {
+        Self.duckdbFileExtensions.contains(url.pathExtension.lowercased())
     }
 
     // MARK: - Main Dispatch
@@ -67,6 +73,15 @@ extension AppDelegate {
             suppressWelcomeWindow()
             Task { @MainActor in
                 for url in sqliteFiles { self.handleSQLiteFile(url) }
+                self.scheduleWelcomeWindowSuppression()
+            }
+        }
+
+        let duckdbFiles = urls.filter { isDuckDBFile($0) }
+        if !duckdbFiles.isEmpty {
+            suppressWelcomeWindow()
+            Task { @MainActor in
+                for url in duckdbFiles { self.handleDuckDBFile(url) }
                 self.scheduleWelcomeWindowSuppression()
             }
         }

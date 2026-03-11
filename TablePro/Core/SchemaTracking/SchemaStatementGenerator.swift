@@ -291,6 +291,40 @@ struct SchemaStatementGenerator {
             )
 
 
+        case .duckdb:
+            // DuckDB: Multiple ALTER COLUMN statements (like PostgreSQL)
+            var statements: [String] = []
+            let oldQuoted = databaseType.quoteIdentifier(old.name)
+            let newQuoted = databaseType.quoteIdentifier(new.name)
+
+            if old.name != new.name {
+                statements.append("ALTER TABLE \(tableQuoted) RENAME COLUMN \(oldQuoted) TO \(newQuoted)")
+            }
+
+            if old.dataType != new.dataType {
+                statements.append("ALTER TABLE \(tableQuoted) ALTER COLUMN \(newQuoted) TYPE \(new.dataType)")
+            }
+
+            if old.isNullable != new.isNullable {
+                let constraint = new.isNullable ? "DROP NOT NULL" : "SET NOT NULL"
+                statements.append("ALTER TABLE \(tableQuoted) ALTER COLUMN \(newQuoted) \(constraint)")
+            }
+
+            if old.defaultValue != new.defaultValue {
+                if let defaultVal = new.defaultValue, !defaultVal.isEmpty {
+                    statements.append("ALTER TABLE \(tableQuoted) ALTER COLUMN \(newQuoted) SET DEFAULT \(defaultVal)")
+                } else {
+                    statements.append("ALTER TABLE \(tableQuoted) ALTER COLUMN \(newQuoted) DROP DEFAULT")
+                }
+            }
+
+            let sql = statements.map { $0.hasSuffix(";") ? $0 : $0 + ";" }.joined(separator: "\n")
+            return SchemaStatement(
+                sql: sql,
+                description: "Modify column '\(old.name)' to '\(new.name)'",
+                isDestructive: old.dataType != new.dataType
+            )
+
         case .sqlite, .mongodb, .redis:
             // SQLite doesn't support ALTER COLUMN - requires table recreation
             // MongoDB/Redis don't use SQL ALTER TABLE
@@ -350,6 +384,8 @@ struct SchemaStatementGenerator {
                 parts[1] = "SERIAL"
             case .sqlite:
                 parts.append("AUTOINCREMENT")
+            case .duckdb:
+                break  // DuckDB has no auto-increment
             case .mongodb, .redis, .clickhouse:
                 break  // MongoDB/Redis auto-generate IDs; ClickHouse has no auto-increment
             case .mssql:
@@ -374,8 +410,8 @@ struct SchemaStatementGenerator {
             case .postgresql, .redshift:
                 // PostgreSQL comments are set via separate COMMENT statement
                 break
-            case .sqlite, .mongodb, .redis, .mssql, .oracle:
-                // SQLite/MongoDB/Redis/MSSQL/Oracle don't support inline column comments
+            case .sqlite, .mongodb, .redis, .mssql, .oracle, .duckdb:
+                // SQLite/MongoDB/Redis/MSSQL/Oracle/DuckDB don't support inline column comments
                 break
             }
         }
@@ -398,7 +434,7 @@ struct SchemaStatementGenerator {
             let indexType = index.type.rawValue
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) (\(columnsQuoted)) USING \(indexType)"
 
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .duckdb:
             let indexTypeClause = index.type == .btree ? "" : "USING \(index.type.rawValue)"
             sql = "CREATE \(uniqueKeyword)INDEX \(indexQuoted) ON \(tableQuoted) \(indexTypeClause) (\(columnsQuoted))"
 
@@ -435,7 +471,7 @@ struct SchemaStatementGenerator {
             let tableQuoted = databaseType.quoteIdentifier(tableName)
             sql = "DROP INDEX \(indexQuoted) ON \(tableQuoted)"
 
-        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .oracle:
+        case .postgresql, .redshift, .sqlite, .mongodb, .redis, .oracle, .duckdb:
             sql = "DROP INDEX \(indexQuoted)"
         case .mssql:
             let tableQuoted = databaseType.quoteIdentifier(tableName)
@@ -496,7 +532,7 @@ struct SchemaStatementGenerator {
         case .mysql, .mariadb:
             sql = "ALTER TABLE \(tableQuoted) DROP FOREIGN KEY \(fkQuoted)"
 
-        case .postgresql, .redshift, .mssql, .oracle:
+        case .postgresql, .redshift, .mssql, .oracle, .duckdb:
             sql = "ALTER TABLE \(tableQuoted) DROP CONSTRAINT \(fkQuoted)"
         case .sqlite, .mongodb, .redis, .clickhouse:
             throw DatabaseError.unsupportedOperation
@@ -522,7 +558,7 @@ struct SchemaStatementGenerator {
             ALTER TABLE \(tableQuoted) ADD PRIMARY KEY (\(newColumnsQuoted));
             """
 
-        case .postgresql, .redshift:
+        case .postgresql, .redshift, .duckdb:
             // Use actual constraint name if available, otherwise fall back to convention
             let pkName = primaryKeyConstraintName ?? "\(tableName)_pkey"
             sql = """
