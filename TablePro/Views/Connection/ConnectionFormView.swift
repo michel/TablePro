@@ -82,6 +82,13 @@ struct ConnectionFormView: View {
     // Startup commands
     @State private var startupCommands: String = ""
 
+    // Pgpass
+    @State private var usePgpass: Bool = false
+    @State private var pgpassStatus: PgpassStatus = .notChecked
+
+    // Pre-connect script
+    @State private var preConnectScript: String = ""
+
     @State private var isTesting: Bool = false
     @State private var testSucceeded: Bool = false
 
@@ -146,6 +153,9 @@ struct ConnectionFormView: View {
                 installPluginForType(newType)
             }
             additionalFieldValues = [:]
+            if newType != .postgresql && newType != .redshift {
+                usePgpass = false
+            }
             for field in PluginManager.shared.additionalConnectionFields(for: newType) {
                 if let defaultValue = field.defaultValue {
                     additionalFieldValues[field.id] = defaultValue
@@ -155,6 +165,11 @@ struct ConnectionFormView: View {
         .pluginInstallPrompt(connection: $pluginInstallConnection) { connection in
             connectAfterInstall(connection)
         }
+        .onChange(of: usePgpass) { _, _ in updatePgpassStatus() }
+        .onChange(of: host) { _, _ in updatePgpassStatus() }
+        .onChange(of: port) { _, _ in updatePgpassStatus() }
+        .onChange(of: database) { _, _ in updatePgpassStatus() }
+        .onChange(of: username) { _, _ in updatePgpassStatus() }
     }
 
     // MARK: - Tab Picker Helpers
@@ -263,10 +278,18 @@ struct ConnectionFormView: View {
                             prompt: Text("root")
                         )
                     }
-                    SecureField(
-                        String(localized: "Password"),
-                        text: $password
-                    )
+                    if type == .postgresql || type == .redshift {
+                        Toggle(String(localized: "Use ~/.pgpass"), isOn: $usePgpass)
+                    }
+                    if !usePgpass || (type != .postgresql && type != .redshift) {
+                        SecureField(
+                            String(localized: "Password"),
+                            text: $password
+                        )
+                    }
+                    if usePgpass && (type == .postgresql || type == .redshift) {
+                        pgpassStatusView
+                    }
                 }
             }
 
@@ -340,6 +363,42 @@ struct ConnectionFormView: View {
         }
         .padding(20)
         .frame(width: 420)
+    }
+
+    @ViewBuilder
+    private var pgpassStatusView: some View {
+        switch pgpassStatus {
+        case .notChecked:
+            EmptyView()
+        case .fileNotFound:
+            Label(
+                String(localized: "~/.pgpass not found"),
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.yellow)
+            .font(.caption)
+        case .badPermissions:
+            Label(
+                String(localized: "~/.pgpass has incorrect permissions (needs chmod 0600)"),
+                systemImage: "xmark.circle.fill"
+            )
+            .foregroundStyle(.red)
+            .font(.caption)
+        case .matchFound:
+            Label(
+                String(localized: "~/.pgpass found — matching entry exists"),
+                systemImage: "checkmark.circle.fill"
+            )
+            .foregroundStyle(.green)
+            .font(.caption)
+        case .noMatch:
+            Label(
+                String(localized: "~/.pgpass found — no matching entry"),
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.yellow)
+            .font(.caption)
+        }
     }
 
     // MARK: - SSH Tunnel Tab
@@ -621,6 +680,22 @@ struct ConnectionFormView: View {
                 .foregroundStyle(.secondary)
             }
 
+            Section(String(localized: "Pre-Connect Script")) {
+                StartupCommandsEditor(text: $preConnectScript)
+                    .frame(height: 80)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                Text(
+                    "Shell script to run before connecting. Non-zero exit aborts connection."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
             Section(String(localized: "AI")) {
                 Picker(String(localized: "AI Policy"), selection: $aiPolicy) {
                     Text(String(localized: "Use Default"))
@@ -751,6 +826,19 @@ struct ConnectionFormView: View {
         }
     }
 
+    private func updatePgpassStatus() {
+        guard usePgpass, type == .postgresql || type == .redshift else {
+            pgpassStatus = .notChecked
+            return
+        }
+        pgpassStatus = PgpassStatus.check(
+            host: host.isEmpty ? "localhost" : host,
+            port: Int(port) ?? type.defaultPort,
+            database: database,
+            username: username.isEmpty ? "root" : username
+        )
+    }
+
     private func loadConnectionData() {
         // If editing, load from storage
         if let id = connectionId,
@@ -802,6 +890,8 @@ struct ConnectionFormView: View {
 
             // Load startup commands
             startupCommands = existing.startupCommands ?? ""
+            usePgpass = existing.usePgpass
+            preConnectScript = existing.preConnectScript ?? ""
 
             // Load passwords from Keychain
             if let savedSSHPassword = storage.loadSSHPassword(for: existing.id) {
@@ -847,6 +937,19 @@ struct ConnectionFormView: View {
         let finalUsername =
             trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
 
+        var finalAdditionalFields = additionalFieldValues
+        if usePgpass && (type == .postgresql || type == .redshift) {
+            finalAdditionalFields["usePgpass"] = "true"
+        } else {
+            finalAdditionalFields.removeValue(forKey: "usePgpass")
+        }
+        let trimmedScript = preConnectScript.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedScript.isEmpty {
+            finalAdditionalFields["preConnectScript"] = preConnectScript
+        } else {
+            finalAdditionalFields.removeValue(forKey: "preConnectScript")
+        }
+
         let connectionToSave = DatabaseConnection(
             id: connectionId ?? UUID(),
             name: name,
@@ -865,7 +968,7 @@ struct ConnectionFormView: View {
             redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil : startupCommands,
-            additionalFields: additionalFieldValues.isEmpty ? nil : additionalFieldValues
+            additionalFields: finalAdditionalFields.isEmpty ? nil : finalAdditionalFields
         )
 
         // Save passwords to Keychain
@@ -978,6 +1081,20 @@ struct ConnectionFormView: View {
         let finalUsername =
             trimmedUsername.isEmpty && type.requiresAuthentication ? "root" : trimmedUsername
 
+        // Build finalAdditionalFields for test connection
+        var finalAdditionalFields = additionalFieldValues
+        if usePgpass && (type == .postgresql || type == .redshift) {
+            finalAdditionalFields["usePgpass"] = "true"
+        } else {
+            finalAdditionalFields.removeValue(forKey: "usePgpass")
+        }
+        let trimmedScript = preConnectScript.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedScript.isEmpty {
+            finalAdditionalFields["preConnectScript"] = preConnectScript
+        } else {
+            finalAdditionalFields.removeValue(forKey: "preConnectScript")
+        }
+
         // Build connection from form values
         let testConn = DatabaseConnection(
             name: name,
@@ -994,7 +1111,7 @@ struct ConnectionFormView: View {
             redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil : startupCommands,
-            additionalFields: additionalFieldValues.isEmpty ? nil : additionalFieldValues
+            additionalFields: finalAdditionalFields.isEmpty ? nil : finalAdditionalFields
         )
 
         Task {
@@ -1174,6 +1291,25 @@ struct ConnectionFormView: View {
         } else {
             customSSHAgentSocketPath = ""
         }
+    }
+}
+
+// MARK: - Pgpass Status
+
+private enum PgpassStatus {
+    case notChecked
+    case fileNotFound
+    case badPermissions
+    case matchFound
+    case noMatch
+
+    static func check(host: String, port: Int, database: String, username: String) -> PgpassStatus {
+        guard PgpassReader.fileExists() else { return .fileNotFound }
+        guard PgpassReader.filePermissionsAreValid() else { return .badPermissions }
+        if PgpassReader.resolve(host: host, port: port, database: database, username: username) != nil {
+            return .matchFound
+        }
+        return .noMatch
     }
 }
 
