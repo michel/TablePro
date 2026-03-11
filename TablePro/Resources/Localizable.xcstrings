@@ -4030,6 +4030,9 @@
         }
       }
     },
+    "Copy as" : {
+
+    },
     "Copy as URL" : {
       "localizations" : {
         "vi" : {
@@ -8399,6 +8402,9 @@
           }
         }
       }
+    },
+    "INSERT Statement(s)" : {
+
     },
     "Inspector" : {
       "localizations" : {
@@ -16585,6 +16591,9 @@
           }
         }
       }
+    },
+    "UPDATE Statement(s)" : {
+
     },
     "Updated" : {
       "localizations" : {

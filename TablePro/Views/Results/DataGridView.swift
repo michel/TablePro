@@ -58,6 +58,8 @@ struct DataGridView: NSViewRepresentable {
     var typePickerColumns: Set<Int>?
     var connectionId: UUID?
     var databaseType: DatabaseType?
+    var tableName: String?
+    var primaryKeyColumn: String?
 
     @Binding var selectedRowIndices: Set<Int>
     @Binding var sortState: SortState
@@ -248,6 +250,8 @@ struct DataGridView: NSViewRepresentable {
         coordinator.typePickerColumns = typePickerColumns
         coordinator.connectionId = connectionId
         coordinator.databaseType = databaseType
+        coordinator.tableName = tableName
+        coordinator.primaryKeyColumn = primaryKeyColumn
 
         coordinator.rebuildVisualStateCache()
 
@@ -615,6 +619,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var typePickerColumns: Set<Int>?
     var connectionId: UUID?
     var databaseType: DatabaseType?
+    var tableName: String?
+    var primaryKeyColumn: String?
 
     /// Check if undo is available
     func canUndo() -> Bool {
