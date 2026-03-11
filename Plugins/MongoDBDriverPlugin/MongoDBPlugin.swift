@@ -31,6 +31,7 @@ final class MongoDBPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let editorLanguage: EditorLanguage = .javascript
     static let supportsForeignKeys = false
     static let supportsSchemaEditing = false
+    static let systemDatabaseNames: [String] = ["admin", "local", "config"]
     static let databaseGroupingStrategy: GroupingStrategy = .flat
     static let columnTypesByCategory: [String: [String]] = [
         "String": ["string", "objectId", "regex"],
