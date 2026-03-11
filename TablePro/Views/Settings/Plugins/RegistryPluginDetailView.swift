@@ -9,6 +9,7 @@ struct RegistryPluginDetailView: View {
     let plugin: RegistryPlugin
     let isInstalled: Bool
     let installProgress: InstallProgress?
+    let downloadCount: Int?
     let onInstall: () -> Void
 
     var body: some View {
@@ -22,6 +23,13 @@ struct RegistryPluginDetailView: View {
 
                 if let minVersion = plugin.minAppVersion {
                     detailItem(label: "Requires", value: "v\(minVersion)+")
+                }
+
+                if let downloadCount {
+                    detailItem(
+                        label: String(localized: "Downloads"),
+                        value: formattedDownloadCount(downloadCount)
+                    )
                 }
             }
 
@@ -61,6 +69,16 @@ struct RegistryPluginDetailView: View {
         }
         .padding(.leading, 34)
         .padding(.vertical, 8)
+    }
+
+    private static let decimalFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter
+    }()
+
+    private func formattedDownloadCount(_ count: Int) -> String {
+        Self.decimalFormatter.string(from: NSNumber(value: count)) ?? "\(count)"
     }
 
     @ViewBuilder

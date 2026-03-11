@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Plugin download count display in Browse Plugins — fetched from GitHub Releases API and cached for 1 hour
+
 ## [0.17.0] - 2026-03-11
 
 ### Added

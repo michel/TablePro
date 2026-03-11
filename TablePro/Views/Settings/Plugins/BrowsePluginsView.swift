@@ -9,6 +9,7 @@ struct BrowsePluginsView: View {
     private let registryClient = RegistryClient.shared
     private let pluginManager = PluginManager.shared
     private let installTracker = PluginInstallTracker.shared
+    private let downloadCountService = DownloadCountService.shared
 
     @State private var searchText = ""
     @State private var selectedCategory: RegistryCategory?
@@ -31,6 +32,7 @@ struct BrowsePluginsView: View {
             if registryClient.fetchState == .idle {
                 await registryClient.fetchManifest()
             }
+            await downloadCountService.fetchCounts(for: registryClient.manifest)
         }
         .alert("Installation Failed", isPresented: $showErrorAlert) {
             Button("OK") {}
@@ -117,6 +119,7 @@ struct BrowsePluginsView: View {
                                     plugin: plugin,
                                     isInstalled: isPluginInstalled(plugin.id),
                                     installProgress: installTracker.state(for: plugin.id),
+                                    downloadCount: downloadCountService.downloadCount(for: plugin.id),
                                     onInstall: { installPlugin(plugin) },
                                     onToggleDetail: {
                                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -130,6 +133,7 @@ struct BrowsePluginsView: View {
                                         plugin: plugin,
                                         isInstalled: isPluginInstalled(plugin.id),
                                         installProgress: installTracker.state(for: plugin.id),
+                                        downloadCount: downloadCountService.downloadCount(for: plugin.id),
                                         onInstall: { installPlugin(plugin) }
                                     )
                                 }
