@@ -42,6 +42,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Database URLs queued until the SwiftUI window system is ready
     private var queuedDatabaseURLs: [URL] = []
 
+    /// SQLite file URLs queued until the SwiftUI window system is ready
+    private var queuedSQLiteFileURLs: [URL] = []
+
     /// True while handling a file-open event with an active connection.
     /// Prevents SwiftUI from showing the welcome window as a side-effect.
     private var isHandlingFileOpen = false
@@ -191,6 +194,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 for url in databaseURLs {
                     self.handleDatabaseURL(url)
+                }
+                self.scheduleWelcomeWindowSuppression()
+            }
+        }
+
+        // Handle SQLite database files (double-click from Finder)
+        let sqliteExtensions: Set<String> = ["sqlite", "sqlite3", "db3", "s3db", "sl3", "sqlitedb"]
+        let sqliteFileURLs = urls.filter { sqliteExtensions.contains($0.pathExtension.lowercased()) }
+        if !sqliteFileURLs.isEmpty {
+            isHandlingFileOpen = true
+            fileOpenSuppressionCount += 1
+            for window in NSApp.windows where isWelcomeWindow(window) {
+                window.orderOut(nil)
+            }
+
+            Task { @MainActor in
+                for url in sqliteFileURLs {
+                    self.handleSQLiteFile(url)
                 }
                 self.scheduleWelcomeWindowSuppression()
             }
@@ -464,6 +485,77 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 message: error.localizedDescription,
                 window: NSApp.keyWindow
             )
+        }
+    }
+
+    @MainActor
+    private func handleSQLiteFile(_ url: URL) {
+        guard WindowOpener.shared.openWindow != nil else {
+            queuedSQLiteFileURLs.append(url)
+            scheduleQueuedSQLiteFileProcessing()
+            return
+        }
+
+        let filePath = url.path
+        let connectionName = url.deletingPathExtension().lastPathComponent
+
+        // Deduplicate: if this file is already open in an active session, bring it to front
+        for (sessionId, session) in DatabaseManager.shared.activeSessions {
+            if session.connection.type == .sqlite && session.connection.database == filePath
+                && session.driver != nil {
+                bringConnectionWindowToFront(sessionId)
+                return
+            }
+        }
+
+        let connection = DatabaseConnection(
+            name: connectionName,
+            host: "",
+            port: 0,
+            database: filePath,
+            username: "",
+            type: .sqlite
+        )
+
+        let hadExistingMain = NSApp.windows.contains { isMainWindow($0) && $0.isVisible }
+        if hadExistingMain {
+            NSWindow.allowsAutomaticWindowTabbing = false
+        }
+
+        let payload = EditorTabPayload(connectionId: connection.id)
+        WindowOpener.shared.openNativeTab(payload)
+
+        Task { @MainActor in
+            do {
+                try await DatabaseManager.shared.connectToSession(connection)
+                for window in NSApp.windows where self.isWelcomeWindow(window) {
+                    window.close()
+                }
+            } catch {
+                Self.logger.error("SQLite file open failed for '\(filePath, privacy: .public)': \(error.localizedDescription)")
+                await self.handleConnectionFailure(error)
+            }
+        }
+    }
+
+    private func scheduleQueuedSQLiteFileProcessing() {
+        Task { @MainActor [weak self] in
+            var ready = false
+            for _ in 0..<25 {
+                if WindowOpener.shared.openWindow != nil { ready = true; break }
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+            guard let self else { return }
+            if !ready {
+                Self.logger.warning("SwiftUI window system not ready after 5s, dropping \(self.queuedSQLiteFileURLs.count) queued SQLite file(s)")
+                self.queuedSQLiteFileURLs.removeAll()
+                return
+            }
+            let urls = self.queuedSQLiteFileURLs
+            self.queuedSQLiteFileURLs.removeAll()
+            for url in urls {
+                self.handleSQLiteFile(url)
+            }
         }
     }
 

@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Open SQLite database files directly from Finder by double-clicking `.sqlite`, `.sqlite3`, `.db3`, `.s3db`, `.sl3`, and `.sqlitedb` files (#262)
 - Export plugin options (CSV, XLSX, JSON, SQL, MQL) now persist across app restarts
 - Plugins can declare settings views rendered in Settings > Plugins
 - True prepared statements for MSSQL (`sp_executesql`) and ClickHouse (HTTP query parameters), eliminating string interpolation for parameterized queries
