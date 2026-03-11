@@ -46,6 +46,28 @@
 			<key>LSTypeIsPackage</key>
 			<true/>
 		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>sqlite</string>
+				<string>sqlite3</string>
+				<string>db3</string>
+				<string>s3db</string>
+				<string>sl3</string>
+				<string>sqlitedb</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>SQLite Database</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.apple.sqlite3</string>
+				<string>com.tablepro.sqlite-db</string>
+			</array>
+		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
@@ -65,6 +87,29 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>sql</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.tablepro.sqlite-db</string>
+			<key>UTTypeDescription</key>
+			<string>SQLite Database</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.database</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>sqlite</string>
+					<string>sqlite3</string>
+					<string>db3</string>
+					<string>s3db</string>
+					<string>sl3</string>
+					<string>sqlitedb</string>
 				</array>
 			</dict>
 		</dict>
