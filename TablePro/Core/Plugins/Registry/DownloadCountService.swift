@@ -108,12 +108,14 @@ final class DownloadCountService {
         guard let cacheDate = UserDefaults.standard.object(forKey: Self.cacheDateKey) as? Date else {
             return false
         }
-        return Date().timeIntervalSince(cacheDate) < Self.cacheTTL && !counts.isEmpty
+        return Date().timeIntervalSince(cacheDate) < Self.cacheTTL
     }
 
     private func loadCache() {
-        guard let data = UserDefaults.standard.data(forKey: Self.cacheKey),
+        guard isCacheValid(),
+              let data = UserDefaults.standard.data(forKey: Self.cacheKey),
               let cached = try? JSONDecoder().decode([String: Int].self, from: data) else {
+            counts = [:]
             return
         }
         counts = cached

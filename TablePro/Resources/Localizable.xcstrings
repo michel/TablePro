@@ -305,8 +305,37 @@
         }
       }
     },
+    "%@ download" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ lượt tải"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 次下载"
+          }
+        }
+      }
+    },
     "%@ downloads" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ lượt tải"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 次下载"
+          }
+        }
+      }
     },
     "%@ is already assigned to \"%@\". Reassigning will remove it from that action." : {
       "localizations" : {
@@ -5664,7 +5693,20 @@
       }
     },
     "Downloads" : {
-
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lượt tải"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下载次数"
+          }
+        }
+      }
     },
     "Drop" : {
       "extractionState" : "stale",

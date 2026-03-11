@@ -85,7 +85,9 @@ struct RegistryPluginRow: View {
 
     private func formattedCount(_ count: Int) -> String {
         let formatted = Self.decimalFormatter.string(from: NSNumber(value: count)) ?? "\(count)"
-        return String(localized: "\(formatted) downloads")
+        return count == 1
+            ? String(localized: "\(formatted) download")
+            : String(localized: "\(formatted) downloads")
     }
 
     @ViewBuilder

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Plugin download count display in Browse Plugins — fetched from GitHub Releases API and cached for 1 hour
 
+### Fixed
+
+- Plugin icon rendering now supports custom asset images (e.g., duckdb-icon) alongside SF Symbols in Installed and Browse tabs
+
 ## [0.17.0] - 2026-03-11
 
 ### Added
