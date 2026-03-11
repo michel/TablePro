@@ -2715,6 +2715,16 @@
         }
       }
     },
+    "Cell Value" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giá trị ô"
+          }
+        }
+      }
+    },
     "Change Color" : {
       "localizations" : {
         "vi" : {
@@ -4097,22 +4107,6 @@
         }
       }
     },
-    "Copy Cell Value" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sao chép giá trị ô"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "复制单元格值"
-          }
-        }
-      }
-    },
     "Copy Column Name" : {
       "localizations" : {
         "vi" : {
@@ -4211,20 +4205,7 @@
       }
     },
     "Copy with Headers" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sao chép kèm tiêu đề"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "复制（含表头）"
-          }
-        }
-      }
+
     },
     "Could not fetch plugin registry" : {
 
@@ -17186,6 +17167,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "WHERE 子句..."
+          }
+        }
+      }
+    },
+    "With Headers" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kèm tiêu đề"
           }
         }
       }
