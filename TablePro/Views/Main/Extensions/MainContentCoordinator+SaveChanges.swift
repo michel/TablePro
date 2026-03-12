@@ -233,7 +233,7 @@ extension MainContentCoordinator {
                         }
                     }
 
-                    NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+                    reloadSidebar()
                 }
 
                 if tabManager.selectedTabIndex != nil && !tabManager.tabs.isEmpty {

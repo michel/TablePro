@@ -152,18 +152,6 @@ final class SidebarViewModel {
         guard !hasSetupNotifications else { return }
         hasSetupNotifications = true
 
-        Publishers.Merge(
-            NotificationCenter.default.publisher(for: .databaseDidConnect),
-            NotificationCenter.default.publisher(for: .refreshData)
-        )
-        .receive(on: DispatchQueue.main)
-        .sink { [weak self] _ in
-            Task { @MainActor in
-                self?.forceLoadTables()
-            }
-        }
-        .store(in: &cancellables)
-
         NotificationCenter.default.publisher(for: .copyTableNames)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in

@@ -61,6 +61,9 @@ final class MainContentCoordinator {
     /// Stable identifier for this coordinator's window (set by MainContentView on appear)
     var windowId: UUID?
 
+    /// Direct reference to sidebar viewmodel — eliminates global notification broadcasts
+    weak var sidebarViewModel: SidebarViewModel?
+
     // MARK: - Published State
 
     var schemaProvider: SQLSchemaProvider
@@ -281,6 +284,10 @@ final class MainContentCoordinator {
 
     func clearTeardownScheduled() {
         _teardownScheduled.withLock { $0 = false }
+    }
+
+    func reloadSidebar() {
+        sidebarViewModel?.forceLoadTables()
     }
 
     /// Explicit cleanup called from `onDisappear`. Releases schema provider

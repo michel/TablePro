@@ -24,6 +24,7 @@ struct SidebarView: View {
     var onShowAllTables: (() -> Void)?
     var onDoubleClick: ((TableInfo) -> Void)?
     var connectionId: UUID
+    private weak var coordinator: MainContentCoordinator?
 
     /// Computed on the view (not ViewModel) so SwiftUI tracks both
     /// `@Binding var tables` and `@Published var searchText` as dependencies.
@@ -50,7 +51,8 @@ struct SidebarView: View {
         tableOperationOptions: Binding<[String: TableOperationOptions]>,
         databaseType: DatabaseType,
         connectionId: UUID,
-        schemaProvider: SQLSchemaProvider? = nil
+        schemaProvider: SQLSchemaProvider? = nil,
+        coordinator: MainContentCoordinator? = nil
     ) {
         _tables = tables
         self.sidebarState = sidebarState
@@ -76,6 +78,7 @@ struct SidebarView: View {
         self.activeTableName = activeTableName
         self.onShowAllTables = onShowAllTables
         self.connectionId = connectionId
+        self.coordinator = coordinator
     }
 
     // MARK: - Body
@@ -97,6 +100,7 @@ struct SidebarView: View {
         .onAppear {
             viewModel.setupNotifications()
             viewModel.onAppear()
+            coordinator?.sidebarViewModel = viewModel
         }
         .sheet(isPresented: $viewModel.showOperationDialog) {
             if let operationType = viewModel.pendingOperationType {

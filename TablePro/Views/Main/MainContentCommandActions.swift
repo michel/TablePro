@@ -565,6 +565,7 @@ final class MainContentCommandActions {
                 self?.pendingDeletes.wrappedValue.removeAll()
             }
         )
+        coordinator?.reloadSidebar()
     }
 
     // MARK: Tab Broadcasts
@@ -694,6 +695,7 @@ final class MainContentCommandActions {
             if let driver = DatabaseManager.shared.driver(for: self.connection.id) {
                 coordinator?.toolbarState.databaseVersion = driver.serverVersion
             }
+            coordinator?.reloadSidebar()
         }
     }
 
