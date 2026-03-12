@@ -1014,6 +1014,13 @@ struct ConnectionFormView: View {
                 } else {
                     Self.logger.error(
                         "Failed to connect: \(error.localizedDescription, privacy: .public)")
+                    NSApplication.shared.closeWindows(withId: "main")
+                    openWindow(id: "welcome")
+                    AlertHelper.showErrorSheet(
+                        title: String(localized: "Connection Failed"),
+                        message: error.localizedDescription,
+                        window: nil
+                    )
                 }
             }
         }
@@ -1035,6 +1042,13 @@ struct ConnectionFormView: View {
             } catch {
                 Self.logger.error(
                     "Failed to connect after plugin install: \(error.localizedDescription, privacy: .public)")
+                NSApplication.shared.closeWindows(withId: "main")
+                openWindow(id: "welcome")
+                AlertHelper.showErrorSheet(
+                    title: String(localized: "Connection Failed"),
+                    message: error.localizedDescription,
+                    window: nil
+                )
             }
         }
     }
