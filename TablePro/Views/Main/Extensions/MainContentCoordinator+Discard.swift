@@ -79,6 +79,6 @@ extension MainContentCoordinator {
             tabManager.tabs[index].pendingChanges = TabPendingChanges()
         }
 
-        NotificationCenter.default.post(name: .databaseDidConnect, object: nil)
+        reloadSidebar()
     }
 }

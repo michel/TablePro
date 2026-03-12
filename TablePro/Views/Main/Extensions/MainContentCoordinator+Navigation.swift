@@ -438,7 +438,7 @@ extension MainContentCoordinator {
 
                 await loadSchema()
 
-                NotificationCenter.default.post(name: .refreshData, object: nil)
+                reloadSidebar()
             } else if connection.type == .postgresql {
                 DatabaseManager.shared.updateSession(connectionId) { session in
                     session.connection.database = database
@@ -450,7 +450,7 @@ extension MainContentCoordinator {
 
                 await loadSchema()
 
-                NotificationCenter.default.post(name: .refreshData, object: nil)
+                reloadSidebar()
             } else if connection.type == .redshift {
                 guard let schemaDriver = driver as? SchemaSwitchable else { return }
                 try await schemaDriver.switchSchema(to: database)
@@ -461,7 +461,7 @@ extension MainContentCoordinator {
 
                 await loadSchema()
 
-                NotificationCenter.default.post(name: .refreshData, object: nil)
+                reloadSidebar()
             } else if connection.type == .oracle {
                 guard let schemaDriver = driver as? SchemaSwitchable else { return }
                 try await schemaDriver.switchSchema(to: database)
@@ -472,7 +472,7 @@ extension MainContentCoordinator {
 
                 await loadSchema()
 
-                NotificationCenter.default.post(name: .refreshData, object: nil)
+                reloadSidebar()
             } else if connection.type == .mssql {
                 if let adapter = driver as? PluginDriverAdapter {
                     try await adapter.switchDatabase(to: database)
@@ -486,7 +486,7 @@ extension MainContentCoordinator {
 
                 await loadSchema()
 
-                NotificationCenter.default.post(name: .refreshData, object: nil)
+                reloadSidebar()
             } else if connection.type == .mongodb {
                 if let adapter = driver as? PluginDriverAdapter {
                     try await adapter.switchDatabase(to: database)
@@ -498,7 +498,7 @@ extension MainContentCoordinator {
 
                 await loadSchema()
 
-                NotificationCenter.default.post(name: .refreshData, object: nil)
+                reloadSidebar()
             } else if connection.type == .redis {
                 guard let dbIndex = Int(database) else { return }
 
@@ -512,13 +512,13 @@ extension MainContentCoordinator {
 
                 await loadSchema()
 
-                NotificationCenter.default.post(name: .refreshData, object: nil)
+                reloadSidebar()
             }
         } catch {
             // Restore toolbar to previous database on failure
             toolbarState.databaseName = previousDatabase
             // Reload previous tables so sidebar isn't left empty
-            NotificationCenter.default.post(name: .refreshData, object: nil)
+            reloadSidebar()
 
             navigationLogger.error("Failed to switch database: \(error.localizedDescription, privacy: .public)")
             AlertHelper.showErrorSheet(
@@ -560,11 +560,11 @@ extension MainContentCoordinator {
 
             await loadSchema()
 
-            NotificationCenter.default.post(name: .refreshData, object: nil)
+            reloadSidebar()
         } catch {
             // Restore toolbar to previous schema on failure
             toolbarState.databaseName = previousSchema
-            NotificationCenter.default.post(name: .refreshData, object: nil)
+            reloadSidebar()
 
             navigationLogger.error("Failed to switch schema: \(error.localizedDescription, privacy: .public)")
             AlertHelper.showErrorSheet(
