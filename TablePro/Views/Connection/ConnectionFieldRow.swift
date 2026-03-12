@@ -30,6 +30,37 @@ struct ConnectionFieldRow: View {
                     Text(option.label).tag(option.value)
                 }
             }
+        case .number:
+            TextField(
+                field.label,
+                text: Binding(
+                    get: { value },
+                    set: { newValue in
+                        value = String(newValue.unicodeScalars.filter {
+                            CharacterSet.decimalDigits.contains($0) || $0 == "-" || $0 == "."
+                        })
+                    }
+                ),
+                prompt: field.placeholder.isEmpty ? nil : Text(field.placeholder)
+            )
+        case .toggle:
+            Toggle(
+                field.label,
+                isOn: Binding(
+                    get: { value == "true" },
+                    set: { value = $0 ? "true" : "false" }
+                )
+            )
+        case .stepper(let range):
+            Stepper(
+                value: Binding(
+                    get: { Int(value) ?? range.lowerBound },
+                    set: { value = String($0) }
+                ),
+                in: range.closedRange
+            ) {
+                Text("\(field.label): \(Int(value) ?? range.lowerBound)")
+            }
         }
     }
 }

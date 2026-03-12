@@ -650,20 +650,6 @@ struct ConnectionFormView: View {
                 }
             }
 
-            if type == .redis {
-                Section("Redis") {
-                    Stepper(
-                        value: Binding(
-                            get: { Int(database) ?? 0 },
-                            set: { database = String($0) }
-                        ),
-                        in: 0...15
-                    ) {
-                        Text(String(localized: "Database Index: \(Int(database) ?? 0)"))
-                    }
-                }
-            }
-
             Section(String(localized: "Startup Commands")) {
                 StartupCommandsEditor(text: $startupCommands)
                     .frame(height: 80)
@@ -877,15 +863,18 @@ struct ConnectionFormView: View {
 
             // Load additional fields from connection
             additionalFieldValues = existing.additionalFields
+
+            // Migrate legacy Redis database index before default seeding
+            if existing.type == .redis,
+               additionalFieldValues["redisDatabase"] == nil,
+               let rdb = existing.redisDatabase {
+                additionalFieldValues["redisDatabase"] = String(rdb)
+            }
+
             for field in PluginManager.shared.additionalConnectionFields(for: existing.type) {
                 if additionalFieldValues[field.id] == nil, let defaultValue = field.defaultValue {
                     additionalFieldValues[field.id] = defaultValue
                 }
-            }
-
-            // Load Redis settings (special case)
-            if existing.type == .redis, let rdb = existing.redisDatabase {
-                database = String(rdb)
             }
 
             // Load startup commands
@@ -965,7 +954,9 @@ struct ConnectionFormView: View {
             groupId: selectedGroupId,
             safeModeLevel: safeModeLevel,
             aiPolicy: aiPolicy,
-            redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
+            redisDatabase: type == .redis
+                ? Int(additionalFieldValues["redisDatabase"] ?? "0")
+                : nil,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil : startupCommands,
             additionalFields: finalAdditionalFields.isEmpty ? nil : finalAdditionalFields
@@ -1108,7 +1099,9 @@ struct ConnectionFormView: View {
             color: connectionColor,
             tagId: selectedTagId,
             groupId: selectedGroupId,
-            redisDatabase: type == .redis ? (Int(database) ?? 0) : nil,
+            redisDatabase: type == .redis
+                ? Int(additionalFieldValues["redisDatabase"] ?? "0")
+                : nil,
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil : startupCommands,
             additionalFields: finalAdditionalFields.isEmpty ? nil : finalAdditionalFields
@@ -1247,6 +1240,9 @@ struct ConnectionFormView: View {
             }
             if let authSourceValue = parsed.authSource, !authSourceValue.isEmpty {
                 additionalFieldValues["mongoAuthSource"] = authSourceValue
+            }
+            if parsed.type == .redis, !parsed.database.isEmpty {
+                additionalFieldValues["redisDatabase"] = parsed.database
             }
             if let connectionName = parsed.connectionName, !connectionName.isEmpty {
                 name = connectionName
