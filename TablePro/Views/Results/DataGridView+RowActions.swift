@@ -105,11 +105,14 @@ extension TableViewCoordinator {
 
     func copyRowsAsInsert(at indices: Set<Int>) {
         guard let tableName, let databaseType else { return }
+        let driver = resolveDriver()
         let converter = SQLRowToStatementConverter(
             tableName: tableName,
             columns: rowProvider.columns,
             primaryKeyColumn: primaryKeyColumn,
-            databaseType: databaseType
+            databaseType: databaseType,
+            quoteIdentifier: driver?.quoteIdentifier,
+            escapeStringLiteral: driver?.escapeStringLiteral
         )
         let rows = indices.sorted().compactMap { rowProvider.rowValues(at: $0) }
         guard !rows.isEmpty else { return }
@@ -118,14 +121,22 @@ extension TableViewCoordinator {
 
     func copyRowsAsUpdate(at indices: Set<Int>) {
         guard let tableName, let databaseType else { return }
+        let driver = resolveDriver()
         let converter = SQLRowToStatementConverter(
             tableName: tableName,
             columns: rowProvider.columns,
             primaryKeyColumn: primaryKeyColumn,
-            databaseType: databaseType
+            databaseType: databaseType,
+            quoteIdentifier: driver?.quoteIdentifier,
+            escapeStringLiteral: driver?.escapeStringLiteral
         )
         let rows = indices.sorted().compactMap { rowProvider.rowValues(at: $0) }
         guard !rows.isEmpty else { return }
         ClipboardService.shared.writeText(converter.generateUpdates(rows: rows))
+    }
+
+    private func resolveDriver() -> (any DatabaseDriver)? {
+        guard let connectionId else { return nil }
+        return DatabaseManager.shared.driver(for: connectionId)
     }
 }
