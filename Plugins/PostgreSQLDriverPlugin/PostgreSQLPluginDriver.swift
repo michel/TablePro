@@ -23,6 +23,7 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     var supportsSchemas: Bool { true }
     var supportsTransactions: Bool { true }
     var serverVersion: String? { libpqConnection?.serverVersion() }
+    var parameterStyle: ParameterStyle { .dollar }
 
     init(config: DriverConnectionConfig) {
         self.config = config
@@ -157,6 +158,12 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     func applyQueryTimeout(_ seconds: Int) async throws {
         let ms = seconds * 1_000
         _ = try await execute(query: "SET statement_timeout = '\(ms)'")
+    }
+
+    // MARK: - EXPLAIN
+
+    func buildExplainQuery(_ sql: String) -> String? {
+        "EXPLAIN \(sql)"
     }
 
     // MARK: - Schema

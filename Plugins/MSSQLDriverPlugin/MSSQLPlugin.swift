@@ -40,6 +40,49 @@ final class MSSQLPlugin: NSObject, TableProPlugin, DriverPlugin {
         "Other": ["SQL_VARIANT", "TIMESTAMP", "ROWVERSION", "CURSOR", "TABLE", "HIERARCHYID"]
     ]
 
+    static let sqlDialect: SQLDialectDescriptor? = SQLDialectDescriptor(
+        identifierQuote: "[",
+        keywords: [
+            "SELECT", "FROM", "WHERE", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "FULL",
+            "ON", "USING", "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN", "AS",
+            "ORDER", "BY", "GROUP", "HAVING", "TOP", "OFFSET", "FETCH", "NEXT", "ROWS", "ONLY",
+            "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE",
+            "CREATE", "ALTER", "DROP", "TABLE", "INDEX", "VIEW", "DATABASE", "SCHEMA",
+            "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CONSTRAINT",
+            "ADD", "COLUMN", "RENAME", "EXEC",
+            "NULL", "IS", "ASC", "DESC", "DISTINCT", "ALL", "ANY", "SOME",
+            "IDENTITY", "NOLOCK", "WITH", "ROWCOUNT", "NEWID",
+            "CASE", "WHEN", "THEN", "ELSE", "END", "COALESCE", "NULLIF", "IIF",
+            "UNION", "INTERSECT", "EXCEPT",
+            "DECLARE", "BEGIN", "COMMIT", "ROLLBACK", "TRANSACTION",
+            "PRINT", "GO", "EXECUTE",
+            "OVER", "PARTITION", "ROW_NUMBER", "RANK", "DENSE_RANK",
+            "RETURNING", "OUTPUT", "INSERTED", "DELETED"
+        ],
+        functions: [
+            "COUNT", "SUM", "AVG", "MAX", "MIN", "STRING_AGG",
+            "CONCAT", "SUBSTRING", "LEFT", "RIGHT", "LEN", "LOWER", "UPPER",
+            "TRIM", "LTRIM", "RTRIM", "REPLACE", "CHARINDEX", "PATINDEX",
+            "STUFF", "FORMAT",
+            "GETDATE", "GETUTCDATE", "SYSDATETIME", "CURRENT_TIMESTAMP",
+            "DATEADD", "DATEDIFF", "DATENAME", "DATEPART",
+            "CONVERT", "CAST",
+            "ROUND", "CEILING", "FLOOR", "ABS", "POWER", "SQRT", "RAND",
+            "ISNULL", "ISNUMERIC", "ISDATE", "COALESCE", "NEWID",
+            "OBJECT_ID", "OBJECT_NAME", "SCHEMA_NAME", "DB_NAME",
+            "SCOPE_IDENTITY", "@@IDENTITY", "@@ROWCOUNT"
+        ],
+        dataTypes: [
+            "INT", "INTEGER", "TINYINT", "SMALLINT", "BIGINT",
+            "DECIMAL", "NUMERIC", "FLOAT", "REAL", "MONEY", "SMALLMONEY",
+            "CHAR", "VARCHAR", "NCHAR", "NVARCHAR", "TEXT", "NTEXT",
+            "BINARY", "VARBINARY", "IMAGE",
+            "DATE", "TIME", "DATETIME", "DATETIME2", "SMALLDATETIME", "DATETIMEOFFSET",
+            "BIT", "UNIQUEIDENTIFIER", "XML", "SQL_VARIANT",
+            "ROWVERSION", "TIMESTAMP", "HIERARCHYID"
+        ]
+    )
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         MSSQLPluginDriver(config: config)
     }
@@ -433,6 +476,144 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             executionTime: Date().timeIntervalSince(startTime),
             isTruncated: result.isTruncated
         )
+    }
+
+    // MARK: - DML Statement Generation
+
+    func generateStatements(
+        table: String,
+        columns: [String],
+        changes: [PluginRowChange],
+        insertedRowData: [Int: [String?]],
+        deletedRowIndices: Set<Int>,
+        insertedRowIndices: Set<Int>
+    ) -> [(statement: String, parameters: [String?])]? {
+        var statements: [(statement: String, parameters: [String?])] = []
+
+        var deleteChanges: [PluginRowChange] = []
+
+        for change in changes {
+            switch change.type {
+            case .insert:
+                guard insertedRowIndices.contains(change.rowIndex) else { continue }
+                if let values = insertedRowData[change.rowIndex] {
+                    if let stmt = generateMssqlInsert(table: table, columns: columns, values: values) {
+                        statements.append(stmt)
+                    }
+                }
+            case .update:
+                if let stmt = generateMssqlUpdate(table: table, columns: columns, change: change) {
+                    statements.append(stmt)
+                }
+            case .delete:
+                guard deletedRowIndices.contains(change.rowIndex) else { continue }
+                deleteChanges.append(change)
+            }
+        }
+
+        if !deleteChanges.isEmpty {
+            for change in deleteChanges {
+                if let stmt = generateMssqlDelete(table: table, columns: columns, change: change) {
+                    statements.append(stmt)
+                }
+            }
+        }
+
+        return statements.isEmpty ? nil : statements
+    }
+
+    private func generateMssqlInsert(
+        table: String,
+        columns: [String],
+        values: [String?]
+    ) -> (statement: String, parameters: [String?])? {
+        var nonDefaultColumns: [String] = []
+        var parameters: [String?] = []
+
+        for (index, value) in values.enumerated() {
+            if value == "__DEFAULT__" { continue }
+            guard index < columns.count else { continue }
+            nonDefaultColumns.append("[\(columns[index].replacingOccurrences(of: "]", with: "]]"))]")
+            parameters.append(value)
+        }
+
+        guard !nonDefaultColumns.isEmpty else { return nil }
+
+        let columnList = nonDefaultColumns.joined(separator: ", ")
+        let placeholders = parameters.map { _ in "?" }.joined(separator: ", ")
+        let escapedTable = "[\(table.replacingOccurrences(of: "]", with: "]]"))]"
+        let sql = "INSERT INTO \(escapedTable) (\(columnList)) VALUES (\(placeholders))"
+        return (statement: sql, parameters: parameters)
+    }
+
+    private func generateMssqlUpdate(
+        table: String,
+        columns: [String],
+        change: PluginRowChange
+    ) -> (statement: String, parameters: [String?])? {
+        guard !change.cellChanges.isEmpty else { return nil }
+
+        let escapedTable = "[\(table.replacingOccurrences(of: "]", with: "]]"))]"
+        var parameters: [String?] = []
+
+        let setClauses = change.cellChanges.map { cellChange -> String in
+            let col = "[\(cellChange.columnName.replacingOccurrences(of: "]", with: "]]"))]"
+            parameters.append(cellChange.newValue)
+            return "\(col) = ?"
+        }.joined(separator: ", ")
+
+        // Check if we have original row data to identify by PK or all columns
+        guard let originalRow = change.originalRow else { return nil }
+
+        // Use all columns as WHERE clause for safety
+        var conditions: [String] = []
+        for (index, columnName) in columns.enumerated() {
+            guard index < originalRow.count else { continue }
+            let col = "[\(columnName.replacingOccurrences(of: "]", with: "]]"))]"
+            if let value = originalRow[index] {
+                parameters.append(value)
+                conditions.append("\(col) = ?")
+            } else {
+                conditions.append("\(col) IS NULL")
+            }
+        }
+
+        guard !conditions.isEmpty else { return nil }
+
+        let whereClause = conditions.joined(separator: " AND ")
+
+        // Without a reliable PK, use UPDATE TOP (1) for safety
+        let sql = "UPDATE TOP (1) \(escapedTable) SET \(setClauses) WHERE \(whereClause)"
+        return (statement: sql, parameters: parameters)
+    }
+
+    private func generateMssqlDelete(
+        table: String,
+        columns: [String],
+        change: PluginRowChange
+    ) -> (statement: String, parameters: [String?])? {
+        guard let originalRow = change.originalRow else { return nil }
+
+        let escapedTable = "[\(table.replacingOccurrences(of: "]", with: "]]"))]"
+        var parameters: [String?] = []
+        var conditions: [String] = []
+
+        for (index, columnName) in columns.enumerated() {
+            guard index < originalRow.count else { continue }
+            let col = "[\(columnName.replacingOccurrences(of: "]", with: "]]"))]"
+            if let value = originalRow[index] {
+                parameters.append(value)
+                conditions.append("\(col) = ?")
+            } else {
+                conditions.append("\(col) IS NULL")
+            }
+        }
+
+        guard !conditions.isEmpty else { return nil }
+
+        let whereClause = conditions.joined(separator: " AND ")
+        let sql = "DELETE TOP (1) FROM \(escapedTable) WHERE \(whereClause)"
+        return (statement: sql, parameters: parameters)
     }
 
     func cancelQuery() throws {
@@ -965,6 +1146,203 @@ final class MSSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     func createDatabase(name: String, charset: String, collation: String?) async throws {
         let quotedName = "[\(name.replacingOccurrences(of: "]", with: "]]"))]"
         _ = try await execute(query: "CREATE DATABASE \(quotedName)")
+    }
+
+    // MARK: - Query Building
+
+    func buildBrowseQuery(
+        table: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let quotedTable = mssqlQuoteIdentifier(table)
+        var query = "SELECT * FROM \(quotedTable)"
+        let orderBy = mssqlBuildOrderByClause(sortColumns: sortColumns, columns: columns)
+            ?? "ORDER BY (SELECT NULL)"
+        query += " \(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        return query
+    }
+
+    func buildFilteredQuery(
+        table: String,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let quotedTable = mssqlQuoteIdentifier(table)
+        var query = "SELECT * FROM \(quotedTable)"
+        let whereClause = mssqlBuildWhereClause(filters: filters, logicMode: logicMode)
+        if !whereClause.isEmpty {
+            query += " WHERE \(whereClause)"
+        }
+        let orderBy = mssqlBuildOrderByClause(sortColumns: sortColumns, columns: columns)
+            ?? "ORDER BY (SELECT NULL)"
+        query += " \(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        return query
+    }
+
+    func buildQuickSearchQuery(
+        table: String,
+        searchText: String,
+        columns: [String],
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let quotedTable = mssqlQuoteIdentifier(table)
+        var query = "SELECT * FROM \(quotedTable)"
+        let escapedSearch = mssqlEscapeForLike(searchText)
+        let conditions = columns.map { column -> String in
+            let quotedColumn = mssqlQuoteIdentifier(column)
+            return "CAST(\(quotedColumn) AS NVARCHAR(MAX)) LIKE '%\(escapedSearch)%' ESCAPE '\\'"
+        }
+        if !conditions.isEmpty {
+            query += " WHERE (" + conditions.joined(separator: " OR ") + ")"
+        }
+        let orderBy = mssqlBuildOrderByClause(sortColumns: sortColumns, columns: columns)
+            ?? "ORDER BY (SELECT NULL)"
+        query += " \(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        return query
+    }
+
+    func buildCombinedQuery(
+        table: String,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String,
+        searchText: String,
+        searchColumns: [String],
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String? {
+        let quotedTable = mssqlQuoteIdentifier(table)
+        var query = "SELECT * FROM \(quotedTable)"
+        let filterConditions = mssqlBuildWhereClause(filters: filters, logicMode: logicMode)
+        let escapedSearch = mssqlEscapeForLike(searchText)
+        let searchConditions = searchColumns.map { column -> String in
+            let quotedColumn = mssqlQuoteIdentifier(column)
+            return "CAST(\(quotedColumn) AS NVARCHAR(MAX)) LIKE '%\(escapedSearch)%' ESCAPE '\\'"
+        }
+        let searchClause = searchConditions.isEmpty
+            ? "" : "(" + searchConditions.joined(separator: " OR ") + ")"
+        var whereParts: [String] = []
+        if !filterConditions.isEmpty {
+            whereParts.append("(\(filterConditions))")
+        }
+        if !searchClause.isEmpty {
+            whereParts.append(searchClause)
+        }
+        if !whereParts.isEmpty {
+            query += " WHERE " + whereParts.joined(separator: " AND ")
+        }
+        let orderBy = mssqlBuildOrderByClause(sortColumns: sortColumns, columns: columns)
+            ?? "ORDER BY (SELECT NULL)"
+        query += " \(orderBy) OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        return query
+    }
+
+    // MARK: - Query Building Helpers
+
+    private func mssqlQuoteIdentifier(_ identifier: String) -> String {
+        "[\(identifier.replacingOccurrences(of: "]", with: "]]"))]"
+    }
+
+    private func mssqlBuildOrderByClause(
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String]
+    ) -> String? {
+        let parts = sortColumns.compactMap { sortCol -> String? in
+            guard sortCol.columnIndex >= 0, sortCol.columnIndex < columns.count else { return nil }
+            let columnName = columns[sortCol.columnIndex]
+            let direction = sortCol.ascending ? "ASC" : "DESC"
+            let quotedColumn = mssqlQuoteIdentifier(columnName)
+            return "\(quotedColumn) \(direction)"
+        }
+        guard !parts.isEmpty else { return nil }
+        return "ORDER BY " + parts.joined(separator: ", ")
+    }
+
+    private func mssqlEscapeForLike(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+            .replacingOccurrences(of: "'", with: "''")
+    }
+
+    private func mssqlEscapeValue(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespaces)
+        if trimmed.caseInsensitiveCompare("NULL") == .orderedSame { return "NULL" }
+        if trimmed.caseInsensitiveCompare("TRUE") == .orderedSame { return "1" }
+        if trimmed.caseInsensitiveCompare("FALSE") == .orderedSame { return "0" }
+        if Int(trimmed) != nil || Double(trimmed) != nil { return trimmed }
+        return "'\(trimmed.replacingOccurrences(of: "'", with: "''"))'"
+    }
+
+    private func mssqlBuildWhereClause(
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String
+    ) -> String {
+        let conditions = filters.compactMap { filter -> String? in
+            mssqlBuildFilterCondition(column: filter.column, op: filter.op, value: filter.value)
+        }
+        guard !conditions.isEmpty else { return "" }
+        let separator = logicMode == "and" ? " AND " : " OR "
+        return conditions.joined(separator: separator)
+    }
+
+    private func mssqlBuildFilterCondition(column: String, op: String, value: String) -> String? {
+        let quoted = mssqlQuoteIdentifier(column)
+        switch op {
+        case "=": return "\(quoted) = \(mssqlEscapeValue(value))"
+        case "!=": return "\(quoted) != \(mssqlEscapeValue(value))"
+        case ">": return "\(quoted) > \(mssqlEscapeValue(value))"
+        case ">=": return "\(quoted) >= \(mssqlEscapeValue(value))"
+        case "<": return "\(quoted) < \(mssqlEscapeValue(value))"
+        case "<=": return "\(quoted) <= \(mssqlEscapeValue(value))"
+        case "IS NULL": return "\(quoted) IS NULL"
+        case "IS NOT NULL": return "\(quoted) IS NOT NULL"
+        case "IS EMPTY": return "(\(quoted) IS NULL OR \(quoted) = '')"
+        case "IS NOT EMPTY": return "(\(quoted) IS NOT NULL AND \(quoted) != '')"
+        case "CONTAINS":
+            let escaped = mssqlEscapeForLike(value)
+            return "\(quoted) LIKE '%\(escaped)%' ESCAPE '\\'"
+        case "NOT CONTAINS":
+            let escaped = mssqlEscapeForLike(value)
+            return "\(quoted) NOT LIKE '%\(escaped)%' ESCAPE '\\'"
+        case "STARTS WITH":
+            let escaped = mssqlEscapeForLike(value)
+            return "\(quoted) LIKE '\(escaped)%' ESCAPE '\\'"
+        case "ENDS WITH":
+            let escaped = mssqlEscapeForLike(value)
+            return "\(quoted) LIKE '%\(escaped)' ESCAPE '\\'"
+        case "IN":
+            let values = value.split(separator: ",")
+                .map { mssqlEscapeValue($0.trimmingCharacters(in: .whitespaces)) }
+                .joined(separator: ", ")
+            return values.isEmpty ? nil : "\(quoted) IN (\(values))"
+        case "NOT IN":
+            let values = value.split(separator: ",")
+                .map { mssqlEscapeValue($0.trimmingCharacters(in: .whitespaces)) }
+                .joined(separator: ", ")
+            return values.isEmpty ? nil : "\(quoted) NOT IN (\(values))"
+        case "BETWEEN":
+            let parts = value.split(separator: ",", maxSplits: 1)
+            guard parts.count == 2 else { return nil }
+            let v1 = mssqlEscapeValue(parts[0].trimmingCharacters(in: .whitespaces))
+            let v2 = mssqlEscapeValue(parts[1].trimmingCharacters(in: .whitespaces))
+            return "\(quoted) BETWEEN \(v1) AND \(v2)"
+        case "REGEX":
+            let escaped = value.replacingOccurrences(of: "'", with: "''")
+            return "\(quoted) LIKE '%\(escaped)%'"
+        default: return nil
+        }
     }
 
     // MARK: - Private Helpers

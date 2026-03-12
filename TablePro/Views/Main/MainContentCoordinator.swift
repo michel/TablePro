@@ -279,14 +279,14 @@ final class MainContentCoordinator {
         rightPanelState?.activeTab = .aiChat
     }
 
-    /// Set up the plugin driver for NoSQL query dispatch on the query builder and change manager.
+    /// Set up the plugin driver for query building dispatch on the query builder and change manager.
     private func setupPluginDriver() {
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
-        let noSqlDriver = driver.noSqlPluginDriver
-        queryBuilder.setPluginDriver(noSqlDriver)
-        changeManager.pluginDriver = noSqlDriver
+        let pluginDriver = driver.queryBuildingPluginDriver
+        queryBuilder.setPluginDriver(pluginDriver)
+        changeManager.pluginDriver = pluginDriver
         // Remove observer once successfully set up
-        if noSqlDriver != nil, let observer = pluginDriverObserver {
+        if pluginDriver != nil, let observer = pluginDriverObserver {
             NotificationCenter.default.removeObserver(observer)
             pluginDriverObserver = nil
         }
@@ -673,26 +673,38 @@ final class MainContentCoordinator {
         let statements = SQLStatementScanner.allStatements(in: trimmed)
         guard let stmt = statements.first else { return }
 
-        // Build database-specific EXPLAIN prefix
-        let explainSQL: String
-        switch connection.type {
-        case .mssql, .oracle:
+        let level = connection.safeModeLevel
+        let needsConfirmation = level.appliesToAllQueries && level.requiresConfirmation
+
+        // ClickHouse interactive explain gets special handling
+        if connection.type == .clickhouse {
+            if needsConfirmation {
+                Task { @MainActor in
+                    let window = NSApp.keyWindow
+                    let permission = await SafeModeGuard.checkPermission(
+                        level: level,
+                        isWriteOperation: false,
+                        sql: "EXPLAIN",
+                        operationDescription: String(localized: "Execute Query"),
+                        window: window,
+                        databaseType: connection.type
+                    )
+                    if case .allowed = permission {
+                        runClickHouseExplain(variant: .plan)
+                    }
+                }
+            } else {
+                runClickHouseExplain(variant: .plan)
+            }
             return
-        case .clickhouse:
-            runClickHouseExplain(variant: .plan)
-            return
-        case .sqlite:
-            explainSQL = "EXPLAIN QUERY PLAN \(stmt)"
-        case .mysql, .mariadb, .postgresql, .redshift, .duckdb:
-            explainSQL = "EXPLAIN \(stmt)"
-        case .mongodb:
-            explainSQL = Self.buildMongoExplain(for: stmt)
-        case .redis:
-            explainSQL = Self.buildRedisDebugCommand(for: stmt)
         }
 
-        let level = connection.safeModeLevel
-        if level.appliesToAllQueries && level.requiresConfirmation {
+        guard let adapter = DatabaseManager.shared.driver(for: connectionId) as? PluginDriverAdapter,
+              let explainSQL = adapter.buildExplainQuery(stmt) else {
+            return
+        }
+
+        if needsConfirmation {
             Task { @MainActor in
                 let window = NSApp.keyWindow
                 let permission = await SafeModeGuard.checkPermission(

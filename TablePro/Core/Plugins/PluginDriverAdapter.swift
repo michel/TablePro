@@ -13,10 +13,31 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
     private let pluginDriver: any PluginDatabaseDriver
 
     var serverVersion: String? { pluginDriver.serverVersion }
-    var noSqlPluginDriver: (any PluginDatabaseDriver)? {
-        // Only expose plugin driver for NoSQL dispatch if it actually handles query building.
-        // SQL drivers (MySQL, PostgreSQL, etc.) return nil from buildBrowseQuery and should
-        // use standard SQL query rewriting for sort/filter instead.
+    var parameterStyle: ParameterStyle { pluginDriver.parameterStyle }
+
+    func pluginGenerateStatements(
+        table: String,
+        columns: [String],
+        changes: [PluginRowChange],
+        insertedRowData: [Int: [String?]],
+        deletedRowIndices: Set<Int>,
+        insertedRowIndices: Set<Int>
+    ) -> [(statement: String, parameters: [String?])]? {
+        pluginDriver.generateStatements(
+            table: table, columns: columns, changes: changes,
+            insertedRowData: insertedRowData,
+            deletedRowIndices: deletedRowIndices,
+            insertedRowIndices: insertedRowIndices
+        )
+    }
+
+    /// The underlying plugin driver, exposed for DDL schema generation delegation.
+    var schemaPluginDriver: any PluginDatabaseDriver { pluginDriver }
+
+    var queryBuildingPluginDriver: (any PluginDatabaseDriver)? {
+        // Expose plugin driver for query building dispatch if it implements the hooks.
+        // SQL drivers without custom pagination (MySQL, PostgreSQL, etc.) return nil
+        // from buildBrowseQuery and use standard SQL query rewriting instead.
         guard pluginDriver.buildBrowseQuery(
             table: "_probe", sortColumns: [], columns: [], limit: 1, offset: 0
         ) != nil else {
@@ -271,6 +292,68 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
 
     func switchDatabase(to database: String) async throws {
         try await pluginDriver.switchDatabase(to: database)
+    }
+
+    // MARK: - DDL Schema Generation
+
+    func generateAddColumnSQL(table: String, column: PluginColumnDefinition) -> String? {
+        pluginDriver.generateAddColumnSQL(table: table, column: column)
+    }
+
+    func generateModifyColumnSQL(
+        table: String,
+        oldColumn: PluginColumnDefinition,
+        newColumn: PluginColumnDefinition
+    ) -> String? {
+        pluginDriver.generateModifyColumnSQL(table: table, oldColumn: oldColumn, newColumn: newColumn)
+    }
+
+    func generateDropColumnSQL(table: String, columnName: String) -> String? {
+        pluginDriver.generateDropColumnSQL(table: table, columnName: columnName)
+    }
+
+    func generateAddIndexSQL(table: String, index: PluginIndexDefinition) -> String? {
+        pluginDriver.generateAddIndexSQL(table: table, index: index)
+    }
+
+    func generateDropIndexSQL(table: String, indexName: String) -> String? {
+        pluginDriver.generateDropIndexSQL(table: table, indexName: indexName)
+    }
+
+    func generateAddForeignKeySQL(table: String, fk: PluginForeignKeyDefinition) -> String? {
+        pluginDriver.generateAddForeignKeySQL(table: table, fk: fk)
+    }
+
+    func generateDropForeignKeySQL(table: String, constraintName: String) -> String? {
+        pluginDriver.generateDropForeignKeySQL(table: table, constraintName: constraintName)
+    }
+
+    func generateModifyPrimaryKeySQL(table: String, oldColumns: [String], newColumns: [String], constraintName: String?) -> [String]? {
+        pluginDriver.generateModifyPrimaryKeySQL(table: table, oldColumns: oldColumns, newColumns: newColumns, constraintName: constraintName)
+    }
+
+    // MARK: - Table Operations
+
+    func truncateTableStatements(table: String, schema: String?, cascade: Bool) -> [String]? {
+        pluginDriver.truncateTableStatements(table: table, schema: schema, cascade: cascade)
+    }
+
+    func dropObjectStatement(name: String, objectType: String, schema: String?, cascade: Bool) -> String? {
+        pluginDriver.dropObjectStatement(name: name, objectType: objectType, schema: schema, cascade: cascade)
+    }
+
+    func foreignKeyDisableStatements() -> [String]? {
+        pluginDriver.foreignKeyDisableStatements()
+    }
+
+    func foreignKeyEnableStatements() -> [String]? {
+        pluginDriver.foreignKeyEnableStatements()
+    }
+
+    // MARK: - EXPLAIN
+
+    func buildExplainQuery(_ sql: String) -> String? {
+        pluginDriver.buildExplainQuery(sql)
     }
 
     // MARK: - Result Mapping

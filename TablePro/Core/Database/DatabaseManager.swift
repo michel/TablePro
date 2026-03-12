@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import os
+import TableProPluginKit
 
 /// Manages database connections and active drivers
 @MainActor @Observable
@@ -686,11 +687,14 @@ final class DatabaseManager {
             driver: driver
         )
 
-        // Generate SQL statements
+        guard let resolvedPluginDriver = (driver as? PluginDriverAdapter)?.schemaPluginDriver else {
+            throw DatabaseError.unsupportedOperation
+        }
+
         let generator = SchemaStatementGenerator(
             tableName: tableName,
-            databaseType: databaseType,
-            primaryKeyConstraintName: pkConstraintName
+            primaryKeyConstraintName: pkConstraintName,
+            pluginDriver: resolvedPluginDriver
         )
         let statements = try generator.generate(changes: changes)
 

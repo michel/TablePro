@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SQLDialectDescriptor` in TableProPluginKit: plugins can now self-describe their SQL dialect (keywords, functions, data types, identifier quoting), with `SQLDialectFactory` preferring plugin-provided dialect info over built-in structs
+- DDL schema generation protocol in TableProPluginKit: plugins can now optionally provide database-specific ALTER TABLE syntax (ADD/MODIFY/DROP COLUMN, ADD/DROP INDEX, ADD/DROP FK, MODIFY PK) via `PluginDatabaseDriver`, with `SchemaStatementGenerator` trying plugin methods first before falling back to built-in logic
+- Plugin-provided table operations: `truncateTableStatements`, `dropObjectStatement`, `foreignKeyDisableStatements`, `foreignKeyEnableStatements` in `PluginDatabaseDriver` protocol, allowing plugins to override TRUNCATE, DROP, and FK handling SQL
+- `buildExplainQuery` method in `PluginDatabaseDriver` protocol: plugins can now provide database-specific EXPLAIN syntax, with coordinator falling back to built-in logic when plugin returns nil
 - `SettablePlugin` protocol in TableProPluginKit SDK: unified settings pattern for all plugins with automatic persistence via `loadSettings()`/`saveSettings()`, replacing duplicated boilerplate across export/import/driver plugins
 - Plugin UI/capability metadata: each driver plugin now self-declares brand color, connection mode, supported features, column types, URL schemes, and grouping strategy via the `DriverPlugin` protocol
 - Driver plugin settings view support: `DriverPlugin.settingsView()` allows plugins to provide custom settings UI in the Installed Plugins panel
@@ -21,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MSSQL query cancellation (`cancelQuery`) and lock timeout (`applyQueryTimeout`) support
 - `~/.pgpass` file support for PostgreSQL/Redshift connections with live validation in the connection form
 - Pre-connect script: run a shell command before each connection (e.g., to refresh credentials or update ~/.pgpass)
+- `ParameterStyle` enum in TableProPluginKit: plugins declare `?` or `$1` placeholder style via `parameterStyle` property on `PluginDatabaseDriver`
+- DML statement generation in ClickHouse, MSSQL, and Oracle plugins via `generateStatements()` for database-specific UPDATE/DELETE syntax
+
+### Changed
+
+- Moved MSSQL and Oracle pagination query building (`OFFSET...FETCH NEXT`) from `TableQueryBuilder` into their respective plugin drivers via `buildBrowseQuery`/`buildFilteredQuery`/`buildQuickSearchQuery`/`buildCombinedQuery` hooks
 
 ### Fixed
 

@@ -42,6 +42,51 @@ final class ClickHousePlugin: NSObject, TableProPlugin, DriverPlugin {
         "Geo": ["Point", "Ring", "Polygon", "MultiPolygon"]
     ]
 
+    static let sqlDialect: SQLDialectDescriptor? = SQLDialectDescriptor(
+        identifierQuote: "`",
+        keywords: [
+            "SELECT", "FROM", "WHERE", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "CROSS", "FULL",
+            "ON", "USING", "AND", "OR", "NOT", "IN", "LIKE", "BETWEEN", "AS",
+            "ORDER", "BY", "GROUP", "HAVING", "LIMIT", "OFFSET",
+            "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE",
+            "CREATE", "ALTER", "DROP", "TABLE", "INDEX", "VIEW", "DATABASE", "SCHEMA",
+            "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CONSTRAINT",
+            "ADD", "MODIFY", "COLUMN", "RENAME",
+            "NULL", "IS", "ASC", "DESC", "DISTINCT", "ALL", "ANY", "SOME",
+            "CASE", "WHEN", "THEN", "ELSE", "END", "COALESCE",
+            "UNION", "INTERSECT", "EXCEPT",
+            "FINAL", "SAMPLE", "PREWHERE", "GLOBAL", "FORMAT", "SETTINGS",
+            "OPTIMIZE", "SYSTEM", "PARTITION", "TTL", "ENGINE", "CODEC",
+            "MATERIALIZED", "WITH"
+        ],
+        functions: [
+            "COUNT", "SUM", "AVG", "MAX", "MIN",
+            "CONCAT", "SUBSTRING", "LEFT", "RIGHT", "LENGTH", "LOWER", "UPPER",
+            "TRIM", "LTRIM", "RTRIM", "REPLACE",
+            "NOW", "TODAY", "YESTERDAY",
+            "CAST",
+            "UNIQ", "UNIQEXACT", "ARGMIN", "ARGMAX", "GROUPARRAY",
+            "TOSTRING", "TOINT32", "FORMATDATETIME",
+            "IF", "MULTIIF",
+            "ARRAYMAP", "ARRAYJOIN",
+            "MATCH", "CURRENTDATABASE", "VERSION",
+            "QUANTILE", "TOPK"
+        ],
+        dataTypes: [
+            "INT8", "INT16", "INT32", "INT64", "INT128", "INT256",
+            "UINT8", "UINT16", "UINT32", "UINT64", "UINT128", "UINT256",
+            "FLOAT32", "FLOAT64",
+            "DECIMAL", "DECIMAL32", "DECIMAL64", "DECIMAL128", "DECIMAL256",
+            "STRING", "FIXEDSTRING", "UUID",
+            "DATE", "DATE32", "DATETIME", "DATETIME64",
+            "ARRAY", "TUPLE", "MAP",
+            "NULLABLE", "LOWCARDINALITY",
+            "ENUM8", "ENUM16",
+            "IPV4", "IPV6",
+            "JSON", "BOOL"
+        ]
+    )
+
     func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
         ClickHousePluginDriver(config: config)
     }
@@ -499,6 +544,128 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         _ = try await execute(query: "CREATE DATABASE `\(escapedName)`")
     }
 
+    // MARK: - DML Statement Generation
+
+    func generateStatements(
+        table: String,
+        columns: [String],
+        changes: [PluginRowChange],
+        insertedRowData: [Int: [String?]],
+        deletedRowIndices: Set<Int>,
+        insertedRowIndices: Set<Int>
+    ) -> [(statement: String, parameters: [String?])]? {
+        var statements: [(statement: String, parameters: [String?])] = []
+
+        for change in changes {
+            switch change.type {
+            case .insert:
+                guard insertedRowIndices.contains(change.rowIndex) else { continue }
+                if let values = insertedRowData[change.rowIndex] {
+                    if let stmt = generateClickHouseInsert(table: table, columns: columns, values: values) {
+                        statements.append(stmt)
+                    }
+                }
+            case .update:
+                if let stmt = generateClickHouseUpdate(table: table, columns: columns, change: change) {
+                    statements.append(stmt)
+                }
+            case .delete:
+                guard deletedRowIndices.contains(change.rowIndex) else { continue }
+                if let stmt = generateClickHouseDelete(table: table, columns: columns, change: change) {
+                    statements.append(stmt)
+                }
+            }
+        }
+
+        return statements.isEmpty ? nil : statements
+    }
+
+    private func generateClickHouseInsert(
+        table: String,
+        columns: [String],
+        values: [String?]
+    ) -> (statement: String, parameters: [String?])? {
+        var nonDefaultColumns: [String] = []
+        var parameters: [String?] = []
+
+        for (index, value) in values.enumerated() {
+            if value == "__DEFAULT__" { continue }
+            guard index < columns.count else { continue }
+            nonDefaultColumns.append("`\(columns[index].replacingOccurrences(of: "`", with: "``"))`")
+            parameters.append(value)
+        }
+
+        guard !nonDefaultColumns.isEmpty else { return nil }
+
+        let columnList = nonDefaultColumns.joined(separator: ", ")
+        let placeholders = parameters.map { _ in "?" }.joined(separator: ", ")
+        let sql = "INSERT INTO `\(table.replacingOccurrences(of: "`", with: "``"))` (\(columnList)) VALUES (\(placeholders))"
+        return (statement: sql, parameters: parameters)
+    }
+
+    private func generateClickHouseUpdate(
+        table: String,
+        columns: [String],
+        change: PluginRowChange
+    ) -> (statement: String, parameters: [String?])? {
+        guard !change.cellChanges.isEmpty else { return nil }
+
+        let escapedTable = "`\(table.replacingOccurrences(of: "`", with: "``"))`"
+        var parameters: [String?] = []
+
+        let setClauses = change.cellChanges.map { cellChange -> String in
+            let col = "`\(cellChange.columnName.replacingOccurrences(of: "`", with: "``"))`"
+            parameters.append(cellChange.newValue)
+            return "\(col) = ?"
+        }.joined(separator: ", ")
+
+        guard let whereClause = buildWhereClause(
+            columns: columns, change: change, parameters: &parameters
+        ) else { return nil }
+
+        let sql = "ALTER TABLE \(escapedTable) UPDATE \(setClauses) WHERE \(whereClause)"
+        return (statement: sql, parameters: parameters)
+    }
+
+    private func generateClickHouseDelete(
+        table: String,
+        columns: [String],
+        change: PluginRowChange
+    ) -> (statement: String, parameters: [String?])? {
+        let escapedTable = "`\(table.replacingOccurrences(of: "`", with: "``"))`"
+        var parameters: [String?] = []
+
+        guard let whereClause = buildWhereClause(
+            columns: columns, change: change, parameters: &parameters
+        ) else { return nil }
+
+        let sql = "ALTER TABLE \(escapedTable) DELETE WHERE \(whereClause)"
+        return (statement: sql, parameters: parameters)
+    }
+
+    private func buildWhereClause(
+        columns: [String],
+        change: PluginRowChange,
+        parameters: inout [String?]
+    ) -> String? {
+        guard let originalRow = change.originalRow else { return nil }
+
+        var conditions: [String] = []
+        for (index, columnName) in columns.enumerated() {
+            guard index < originalRow.count else { continue }
+            let col = "`\(columnName.replacingOccurrences(of: "`", with: "``"))`"
+            if let value = originalRow[index] {
+                parameters.append(value)
+                conditions.append("\(col) = ?")
+            } else {
+                conditions.append("\(col) IS NULL")
+            }
+        }
+
+        guard !conditions.isEmpty else { return nil }
+        return conditions.joined(separator: " AND ")
+    }
+
     func cancelQuery() throws {
         let queryId: String?
         lock.lock()
@@ -523,6 +690,12 @@ final class ClickHousePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         lock.lock()
         _currentDatabase = database
         lock.unlock()
+    }
+
+    // MARK: - EXPLAIN
+
+    func buildExplainQuery(_ sql: String) -> String? {
+        "EXPLAIN \(sql)"
     }
 
     // MARK: - Kill Query

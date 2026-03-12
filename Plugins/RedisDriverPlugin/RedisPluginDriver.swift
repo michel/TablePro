@@ -359,6 +359,44 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         try await conn.selectDatabase(dbIndex)
     }
 
+    // MARK: - EXPLAIN
+
+    func buildExplainQuery(_ sql: String) -> String? {
+        guard let operation = try? RedisCommandParser.parse(sql) else {
+            return nil
+        }
+
+        let key: String? = {
+            switch operation {
+            case .get(let k), .type(let k), .ttl(let k), .pttl(let k),
+                 .expire(let k, _), .persist(let k),
+                 .hget(let k, _), .hgetall(let k), .hdel(let k, _),
+                 .lrange(let k, _, _), .llen(let k),
+                 .smembers(let k), .scard(let k),
+                 .zrange(let k, _, _, _), .zcard(let k),
+                 .xrange(let k, _, _, _), .xlen(let k):
+                return k
+            case .set(let k, _, _):
+                return k
+            case .hset(let k, _):
+                return k
+            case .lpush(let k, _), .rpush(let k, _):
+                return k
+            case .sadd(let k, _), .srem(let k, _):
+                return k
+            case .zadd(let k, _), .zrem(let k, _):
+                return k
+            case .del(let keys) where keys.count == 1:
+                return keys[0]
+            default:
+                return nil
+            }
+        }()
+
+        guard let key else { return nil }
+        return "DEBUG OBJECT \(key)"
+    }
+
     // MARK: - Query Building
 
     func buildBrowseQuery(
