@@ -266,6 +266,7 @@ struct ContentView: View {
                             tables: currentSession.tables
                         )
                         .frame(width: rightPanelState.panelWidth)
+                        .background(Color(nsColor: .windowBackgroundColor))
                         .transition(.move(edge: .trailing))
                     }
                 }

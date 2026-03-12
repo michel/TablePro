@@ -195,6 +195,7 @@ struct RightSidebarView: View {
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
 
             if contentMode == .editRow && editState.hasEdits {
                 Divider()
