@@ -666,6 +666,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
     // Settings observer for real-time updates
     fileprivate var settingsObserver: NSObjectProtocol?
+    /// Snapshot of last-seen data grid settings for change detection
+    private var lastDataGridSettings: DataGridSettings
 
     @Binding var selectedRowIndices: Set<Int>
 
@@ -716,6 +718,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         self.onPasteRows = onPasteRows
         self.onUndo = onUndo
         self.onRedo = onRedo
+        self.lastDataGridSettings = AppSettingsManager.shared.dataGrid
         super.init()
         updateCache()
 
@@ -729,14 +732,28 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
 
             DispatchQueue.main.async { [weak self] in
                 guard let self, let tableView = self.tableView else { return }
-                let newRowHeight = CGFloat(AppSettingsManager.shared.dataGrid.rowHeight.rawValue)
+                let settings = AppSettingsManager.shared.dataGrid
+                let prev = self.lastDataGridSettings
+                self.lastDataGridSettings = settings
 
-                // Only reload if row height changed (requires full reload)
+                let newRowHeight = CGFloat(settings.rowHeight.rawValue)
                 if tableView.rowHeight != newRowHeight {
                     tableView.rowHeight = newRowHeight
                     tableView.tile()
-                } else {
-                    // For other settings (date format, NULL display), just reload visible rows
+                }
+
+                // Font-only change: update fonts in-place without reloadData
+                // to avoid recycling cells through the reuse pool outside the
+                // normal SwiftUI update cycle, which can cause stale data.
+                let fontChanged = prev.fontFamily != settings.fontFamily || prev.fontSize != settings.fontSize
+                let dataChanged = prev.dateFormat != settings.dateFormat
+                    || prev.nullDisplay != settings.nullDisplay
+
+                if fontChanged {
+                    Self.updateVisibleCellFonts(tableView: tableView)
+                }
+
+                if dataChanged {
                     let visibleRect = tableView.visibleRect
                     let visibleRange = tableView.rows(in: visibleRect)
                     if visibleRange.length > 0 {
@@ -759,6 +776,37 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     func updateCache() {
         cachedRowCount = rowProvider.totalRowCount
         cachedColumnCount = rowProvider.columns.count
+    }
+
+    // MARK: - Font Updates
+
+    /// Update fonts on existing visible cell views in-place.
+    /// Uses `DataGridFontVariant` tags set during cell configuration
+    /// to apply the correct font variant without inspecting cell content.
+    @MainActor
+    static func updateVisibleCellFonts(tableView: NSTableView) {
+        let visibleRect = tableView.visibleRect
+        let visibleRange = tableView.rows(in: visibleRect)
+        guard visibleRange.length > 0 else { return }
+
+        let columnCount = tableView.numberOfColumns
+        for row in visibleRange.location..<(visibleRange.location + visibleRange.length) {
+            for col in 0..<columnCount {
+                guard let cellView = tableView.view(atColumn: col, row: row, makeIfNecessary: false) as? NSTableCellView,
+                      let textField = cellView.textField else { continue }
+
+                switch textField.tag {
+                case DataGridFontVariant.rowNumber:
+                    textField.font = DataGridFontCache.rowNumber
+                case DataGridFontVariant.italic:
+                    textField.font = DataGridFontCache.italic
+                case DataGridFontVariant.medium:
+                    textField.font = DataGridFontCache.medium
+                default:
+                    textField.font = DataGridFontCache.regular
+                }
+            }
+        }
     }
 
     // MARK: - Row Visual State Cache
