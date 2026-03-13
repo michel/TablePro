@@ -62,6 +62,8 @@ final class PluginManager {
     private static let logger = Logger(subsystem: "com.TablePro", category: "PluginManager")
 
     private var pendingPluginURLs: [(url: URL, source: PluginSource)] = []
+    private var validatedConnectionFieldPlugins: Set<String> = []
+    private var validatedDialectPlugins: Set<String> = []
 
     private init() {}
 
@@ -242,19 +244,27 @@ final class PluginManager {
     // MARK: - Capability Registration
 
     private func registerCapabilities(_ instance: any TableProPlugin, pluginId: String) {
-        pluginInstances[pluginId] = instance
         let declared = Set(type(of: instance).capabilities)
+        var registeredAny = false
 
         if let driver = instance as? any DriverPlugin {
             if !declared.contains(.databaseDriver) {
                 Self.logger.warning("Plugin '\(pluginId)' conforms to DriverPlugin but does not declare .databaseDriver capability — registering anyway")
             }
-            let typeId = type(of: driver).databaseTypeId
-            driverPlugins[typeId] = driver
-            for additionalId in type(of: driver).additionalDatabaseTypeIds {
-                driverPlugins[additionalId] = driver
+            do {
+                try validateDriverDescriptor(type(of: driver), pluginId: pluginId)
+            } catch {
+                Self.logger.error("Plugin '\(pluginId)' driver rejected: \(error.localizedDescription)")
             }
-            Self.logger.debug("Registered driver plugin '\(pluginId)' for database type '\(typeId)'")
+            if !driverPlugins.keys.contains(type(of: driver).databaseTypeId) {
+                let typeId = type(of: driver).databaseTypeId
+                driverPlugins[typeId] = driver
+                for additionalId in type(of: driver).additionalDatabaseTypeIds {
+                    driverPlugins[additionalId] = driver
+                }
+                Self.logger.debug("Registered driver plugin '\(pluginId)' for database type '\(typeId)'")
+                registeredAny = true
+            }
         }
 
         if let exportPlugin = instance as? any ExportFormatPlugin {
@@ -264,6 +274,7 @@ final class PluginManager {
             let formatId = type(of: exportPlugin).formatId
             exportPlugins[formatId] = exportPlugin
             Self.logger.debug("Registered export plugin '\(pluginId)' for format '\(formatId)'")
+            registeredAny = true
         }
 
         if let importPlugin = instance as? any ImportFormatPlugin {
@@ -273,6 +284,11 @@ final class PluginManager {
             let formatId = type(of: importPlugin).formatId
             importPlugins[formatId] = importPlugin
             Self.logger.debug("Registered import plugin '\(pluginId)' for format '\(formatId)'")
+            registeredAny = true
+        }
+
+        if registeredAny {
+            pluginInstances[pluginId] = instance
         }
     }
 
@@ -290,6 +306,77 @@ final class PluginManager {
         }
         if declared.contains(.importFormat) && !isImporter {
             Self.logger.warning("Plugin '\(pluginId)' declares .importFormat but does not conform to ImportFormatPlugin")
+        }
+    }
+
+    // MARK: - Descriptor Validation
+
+    /// Reject-level validation: runs synchronously before registration.
+    /// Checks only properties already accessed during the loading flow.
+    func validateDriverDescriptor(_ driverType: any DriverPlugin.Type, pluginId: String) throws {
+        guard !driverType.databaseTypeId.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw PluginError.invalidDescriptor(pluginId: pluginId, reason: "databaseTypeId is empty")
+        }
+
+        guard !driverType.databaseDisplayName.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw PluginError.invalidDescriptor(pluginId: pluginId, reason: "databaseDisplayName is empty")
+        }
+
+        let typeId = driverType.databaseTypeId
+        if let existingPlugin = driverPlugins[typeId] {
+            let existingName = Swift.type(of: existingPlugin).databaseDisplayName
+            throw PluginError.invalidDescriptor(
+                pluginId: pluginId,
+                reason: "databaseTypeId '\(typeId)' is already registered by '\(existingName)'"
+            )
+        }
+
+        let allAdditionalIds = driverType.additionalDatabaseTypeIds
+        // Warn-only (not reject): redundant but harmless — the primary ID is already registered,
+        // so the duplicate entry in additionalIds just overwrites with the same value.
+        // Cross-plugin duplicates are rejected above because they indicate a real conflict.
+        if allAdditionalIds.contains(typeId) {
+            Self.logger.warning("Plugin '\(pluginId)': additionalDatabaseTypeIds contains the primary databaseTypeId '\(typeId)'")
+        }
+
+        for additionalId in allAdditionalIds {
+            if let existingPlugin = driverPlugins[additionalId] {
+                let existingName = Swift.type(of: existingPlugin).databaseDisplayName
+                throw PluginError.invalidDescriptor(
+                    pluginId: pluginId,
+                    reason: "additionalDatabaseTypeId '\(additionalId)' is already registered by '\(existingName)'"
+                )
+            }
+        }
+    }
+
+    /// Warn-level connection field validation. Called lazily on first access via
+    /// `additionalConnectionFields(for:)`, not during plugin loading (protocol witness
+    /// tables may be unstable for dynamically loaded bundles during the loading path).
+    func validateConnectionFields(_ fields: [ConnectionField], pluginId: String) {
+        var seenIds = Set<String>()
+        for field in fields {
+            if field.id.trimmingCharacters(in: .whitespaces).isEmpty {
+                Self.logger.warning("Plugin '\(pluginId)': connection field has empty id")
+            }
+            if field.label.trimmingCharacters(in: .whitespaces).isEmpty {
+                Self.logger.warning("Plugin '\(pluginId)': connection field '\(field.id)' has empty label")
+            }
+            if !seenIds.insert(field.id).inserted {
+                Self.logger.warning("Plugin '\(pluginId)': duplicate connection field id '\(field.id)'")
+            }
+            if case .dropdown(let options) = field.fieldType, options.isEmpty {
+                Self.logger.warning("Plugin '\(pluginId)': connection field '\(field.id)' is a dropdown with no options")
+            }
+        }
+    }
+
+    private func validateDialectDescriptor(_ dialect: SQLDialectDescriptor, pluginId: String) {
+        if dialect.identifierQuote.trimmingCharacters(in: .whitespaces).isEmpty {
+            Self.logger.warning("Plugin '\(pluginId)': sqlDialect.identifierQuote is empty")
+        }
+        if dialect.keywords.isEmpty {
+            Self.logger.warning("Plugin '\(pluginId)': sqlDialect.keywords is empty")
         }
     }
 
@@ -360,7 +447,13 @@ final class PluginManager {
     func sqlDialect(for databaseType: DatabaseType) -> SQLDialectDescriptor? {
         loadPendingPlugins()
         guard let plugin = driverPlugins[databaseType.pluginTypeId] else { return nil }
-        return Swift.type(of: plugin).sqlDialect
+        let dialect = Swift.type(of: plugin).sqlDialect
+        let pluginId = databaseType.pluginTypeId
+        if let dialect, !validatedDialectPlugins.contains(pluginId) {
+            validatedDialectPlugins.insert(pluginId)
+            validateDialectDescriptor(dialect, pluginId: pluginId)
+        }
+        return dialect
     }
 
     func statementCompletions(for databaseType: DatabaseType) -> [CompletionEntry] {
@@ -372,7 +465,13 @@ final class PluginManager {
     func additionalConnectionFields(for databaseType: DatabaseType) -> [ConnectionField] {
         loadPendingPlugins()
         guard let plugin = driverPlugins[databaseType.pluginTypeId] else { return [] }
-        return Swift.type(of: plugin).additionalConnectionFields
+        let fields = Swift.type(of: plugin).additionalConnectionFields
+        let pluginId = databaseType.pluginTypeId
+        if !validatedConnectionFieldPlugins.contains(pluginId) {
+            validatedConnectionFieldPlugins.insert(pluginId)
+            validateConnectionFields(fields, pluginId: pluginId)
+        }
+        return fields
     }
 
     // MARK: - Plugin Property Lookups
