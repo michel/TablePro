@@ -1767,6 +1767,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/TablePro/Core/SSH/CLibSSH2/include";
 				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
@@ -1777,7 +1778,6 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/TablePro/Core/SSH/CLibSSH2/include";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 0.17.0;
 				OTHER_LDFLAGS = (
@@ -1830,7 +1830,6 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/TablePro/Core/SSH/CLibSSH2/include";
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
@@ -1841,6 +1840,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/TablePro/Core/SSH/CLibSSH2/include";
 				INFOPLIST_FILE = TablePro/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
