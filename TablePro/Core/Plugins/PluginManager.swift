@@ -263,9 +263,10 @@ final class PluginManager {
                     driverPlugins[additionalId] = driver
                 }
 
-                // Populate metadata registry
+                // Populate metadata registry (merge with built-in defaults for new properties)
                 let pluginType = Swift.type(of: driver)
-                let snapshot = PluginMetadataSnapshot(from: pluginType)
+                let existingDefaults = PluginMetadataRegistry.shared.snapshot(forTypeId: pluginType.databaseTypeId)
+                let snapshot = PluginMetadataSnapshot(from: pluginType, existingDefaults: existingDefaults)
                 PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: pluginType.databaseTypeId)
                 for additionalId in pluginType.additionalDatabaseTypeIds {
                     PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId)

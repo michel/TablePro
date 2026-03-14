@@ -190,23 +190,27 @@ final class PluginMetadataRegistry: @unchecked Sendable {
 }
 
 extension PluginMetadataSnapshot {
-    init(from pluginType: any DriverPlugin.Type) {
+    /// Create a snapshot from a loaded plugin, merging with any existing built-in defaults.
+    /// Only reads pre-existing DriverPlugin properties from the plugin type to avoid
+    /// crashes on plugins compiled before new protocol properties were added.
+    init(from pluginType: any DriverPlugin.Type, existingDefaults: PluginMetadataSnapshot?) {
         self.displayName = pluginType.databaseDisplayName
         self.iconName = pluginType.iconName
         self.defaultPort = pluginType.defaultPort
         self.requiresAuthentication = pluginType.requiresAuthentication
         self.supportsForeignKeys = pluginType.supportsForeignKeys
         self.supportsSchemaEditing = pluginType.supportsSchemaEditing
-        self.isDownloadable = pluginType.isDownloadable
-        self.primaryUrlScheme = pluginType.urlSchemes.first ?? pluginType.databaseTypeId.lowercased()
-        // parameterStyle is instance-level on PluginDatabaseDriver, not type-level on DriverPlugin.
-        // Use default here; consumers needing the actual style should query the driver instance.
-        self.parameterStyle = .questionMark
-        self.navigationModel = pluginType.navigationModel
-        self.explainVariants = pluginType.explainVariants
-        self.pathFieldRole = pluginType.pathFieldRole
         self.supportsHealthMonitor = pluginType.supportsHealthMonitor
         self.urlSchemes = pluginType.urlSchemes
-        self.postConnectActions = pluginType.postConnectActions
+        self.primaryUrlScheme = pluginType.urlSchemes.first ?? pluginType.databaseTypeId.lowercased()
+        self.parameterStyle = existingDefaults?.parameterStyle ?? .questionMark
+
+        // New protocol properties — preserve built-in defaults for plugins
+        // compiled before these were added to DriverPlugin.
+        self.isDownloadable = existingDefaults?.isDownloadable ?? false
+        self.navigationModel = existingDefaults?.navigationModel ?? .standard
+        self.explainVariants = existingDefaults?.explainVariants ?? []
+        self.pathFieldRole = existingDefaults?.pathFieldRole ?? .database
+        self.postConnectActions = existingDefaults?.postConnectActions ?? []
     }
 }
