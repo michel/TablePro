@@ -7,72 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Replaced fragmented Theme/DesignConstants/SQLEditorTheme/ToolbarDesignTokens with unified ThemeEngine
-- Moved editor and data grid font settings into the theme system (Settings > Appearance)
-- Extracted MSSQL, MongoDB, Redis, XLSX export, MQL export, and SQL import plugins from the app bundle into separately distributed plugins, downloadable from the plugin registry. MySQL, PostgreSQL, SQLite, CSV, JSON, and SQL export remain built-in
-- Redesigned Plugins settings tab with HSplitView master-detail layout: plugin list on the left, detail pane on the right, matching macOS conventions. Plugin rows now show version, author/capability, and install status at a glance
-- Download counts in browse tab now always fetch latest from GitHub API (5-minute in-memory cooldown per session)
-- Replaced ~40 hardcoded `DatabaseType` switches across ~20 UI files with dynamic plugin property lookups via `PluginManager`, so third-party plugins get correct UI behavior (colors, labels, editor language, feature toggles) automatically
-- ConnectionFormView now fully dynamic: pgpass toggle, password visibility, and SSH/SSL tab visibility all driven by plugin metadata (`FieldSection`, `hidesPassword`, `supportsSSH`/`supportsSSL`) instead of hardcoded type checks
-- Replaced `AppState.isMongoDB`/`isRedis` booleans with `AppState.editorLanguage: EditorLanguage` for extensible editor language detection
-- Theme colors now derived from plugin `brandColorHex` instead of hardcoded `Theme.mysqlColor` etc.
-- Sidebar labels ("Tables"/"Collections"/"Keys"), toolbar preview labels, and AI prompt language detection now use plugin metadata
-- Connection form, database switcher, type picker, file open handler, and toolbar all use plugin lookups for connection mode, authentication, import support, and system database names
-- Converted `DatabaseType` from closed enum to string-based struct, enabling future plugin-defined database types
-- Moved string literal escaping into plugin drivers via `escapeStringLiteral` on `PluginDatabaseDriver` and `DatabaseDriver` protocols; `SQLEscaping.escapeStringLiteral` now uses ANSI SQL escaping only (doubles single quotes, strips null bytes)
-- SQL autocomplete data types and CREATE TABLE options now use plugin-provided dialect data instead of hardcoded per-database switches
-- `FilterSQLGenerator` now uses `SQLDialectDescriptor` data (regex syntax, boolean literals, LIKE escape style, pagination style) instead of `DatabaseType` switch statements
-- Moved identifier quoting, autocomplete statement completions, view templates, and FK disable/enable into plugin system
-- Removed `DatabaseType` switches from `FilterSQLGenerator`, `SQLCompletionProvider`, `ImportDataSinkAdapter`, and `MainContentCoordinator+SidebarActions`
-- Replaced hardcoded `DatabaseType` switches in ExportDialog, DataChangeManager, SafeModeGuard, ExportService, DataGridView, HighlightedSQLTextView, ForeignKeyPopoverContentView, QueryTab, SQLRowToStatementConverter, SessionStateFactory, ConnectionToolbarState, and DatabaseSwitcherSheet with dynamic plugin lookups (`databaseGroupingStrategy`, `immutableColumns`, `supportsReadOnlyMode`, `paginationStyle`, `editorLanguage`, `connectionMode`, `supportsSchemaSwitching`)
-- Replaced remaining ~40 hardcoded `DatabaseType` switches in MainContentCoordinator (main + 5 extensions) and StructureRowProvider with plugin metadata lookups (`requiresReconnectForDatabaseSwitch`, `structureColumnFields`, `defaultPrimaryKeyColumn`, `supportsQueryProgress`, `autoLimitStyle`, `allTablesMetadataSQL`)
+## [0.18.0] - 2026-03-14
 
 ### Added
 
-- Theme registry distribution: browse, install, uninstall, and update community themes from the plugin registry (Settings > Plugins > Browse, filtered by Themes category)
-- Full theme engine with 9 built-in presets (Default Light/Dark, Dracula, Solarized Light/Dark, One Dark, GitHub Light/Dark, Nord) and custom theme support
-- Theme browser with visual preview cards in Settings > Appearance
-- Per-theme customization of all colors (editor syntax, data grid, UI, sidebar, toolbar) and fonts
-- Theme import/export as JSON files for sharing
-- SSH TOTP/two-factor authentication support (auto-generate and prompt modes)
+- Theme engine: 4 built-in themes (Default Light/Dark, Dracula, Nord), custom themes with full color/font/layout customization, import/export as JSON
+- Theme registry: browse, install, and update community themes from the plugin registry
+- App-level appearance mode: Light, Dark, or Auto (follow system), independent of theme
+- Cassandra and ScyllaDB database support (downloadable plugin)
+- SSH TOTP/two-factor authentication with auto-generate and prompt modes
 - SSH host key verification with fingerprint confirmation
-- Keyboard Interactive SSH authentication method
-- Column visibility: toggle individual columns on/off via "Columns" button in the status bar or right-click header context menu "Hide Column", with per-tab and per-table persistence
-- `SQLDialectDescriptor` in TableProPluginKit: plugins can now self-describe their SQL dialect (keywords, functions, data types, identifier quoting), with `SQLDialectFactory` preferring plugin-provided dialect info over built-in structs
-- DDL schema generation protocol in TableProPluginKit: plugins can now optionally provide database-specific ALTER TABLE syntax (ADD/MODIFY/DROP COLUMN, ADD/DROP INDEX, ADD/DROP FK, MODIFY PK) via `PluginDatabaseDriver`, with `SchemaStatementGenerator` trying plugin methods first before falling back to built-in logic
-- Plugin-provided table operations: `truncateTableStatements`, `dropObjectStatement`, `foreignKeyDisableStatements`, `foreignKeyEnableStatements` in `PluginDatabaseDriver` protocol, allowing plugins to override TRUNCATE, DROP, and FK handling SQL
-- `CompletionEntry` struct and `statementCompletions` on `DriverPlugin` for plugin-provided autocomplete entries (MongoDB MQL methods, Redis commands)
-- `offsetFetchOrderBy` property on `SQLDialectDescriptor` for plugin-controlled ORDER BY in OFFSET/FETCH pagination
-- `createViewTemplate()`, `editViewFallbackTemplate(viewName:)`, and `castColumnToText(_:)` on `PluginDatabaseDriver` for plugin-provided view DDL templates and column casting
-- `buildExplainQuery` method in `PluginDatabaseDriver` protocol: plugins can now provide database-specific EXPLAIN syntax, with coordinator falling back to built-in logic when plugin returns nil
-- `SettablePlugin` protocol in TableProPluginKit SDK: unified settings pattern for all plugins with automatic persistence via `loadSettings()`/`saveSettings()`, replacing duplicated boilerplate across export/import/driver plugins
-- Plugin UI/capability metadata: each driver plugin now self-declares brand color, connection mode, supported features, column types, URL schemes, and grouping strategy via the `DriverPlugin` protocol
-- Driver plugin settings view support: `DriverPlugin.settingsView()` allows plugins to provide custom settings UI in the Installed Plugins panel
-- Dynamic connection fields: connection form Advanced tab now renders fields from `DriverPlugin.additionalConnectionFields` instead of hardcoded per-database sections, with support for text, secure, dropdown, number, toggle, and stepper field types
-- Configurable plugin registry URL via `defaults write com.TablePro com.TablePro.customRegistryURL <url>` for enterprise/private registries
-- SQL import options (wrap in transaction, disable FK checks) now persist across launches
-- `needsRestart` banner persists across app quit/relaunch after plugin uninstall
-- Copy as INSERT/UPDATE SQL statements from data grid context menu
-- Configurable font family and size for data grid (now via theme customization in Settings > Appearance)
-- Plugin download count display in Browse Plugins — fetched from GitHub Releases API and cached for 1 hour
-- MSSQL query cancellation (`cancelQuery`) and lock timeout (`applyQueryTimeout`) support
-- `~/.pgpass` file support for PostgreSQL/Redshift connections with live validation in the connection form
-- Pre-connect script: run a shell command before each connection (e.g., to refresh credentials or update ~/.pgpass)
-- `ParameterStyle` enum in TableProPluginKit: plugins declare `?` or `$1` placeholder style via `parameterStyle` property on `PluginDatabaseDriver`
-- DML statement generation in ClickHouse, MSSQL, and Oracle plugins via `generateStatements()` for database-specific UPDATE/DELETE syntax
-- Cassandra and ScyllaDB database support via DataStax C driver (downloadable plugin)
-- `quoteIdentifier` method on `PluginDatabaseDriver` and `DatabaseDriver` protocols: plugins provide database-specific identifier quoting (backticks for MySQL/SQLite/ClickHouse, brackets for MSSQL, double-quotes for PostgreSQL/Oracle/DuckDB, passthrough for MongoDB/Redis)
+- Keyboard Interactive SSH authentication
+- Column visibility: toggle columns on/off via status bar or header context menu
+- Copy as INSERT/UPDATE SQL from data grid context menu
+- `~/.pgpass` support for PostgreSQL/Redshift connections
+- Pre-connect script: run a shell command before each connection
+- MSSQL query cancellation and lock timeout support
+- Custom plugin registry URL for enterprise/private registries
 
 ### Changed
 
-- Moved MSSQL and Oracle pagination query building (`OFFSET...FETCH NEXT`) from `TableQueryBuilder` into their respective plugin drivers via `buildBrowseQuery`/`buildFilteredQuery`/`buildQuickSearchQuery`/`buildCombinedQuery` hooks
-- Moved identifier quoting from `DatabaseType` into plugin drivers via `quoteIdentifier` method on `PluginDatabaseDriver` protocol, with each plugin providing its own quoting style (backtick, bracket, double-quote, or passthrough)
+- Extracted MSSQL, MongoDB, Redis, XLSX export, MQL export, and SQL import into downloadable plugins. MySQL, PostgreSQL, SQLite, CSV, JSON, and SQL export remain built-in
+- Redesigned Plugins settings with master-detail layout and download counts
+- All database-specific behavior now driven by plugin metadata instead of hardcoded switches, enabling third-party database plugins
+- Connection form fields, sidebar labels, and SQL dialect features are now fully plugin-driven
 
 ### Fixed
 
-- Plugin icon rendering now supports custom asset images (e.g., duckdb-icon) alongside SF Symbols in Installed and Browse tabs
+- Plugin icon rendering now supports custom asset images alongside SF Symbols
 
 ## [0.17.0] - 2026-03-11
 
@@ -876,7 +838,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/datlechin/tablepro/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/datlechin/tablepro/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/datlechin/tablepro/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/datlechin/tablepro/compare/v0.15.0...v0.16.0
