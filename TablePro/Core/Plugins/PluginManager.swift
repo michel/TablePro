@@ -263,14 +263,9 @@ final class PluginManager {
                     driverPlugins[additionalId] = driver
                 }
 
-                // Populate metadata registry (merge with built-in defaults for new properties)
-                let pluginType = Swift.type(of: driver)
-                let existingDefaults = PluginMetadataRegistry.shared.snapshot(forTypeId: pluginType.databaseTypeId)
-                let snapshot = PluginMetadataSnapshot(from: pluginType, existingDefaults: existingDefaults)
-                PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: pluginType.databaseTypeId)
-                for additionalId in pluginType.additionalDatabaseTypeIds {
-                    PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId)
-                }
+                // Built-in defaults are pre-populated in PluginMetadataRegistry.init().
+                // Runtime-loaded plugins may be compiled against an older TableProPluginKit,
+                // so we don't read new protocol properties from them to avoid witness table crashes.
 
                 Self.logger.debug("Registered driver plugin '\(pluginId)' for database type '\(typeId)'")
                 registeredAny = true

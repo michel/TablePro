@@ -189,28 +189,7 @@ final class PluginMetadataRegistry: @unchecked Sendable {
     }
 }
 
-extension PluginMetadataSnapshot {
-    /// Create a snapshot from a loaded plugin, merging with any existing built-in defaults.
-    /// Only reads pre-existing DriverPlugin properties from the plugin type to avoid
-    /// crashes on plugins compiled before new protocol properties were added.
-    init(from pluginType: any DriverPlugin.Type, existingDefaults: PluginMetadataSnapshot?) {
-        self.displayName = pluginType.databaseDisplayName
-        self.iconName = pluginType.iconName
-        self.defaultPort = pluginType.defaultPort
-        self.requiresAuthentication = pluginType.requiresAuthentication
-        self.supportsForeignKeys = pluginType.supportsForeignKeys
-        self.supportsSchemaEditing = pluginType.supportsSchemaEditing
-        self.supportsHealthMonitor = pluginType.supportsHealthMonitor
-        self.urlSchemes = pluginType.urlSchemes
-        self.primaryUrlScheme = pluginType.urlSchemes.first ?? pluginType.databaseTypeId.lowercased()
-        self.parameterStyle = existingDefaults?.parameterStyle ?? .questionMark
-
-        // New protocol properties — preserve built-in defaults for plugins
-        // compiled before these were added to DriverPlugin.
-        self.isDownloadable = existingDefaults?.isDownloadable ?? false
-        self.navigationModel = existingDefaults?.navigationModel ?? .standard
-        self.explainVariants = existingDefaults?.explainVariants ?? []
-        self.pathFieldRole = existingDefaults?.pathFieldRole ?? .database
-        self.postConnectActions = existingDefaults?.postConnectActions ?? []
-    }
-}
+// Snapshots are pre-populated via registerBuiltInDefaults() and not overwritten
+// at plugin load time. Runtime-loaded .tableplugin bundles may be compiled against
+// an older TableProPluginKit framework, so reading new protocol properties from
+// their metatypes would crash due to missing witness table entries.
