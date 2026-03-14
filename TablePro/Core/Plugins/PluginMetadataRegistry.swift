@@ -39,7 +39,6 @@ final class PluginMetadataRegistry: @unchecked Sendable {
         registerBuiltInDefaults()
     }
 
-    // swiftlint:disable function_body_length
     private func registerBuiltInDefaults() {
         let defaults: [(typeId: String, snapshot: PluginMetadataSnapshot)] = [
             ("MySQL", PluginMetadataSnapshot(
@@ -126,7 +125,8 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                     ExplainVariant(id: "ast", label: "AST", sqlPrefix: "EXPLAIN AST"),
                     ExplainVariant(id: "syntax", label: "Syntax", sqlPrefix: "EXPLAIN SYNTAX"),
                     ExplainVariant(id: "estimate", label: "Estimate", sqlPrefix: "EXPLAIN ESTIMATE"),
-                ], pathFieldRole: .database,
+                ],
+                pathFieldRole: .database,
                 supportsHealthMonitor: true, urlSchemes: ["clickhouse", "ch"], postConnectActions: [],
                 brandColorHex: "#FFD100"
             )),
@@ -164,8 +164,6 @@ final class PluginMetadataRegistry: @unchecked Sendable {
             }
         }
     }
-    // swiftlint:enable function_body_length
-
     func register(snapshot: PluginMetadataSnapshot, forTypeId typeId: String) {
         lock.lock()
         defer { lock.unlock() }
