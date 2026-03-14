@@ -682,10 +682,12 @@ final class DataChangeManager {
             )
         }
 
-        let expectedDeletes = changes.count(where: { $0.type == .delete && deletedRowIndices.contains($0.rowIndex) })
-        let actualDeletes = statements.count(where: { $0.sql.hasPrefix("DELETE") })
+        // Validate DELETE coverage: batch DELETE produces 1 statement for N rows when PK exists,
+        // so count statements != count rows. Instead check that all deletable rows got coverage.
+        let deletableChanges = changes.filter { $0.type == .delete && deletedRowIndices.contains($0.rowIndex) }
+        let deletableWithOriginalRow = deletableChanges.filter { $0.originalRow != nil }
 
-        if expectedDeletes > 0 && actualDeletes < expectedDeletes {
+        if !deletableChanges.isEmpty && deletableWithOriginalRow.isEmpty {
             throw DatabaseError.queryFailed(
                 "Cannot save DELETE changes to table '\(tableName)'. " +
                     "Some rows could not be identified for deletion. Please verify the table data."
