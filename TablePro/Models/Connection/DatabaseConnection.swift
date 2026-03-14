@@ -273,27 +273,27 @@ extension DatabaseType {
     }
 
     var isDownloadablePlugin: Bool {
-        Self.isDownloadablePluginSet.contains(self)
+        PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.isDownloadable ?? false
     }
 
     var iconName: String {
-        Self.iconNameMap[self] ?? "database-icon"
+        PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.iconName ?? "database-icon"
     }
 
     var defaultPort: Int {
-        Self.defaultPortMap[self] ?? 0
+        PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.defaultPort ?? 0
     }
 
     var requiresAuthentication: Bool {
-        Self.requiresAuthenticationSet.contains(self)
+        PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.requiresAuthentication ?? true
     }
 
     var supportsForeignKeys: Bool {
-        Self.supportsForeignKeysSet.contains(self)
+        PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.supportsForeignKeys ?? true
     }
 
     var supportsSchemaEditing: Bool {
-        Self.supportsSchemaEditingSet.contains(self)
+        PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.supportsSchemaEditing ?? true
     }
 
     private static let pluginTypeIdMap: [DatabaseType: String] = [
@@ -307,52 +307,6 @@ extension DatabaseType {
         .clickhouse: "ClickHouse",
         .duckdb: "DuckDB",
         .cassandra: "Cassandra", .scylladb: "Cassandra",
-    ]
-
-    private static let isDownloadablePluginSet: Set<DatabaseType> = [
-        .oracle, .clickhouse, .sqlite, .duckdb, .cassandra, .scylladb,
-    ]
-
-    private static let iconNameMap: [DatabaseType: String] = [
-        .mysql: "mysql-icon",
-        .mariadb: "mariadb-icon",
-        .postgresql: "postgresql-icon",
-        .sqlite: "sqlite-icon",
-        .redshift: "redshift-icon",
-        .mongodb: "mongodb-icon",
-        .redis: "redis-icon",
-        .mssql: "mssql-icon",
-        .oracle: "oracle-icon",
-        .clickhouse: "clickhouse-icon",
-        .duckdb: "duckdb-icon",
-        .cassandra: "cassandra-icon",
-        .scylladb: "scylladb-icon",
-    ]
-
-    private static let defaultPortMap: [DatabaseType: Int] = [
-        .mysql: 3_306, .mariadb: 3_306,
-        .postgresql: 5_432,
-        .sqlite: 0,
-        .redshift: 5_439,
-        .mongodb: 27_017,
-        .redis: 6_379,
-        .mssql: 1_433,
-        .oracle: 1_521,
-        .clickhouse: 8_123,
-        .duckdb: 0,
-        .cassandra: 9_042, .scylladb: 9_042,
-    ]
-
-    private static let requiresAuthenticationSet: Set<DatabaseType> = [
-        .mysql, .mariadb, .postgresql, .redshift, .mssql, .oracle, .clickhouse,
-    ]
-
-    private static let supportsForeignKeysSet: Set<DatabaseType> = [
-        .mysql, .mariadb, .postgresql, .sqlite, .redshift, .mssql, .oracle, .duckdb,
-    ]
-
-    private static let supportsSchemaEditingSet: Set<DatabaseType> = [
-        .mysql, .mariadb, .postgresql, .sqlite, .mssql, .oracle, .clickhouse, .duckdb, .cassandra, .scylladb,
     ]
 }
 

@@ -262,6 +262,15 @@ final class PluginManager {
                 for additionalId in type(of: driver).additionalDatabaseTypeIds {
                     driverPlugins[additionalId] = driver
                 }
+
+                // Populate metadata registry
+                let pluginType = Swift.type(of: driver)
+                let snapshot = PluginMetadataSnapshot(from: pluginType)
+                PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: pluginType.databaseTypeId)
+                for additionalId in pluginType.additionalDatabaseTypeIds {
+                    PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId)
+                }
+
                 Self.logger.debug("Registered driver plugin '\(pluginId)' for database type '\(typeId)'")
                 registeredAny = true
             }
@@ -390,6 +399,16 @@ final class PluginManager {
 
     private func unregisterCapabilities(pluginId: String) {
         pluginInstances.removeValue(forKey: pluginId)
+
+        // Unregister from metadata registry
+        if let entry = plugins.first(where: { $0.id == pluginId }),
+           let principalClass = entry.bundle.principalClass as? any DriverPlugin.Type {
+            PluginMetadataRegistry.shared.unregister(typeId: principalClass.databaseTypeId)
+            for additionalId in principalClass.additionalDatabaseTypeIds {
+                PluginMetadataRegistry.shared.unregister(typeId: additionalId)
+            }
+        }
+
         driverPlugins = driverPlugins.filter { _, value in
             guard let entry = plugins.first(where: { $0.id == pluginId }) else { return true }
             if let principalClass = entry.bundle.principalClass as? any DriverPlugin.Type {

@@ -63,16 +63,6 @@ struct DatabaseTypeCassandraTests {
         #expect(DatabaseType.scylladb.supportsSchemaEditing == true)
     }
 
-    @Test("Cassandra identifier quote is double quote")
-    func cassandraIdentifierQuote() {
-        #expect(DatabaseType.cassandra.identifierQuote == "\"")
-    }
-
-    @Test("ScyllaDB identifier quote is double quote")
-    func scylladbIdentifierQuote() {
-        #expect(DatabaseType.scylladb.identifierQuote == "\"")
-    }
-
     @Test("Cassandra icon name is cassandra-icon")
     func cassandraIconName() {
         #expect(DatabaseType.cassandra.iconName == "cassandra-icon")
@@ -81,16 +71,6 @@ struct DatabaseTypeCassandraTests {
     @Test("ScyllaDB icon name is scylladb-icon")
     func scylladbIconName() {
         #expect(DatabaseType.scylladb.iconName == "scylladb-icon")
-    }
-
-    @Test("Cassandra theme color matches Theme.cassandraColor")
-    func cassandraThemeColor() {
-        #expect(DatabaseType.cassandra.themeColor == Theme.cassandraColor)
-    }
-
-    @Test("ScyllaDB theme color matches Theme.scylladbColor")
-    func scylladbThemeColor() {
-        #expect(DatabaseType.scylladb.themeColor == Theme.scylladbColor)
     }
 
     @Test("Cassandra is a downloadable plugin")

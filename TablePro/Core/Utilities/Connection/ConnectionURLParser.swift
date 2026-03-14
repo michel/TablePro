@@ -115,7 +115,11 @@ struct ConnectionURLParser {
         case "scylladb", "scylla":
             dbType = .scylladb
         default:
-            return .failure(.unsupportedScheme(scheme))
+            if let resolvedType = PluginMetadataRegistry.shared.databaseType(forUrlScheme: scheme) {
+                dbType = resolvedType
+            } else {
+                return .failure(.unsupportedScheme(scheme))
+            }
         }
 
         if dbType == .sqlite {
