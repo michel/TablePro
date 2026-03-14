@@ -3,7 +3,6 @@
 //  TablePro
 //
 
-import AppKit
 import SwiftUI
 
 struct BrowsePluginsView: View {
@@ -24,31 +23,7 @@ struct BrowsePluginsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                TextField("Search plugins...", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                Picker("Category", selection: $selectedCategory) {
-                    Text("All").tag(RegistryCategory?.none)
-                    ForEach(RegistryCategory.allCases) { category in
-                        Text(category.displayName).tag(RegistryCategory?.some(category))
-                    }
-                }
-                .fixedSize()
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-
-            Divider()
-
-            HSplitView {
-                browseLeftPane
-                    .frame(minWidth: 200, idealWidth: 240, maxWidth: 280)
-
-                browseDetailPane
-                    .frame(minWidth: 340)
-            }
-        }
+        mainContent
         .task {
             if registryClient.fetchState == .idle {
                 await registryClient.fetchManifest()
@@ -68,10 +43,10 @@ struct BrowsePluginsView: View {
         }
     }
 
-    // MARK: - Left Pane
+    // MARK: - Main Content
 
     @ViewBuilder
-    private var browseLeftPane: some View {
+    private var mainContent: some View {
         switch registryClient.fetchState {
         case .idle, .loading:
             ProgressView()
@@ -79,16 +54,38 @@ struct BrowsePluginsView: View {
 
         case .loaded:
             let plugins = registryClient.search(query: searchText, category: selectedCategory)
-            if plugins.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-            } else {
-                List(selection: $selectedPluginId) {
-                    ForEach(plugins) { plugin in
-                        browseRow(plugin)
-                            .tag(plugin.id)
+            HSplitView {
+                VStack(spacing: 0) {
+                    HStack(spacing: 6) {
+                        TextField("Search...", text: $searchText)
+                            .textFieldStyle(.roundedBorder)
+                        Picker("", selection: $selectedCategory) {
+                            Text("All").tag(RegistryCategory?.none)
+                            ForEach(RegistryCategory.allCases) { category in
+                                Text(category.displayName).tag(RegistryCategory?.some(category))
+                            }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+
+                    if plugins.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List(plugins, selection: $selectedPluginId) { plugin in
+                            browseRow(plugin)
+                                .tag(plugin.id)
+                        }
+                        .listStyle(.inset)
                     }
                 }
-                .listStyle(.inset(alternatesRowBackgrounds: true))
+                .frame(minWidth: 200, idealWidth: 240, maxWidth: 280)
+
+                detailContent
+                    .frame(minWidth: 340)
             }
 
         case .failed(let message):
@@ -105,6 +102,7 @@ struct BrowsePluginsView: View {
                 }
                 .buttonStyle(.bordered)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -112,51 +110,48 @@ struct BrowsePluginsView: View {
 
     @ViewBuilder
     private func browseRow(_ plugin: RegistryPlugin) -> some View {
-        HStack(spacing: 6) {
-            pluginIcon(plugin.iconName ?? "puzzlepiece")
-                .frame(width: 16)
+        HStack(spacing: 8) {
+            PluginIconView(name: plugin.iconName ?? "puzzlepiece")
+                .font(.title3)
+                .frame(width: 24, height: 24)
                 .foregroundStyle(.secondary)
-            Text(plugin.name)
-                .lineLimit(1)
-            if plugin.isVerified {
-                Image(systemName: "checkmark.seal.fill")
-                    .foregroundStyle(.blue)
-                    .font(.caption2)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(plugin.name)
+                        .lineLimit(1)
+                    if plugin.isVerified {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.blue)
+                            .font(.caption2)
+                    }
+                }
+
+                HStack(spacing: 4) {
+                    Text("v\(plugin.version)")
+                    Text("·")
+                    Text(plugin.author.name)
+                        .lineLimit(1)
+                    if let count = downloadCountService.downloadCount(for: plugin.id) {
+                        Text("·")
+                        Text("\(Image(systemName: "arrow.down.circle")) \(formattedCount(count))")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
+
             Spacer()
-            compactActionButton(for: plugin)
+
+            rowStatusBadge(for: plugin)
         }
+        .padding(.vertical, 2)
     }
 
-    // MARK: - Right Pane
+    // MARK: - Row Status Badge
 
     @ViewBuilder
-    private var browseDetailPane: some View {
-        if let selectedPlugin = selectedRegistryPlugin {
-            RegistryPluginDetailView(
-                plugin: selectedPlugin,
-                isInstalled: isPluginInstalled(selectedPlugin.id),
-                installProgress: installTracker.state(for: selectedPlugin.id),
-                downloadCount: downloadCountService.downloadCount(for: selectedPlugin.id),
-                onInstall: { installPlugin(selectedPlugin) }
-            )
-        } else {
-            VStack(spacing: 8) {
-                Image(systemName: "puzzlepiece.extension")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.tertiary)
-                Text("Select a plugin to view details")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    // MARK: - Compact Action Button
-
-    @ViewBuilder
-    private func compactActionButton(for plugin: RegistryPlugin) -> some View {
+    private func rowStatusBadge(for plugin: RegistryPlugin) -> some View {
         if isPluginInstalled(plugin.id) {
             Text("Installed")
                 .font(.caption2)
@@ -185,15 +180,35 @@ struct BrowsePluginsView: View {
         }
     }
 
-    // MARK: - Plugin Icon
+    private func formattedCount(_ count: Int) -> String {
+        if count >= 1000 {
+            return String(format: "%.1fk", Double(count) / 1000.0)
+        }
+        return "\(count)"
+    }
+
+    // MARK: - Detail
 
     @ViewBuilder
-    private func pluginIcon(_ name: String) -> some View {
-        if NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil {
-            Image(systemName: name)
+    private var detailContent: some View {
+        if let selectedPlugin = selectedRegistryPlugin {
+            RegistryPluginDetailView(
+                plugin: selectedPlugin,
+                isInstalled: isPluginInstalled(selectedPlugin.id),
+                installProgress: installTracker.state(for: selectedPlugin.id),
+                downloadCount: downloadCountService.downloadCount(for: selectedPlugin.id),
+                onInstall: { installPlugin(selectedPlugin) }
+            )
         } else {
-            Image(name)
-                .renderingMode(.template)
+            VStack(spacing: 8) {
+                Image(systemName: "puzzlepiece.extension")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.tertiary)
+                Text("Select a plugin to view details")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

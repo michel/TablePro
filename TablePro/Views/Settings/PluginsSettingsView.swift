@@ -18,13 +18,17 @@ struct PluginsSettingsView: View {
             .labelsHidden()
             .padding(.horizontal, 16)
             .padding(.top, 12)
+            .padding(.bottom, 8)
 
-            switch selectedTab {
-            case .installed:
-                InstalledPluginsView()
-            case .browse:
-                BrowsePluginsView()
+            Group {
+                switch selectedTab {
+                case .installed:
+                    InstalledPluginsView()
+                case .browse:
+                    BrowsePluginsView()
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }
