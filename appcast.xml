@@ -3,22 +3,74 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.17.0</title>
-            <pubDate>Sat, 14 Mar 2026 07:00:47 +0000</pubDate>
-            <sparkle:version>31</sparkle:version>
-            <sparkle:shortVersionString>0.17.0</sparkle:shortVersionString>
+            <title>0.18.0</title>
+            <pubDate>Sat, 14 Mar 2026 12:22:52 +0000</pubDate>
+            <sparkle:version>32</sparkle:version>
+            <sparkle:shortVersionString>0.18.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><li>Bug fixes and improvements</li></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.0.0-ci-test/TablePro-0.0.0-ci-test-arm64.zip" length="19411259" type="application/octet-stream" sparkle:edSignature="d0W2ABHS+5KeGp0w66nZmYCPM+Xq3gH0+FI9RjHdViRjn/P5pQWwOuFgt1BElCvvEiIezXFc4GOHh6FlZD0gCQ==" sparkle:architectures="arm64"/>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+<ul>
+<li>Theme engine: 4 built-in themes (Default Light/Dark, Dracula, Nord), custom themes with full color/font/layout customization, import/export as JSON</li>
+<li>Theme registry: browse, install, and update community themes from the plugin registry</li>
+<li>App-level appearance mode: Light, Dark, or Auto (follow system), independent of theme</li>
+<li>Cassandra and ScyllaDB database support (downloadable plugin)</li>
+<li>SSH TOTP/two-factor authentication with auto-generate and prompt modes</li>
+<li>SSH host key verification with fingerprint confirmation</li>
+<li>Keyboard Interactive SSH authentication</li>
+<li>Column visibility: toggle columns on/off via status bar or header context menu</li>
+<li>Copy as INSERT/UPDATE SQL from data grid context menu</li>
+<li>`~/.pgpass` support for PostgreSQL/Redshift connections</li>
+<li>Pre-connect script: run a shell command before each connection</li>
+<li>MSSQL query cancellation and lock timeout support</li>
+<li>Custom plugin registry URL for enterprise/private registries</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Extracted MSSQL, MongoDB, Redis, XLSX export, MQL export, and SQL import into downloadable plugins. MySQL, PostgreSQL, SQLite, CSV, JSON, and SQL export remain built-in</li>
+<li>Redesigned Plugins settings with master-detail layout and download counts</li>
+<li>All database-specific behavior now driven by plugin metadata instead of hardcoded switches, enabling third-party database plugins</li>
+<li>Connection form fields, sidebar labels, and SQL dialect features are now fully plugin-driven</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Plugin icon rendering now supports custom asset images alongside SF Symbols</li>
+</ul></body>]]></description>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.18.0/TablePro-0.18.0-arm64.zip" length="19640514" type="application/octet-stream" sparkle:edSignature="JJOiYaaX8bFkkQv71V4ksMXXUwvJHJQezXlb+Ub2CQcO+s0SV8wZutRFEUdEywesb4fWAYXjaG+OQgdlvCoCBA==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.17.0</title>
-            <pubDate>Sat, 14 Mar 2026 07:00:47 +0000</pubDate>
-            <sparkle:version>31</sparkle:version>
-            <sparkle:shortVersionString>0.17.0</sparkle:shortVersionString>
+            <title>0.18.0</title>
+            <pubDate>Sat, 14 Mar 2026 12:22:52 +0000</pubDate>
+            <sparkle:version>32</sparkle:version>
+            <sparkle:shortVersionString>0.18.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><li>Bug fixes and improvements</li></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.0.0-ci-test/TablePro-0.0.0-ci-test-x86_64.zip" length="18836427" type="application/octet-stream" sparkle:edSignature="cITJHQSVcvzAOM5FtDUEw/cga+2+rsn5w+2Hbu9LSjSkv8hvfucqGEaqFxTFPEnaSnu1nyTPcbQsk4kwZng7Dw==" sparkle:architectures="x86_64"/>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+<ul>
+<li>Theme engine: 4 built-in themes (Default Light/Dark, Dracula, Nord), custom themes with full color/font/layout customization, import/export as JSON</li>
+<li>Theme registry: browse, install, and update community themes from the plugin registry</li>
+<li>App-level appearance mode: Light, Dark, or Auto (follow system), independent of theme</li>
+<li>Cassandra and ScyllaDB database support (downloadable plugin)</li>
+<li>SSH TOTP/two-factor authentication with auto-generate and prompt modes</li>
+<li>SSH host key verification with fingerprint confirmation</li>
+<li>Keyboard Interactive SSH authentication</li>
+<li>Column visibility: toggle columns on/off via status bar or header context menu</li>
+<li>Copy as INSERT/UPDATE SQL from data grid context menu</li>
+<li>`~/.pgpass` support for PostgreSQL/Redshift connections</li>
+<li>Pre-connect script: run a shell command before each connection</li>
+<li>MSSQL query cancellation and lock timeout support</li>
+<li>Custom plugin registry URL for enterprise/private registries</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Extracted MSSQL, MongoDB, Redis, XLSX export, MQL export, and SQL import into downloadable plugins. MySQL, PostgreSQL, SQLite, CSV, JSON, and SQL export remain built-in</li>
+<li>Redesigned Plugins settings with master-detail layout and download counts</li>
+<li>All database-specific behavior now driven by plugin metadata instead of hardcoded switches, enabling third-party database plugins</li>
+<li>Connection form fields, sidebar labels, and SQL dialect features are now fully plugin-driven</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Plugin icon rendering now supports custom asset images alongside SF Symbols</li>
+</ul></body>]]></description>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.18.0/TablePro-0.18.0-x86_64.zip" length="19073582" type="application/octet-stream" sparkle:edSignature="jgG7Mb94mQWTAly33cy2tQvm1caC5TBtb8ECQhpMYTiUhzDS0S5e2PwH1fKxJCT6HhoO+Bs2eqMC8MGARl6VBg==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
