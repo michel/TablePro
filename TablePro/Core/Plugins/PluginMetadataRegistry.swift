@@ -25,6 +25,7 @@ struct PluginMetadataSnapshot: Sendable {
     let supportsHealthMonitor: Bool
     let urlSchemes: [String]
     let postConnectActions: [PostConnectAction]
+    let brandColorHex: String
 }
 
 final class PluginMetadataRegistry: @unchecked Sendable {
@@ -46,42 +47,48 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                 requiresAuthentication: true, supportsForeignKeys: true, supportsSchemaEditing: true,
                 isDownloadable: false, primaryUrlScheme: "mysql", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
-                supportsHealthMonitor: true, urlSchemes: ["mysql"], postConnectActions: []
+                supportsHealthMonitor: true, urlSchemes: ["mysql"], postConnectActions: [],
+                brandColorHex: "#FF9500"
             )),
             ("MariaDB", PluginMetadataSnapshot(
                 displayName: "MariaDB", iconName: "mariadb-icon", defaultPort: 3_306,
                 requiresAuthentication: true, supportsForeignKeys: true, supportsSchemaEditing: true,
                 isDownloadable: false, primaryUrlScheme: "mariadb", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
-                supportsHealthMonitor: true, urlSchemes: ["mariadb"], postConnectActions: []
+                supportsHealthMonitor: true, urlSchemes: ["mariadb"], postConnectActions: [],
+                brandColorHex: "#00B4D8"
             )),
             ("PostgreSQL", PluginMetadataSnapshot(
                 displayName: "PostgreSQL", iconName: "postgresql-icon", defaultPort: 5_432,
                 requiresAuthentication: true, supportsForeignKeys: true, supportsSchemaEditing: true,
                 isDownloadable: false, primaryUrlScheme: "postgresql", parameterStyle: .dollar,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
-                supportsHealthMonitor: true, urlSchemes: ["postgresql", "postgres"], postConnectActions: []
+                supportsHealthMonitor: true, urlSchemes: ["postgresql", "postgres"], postConnectActions: [],
+                brandColorHex: "#336791"
             )),
             ("Redshift", PluginMetadataSnapshot(
                 displayName: "Redshift", iconName: "redshift-icon", defaultPort: 5_439,
                 requiresAuthentication: true, supportsForeignKeys: true, supportsSchemaEditing: false,
                 isDownloadable: false, primaryUrlScheme: "redshift", parameterStyle: .dollar,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
-                supportsHealthMonitor: true, urlSchemes: ["redshift"], postConnectActions: []
+                supportsHealthMonitor: true, urlSchemes: ["redshift"], postConnectActions: [],
+                brandColorHex: "#205B8E"
             )),
             ("SQLite", PluginMetadataSnapshot(
                 displayName: "SQLite", iconName: "sqlite-icon", defaultPort: 0,
                 requiresAuthentication: false, supportsForeignKeys: true, supportsSchemaEditing: true,
                 isDownloadable: true, primaryUrlScheme: "sqlite", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .filePath,
-                supportsHealthMonitor: false, urlSchemes: ["sqlite"], postConnectActions: []
+                supportsHealthMonitor: false, urlSchemes: ["sqlite"], postConnectActions: [],
+                brandColorHex: "#003B57"
             )),
             ("MongoDB", PluginMetadataSnapshot(
                 displayName: "MongoDB", iconName: "mongodb-icon", defaultPort: 27_017,
                 requiresAuthentication: false, supportsForeignKeys: false, supportsSchemaEditing: false,
                 isDownloadable: false, primaryUrlScheme: "mongodb", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
-                supportsHealthMonitor: true, urlSchemes: ["mongodb", "mongodb+srv"], postConnectActions: []
+                supportsHealthMonitor: true, urlSchemes: ["mongodb", "mongodb+srv"], postConnectActions: [],
+                brandColorHex: "#00ED63"
             )),
             ("Redis", PluginMetadataSnapshot(
                 displayName: "Redis", iconName: "redis-icon", defaultPort: 6_379,
@@ -89,7 +96,8 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                 isDownloadable: false, primaryUrlScheme: "redis", parameterStyle: .questionMark,
                 navigationModel: .inPlace, explainVariants: [], pathFieldRole: .databaseIndex,
                 supportsHealthMonitor: true, urlSchemes: ["redis", "rediss"],
-                postConnectActions: [.selectDatabaseFromConnectionField(fieldId: "redisDatabase")]
+                postConnectActions: [.selectDatabaseFromConnectionField(fieldId: "redisDatabase")],
+                brandColorHex: "#DC382D"
             )),
             ("SQL Server", PluginMetadataSnapshot(
                 displayName: "SQL Server", iconName: "mssql-icon", defaultPort: 1_433,
@@ -97,14 +105,16 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                 isDownloadable: false, primaryUrlScheme: "sqlserver", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
                 supportsHealthMonitor: true, urlSchemes: ["sqlserver", "mssql"],
-                postConnectActions: [.selectDatabaseFromLastSession]
+                postConnectActions: [.selectDatabaseFromLastSession],
+                brandColorHex: "#E34517"
             )),
             ("Oracle", PluginMetadataSnapshot(
                 displayName: "Oracle", iconName: "oracle-icon", defaultPort: 1_521,
                 requiresAuthentication: true, supportsForeignKeys: true, supportsSchemaEditing: true,
                 isDownloadable: true, primaryUrlScheme: "oracle", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .serviceName,
-                supportsHealthMonitor: true, urlSchemes: ["oracle"], postConnectActions: []
+                supportsHealthMonitor: true, urlSchemes: ["oracle"], postConnectActions: [],
+                brandColorHex: "#C3160B"
             )),
             ("ClickHouse", PluginMetadataSnapshot(
                 displayName: "ClickHouse", iconName: "clickhouse-icon", defaultPort: 8_123,
@@ -117,14 +127,16 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                     ExplainVariant(id: "syntax", label: "Syntax", sqlPrefix: "EXPLAIN SYNTAX"),
                     ExplainVariant(id: "estimate", label: "Estimate", sqlPrefix: "EXPLAIN ESTIMATE"),
                 ], pathFieldRole: .database,
-                supportsHealthMonitor: true, urlSchemes: ["clickhouse", "ch"], postConnectActions: []
+                supportsHealthMonitor: true, urlSchemes: ["clickhouse", "ch"], postConnectActions: [],
+                brandColorHex: "#FFD100"
             )),
             ("DuckDB", PluginMetadataSnapshot(
                 displayName: "DuckDB", iconName: "duckdb-icon", defaultPort: 0,
                 requiresAuthentication: false, supportsForeignKeys: true, supportsSchemaEditing: true,
                 isDownloadable: true, primaryUrlScheme: "duckdb", parameterStyle: .dollar,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .filePath,
-                supportsHealthMonitor: false, urlSchemes: ["duckdb"], postConnectActions: []
+                supportsHealthMonitor: false, urlSchemes: ["duckdb"], postConnectActions: [],
+                brandColorHex: "#FFD900"
             )),
             ("Cassandra", PluginMetadataSnapshot(
                 displayName: "Cassandra / ScyllaDB", iconName: "cassandra-icon", defaultPort: 9_042,
@@ -132,7 +144,8 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                 isDownloadable: true, primaryUrlScheme: "cassandra", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
                 supportsHealthMonitor: true, urlSchemes: ["cassandra", "cql", "scylladb", "scylla"],
-                postConnectActions: []
+                postConnectActions: [],
+                brandColorHex: "#26A0D8"
             )),
             ("ScyllaDB", PluginMetadataSnapshot(
                 displayName: "ScyllaDB", iconName: "scylladb-icon", defaultPort: 9_042,
@@ -140,7 +153,8 @@ final class PluginMetadataRegistry: @unchecked Sendable {
                 isDownloadable: true, primaryUrlScheme: "scylladb", parameterStyle: .questionMark,
                 navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
                 supportsHealthMonitor: true, urlSchemes: ["scylladb", "scylla"],
-                postConnectActions: []
+                postConnectActions: [],
+                brandColorHex: "#6B2EE3"
             )),
         ]
         for entry in defaults {

@@ -512,8 +512,10 @@ final class PluginManager {
     }
 
     func brandColor(for databaseType: DatabaseType) -> Color {
-        guard let plugin = driverPlugin(for: databaseType) else { return Theme.defaultDatabaseColor }
-        return Color(hex: Swift.type(of: plugin).brandColorHex)
+        if let hex = PluginMetadataRegistry.shared.snapshot(forTypeId: databaseType.pluginTypeId)?.brandColorHex {
+            return Color(hex: hex)
+        }
+        return Theme.defaultDatabaseColor
     }
 
     func supportsDatabaseSwitching(for databaseType: DatabaseType) -> Bool {
