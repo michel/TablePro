@@ -4,111 +4,21 @@
         <title>TablePro</title>
         <item>
             <title>0.17.0</title>
-            <pubDate>Wed, 11 Mar 2026 05:20:22 +0000</pubDate>
+            <pubDate>Sat, 14 Mar 2026 07:00:47 +0000</pubDate>
             <sparkle:version>31</sparkle:version>
             <sparkle:shortVersionString>0.17.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
-<ul>
-<li>DuckDB database support — connect to `.duckdb` files, query CSV/Parquet/JSON files via SQL, schema navigation, and DuckDB extension management</li>
-<li>MongoDB configurable auth database (`authSource`) — authenticate against any database instead of hardcoded `admin`</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>MongoDB Read Preference, Write Concern, and Redis Database not persisted across app restarts</li>
-<li>Result truncation at 100K rows now reported to UI via `PluginQueryResult.isTruncated` instead of being silently discarded</li>
-<li>DELETE and UPDATE queries using all columns in WHERE clause instead of just the primary key for PostgreSQL, Redshift, MSSQL, and ClickHouse</li>
-<li>SSL/TLS always being enabled for MongoDB, Redis, and ClickHouse connections due to case mismatch in SSL mode string comparison (#249)</li>
-<li>Redis sidebar click showing data briefly then going empty due to double-navigation race condition (#251)</li>
-<li>MongoDB showing "Invalid database name: ''" when connecting without a database name</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Namespaced `disabledPlugins` UserDefaults key to `com.TablePro.disabledPlugins` with automatic migration</li>
-<li>Removed unused plugin capability types (sqlDialect, aiProvider, cellRenderer, sidebarPanel)</li>
-<li>SQLite driver extracted from built-in bundle to downloadable plugin, reducing app size</li>
-<li>Unified error formatting across all database drivers via default `PluginDriverError.errorDescription`, removing 10 per-driver implementations</li>
-<li>Standardized async bridging: 5 queue-based drivers (MySQL, PostgreSQL, MongoDB, Redis, MSSQL) now use shared `pluginDispatchAsync` helper</li>
-<li>Added localization to remaining driver error messages (MySQL, PostgreSQL, ClickHouse, Oracle, Redis, MongoDB)</li>
-<li>NoSQL query building moved from Core to MongoDB/Redis plugins via optional `PluginDatabaseDriver` protocol methods</li>
-<li>Standardized parameter binding across all database drivers with improved default escaping (type-aware numeric handling, NUL byte stripping, NULL literal support)</li>
-</ul>
-<h3>Added</h3>
-<ul>
-<li>Open SQLite database files directly from Finder by double-clicking `.sqlite`, `.sqlite3`, `.db3`, `.s3db`, `.sl3`, and `.sqlitedb` files (#262)</li>
-<li>Export plugin options (CSV, XLSX, JSON, SQL, MQL) now persist across app restarts</li>
-<li>Plugins can declare settings views rendered in Settings > Plugins</li>
-<li>True prepared statements for MSSQL (`sp_executesql`) and ClickHouse (HTTP query parameters), eliminating string interpolation for parameterized queries</li>
-<li>Batch query operations for MSSQL, Oracle, and ClickHouse, eliminating N+1 query patterns for column, foreign key, and database metadata fetching; SQLite adds a batched `fetchAllForeignKeys` override within PRAGMA limitations</li>
-<li>`PluginDriverError` protocol in TableProPluginKit for structured error reporting from driver plugins, with richer connection error messages showing error codes and SQL states</li>
-<li>`pluginDispatchAsync` concurrency helper in TableProPluginKit for standardized async bridging in plugins</li>
-<li>Shared `PluginRowLimits` constant in TableProPluginKit with 100K row default, enforced across all 8 driver plugins (ClickHouse, MSSQL, Oracle previously had no cap)</li>
-<li>`driverVariant(for:)` method on `DriverPlugin` protocol for dynamic multi-type plugin dispatch, replacing hardcoded variant mapping</li>
-<li>Safe mode levels: per-connection setting with 6 levels (Silent, Alert, Alert Full, Safe Mode, Safe Mode Full, Read-Only) replacing the boolean read-only toggle, with confirmation dialogs and Touch ID/password authentication for stricter levels</li>
-<li>Preview tabs: single-click opens a temporary preview tab, double-click or editing promotes it to a permanent tab</li>
-<li>Import plugin system: SQL import extracted into a `.tableplugin` bundle, matching the export plugin architecture</li>
-<li>`ImportFormatPlugin` protocol in TableProPluginKit for building custom import format plugins</li>
-<li>SQLImportPlugin as the first import format plugin (SQL files and .gz compressed SQL)</li>
-<li>Oracle and ClickHouse shipped as downloadable plugins, reducing app bundle size for most users</li>
-<li>Plugin install prompt when connecting to a database whose driver plugin is not installed</li>
-<li>`databaseTypeIds` field on registry plugins for mapping registry entries to database types</li>
-<li>`build-plugin.sh` script and `build-plugin.yml` CI workflow for building standalone plugin releases</li>
-</ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.17.0/TablePro-0.17.0-arm64.zip" length="25460981" type="application/octet-stream" sparkle:edSignature="svDu0QE+5MRTkL8rbpMQhbaGEmwbE90ObgXQDQgJm0Cjr8nsG+yZ1yFRcB4/BzdwEwyX0/YYT6DNzF25/oQeCQ==" sparkle:architectures="arm64"/>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><li>Bug fixes and improvements</li></body>]]></description>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.0.0-ci-test/TablePro-0.0.0-ci-test-arm64.zip" length="19411259" type="application/octet-stream" sparkle:edSignature="d0W2ABHS+5KeGp0w66nZmYCPM+Xq3gH0+FI9RjHdViRjn/P5pQWwOuFgt1BElCvvEiIezXFc4GOHh6FlZD0gCQ==" sparkle:architectures="arm64"/>
         </item>
         <item>
             <title>0.17.0</title>
-            <pubDate>Wed, 11 Mar 2026 05:20:22 +0000</pubDate>
+            <pubDate>Sat, 14 Mar 2026 07:00:47 +0000</pubDate>
             <sparkle:version>31</sparkle:version>
             <sparkle:shortVersionString>0.17.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
-<ul>
-<li>DuckDB database support — connect to `.duckdb` files, query CSV/Parquet/JSON files via SQL, schema navigation, and DuckDB extension management</li>
-<li>MongoDB configurable auth database (`authSource`) — authenticate against any database instead of hardcoded `admin`</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>MongoDB Read Preference, Write Concern, and Redis Database not persisted across app restarts</li>
-<li>Result truncation at 100K rows now reported to UI via `PluginQueryResult.isTruncated` instead of being silently discarded</li>
-<li>DELETE and UPDATE queries using all columns in WHERE clause instead of just the primary key for PostgreSQL, Redshift, MSSQL, and ClickHouse</li>
-<li>SSL/TLS always being enabled for MongoDB, Redis, and ClickHouse connections due to case mismatch in SSL mode string comparison (#249)</li>
-<li>Redis sidebar click showing data briefly then going empty due to double-navigation race condition (#251)</li>
-<li>MongoDB showing "Invalid database name: ''" when connecting without a database name</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Namespaced `disabledPlugins` UserDefaults key to `com.TablePro.disabledPlugins` with automatic migration</li>
-<li>Removed unused plugin capability types (sqlDialect, aiProvider, cellRenderer, sidebarPanel)</li>
-<li>SQLite driver extracted from built-in bundle to downloadable plugin, reducing app size</li>
-<li>Unified error formatting across all database drivers via default `PluginDriverError.errorDescription`, removing 10 per-driver implementations</li>
-<li>Standardized async bridging: 5 queue-based drivers (MySQL, PostgreSQL, MongoDB, Redis, MSSQL) now use shared `pluginDispatchAsync` helper</li>
-<li>Added localization to remaining driver error messages (MySQL, PostgreSQL, ClickHouse, Oracle, Redis, MongoDB)</li>
-<li>NoSQL query building moved from Core to MongoDB/Redis plugins via optional `PluginDatabaseDriver` protocol methods</li>
-<li>Standardized parameter binding across all database drivers with improved default escaping (type-aware numeric handling, NUL byte stripping, NULL literal support)</li>
-</ul>
-<h3>Added</h3>
-<ul>
-<li>Open SQLite database files directly from Finder by double-clicking `.sqlite`, `.sqlite3`, `.db3`, `.s3db`, `.sl3`, and `.sqlitedb` files (#262)</li>
-<li>Export plugin options (CSV, XLSX, JSON, SQL, MQL) now persist across app restarts</li>
-<li>Plugins can declare settings views rendered in Settings > Plugins</li>
-<li>True prepared statements for MSSQL (`sp_executesql`) and ClickHouse (HTTP query parameters), eliminating string interpolation for parameterized queries</li>
-<li>Batch query operations for MSSQL, Oracle, and ClickHouse, eliminating N+1 query patterns for column, foreign key, and database metadata fetching; SQLite adds a batched `fetchAllForeignKeys` override within PRAGMA limitations</li>
-<li>`PluginDriverError` protocol in TableProPluginKit for structured error reporting from driver plugins, with richer connection error messages showing error codes and SQL states</li>
-<li>`pluginDispatchAsync` concurrency helper in TableProPluginKit for standardized async bridging in plugins</li>
-<li>Shared `PluginRowLimits` constant in TableProPluginKit with 100K row default, enforced across all 8 driver plugins (ClickHouse, MSSQL, Oracle previously had no cap)</li>
-<li>`driverVariant(for:)` method on `DriverPlugin` protocol for dynamic multi-type plugin dispatch, replacing hardcoded variant mapping</li>
-<li>Safe mode levels: per-connection setting with 6 levels (Silent, Alert, Alert Full, Safe Mode, Safe Mode Full, Read-Only) replacing the boolean read-only toggle, with confirmation dialogs and Touch ID/password authentication for stricter levels</li>
-<li>Preview tabs: single-click opens a temporary preview tab, double-click or editing promotes it to a permanent tab</li>
-<li>Import plugin system: SQL import extracted into a `.tableplugin` bundle, matching the export plugin architecture</li>
-<li>`ImportFormatPlugin` protocol in TableProPluginKit for building custom import format plugins</li>
-<li>SQLImportPlugin as the first import format plugin (SQL files and .gz compressed SQL)</li>
-<li>Oracle and ClickHouse shipped as downloadable plugins, reducing app bundle size for most users</li>
-<li>Plugin install prompt when connecting to a database whose driver plugin is not installed</li>
-<li>`databaseTypeIds` field on registry plugins for mapping registry entries to database types</li>
-<li>`build-plugin.sh` script and `build-plugin.yml` CI workflow for building standalone plugin releases</li>
-</ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.17.0/TablePro-0.17.0-x86_64.zip" length="22699103" type="application/octet-stream" sparkle:edSignature="FhP3/UeBfWnZ0UoSCTXLPlTyN+uy4m68n5MX4eEwgQJRhAqWni76M7FD57NYwu1UYY8XaXNLWhD+QCjaYWT9CQ==" sparkle:architectures="x86_64"/>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><li>Bug fixes and improvements</li></body>]]></description>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.0.0-ci-test/TablePro-0.0.0-ci-test-x86_64.zip" length="18836427" type="application/octet-stream" sparkle:edSignature="cITJHQSVcvzAOM5FtDUEw/cga+2+rsn5w+2Hbu9LSjSkv8hvfucqGEaqFxTFPEnaSnu1nyTPcbQsk4kwZng7Dw==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
