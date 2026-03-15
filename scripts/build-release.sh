@@ -345,7 +345,6 @@ build_for_arch() {
         -arch "$arch" \
         ONLY_ACTIVE_ARCH=YES \
         CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
-        CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
