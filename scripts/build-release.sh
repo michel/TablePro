@@ -336,16 +336,6 @@ build_for_arch() {
     SPM_CACHE_DIR="${HOME}/.spm-cache"
     mkdir -p "$SPM_CACHE_DIR"
 
-    # Use CI entitlements (without iCloud) during build to avoid provisioning
-    # profile requirement. The app is re-signed with real entitlements after build.
-    local ci_entitlements="TablePro/TablePro.ci.entitlements"
-    local real_entitlements="TablePro/TablePro.entitlements"
-    if [ -f "$ci_entitlements" ]; then
-        echo "📋 Using CI entitlements (iCloud stripped for build)..."
-        cp "$real_entitlements" "$real_entitlements.bak"
-        cp "$ci_entitlements" "$real_entitlements"
-    fi
-
     # Build with xcodebuild
     echo "Running xcodebuild..."
     if ! xcodebuild \
@@ -355,9 +345,12 @@ build_for_arch() {
         -arch "$arch" \
         ONLY_ACTIVE_ARCH=YES \
         CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
-        CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
+        -allowProvisioningUpdates \
+        ${ASC_KEY_ID:+-authenticationKeyID "$ASC_KEY_ID"} \
+        ${ASC_ISSUER_ID:+-authenticationKeyIssuerID "$ASC_ISSUER_ID"} \
+        ${ASC_KEY_ID:+-authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
         build 2>&1 | tee "build-${arch}.log"; then
@@ -366,11 +359,6 @@ build_for_arch() {
         exit 1
     fi
     echo "✅ Build succeeded for $arch"
-
-    # Restore real entitlements
-    if [ -f "$real_entitlements.bak" ]; then
-        mv "$real_entitlements.bak" "$real_entitlements"
-    fi
 
     # Get binary path with validation
     DERIVED_DATA=$(echo "$build_settings" | grep -m 1 "BUILD_DIR" | awk '{print $3}')
@@ -517,8 +505,8 @@ build_for_arch() {
         done
     fi
 
-    # Sign the app bundle last (with real entitlements including iCloud)
-    codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp --entitlements "$real_entitlements" "$BUILD_DIR/$OUTPUT_NAME"
+    # Sign the app bundle last
+    codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp --entitlements "TablePro/TablePro.entitlements" "$BUILD_DIR/$OUTPUT_NAME"
     echo "✅ Code signing complete"
 
     # Verify signature
