@@ -50,14 +50,12 @@ rm -f "/tmp/$LIBS_ARCHIVE"
 # Verify checksums if file exists
 if [[ -f "$LIBS_DIR/checksums.sha256" ]]; then
   echo "Verifying checksums..."
-  cd "$LIBS_DIR"
-  if shasum -a 256 -c checksums.sha256 --quiet 2>/dev/null; then
+  if shasum -a 256 -c "$LIBS_DIR/checksums.sha256" --quiet 2>/dev/null; then
     echo "Checksums OK"
   else
     echo "WARNING: Checksum verification failed!"
     exit 1
   fi
-  cd - >/dev/null
 fi
 
 # Mark as downloaded
