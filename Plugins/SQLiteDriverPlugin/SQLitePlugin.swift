@@ -233,7 +233,12 @@ private actor SQLiteConnectionActor {
             let bindIndex = Int32(index + 1)
 
             if let stringValue = param {
-                let bindResult = sqlite3_bind_text(statement, bindIndex, stringValue, -1, nil)
+                // SQLITE_TRANSIENT ensures SQLite copies the string immediately,
+                // preventing use-after-free from Swift's temporary C string bridge
+                let bindResult = sqlite3_bind_text(
+                    statement, bindIndex, stringValue, -1,
+                    unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+                )
                 if bindResult != SQLITE_OK {
                     let errorMessage = String(cString: sqlite3_errmsg(db))
                     throw SQLitePluginError.queryFailed(
