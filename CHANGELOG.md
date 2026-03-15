@@ -9,14 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Display BLOB data as multi-line hex dump in detail view sidebar
-- SQL Favorites: save and organize frequently used queries with optional keyword bindings for autocomplete expansion
+- iCloud Sync (Pro): sync connections, groups, tags, settings, and query history across Macs with per-category toggles, conflict resolution, and real-time status indicator
+- SQL Favorites: save frequently used queries with optional keyword bindings for autocomplete expansion
 - Copy selected rows as JSON from context menu and Edit menu
-- iCloud Sync (Pro): sync connections, groups, tags, settings, and query history across Macs via CloudKit
-- Pro feature gating system with license-aware UI overlay for Pro-only features
-- Sync settings tab with per-category toggles and configurable history sync limit
-- Sync status indicator in welcome window showing real-time sync state
-- Conflict resolution dialog for handling simultaneous edits across devices
+- Help menu and welcome screen links to website, documentation, GitHub, and sponsor page
+- Display BLOB data as hex dump in detail view sidebar
 
 ### Fixed
 

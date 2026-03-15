@@ -8600,6 +8600,9 @@
         }
       }
     },
+    "GitHub Repository" : {
+
+    },
     "Global:" : {
 
     },
@@ -9687,6 +9690,9 @@
           }
         }
       }
+    },
+    "Invalid hex" : {
+
     },
     "Invalid JSON" : {
       "localizations" : {
@@ -16538,6 +16544,12 @@
         }
       }
     },
+    "Sponsor" : {
+
+    },
+    "Sponsor TablePro" : {
+
+    },
     "SQL" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -17522,6 +17534,9 @@
           }
         }
       }
+    },
+    "TablePro Website" : {
+
     },
     "Tables" : {
       "localizations" : {

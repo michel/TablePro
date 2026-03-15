@@ -52,6 +52,11 @@ struct AboutView: View {
                     icon: "book",
                     url: "https://docs.tablepro.app"
                 )
+                linkButton(
+                    title: String(localized: "Sponsor"),
+                    icon: "heart",
+                    url: "https://github.com/sponsors/datlechin"
+                )
             }
 
             Spacer()

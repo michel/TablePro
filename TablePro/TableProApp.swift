@@ -385,6 +385,27 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .nextTabArrows))
             .disabled(!appState.isConnected)
         }
+
+        // Help menu
+        CommandGroup(replacing: .help) {
+            Button(String(localized: "TablePro Website")) {
+                NSWorkspace.shared.open(URL(string: "https://tablepro.app")!)
+            }
+
+            Button(String(localized: "Documentation")) {
+                NSWorkspace.shared.open(URL(string: "https://docs.tablepro.app")!)
+            }
+
+            Divider()
+
+            Button("GitHub Repository") {
+                NSWorkspace.shared.open(URL(string: "https://github.com/datlechin/TablePro")!)
+            }
+
+            Button(String(localized: "Sponsor TablePro")) {
+                NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/datlechin")!)
+            }
+        }
     }
 }
 

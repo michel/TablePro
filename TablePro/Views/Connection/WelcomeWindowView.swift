@@ -166,6 +166,17 @@ struct WelcomeWindowView: View {
 
             // Action button
             VStack(spacing: 12) {
+                Button {
+                    if let url = URL(string: "https://github.com/sponsors/datlechin") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    Label("Sponsor TablePro", systemImage: "heart")
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                .foregroundStyle(.pink)
+
                 Button(action: { openWindow(id: "connection-form") }) {
                     Label("Create connection...", systemImage: "plus.circle")
                         .frame(maxWidth: .infinity, alignment: .leading)
