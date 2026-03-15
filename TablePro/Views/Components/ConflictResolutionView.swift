@@ -138,6 +138,10 @@ struct ConflictResolutionView: View {
                     : query
                 fieldRow(label: "Query", value: preview)
             }
+        case .favorite, .favoriteFolder:
+            if let name = record["name"] as? String {
+                fieldRow(label: String(localized: "Name"), value: name)
+            }
         }
     }
 

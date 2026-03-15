@@ -9,12 +9,10 @@ import SwiftUI
 
 // MARK: - SidebarView
 
-/// Sidebar view displaying list of database tables
+/// Sidebar view with segmented tab picker for Tables and Favorites
 struct SidebarView: View {
     @State private var viewModel: SidebarViewModel
 
-    // Keep @Binding on the view for SwiftUI change tracking.
-    // The ViewModel stores the same bindings for write access.
     @Binding var tables: [TableInfo]
     var sidebarState: SharedSidebarState
     @Binding var pendingTruncates: Set<String>
@@ -25,8 +23,6 @@ struct SidebarView: View {
     var connectionId: UUID
     private weak var coordinator: MainContentCoordinator?
 
-    /// Computed on the view (not ViewModel) so SwiftUI tracks both
-    /// `@Binding var tables` and `@Published var searchText` as dependencies.
     private var filteredTables: [TableInfo] {
         guard !viewModel.debouncedSearchText.isEmpty else { return tables }
         return tables.filter { $0.name.localizedCaseInsensitiveContains(viewModel.debouncedSearchText) }
@@ -81,8 +77,36 @@ struct SidebarView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            content
+        ZStack(alignment: .top) {
+            tablesContent
+                .opacity(sidebarState.selectedSidebarTab == .tables ? 1 : 0)
+                .frame(maxHeight: sidebarState.selectedSidebarTab == .tables ? .infinity : 0)
+                .clipped()
+                .allowsHitTesting(sidebarState.selectedSidebarTab == .tables)
+
+            FavoritesTabView(
+                connectionId: connectionId,
+                searchText: viewModel.debouncedSearchText,
+                coordinator: coordinator
+            )
+            .opacity(sidebarState.selectedSidebarTab == .favorites ? 1 : 0)
+            .frame(maxHeight: sidebarState.selectedSidebarTab == .favorites ? .infinity : 0)
+            .clipped()
+            .allowsHitTesting(sidebarState.selectedSidebarTab == .favorites)
+        }
+        .animation(.easeInOut(duration: 0.18), value: sidebarState.selectedSidebarTab)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Picker("", selection: Binding(
+                get: { sidebarState.selectedSidebarTab },
+                set: { sidebarState.selectedSidebarTab = $0 }
+            )) {
+                Text("Tables").tag(SidebarTab.tables)
+                Text("Favorites").tag(SidebarTab.favorites)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
         .frame(minWidth: 280)
         .onChange(of: sidebarState.searchText) { _, newValue in
@@ -116,10 +140,10 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - Content States
+    // MARK: - Tables Content
 
     @ViewBuilder
-    private var content: some View {
+    private var tablesContent: some View {
         if let error = viewModel.errorMessage {
             errorState(message: error)
         } else if tables.isEmpty && viewModel.isLoading {

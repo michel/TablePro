@@ -66,6 +66,7 @@ struct MainEditorContentView: View {
     @State private var tabProviderVersions: [UUID: Int] = [:]
     @State private var tabProviderMetaVersions: [UUID: Int] = [:]
     @State private var cachedChangeManager: AnyChangeManager?
+    @State private var favoriteDialogQuery: FavoriteDialogQuery?
 
     // Native macOS window tabs — no LRU tracking needed (single tab per window)
 
@@ -100,13 +101,20 @@ struct MainEditorContentView: View {
             // Global History Panel
             if isHistoryVisible {
                 Divider()
-                HistoryPanelView()
+                HistoryPanelView(connectionId: connectionId)
                     .frame(height: 300)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .background(.background)
         .animation(.easeInOut(duration: 0.2), value: isHistoryVisible)
+        .sheet(item: $favoriteDialogQuery) { item in
+            FavoriteEditDialog(
+                connectionId: connectionId,
+                favorite: nil,
+                initialQuery: item.query
+            )
+        }
         .onChange(of: tabManager.tabs.count) {
             // Clean up caches for closed tabs
             let openTabIds = Set(tabManager.tabs.map(\.id))
@@ -190,6 +198,7 @@ struct MainEditorContentView: View {
                     onExecute: { coordinator.runQuery() },
                     schemaProvider: coordinator.schemaProvider,
                     databaseType: coordinator.connection.type,
+                    connectionId: coordinator.connection.id,
                     onCloseTab: {
                         NSApp.keyWindow?.close()
                     },
@@ -208,6 +217,10 @@ struct MainEditorContentView: View {
                     onAIOptimize: { text in
                         coordinator.showAIChatPanel()
                         coordinator.aiViewModel?.handleOptimizeSelection(text)
+                    },
+                    onSaveAsFavorite: { text in
+                        guard !text.isEmpty else { return }
+                        favoriteDialogQuery = FavoriteDialogQuery(query: text)
                     }
                 )
             }

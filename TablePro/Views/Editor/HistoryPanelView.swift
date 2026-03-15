@@ -11,6 +11,7 @@ import SwiftUI
 
 /// Query history panel with master-detail layout
 struct HistoryPanelView: View {
+    let connectionId: UUID
     // MARK: - State
 
     @State private var selectedEntryID: UUID?
@@ -21,6 +22,7 @@ struct HistoryPanelView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var copyButtonTitle = "Copy Query"
     @State private var copyResetTask: Task<Void, Never>?
+    @State private var favoriteDialogQuery: FavoriteDialogQuery?
     @FocusedValue(\.commandActions) private var actions
 
     private let dataProvider = HistoryDataProvider()
@@ -48,6 +50,14 @@ struct HistoryPanelView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .queryHistoryDidUpdate)) { _ in
             loadData()
+        }
+        .sheet(item: $favoriteDialogQuery) { item in
+            FavoriteEditDialog(
+                connectionId: connectionId,
+                favorite: nil,
+                initialQuery: item.query,
+                forceGlobal: true
+            )
         }
     }
 }
@@ -184,6 +194,12 @@ private extension HistoryPanelView {
             runInNewTab(entry)
         } label: {
             Label(String(localized: "Run in New Tab"), systemImage: "play")
+        }
+
+        Button {
+            favoriteDialogQuery = FavoriteDialogQuery(query: entry.query)
+        } label: {
+            Label(String(localized: "Save as Favorite"), systemImage: "star")
         }
 
         Divider()
@@ -431,7 +447,7 @@ private struct HistoryRowSwiftUI: View {
 #if DEBUG
 struct HistoryPanelView_Previews: PreviewProvider {
     static var previews: some View {
-        HistoryPanelView()
+        HistoryPanelView(connectionId: UUID())
             .frame(width: 600, height: 300)
     }
 }

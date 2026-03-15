@@ -1774,6 +1774,9 @@
         }
       }
     },
+    "Add" : {
+
+    },
     "Add Check Constraint" : {
       "localizations" : {
         "vi" : {
@@ -6029,6 +6032,12 @@
         }
       }
     },
+    "Delete Folder" : {
+
+    },
+    "Delete Folder?" : {
+
+    },
     "Delete Foreign Key" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6692,6 +6701,9 @@
           }
         }
       }
+    },
+    "Edit..." : {
+
     },
     "Editing" : {
       "localizations" : {
@@ -8080,6 +8092,9 @@
     "Fast" : {
 
     },
+    "Favorites" : {
+
+    },
     "Feature Routing" : {
       "localizations" : {
         "vi" : {
@@ -8226,6 +8241,9 @@
         }
       }
     },
+    "Filter favorites" : {
+
+    },
     "Filter logic mode" : {
       "localizations" : {
         "vi" : {
@@ -8371,6 +8389,9 @@
       }
     },
     "Focus Border" : {
+
+    },
+    "Folder name" : {
 
     },
     "Font" : {
@@ -8572,6 +8593,9 @@
           }
         }
       }
+    },
+    "Global:" : {
+
     },
     "Go" : {
       "localizations" : {
@@ -9399,6 +9423,9 @@
         }
       }
     },
+    "Insert in Editor" : {
+
+    },
     "INSERT Statement(s)" : {
       "localizations" : {
         "vi" : {
@@ -9988,6 +10015,15 @@
       }
     },
     "Keyword" : {
+
+    },
+    "Keyword cannot contain spaces" : {
+
+    },
+    "Keyword:" : {
+
+    },
+    "keyword: %@" : {
 
     },
     "Language:" : {
@@ -10782,6 +10818,9 @@
         }
       }
     },
+    "Move to" : {
+
+    },
     "Move Up" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -10881,6 +10920,9 @@
           }
         }
       }
+    },
+    "Name:" : {
+
     },
     "Navigate to referenced row" : {
       "localizations" : {
@@ -11030,6 +11072,15 @@
         }
       }
     },
+    "New Favorite" : {
+
+    },
+    "New Favorite..." : {
+
+    },
+    "New Folder" : {
+
+    },
     "New Group" : {
       "localizations" : {
         "vi" : {
@@ -11111,6 +11162,9 @@
           }
         }
       }
+    },
+    "New Subfolder" : {
+
     },
     "New Tab" : {
       "localizations" : {
@@ -11421,6 +11475,9 @@
         }
       }
     },
+    "No Favorites" : {
+
+    },
     "No Foreign Keys Yet" : {
       "localizations" : {
         "vi" : {
@@ -11536,6 +11593,9 @@
           }
         }
       }
+    },
+    "No Matching Favorites" : {
+
     },
     "No matching fields" : {
       "localizations" : {
@@ -14027,6 +14087,9 @@
         }
       }
     },
+    "Query:" : {
+
+    },
     "Quick search across all columns..." : {
       "localizations" : {
         "vi" : {
@@ -14878,6 +14941,9 @@
         }
       }
     },
+    "Root Level" : {
+
+    },
     "Row %lld" : {
       "localizations" : {
         "vi" : {
@@ -15182,6 +15248,12 @@
         }
       }
     },
+    "Save as Favorite" : {
+
+    },
+    "Save as Favorite..." : {
+
+    },
     "Save as Preset..." : {
       "localizations" : {
         "vi" : {
@@ -15262,6 +15334,9 @@
           }
         }
       }
+    },
+    "Save frequently used queries\nfor quick access." : {
+
     },
     "Save Sidebar Changes" : {
       "localizations" : {
@@ -16006,6 +16081,9 @@
 
     },
     "Settings:" : {
+
+    },
+    "Shadows the SQL keyword '%@'" : {
 
     },
     "Share anonymous usage data" : {
@@ -17437,7 +17515,6 @@
       }
     },
     "Tables" : {
-      "extractionState" : "stale",
       "localizations" : {
         "vi" : {
           "stringUnit" : {
@@ -17677,6 +17754,9 @@
         }
       }
     },
+    "The folder \"%@\" will be deleted. Items inside will be moved to the parent level." : {
+
+    },
     "The following %lld queries may permanently modify or delete data. This action cannot be undone.\n\n%@" : {
       "localizations" : {
         "en" : {
@@ -17800,6 +17880,9 @@
 
     },
     "This is a registry theme." : {
+
+    },
+    "This keyword is already in use" : {
 
     },
     "This Mac" : {
@@ -19488,6 +19571,9 @@
           }
         }
       }
+    },
+    "When enabled, this favorite is visible in all connections" : {
+
     },
     "When TablePro starts:" : {
       "localizations" : {

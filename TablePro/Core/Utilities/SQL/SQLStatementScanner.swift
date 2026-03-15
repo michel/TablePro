@@ -11,6 +11,7 @@ enum SQLStatementScanner {
         let offset: Int
     }
 
+    /// Returns statements with trailing semicolons stripped — for driver execution.
     static func allStatements(in sql: String) -> [String] {
         var results: [String] = []
         scan(sql: sql, cursorPosition: nil) { rawSQL, _ in
@@ -20,6 +21,22 @@ enum SQLStatementScanner {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
             }
             if !trimmed.isEmpty {
+                results.append(trimmed)
+            }
+            return true
+        }
+        return results
+    }
+
+    /// Returns statements preserving trailing semicolons — for display/history/favorites.
+    static func allStatementsPreservingSemicolons(in sql: String) -> [String] {
+        var results: [String] = []
+        scan(sql: sql, cursorPosition: nil) { rawSQL, _ in
+            let trimmed = rawSQL.trimmingCharacters(in: .whitespacesAndNewlines)
+            let withoutSemicolon = trimmed.hasSuffix(";")
+                ? String(trimmed.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+                : trimmed
+            if !withoutSemicolon.isEmpty {
                 results.append(trimmed)
             }
             return true
