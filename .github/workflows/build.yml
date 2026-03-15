@@ -106,20 +106,17 @@ jobs:
             --team-id "$APPLE_TEAM_ID" \
             --password "$NOTARY_PASSWORD"
 
-      - name: Install App Store Connect API key
+      - name: Install provisioning profile
         env:
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
-          mkdir -p ~/private_keys
-          echo "$ASC_KEY_P8" | base64 --decode > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/tablepro.provisionprofile
 
       - name: Build ARM64
         env:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
           NOTARIZE: "true"
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           chmod +x scripts/build-release.sh
           scripts/build-release.sh arm64
@@ -227,20 +224,17 @@ jobs:
             --team-id "$APPLE_TEAM_ID" \
             --password "$NOTARY_PASSWORD"
 
-      - name: Install App Store Connect API key
+      - name: Install provisioning profile
         env:
-          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
-          mkdir -p ~/private_keys
-          echo "$ASC_KEY_P8" | base64 --decode > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$PROVISIONING_PROFILE" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/tablepro.provisionprofile
 
       - name: Build x86_64
         env:
           ANALYTICS_HMAC_SECRET: ${{ secrets.ANALYTICS_HMAC_SECRET }}
           NOTARIZE: "true"
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           chmod +x scripts/build-release.sh
           scripts/build-release.sh x86_64

@@ -347,11 +347,8 @@ build_for_arch() {
         CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
         CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
+        PROVISIONING_PROFILE_SPECIFIER="TablePro Developer ID" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
-        -allowProvisioningUpdates \
-        ${ASC_KEY_ID:+-authenticationKeyID "$ASC_KEY_ID"} \
-        ${ASC_ISSUER_ID:+-authenticationKeyIssuerID "$ASC_ISSUER_ID"} \
-        ${ASC_KEY_ID:+-authenticationKeyPath "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
         build 2>&1 | tee "build-${arch}.log"; then
