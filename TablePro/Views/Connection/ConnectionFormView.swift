@@ -1025,6 +1025,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         if isNew {
             savedConnections.append(connectionToSave)
             storage.saveConnections(savedConnections)
+            SyncChangeTracker.shared.markDirty(.connection, id: connectionToSave.id.uuidString)
             // Close and connect to database
             NSApplication.shared.closeWindows(withId: "connection-form")
             connectToDatabase(connectionToSave)
@@ -1032,6 +1033,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             if let index = savedConnections.firstIndex(where: { $0.id == connectionToSave.id }) {
                 savedConnections[index] = connectionToSave
                 storage.saveConnections(savedConnections)
+                SyncChangeTracker.shared.markDirty(.connection, id: connectionToSave.id.uuidString)
             }
             NSApplication.shared.closeWindows(withId: "connection-form")
             NotificationCenter.default.post(name: .connectionUpdated, object: nil)
@@ -1041,8 +1043,12 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     private func deleteConnection() {
         guard let id = connectionId else { return }
         var savedConnections = storage.loadConnections()
+        let hadConnection = savedConnections.contains { $0.id == id }
         savedConnections.removeAll { $0.id == id }
         storage.saveConnections(savedConnections)
+        if hadConnection {
+            SyncChangeTracker.shared.markDeleted(.connection, id: id.uuidString)
+        }
         NSApplication.shared.closeWindows(withId: "connection-form")
         NotificationCenter.default.post(name: .connectionUpdated, object: nil)
     }

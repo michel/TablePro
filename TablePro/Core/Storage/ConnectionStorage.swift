@@ -67,6 +67,7 @@ final class ConnectionStorage {
         var connections = loadConnections()
         connections.append(connection)
         saveConnections(connections)
+        SyncChangeTracker.shared.markDirty(.connection, id: connection.id.uuidString)
 
         if let password = password, !password.isEmpty {
             savePassword(password, for: connection.id)
@@ -79,6 +80,7 @@ final class ConnectionStorage {
         if let index = connections.firstIndex(where: { $0.id == connection.id }) {
             connections[index] = connection
             saveConnections(connections)
+            SyncChangeTracker.shared.markDirty(.connection, id: connection.id.uuidString)
 
             if let password = password {
                 if password.isEmpty {
@@ -92,6 +94,7 @@ final class ConnectionStorage {
 
     /// Delete a connection
     func deleteConnection(_ connection: DatabaseConnection) {
+        SyncChangeTracker.shared.markDeleted(.connection, id: connection.id.uuidString)
         var connections = loadConnections()
         connections.removeAll { $0.id == connection.id }
         saveConnections(connections)
@@ -131,6 +134,7 @@ final class ConnectionStorage {
         var connections = loadConnections()
         connections.append(duplicate)
         saveConnections(connections)
+        SyncChangeTracker.shared.markDirty(.connection, id: duplicate.id.uuidString)
 
         // Copy all passwords from source to duplicate
         if let password = loadPassword(for: connection.id) {
