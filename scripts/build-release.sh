@@ -501,6 +501,13 @@ build_for_arch() {
         done
     fi
 
+    # Embed provisioning profile (required for iCloud entitlements)
+    PROFILE=$(find ~/Library/MobileDevice/Provisioning\ Profiles -name "*.provisionprofile" -print -quit 2>/dev/null)
+    if [ -n "$PROFILE" ]; then
+        echo "📋 Embedding provisioning profile: $(basename "$PROFILE")"
+        cp "$PROFILE" "$BUILD_DIR/$OUTPUT_NAME/Contents/embedded.provisionprofile"
+    fi
+
     # Sign the app bundle last
     codesign -fs "$SIGN_IDENTITY" --force --options runtime --timestamp --entitlements "TablePro/TablePro.entitlements" "$BUILD_DIR/$OUTPUT_NAME"
     echo "✅ Code signing complete"
