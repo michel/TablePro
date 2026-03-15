@@ -77,6 +77,7 @@ struct PasteboardCommands: Commands {
             Button("Copy as JSON") {
                 actions?.copySelectedRowsAsJson()
             }
+            .optionalKeyboardShortcut(shortcut(for: .copyAsJson))
             .disabled(!appState.hasRowSelection)
 
             Button("Paste") {

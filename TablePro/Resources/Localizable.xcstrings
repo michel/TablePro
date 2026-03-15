@@ -4663,6 +4663,9 @@
         }
       }
     },
+    "Copy as JSON" : {
+
+    },
     "Copy as URL" : {
       "localizations" : {
         "vi" : {
@@ -9845,6 +9848,9 @@
           }
         }
       }
+    },
+    "JSON" : {
+
     },
     "Jump Hosts" : {
       "localizations" : {
