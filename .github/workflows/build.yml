@@ -45,6 +45,8 @@ jobs:
           xcode-version: '26.2'
 
       - name: Download static libraries
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: scripts/download-libs.sh --force
 
       - name: Install ARM64 dependencies
@@ -144,6 +146,8 @@ jobs:
           xcode-version: '26.2'
 
       - name: Download static libraries
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: scripts/download-libs.sh --force
 
       - name: Install Rosetta 2
