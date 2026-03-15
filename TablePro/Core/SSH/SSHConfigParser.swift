@@ -191,5 +191,4 @@ final class SSHConfigParser {
 
         return jumpHosts
     }
-
 }

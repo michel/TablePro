@@ -389,21 +389,21 @@ struct AppMenuCommands: Commands {
         // Help menu
         CommandGroup(replacing: .help) {
             Button(String(localized: "TablePro Website")) {
-                NSWorkspace.shared.open(URL(string: "https://tablepro.app")!)
+                if let url = URL(string: "https://tablepro.app") { NSWorkspace.shared.open(url) }
             }
 
             Button(String(localized: "Documentation")) {
-                NSWorkspace.shared.open(URL(string: "https://docs.tablepro.app")!)
+                if let url = URL(string: "https://docs.tablepro.app") { NSWorkspace.shared.open(url) }
             }
 
             Divider()
 
             Button("GitHub Repository") {
-                NSWorkspace.shared.open(URL(string: "https://github.com/datlechin/TablePro")!)
+                if let url = URL(string: "https://github.com/datlechin/TablePro") { NSWorkspace.shared.open(url) }
             }
 
             Button(String(localized: "Sponsor TablePro")) {
-                NSWorkspace.shared.open(URL(string: "https://github.com/sponsors/datlechin")!)
+                if let url = URL(string: "https://github.com/sponsors/datlechin") { NSWorkspace.shared.open(url) }
             }
         }
     }

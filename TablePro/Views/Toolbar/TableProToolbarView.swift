@@ -187,7 +187,6 @@ struct TableProToolbar: ViewModifier {
                         .help("Import Data (⌘⇧I)")
                         .disabled(state.connectionState != .connected || state.safeModeLevel.blocksAllWrites)
                     }
-
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openConnectionSwitcher)) { _ in
