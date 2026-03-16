@@ -103,8 +103,9 @@ struct TableQueryBuilder {
         var query = "SELECT * FROM \(quotedTable)"
 
         if let dialect {
+            let activeFilters = filters.filter { $0.isEnabled }
             let filterGen = FilterSQLGenerator(dialect: dialect, quoteIdentifier: dialectQuote)
-            let whereClause = filterGen.generateWhereClause(from: filters, logicMode: logicMode)
+            let whereClause = filterGen.generateWhereClause(from: activeFilters, logicMode: logicMode)
             if !whereClause.isEmpty {
                 query += " \(whereClause)"
             }
@@ -185,10 +186,11 @@ struct TableQueryBuilder {
         var query = "SELECT * FROM \(quotedTable)"
 
         if let dialect {
+            let activeFilters = filters.filter { $0.isEnabled }
             let filterGen = FilterSQLGenerator(dialect: dialect, quoteIdentifier: dialectQuote)
             var whereParts: [String] = []
 
-            let filterConditions = filterGen.generateConditions(from: filters, logicMode: logicMode)
+            let filterConditions = filterGen.generateConditions(from: activeFilters, logicMode: logicMode)
             if !filterConditions.isEmpty {
                 whereParts.append("(\(filterConditions))")
             }

@@ -52,9 +52,12 @@ struct FilterSQLGenerator {
         let pattern = "%\(escapedValue)%"
         let quotedPattern = escapeSQLQuote(pattern)
         let escape = likeEscapeClause
+        // CAST to TEXT for databases like PostgreSQL where LIKE on non-text columns fails
+        let needsCast = dialect.regexSyntax == .tilde
         let conditions = columns.map { column in
             let quoted = quoteIdentifierFn(column)
-            return "\(quoted) LIKE '\(quotedPattern)'\(escape)"
+            let target = needsCast ? "CAST(\(quoted) AS TEXT)" : quoted
+            return "\(target) LIKE '\(quotedPattern)'\(escape)"
         }
         return conditions.joined(separator: " OR ")
     }

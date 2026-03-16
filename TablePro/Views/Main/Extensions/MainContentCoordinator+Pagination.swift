@@ -102,8 +102,7 @@ extension MainContentCoordinator {
 
     private func reloadCurrentPage() {
         guard let tabIndex = tabManager.selectedTabIndex,
-              tabIndex < tabManager.tabs.count,
-              tabManager.tabs[tabIndex].tableName != nil else { return }
+              tabIndex < tabManager.tabs.count else { return }
 
         rebuildTableQuery(at: tabIndex)
         runQuery()
