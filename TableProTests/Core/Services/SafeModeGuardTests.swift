@@ -70,7 +70,7 @@ struct SafeModeGuardTests {
         let result = await SafeModeGuard.checkPermission(
             level: .readOnly, isWriteOperation: false,
             sql: "db.users.find({})", operationDescription: "Find",
-            window: nil, databaseType: .mongodb
+            window: nil, databaseType: DatabaseType(rawValue: "MongoDB")
         )
         guard case let .blocked(message) = result else {
             Issue.record("Expected .blocked for MongoDB but got .allowed")
@@ -84,7 +84,7 @@ struct SafeModeGuardTests {
         let result = await SafeModeGuard.checkPermission(
             level: .readOnly, isWriteOperation: false,
             sql: "GET key", operationDescription: "Get",
-            window: nil, databaseType: .redis
+            window: nil, databaseType: DatabaseType(rawValue: "Redis")
         )
         guard case let .blocked(message) = result else {
             Issue.record("Expected .blocked for Redis but got .allowed")
@@ -98,7 +98,7 @@ struct SafeModeGuardTests {
         let result = await SafeModeGuard.checkPermission(
             level: .silent, isWriteOperation: false,
             sql: "db.users.find({})", operationDescription: "Find",
-            window: nil, databaseType: .mongodb
+            window: nil, databaseType: DatabaseType(rawValue: "MongoDB")
         )
         if case .blocked = result {
             Issue.record("Expected .allowed for MongoDB in silent mode but got .blocked")
@@ -110,7 +110,7 @@ struct SafeModeGuardTests {
         let result = await SafeModeGuard.checkPermission(
             level: .silent, isWriteOperation: false,
             sql: "GET key", operationDescription: "Get",
-            window: nil, databaseType: .redis
+            window: nil, databaseType: DatabaseType(rawValue: "Redis")
         )
         if case .blocked = result {
             Issue.record("Expected .allowed for Redis in silent mode but got .blocked")

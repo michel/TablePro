@@ -13,7 +13,7 @@ struct ConnectionURLFormatter {
             return formatSQLite(connection.database)
         }
 
-        if connection.type == .duckdb {
+        if connection.type == DatabaseType(rawValue: "DuckDB") {
             return formatDuckDB(connection.database)
         }
 
@@ -76,7 +76,7 @@ struct ConnectionURLFormatter {
             result += ":\(connection.port)"
         }
 
-        let sshPathComponent = connection.type == .oracle
+        let sshPathComponent = connection.type == DatabaseType(rawValue: "Oracle")
             ? (connection.oracleServiceName ?? connection.database)
             : connection.database
         result += "/\(sshPathComponent)"
@@ -109,7 +109,7 @@ struct ConnectionURLFormatter {
             result += ":\(connection.port)"
         }
 
-        let pathComponent = connection.type == .oracle
+        let pathComponent = connection.type == DatabaseType(rawValue: "Oracle")
             ? (connection.oracleServiceName ?? connection.database)
             : connection.database
         result += "/\(pathComponent)"

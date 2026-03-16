@@ -2,7 +2,7 @@
 //  FilterSQLGeneratorMSSQLTests.swift
 //  TableProTests
 //
-//  Tests for FilterSQLGenerator with databaseType: .mssql
+//  Tests for FilterSQLGenerator with databaseType: DatabaseType(rawValue: "SQL Server")
 //
 
 import Foundation

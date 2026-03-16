@@ -5,46 +5,46 @@ import Testing
 struct DatabaseTypeRedisTests {
     @Test("Default port is 6379")
     func defaultPort() {
-        #expect(DatabaseType.redis.defaultPort == 6_379)
+        #expect(DatabaseType(rawValue: "Redis").defaultPort == 6_379)
     }
 
     @Test("Icon name is redis-icon")
     func iconName() {
-        #expect(DatabaseType.redis.iconName == "redis-icon")
+        #expect(DatabaseType(rawValue: "Redis").iconName == "redis-icon")
     }
 
     @Test("Does not require authentication")
     func requiresAuthentication() {
-        #expect(DatabaseType.redis.requiresAuthentication == false)
+        #expect(DatabaseType(rawValue: "Redis").requiresAuthentication == false)
     }
 
     @Test("Does not support foreign keys")
     func supportsForeignKeys() {
-        #expect(DatabaseType.redis.supportsForeignKeys == false)
+        #expect(DatabaseType(rawValue: "Redis").supportsForeignKeys == false)
     }
 
     @Test("Does not support schema editing")
     func supportsSchemaEditing() {
-        #expect(DatabaseType.redis.supportsSchemaEditing == false)
+        #expect(DatabaseType(rawValue: "Redis").supportsSchemaEditing == false)
     }
 
     @Test("Raw value is Redis")
     func rawValue() {
-        #expect(DatabaseType.redis.rawValue == "Redis")
+        #expect(DatabaseType(rawValue: "Redis").rawValue == "Redis")
     }
 
     @Test("Theme color is derived from plugin brand color")
     @MainActor func themeColor() {
-        #expect(DatabaseType.redis.themeColor == PluginManager.shared.brandColor(for: .redis))
+        #expect(DatabaseType(rawValue: "Redis").themeColor == PluginManager.shared.brandColor(for: DatabaseType(rawValue: "Redis")))
     }
 
     @Test("Included in allKnownTypes")
     func includedInAllKnownTypes() {
-        #expect(DatabaseType.allKnownTypes.contains(.redis))
+        #expect(DatabaseType.allKnownTypes.contains(DatabaseType(rawValue: "Redis")))
     }
 
     @Test("Included in allCases shim")
     func includedInAllCases() {
-        #expect(DatabaseType.allCases.contains(.redis))
+        #expect(DatabaseType.allCases.contains(DatabaseType(rawValue: "Redis")))
     }
 }

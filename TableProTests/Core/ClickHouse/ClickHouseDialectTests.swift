@@ -32,7 +32,7 @@ struct ClickHouseDialectTests {
     @Test("Factory returns empty dialect when plugin not loaded")
     @MainActor
     func testFactoryFallbackWithoutPlugin() {
-        let dialect = SQLDialectFactory.createDialect(for: .clickhouse)
+        let dialect = SQLDialectFactory.createDialect(for: DatabaseType(rawValue: "ClickHouse"))
         // Without plugin loaded, factory returns empty fallback
         #expect(dialect.keywords.isEmpty)
     }

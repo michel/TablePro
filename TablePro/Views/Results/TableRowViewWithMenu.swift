@@ -69,7 +69,7 @@ final class TableRowViewWithMenu: NSTableRowView {
             copyAsMenu.addItem(jsonItem)
 
             if let dbType = coordinator.databaseType,
-               dbType != .mongodb && dbType != .redis,
+               dbType != DatabaseType(rawValue: "MongoDB") && dbType != DatabaseType(rawValue: "Redis"),
                coordinator.tableName != nil {
                 copyAsMenu.addItem(NSMenuItem.separator())
 

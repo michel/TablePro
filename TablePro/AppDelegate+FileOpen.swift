@@ -66,7 +66,7 @@ extension AppDelegate {
                     switch dbType {
                     case .sqlite:
                         self.handleSQLiteFile(url)
-                    case .duckdb:
+                    case DatabaseType(rawValue: "DuckDB"):
                         self.handleDuckDBFile(url)
                     default:
                         self.handleGenericDatabaseFile(url, type: dbType)

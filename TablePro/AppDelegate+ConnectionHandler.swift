@@ -141,7 +141,7 @@ extension AppDelegate {
         let connectionName = url.deletingPathExtension().lastPathComponent
 
         for (sessionId, session) in DatabaseManager.shared.activeSessions {
-            if session.connection.type == .duckdb
+            if session.connection.type == DatabaseType(rawValue: "DuckDB")
                 && session.connection.database == filePath
                 && session.driver != nil {
                 bringConnectionWindowToFront(sessionId)
@@ -155,7 +155,7 @@ extension AppDelegate {
             port: 0,
             database: filePath,
             username: "",
-            type: .duckdb
+            type: DatabaseType(rawValue: "DuckDB")
         )
 
         openNewConnectionWindow(for: connection)

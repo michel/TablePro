@@ -2,7 +2,7 @@
 //  SQLStatementGeneratorMSSQLTests.swift
 //  TableProTests
 //
-//  Tests for SQLStatementGenerator with databaseType: .mssql
+//  Tests for SQLStatementGenerator with databaseType: DatabaseType(rawValue: "SQL Server")
 //
 
 import Foundation
@@ -22,7 +22,7 @@ struct SQLStatementGeneratorMSSQLTests {
             tableName: tableName,
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
-            databaseType: .mssql
+            databaseType: DatabaseType(rawValue: "SQL Server")
         )
     }
 
