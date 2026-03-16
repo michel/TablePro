@@ -3,46 +3,32 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.19.0</title>
-            <pubDate>Sun, 15 Mar 2026 14:20:51 +0000</pubDate>
-            <sparkle:version>34</sparkle:version>
-            <sparkle:shortVersionString>0.19.0</sparkle:shortVersionString>
+            <title>0.19.1</title>
+            <pubDate>Mon, 16 Mar 2026 02:55:46 +0000</pubDate>
+            <sparkle:version>35</sparkle:version>
+            <sparkle:shortVersionString>0.19.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>iCloud Sync (Pro): sync connections, groups, tags, settings, and query history across Macs with per-category toggles, conflict resolution, and real-time status indicator</li>
-<li>SQL Favorites: save frequently used queries with optional keyword bindings for autocomplete expansion</li>
-<li>Copy selected rows as JSON from context menu and Edit menu</li>
-<li>Help menu and welcome screen links to website, documentation, GitHub, and sponsor page</li>
-<li>Display BLOB data as hex dump in detail view sidebar</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>SSH agent connections failing when socket path contains `~` (e.g., 1Password agent)</li>
-<li>Keychain authorization prompt no longer appears on every table open</li>
+<li>SSH tunnel connections timing out due to relay deadlock</li>
+<li>Plugin metadata dispatch failing for externally installed plugins</li>
+<li>SSH public key authentication error messages now include detailed failure reason</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.19.0/TablePro-0.19.0-arm64.zip" length="19945688" type="application/octet-stream" sparkle:edSignature="8i0NfwUUxp2TWLpVkZbezqYkStgf2mPFD34QmuLgBY89+YWusvd3tOPkKjKOed4/HnZJTtQnhB8h5/CB+JPHBQ==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.19.1/TablePro-0.19.1-arm64.zip" length="19953646" type="application/octet-stream" sparkle:edSignature="WeoycqaHFp1AxmtJ+19pLU7WA6f5q/SCPNyG8BwNwedRw7qm7baVNmnmeMnKaZzp/Xrmebw2QOxhXsdc1HlwCQ==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.19.0</title>
-            <pubDate>Sun, 15 Mar 2026 14:20:51 +0000</pubDate>
-            <sparkle:version>34</sparkle:version>
-            <sparkle:shortVersionString>0.19.0</sparkle:shortVersionString>
+            <title>0.19.1</title>
+            <pubDate>Mon, 16 Mar 2026 02:55:46 +0000</pubDate>
+            <sparkle:version>35</sparkle:version>
+            <sparkle:shortVersionString>0.19.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>iCloud Sync (Pro): sync connections, groups, tags, settings, and query history across Macs with per-category toggles, conflict resolution, and real-time status indicator</li>
-<li>SQL Favorites: save frequently used queries with optional keyword bindings for autocomplete expansion</li>
-<li>Copy selected rows as JSON from context menu and Edit menu</li>
-<li>Help menu and welcome screen links to website, documentation, GitHub, and sponsor page</li>
-<li>Display BLOB data as hex dump in detail view sidebar</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>SSH agent connections failing when socket path contains `~` (e.g., 1Password agent)</li>
-<li>Keychain authorization prompt no longer appears on every table open</li>
+<li>SSH tunnel connections timing out due to relay deadlock</li>
+<li>Plugin metadata dispatch failing for externally installed plugins</li>
+<li>SSH public key authentication error messages now include detailed failure reason</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.19.0/TablePro-0.19.0-x86_64.zip" length="19398708" type="application/octet-stream" sparkle:edSignature="HC9Lxy6+f98eqR/4XtFPzzRSq5+fKCpNVz8qtiI9571yswsr9wcW3rjQLWxIa2uUwdgzQlCTb/AZHU4Ui3ftAA==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.19.1/TablePro-0.19.1-x86_64.zip" length="19412239" type="application/octet-stream" sparkle:edSignature="ibdFbbWEaYxq4CjLZgHNhwYMMcvhWL1qZ2cAlXd0I3bgFKEdnx6XiVQXaGE2x+WTfKi+ngDPARO90/hCVSN1Aw==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
