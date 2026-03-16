@@ -372,6 +372,36 @@ extension PluginMetadataRegistry {
             "Other": ["javascript", "minKey", "maxKey"]
         ]
 
+        let etcdCompletions: [CompletionEntry] = [
+            CompletionEntry(label: "get", insertText: "get"),
+            CompletionEntry(label: "put", insertText: "put"),
+            CompletionEntry(label: "del", insertText: "del"),
+            CompletionEntry(label: "watch", insertText: "watch"),
+            CompletionEntry(label: "lease grant", insertText: "lease grant"),
+            CompletionEntry(label: "lease revoke", insertText: "lease revoke"),
+            CompletionEntry(label: "lease timetolive", insertText: "lease timetolive"),
+            CompletionEntry(label: "lease list", insertText: "lease list"),
+            CompletionEntry(label: "lease keep-alive", insertText: "lease keep-alive"),
+            CompletionEntry(label: "member list", insertText: "member list"),
+            CompletionEntry(label: "endpoint status", insertText: "endpoint status"),
+            CompletionEntry(label: "endpoint health", insertText: "endpoint health"),
+            CompletionEntry(label: "compaction", insertText: "compaction"),
+            CompletionEntry(label: "auth enable", insertText: "auth enable"),
+            CompletionEntry(label: "auth disable", insertText: "auth disable"),
+            CompletionEntry(label: "user add", insertText: "user add"),
+            CompletionEntry(label: "user delete", insertText: "user delete"),
+            CompletionEntry(label: "user list", insertText: "user list"),
+            CompletionEntry(label: "role add", insertText: "role add"),
+            CompletionEntry(label: "role delete", insertText: "role delete"),
+            CompletionEntry(label: "role list", insertText: "role list"),
+            CompletionEntry(label: "user grant-role", insertText: "user grant-role"),
+            CompletionEntry(label: "user revoke-role", insertText: "user revoke-role"),
+            CompletionEntry(label: "--prefix", insertText: "--prefix"),
+            CompletionEntry(label: "--limit", insertText: "--limit="),
+            CompletionEntry(label: "--keys-only", insertText: "--keys-only"),
+            CompletionEntry(label: "--lease", insertText: "--lease="),
+        ]
+
         let redisCompletions: [CompletionEntry] = [
             CompletionEntry(label: "GET", insertText: "GET"),
             CompletionEntry(label: "SET", insertText: "SET"),
@@ -808,6 +838,84 @@ extension PluginMetadataRegistry {
                             placeholder: "/path/to/ca-cert.pem",
                             section: .advanced
                         )
+                    ]
+                )
+            )),
+            ("etcd", PluginMetadataSnapshot(
+                displayName: "etcd", iconName: "etcd-icon", defaultPort: 2_379,
+                requiresAuthentication: false, supportsForeignKeys: false, supportsSchemaEditing: false,
+                isDownloadable: true, primaryUrlScheme: "etcd", parameterStyle: .questionMark,
+                navigationModel: .standard, explainVariants: [], pathFieldRole: .database,
+                supportsHealthMonitor: true, urlSchemes: ["etcd", "etcds"], postConnectActions: [],
+                brandColorHex: "#419EDA",
+                queryLanguageName: "etcdctl", editorLanguage: .bash,
+                connectionMode: .network, supportsDatabaseSwitching: false,
+                capabilities: PluginMetadataSnapshot.CapabilityFlags(
+                    supportsSchemaSwitching: false,
+                    supportsImport: false,
+                    supportsExport: true,
+                    supportsSSH: true,
+                    supportsSSL: true,
+                    supportsCascadeDrop: false,
+                    supportsForeignKeyDisable: false,
+                    supportsReadOnlyMode: false,
+                    supportsQueryProgress: false,
+                    requiresReconnectForDatabaseSwitch: false
+                ),
+                schema: PluginMetadataSnapshot.SchemaInfo(
+                    defaultSchemaName: "public",
+                    defaultGroupName: "main",
+                    tableEntityName: "Keys",
+                    defaultPrimaryKeyColumn: "Key",
+                    immutableColumns: ["Version", "ModRevision", "CreateRevision"],
+                    systemDatabaseNames: [],
+                    systemSchemaNames: [],
+                    fileExtensions: [],
+                    databaseGroupingStrategy: .flat,
+                    structureColumnFields: [.name, .type, .nullable]
+                ),
+                editor: PluginMetadataSnapshot.EditorConfig(
+                    sqlDialect: nil,
+                    statementCompletions: etcdCompletions,
+                    columnTypesByCategory: ["String": ["string"]]
+                ),
+                connection: PluginMetadataSnapshot.ConnectionConfig(
+                    additionalConnectionFields: [
+                        ConnectionField(
+                            id: "etcdKeyPrefix",
+                            label: String(localized: "Key Prefix Root"),
+                            placeholder: "/",
+                            section: .advanced
+                        ),
+                        ConnectionField(
+                            id: "etcdTlsMode",
+                            label: String(localized: "TLS Mode"),
+                            fieldType: .dropdown(options: [
+                                .init(value: "Disabled", label: "Disabled"),
+                                .init(value: "Required", label: String(localized: "Required (skip verify)")),
+                                .init(value: "VerifyCA", label: String(localized: "Verify CA")),
+                                .init(value: "VerifyIdentity", label: String(localized: "Verify Identity")),
+                            ]),
+                            section: .advanced
+                        ),
+                        ConnectionField(
+                            id: "etcdCaCertPath",
+                            label: String(localized: "CA Certificate"),
+                            placeholder: "/path/to/ca.pem",
+                            section: .advanced
+                        ),
+                        ConnectionField(
+                            id: "etcdClientCertPath",
+                            label: String(localized: "Client Certificate"),
+                            placeholder: "/path/to/client.pem",
+                            section: .advanced
+                        ),
+                        ConnectionField(
+                            id: "etcdClientKeyPath",
+                            label: String(localized: "Client Key"),
+                            placeholder: "/path/to/client-key.pem",
+                            section: .advanced
+                        ),
                     ]
                 )
             ))

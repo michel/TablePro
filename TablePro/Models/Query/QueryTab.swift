@@ -440,6 +440,15 @@ struct QueryTab: Identifiable, Equatable {
     ) -> String {
         let quote = quoteIdentifier ?? quoteIdentifierFromDialect(PluginManager.shared.sqlDialect(for: databaseType))
         let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+
+        // Use plugin's query builder when available (NoSQL drivers like etcd, Redis)
+        if let pluginDriver = PluginManager.shared.queryBuildingDriver(for: databaseType),
+           let pluginQuery = pluginDriver.buildBrowseQuery(
+               table: tableName, sortColumns: [], columns: [], limit: pageSize, offset: 0
+           ) {
+            return pluginQuery
+        }
+
         switch PluginManager.shared.editorLanguage(for: databaseType) {
         case .javascript:
             let escaped = tableName.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")

@@ -506,7 +506,7 @@ internal enum LibSSH2TunnelFactory {
                                     totalSent += sent
                                 }
                             } else if channelRead == 0
-                                || sessionQueue.sync({ libssh2_channel_eof(channel) }) != 0 {
+                                || sessionQueue.sync(execute: { libssh2_channel_eof(channel) }) != 0 {
                                 return
                             } else if channelRead != Int(LIBSSH2_ERROR_EAGAIN) {
                                 return

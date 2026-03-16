@@ -379,7 +379,7 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
                         if sent <= 0 { return }
                         totalSent += sent
                     }
-                } else if readResult == 0 || sessionQueue.sync({ libssh2_channel_eof(channel) }) != 0 {
+                } else if readResult == 0 || sessionQueue.sync(execute: { libssh2_channel_eof(channel) }) != 0 {
                     return
                 } else if readResult != Int(LIBSSH2_ERROR_EAGAIN) {
                     return
