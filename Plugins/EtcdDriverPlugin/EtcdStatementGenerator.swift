@@ -10,7 +10,7 @@ import os
 import TableProPluginKit
 
 struct EtcdStatementGenerator {
-    private static let logger = Logger(subsystem: "com.TablePro.EtcdDriver", category: "EtcdStatementGenerator")
+    private static let logger = Logger(subsystem: "com.TablePro", category: "EtcdStatementGenerator")
 
     let prefix: String
     let columns: [String]
@@ -73,8 +73,15 @@ struct EtcdStatementGenerator {
             return []
         }
 
+        // Prepend the current browse prefix if the key doesn't already include it
+        let fullKey: String
+        if !prefix.isEmpty && !k.hasPrefix("/") {
+            fullKey = prefix + k
+        } else {
+            fullKey = k
+        }
         let v = value ?? ""
-        var cmd = "put \(escapeArgument(k)) \(escapeArgument(v))"
+        var cmd = "put \(escapeArgument(fullKey)) \(escapeArgument(v))"
         if let lease = leaseId, !lease.isEmpty, lease != "0" {
             cmd += " --lease=\(lease)"
         }

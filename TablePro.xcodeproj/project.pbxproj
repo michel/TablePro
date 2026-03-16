@@ -131,6 +131,13 @@
 			remoteGlobalIDString = 5A1091C62EF17EDC0055EA7C;
 			remoteInfo = TablePro;
 		};
+		5AEA8B312F6808270040461A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5AEA8B292F6808270040461A;
+			remoteInfo = EtcdDriverPlugin;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -654,6 +661,7 @@
 			isa = PBXGroup;
 			children = (
 				5AEA8B412F6808CA0040461A /* EtcdDriverPlugin */,
+				5AEA8B412F6808CA0040461A /* Plugins/EtcdDriverPlugin */,
 				5A1091C92EF17EDC0055EA7C /* TablePro */,
 				5A860000500000000 /* Plugins/TableProPluginKit */,
 				5A861000500000000 /* Plugins/OracleDriverPlugin */,
@@ -707,6 +715,7 @@
 			sourceTree = "<group>";
 		};
 		5AEA8B412F6808CA0040461A /* EtcdDriverPlugin */ = {
+		5AEA8B412F6808CA0040461A /* Plugins/EtcdDriverPlugin */ = {
 			isa = PBXGroup;
 			children = (
 				5AEA8B3B2F6808CA0040461A /* EtcdCommandParser.swift */,
@@ -1630,6 +1639,11 @@
 			isa = PBXTargetDependency;
 			target = 5A1091C62EF17EDC0055EA7C /* TablePro */;
 			targetProxy = 5ABCC5AB2F43856700EAF3FC /* PBXContainerItemProxy */;
+		};
+		5AEA8B322F6808270040461A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5AEA8B292F6808270040461A /* EtcdDriverPlugin */;
+			targetProxy = 5AEA8B312F6808270040461A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
