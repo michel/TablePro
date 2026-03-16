@@ -146,7 +146,7 @@ struct InstalledPluginsView: View {
     @ViewBuilder
     private func pluginRow(_ plugin: PluginEntry) -> some View {
         HStack(spacing: 8) {
-            PluginIconView(name: plugin.iconName)
+            PluginIconView(name: plugin.pluginIconName)
                 .font(.title3)
                 .frame(width: 24, height: 24)
                 .foregroundStyle(plugin.isEnabled ? .secondary : .tertiary)

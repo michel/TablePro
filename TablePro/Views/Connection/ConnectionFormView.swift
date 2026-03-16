@@ -828,8 +828,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     }
 
     private var filePathPrompt: String {
-        let extensions = PluginManager.shared.driverPlugin(for: type)
-            .map { Swift.type(of: $0).fileExtensions } ?? []
+        let extensions = PluginManager.shared.fileExtensions(for: type)
         let ext = (extensions.first ?? "db")
             .trimmingCharacters(in: CharacterSet(charactersIn: ". "))
         guard !ext.isEmpty else { return "/path/to/database.db" }
