@@ -2,7 +2,7 @@
 //  DatabaseTypeMSSQLTests.swift
 //  TableProTests
 //
-//  Tests for DatabaseType(rawValue: "SQL Server") properties and methods.
+//  Tests for .mssql properties and methods.
 //
 
 import Foundation
@@ -15,43 +15,43 @@ struct DatabaseTypeMSSQLTests {
 
     @Test("defaultPort is 1433")
     func defaultPort() {
-        #expect(DatabaseType(rawValue: "SQL Server").defaultPort == 1_433)
+        #expect(.mssql.defaultPort == 1_433)
     }
 
     @Test("rawValue is SQL Server")
     func rawValue() {
-        #expect(DatabaseType(rawValue: "SQL Server").rawValue == "SQL Server")
+        #expect(.mssql.rawValue == "SQL Server")
     }
 
     @Test("requiresAuthentication is true")
     func requiresAuthentication() {
-        #expect(DatabaseType(rawValue: "SQL Server").requiresAuthentication == true)
+        #expect(.mssql.requiresAuthentication == true)
     }
 
     @Test("supportsForeignKeys is true")
     func supportsForeignKeys() {
-        #expect(DatabaseType(rawValue: "SQL Server").supportsForeignKeys == true)
+        #expect(.mssql.supportsForeignKeys == true)
     }
 
     @Test("supportsSchemaEditing is true")
     func supportsSchemaEditing() {
-        #expect(DatabaseType(rawValue: "SQL Server").supportsSchemaEditing == true)
+        #expect(.mssql.supportsSchemaEditing == true)
     }
 
     @Test("iconName is mssql-icon")
     func iconName() {
-        #expect(DatabaseType(rawValue: "SQL Server").iconName == "mssql-icon")
+        #expect(.mssql.iconName == "mssql-icon")
     }
 
     // MARK: - allKnownTypes Tests
 
     @Test("allKnownTypes contains mssql")
     func allKnownTypesContainsMSSql() {
-        #expect(DatabaseType.allKnownTypes.contains(DatabaseType(rawValue: "SQL Server")))
+        #expect(DatabaseType.allKnownTypes.contains(.mssql))
     }
 
     @Test("allCases shim contains mssql")
     func allCasesContainsMSSql() {
-        #expect(DatabaseType.allCases.contains(DatabaseType(rawValue: "SQL Server")))
+        #expect(DatabaseType.allCases.contains(.mssql))
     }
 }

@@ -51,7 +51,7 @@ struct CoordinatorSidebarActionsTests {
 
     @Test("createView does not crash for each database type", arguments: [
         DatabaseType.mysql, .mariadb, .postgresql, .sqlite, .redshift,
-        DatabaseType(rawValue: "ClickHouse"), DatabaseType(rawValue: "SQL Server"), DatabaseType(rawValue: "Oracle"), DatabaseType(rawValue: "MongoDB"), DatabaseType(rawValue: "Redis"), DatabaseType(rawValue: "DuckDB"),
+        .clickhouse, .mssql, .oracle, .mongodb, .redis, .duckdb,
     ])
     @MainActor
     func createViewDoesNotCrash(type: DatabaseType) {
@@ -77,7 +77,7 @@ struct CoordinatorSidebarActionsTests {
     @Test("openImportDialog with MongoDB returns early at type guard")
     @MainActor
     func openImportDialogBlockedForMongoDB() {
-        let (coordinator, _) = makeCoordinator(type: DatabaseType(rawValue: "MongoDB"))
+        let (coordinator, _) = makeCoordinator(type: .mongodb)
         defer { coordinator.teardown() }
 
         // Hits the MongoDB/Redis guard; shows an alert as side effect
@@ -88,7 +88,7 @@ struct CoordinatorSidebarActionsTests {
     @Test("openImportDialog with Redis returns early at type guard")
     @MainActor
     func openImportDialogBlockedForRedis() {
-        let (coordinator, _) = makeCoordinator(type: DatabaseType(rawValue: "Redis"))
+        let (coordinator, _) = makeCoordinator(type: .redis)
         defer { coordinator.teardown() }
 
         coordinator.openImportDialog()

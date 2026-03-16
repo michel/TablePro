@@ -362,15 +362,15 @@ enum DatabaseDriverFactory {
         }
 
         switch connection.type {
-        case DatabaseType(rawValue: "MongoDB"):
+        case .mongodb:
             fields["sslCACertPath"] = ssl.caCertificatePath
             fields["mongoReadPreference"] = connection.mongoReadPreference ?? ""
             fields["mongoWriteConcern"] = connection.mongoWriteConcern ?? ""
-        case DatabaseType(rawValue: "Redis"):
+        case .redis:
             fields["redisDatabase"] = String(connection.redisDatabase ?? 0)
-        case DatabaseType(rawValue: "SQL Server"):
+        case .mssql:
             fields["mssqlSchema"] = connection.mssqlSchema ?? "dbo"
-        case DatabaseType(rawValue: "Oracle"):
+        case .oracle:
             fields["oracleServiceName"] = connection.oracleServiceName ?? ""
         default:
             break

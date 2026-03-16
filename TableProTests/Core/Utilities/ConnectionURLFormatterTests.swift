@@ -69,7 +69,7 @@ struct ConnectionURLFormatterTests {
     func testDefaultPortOmittedMongoDB() {
         let conn = DatabaseConnection(
             name: "", host: "host", port: 27_017, database: "db",
-            username: "user", type: DatabaseType(rawValue: "MongoDB")
+            username: "user", type: .mongodb
         )
         let url = ConnectionURLFormatter.format(conn, password: "pass", sshPassword: nil)
         #expect(!url.contains(":27017"))

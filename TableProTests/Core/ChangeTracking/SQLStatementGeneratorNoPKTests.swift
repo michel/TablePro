@@ -156,7 +156,7 @@ struct SQLStatementGeneratorNoPKTests {
 
     @Test("Update without PK — MSSQL uses UPDATE TOP (1)")
     func testUpdateNoPKMSSQLTop() {
-        let generator = makeGenerator(databaseType: DatabaseType(rawValue: "SQL Server"))
+        let generator = makeGenerator(databaseType: .mssql)
         let changes: [RowChange] = [
             RowChange(
                 rowIndex: 0,
@@ -266,7 +266,7 @@ struct SQLStatementGeneratorNoPKTests {
 
     @Test("Delete without PK — MSSQL uses DELETE TOP (1)")
     func testDeleteNoPKMSSQLTop() {
-        let generator = makeGenerator(databaseType: DatabaseType(rawValue: "SQL Server"))
+        let generator = makeGenerator(databaseType: .mssql)
         let changes: [RowChange] = [
             RowChange(
                 rowIndex: 0,

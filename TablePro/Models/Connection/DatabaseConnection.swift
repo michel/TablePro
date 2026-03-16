@@ -225,6 +225,17 @@ extension DatabaseType {
     static let postgresql = DatabaseType(rawValue: "PostgreSQL")
     static let sqlite = DatabaseType(rawValue: "SQLite")
     static let redshift = DatabaseType(rawValue: "Redshift")
+
+    // Registry-distributed types (known plugins, downloadable separately)
+    static let mongodb = DatabaseType(rawValue: "MongoDB")
+    static let redis = DatabaseType(rawValue: "Redis")
+    static let mssql = DatabaseType(rawValue: "SQL Server")
+    static let oracle = DatabaseType(rawValue: "Oracle")
+    static let clickhouse = DatabaseType(rawValue: "ClickHouse")
+    static let duckdb = DatabaseType(rawValue: "DuckDB")
+    static let cassandra = DatabaseType(rawValue: "Cassandra")
+    static let scylladb = DatabaseType(rawValue: "ScyllaDB")
+    static let etcd = DatabaseType(rawValue: "etcd")
 }
 
 extension DatabaseType: Codable {

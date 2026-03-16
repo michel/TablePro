@@ -75,7 +75,7 @@ struct MSSQLDriverTests {
     // MARK: - Helpers
 
     private func makeConnection(mssqlSchema: String? = nil) -> DatabaseConnection {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "SQL Server"))
+        var conn = TestFixtures.makeConnection(type: .mssql)
         conn.mssqlSchema = mssqlSchema
         return conn
     }

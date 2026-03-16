@@ -134,7 +134,7 @@ struct TableOperationDialogLogicTests {
 
     @Test("MongoDB does not support cascade")
     func testMongoDBCascadeNotSupported() {
-        #expect(DialogLogic.cascadeSupported(databaseType: DatabaseType(rawValue: "MongoDB")) == false)
+        #expect(DialogLogic.cascadeSupported(databaseType: .mongodb) == false)
     }
 
     // MARK: - cascadeDisabled

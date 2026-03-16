@@ -146,14 +146,14 @@ struct SQLRowToStatementConverterTests {
 
     @Test("ClickHouse fallback uses standard UPDATE syntax (plugin handles ALTER TABLE at runtime)")
     func clickhouseFallbackUsesStandardUpdate() {
-        let converter = makeConverter(databaseType: DatabaseType(rawValue: "ClickHouse"), dialect: Self.clickhouseDialect)
+        let converter = makeConverter(databaseType: .clickhouse, dialect: Self.clickhouseDialect)
         let result = converter.generateUpdates(rows: [["1", "Alice", "alice@example.com"]])
         #expect(result == "UPDATE `users` SET `name` = 'Alice', `email` = 'alice@example.com' WHERE `id` = '1';")
     }
 
     @Test("MSSQL uses bracket quoting")
     func mssqlUsesBracketQuoting() {
-        let converter = makeConverter(databaseType: DatabaseType(rawValue: "SQL Server"), dialect: Self.mssqlDialect)
+        let converter = makeConverter(databaseType: .mssql, dialect: Self.mssqlDialect)
         let result = converter.generateInserts(rows: [["1", "Alice", "alice@example.com"]])
         #expect(result == "INSERT INTO [users] ([id], [name], [email]) VALUES ('1', 'Alice', 'alice@example.com');")
     }
@@ -174,7 +174,7 @@ struct SQLRowToStatementConverterTests {
 
     @Test("DuckDB uses double-quote quoting and standard UPDATE syntax")
     func duckdbUsesDoubleQuoteAndStandardUpdate() {
-        let converter = makeConverter(databaseType: DatabaseType(rawValue: "DuckDB"), dialect: Self.duckdbDialect)
+        let converter = makeConverter(databaseType: .duckdb, dialect: Self.duckdbDialect)
         let insert = converter.generateInserts(rows: [["1", "Alice", "alice@example.com"]])
         #expect(insert == "INSERT INTO \"users\" (\"id\", \"name\", \"email\") VALUES ('1', 'Alice', 'alice@example.com');")
         let update = converter.generateUpdates(rows: [["1", "Alice", "alice@example.com"]])

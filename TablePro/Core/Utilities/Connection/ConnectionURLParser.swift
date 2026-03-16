@@ -101,19 +101,19 @@ struct ConnectionURLParser {
         case "sqlite":
             dbType = .sqlite
         case "mongodb", "mongodb+srv":
-            dbType = DatabaseType(rawValue: "MongoDB")
+            dbType = .mongodb
         case "redis", "rediss":
-            dbType = DatabaseType(rawValue: "Redis")
+            dbType = .redis
         case "sqlserver", "mssql", "jdbc:sqlserver":
-            dbType = DatabaseType(rawValue: "SQL Server")
+            dbType = .mssql
         case "oracle", "jdbc:oracle:thin":
-            dbType = DatabaseType(rawValue: "Oracle")
+            dbType = .oracle
         case "clickhouse", "ch":
-            dbType = DatabaseType(rawValue: "ClickHouse")
+            dbType = .clickhouse
         case "cassandra", "cql":
-            dbType = DatabaseType(rawValue: "Cassandra")
+            dbType = .cassandra
         case "scylladb", "scylla":
-            dbType = DatabaseType(rawValue: "ScyllaDB")
+            dbType = .scylladb
         default:
             if let resolvedType = PluginMetadataRegistry.shared.databaseType(forUrlScheme: scheme) {
                 dbType = resolvedType
@@ -186,7 +186,7 @@ struct ConnectionURLParser {
         var sslMode = ext.sslMode
         // Redis-specific: parse database index from path and handle TLS scheme
         var redisDatabase: Int?
-        if dbType == DatabaseType(rawValue: "Redis") {
+        if dbType == .redis {
             if !database.isEmpty {
                 redisDatabase = Int(database)
                 database = ""
@@ -198,7 +198,7 @@ struct ConnectionURLParser {
 
         // Oracle-specific: path component is the service name, not the database name
         var oracleServiceName: String?
-        if dbType == DatabaseType(rawValue: "Oracle") && !database.isEmpty {
+        if dbType == .oracle && !database.isEmpty {
             oracleServiceName = database
             database = ""
         }
@@ -329,7 +329,7 @@ struct ConnectionURLParser {
 
         // Oracle-specific: path component is the service name, not the database name
         var oracleServiceName: String?
-        if dbType == DatabaseType(rawValue: "Oracle") && !database.isEmpty {
+        if dbType == .oracle && !database.isEmpty {
             oracleServiceName = database
             database = ""
         }

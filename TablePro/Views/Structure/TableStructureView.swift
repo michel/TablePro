@@ -108,7 +108,7 @@ struct TableStructureView: View {
         if !connection.type.supportsForeignKeys {
             tabs = tabs.filter { $0 != .foreignKeys }
         }
-        if connection.type != DatabaseType(rawValue: "ClickHouse") {
+        if connection.type != .clickhouse {
             tabs = tabs.filter { $0 != .parts }
         }
         return tabs
@@ -223,7 +223,7 @@ struct TableStructureView: View {
     }
 
     private func updateColumn(_ column: inout EditableColumnDefinition, at index: Int, with value: String) {
-        if connection.type == DatabaseType(rawValue: "ClickHouse") {
+        if connection.type == .clickhouse {
             // ClickHouse: Name(0), Type(1), Nullable(2), Default(3), Comment(4) — no Auto Inc
             switch index {
             case 0: column.name = value

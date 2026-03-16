@@ -72,7 +72,7 @@ struct SQLStatementGeneratorParameterStyleTests {
 
     @Test("DuckDB defaults to dollar style")
     func testDuckDBDefaultsDollar() {
-        let generator = makeGenerator(databaseType: DatabaseType(rawValue: "DuckDB"))
+        let generator = makeGenerator(databaseType: .duckdb)
         let insertedRowData: [Int: [String?]] = [0: ["1", "John", "john@example.com"]]
         let changes: [RowChange] = [
             RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)
@@ -125,7 +125,7 @@ struct SQLStatementGeneratorParameterStyleTests {
 
     @Test("MSSQL defaults to questionMark style")
     func testMSSQLDefaultsQuestionMark() {
-        let generator = makeGenerator(databaseType: DatabaseType(rawValue: "SQL Server"))
+        let generator = makeGenerator(databaseType: .mssql)
         let insertedRowData: [Int: [String?]] = [0: ["1", "John", "john@example.com"]]
         let changes: [RowChange] = [
             RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)

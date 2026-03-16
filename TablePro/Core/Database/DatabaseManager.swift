@@ -803,7 +803,7 @@ final class DatabaseManager {
         driver: DatabaseDriver
     ) async -> String? {
         // Only needed for PostgreSQL PK modifications
-        guard databaseType == .postgresql || databaseType == .redshift || databaseType == DatabaseType(rawValue: "DuckDB") else { return nil }
+        guard databaseType == .postgresql || databaseType == .redshift || databaseType == .duckdb else { return nil }
         guard
             changes.contains(where: {
                 if case .modifyPrimaryKey = $0 { return true }

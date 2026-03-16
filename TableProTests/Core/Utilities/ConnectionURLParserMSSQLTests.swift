@@ -16,7 +16,7 @@ struct ConnectionURLParserMSSQLTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
         #expect(parsed.host == "host")
         #expect(parsed.port == nil)
         #expect(parsed.database == "mydb")
@@ -30,7 +30,7 @@ struct ConnectionURLParserMSSQLTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
         #expect(parsed.host == "host")
         #expect(parsed.database == "db")
         #expect(parsed.username == "user")
@@ -43,7 +43,7 @@ struct ConnectionURLParserMSSQLTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
         #expect(parsed.host == "host")
         #expect(parsed.username == "user")
     }
@@ -54,7 +54,7 @@ struct ConnectionURLParserMSSQLTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
         #expect(parsed.host == "host")
         #expect(parsed.database == "db")
         #expect(parsed.username == "")
@@ -67,7 +67,7 @@ struct ConnectionURLParserMSSQLTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
         #expect(parsed.port == 1434)
         #expect(parsed.host == "host")
         #expect(parsed.database == "db")
@@ -79,7 +79,7 @@ struct ConnectionURLParserMSSQLTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "MongoDB"))
+        #expect(parsed.type == .mongodb)
         #expect(parsed.host == "cluster.net")
         #expect(parsed.database == "db")
     }

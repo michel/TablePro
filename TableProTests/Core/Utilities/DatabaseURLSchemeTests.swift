@@ -66,7 +66,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "MongoDB"))
+        #expect(parsed.type == .mongodb)
     }
 
     @Test("MongoDB+SRV scheme parses and maps to mongodb type")
@@ -75,7 +75,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "MongoDB"))
+        #expect(parsed.type == .mongodb)
     }
 
     @Test("Redis scheme parses successfully")
@@ -84,7 +84,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.sslMode == nil)
     }
 
@@ -94,7 +94,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.sslMode == .required)
     }
 
@@ -113,7 +113,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
     }
 
     @Test("SQL Server scheme parses successfully")
@@ -122,7 +122,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
     }
 
     // MARK: - SSH Variants
@@ -201,7 +201,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success, got: \(result)"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Cassandra"))
+        #expect(parsed.type == .cassandra)
         #expect(parsed.host == "host")
         #expect(parsed.port == nil) // 9042 is the default port, so parser normalizes to nil
         #expect(parsed.database == "keyspace")
@@ -235,7 +235,7 @@ struct DatabaseURLSchemeTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "SQL Server"))
+        #expect(parsed.type == .mssql)
     }
 
     @Test("Mixed case scheme parses correctly")

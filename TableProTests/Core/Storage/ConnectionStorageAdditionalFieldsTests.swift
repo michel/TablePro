@@ -19,7 +19,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "Test Mongo",
             host: "localhost",
             port: 27_017,
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "admin",
             mongoReadPreference: "secondary",
             mongoWriteConcern: "majority"
@@ -42,7 +42,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "Test MSSQL",
             host: "localhost",
             port: 1_433,
-            type: DatabaseType(rawValue: "SQL Server"),
+            type: .mssql,
             mssqlSchema: "custom_schema"
         )
 
@@ -61,7 +61,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "Test Oracle",
             host: "localhost",
             port: 1_521,
-            type: DatabaseType(rawValue: "Oracle"),
+            type: .oracle,
             oracleServiceName: "ORCL"
         )
 
@@ -80,7 +80,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "Test Redis",
             host: "localhost",
             port: 6_379,
-            type: DatabaseType(rawValue: "Redis"),
+            type: .redis,
             redisDatabase: 5
         )
 
@@ -146,7 +146,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "Cache Test",
             host: "localhost",
             port: 27_017,
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "testdb"
         )
 
@@ -172,7 +172,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "Mongo",
             host: "localhost",
             port: 27_017,
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "admin"
         )
 
@@ -182,7 +182,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "Redis",
             host: "localhost",
             port: 6_379,
-            type: DatabaseType(rawValue: "Redis"),
+            type: .redis,
             redisDatabase: 3
         )
 
@@ -192,7 +192,7 @@ struct ConnectionStorageAdditionalFieldsTests {
             name: "MSSQL",
             host: "localhost",
             port: 1_433,
-            type: DatabaseType(rawValue: "SQL Server"),
+            type: .mssql,
             mssqlSchema: "dbo"
         )
 

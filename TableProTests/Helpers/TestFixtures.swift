@@ -14,7 +14,7 @@ enum TestFixtures {
 
     static let allDatabaseTypes: [DatabaseType] = [
         .mysql, .mariadb, .postgresql, .sqlite, .redshift,
-        DatabaseType(rawValue: "MongoDB"), DatabaseType(rawValue: "Redis"), DatabaseType(rawValue: "ClickHouse")
+        .mongodb, .redis, .clickhouse
     ]
 
     // MARK: - ClickHouse Connection Fixture
@@ -25,7 +25,7 @@ enum TestFixtures {
         port: 8_123,
         database: "default",
         username: "default",
-        type: DatabaseType(rawValue: "ClickHouse")
+        type: .clickhouse
     )
 
     // MARK: - Factory Methods

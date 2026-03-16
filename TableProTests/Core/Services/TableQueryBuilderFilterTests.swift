@@ -157,7 +157,7 @@ struct TableQueryBuilderPostgreSQLQuickSearchTests {
 @Suite("Table Query Builder - NoSQL Nil Dialect Fallback")
 struct TableQueryBuilderNoSQLTests {
     // MongoDB has no SQL dialect — should produce bare SELECT without WHERE
-    private let builder = TableQueryBuilder(databaseType: DatabaseType(rawValue: "MongoDB"))
+    private let builder = TableQueryBuilder(databaseType: .mongodb)
 
     @Test("NoSQL type produces no WHERE for filtered query")
     func noSqlFilteredQueryNoWhere() {

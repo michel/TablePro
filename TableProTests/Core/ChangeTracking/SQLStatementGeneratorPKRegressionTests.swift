@@ -103,7 +103,7 @@ struct SQLStatementGeneratorPKRegressionTests {
 
     @Test("MSSQL delete with PK uses ? placeholder and PK-only WHERE")
     func testMSSQLDeleteWithPK() {
-        let generator = makeGenerator(databaseType: DatabaseType(rawValue: "SQL Server"))
+        let generator = makeGenerator(databaseType: .mssql)
         let changes = [makeDeleteChange(rowIndex: 0, originalRow: ["1", "John", "john@test.com"])]
 
         let statements = generator.generateStatements(
@@ -127,7 +127,7 @@ struct SQLStatementGeneratorPKRegressionTests {
 
     @Test("ClickHouse delete with PK uses ALTER TABLE DELETE")
     func testClickHouseDeleteWithPK() {
-        let generator = makeGenerator(databaseType: DatabaseType(rawValue: "ClickHouse"))
+        let generator = makeGenerator(databaseType: .clickhouse)
         let changes = [makeDeleteChange(rowIndex: 0, originalRow: ["1", "John", "john@test.com"])]
 
         let statements = generator.generateStatements(
@@ -173,7 +173,7 @@ struct SQLStatementGeneratorPKRegressionTests {
 
     @Test("MSSQL update with PK uses PK-only WHERE")
     func testMSSQLUpdateWithPK() {
-        let generator = makeGenerator(databaseType: DatabaseType(rawValue: "SQL Server"))
+        let generator = makeGenerator(databaseType: .mssql)
         let changes = [makeUpdateChange(
             rowIndex: 0, columnIndex: 1, columnName: "name", oldValue: "John", newValue: "Jane",
             originalRow: ["1", "John", "john@test.com"]

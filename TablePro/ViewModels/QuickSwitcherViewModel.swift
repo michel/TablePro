@@ -87,7 +87,7 @@ internal final class QuickSwitcherViewModel {
             }
 
             // Schemas (only for databases that support them)
-            let supportsSchemas = [DatabaseType.postgresql, .redshift, DatabaseType(rawValue: "Oracle"), DatabaseType(rawValue: "SQL Server")]
+            let supportsSchemas = [DatabaseType.postgresql, .redshift, .oracle, .mssql]
             if supportsSchemas.contains(databaseType) {
                 do {
                     let schemas = try await driver.fetchSchemas()

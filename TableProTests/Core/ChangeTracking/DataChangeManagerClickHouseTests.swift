@@ -20,7 +20,7 @@ struct DataChangeManagerClickHouseTests {
             tableName: "users",
             columns: ["id", "name"],
             primaryKeyColumn: "id",
-            databaseType: DatabaseType(rawValue: "ClickHouse")
+            databaseType: .clickhouse
         )
 
         manager.recordCellChange(
@@ -49,7 +49,7 @@ struct DataChangeManagerClickHouseTests {
             tableName: "events",
             columns: ["id", "status"],
             primaryKeyColumn: "id",
-            databaseType: DatabaseType(rawValue: "ClickHouse")
+            databaseType: .clickhouse
         )
 
         manager.recordCellChange(
@@ -100,7 +100,7 @@ struct DataChangeManagerClickHouseTests {
             tableName: "logs",
             columns: ["timestamp", "message"],
             primaryKeyColumn: nil,
-            databaseType: DatabaseType(rawValue: "ClickHouse")
+            databaseType: .clickhouse
         )
 
         manager.recordCellChange(

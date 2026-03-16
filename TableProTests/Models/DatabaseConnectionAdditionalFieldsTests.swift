@@ -15,37 +15,37 @@ struct DatabaseConnectionAdditionalFieldsTests {
 
     @Test("mongoAuthSource defaults to nil")
     func mongoAuthSourceDefaultsToNil() {
-        let conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        let conn = TestFixtures.makeConnection(type: .mongodb)
         #expect(conn.mongoAuthSource == nil)
     }
 
     @Test("mongoReadPreference defaults to nil")
     func mongoReadPreferenceDefaultsToNil() {
-        let conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        let conn = TestFixtures.makeConnection(type: .mongodb)
         #expect(conn.mongoReadPreference == nil)
     }
 
     @Test("mongoWriteConcern defaults to nil")
     func mongoWriteConcernDefaultsToNil() {
-        let conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        let conn = TestFixtures.makeConnection(type: .mongodb)
         #expect(conn.mongoWriteConcern == nil)
     }
 
     @Test("mssqlSchema defaults to nil")
     func mssqlSchemaDefaultsToNil() {
-        let conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "SQL Server"))
+        let conn = TestFixtures.makeConnection(type: .mssql)
         #expect(conn.mssqlSchema == nil)
     }
 
     @Test("oracleServiceName defaults to nil")
     func oracleServiceNameDefaultsToNil() {
-        let conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "Oracle"))
+        let conn = TestFixtures.makeConnection(type: .oracle)
         #expect(conn.oracleServiceName == nil)
     }
 
     @Test("redisDatabase defaults to nil")
     func redisDatabaseDefaultsToNil() {
-        let conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "Redis"))
+        let conn = TestFixtures.makeConnection(type: .redis)
         #expect(conn.redisDatabase == nil)
     }
 
@@ -53,42 +53,42 @@ struct DatabaseConnectionAdditionalFieldsTests {
 
     @Test("mongoAuthSource is readable and writable")
     func mongoAuthSourceReadWrite() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        var conn = TestFixtures.makeConnection(type: .mongodb)
         conn.mongoAuthSource = "admin"
         #expect(conn.mongoAuthSource == "admin")
     }
 
     @Test("mongoReadPreference is readable and writable")
     func mongoReadPreferenceReadWrite() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        var conn = TestFixtures.makeConnection(type: .mongodb)
         conn.mongoReadPreference = "secondary"
         #expect(conn.mongoReadPreference == "secondary")
     }
 
     @Test("mongoWriteConcern is readable and writable")
     func mongoWriteConcernReadWrite() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        var conn = TestFixtures.makeConnection(type: .mongodb)
         conn.mongoWriteConcern = "majority"
         #expect(conn.mongoWriteConcern == "majority")
     }
 
     @Test("mssqlSchema is readable and writable")
     func mssqlSchemaReadWrite() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "SQL Server"))
+        var conn = TestFixtures.makeConnection(type: .mssql)
         conn.mssqlSchema = "dbo"
         #expect(conn.mssqlSchema == "dbo")
     }
 
     @Test("oracleServiceName is readable and writable")
     func oracleServiceNameReadWrite() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "Oracle"))
+        var conn = TestFixtures.makeConnection(type: .oracle)
         conn.oracleServiceName = "ORCL"
         #expect(conn.oracleServiceName == "ORCL")
     }
 
     @Test("redisDatabase is readable and writable")
     func redisDatabaseReadWrite() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "Redis"))
+        var conn = TestFixtures.makeConnection(type: .redis)
         conn.redisDatabase = 3
         #expect(conn.redisDatabase == 3)
     }
@@ -97,7 +97,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
 
     @Test("Setting mongoAuthSource writes to additionalFields dict")
     func mongoAuthSourceWritesToDict() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        var conn = TestFixtures.makeConnection(type: .mongodb)
         conn.mongoAuthSource = "admin"
         #expect(conn.additionalFields["mongoAuthSource"] == "admin")
     }
@@ -106,7 +106,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func initWithDictPopulatesAliases() {
         let conn = DatabaseConnection(
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             additionalFields: [
                 "mongoAuthSource": "admin",
                 "mongoReadPreference": "primary",
@@ -122,7 +122,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func emptyStringReturnsNil() {
         let conn = DatabaseConnection(
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             additionalFields: ["mongoAuthSource": ""]
         )
         #expect(conn.mongoAuthSource == nil)
@@ -130,7 +130,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
 
     @Test("Setting nil via computed alias writes empty string to dict")
     func settingNilWritesEmptyString() {
-        var conn = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        var conn = TestFixtures.makeConnection(type: .mongodb)
         conn.mongoAuthSource = "admin"
         conn.mongoAuthSource = nil
         #expect(conn.additionalFields["mongoAuthSource"] == "")
@@ -142,7 +142,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func initPopulatesMongoAuthSource() {
         let conn = DatabaseConnection(
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "admin"
         )
         #expect(conn.mongoAuthSource == "admin")
@@ -153,7 +153,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func initPopulatesMssqlSchema() {
         let conn = DatabaseConnection(
             name: "Test",
-            type: DatabaseType(rawValue: "SQL Server"),
+            type: .mssql,
             mssqlSchema: "dbo"
         )
         #expect(conn.mssqlSchema == "dbo")
@@ -164,7 +164,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func initPopulatesOracleServiceName() {
         let conn = DatabaseConnection(
             name: "Test",
-            type: DatabaseType(rawValue: "Oracle"),
+            type: .oracle,
             oracleServiceName: "ORCL"
         )
         #expect(conn.oracleServiceName == "ORCL")
@@ -175,7 +175,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func initDictOverridesNamedParams() {
         let conn = DatabaseConnection(
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "fromParam",
             additionalFields: ["mongoAuthSource": "fromDict"]
         )
@@ -190,13 +190,13 @@ struct DatabaseConnectionAdditionalFieldsTests {
         let a = DatabaseConnection(
             id: id,
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "admin"
         )
         let b = DatabaseConnection(
             id: id,
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "admin"
         )
         #expect(a == b)
@@ -208,13 +208,13 @@ struct DatabaseConnectionAdditionalFieldsTests {
         let a = DatabaseConnection(
             id: id,
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "admin"
         )
         let b = DatabaseConnection(
             id: id,
             name: "Test",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "other"
         )
         #expect(a != b)
@@ -226,7 +226,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func codableRoundTripMongo() throws {
         let original = DatabaseConnection(
             name: "Mongo",
-            type: DatabaseType(rawValue: "MongoDB"),
+            type: .mongodb,
             mongoAuthSource: "admin",
             mongoReadPreference: "secondary",
             mongoWriteConcern: "majority"
@@ -242,7 +242,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func codableRoundTripMssql() throws {
         let original = DatabaseConnection(
             name: "MSSQL",
-            type: DatabaseType(rawValue: "SQL Server"),
+            type: .mssql,
             mssqlSchema: "dbo"
         )
         let data = try JSONEncoder().encode(original)
@@ -254,7 +254,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
     func codableRoundTripOracle() throws {
         let original = DatabaseConnection(
             name: "Oracle",
-            type: DatabaseType(rawValue: "Oracle"),
+            type: .oracle,
             oracleServiceName: "ORCL"
         )
         let data = try JSONEncoder().encode(original)
@@ -264,7 +264,7 @@ struct DatabaseConnectionAdditionalFieldsTests {
 
     @Test("Codable round-trip preserves nil additional fields")
     func codableRoundTripNils() throws {
-        let original = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        let original = TestFixtures.makeConnection(type: .mongodb)
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(DatabaseConnection.self, from: data)
         #expect(decoded.mongoAuthSource == nil)

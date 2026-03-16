@@ -33,7 +33,7 @@ struct AIChatViewModelActionTests {
     @Test("handleFixError with MongoDB connection uses JavaScript language")
     func fixErrorMongoDBConnection() {
         let vm = AIChatViewModel()
-        vm.connection = TestFixtures.makeConnection(type: DatabaseType(rawValue: "MongoDB"))
+        vm.connection = TestFixtures.makeConnection(type: .mongodb)
 
         vm.handleFixError(query: "db.users.find({})", error: "SyntaxError")
 
@@ -46,7 +46,7 @@ struct AIChatViewModelActionTests {
     @Test("handleFixError with Redis connection uses bash language")
     func fixErrorRedisConnection() {
         let vm = AIChatViewModel()
-        vm.connection = TestFixtures.makeConnection(type: DatabaseType(rawValue: "Redis"))
+        vm.connection = TestFixtures.makeConnection(type: .redis)
 
         vm.handleFixError(query: "GET mykey", error: "WRONGTYPE")
 

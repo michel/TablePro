@@ -258,14 +258,11 @@ final class PluginManager {
                     driverPlugins[additionalId] = driver
                 }
 
-                // Self-register plugin metadata from the DriverPlugin protocol
-                let driverInstance = driver.createDriver(config: DriverConnectionConfig(
-                    host: "", port: 0, username: "", password: "", database: ""
-                ))
+                // Self-register plugin metadata from the DriverPlugin protocol.
+                // parameterStyle defaults to .questionMark; built-in defaults already have correct values.
                 let snapshot = PluginMetadataRegistry.shared.buildMetadataSnapshot(
                     from: driverType,
-                    isDownloadable: driverType.isDownloadable,
-                    parameterStyle: driverInstance.parameterStyle
+                    isDownloadable: driverType.isDownloadable
                 )
                 PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: typeId)
                 for additionalId in driverType.additionalDatabaseTypeIds {

@@ -2,7 +2,7 @@
 //  TableQueryBuilderMSSQLTests.swift
 //  TableProTests
 //
-//  Tests for TableQueryBuilder with databaseType: DatabaseType(rawValue: "SQL Server")
+//  Tests for TableQueryBuilder with databaseType: .mssql
 //
 
 import Foundation
@@ -11,7 +11,7 @@ import Testing
 
 @Suite("Table Query Builder MSSQL")
 struct TableQueryBuilderMSSQLTests {
-    private let builder = TableQueryBuilder(databaseType: DatabaseType(rawValue: "SQL Server"))
+    private let builder = TableQueryBuilder(databaseType: .mssql)
 
     // MARK: - Base Query Tests
 

@@ -275,7 +275,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "MongoDB"))
+        #expect(parsed.type == .mongodb)
         #expect(parsed.host == "mongo.example.com")
         #expect(parsed.port == nil)
         #expect(parsed.database == "mydb")
@@ -289,7 +289,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "MongoDB"))
+        #expect(parsed.type == .mongodb)
         #expect(parsed.port == nil)
     }
 
@@ -575,7 +575,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.host == "localhost")
         #expect(parsed.port == nil)
         #expect(parsed.redisDatabase == nil)
@@ -587,7 +587,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.redisDatabase == 3)
         #expect(parsed.database == "")
     }
@@ -598,7 +598,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.host == "localhost")
         #expect(parsed.port == nil)
     }
@@ -609,7 +609,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.sslMode == .required)
     }
 
@@ -619,7 +619,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.password == "password")
         #expect(parsed.host == "localhost")
     }
@@ -630,7 +630,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.username == "user")
         #expect(parsed.password == "pass")
         #expect(parsed.host == "localhost")
@@ -645,7 +645,7 @@ struct ConnectionURLParserTests {
         guard case .success(let parsed) = result else {
             Issue.record("Expected success"); return
         }
-        #expect(parsed.type == DatabaseType(rawValue: "Redis"))
+        #expect(parsed.type == .redis)
         #expect(parsed.redisDatabase == 0)
         #expect(parsed.database == "")
     }
