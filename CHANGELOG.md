@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- etcd v3 plugin with prefix-tree key browsing, etcdctl syntax editor, lease management, watch, mTLS, auth, and cluster info
 - Save Changes button in toolbar for committing pending data edits
 - Confirmation dialog before deleting a connection
 - Confirmation dialog before sort, pagination, filter, or search discards unsaved edits

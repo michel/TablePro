@@ -232,6 +232,7 @@ extension DatabaseType {
     static let duckdb = DatabaseType(rawValue: "DuckDB")
     static let cassandra = DatabaseType(rawValue: "Cassandra")
     static let scylladb = DatabaseType(rawValue: "ScyllaDB")
+    static let etcd = DatabaseType(rawValue: "etcd")
 }
 
 extension DatabaseType: Codable {
@@ -251,7 +252,7 @@ extension DatabaseType {
     static let allKnownTypes: [DatabaseType] = [
         .mysql, .mariadb, .postgresql, .sqlite, .redshift,
         .mongodb, .redis, .mssql, .oracle, .clickhouse, .duckdb,
-        .cassandra, .scylladb,
+        .cassandra, .scylladb, .etcd,
     ]
 
     /// Compatibility shim for CaseIterable call sites.
@@ -307,6 +308,7 @@ extension DatabaseType {
         .clickhouse: "ClickHouse",
         .duckdb: "DuckDB",
         .cassandra: "Cassandra", .scylladb: "Cassandra",
+        .etcd: "etcd",
     ]
 }
 

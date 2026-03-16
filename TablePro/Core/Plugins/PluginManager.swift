@@ -464,6 +464,18 @@ final class PluginManager {
         return driverPlugins[databaseType.pluginTypeId]
     }
 
+    /// Returns a temporary plugin driver for query building (buildBrowseQuery), or nil
+    /// if the plugin doesn't implement custom query building (NoSQL hooks).
+    func queryBuildingDriver(for databaseType: DatabaseType) -> (any PluginDatabaseDriver)? {
+        guard let plugin = driverPlugin(for: databaseType) else { return nil }
+        let config = DriverConnectionConfig(host: "", port: 0, username: "", password: "", database: "")
+        let driver = plugin.createDriver(config: config)
+        guard driver.buildBrowseQuery(table: "_probe", sortColumns: [], columns: [], limit: 1, offset: 0) != nil else {
+            return nil
+        }
+        return driver
+    }
+
     func editorLanguage(for databaseType: DatabaseType) -> EditorLanguage {
         PluginMetadataRegistry.shared.snapshot(forTypeId: databaseType.pluginTypeId)?
             .editorLanguage ?? .sql
