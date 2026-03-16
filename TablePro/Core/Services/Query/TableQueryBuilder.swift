@@ -15,6 +15,7 @@ struct TableQueryBuilder {
 
     private let databaseType: DatabaseType
     private var pluginDriver: (any PluginDatabaseDriver)?
+    private let dialect: SQLDialectDescriptor?
     private let dialectQuote: (String) -> String
 
     // MARK: - Initialization
@@ -22,10 +23,12 @@ struct TableQueryBuilder {
     init(
         databaseType: DatabaseType,
         pluginDriver: (any PluginDatabaseDriver)? = nil,
+        dialect: SQLDialectDescriptor? = nil,
         dialectQuote: ((String) -> String)? = nil
     ) {
         self.databaseType = databaseType
         self.pluginDriver = pluginDriver
+        self.dialect = dialect
         self.dialectQuote = dialectQuote ?? { name in
             let escaped = name.replacingOccurrences(of: "\"", with: "\"\"")
             return "\"\(escaped)\""
@@ -69,7 +72,7 @@ struct TableQueryBuilder {
             query += " \(orderBy)"
         }
 
-        query += " LIMIT \(limit) OFFSET \(offset)"
+        query += " \(buildPaginationClause(limit: limit, offset: offset))"
         return query
     }
 
@@ -97,7 +100,22 @@ struct TableQueryBuilder {
         }
 
         let quotedTable = quote(tableName)
-        return "SELECT * FROM \(quotedTable) LIMIT \(limit) OFFSET \(offset)"
+        var query = "SELECT * FROM \(quotedTable)"
+
+        if let dialect {
+            let filterGen = FilterSQLGenerator(dialect: dialect, quoteIdentifier: dialectQuote)
+            let whereClause = filterGen.generateWhereClause(from: filters, logicMode: logicMode)
+            if !whereClause.isEmpty {
+                query += " \(whereClause)"
+            }
+        }
+
+        if let orderBy = buildOrderByClause(sortState: sortState, columns: columns) {
+            query += " \(orderBy)"
+        }
+
+        query += " \(buildPaginationClause(limit: limit, offset: offset))"
+        return query
     }
 
     func buildQuickSearchQuery(
@@ -119,7 +137,22 @@ struct TableQueryBuilder {
         }
 
         let quotedTable = quote(tableName)
-        return "SELECT * FROM \(quotedTable) LIMIT \(limit) OFFSET \(offset)"
+        var query = "SELECT * FROM \(quotedTable)"
+
+        if let dialect {
+            let filterGen = FilterSQLGenerator(dialect: dialect, quoteIdentifier: dialectQuote)
+            let searchWhere = filterGen.generateQuickSearchWhereClause(searchText: searchText, columns: columns)
+            if !searchWhere.isEmpty {
+                query += " \(searchWhere)"
+            }
+        }
+
+        if let orderBy = buildOrderByClause(sortState: sortState, columns: columns) {
+            query += " \(orderBy)"
+        }
+
+        query += " \(buildPaginationClause(limit: limit, offset: offset))"
+        return query
     }
 
     func buildCombinedQuery(
@@ -149,7 +182,33 @@ struct TableQueryBuilder {
         }
 
         let quotedTable = quote(tableName)
-        return "SELECT * FROM \(quotedTable) LIMIT \(limit) OFFSET \(offset)"
+        var query = "SELECT * FROM \(quotedTable)"
+
+        if let dialect {
+            let filterGen = FilterSQLGenerator(dialect: dialect, quoteIdentifier: dialectQuote)
+            var whereParts: [String] = []
+
+            let filterConditions = filterGen.generateConditions(from: filters, logicMode: logicMode)
+            if !filterConditions.isEmpty {
+                whereParts.append("(\(filterConditions))")
+            }
+
+            let searchConditions = filterGen.generateQuickSearchConditions(searchText: searchText, columns: searchColumns)
+            if !searchConditions.isEmpty {
+                whereParts.append("(\(searchConditions))")
+            }
+
+            if !whereParts.isEmpty {
+                query += " WHERE \(whereParts.joined(separator: " AND "))"
+            }
+        }
+
+        if let orderBy = buildOrderByClause(sortState: sortState, columns: columns) {
+            query += " \(orderBy)"
+        }
+
+        query += " \(buildPaginationClause(limit: limit, offset: offset))"
+        return query
     }
 
     func buildSortedQuery(
@@ -212,6 +271,13 @@ struct TableQueryBuilder {
     }
 
     // MARK: - Private Helpers
+
+    private func buildPaginationClause(limit: Int, offset: Int) -> String {
+        if let dialect, dialect.paginationStyle == .offsetFetch {
+            return "OFFSET \(offset) ROWS FETCH NEXT \(limit) ROWS ONLY"
+        }
+        return "LIMIT \(limit) OFFSET \(offset)"
+    }
 
     private func sortColumnsAsTuples(_ sortState: SortState?) -> [(columnIndex: Int, ascending: Bool)] {
         sortState?.columns.compactMap { sortCol -> (columnIndex: Int, ascending: Bool)? in

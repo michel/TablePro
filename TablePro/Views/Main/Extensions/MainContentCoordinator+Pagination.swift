@@ -100,24 +100,12 @@ extension MainContentCoordinator {
         }
     }
 
-    /// Reload current page data
     private func reloadCurrentPage() {
         guard let tabIndex = tabManager.selectedTabIndex,
               tabIndex < tabManager.tabs.count,
-              let tableName = tabManager.tabs[tabIndex].tableName else { return }
+              tabManager.tabs[tabIndex].tableName != nil else { return }
 
-        let tab = tabManager.tabs[tabIndex]
-        let pagination = tab.pagination
-
-        let newQuery = queryBuilder.buildBaseQuery(
-            tableName: tableName,
-            sortState: tab.sortState,
-            columns: tab.resultColumns,
-            limit: pagination.pageSize,
-            offset: pagination.currentOffset
-        )
-
-        tabManager.tabs[tabIndex].query = newQuery
+        rebuildTableQuery(at: tabIndex)
         runQuery()
     }
 }
