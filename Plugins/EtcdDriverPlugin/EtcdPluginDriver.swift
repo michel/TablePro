@@ -919,8 +919,8 @@ final class EtcdPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     /// Empty prefix uses null byte (\0) as key to mean "all keys".
     private static func allKeysRange(for prefix: String) -> (key: String, rangeEnd: String) {
         if prefix.isEmpty {
-            // Empty key = start from beginning, \0 as range_end = all keys
-            let b64Key = EtcdHttpClient.base64Encode("")
+            // \0 as key = start from beginning, \0 as range_end = all keys
+            let b64Key = EtcdHttpClient.base64Encode("\0")
             let b64RangeEnd = EtcdHttpClient.base64Encode("\0")
             return (b64Key, b64RangeEnd)
         }
