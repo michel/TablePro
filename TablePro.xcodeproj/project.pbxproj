@@ -35,6 +35,7 @@
 		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
 		5ACE00012F4F00000000000A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000009 /* Sparkle */; };
 		5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000C /* MarkdownUI */; };
+		5AEA8B302F6808270040461A /* EtcdDriverPlugin.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5AEA8B2A2F6808270040461A /* EtcdDriverPlugin.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5AEA8B422F6808CA0040461A /* EtcdStatementGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEA8B402F6808CA0040461A /* EtcdStatementGenerator.swift */; };
 		5AEA8B432F6808CA0040461A /* EtcdPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEA8B3D2F6808CA0040461A /* EtcdPlugin.swift */; };
 		5AEA8B442F6808CA0040461A /* EtcdCommandParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AEA8B3B2F6808CA0040461A /* EtcdCommandParser.swift */; };
@@ -116,6 +117,13 @@
 			remoteGlobalIDString = 5A86C000000000000;
 			remoteInfo = SQLExport;
 		};
+		5AEA8B312F6808270040461A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5AEA8B292F6808270040461A;
+			remoteInfo = EtcdDriverPlugin;
+		};
 		5ABCC5AB2F43856700EAF3FC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 5A1091BF2EF17EDC0055EA7C /* Project object */;
@@ -145,6 +153,7 @@
 				5A86A000D00000000 /* CSVExport.tableplugin in Copy Plug-Ins */,
 				5A86B000D00000000 /* JSONExport.tableplugin in Copy Plug-Ins */,
 				5A86C000D00000000 /* SQLExport.tableplugin in Copy Plug-Ins */,
+				5AEA8B302F6808270040461A /* EtcdDriverPlugin.tableplugin in Copy Plug-Ins */,
 			);
 			name = "Copy Plug-Ins";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -651,6 +660,7 @@
 		5A1091BE2EF17EDC0055EA7C = {
 			isa = PBXGroup;
 			children = (
+				5AEA8B412F6808CA0040461A /* EtcdDriverPlugin */,
 				5AEA8B412F6808CA0040461A /* Plugins/EtcdDriverPlugin */,
 				5A1091C92EF17EDC0055EA7C /* TablePro */,
 				5A860000500000000 /* Plugins/TableProPluginKit */,
@@ -704,6 +714,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		5AEA8B412F6808CA0040461A /* EtcdDriverPlugin */ = {
 		5AEA8B412F6808CA0040461A /* Plugins/EtcdDriverPlugin */ = {
 			isa = PBXGroup;
 			children = (
@@ -760,6 +771,7 @@
 				5A86A000C00000000 /* PBXTargetDependency */,
 				5A86B000C00000000 /* PBXTargetDependency */,
 				5A86C000C00000000 /* PBXTargetDependency */,
+				5AEA8B322F6808270040461A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5A1091C92EF17EDC0055EA7C /* TablePro */,
@@ -1617,6 +1629,11 @@
 			isa = PBXTargetDependency;
 			target = 5A86C000000000000 /* SQLExport */;
 			targetProxy = 5A86C000B00000000 /* PBXContainerItemProxy */;
+		};
+		5AEA8B322F6808270040461A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5AEA8B292F6808270040461A /* EtcdDriverPlugin */;
+			targetProxy = 5AEA8B312F6808270040461A /* PBXContainerItemProxy */;
 		};
 		5ABCC5AC2F43856700EAF3FC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;

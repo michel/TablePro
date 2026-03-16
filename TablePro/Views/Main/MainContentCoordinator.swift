@@ -232,11 +232,11 @@ final class MainContentCoordinator {
         self.filterStateManager = filterStateManager
         self.columnVisibilityManager = columnVisibilityManager
         self.toolbarState = toolbarState
+        let dialect = PluginManager.shared.sqlDialect(for: connection.type)
         self.queryBuilder = TableQueryBuilder(
             databaseType: connection.type,
-            dialectQuote: quoteIdentifierFromDialect(
-                PluginManager.shared.sqlDialect(for: connection.type)
-            )
+            dialect: dialect,
+            dialectQuote: quoteIdentifierFromDialect(dialect)
         )
         self.persistence = TabPersistenceCoordinator(connectionId: connection.id)
 
