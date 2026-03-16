@@ -16,6 +16,9 @@ import TableProPluginKit
 /// Discard action types for unified alert handling
 enum DiscardAction {
     case refresh
+    case sort
+    case pagination
+    case filter
 }
 
 /// Cache entry for async-sorted query tab rows (stores index permutation, not row copies)
@@ -1098,14 +1101,10 @@ final class MainContentCoordinator {
             currentSort = SortState()
             currentSort.columns = [SortColumn(columnIndex: columnIndex, direction: newDirection)]
         }
-
-        tabManager.tabs[tabIndex].sortState = currentSort
-        tabManager.tabs[tabIndex].hasUserInteraction = true
-
-        // Reset pagination to page 1 when sorting changes
-        tabManager.tabs[tabIndex].pagination.reset()
-
         if tab.tabType == .query {
+            tabManager.tabs[tabIndex].sortState = currentSort
+            tabManager.tabs[tabIndex].hasUserInteraction = true
+            tabManager.tabs[tabIndex].pagination.reset()
             let rows = tab.resultRows
             let tabId = tab.id
             let resultVersion = tab.resultVersion
@@ -1155,14 +1154,24 @@ final class MainContentCoordinator {
             return
         }
 
-        // Table tabs: rebuild query with ORDER BY and re-execute
-        let newQuery = queryBuilder.buildMultiSortQuery(
-            baseQuery: tab.query,
-            sortState: currentSort,
-            columns: tab.resultColumns
-        )
-        tabManager.tabs[tabIndex].query = newQuery
-        runQuery()
+        let tabId = tab.id
+        let capturedSort = currentSort
+        let capturedQuery = tab.query
+        let capturedColumns = tab.resultColumns
+        confirmDiscardChangesIfNeeded(action: .sort) { [weak self] confirmed in
+            guard let self, confirmed,
+                  let idx = self.tabManager.tabs.firstIndex(where: { $0.id == tabId }) else { return }
+            self.tabManager.tabs[idx].sortState = capturedSort
+            self.tabManager.tabs[idx].hasUserInteraction = true
+            self.tabManager.tabs[idx].pagination.reset()
+            let newQuery = self.queryBuilder.buildMultiSortQuery(
+                baseQuery: capturedQuery,
+                sortState: capturedSort,
+                columns: capturedColumns
+            )
+            self.tabManager.tabs[idx].query = newQuery
+            self.runQuery()
+        }
     }
 
     /// Multi-column sort returning index permutation (nonisolated for background thread).
@@ -1330,6 +1339,7 @@ private extension MainContentCoordinator {
         AppState.shared.isCurrentTabEditable = updatedTab.isEditable
             && !updatedTab.isView && updatedTab.tableName != nil
         toolbarState.isTableTab = updatedTab.tabType == .table
+        AppState.shared.isTableTab = updatedTab.tabType == .table
 
         let resolvedPK: String?
         if let pk = metadata?.primaryKeyColumn {
@@ -1366,7 +1376,8 @@ private extension MainContentCoordinator {
 
         // Clear stale edit state immediately so the save banner
         // doesn't linger while Phase 2 metadata loads in background.
-        if isEditable {
+        // Only clear if there are no pending edits from the user.
+        if isEditable && !changeManager.hasChanges {
             changeManager.clearChanges()
         }
     }
@@ -1403,9 +1414,7 @@ private extension MainContentCoordinator {
         }
 
         // Phase 2b: Fetch enum/set values
-        let enumDriver = DatabaseManager.shared.driver(for: connectionId)
-        guard let enumDriver else { return }
-
+        guard let enumDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
         Task { [weak self] in
             guard let self else { return }
             try? await Task.sleep(nanoseconds: 200_000_000)

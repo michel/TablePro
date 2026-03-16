@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Save Changes button in toolbar for committing pending data edits
+- Confirmation dialog before deleting a connection
+- Confirmation dialog before sort, pagination, filter, or search discards unsaved edits
+
+### Fixed
+
+- SSH tunnel crashes caused by concurrent libssh2 calls on the same session
+- Unsaved cell edits lost when switching tabs, sorting, paginating, filtering, or switching apps
+- Auto-reconnect and health monitor silently discarding unsaved changes
+- SSH tunnel recovery failing after tunnel death due to stale driver state
+- Health monitor ping interfering with active user queries
+- Connection test not cleaning up SSH tunnel on completion
+- Test connection success indicator not resetting after field changes
+- SSH port field accepting invalid values
+
 ## [0.19.1] - 2026-03-16
 
 ### Fixed

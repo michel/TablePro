@@ -93,6 +93,7 @@ extension MainContentCoordinator {
                 tabManager.tabs[tabIndex].pagination.reset()
                 AppState.shared.isCurrentTabEditable = !isView && tableName.isEmpty == false
                 toolbarState.isTableTab = true
+                AppState.shared.isTableTab = true
             }
             // In-place navigation needs selectRedisDatabaseAndQuery to ensure the correct
             // database is SELECTed and session state is updated before querying.
@@ -115,6 +116,7 @@ extension MainContentCoordinator {
                 if let tabIndex = tabManager.selectedTabIndex {
                     tabManager.tabs[tabIndex].pagination.reset()
                     toolbarState.isTableTab = true
+                AppState.shared.isTableTab = true
                 }
                 if let dbIndex = Int(currentDatabase) {
                     selectRedisDatabaseAndQuery(dbIndex)
@@ -183,6 +185,7 @@ extension MainContentCoordinator {
                     previewCoordinator.tabManager.tabs[tabIndex].pagination.reset()
                     AppState.shared.isCurrentTabEditable = !isView && !tableName.isEmpty
                     previewCoordinator.toolbarState.isTableTab = true
+                    AppState.shared.isTableTab = true
                 }
                 preview.window.makeKeyAndOrderFront(nil)
                 previewCoordinator.runQuery()
@@ -208,6 +211,7 @@ extension MainContentCoordinator {
                 tabManager.tabs[tabIndex].pagination.reset()
                 AppState.shared.isCurrentTabEditable = !isView && !tableName.isEmpty
                 toolbarState.isTableTab = true
+                AppState.shared.isTableTab = true
             }
             runQuery()
             return

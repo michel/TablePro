@@ -106,12 +106,19 @@ internal enum LibSSH2TunnelFactory {
                             throw SSHTunnelError.tunnelCreationFailed("Failed to create socketpair")
                         }
 
+                        // Each hop's session needs its own serial queue for libssh2 calls
+                        let hopSessionQueue = DispatchQueue(
+                            label: "com.TablePro.ssh.hop.\(connectionId.uuidString).\(jumpIndex)",
+                            qos: .utility
+                        )
+
                         // Start relay between channel and fds[0]
                         let relayTask = startChannelRelay(
                             channel: channel,
                             socketFD: fds[0],
                             sshSocketFD: currentSocketFD,
-                            session: currentSession
+                            session: currentSession,
+                            sessionQueue: hopSessionQueue
                         )
 
                         let hop = LibSSH2Tunnel.JumpHop(
@@ -153,12 +160,11 @@ internal enum LibSSH2TunnelFactory {
                                 )
                             }
                         } catch {
-                            // Clean up nextSession and both socketpair fds
+                            // Clean up nextSession and fds[1]; relay task owns fds[0]
                             tablepro_libssh2_session_disconnect(nextSession, "Error")
                             libssh2_session_free(nextSession)
                             Darwin.close(fds[1])
                             relayTask.cancel()
-                            Darwin.close(fds[0])
                             throw error
                         }
 
@@ -196,9 +202,13 @@ internal enum LibSSH2TunnelFactory {
                     }
                 }
 
-                // Clean up any jump hops that were created (reverse order)
+                // Clean up any jump hops that were created (reverse order).
+                // Shutdown sockets first to break relay loops, then free resources.
                 for hop in jumpHops.reversed() {
                     hop.relayTask?.cancel()
+                    shutdown(hop.socket, SHUT_RDWR)
+                }
+                for hop in jumpHops.reversed() {
                     libssh2_channel_free(hop.channel)
                     tablepro_libssh2_session_disconnect(hop.session, "Error")
                     libssh2_session_free(hop.session)
@@ -446,66 +456,88 @@ internal enum LibSSH2TunnelFactory {
     }
 
     /// Start a relay task that copies data between a channel and a socketpair fd.
+    /// libssh2 calls use `sessionQueue.sync` for thread safety; I/O loop runs on a concurrent queue.
     private static func startChannelRelay(
         channel: OpaquePointer,
         socketFD: Int32,
         sshSocketFD: Int32,
-        session: OpaquePointer
+        session: OpaquePointer,
+        sessionQueue: DispatchQueue
     ) -> Task<Void, Never> {
-        Task.detached {
-            let bufferSize = 32_768
-            let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
-            defer {
-                buffer.deallocate()
-                Darwin.close(socketFD)
-            }
-
-            while !Task.isCancelled {
-                var pollFDs = [
-                    pollfd(fd: socketFD, events: Int16(POLLIN), revents: 0),
-                    pollfd(fd: sshSocketFD, events: Int16(POLLIN), revents: 0),
-                ]
-
-                let pollResult = poll(&pollFDs, 2, 100)
-                if pollResult < 0 { break }
-
-                // Channel -> socketpair
-                let channelRead = tablepro_libssh2_channel_read(channel, buffer, bufferSize)
-                if channelRead > 0 {
-                    var totalSent = 0
-                    while totalSent < Int(channelRead) {
-                        let sent = send(socketFD, buffer.advanced(by: totalSent), Int(channelRead) - totalSent, 0)
-                        if sent <= 0 { return }
-                        totalSent += sent
+        let relayQueue = DispatchQueue(
+            label: "com.TablePro.ssh.hop-relay",
+            qos: .utility
+        )
+        return Task.detached {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                relayQueue.async {
+                    let bufferSize = 32_768
+                    let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
+                    defer {
+                        buffer.deallocate()
+                        Darwin.close(socketFD)
+                        continuation.resume()
                     }
-                } else if channelRead == 0 || libssh2_channel_eof(channel) != 0 {
-                    return
-                } else if channelRead != Int(LIBSSH2_ERROR_EAGAIN) {
-                    return
-                }
 
-                // Socketpair -> channel
-                if pollFDs[0].revents & Int16(POLLIN) != 0 {
-                    let socketRead = recv(socketFD, buffer, bufferSize, 0)
-                    if socketRead <= 0 { return }
+                    while !Task.isCancelled {
+                        var pollFDs = [
+                            pollfd(fd: socketFD, events: Int16(POLLIN), revents: 0),
+                            pollfd(fd: sshSocketFD, events: Int16(POLLIN), revents: 0),
+                        ]
 
-                    var totalWritten = 0
-                    while totalWritten < Int(socketRead) {
-                        let written = tablepro_libssh2_channel_write(
-                            channel,
-                            buffer.advanced(by: totalWritten),
-                            Int(socketRead) - totalWritten
-                        )
-                        if written > 0 {
-                            totalWritten += Int(written)
-                        } else if written == Int(LIBSSH2_ERROR_EAGAIN) {
-                            // Wait for socket readiness
-                            var writePollFD = pollfd(
-                                fd: sshSocketFD, events: Int16(POLLOUT), revents: 0
-                            )
-                            _ = poll(&writePollFD, 1, 1_000)
-                        } else {
-                            return
+                        let pollResult = poll(&pollFDs, 2, 100)
+                        if pollResult < 0 { break }
+
+                        // Channel -> socketpair (serialized libssh2 call)
+                        if pollFDs[1].revents & Int16(POLLIN) != 0 || pollResult == 0 {
+                            let channelRead: Int = sessionQueue.sync {
+                                Int(tablepro_libssh2_channel_read(channel, buffer, bufferSize))
+                            }
+                            if channelRead > 0 {
+                                var totalSent = 0
+                                while totalSent < channelRead {
+                                    let sent = send(
+                                        socketFD,
+                                        buffer.advanced(by: totalSent),
+                                        channelRead - totalSent,
+                                        0
+                                    )
+                                    if sent <= 0 { return }
+                                    totalSent += sent
+                                }
+                            } else if channelRead == 0
+                                || sessionQueue.sync({ libssh2_channel_eof(channel) }) != 0 {
+                                return
+                            } else if channelRead != Int(LIBSSH2_ERROR_EAGAIN) {
+                                return
+                            }
+                        }
+
+                        // Socketpair -> channel
+                        if pollFDs[0].revents & Int16(POLLIN) != 0 {
+                            let socketRead = recv(socketFD, buffer, bufferSize, 0)
+                            if socketRead <= 0 { return }
+
+                            var totalWritten = 0
+                            while totalWritten < Int(socketRead) {
+                                let written: Int = sessionQueue.sync {
+                                    Int(tablepro_libssh2_channel_write(
+                                        channel,
+                                        buffer.advanced(by: totalWritten),
+                                        Int(socketRead) - totalWritten
+                                    ))
+                                }
+                                if written > 0 {
+                                    totalWritten += written
+                                } else if written == Int(LIBSSH2_ERROR_EAGAIN) {
+                                    var writePollFD = pollfd(
+                                        fd: sshSocketFD, events: Int16(POLLOUT), revents: 0
+                                    )
+                                    _ = poll(&writePollFD, 1, 1_000)
+                                } else {
+                                    return
+                                }
+                            }
                         }
                     }
                 }

@@ -794,7 +794,17 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 // Delete button (edit mode only)
                 if !isNew {
                     Button("Delete", role: .destructive) {
-                        deleteConnection()
+                        Task {
+                            let confirmed = await AlertHelper.confirmDestructive(
+                                title: String(localized: "Delete Connection"),
+                                message: String(localized: "Are you sure you want to delete this connection? This cannot be undone."),
+                                confirmButton: String(localized: "Delete"),
+                                window: NSApp.keyWindow
+                            )
+                            if confirmed {
+                                deleteConnection()
+                            }
+                        }
                     }
                 }
 
@@ -818,6 +828,18 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         .onExitCommand {
             NSApplication.shared.closeWindows(withId: "connection-form")
         }
+        .onChange(of: host) { _, _ in testSucceeded = false }
+        .onChange(of: port) { _, _ in testSucceeded = false }
+        .onChange(of: username) { _, _ in testSucceeded = false }
+        .onChange(of: password) { _, _ in testSucceeded = false }
+        .onChange(of: database) { _, _ in testSucceeded = false }
+        .onChange(of: type) { _, _ in testSucceeded = false }
+        .onChange(of: sshEnabled) { _, _ in testSucceeded = false }
+        .onChange(of: sshHost) { _, _ in testSucceeded = false }
+        .onChange(of: sshPort) { _, _ in testSucceeded = false }
+        .onChange(of: sshUsername) { _, _ in testSucceeded = false }
+        .onChange(of: sshAuthMethod) { _, _ in testSucceeded = false }
+        .onChange(of: sslMode) { _, _ in testSucceeded = false }
     }
 
     // MARK: - Helpers
@@ -840,7 +862,8 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         let isFileBased = PluginManager.shared.connectionMode(for: type) == .fileBased
         let basicValid = !name.isEmpty && (isFileBased ? !database.isEmpty : true)
         if sshEnabled {
-            let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty
+            let sshPortValid = sshPort.isEmpty || (Int(sshPort).map { (1...65_535).contains($0) } ?? false)
+            let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty && sshPortValid
             let authValid =
                 sshAuthMethod == .password || sshAuthMethod == .sshAgent
                 || sshAuthMethod == .keyboardInteractive || !sshPrivateKeyPath.isEmpty
@@ -1040,14 +1063,9 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     }
 
     private func deleteConnection() {
-        guard let id = connectionId else { return }
-        var savedConnections = storage.loadConnections()
-        let hadConnection = savedConnections.contains { $0.id == id }
-        savedConnections.removeAll { $0.id == id }
-        storage.saveConnections(savedConnections)
-        if hadConnection {
-            SyncChangeTracker.shared.markDeleted(.connection, id: id.uuidString)
-        }
+        guard let id = connectionId,
+              let connection = storage.loadConnections().first(where: { $0.id == id }) else { return }
+        storage.deleteConnection(connection)
         NSApplication.shared.closeWindows(withId: "connection-form")
         NotificationCenter.default.post(name: .connectionUpdated, object: nil)
     }
@@ -1205,6 +1223,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 ConnectionStorage.shared.deleteTOTPSecret(for: testConn.id)
                 await MainActor.run {
                     isTesting = false
+                    testSucceeded = false
                     if case PluginError.pluginNotInstalled = error {
                         pluginInstallConnection = testConn
                     } else {
