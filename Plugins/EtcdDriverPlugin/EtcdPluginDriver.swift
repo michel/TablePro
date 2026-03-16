@@ -34,6 +34,10 @@ final class EtcdPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     var supportsTransactions: Bool { false }
 
+    func beginTransaction() async throws {}
+    func commitTransaction() async throws {}
+    func rollbackTransaction() async throws {}
+
     func quoteIdentifier(_ name: String) -> String { name }
 
     func defaultExportQuery(table: String) -> String? {
@@ -271,7 +275,7 @@ final class EtcdPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         return """
         // etcd key prefix: \(prefix.isEmpty ? "(all keys)" : prefix)
         // Keys: \(count)
-        // Use 'get \(prefix.isEmpty ? "/" : prefix) --prefix' to browse keys
+        // Use 'get \(prefix.isEmpty ? "\"\"" : prefix) --prefix' to browse keys
         """
     }
 
@@ -391,7 +395,7 @@ final class EtcdPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     func allTablesMetadataSQL(schema: String?) -> String? {
         let prefix = _rootPrefix
-        return "get \(escapeArgument(prefix.isEmpty ? "/" : prefix)) --prefix --keys-only"
+        return "get \(escapeArgument(prefix)) --prefix --keys-only"
     }
 
     // MARK: - Command Dispatch

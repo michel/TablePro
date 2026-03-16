@@ -96,10 +96,12 @@ struct EtcdStatementGenerator {
         let keyChange = change.cellChanges.first { $0.columnName == "Key" }
         let newKey = keyChange?.newValue ?? originalKey
 
-        if newKey != originalKey {
-            statements.append((statement: "del \(escapeArgument(originalKey))", parameters: []))
+        guard !newKey.isEmpty else {
+            Self.logger.warning("Skipping UPDATE - empty key")
+            return []
         }
 
+        let shouldDeleteOriginalKey = newKey != originalKey
         let valueChange = change.cellChanges.first { $0.columnName == "Value" }
         let leaseChange = change.cellChanges.first { $0.columnName == "Lease" }
 
@@ -110,6 +112,9 @@ struct EtcdStatementGenerator {
                 cmd += " --lease=\(lease)"
             }
             statements.append((statement: cmd, parameters: []))
+            if shouldDeleteOriginalKey {
+                statements.append((statement: "del \(escapeArgument(originalKey))", parameters: []))
+            }
         } else if let lease = leaseChange?.newValue {
             let currentValue = extractOriginalValue(from: change) ?? ""
             var cmd = "put \(escapeArgument(newKey)) \(escapeArgument(currentValue))"

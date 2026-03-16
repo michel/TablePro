@@ -55,7 +55,8 @@ struct EtcdQueryBuilder {
         sortColumns: [(columnIndex: Int, ascending: Bool)],
         limit: Int,
         offset: Int
-    ) -> String {
+    ) -> String? {
+        if hasUnsupportedFilters(filters) { return nil }
         let sortAsc = sortColumns.first?.ascending ?? true
         let (filterType, filterValue) = extractKeyFilter(from: filters)
         return Self.encodeRangeQuery(
@@ -86,7 +87,8 @@ struct EtcdQueryBuilder {
         sortColumns: [(columnIndex: Int, ascending: Bool)],
         limit: Int,
         offset: Int
-    ) -> String {
+    ) -> String? {
+        if hasUnsupportedFilters(filters) { return nil }
         let sortAsc = sortColumns.first?.ascending ?? true
         if !searchText.isEmpty {
             return Self.encodeRangeQuery(
@@ -184,6 +186,14 @@ struct EtcdQueryBuilder {
     }
 
     // MARK: - Filter Extraction
+
+    /// Returns true if any filter targets a column other than "Key",
+    /// which etcd cannot handle server-side (Value, Lease, Version, etc.).
+    private func hasUnsupportedFilters(
+        _ filters: [(column: String, op: String, value: String)]
+    ) -> Bool {
+        filters.contains { $0.column != "Key" }
+    }
 
     private func extractKeyFilter(
         from filters: [(column: String, op: String, value: String)]

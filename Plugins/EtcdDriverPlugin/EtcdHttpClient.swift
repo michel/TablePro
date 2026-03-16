@@ -5,6 +5,7 @@
 
 import Foundation
 import os
+import Security
 import TableProPluginKit
 
 // MARK: - Error Types
@@ -343,7 +344,12 @@ final class EtcdHttpClient: @unchecked Sendable {
         let delegate: URLSessionDelegate?
         switch tlsMode {
         case "Required":
-            delegate = InsecureTlsDelegate()
+            delegate = EtcdTlsDelegate(
+                caCertPath: nil,
+                clientCertPath: config.additionalFields["etcdClientCertPath"],
+                clientKeyPath: config.additionalFields["etcdClientKeyPath"],
+                verifyHostname: false
+            )
         case "VerifyCA", "VerifyIdentity":
             delegate = EtcdTlsDelegate(
                 caCertPath: config.additionalFields["etcdCaCertPath"],
@@ -496,6 +502,9 @@ final class EtcdHttpClient: @unchecked Sendable {
                         }
                         continuation.resume(returning: data ?? Data())
                     }
+                    self.lock.lock()
+                    self.currentTask = task
+                    self.lock.unlock()
                     collectedData.task = task
                     task.resume()
                 }
@@ -601,7 +610,7 @@ final class EtcdHttpClient: @unchecked Sendable {
         _ = try await performRequest(path: path, body: body)
     }
 
-    private func performRequest<Req: Encodable>(path: String, body: Req) async throws -> Data {
+    private func performRequest<Req: Encodable>(path: String, body: Req, allowReauth: Bool = true) async throws -> Data {
         lock.lock()
         guard let session else {
             lock.unlock()
@@ -663,9 +672,9 @@ final class EtcdHttpClient: @unchecked Sendable {
             let alreadyAuthenticating = _isAuthenticating
             lock.unlock()
 
-            if !alreadyAuthenticating, !config.username.isEmpty {
+            if allowReauth, !alreadyAuthenticating, !config.username.isEmpty {
                 try await authenticate()
-                return try await performRequest(path: path, body: body)
+                return try await performRequest(path: path, body: body, allowReauth: false)
             }
             let errorBody = String(data: data, encoding: .utf8) ?? "Unauthorized"
             throw EtcdError.authFailed(errorBody)
@@ -1036,6 +1045,20 @@ final class EtcdHttpClient: @unchecked Sendable {
 
             var identity: SecIdentity?
             let status = SecIdentityCreateWithCertificate(nil, certificate, &identity)
+
+            // Clean up: remove imported items from keychain
+            let deleteCertQuery: [String: Any] = [
+                kSecClass as String: kSecClassCertificate,
+                kSecValueRef as String: certificate
+            ]
+            SecItemDelete(deleteCertQuery as CFDictionary)
+
+            let deleteKeyQuery: [String: Any] = [
+                kSecClass as String: kSecClassKey,
+                kSecValueRef as String: privateKey
+            ]
+            SecItemDelete(deleteKeyQuery as CFDictionary)
+
             if status == errSecSuccess {
                 return identity
             }

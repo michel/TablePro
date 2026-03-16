@@ -716,7 +716,7 @@
 				5AEA8B3F2F6808CA0040461A /* EtcdQueryBuilder.swift */,
 				5AEA8B402F6808CA0040461A /* EtcdStatementGenerator.swift */,
 			);
-			path = EtcdDriverPlugin;
+			path = Plugins/EtcdDriverPlugin;
 			sourceTree = "<group>";
 		};
 		5AEA8B482F6808E90040461A /* Frameworks */ = {
@@ -2918,7 +2918,7 @@
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 5.9;
 				WRAPPER_EXTENSION = tableplugin;
 			};
 			name = Debug;
@@ -2942,7 +2942,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 5.9;
 				WRAPPER_EXTENSION = tableplugin;
 			};
 			name = Release;

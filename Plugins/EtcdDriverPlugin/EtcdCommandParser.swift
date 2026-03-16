@@ -424,24 +424,50 @@ struct EtcdCommandParser {
         var inQuote = false
         var quoteChar: Character = "\""
         var escapeNext = false
+        var tokenStarted = false
 
         for char in input {
             if escapeNext {
-                current.append(char)
+                tokenStarted = true
+                if inQuote {
+                    switch char {
+                    case "n": current.append("\n")
+                    case "r": current.append("\r")
+                    case "t": current.append("\t")
+                    case "\\": current.append("\\")
+                    case "\"": current.append("\"")
+                    case "'": current.append("'")
+                    default:
+                        current.append("\\")
+                        current.append(char)
+                    }
+                } else {
+                    // Outside quotes, preserve literal backslash
+                    current.append("\\")
+                    current.append(char)
+                }
                 escapeNext = false
                 continue
             }
 
             if char == "\\" {
-                escapeNext = true
+                if inQuote {
+                    escapeNext = true
+                } else {
+                    // Outside quotes, backslash is literal
+                    current.append(char)
+                    tokenStarted = true
+                }
                 continue
             }
 
             if inQuote {
                 if char == quoteChar {
                     inQuote = false
+                    tokenStarted = true // preserve empty quoted token
                 } else {
                     current.append(char)
+                    tokenStarted = true
                 }
                 continue
             }
@@ -449,21 +475,29 @@ struct EtcdCommandParser {
             if char == "\"" || char == "'" {
                 inQuote = true
                 quoteChar = char
+                tokenStarted = true
                 continue
             }
 
             if char.isWhitespace {
-                if !current.isEmpty {
+                if tokenStarted {
                     tokens.append(current)
                     current = ""
+                    tokenStarted = false
                 }
                 continue
             }
 
             current.append(char)
+            tokenStarted = true
         }
 
-        if !current.isEmpty {
+        if escapeNext {
+            current.append("\\")
+            tokenStarted = true
+        }
+
+        if tokenStarted {
             tokens.append(current)
         }
 
@@ -479,20 +513,27 @@ private struct ParsedFlags {
 
     mutating func parse(from tokens: [String]) -> [String] {
         var positional: [String] = []
+        var index = 0
 
-        for token in tokens {
+        while index < tokens.count {
+            let token = tokens[index]
             if token.hasPrefix("--") {
                 let flagContent = String(token.dropFirst(2))
                 if let equalsIndex = flagContent.firstIndex(of: "=") {
                     let key = String(flagContent[flagContent.startIndex..<equalsIndex])
                     let value = String(flagContent[flagContent.index(after: equalsIndex)...])
                     valueFlags[key] = value
+                } else if index + 1 < tokens.count, !tokens[index + 1].hasPrefix("--") {
+                    valueFlags[flagContent] = tokens[index + 1]
+                    index += 1
                 } else {
                     booleanFlags.insert(flagContent)
                 }
             } else {
                 positional.append(token)
             }
+
+            index += 1
         }
 
         return positional
