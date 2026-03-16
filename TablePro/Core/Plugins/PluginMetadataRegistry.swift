@@ -555,8 +555,8 @@ final class PluginMetadataRegistry: @unchecked Sendable {
     /// Used for multi-type plugins (e.g., MariaDB → MySQL, Redshift → PostgreSQL).
     func registerTypeAlias(_ aliasTypeId: String, primaryTypeId: String) {
         lock.lock()
+        defer { lock.unlock() }
         reverseTypeIndex[aliasTypeId] = primaryTypeId
-        lock.unlock()
     }
 
     /// Returns all registered type IDs (sorted for deterministic UI ordering).

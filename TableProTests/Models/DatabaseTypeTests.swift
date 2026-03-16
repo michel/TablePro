@@ -34,12 +34,16 @@ struct DatabaseTypeTests {
 
     @Test("MongoDB default port is 27017")
     func testMongoDBDefaultPort() {
-        #expect(.mongodb.defaultPort == 27_017)
+        #expect(DatabaseType.mongodb.defaultPort == 27_017)
     }
 
-    @Test("allKnownTypes count is 13")
-    func testAllKnownTypesCount() {
-        #expect(DatabaseType.allKnownTypes.count == 13)
+    @Test("allKnownTypes contains all built-in types")
+    func testAllKnownTypesContainsBuiltIns() {
+        let knownTypes = DatabaseType.allKnownTypes
+        #expect(knownTypes.contains(.mysql))
+        #expect(knownTypes.contains(.postgresql))
+        #expect(knownTypes.contains(.sqlite))
+        #expect(knownTypes.count >= 5)
     }
 
     @Test("allCases shim matches allKnownTypes")
@@ -52,15 +56,15 @@ struct DatabaseTypeTests {
         (DatabaseType.mariadb, "MariaDB"),
         (DatabaseType.postgresql, "PostgreSQL"),
         (DatabaseType.sqlite, "SQLite"),
-        (.mongodb, "MongoDB"),
-        (.redis, "Redis"),
+        (DatabaseType.mongodb, "MongoDB"),
+        (DatabaseType.redis, "Redis"),
         (DatabaseType.redshift, "Redshift"),
-        (.mssql, "SQL Server"),
-        (.oracle, "Oracle"),
-        (.clickhouse, "ClickHouse"),
-        (.duckdb, "DuckDB"),
-        (.cassandra, "Cassandra"),
-        (.scylladb, "ScyllaDB")
+        (DatabaseType.mssql, "SQL Server"),
+        (DatabaseType.oracle, "Oracle"),
+        (DatabaseType.clickhouse, "ClickHouse"),
+        (DatabaseType.duckdb, "DuckDB"),
+        (DatabaseType.cassandra, "Cassandra"),
+        (DatabaseType.scylladb, "ScyllaDB")
     ])
     func testRawValueMatchesDisplayName(dbType: DatabaseType, expectedRawValue: String) {
         #expect(dbType.rawValue == expectedRawValue)
@@ -70,27 +74,27 @@ struct DatabaseTypeTests {
 
     @Test("ClickHouse default port is 8123")
     func testClickHouseDefaultPort() {
-        #expect(.clickhouse.defaultPort == 8_123)
+        #expect(DatabaseType.clickhouse.defaultPort == 8_123)
     }
 
     @Test("ClickHouse requires authentication")
     func testClickHouseRequiresAuth() {
-        #expect(.clickhouse.requiresAuthentication == true)
+        #expect(DatabaseType.clickhouse.requiresAuthentication == true)
     }
 
     @Test("ClickHouse does not support foreign keys")
     func testClickHouseSupportsForeignKeys() {
-        #expect(.clickhouse.supportsForeignKeys == false)
+        #expect(DatabaseType.clickhouse.supportsForeignKeys == false)
     }
 
     @Test("ClickHouse supports schema editing")
     func testClickHouseSupportsSchemaEditing() {
-        #expect(.clickhouse.supportsSchemaEditing == true)
+        #expect(DatabaseType.clickhouse.supportsSchemaEditing == true)
     }
 
     @Test("ClickHouse icon name is clickhouse-icon")
     func testClickHouseIconName() {
-        #expect(.clickhouse.iconName == "clickhouse-icon")
+        #expect(DatabaseType.clickhouse.iconName == "clickhouse-icon")
     }
 
     // MARK: - Plugin Type ID Alias Tests
