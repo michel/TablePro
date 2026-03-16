@@ -913,7 +913,7 @@ internal final class EtcdHttpClient: @unchecked Sendable {
 
             if !verifyHostname {
                 // VerifyCA mode: validate the CA chain but skip hostname check
-                Self.logger.debug("TLS: skipping hostname verification (VerifyCA mode)")
+                EtcdHttpClient.logger.debug("TLS: skipping hostname verification (VerifyCA mode)")
                 let policy = SecPolicyCreateBasicX509()
                 SecTrustSetPolicies(serverTrust, policy)
             }
@@ -955,10 +955,8 @@ internal final class EtcdHttpClient: @unchecked Sendable {
                 return
             }
 
-            guard let identity = identityRef as? SecIdentity else {
-                completionHandler(.cancelAuthenticationChallenge, nil)
-                return
-            }
+            // swiftlint:disable:next force_cast
+            let identity = identityRef as! SecIdentity
             let credential = URLCredential(
                 identity: identity,
                 certificates: nil,

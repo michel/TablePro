@@ -660,7 +660,6 @@
 		5A1091BE2EF17EDC0055EA7C = {
 			isa = PBXGroup;
 			children = (
-				5AEA8B412F6808CA0040461A /* EtcdDriverPlugin */,
 				5AEA8B412F6808CA0040461A /* Plugins/EtcdDriverPlugin */,
 				5A1091C92EF17EDC0055EA7C /* TablePro */,
 				5A860000500000000 /* Plugins/TableProPluginKit */,
@@ -714,7 +713,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		5AEA8B412F6808CA0040461A /* EtcdDriverPlugin */ = {
 		5AEA8B412F6808CA0040461A /* Plugins/EtcdDriverPlugin */ = {
 			isa = PBXGroup;
 			children = (
