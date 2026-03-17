@@ -491,10 +491,11 @@ struct MainContentView: View {
                            let tableName = selectedTab.tableName,
                            let tabIndex = tabManager.selectedTabIndex
                         {
+                            // columns is [] on initial load — buildFilteredQuery uses SELECT *
                             let filteredQuery = coordinator.queryBuilder.buildFilteredQuery(
                                 tableName: tableName,
                                 filters: selectedTab.filterState.appliedFilters,
-                                columns: selectedTab.resultColumns,
+                                columns: [],
                                 limit: selectedTab.pagination.pageSize,
                                 offset: selectedTab.pagination.currentOffset
                             )
