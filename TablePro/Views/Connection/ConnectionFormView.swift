@@ -233,7 +233,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                                 }
                             }
                         } icon: {
-                            Image(t.iconName)
+                            t.iconImage
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: 20, height: 20)

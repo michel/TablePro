@@ -20,7 +20,7 @@ final class MySQLPlugin: NSObject, TableProPlugin, DriverPlugin {
 
     static let databaseTypeId = "MySQL"
     static let databaseDisplayName = "MySQL"
-    static let iconName = "cylinder.fill"
+    static let iconName = "mysql-icon"
     static let defaultPort = 3306
     static let additionalConnectionFields: [ConnectionField] = []
     static let additionalDatabaseTypeIds: [String] = ["MariaDB"]

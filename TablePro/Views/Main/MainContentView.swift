@@ -487,6 +487,20 @@ struct MainContentView: View {
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
+                        if !selectedTab.filterState.appliedFilters.isEmpty,
+                           let tableName = selectedTab.tableName,
+                           let tabIndex = tabManager.selectedTabIndex
+                        {
+                            // columns is [] on initial load — buildFilteredQuery uses SELECT *
+                            let filteredQuery = coordinator.queryBuilder.buildFilteredQuery(
+                                tableName: tableName,
+                                filters: selectedTab.filterState.appliedFilters,
+                                columns: [],
+                                limit: selectedTab.pagination.pageSize,
+                                offset: selectedTab.pagination.currentOffset
+                            )
+                            tabManager.tabs[tabIndex].query = filteredQuery
+                        }
                         coordinator.executeTableTabQueryDirectly()
                     }
                 } else {

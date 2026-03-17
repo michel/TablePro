@@ -649,7 +649,7 @@ private struct ConnectionRow: View {
     var body: some View {
         HStack(spacing: 12) {
             // Database type icon
-            Image(connection.type.iconName)
+            connection.type.iconImage
                 .renderingMode(.template)
                 .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.medium))
                 .foregroundStyle(connection.displayColor)

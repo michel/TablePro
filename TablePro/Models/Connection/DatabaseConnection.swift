@@ -282,6 +282,16 @@ extension DatabaseType {
         PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.iconName ?? "database-icon"
     }
 
+    /// Returns the correct SwiftUI Image for this database type, handling both
+    /// SF Symbol names (e.g. "cylinder.fill") and asset catalog names (e.g. "mysql-icon").
+    var iconImage: Image {
+        let name = iconName
+        if NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil {
+            return Image(systemName: name)
+        }
+        return Image(name)
+    }
+
     var defaultPort: Int {
         PluginMetadataRegistry.shared.snapshot(forTypeId: pluginTypeId)?.defaultPort ?? 0
     }

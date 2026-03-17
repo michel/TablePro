@@ -31,6 +31,8 @@ internal struct EditorTabPayload: Codable, Hashable {
     internal let skipAutoExecute: Bool
     /// Whether this tab is a preview (temporary) tab
     internal let isPreview: Bool
+    /// Initial filter state (for FK navigation — pre-applies a WHERE filter)
+    internal let initialFilterState: TabFilterState?
 
     internal init(
         id: UUID = UUID(),
@@ -42,7 +44,8 @@ internal struct EditorTabPayload: Codable, Hashable {
         isView: Bool = false,
         showStructure: Bool = false,
         skipAutoExecute: Bool = false,
-        isPreview: Bool = false
+        isPreview: Bool = false,
+        initialFilterState: TabFilterState? = nil
     ) {
         self.id = id
         self.connectionId = connectionId
@@ -54,6 +57,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.showStructure = showStructure
         self.skipAutoExecute = skipAutoExecute
         self.isPreview = isPreview
+        self.initialFilterState = initialFilterState
     }
 
     internal init(from decoder: Decoder) throws {
@@ -68,6 +72,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         showStructure = try container.decodeIfPresent(Bool.self, forKey: .showStructure) ?? false
         skipAutoExecute = try container.decodeIfPresent(Bool.self, forKey: .skipAutoExecute) ?? false
         isPreview = try container.decodeIfPresent(Bool.self, forKey: .isPreview) ?? false
+        initialFilterState = try container.decodeIfPresent(TabFilterState.self, forKey: .initialFilterState)
     }
 
     /// Whether this payload is a "connection-only" payload — just a connectionId
@@ -89,5 +94,6 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.showStructure = tab.showStructure
         self.skipAutoExecute = skipAutoExecute
         self.isPreview = false
+        self.initialFilterState = nil
     }
 }

@@ -38,7 +38,10 @@ extension AppDelegate {
                 )
                 item.target = self
                 item.representedObject = connection.id
-                if let original = NSImage(named: connection.type.iconName) {
+                let iconName = connection.type.iconName
+                let original = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
+                    ?? NSImage(named: iconName)
+                if let original {
                     let resized = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { rect in
                         original.draw(in: rect)
                         return true

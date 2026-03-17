@@ -117,6 +117,22 @@ struct PluginMetadataSnapshot: Sendable {
             additionalConnectionFields: []
         )
     }
+
+    func withIconName(_ newIconName: String) -> PluginMetadataSnapshot {
+        PluginMetadataSnapshot(
+            displayName: displayName, iconName: newIconName, defaultPort: defaultPort,
+            requiresAuthentication: requiresAuthentication, supportsForeignKeys: supportsForeignKeys,
+            supportsSchemaEditing: supportsSchemaEditing, isDownloadable: isDownloadable,
+            primaryUrlScheme: primaryUrlScheme, parameterStyle: parameterStyle,
+            navigationModel: navigationModel, explainVariants: explainVariants,
+            pathFieldRole: pathFieldRole, supportsHealthMonitor: supportsHealthMonitor,
+            urlSchemes: urlSchemes, postConnectActions: postConnectActions,
+            brandColorHex: brandColorHex, queryLanguageName: queryLanguageName,
+            editorLanguage: editorLanguage, connectionMode: connectionMode,
+            supportsDatabaseSwitching: supportsDatabaseSwitching,
+            capabilities: capabilities, schema: schema, editor: editor, connection: connection
+        )
+    }
 }
 
 final class PluginMetadataRegistry: @unchecked Sendable {
@@ -513,11 +529,15 @@ final class PluginMetadataRegistry: @unchecked Sendable {
         reverseTypeIndex["ScyllaDB"] = "Cassandra"
     }
 
-    func register(snapshot: PluginMetadataSnapshot, forTypeId typeId: String) {
+    func register(snapshot: PluginMetadataSnapshot, forTypeId typeId: String, preserveIcon: Bool = false) {
         lock.lock()
         defer { lock.unlock() }
-        snapshots[typeId] = snapshot
-        for scheme in snapshot.urlSchemes {
+        var resolved = snapshot
+        if preserveIcon, let existingIcon = snapshots[typeId]?.iconName {
+            resolved = snapshot.withIconName(existingIcon)
+        }
+        snapshots[typeId] = resolved
+        for scheme in resolved.urlSchemes {
             schemeIndex[scheme.lowercased()] = typeId
         }
     }

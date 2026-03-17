@@ -19,7 +19,7 @@ final class PostgreSQLPlugin: NSObject, TableProPlugin, DriverPlugin {
 
     static let databaseTypeId = "PostgreSQL"
     static let databaseDisplayName = "PostgreSQL"
-    static let iconName = "cylinder.fill"
+    static let iconName = "postgresql-icon"
     static let defaultPort = 5432
     static let additionalConnectionFields: [ConnectionField] = [
         ConnectionField(

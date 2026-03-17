@@ -71,7 +71,7 @@ enum FilterOperator: String, CaseIterable, Identifiable, Codable {
 }
 
 /// Represents a single table filter condition
-struct TableFilter: Identifiable, Equatable, Codable {
+struct TableFilter: Identifiable, Equatable, Hashable, Codable {
     let id: UUID
     var columnName: String          // Column to filter on, or "__RAW__" for raw SQL
     var filterOperator: FilterOperator
@@ -151,7 +151,7 @@ struct TableFilter: Identifiable, Equatable, Codable {
 }
 
 /// Stores per-tab filter state (preserves filters when switching tabs)
-struct TabFilterState: Equatable, Codable {
+struct TabFilterState: Equatable, Hashable, Codable {
     var filters: [TableFilter]
     var appliedFilters: [TableFilter]
     var isVisible: Bool

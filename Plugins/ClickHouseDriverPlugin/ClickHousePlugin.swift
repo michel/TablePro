@@ -15,7 +15,7 @@ final class ClickHousePlugin: NSObject, TableProPlugin, DriverPlugin {
 
     static let databaseTypeId = "ClickHouse"
     static let databaseDisplayName = "ClickHouse"
-    static let iconName = "bolt.fill"
+    static let iconName = "clickhouse-icon"
     static let defaultPort = 8123
 
     // MARK: - UI/Capability Metadata

@@ -249,6 +249,7 @@ final class PluginManager {
                 try validateDriverDescriptor(type(of: driver), pluginId: pluginId)
             } catch {
                 Self.logger.error("Plugin '\(pluginId)' driver rejected: \(error.localizedDescription)")
+                return
             }
             if !driverPlugins.keys.contains(type(of: driver).databaseTypeId) {
                 let driverType = type(of: driver)
@@ -264,9 +265,9 @@ final class PluginManager {
                     from: driverType,
                     isDownloadable: driverType.isDownloadable
                 )
-                PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: typeId)
+                PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: typeId, preserveIcon: true)
                 for additionalId in driverType.additionalDatabaseTypeIds {
-                    PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId)
+                    PluginMetadataRegistry.shared.register(snapshot: snapshot, forTypeId: additionalId, preserveIcon: true)
                     PluginMetadataRegistry.shared.registerTypeAlias(additionalId, primaryTypeId: typeId)
                 }
 
