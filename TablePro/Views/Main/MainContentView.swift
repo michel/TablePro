@@ -336,13 +336,14 @@ struct MainContentView: View {
                 // Skip if the user has unsaved changes (in-memory or tab-level).
                 let hasPendingEdits = changeManager.hasChanges
                     || (tabManager.selectedTab?.pendingChanges.hasChanges ?? false)
+                let isConnected = DatabaseManager.shared.activeSessions[connection.id]?.isConnected ?? false
                 let needsLazyLoad = tabManager.selectedTab.map { tab in
                     tab.tabType == .table
                         && (tab.resultRows.isEmpty || tab.rowBuffer.isEvicted)
                         && (tab.lastExecutedAt == nil || tab.rowBuffer.isEvicted)
                         && !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 } ?? false
-                if needsLazyLoad && !hasPendingEdits {
+                if needsLazyLoad && !hasPendingEdits && isConnected {
                     coordinator.runQuery()
                 }
             }
