@@ -130,6 +130,11 @@ jobs:
                 DISPLAY_NAME="Cassandra Driver"; SUMMARY="Apache Cassandra and ScyllaDB driver via DataStax C driver"
                 DB_TYPE_IDS='["Cassandra", "ScyllaDB"]'; ICON="cassandra-icon"; BUNDLE_NAME="CassandraDriver"
                 CATEGORY="database-driver"; HOMEPAGE="https://docs.tablepro.app/databases/cassandra" ;;
+              etcd)
+                TARGET="EtcdDriverPlugin"; BUNDLE_ID="com.TablePro.EtcdDriverPlugin"
+                DISPLAY_NAME="etcd Driver"; SUMMARY="etcd v3 key-value store driver with prefix-tree browsing and lease management"
+                DB_TYPE_IDS='["etcd"]'; ICON="etcd-icon"; BUNDLE_NAME="EtcdDriverPlugin"
+                CATEGORY="database-driver"; HOMEPAGE="https://docs.tablepro.app/databases/etcd" ;;
               mssql)
                 TARGET="MSSQLDriver"; BUNDLE_ID="com.TablePro.MSSQLDriver"
                 DISPLAY_NAME="MSSQL Driver"; SUMMARY="Microsoft SQL Server driver via FreeTDS"
