@@ -64,6 +64,11 @@ jobs:
         with:
           xcode-version: "26.2"
 
+      - name: Download static libraries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/download-libs.sh
+
       - name: Import signing certificate
         env:
           CERTIFICATES_P12: ${{ secrets.CERTIFICATES_P12 }}
