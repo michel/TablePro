@@ -59,6 +59,9 @@ extension MainContentCoordinator {
                 self.filterStateManager.saveLastFilters(for: capturedTableName)
             }
 
+            // Persist filter state to tab so it survives tab switches
+            self.tabManager.tabs[capturedTabIndex].filterState = self.filterStateManager.saveToTabState()
+
             self.runQuery()
         }
     }
@@ -107,6 +110,7 @@ extension MainContentCoordinator {
             }
 
             self.tabManager.tabs[capturedTabIndex].query = newQuery
+            self.tabManager.tabs[capturedTabIndex].filterState = self.filterStateManager.saveToTabState()
             self.runQuery()
         }
     }
@@ -146,6 +150,7 @@ extension MainContentCoordinator {
             }
 
             self.tabManager.tabs[capturedTabIndex].query = newQuery
+            self.tabManager.tabs[capturedTabIndex].filterState = self.filterStateManager.saveToTabState()
             self.runQuery()
         }
     }

@@ -113,6 +113,7 @@ extension MainContentCoordinator {
                 databaseType: connection.type,
                 databaseName: currentDatabase
             ) {
+                filterStateManager.clearAll()
                 if let tabIndex = tabManager.selectedTabIndex {
                     tabManager.tabs[tabIndex].pagination.reset()
                     toolbarState.isTableTab = true
@@ -180,6 +181,7 @@ extension MainContentCoordinator {
                     databaseName: databaseName,
                     isPreview: true
                 )
+                previewCoordinator.filterStateManager.clearAll()
                 if let tabIndex = previewCoordinator.tabManager.selectedTabIndex {
                     previewCoordinator.tabManager.tabs[tabIndex].showStructure = showStructure
                     previewCoordinator.tabManager.tabs[tabIndex].pagination.reset()
@@ -206,6 +208,7 @@ extension MainContentCoordinator {
                 databaseName: databaseName,
                 isPreview: true
             )
+            filterStateManager.clearAll()
             if let tabIndex = tabManager.selectedTabIndex {
                 tabManager.tabs[tabIndex].showStructure = showStructure
                 tabManager.tabs[tabIndex].pagination.reset()

@@ -18,12 +18,14 @@ extension MainContentCoordinator {
         isHandlingTabSwitch = true
         defer { isHandlingTabSwitch = false }
 
-        // Persist the outgoing tab's unsaved changes so they survive the switch
+        // Persist the outgoing tab's unsaved changes and filter state so they survive the switch
         if let oldId = oldTabId,
-           let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId }),
-           changeManager.hasChanges
+           let oldIndex = tabManager.tabs.firstIndex(where: { $0.id == oldId })
         {
-            tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
+            if changeManager.hasChanges {
+                tabManager.tabs[oldIndex].pendingChanges = changeManager.saveState()
+            }
+            tabManager.tabs[oldIndex].filterState = filterStateManager.saveToTabState()
         }
 
         if tabManager.tabs.count > 2 {
