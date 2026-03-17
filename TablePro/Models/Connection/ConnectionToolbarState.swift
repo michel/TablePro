@@ -213,9 +213,7 @@ final class ConnectionToolbarState {
             parts.append(String(localized: "Replication lag: \(lag)s"))
         }
 
-        if safeModeLevel != .silent {
-            parts.append(safeModeLevel.displayName)
-        }
+        parts.append(safeModeLevel.displayName)
 
         return parts.joined(separator: " • ")
     }
