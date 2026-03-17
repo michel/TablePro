@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Connection test not cleaning up SSH tunnel on completion
 - Test connection success indicator not resetting after field changes
 - SSH port field accepting invalid values
+- DROP TABLE and TRUNCATE TABLE sidebar operations producing no SQL for plugin-based drivers
 
 ## [0.19.1] - 2026-03-16
 

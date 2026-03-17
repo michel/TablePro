@@ -105,13 +105,10 @@ extension MainContentCoordinator {
     private func truncateStatements(
         tableName: String, quotedName: String, options: TableOperationOptions, dbType: DatabaseType
     ) -> [String] {
-        guard let adapter = currentPluginDriverAdapter,
-              let stmts = adapter.truncateTableStatements(
-                  table: tableName, schema: nil, cascade: options.cascade
-              ) else {
-            return []
-        }
-        return stmts
+        guard let adapter = currentPluginDriverAdapter else { return [] }
+        return adapter.truncateTableStatements(
+            table: tableName, schema: nil, cascade: options.cascade
+        )
     }
 
     private func dropTableStatement(
@@ -119,12 +116,9 @@ extension MainContentCoordinator {
         options: TableOperationOptions, dbType: DatabaseType
     ) -> String {
         let keyword = isView ? "VIEW" : "TABLE"
-        guard let adapter = currentPluginDriverAdapter,
-              let stmt = adapter.dropObjectStatement(
-                  name: tableName, objectType: keyword, schema: nil, cascade: options.cascade
-              ) else {
-            return ""
-        }
-        return stmt
+        guard let adapter = currentPluginDriverAdapter else { return "" }
+        return adapter.dropObjectStatement(
+            name: tableName, objectType: keyword, schema: nil, cascade: options.cascade
+        )
     }
 }

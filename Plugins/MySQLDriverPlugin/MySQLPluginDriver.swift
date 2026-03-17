@@ -13,6 +13,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     private let config: DriverConnectionConfig
     private var mariadbConnection: MariaDBPluginConnection?
     private var _serverVersion: String?
+    private var _activeDatabase: String
 
     /// Detected server type from version string after connecting
     private var isMariaDB = false
@@ -49,6 +50,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     init(config: DriverConnectionConfig) {
         self.config = config
+        self._activeDatabase = config.database
     }
 
     // MARK: - Connection
@@ -223,7 +225,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchAllColumns(schema: String?) async throws -> [String: [PluginColumnInfo]] {
-        let dbName = config.database
+        let dbName = _activeDatabase
         let escapedDb = dbName.replacingOccurrences(of: "'", with: "''")
         let query = """
             SELECT
@@ -310,7 +312,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchForeignKeys(table: String, schema: String?) async throws -> [PluginForeignKeyInfo] {
-        let dbName = config.database
+        let dbName = _activeDatabase
         let escapedDb = dbName.replacingOccurrences(of: "'", with: "''")
         let escapedTable = table.replacingOccurrences(of: "'", with: "''")
 
@@ -351,7 +353,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchAllForeignKeys(schema: String?) async throws -> [String: [PluginForeignKeyInfo]] {
-        let dbName = config.database
+        let dbName = _activeDatabase
         let escapedDb = dbName.replacingOccurrences(of: "'", with: "''")
 
         let query = """
@@ -394,7 +396,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchApproximateRowCount(table: String, schema: String?) async throws -> Int? {
-        let dbName = config.database
+        let dbName = _activeDatabase
         let escapedDb = dbName.replacingOccurrences(of: "'", with: "''")
         let escapedTable = table.replacingOccurrences(of: "'", with: "''")
 
@@ -578,6 +580,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     func switchDatabase(to database: String) async throws {
         let escaped = database.replacingOccurrences(of: "`", with: "``")
         _ = try await execute(query: "USE `\(escaped)`")
+        _activeDatabase = database
     }
 
     // MARK: - Query Timeout
