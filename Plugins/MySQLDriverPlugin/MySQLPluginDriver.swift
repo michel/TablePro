@@ -63,7 +63,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             port: config.port,
             user: config.username,
             password: config.password,
-            database: config.database,
+            database: _activeDatabase,
             sslConfig: sslConfig
         )
 
