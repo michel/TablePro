@@ -101,6 +101,21 @@ actor SQLSchemaProvider {
         cachedDriver = nil
     }
 
+    func invalidateTables() {
+        tables.removeAll()
+    }
+
+    func updateTables(_ newTables: [TableInfo]) {
+        tables = newTables
+    }
+
+    func fetchFreshTables() async throws -> [TableInfo] {
+        guard let driver = cachedDriver else { return [] }
+        let fresh = try await driver.fetchTables()
+        tables = fresh
+        return fresh
+    }
+
     /// Find table name from alias
     func resolveAlias(_ aliasOrName: String, in references: [TableReference]) -> String? {
         // First check if it's an alias

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSH port field accepting invalid values
 - DROP TABLE and TRUNCATE TABLE sidebar operations producing no SQL for plugin-based drivers
 - Foreign key navigation arrows not appearing after switching databases with Cmd+K on MySQL
+- Sidebar not refreshing after creating or dropping tables
 
 ## [0.19.1] - 2026-03-16
 
