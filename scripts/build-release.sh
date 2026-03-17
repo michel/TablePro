@@ -336,6 +336,16 @@ build_for_arch() {
     SPM_CACHE_DIR="${HOME}/.spm-cache"
     mkdir -p "$SPM_CACHE_DIR"
 
+    # Detect provisioning profile UUID for iCloud entitlements
+    local PROFILE_SPECIFIER=""
+    PROFILE_PATH=$(find ~/Library/MobileDevice/Provisioning\ Profiles -name "*.provisionprofile" -print -quit 2>/dev/null)
+    if [ -n "${PROFILE_PATH:-}" ]; then
+        PROFILE_SPECIFIER=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH" 2>/dev/null)" || true)
+        if [ -n "$PROFILE_SPECIFIER" ]; then
+            echo "📋 Using provisioning profile: $PROFILE_SPECIFIER"
+        fi
+    fi
+
     # Build with xcodebuild
     echo "Running xcodebuild..."
     if ! xcodebuild \
@@ -347,6 +357,7 @@ build_for_arch() {
         CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
         CODE_SIGN_STYLE=Manual \
         DEVELOPMENT_TEAM="$TEAM_ID" \
+        ${PROFILE_SPECIFIER:+PROVISIONING_PROFILE_SPECIFIER="$PROFILE_SPECIFIER"} \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
         -skipPackagePluginValidation \
         -clonedSourcePackagesDirPath "$SPM_CACHE_DIR" \
