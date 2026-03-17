@@ -71,6 +71,10 @@ enum SessionStateFactory {
                         if payload.showStructure {
                             tabMgr.tabs[index].showStructure = true
                         }
+                        if let initialFilter = payload.initialFilterState {
+                            tabMgr.tabs[index].filterState = initialFilter
+                            filterMgr.restoreFromTabState(initialFilter)
+                        }
                     }
                 } else {
                     tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)

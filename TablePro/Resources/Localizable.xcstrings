@@ -13360,6 +13360,16 @@
         }
       }
     },
+    "Plugin was built with PluginKit version %lld, but version %lld or later is required. Please update the plugin." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Plugin was built with PluginKit version %1$lld, but version %2$lld or later is required. Please update the plugin."
+          }
+        }
+      }
+    },
     "Plugins" : {
       "localizations" : {
         "vi" : {
