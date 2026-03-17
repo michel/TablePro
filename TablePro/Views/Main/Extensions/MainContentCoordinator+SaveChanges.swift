@@ -225,12 +225,21 @@ extension MainContentCoordinator {
                 }
 
                 if clearTableOps {
-                    // Close tabs for deleted tables
+                    // Remove tabs for deleted tables
                     if !deletedTables.isEmpty {
-                        if let currentTab = tabManager.selectedTab,
-                           let tableName = currentTab.tableName,
-                           deletedTables.contains(tableName) {
-                            NSApp.keyWindow?.close()
+                        let tabIdsToRemove = Set(
+                            tabManager.tabs
+                                .filter { $0.tabType == .table && deletedTables.contains($0.tableName ?? "") }
+                                .map(\.id)
+                        )
+
+                        if !tabIdsToRemove.isEmpty {
+                            tabManager.tabs.removeAll { tabIdsToRemove.contains($0.id) }
+                            if let firstRemaining = tabManager.tabs.first {
+                                tabManager.selectedTabId = firstRemaining.id
+                            } else {
+                                tabManager.selectedTabId = nil
+                            }
                         }
                     }
 
