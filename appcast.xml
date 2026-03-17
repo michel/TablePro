@@ -3,66 +3,28 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.20.0</title>
-            <pubDate>Tue, 17 Mar 2026 09:06:33 +0000</pubDate>
-            <sparkle:version>36</sparkle:version>
-            <sparkle:shortVersionString>0.20.0</sparkle:shortVersionString>
+            <title>0.20.1</title>
+            <pubDate>Tue, 17 Mar 2026 10:07:02 +0000</pubDate>
+            <sparkle:version>37</sparkle:version>
+            <sparkle:shortVersionString>0.20.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Turkish language in Settings > General (Türkçe) with Turkish translations for UI strings</li>
-<li>etcd v3 plugin with prefix-tree key browsing, etcdctl syntax editor, lease management, watch, mTLS, auth, and cluster info</li>
-<li>Save Changes button in toolbar for committing pending data edits</li>
-<li>Confirmation dialog before deleting a connection</li>
-<li>Confirmation dialog before sort, pagination, filter, or search discards unsaved edits</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>SSH tunnel crashes caused by concurrent libssh2 calls on the same session</li>
-<li>Unsaved cell edits lost when switching tabs, sorting, paginating, filtering, or switching apps</li>
-<li>Auto-reconnect and health monitor silently discarding unsaved changes</li>
-<li>SSH tunnel recovery failing after tunnel death due to stale driver state</li>
-<li>Health monitor ping interfering with active user queries</li>
-<li>Connection test not cleaning up SSH tunnel on completion</li>
-<li>Test connection success indicator not resetting after field changes</li>
-<li>SSH port field accepting invalid values</li>
-<li>DROP TABLE and TRUNCATE TABLE sidebar operations producing no SQL for plugin-based drivers</li>
-<li>Foreign key navigation arrows not appearing after switching databases with Cmd+K on MySQL</li>
-<li>Sidebar not refreshing after creating or dropping tables</li>
-<li>Dropping a table disconnecting the database when the dropped table's tab was active</li>
+<li>Plugin registry compatibility with PluginKit version 2</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.0/TablePro-0.20.0-arm64.zip" length="20044479" type="application/octet-stream" sparkle:edSignature="oOOPN+20gx1OQCSm3DzxvMfs8cazW7o/887QZT4VgZ7YIGW2rKJKwHYRRv8k9ggqc1+qlt1a629hPoh8F3C9AQ==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.1/TablePro-0.20.1-arm64.zip" length="20045593" type="application/octet-stream" sparkle:edSignature="sKyq7Vz32qpG7yg0uNtQK/e09mGbw/9ZUAOvxS8MCbBUmYCQL0BKWpXmfgYm0pT9r5ORbETmj9/quenydh8eCw==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.20.0</title>
-            <pubDate>Tue, 17 Mar 2026 09:06:33 +0000</pubDate>
-            <sparkle:version>36</sparkle:version>
-            <sparkle:shortVersionString>0.20.0</sparkle:shortVersionString>
+            <title>0.20.1</title>
+            <pubDate>Tue, 17 Mar 2026 10:07:02 +0000</pubDate>
+            <sparkle:version>37</sparkle:version>
+            <sparkle:shortVersionString>0.20.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Turkish language in Settings > General (Türkçe) with Turkish translations for UI strings</li>
-<li>etcd v3 plugin with prefix-tree key browsing, etcdctl syntax editor, lease management, watch, mTLS, auth, and cluster info</li>
-<li>Save Changes button in toolbar for committing pending data edits</li>
-<li>Confirmation dialog before deleting a connection</li>
-<li>Confirmation dialog before sort, pagination, filter, or search discards unsaved edits</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>SSH tunnel crashes caused by concurrent libssh2 calls on the same session</li>
-<li>Unsaved cell edits lost when switching tabs, sorting, paginating, filtering, or switching apps</li>
-<li>Auto-reconnect and health monitor silently discarding unsaved changes</li>
-<li>SSH tunnel recovery failing after tunnel death due to stale driver state</li>
-<li>Health monitor ping interfering with active user queries</li>
-<li>Connection test not cleaning up SSH tunnel on completion</li>
-<li>Test connection success indicator not resetting after field changes</li>
-<li>SSH port field accepting invalid values</li>
-<li>DROP TABLE and TRUNCATE TABLE sidebar operations producing no SQL for plugin-based drivers</li>
-<li>Foreign key navigation arrows not appearing after switching databases with Cmd+K on MySQL</li>
-<li>Sidebar not refreshing after creating or dropping tables</li>
-<li>Dropping a table disconnecting the database when the dropped table's tab was active</li>
+<li>Plugin registry compatibility with PluginKit version 2</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.0/TablePro-0.20.0-x86_64.zip" length="19506507" type="application/octet-stream" sparkle:edSignature="dldabl0kgK2Td9Lxwfq25/uOmkY6JIYVcE6TQL94Pubi/6whdqup6/Z3Bqw1vLQT1v73i1JYxUCom1T9WmuHDw==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.1/TablePro-0.20.1-x86_64.zip" length="19506448" type="application/octet-stream" sparkle:edSignature="SrRnlVBPE2NOqZQEEq1/2d+YtBnfyo5XHNSw7xFsR8alnBz0JA5xvGxU0vEHvc6NW4E40732zmCfoghM3VFODQ==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
