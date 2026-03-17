@@ -32,6 +32,7 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable {
     case english = "en"
     case vietnamese = "vi"
     case chineseSimplified = "zh-Hans"
+    case turkish = "tr"
 
     var id: String { rawValue }
 
@@ -41,6 +42,7 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable {
         case .english: return "English"
         case .vietnamese: return "Tiếng Việt"
         case .chineseSimplified: return "简体中文"
+        case .turkish: return "Türkçe"
         }
     }
 

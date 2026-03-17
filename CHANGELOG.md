@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Turkish language in Settings > General (Türkçe) with Turkish translations for UI strings
 - etcd v3 plugin with prefix-tree key browsing, etcdctl syntax editor, lease management, watch, mTLS, auth, and cluster info
 - Save Changes button in toolbar for committing pending data edits
 - Confirmation dialog before deleting a connection
