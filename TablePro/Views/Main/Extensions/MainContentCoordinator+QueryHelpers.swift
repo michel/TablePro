@@ -6,6 +6,7 @@
 //  phase result application, and error handling.
 //
 
+import AppKit
 import Foundation
 import os
 import TableProPluginKit

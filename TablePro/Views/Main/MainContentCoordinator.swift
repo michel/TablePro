@@ -43,7 +43,7 @@ enum ActiveSheet: Identifiable {
 /// Coordinator managing MainContentView business logic
 @MainActor @Observable
 final class MainContentCoordinator {
-    private static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
+    static let logger = Logger(subsystem: "com.TablePro", category: "MainContentCoordinator")
 
     // MARK: - Dependencies
 
@@ -935,7 +935,7 @@ final class MainContentCoordinator {
     }
 
     /// Fetch enum/set values for columns from database-specific sources
-    private func fetchEnumValues(
+    func fetchEnumValues(
         columnInfo: [ColumnInfo],
         tableName: String,
         driver: DatabaseDriver,
