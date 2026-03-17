@@ -13,7 +13,7 @@ import SwiftUI
 
 /// Abstraction over table fetching for testability
 protocol TableFetcher: Sendable {
-    func fetchTables() async throws -> [TableInfo]
+    func fetchTables(force: Bool) async throws -> [TableInfo]
 }
 
 /// Production implementation that uses DatabaseManager, with optional schema provider cache
@@ -26,17 +26,23 @@ struct LiveTableFetcher: TableFetcher {
         self.schemaProvider = schemaProvider
     }
 
-    func fetchTables() async throws -> [TableInfo] {
+    func fetchTables(force: Bool) async throws -> [TableInfo] {
         if let provider = schemaProvider {
-            let cached = await provider.getTables()
-            if !cached.isEmpty {
-                return cached
+            if force {
+                if let fresh = try await provider.fetchFreshTables() { return fresh }
+            } else {
+                let cached = await provider.getTables()
+                if !cached.isEmpty { return cached }
             }
         }
         guard let driver = await DatabaseManager.shared.driver(for: connectionId) else {
             return []
         }
-        return try await driver.fetchTables()
+        let fetched = try await driver.fetchTables()
+        if let provider = schemaProvider {
+            await provider.updateTables(fetched)
+        }
+        return fetched
     }
 }
 
@@ -145,12 +151,12 @@ final class SidebarViewModel {
 
     // MARK: - Table Loading
 
-    func loadTables() {
+    func loadTables(force: Bool = false) {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
         loadTask = Task {
-            await loadTablesAsync()
+            await loadTablesAsync(force: force)
         }
     }
 
@@ -158,14 +164,14 @@ final class SidebarViewModel {
         loadTask?.cancel()
         loadTask = nil
         isLoading = false
-        loadTables()
+        loadTables(force: true)
     }
 
-    private func loadTablesAsync() async {
+    private func loadTablesAsync(force: Bool = false) async {
         let previousSelectedName: String? = tables.isEmpty ? nil : selectedTables.first?.name
 
         do {
-            let fetchedTables = try await tableFetcher.fetchTables()
+            let fetchedTables = try await tableFetcher.fetchTables(force: force)
             tables = fetchedTables
 
             // Clean up stale entries for tables that no longer exist

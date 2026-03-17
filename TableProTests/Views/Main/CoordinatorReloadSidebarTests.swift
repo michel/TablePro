@@ -18,13 +18,16 @@ import Testing
 private final class FetchTrackingTableFetcher: TableFetcher, @unchecked Sendable {
     private let lock = NSLock()
     private var _fetchCount = 0
+    private var _forceCount = 0
 
-    var fetchCount: Int {
-        lock.withLock { _fetchCount }
-    }
+    var fetchCount: Int { lock.withLock { _fetchCount } }
+    var forceCount: Int { lock.withLock { _forceCount } }
 
-    func fetchTables() async throws -> [TableInfo] {
-        lock.withLock { _fetchCount += 1 }
+    func fetchTables(force: Bool) async throws -> [TableInfo] {
+        lock.withLock {
+            _fetchCount += 1
+            if force { _forceCount += 1 }
+        }
         return []
     }
 }
@@ -77,6 +80,7 @@ struct CoordinatorReloadSidebarTests {
         try? await Task.sleep(nanoseconds: 100_000_000)
 
         #expect(mockFetcher.fetchCount > 0)
+        #expect(mockFetcher.forceCount > 0)
     }
 
     @Test("reloadSidebar is safe when sidebarViewModel is nil")

@@ -313,7 +313,10 @@ final class MainContentCoordinator {
     }
 
     func reloadSidebar() {
-        sidebarViewModel?.forceLoadTables()
+        Task { @MainActor in
+            await schemaProvider.invalidateTables()
+            sidebarViewModel?.forceLoadTables()
+        }
     }
 
     /// Explicit cleanup called from `onDisappear`. Releases schema provider
