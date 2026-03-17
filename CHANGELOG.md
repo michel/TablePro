@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-03-17
+
+### Fixed
+
+- Plugin registry compatibility with PluginKit version 2
+
 ## [0.20.0] - 2026-03-17
 
 ### Added
@@ -892,7 +898,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/datlechin/tablepro/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/datlechin/tablepro/compare/v0.19.1...v0.20.0
 [0.19.1]: https://github.com/datlechin/tablepro/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/datlechin/tablepro/compare/v0.18.1...v0.19.0
