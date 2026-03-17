@@ -334,12 +334,22 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
 
     // MARK: - Table Operations
 
-    func truncateTableStatements(table: String, schema: String?, cascade: Bool) -> [String]? {
-        pluginDriver.truncateTableStatements(table: table, schema: schema, cascade: cascade)
+    func truncateTableStatements(table: String, schema: String?, cascade: Bool) -> [String] {
+        if let stmts = pluginDriver.truncateTableStatements(table: table, schema: schema, cascade: cascade) {
+            return stmts
+        }
+        let name = qualifiedName(table, schema: schema)
+        let cascadeSuffix = cascade ? " CASCADE" : ""
+        return ["TRUNCATE TABLE \(name)\(cascadeSuffix)"]
     }
 
-    func dropObjectStatement(name: String, objectType: String, schema: String?, cascade: Bool) -> String? {
-        pluginDriver.dropObjectStatement(name: name, objectType: objectType, schema: schema, cascade: cascade)
+    func dropObjectStatement(name: String, objectType: String, schema: String?, cascade: Bool) -> String {
+        if let stmt = pluginDriver.dropObjectStatement(name: name, objectType: objectType, schema: schema, cascade: cascade) {
+            return stmt
+        }
+        let qualName = qualifiedName(name, schema: schema)
+        let cascadeSuffix = cascade ? " CASCADE" : ""
+        return "DROP \(objectType) \(qualName)\(cascadeSuffix)"
     }
 
     func foreignKeyDisableStatements() -> [String]? {
@@ -384,6 +394,14 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
 
     func escapeStringLiteral(_ value: String) -> String {
         pluginDriver.escapeStringLiteral(value)
+    }
+
+    // MARK: - Private Helpers
+
+    private func qualifiedName(_ name: String, schema: String?) -> String {
+        let quoted = pluginDriver.quoteIdentifier(name)
+        guard let schema, !schema.isEmpty else { return quoted }
+        return "\(pluginDriver.quoteIdentifier(schema)).\(quoted)"
     }
 
     // MARK: - Result Mapping

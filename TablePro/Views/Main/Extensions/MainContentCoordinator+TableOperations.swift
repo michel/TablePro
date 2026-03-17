@@ -32,9 +32,6 @@ extension MainContentCoordinator {
     ) -> [String] {
         var statements: [String] = []
         let dbType = connection.type
-        let driver = DatabaseManager.shared.driver(for: connectionId)
-        let quote: (String) -> String = driver?.quoteIdentifier
-            ?? quoteIdentifierFromDialect(PluginManager.shared.sqlDialect(for: dbType))
 
         // Sort tables for consistent execution order
         let sortedTruncates = truncates.sorted()
@@ -50,10 +47,9 @@ extension MainContentCoordinator {
         }
 
         for tableName in sortedTruncates {
-            let quotedName = quote(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
             statements.append(contentsOf: truncateStatements(
-                tableName: tableName, quotedName: quotedName, options: tableOptions, dbType: dbType
+                tableName: tableName, options: tableOptions
             ))
         }
 
@@ -63,11 +59,10 @@ extension MainContentCoordinator {
         }()
 
         for tableName in sortedDeletes {
-            let quotedName = quote(tableName)
             let tableOptions = options[tableName] ?? TableOperationOptions()
             let stmt = dropTableStatement(
-                tableName: tableName, quotedName: quotedName,
-                isView: viewNames.contains(tableName), options: tableOptions, dbType: dbType
+                tableName: tableName,
+                isView: viewNames.contains(tableName), options: tableOptions
             )
             if !stmt.isEmpty {
                 statements.append(stmt)
@@ -103,28 +98,21 @@ extension MainContentCoordinator {
     // MARK: - Private SQL Builders
 
     private func truncateStatements(
-        tableName: String, quotedName: String, options: TableOperationOptions, dbType: DatabaseType
+        tableName: String, options: TableOperationOptions
     ) -> [String] {
-        guard let adapter = currentPluginDriverAdapter,
-              let stmts = adapter.truncateTableStatements(
-                  table: tableName, schema: nil, cascade: options.cascade
-              ) else {
-            return []
-        }
-        return stmts
+        guard let adapter = currentPluginDriverAdapter else { return [] }
+        return adapter.truncateTableStatements(
+            table: tableName, schema: nil, cascade: options.cascade
+        )
     }
 
     private func dropTableStatement(
-        tableName: String, quotedName: String, isView: Bool,
-        options: TableOperationOptions, dbType: DatabaseType
+        tableName: String, isView: Bool, options: TableOperationOptions
     ) -> String {
         let keyword = isView ? "VIEW" : "TABLE"
-        guard let adapter = currentPluginDriverAdapter,
-              let stmt = adapter.dropObjectStatement(
-                  name: tableName, objectType: keyword, schema: nil, cascade: options.cascade
-              ) else {
-            return ""
-        }
-        return stmt
+        guard let adapter = currentPluginDriverAdapter else { return "" }
+        return adapter.dropObjectStatement(
+            name: tableName, objectType: keyword, schema: nil, cascade: options.cascade
+        )
     }
 }
