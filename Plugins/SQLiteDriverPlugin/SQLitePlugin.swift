@@ -16,7 +16,7 @@ final class SQLitePlugin: NSObject, TableProPlugin, DriverPlugin {
 
     static let databaseTypeId = "SQLite"
     static let databaseDisplayName = "SQLite"
-    static let iconName = "doc.fill"
+    static let iconName = "sqlite-icon"
     static let defaultPort = 0
 
     // MARK: - UI/Capability Metadata
@@ -24,7 +24,7 @@ final class SQLitePlugin: NSObject, TableProPlugin, DriverPlugin {
     static let requiresAuthentication = false
     static let supportsSSH = false
     static let supportsSSL = false
-    static let isDownloadable = true
+    static let isDownloadable = false
     static let pathFieldRole: PathFieldRole = .filePath
     static let connectionMode: ConnectionMode = .fileBased
     static let urlSchemes: [String] = ["sqlite"]

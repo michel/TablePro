@@ -594,9 +594,15 @@ final class PluginMetadataRegistry: @unchecked Sendable {
         let schemes = driverType.urlSchemes
         let primaryScheme = schemes.first ?? driverType.databaseTypeId.lowercased()
 
+        // Prefer the registry default's custom icon (e.g. "mysql-icon") over the
+        // plugin's generic SF Symbol (e.g. "cylinder.fill"). The registry defaults
+        // have curated SVG icons in the asset catalog.
+        let existingIcon = snapshot(forTypeId: driverType.databaseTypeId)?.iconName
+        let iconName = existingIcon ?? driverType.iconName
+
         return PluginMetadataSnapshot(
             displayName: driverType.databaseDisplayName,
-            iconName: driverType.iconName,
+            iconName: iconName,
             defaultPort: driverType.defaultPort,
             requiresAuthentication: driverType.requiresAuthentication,
             supportsForeignKeys: driverType.supportsForeignKeys,

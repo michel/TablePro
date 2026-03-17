@@ -34,7 +34,7 @@ struct ConnectionSidebarHeader: View {
                                 onSelectSession(session.id)
                             }) {
                                 HStack {
-                                    Image(session.connection.type.iconName)
+                                    session.connection.type.iconImage
                                         .renderingMode(.template)
                                         .foregroundStyle(session.connection.displayColor)
 
@@ -67,7 +67,7 @@ struct ConnectionSidebarHeader: View {
                                 onOpenConnection(connection)
                             }) {
                                 HStack {
-                                    Image(connection.type.iconName)
+                                    connection.type.iconImage
                                         .renderingMode(.template)
                                         .foregroundStyle(connection.displayColor)
 
@@ -90,7 +90,7 @@ struct ConnectionSidebarHeader: View {
                 HStack(spacing: 8) {
                     // Database icon
                     if let session = currentSession {
-                        Image(session.connection.type.iconName)
+                        session.connection.type.iconImage
                             .renderingMode(.template)
                             .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.medium))
                             .foregroundStyle(session.connection.displayColor)

@@ -249,6 +249,7 @@ final class PluginManager {
                 try validateDriverDescriptor(type(of: driver), pluginId: pluginId)
             } catch {
                 Self.logger.error("Plugin '\(pluginId)' driver rejected: \(error.localizedDescription)")
+                return
             }
             if !driverPlugins.keys.contains(type(of: driver).databaseTypeId) {
                 let driverType = type(of: driver)

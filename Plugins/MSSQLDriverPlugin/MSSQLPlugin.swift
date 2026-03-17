@@ -16,7 +16,7 @@ final class MSSQLPlugin: NSObject, TableProPlugin, DriverPlugin {
 
     static let databaseTypeId = "SQL Server"
     static let databaseDisplayName = "SQL Server"
-    static let iconName = "server.rack"
+    static let iconName = "mssql-icon"
     static let defaultPort = 1433
     static let additionalConnectionFields: [ConnectionField] = [
         ConnectionField(id: "mssqlSchema", label: "Schema", placeholder: "dbo", defaultValue: "dbo")

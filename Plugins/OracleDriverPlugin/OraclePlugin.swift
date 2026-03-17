@@ -15,7 +15,7 @@ final class OraclePlugin: NSObject, TableProPlugin, DriverPlugin {
 
     static let databaseTypeId = "Oracle"
     static let databaseDisplayName = "Oracle"
-    static let iconName = "server.rack"
+    static let iconName = "oracle-icon"
     static let defaultPort = 1521
     static let additionalConnectionFields: [ConnectionField] = [
         ConnectionField(id: "oracleServiceName", label: "Service Name", placeholder: "ORCL")
