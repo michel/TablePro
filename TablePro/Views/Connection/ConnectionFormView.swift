@@ -161,15 +161,15 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         .onChange(of: type) { _, newType in
             if hasLoadedData {
                 port = String(newType.defaultPort)
+                additionalFieldValues = [:]
+                for field in PluginManager.shared.additionalConnectionFields(for: newType) {
+                    if let defaultValue = field.defaultValue {
+                        additionalFieldValues[field.id] = defaultValue
+                    }
+                }
             }
             if !visibleTabs.contains(selectedTab) {
                 selectedTab = .general
-            }
-            additionalFieldValues = [:]
-            for field in PluginManager.shared.additionalConnectionFields(for: newType) {
-                if let defaultValue = field.defaultValue {
-                    additionalFieldValues[field.id] = defaultValue
-                }
             }
         }
         .pluginInstallPrompt(connection: $pluginInstallConnection) { connection in
