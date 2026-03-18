@@ -440,6 +440,12 @@ final class DatabaseManager {
             tunnelSSL.clientKeyPath = ""
         }
 
+        var effectiveFields = connection.additionalFields
+        if connection.usePgpass {
+            effectiveFields["pgpassOriginalHost"] = connection.host
+            effectiveFields["pgpassOriginalPort"] = String(connection.port)
+        }
+
         return DatabaseConnection(
             id: connection.id,
             name: connection.name,
@@ -450,7 +456,7 @@ final class DatabaseManager {
             type: connection.type,
             sshConfig: SSHConfiguration(),
             sslConfig: tunnelSSL,
-            additionalFields: connection.additionalFields
+            additionalFields: effectiveFields
         )
     }
 
