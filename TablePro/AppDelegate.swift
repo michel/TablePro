@@ -53,6 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = true
         KeychainHelper.shared.migrateFromLegacyKeychainIfNeeded()
+        let syncSettings = AppSettingsStorage.shared.loadSync()
+        let passwordSyncExpected = syncSettings.enabled && syncSettings.syncConnections && syncSettings.syncPasswords
+        UserDefaults.standard.set(passwordSyncExpected, forKey: "com.TablePro.keychainPasswordSyncEnabled")
         PluginManager.shared.loadPlugins()
 
         Task { @MainActor in

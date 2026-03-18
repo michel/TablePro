@@ -13,6 +13,11 @@ final class KeychainHelper {
     private let service = "com.TablePro"
     private static let logger = Logger(subsystem: "com.TablePro", category: "KeychainHelper")
     private static let migrationKey = "com.TablePro.keychainMigratedToDataProtection"
+    private static let passwordSyncEnabledKey = "com.TablePro.keychainPasswordSyncEnabled"
+
+    private var isPasswordSyncEnabled: Bool {
+        UserDefaults.standard.bool(forKey: Self.passwordSyncEnabledKey)
+    }
 
     private init() {}
 
@@ -20,7 +25,7 @@ final class KeychainHelper {
 
     @discardableResult
     func save(key: String, data: Data) -> Bool {
-        let addQuery: [String: Any] = [
+        var addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
@@ -28,6 +33,9 @@ final class KeychainHelper {
             kSecUseDataProtectionKeychain as String: true,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
         ]
+        if isPasswordSyncEnabled {
+            addQuery[kSecAttrSynchronizable as String] = true
+        }
 
         var status = SecItemAdd(addQuery as CFDictionary, nil)
 
@@ -36,7 +44,8 @@ final class KeychainHelper {
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrService as String: service,
                 kSecAttrAccount as String: key,
-                kSecUseDataProtectionKeychain as String: true
+                kSecUseDataProtectionKeychain as String: true,
+                kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
             ]
             let updateAttributes: [String: Any] = [
                 kSecValueData as String: data
@@ -57,6 +66,7 @@ final class KeychainHelper {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecUseDataProtectionKeychain as String: true,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -79,7 +89,8 @@ final class KeychainHelper {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
-            kSecUseDataProtectionKeychain as String: true
+            kSecUseDataProtectionKeychain as String: true,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
         ]
 
         let status = SecItemDelete(query as CFDictionary)
@@ -179,5 +190,90 @@ final class KeychainHelper {
         } else {
             Self.logger.warning("Legacy keychain migration incomplete, will retry on next launch")
         }
+    }
+
+    // MARK: - Password Sync Migration
+
+    /// Migrates all TablePro keychain items between local-only and iCloud-synchronizable.
+    func migratePasswordSyncState(synchronizable: Bool) {
+        Self.logger.info("Starting keychain sync migration: synchronizable=\(synchronizable)")
+
+        let searchQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecUseDataProtectionKeychain as String: true,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+            kSecMatchLimit as String: kSecMatchLimitAll,
+            kSecReturnAttributes as String: true,
+            kSecReturnData as String: true
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(searchQuery as CFDictionary, &result)
+
+        guard status == errSecSuccess, let items = result as? [[String: Any]] else {
+            if status == errSecItemNotFound {
+                Self.logger.info("No keychain items to migrate")
+            } else {
+                Self.logger.error("Failed to query items for sync migration: \(status)")
+            }
+            return
+        }
+
+        var migratedCount = 0
+        var skippedCount = 0
+
+        for item in items {
+            guard let account = item[kSecAttrAccount as String] as? String,
+                  let data = item[kSecValueData as String] as? Data
+            else { continue }
+
+            let currentlySync = item[kSecAttrSynchronizable as String] as? Bool ?? false
+            if currentlySync == synchronizable {
+                skippedCount += 1
+                continue
+            }
+
+            var addQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: account,
+                kSecValueData as String: data,
+                kSecUseDataProtectionKeychain as String: true,
+                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            ]
+            if synchronizable {
+                addQuery[kSecAttrSynchronizable as String] = true
+            }
+
+            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+
+            guard addStatus == errSecSuccess || addStatus == errSecDuplicateItem else {
+                Self.logger.error(
+                    "Failed to create migrated item '\(account, privacy: .public)': \(addStatus)"
+                )
+                continue
+            }
+
+            let deleteQuery: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: account,
+                kSecUseDataProtectionKeychain as String: true,
+                kSecAttrSynchronizable as String: !synchronizable as CFBoolean
+            ]
+            let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
+            if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {
+                Self.logger.warning(
+                    "Migrated item '\(account, privacy: .public)' but failed to delete old entry: \(deleteStatus)"
+                )
+            }
+
+            migratedCount += 1
+        }
+
+        Self.logger.info(
+            "Keychain sync migration complete: \(migratedCount) migrated, \(skippedCount) already correct"
+        )
     }
 }

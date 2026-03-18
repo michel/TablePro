@@ -15,6 +15,36 @@ struct SyncSettings: Codable, Equatable {
     var syncSettings: Bool
     var syncQueryHistory: Bool
     var historySyncLimit: HistorySyncLimit
+    var syncPasswords: Bool
+
+    init(
+        enabled: Bool,
+        syncConnections: Bool,
+        syncGroupsAndTags: Bool,
+        syncSettings: Bool,
+        syncQueryHistory: Bool,
+        historySyncLimit: HistorySyncLimit,
+        syncPasswords: Bool = false
+    ) {
+        self.enabled = enabled
+        self.syncConnections = syncConnections
+        self.syncGroupsAndTags = syncGroupsAndTags
+        self.syncSettings = syncSettings
+        self.syncQueryHistory = syncQueryHistory
+        self.historySyncLimit = historySyncLimit
+        self.syncPasswords = syncPasswords
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        syncConnections = try container.decode(Bool.self, forKey: .syncConnections)
+        syncGroupsAndTags = try container.decode(Bool.self, forKey: .syncGroupsAndTags)
+        syncSettings = try container.decode(Bool.self, forKey: .syncSettings)
+        syncQueryHistory = try container.decode(Bool.self, forKey: .syncQueryHistory)
+        historySyncLimit = try container.decode(HistorySyncLimit.self, forKey: .historySyncLimit)
+        syncPasswords = try container.decodeIfPresent(Bool.self, forKey: .syncPasswords) ?? false
+    }
 
     static let `default` = SyncSettings(
         enabled: false,
@@ -22,7 +52,8 @@ struct SyncSettings: Codable, Equatable {
         syncGroupsAndTags: true,
         syncSettings: true,
         syncQueryHistory: true,
-        historySyncLimit: .entries500
+        historySyncLimit: .entries500,
+        syncPasswords: false
     )
 }
 
