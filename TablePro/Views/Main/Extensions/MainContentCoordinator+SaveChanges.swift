@@ -17,7 +17,7 @@ extension MainContentCoordinator {
         pendingDeletes: inout Set<String>,
         tableOperationOptions: inout [String: TableOperationOptions]
     ) {
-        guard !connection.safeModeLevel.blocksAllWrites else {
+        guard !safeModeLevel.blocksAllWrites else {
             if let index = tabManager.selectedTabIndex {
                 tabManager.tabs[index].errorMessage = "Cannot save changes: connection is read-only"
             }
@@ -60,7 +60,7 @@ extension MainContentCoordinator {
             return
         }
 
-        let level = connection.safeModeLevel
+        let level = safeModeLevel
         if level.requiresConfirmation {
             let sqlPreview = allStatements.map(\.sql).joined(separator: "\n")
             // Snapshot inout values before clearing — needed for executeCommitStatements

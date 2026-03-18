@@ -13,7 +13,7 @@ extension MainContentCoordinator {
     // MARK: - View Operations
 
     func createView() {
-        guard !connection.safeModeLevel.blocksAllWrites else { return }
+        guard !safeModeLevel.blocksAllWrites else { return }
 
         let driver = DatabaseManager.shared.driver(for: connection.id)
         let template = driver?.createViewTemplate()
@@ -63,7 +63,7 @@ extension MainContentCoordinator {
     }
 
     func openImportDialog() {
-        guard !connection.safeModeLevel.blocksAllWrites else { return }
+        guard !safeModeLevel.blocksAllWrites else { return }
         guard PluginManager.shared.supportsImport(for: connection.type) else {
             AlertHelper.showErrorSheet(
                 title: String(localized: "Import Not Supported"),

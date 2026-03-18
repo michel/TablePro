@@ -193,6 +193,11 @@ struct ContentView: View {
                     AppState.shared.supportsDatabaseSwitching = true
                 }
             }
+            .onChange(of: sessionState?.toolbarState.safeModeLevel) { _, newLevel in
+                if let level = newLevel {
+                    AppState.shared.safeModeLevel = level
+                }
+            }
     }
 
     // MARK: - View Components
