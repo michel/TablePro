@@ -3,32 +3,36 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.20.2</title>
-            <pubDate>Wed, 18 Mar 2026 03:51:43 +0000</pubDate>
-            <sparkle:version>38</sparkle:version>
-            <sparkle:shortVersionString>0.20.2</sparkle:shortVersionString>
+            <title>0.20.3</title>
+            <pubDate>Wed, 18 Mar 2026 09:39:03 +0000</pubDate>
+            <sparkle:version>39</sparkle:version>
+            <sparkle:shortVersionString>0.20.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Safe mode badge not displaying for silent level</li>
-<li>Safe mode level reading from immutable connection state instead of live toolbar state</li>
-<li>`~/.pgpass` password lookup using SSH tunnel host instead of original host when connecting through SSH</li>
+<li>Optional iCloud Keychain sync for connection passwords</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>`Use ~/.pgpass` setting not persisting when saving a PostgreSQL connection</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.2/TablePro-0.20.2-arm64.zip" length="20047919" type="application/octet-stream" sparkle:edSignature="PZZs+77U8U/GYh8H6yCo8sJ7RCD6JVW7moxAu8XAaZE1y6AcudgjHDogPXmkDqm4ss+1DkH2dALgP2AosA+KCg==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.3/TablePro-0.20.3-arm64.zip" length="20056909" type="application/octet-stream" sparkle:edSignature="PETlSd7Vzo25F79nDW7/YiL3HH8rHbZnDovEKSH4FVgo28hPpuMbGn+Z0ZYiqQHuiKFo/ChEMSsEZTlEL7W3Bw==" sparkle:architectures="arm64"/>
         </item>
         <item>
-            <title>0.20.2</title>
-            <pubDate>Wed, 18 Mar 2026 03:51:43 +0000</pubDate>
-            <sparkle:version>38</sparkle:version>
-            <sparkle:shortVersionString>0.20.2</sparkle:shortVersionString>
+            <title>0.20.3</title>
+            <pubDate>Wed, 18 Mar 2026 09:39:03 +0000</pubDate>
+            <sparkle:version>39</sparkle:version>
+            <sparkle:shortVersionString>0.20.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Safe mode badge not displaying for silent level</li>
-<li>Safe mode level reading from immutable connection state instead of live toolbar state</li>
-<li>`~/.pgpass` password lookup using SSH tunnel host instead of original host when connecting through SSH</li>
+<li>Optional iCloud Keychain sync for connection passwords</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>`Use ~/.pgpass` setting not persisting when saving a PostgreSQL connection</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.2/TablePro-0.20.2-x86_64.zip" length="19508788" type="application/octet-stream" sparkle:edSignature="WCCTz6bCTmCjIrUV2iWT4RppY1Y9E7t0Dtu9IBHDa7EEOCIY1VEdGuad0Md+UQWOA3foFuBpHVeWKq3rNcpCBA==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.3/TablePro-0.20.3-x86_64.zip" length="19516768" type="application/octet-stream" sparkle:edSignature="GXR+N7XS227XOP1aDEIA82V2gpbTEUtHGFyalf1d94KAPDUkbneUra1Py8CzDn1okpYSlqsxUomDwSyMGYlvBQ==" sparkle:architectures="x86_64"/>
         </item>
     </channel>
 </rss>
