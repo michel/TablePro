@@ -8,6 +8,7 @@
             <sparkle:version>39</sparkle:version>
             <sparkle:shortVersionString>0.20.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
 <li>Optional iCloud Keychain sync for connection passwords</li>
@@ -16,7 +17,7 @@
 <ul>
 <li>`Use ~/.pgpass` setting not persisting when saving a PostgreSQL connection</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.3/TablePro-0.20.3-arm64.zip" length="20056909" type="application/octet-stream" sparkle:edSignature="PETlSd7Vzo25F79nDW7/YiL3HH8rHbZnDovEKSH4FVgo28hPpuMbGn+Z0ZYiqQHuiKFo/ChEMSsEZTlEL7W3Bw==" sparkle:architectures="arm64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.3/TablePro-0.20.3-arm64.zip" length="20056909" type="application/octet-stream" sparkle:edSignature="PETlSd7Vzo25F79nDW7/YiL3HH8rHbZnDovEKSH4FVgo28hPpuMbGn+Z0ZYiqQHuiKFo/ChEMSsEZTlEL7W3Bw=="/>
         </item>
         <item>
             <title>0.20.3</title>
@@ -32,7 +33,7 @@
 <ul>
 <li>`Use ~/.pgpass` setting not persisting when saving a PostgreSQL connection</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.3/TablePro-0.20.3-x86_64.zip" length="19516768" type="application/octet-stream" sparkle:edSignature="GXR+N7XS227XOP1aDEIA82V2gpbTEUtHGFyalf1d94KAPDUkbneUra1Py8CzDn1okpYSlqsxUomDwSyMGYlvBQ==" sparkle:architectures="x86_64"/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.3/TablePro-0.20.3-x86_64.zip" length="19516768" type="application/octet-stream" sparkle:edSignature="GXR+N7XS227XOP1aDEIA82V2gpbTEUtHGFyalf1d94KAPDUkbneUra1Py8CzDn1okpYSlqsxUomDwSyMGYlvBQ=="/>
         </item>
     </channel>
 </rss>
