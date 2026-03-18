@@ -13,7 +13,9 @@ final class KeychainHelper {
     private let service = "com.TablePro"
     private static let logger = Logger(subsystem: "com.TablePro", category: "KeychainHelper")
     private static let migrationKey = "com.TablePro.keychainMigratedToDataProtection"
-    private static let passwordSyncEnabledKey = "com.TablePro.keychainPasswordSyncEnabled"
+    static let passwordSyncEnabledKey = "com.TablePro.keychainPasswordSyncEnabled"
+
+    private let migrationLock = NSLock()
 
     private var isPasswordSyncEnabled: Bool {
         UserDefaults.standard.bool(forKey: Self.passwordSyncEnabledKey)
@@ -40,6 +42,7 @@ final class KeychainHelper {
         var status = SecItemAdd(addQuery as CFDictionary, nil)
 
         if status == errSecDuplicateItem {
+            let synchronizable = isPasswordSyncEnabled
             let searchQuery: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrService as String: service,
@@ -48,7 +51,8 @@ final class KeychainHelper {
                 kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
             ]
             let updateAttributes: [String: Any] = [
-                kSecValueData as String: data
+                kSecValueData as String: data,
+                kSecAttrSynchronizable as String: synchronizable
             ]
             status = SecItemUpdate(searchQuery as CFDictionary, updateAttributes as CFDictionary)
         }
@@ -195,7 +199,11 @@ final class KeychainHelper {
     // MARK: - Password Sync Migration
 
     /// Migrates all TablePro keychain items between local-only and iCloud-synchronizable.
+    /// Serialized via `migrationLock` to prevent concurrent migrations from rapid toggling.
     func migratePasswordSyncState(synchronizable: Bool) {
+        migrationLock.lock()
+        defer { migrationLock.unlock() }
+
         Self.logger.info("Starting keychain sync migration: synchronizable=\(synchronizable)")
 
         let searchQuery: [String: Any] = [
@@ -260,7 +268,7 @@ final class KeychainHelper {
                 kSecAttrService as String: service,
                 kSecAttrAccount as String: account,
                 kSecUseDataProtectionKeychain as String: true,
-                kSecAttrSynchronizable as String: !synchronizable as CFBoolean
+                kSecAttrSynchronizable as String: !synchronizable
             ]
             let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
             if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {

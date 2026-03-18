@@ -55,7 +55,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         KeychainHelper.shared.migrateFromLegacyKeychainIfNeeded()
         let syncSettings = AppSettingsStorage.shared.loadSync()
         let passwordSyncExpected = syncSettings.enabled && syncSettings.syncConnections && syncSettings.syncPasswords
-        UserDefaults.standard.set(passwordSyncExpected, forKey: "com.TablePro.keychainPasswordSyncEnabled")
+        let previousSyncState = UserDefaults.standard.bool(forKey: KeychainHelper.passwordSyncEnabledKey)
+        UserDefaults.standard.set(passwordSyncExpected, forKey: KeychainHelper.passwordSyncEnabledKey)
+        if passwordSyncExpected != previousSyncState {
+            Task.detached(priority: .background) {
+                KeychainHelper.shared.migratePasswordSyncState(synchronizable: passwordSyncExpected)
+            }
+        }
         PluginManager.shared.loadPlugins()
 
         Task { @MainActor in

@@ -178,9 +178,9 @@ struct SyncSettingsView: View {
     }
 
     private func onPasswordSyncChanged(_ enabled: Bool) {
-        UserDefaults.standard.set(enabled, forKey: "com.TablePro.keychainPasswordSyncEnabled")
         Task.detached {
             KeychainHelper.shared.migratePasswordSyncState(synchronizable: enabled)
+            UserDefaults.standard.set(enabled, forKey: KeychainHelper.passwordSyncEnabledKey)
         }
     }
 
