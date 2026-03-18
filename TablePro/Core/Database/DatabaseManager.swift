@@ -32,6 +32,10 @@ final class DatabaseManager {
     /// Incremented when any session state changes (status, driver, metadata, etc.).
     private(set) var connectionStatusVersion: Int = 0
 
+    /// Per-connection version counters. Views observe their specific connection's
+    /// counter to avoid cross-connection re-renders.
+    private(set) var connectionStatusVersions: [UUID: Int] = [:]
+
     /// Backward-compatible alias for views not yet migrated to fine-grained counters.
     var sessionVersion: Int { connectionStatusVersion }
 
@@ -39,12 +43,12 @@ final class DatabaseManager {
     private(set) var currentSessionId: UUID?
 
     /// Health monitors for active connections (MySQL/PostgreSQL only)
-    private var healthMonitors: [UUID: ConnectionHealthMonitor] = [:]
+    @ObservationIgnored private var healthMonitors: [UUID: ConnectionHealthMonitor] = [:]
 
     /// Tracks connections with user queries currently in-flight.
     /// The health monitor skips pings while a query is running to avoid
     /// racing on non-thread-safe driver connections.
-    private var queriesInFlight: [UUID: Int] = [:]
+    @ObservationIgnored private var queriesInFlight: [UUID: Int] = [:]
 
     /// Current session (computed from currentSessionId)
     var currentSession: ConnectionSession? {
@@ -90,7 +94,7 @@ final class DatabaseManager {
         if activeSessions[connection.id] == nil {
             var session = ConnectionSession(connection: connection)
             session.status = .connecting
-            activeSessions[connection.id] = session
+            setSession(session, for: connection.id)
         }
         currentSessionId = connection.id
 
@@ -100,7 +104,7 @@ final class DatabaseManager {
             effectiveConnection = try await buildEffectiveConnection(for: connection)
         } catch {
             // Remove failed session
-            activeSessions.removeValue(forKey: connection.id)
+            removeSessionEntry(for: connection.id)
             currentSessionId = nil
             throw error
         }
@@ -112,7 +116,7 @@ final class DatabaseManager {
             do {
                 try await PreConnectHookRunner.run(script: script)
             } catch {
-                activeSessions.removeValue(forKey: connection.id)
+                removeSessionEntry(for: connection.id)
                 currentSessionId = nil
                 throw error
             }
@@ -129,7 +133,7 @@ final class DatabaseManager {
                     try? await SSHTunnelManager.shared.closeTunnel(connectionId: connection.id)
                 }
             }
-            activeSessions.removeValue(forKey: connection.id)
+            removeSessionEntry(for: connection.id)
             currentSessionId = nil
             throw error
         }
@@ -195,7 +199,7 @@ final class DatabaseManager {
                 session.status = driver.status
                 session.effectiveConnection = effectiveConnection
 
-                activeSessions[connection.id] = session  // Single write, single publish
+                setSession(session, for: connection.id)
             }
 
             // Save as last connection for "Reopen Last Session" feature
@@ -221,7 +225,7 @@ final class DatabaseManager {
             }
 
             // Remove failed session completely so UI returns to Welcome window
-            activeSessions.removeValue(forKey: connection.id)
+            removeSessionEntry(for: connection.id)
 
             // Clear current session if this was it
             if currentSessionId == connection.id {
@@ -239,12 +243,11 @@ final class DatabaseManager {
 
     /// Switch to an existing session
     func switchToSession(_ sessionId: UUID) {
-        guard var session = activeSessions[sessionId] else { return }
+        guard activeSessions[sessionId] != nil else { return }
         currentSessionId = sessionId
-
-        // Mark session as active
-        session.markActive()
-        activeSessions[sessionId] = session
+        updateSession(sessionId) { session in
+            session.markActive()
+        }
     }
 
     /// Disconnect a specific session
@@ -260,7 +263,7 @@ final class DatabaseManager {
         await stopHealthMonitor(for: sessionId)
 
         session.driver?.disconnect()
-        activeSessions.removeValue(forKey: sessionId)
+        removeSessionEntry(for: sessionId)
 
         // Clean up shared schema cache for this connection
         SchemaProviderRegistry.shared.clear(for: sessionId)
@@ -293,33 +296,50 @@ final class DatabaseManager {
         }
     }
 
-    /// Update session state (for preserving UI state)
+    /// Update session state (for preserving UI state).
+    /// Skips the write-back when no observable fields changed, avoiding spurious connectionStatusVersion bumps.
     func updateSession(_ sessionId: UUID, update: (inout ConnectionSession) -> Void) {
         guard var session = activeSessions[sessionId] else { return }
+        let before = session
+        let driverBefore = session.driver as AnyObject?
         update(&session)
-        activeSessions[sessionId] = session
+        let driverAfter = session.driver as AnyObject?
+        guard !session.isContentViewEquivalent(to: before) || driverBefore !== driverAfter else { return }
+        setSession(session, for: sessionId)
+    }
+
+    /// Write a session and bump its per-connection version counter.
+    private func setSession(_ session: ConnectionSession, for connectionId: UUID) {
+        activeSessions[connectionId] = session
+        connectionStatusVersions[connectionId, default: 0] &+= 1
+    }
+
+    /// Remove a session and clean up its per-connection version counter.
+    private func removeSessionEntry(for connectionId: UUID) {
+        activeSessions.removeValue(forKey: connectionId)
+        connectionStatusVersions.removeValue(forKey: connectionId)
     }
 
     #if DEBUG
     /// Test-only: inject a session for unit testing without real database connections
     internal func injectSession(_ session: ConnectionSession, for connectionId: UUID) {
-        activeSessions[connectionId] = session
+        setSession(session, for: connectionId)
     }
 
     /// Test-only: remove an injected session
     internal func removeSession(for connectionId: UUID) {
-        activeSessions.removeValue(forKey: connectionId)
+        removeSessionEntry(for: connectionId)
     }
     #endif
 
     // MARK: - Query Execution (uses current session)
 
-    /// Execute a query on the current session
-    func execute(query: String) async throws -> QueryResult {
-        guard let sessionId = currentSessionId, let driver = activeDriver else {
-            throw DatabaseError.notConnected
-        }
-
+    /// Track an in-flight operation for the given session, preventing health monitor
+    /// pings from racing on the same non-thread-safe driver connection.
+    private func trackOperation<T>(
+        sessionId: UUID,
+        operation: () async throws -> T
+    ) async throws -> T {
         queriesInFlight[sessionId, default: 0] += 1
         defer {
             if let count = queriesInFlight[sessionId], count > 1 {
@@ -328,25 +348,40 @@ final class DatabaseManager {
                 queriesInFlight.removeValue(forKey: sessionId)
             }
         }
-        return try await driver.execute(query: query)
+        return try await operation()
+    }
+
+    /// Execute a query on the current session
+    func execute(query: String) async throws -> QueryResult {
+        guard let sessionId = currentSessionId, let driver = activeDriver else {
+            throw DatabaseError.notConnected
+        }
+
+        return try await trackOperation(sessionId: sessionId) {
+            try await driver.execute(query: query)
+        }
     }
 
     /// Fetch tables from the current session
     func fetchTables() async throws -> [TableInfo] {
-        guard let driver = activeDriver else {
+        guard let sessionId = currentSessionId, let driver = activeDriver else {
             throw DatabaseError.notConnected
         }
 
-        return try await driver.fetchTables()
+        return try await trackOperation(sessionId: sessionId) {
+            try await driver.fetchTables()
+        }
     }
 
     /// Fetch columns for a table from the current session
     func fetchColumns(table: String) async throws -> [ColumnInfo] {
-        guard let driver = activeDriver else {
+        guard let sessionId = currentSessionId, let driver = activeDriver else {
             throw DatabaseError.notConnected
         }
 
-        return try await driver.fetchColumns(table: table)
+        return try await trackOperation(sessionId: sessionId) {
+            try await driver.fetchColumns(table: table)
+        }
     }
 
     /// Test a connection without keeping it open
@@ -511,9 +546,13 @@ final class DatabaseManager {
                             }
                         }
                     case .reconnecting(let attempt):
-                        Self.logger.info("Reconnecting session \(id) (attempt \(attempt)/3)")
-                        self.updateSession(id) { session in
-                            session.status = .connecting
+                        Self.logger.info("Reconnecting session \(id) (attempt \(attempt))")
+                        if case .connecting = self.activeSessions[id]?.status {
+                            // Already .connecting — skip redundant write
+                        } else {
+                            self.updateSession(id) { session in
+                                session.status = .connecting
+                            }
                         }
                     case .failed:
                         Self.logger.error(
@@ -761,41 +800,43 @@ final class DatabaseManager {
             throw DatabaseError.notConnected
         }
 
-        // For PostgreSQL PK modification, query the actual constraint name
-        let pkConstraintName = await fetchPrimaryKeyConstraintName(
-            tableName: tableName,
-            databaseType: databaseType,
-            changes: changes,
-            driver: driver
-        )
+        try await trackOperation(sessionId: connectionId) {
+            // For PostgreSQL PK modification, query the actual constraint name
+            let pkConstraintName = await fetchPrimaryKeyConstraintName(
+                tableName: tableName,
+                databaseType: databaseType,
+                changes: changes,
+                driver: driver
+            )
 
-        guard let resolvedPluginDriver = (driver as? PluginDriverAdapter)?.schemaPluginDriver else {
-            throw DatabaseError.unsupportedOperation
-        }
-
-        let generator = SchemaStatementGenerator(
-            tableName: tableName,
-            primaryKeyConstraintName: pkConstraintName,
-            pluginDriver: resolvedPluginDriver
-        )
-        let statements = try generator.generate(changes: changes)
-
-        // Execute in transaction
-        try await driver.beginTransaction()
-
-        do {
-            for stmt in statements {
-                _ = try await driver.execute(query: stmt.sql)
+            guard let resolvedPluginDriver = (driver as? PluginDriverAdapter)?.schemaPluginDriver else {
+                throw DatabaseError.unsupportedOperation
             }
 
-            try await driver.commitTransaction()
+            let generator = SchemaStatementGenerator(
+                tableName: tableName,
+                primaryKeyConstraintName: pkConstraintName,
+                pluginDriver: resolvedPluginDriver
+            )
+            let statements = try generator.generate(changes: changes)
 
-            // Post notification to refresh UI
-            NotificationCenter.default.post(name: .refreshData, object: nil)
-        } catch {
-            // Rollback on error
-            try? await driver.rollbackTransaction()
-            throw DatabaseError.queryFailed("Schema change failed: \(error.localizedDescription)")
+            // Execute in transaction
+            try await driver.beginTransaction()
+
+            do {
+                for stmt in statements {
+                    _ = try await driver.execute(query: stmt.sql)
+                }
+
+                try await driver.commitTransaction()
+
+                // Post notification to refresh UI
+                NotificationCenter.default.post(name: .refreshData, object: nil)
+            } catch {
+                // Rollback on error
+                try? await driver.rollbackTransaction()
+                throw DatabaseError.queryFailed("Schema change failed: \(error.localizedDescription)")
+            }
         }
     }
 
