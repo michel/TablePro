@@ -443,6 +443,7 @@ final class DatabaseManager {
         var effectiveFields = connection.additionalFields
         if connection.usePgpass {
             effectiveFields["pgpassOriginalHost"] = connection.host
+            effectiveFields["pgpassOriginalPort"] = String(connection.port)
         }
 
         return DatabaseConnection(

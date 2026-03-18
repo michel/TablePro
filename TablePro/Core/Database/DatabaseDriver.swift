@@ -337,9 +337,11 @@ enum DatabaseDriverFactory {
     private static func resolvePassword(for connection: DatabaseConnection) -> String {
         if connection.usePgpass {
             let pgpassHost = connection.additionalFields["pgpassOriginalHost"] ?? connection.host
+            let pgpassPort = connection.additionalFields["pgpassOriginalPort"]
+                .flatMap(Int.init) ?? connection.port
             return PgpassReader.resolve(
                 host: pgpassHost.isEmpty ? "localhost" : pgpassHost,
-                port: connection.port,
+                port: pgpassPort,
                 database: connection.database,
                 username: connection.username
             ) ?? ""
