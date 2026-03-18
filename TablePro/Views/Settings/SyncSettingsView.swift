@@ -19,6 +19,7 @@ struct SyncSettingsView: View {
                 Toggle("iCloud Sync:", isOn: $syncSettings.enabled)
                     .onChange(of: syncSettings.enabled) { _, newValue in
                         persistSettings()
+                        updatePasswordSyncFlag()
                         if newValue {
                             syncCoordinator.enableSync()
                         } else {
@@ -104,7 +105,28 @@ struct SyncSettingsView: View {
     private var syncCategoriesSection: some View {
         Section("Sync Categories") {
             Toggle("Connections:", isOn: $syncSettings.syncConnections)
-                .onChange(of: syncSettings.syncConnections) { _, _ in persistSettings() }
+                .onChange(of: syncSettings.syncConnections) { _, newValue in
+                    persistSettings()
+                    if !newValue, syncSettings.syncPasswords {
+                        syncSettings.syncPasswords = false
+                        persistSettings()
+                        onPasswordSyncChanged(false)
+                    }
+                }
+
+            if syncSettings.syncConnections {
+                Toggle("Passwords:", isOn: $syncSettings.syncPasswords)
+                    .onChange(of: syncSettings.syncPasswords) { _, newValue in
+                        persistSettings()
+                        onPasswordSyncChanged(newValue)
+                    }
+                    .padding(.leading, 20)
+
+                Text("Syncs passwords via iCloud Keychain (end-to-end encrypted).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 20)
+            }
 
             Toggle("Groups & Tags:", isOn: $syncSettings.syncGroupsAndTags)
                 .onChange(of: syncSettings.syncGroupsAndTags) { _, _ in persistSettings() }
@@ -154,6 +176,24 @@ struct SyncSettingsView: View {
 
     private func persistSettings() {
         AppSettingsStorage.shared.saveSync(syncSettings)
+    }
+
+    private func onPasswordSyncChanged(_ enabled: Bool) {
+        let effective = syncSettings.enabled && syncSettings.syncConnections && enabled
+        Task.detached {
+            KeychainHelper.shared.migratePasswordSyncState(synchronizable: effective)
+            UserDefaults.standard.set(effective, forKey: KeychainHelper.passwordSyncEnabledKey)
+        }
+    }
+
+    private func updatePasswordSyncFlag() {
+        let effective = syncSettings.enabled && syncSettings.syncConnections && syncSettings.syncPasswords
+        let current = UserDefaults.standard.bool(forKey: KeychainHelper.passwordSyncEnabledKey)
+        guard effective != current else { return }
+        Task.detached {
+            KeychainHelper.shared.migratePasswordSyncState(synchronizable: effective)
+            UserDefaults.standard.set(effective, forKey: KeychainHelper.passwordSyncEnabledKey)
+        }
     }
 
     private func openLicenseSettings() {
