@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.3] - 2026-03-18
+
 ### Added
 
 - Optional iCloud Keychain sync for connection passwords
+
+### Fixed
+
+- `Use ~/.pgpass` setting not persisting when saving a PostgreSQL connection
 
 ## [0.20.2] - 2026-03-18
 
@@ -910,7 +916,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.20.2...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.20.3...HEAD
+[0.20.3]: https://github.com/datlechin/tablepro/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/datlechin/tablepro/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/datlechin/tablepro/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/datlechin/tablepro/compare/v0.19.1...v0.20.0
