@@ -19,6 +19,7 @@ struct SyncSettingsView: View {
                 Toggle("iCloud Sync:", isOn: $syncSettings.enabled)
                     .onChange(of: syncSettings.enabled) { _, newValue in
                         persistSettings()
+                        updatePasswordSyncFlag()
                         if newValue {
                             syncCoordinator.enableSync()
                         } else {
@@ -178,9 +179,20 @@ struct SyncSettingsView: View {
     }
 
     private func onPasswordSyncChanged(_ enabled: Bool) {
+        let effective = syncSettings.enabled && syncSettings.syncConnections && enabled
         Task.detached {
-            KeychainHelper.shared.migratePasswordSyncState(synchronizable: enabled)
-            UserDefaults.standard.set(enabled, forKey: KeychainHelper.passwordSyncEnabledKey)
+            KeychainHelper.shared.migratePasswordSyncState(synchronizable: effective)
+            UserDefaults.standard.set(effective, forKey: KeychainHelper.passwordSyncEnabledKey)
+        }
+    }
+
+    private func updatePasswordSyncFlag() {
+        let effective = syncSettings.enabled && syncSettings.syncConnections && syncSettings.syncPasswords
+        let current = UserDefaults.standard.bool(forKey: KeychainHelper.passwordSyncEnabledKey)
+        guard effective != current else { return }
+        Task.detached {
+            KeychainHelper.shared.migratePasswordSyncState(synchronizable: effective)
+            UserDefaults.standard.set(effective, forKey: KeychainHelper.passwordSyncEnabledKey)
         }
     }
 

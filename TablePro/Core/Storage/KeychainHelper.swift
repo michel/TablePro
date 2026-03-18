@@ -263,18 +263,23 @@ final class KeychainHelper {
                 continue
             }
 
-            let deleteQuery: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: account,
-                kSecUseDataProtectionKeychain as String: true,
-                kSecAttrSynchronizable as String: !synchronizable
-            ]
-            let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
-            if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {
-                Self.logger.warning(
-                    "Migrated item '\(account, privacy: .public)' but failed to delete old entry: \(deleteStatus)"
-                )
+            // When opting IN (synchronizable=true), delete the old local-only item safely.
+            // When opting OUT (synchronizable=false), keep the synchronizable item — deleting it
+            // would propagate via iCloud Keychain and remove it from other Macs still opted in.
+            if synchronizable {
+                let deleteQuery: [String: Any] = [
+                    kSecClass as String: kSecClassGenericPassword,
+                    kSecAttrService as String: service,
+                    kSecAttrAccount as String: account,
+                    kSecUseDataProtectionKeychain as String: true,
+                    kSecAttrSynchronizable as String: false
+                ]
+                let deleteStatus = SecItemDelete(deleteQuery as CFDictionary)
+                if deleteStatus != errSecSuccess, deleteStatus != errSecItemNotFound {
+                    Self.logger.warning(
+                        "Migrated item '\(account, privacy: .public)' but failed to delete old entry: \(deleteStatus)"
+                    )
+                }
             }
 
             migratedCount += 1

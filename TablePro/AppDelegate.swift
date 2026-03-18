@@ -52,11 +52,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = true
-        KeychainHelper.shared.migrateFromLegacyKeychainIfNeeded()
         let syncSettings = AppSettingsStorage.shared.loadSync()
         let passwordSyncExpected = syncSettings.enabled && syncSettings.syncConnections && syncSettings.syncPasswords
         let previousSyncState = UserDefaults.standard.bool(forKey: KeychainHelper.passwordSyncEnabledKey)
         UserDefaults.standard.set(passwordSyncExpected, forKey: KeychainHelper.passwordSyncEnabledKey)
+        KeychainHelper.shared.migrateFromLegacyKeychainIfNeeded()
         if passwordSyncExpected != previousSyncState {
             Task.detached(priority: .background) {
                 KeychainHelper.shared.migratePasswordSyncState(synchronizable: passwordSyncExpected)
