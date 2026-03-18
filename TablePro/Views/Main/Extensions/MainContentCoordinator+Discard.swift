@@ -17,7 +17,7 @@ extension MainContentCoordinator {
         let sqlPreview = statements.map(\.sql).joined(separator: "\n")
         let window = await MainActor.run { NSApp.keyWindow }
         let permission = await SafeModeGuard.checkPermission(
-            level: connection.safeModeLevel,
+            level: safeModeLevel,
             isWriteOperation: true,
             sql: sqlPreview,
             operationDescription: String(localized: "Save Sidebar Changes"),

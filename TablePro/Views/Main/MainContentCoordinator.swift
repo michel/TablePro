@@ -49,6 +49,9 @@ final class MainContentCoordinator {
 
     let connection: DatabaseConnection
     var connectionId: UUID { connection.id }
+    /// Live safe mode level — reads from toolbar state (user-editable),
+    /// not from the immutable connection snapshot.
+    var safeModeLevel: SafeModeLevel { toolbarState.safeModeLevel }
     let tabManager: QueryTabManager
     let changeManager: DataChangeManager
     let filterStateManager: FilterStateManager
@@ -508,7 +511,7 @@ final class MainContentCoordinator {
         guard !statements.isEmpty else { return }
 
         // Safe mode enforcement for query execution
-        let level = connection.safeModeLevel
+        let level = safeModeLevel
 
         if level == .readOnly {
             let writeStatements = statements.filter { isWriteQuery($0) }
@@ -584,7 +587,7 @@ final class MainContentCoordinator {
         let sql = tabManager.tabs[index].query
         guard !sql.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        let level = connection.safeModeLevel
+        let level = safeModeLevel
         if level.appliesToAllQueries && level.requiresConfirmation,
            tabManager.tabs[index].lastExecutedAt == nil
         {
@@ -688,7 +691,7 @@ final class MainContentCoordinator {
         let statements = SQLStatementScanner.allStatements(in: trimmed)
         guard let stmt = statements.first else { return }
 
-        let level = connection.safeModeLevel
+        let level = safeModeLevel
         let needsConfirmation = level.appliesToAllQueries && level.requiresConfirmation
 
         // Multi-variant EXPLAIN: use plugin-declared variants if available
