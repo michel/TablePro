@@ -264,7 +264,7 @@ bundle_dylibs() {
     # (e.g. strchrnul) that don't exist on earlier OS versions → launch crash.
     echo "   Verifying deployment target compatibility..."
     local deploy_target
-    deploy_target=$(echo "$build_settings" | grep -m 1 '^\s*MACOSX_DEPLOYMENT_TARGET = ' | awk '{print $3}')
+    deploy_target=$(grep -m 1 '^\s*MACOSX_DEPLOYMENT_TARGET = ' <<< "$build_settings" | awk '{print $3}')
     if [ -n "$deploy_target" ]; then
         local deploy_major
         deploy_major=$(echo "$deploy_target" | cut -d. -f1)
@@ -373,7 +373,7 @@ build_for_arch() {
     echo "✅ Build succeeded for $arch"
 
     # Get binary path with validation
-    DERIVED_DATA=$(echo "$build_settings" | grep -m 1 "BUILD_DIR" | awk '{print $3}')
+    DERIVED_DATA=$(grep -m 1 "BUILD_DIR" <<< "$build_settings" | awk '{print $3}')
 
     if [ -z "$DERIVED_DATA" ]; then
         echo "❌ FATAL: Failed to determine build directory from xcodebuild settings"
