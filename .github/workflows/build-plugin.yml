@@ -223,7 +223,7 @@ jobs:
             build/Plugins/${BUNDLE_NAME}-arm64.zip \
             build/Plugins/${BUNDLE_NAME}-x86_64.zip
 
-          # Update plugin registry
+          # Update plugin registry (with retry to handle parallel pushes)
           if [ -n "${REGISTRY_DEPLOY_KEY:-}" ]; then
             ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${BUNDLE_NAME}-arm64.zip"
             X86_64_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${BUNDLE_NAME}-x86_64.zip"
@@ -234,14 +234,24 @@ jobs:
 
             git clone git@github.com:datlechin/tablepro-plugins.git "$WORK/registry"
             cd "$WORK/registry"
-            git pull --rebase origin main
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
 
-            python3 - \
-              "$BUNDLE_ID" "$DISPLAY_NAME" "$VERSION" "$SUMMARY" \
-              "$DB_TYPE_IDS" "$ARM64_URL" "$ARM64_SHA" \
-              "$X86_64_URL" "$X86_SHA" "$MIN_APP_VERSION" \
-              "$ICON" "$HOMEPAGE" "$CATEGORY" \
-              <<'PYTHON_SCRIPT'
+            # Retry loop: pull latest, apply update, push — retry if another job pushed first
+            MAX_RETRIES=10
+            for attempt in $(seq 1 $MAX_RETRIES); do
+              echo "Registry update attempt $attempt/$MAX_RETRIES"
+
+              # Reset any previous commit and pull latest
+              git reset --hard origin/main
+              git pull --rebase origin main
+
+              python3 - \
+                "$BUNDLE_ID" "$DISPLAY_NAME" "$VERSION" "$SUMMARY" \
+                "$DB_TYPE_IDS" "$ARM64_URL" "$ARM64_SHA" \
+                "$X86_64_URL" "$X86_SHA" "$MIN_APP_VERSION" \
+                "$ICON" "$HOMEPAGE" "$CATEGORY" \
+                <<'PYTHON_SCRIPT'
           import json, sys
 
           bundle_id, name, version, summary = sys.argv[1:5]
@@ -278,11 +288,24 @@ jobs:
               f.write("\n")
           PYTHON_SCRIPT
 
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add plugins.json
-            git commit -m "Update $DISPLAY_NAME to v$VERSION"
-            git push
+              git add plugins.json
+              git commit -m "Update $DISPLAY_NAME to v$VERSION"
+
+              if git push; then
+                echo "Registry updated successfully on attempt $attempt"
+                break
+              fi
+
+              if [ "$attempt" -eq "$MAX_RETRIES" ]; then
+                echo "::error::Failed to push registry update after $MAX_RETRIES attempts"
+                exit 1
+              fi
+
+              # Jittered backoff: 2-5s base + random to spread parallel retries
+              DELAY=$((2 + RANDOM % 4))
+              echo "Push rejected (concurrent update), retrying in ${DELAY}s..."
+              sleep "$DELAY"
+            done
 
             ssh-add -D
             eval "$(ssh-agent -k)"
