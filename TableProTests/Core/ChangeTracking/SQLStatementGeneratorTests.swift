@@ -24,7 +24,8 @@ struct SQLStatementGeneratorTests {
             tableName: tableName,
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
-            databaseType: databaseType
+            databaseType: databaseType,
+            dialect: PluginManager.shared.sqlDialect(for: databaseType)
         )
     }
 
@@ -1207,5 +1208,130 @@ struct SQLStatementGeneratorTests {
         #expect(stmt.sql.range(of: "\"name\" = $1") != nil)
         #expect(stmt.sql.range(of: "\"email\" = $2") != nil)
         #expect(stmt.sql.range(of: "\"id\" = $3") != nil)
+    }
+
+    // MARK: - Reserved Keyword Column Name Regression (GH-373)
+
+    @Test("UPDATE quotes reserved keyword column names in MySQL")
+    func testUpdateQuotesReservedKeywordColumnMySQL() {
+        let generator = makeGenerator(
+            tableName: "connections",
+            columns: ["id", "database", "table", "order"],
+            primaryKeyColumn: "id"
+        )
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .update,
+                cellChanges: [
+                    CellChange(rowIndex: 0, columnIndex: 1, columnName: "database", oldValue: "old_db", newValue: "new_db")
+                ],
+                originalRow: ["1", "old_db", "users", "5"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("`database` = ?"))
+        #expect(stmt.sql.contains("WHERE `id` = ?"))
+        #expect(!stmt.sql.contains("SET database ="))
+    }
+
+    @Test("INSERT quotes reserved keyword column names in MySQL")
+    func testInsertQuotesReservedKeywordColumnMySQL() {
+        let generator = makeGenerator(
+            tableName: "connections",
+            columns: ["id", "database", "order"],
+            primaryKeyColumn: "id"
+        )
+        let insertedRowData: [Int: [String?]] = [
+            0: ["1", "mydb", "5"]
+        ]
+        let changes: [RowChange] = [
+            RowChange(rowIndex: 0, type: .insert, cellChanges: [], originalRow: nil)
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: insertedRowData,
+            deletedRowIndices: [],
+            insertedRowIndices: [0]
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("`database`"))
+        #expect(stmt.sql.contains("`order`"))
+        #expect(!stmt.sql.contains("(database,"))
+        #expect(!stmt.sql.contains(", order)"))
+    }
+
+    @Test("DELETE quotes reserved keyword column names in MySQL (no PK)")
+    func testDeleteQuotesReservedKeywordColumnMySQL() {
+        let generator = makeGenerator(
+            tableName: "connections",
+            columns: ["id", "database", "select"],
+            primaryKeyColumn: nil
+        )
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .delete,
+                cellChanges: [],
+                originalRow: ["1", "mydb", "foo"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [0],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        #expect(stmt.sql.contains("`database`"))
+        #expect(stmt.sql.contains("`select`"))
+    }
+
+    @Test("UPDATE quotes reserved keyword column names in PostgreSQL")
+    func testUpdateQuotesReservedKeywordColumnPostgreSQL() {
+        let generator = makeGenerator(
+            tableName: "connections",
+            columns: ["id", "database", "order"],
+            primaryKeyColumn: "id",
+            databaseType: .postgresql
+        )
+        let changes: [RowChange] = [
+            RowChange(
+                rowIndex: 0,
+                type: .update,
+                cellChanges: [
+                    CellChange(rowIndex: 0, columnIndex: 1, columnName: "database", oldValue: "old_db", newValue: "new_db")
+                ],
+                originalRow: ["1", "old_db", "5"]
+            )
+        ]
+
+        let statements = generator.generateStatements(
+            from: changes,
+            insertedRowData: [:],
+            deletedRowIndices: [],
+            insertedRowIndices: []
+        )
+
+        #expect(statements.count == 1)
+        let stmt = statements[0]
+        // PostgreSQL uses double quotes
+        #expect(stmt.sql.contains("\"database\" = $1"))
+        #expect(stmt.sql.contains("\"id\" = $2"))
     }
 }

@@ -22,7 +22,8 @@ struct SQLStatementGeneratorMSSQLTests {
             tableName: tableName,
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
-            databaseType: .mssql
+            databaseType: .mssql,
+            dialect: PluginManager.shared.sqlDialect(for: .mssql)
         )
     }
 

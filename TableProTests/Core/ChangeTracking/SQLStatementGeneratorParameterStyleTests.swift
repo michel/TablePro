@@ -27,7 +27,8 @@ struct SQLStatementGeneratorParameterStyleTests {
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
             databaseType: databaseType,
-            parameterStyle: parameterStyle
+            parameterStyle: parameterStyle,
+            dialect: PluginManager.shared.sqlDialect(for: databaseType)
         )
     }
 

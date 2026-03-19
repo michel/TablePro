@@ -21,7 +21,8 @@ struct SQLStatementGeneratorPKRegressionTests {
             tableName: tableName,
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
-            databaseType: databaseType
+            databaseType: databaseType,
+            dialect: PluginManager.shared.sqlDialect(for: databaseType)
         )
     }
 

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- SQL syntax error when editing columns with reserved keyword names (e.g., `database`, `table`, `order`) in MySQL/PostgreSQL/SQLite
+- High CPU usage and memory leaks at idle
+- N+1 query performance in foreign key fetching with bulk queries
+- Architecture-specific update delivery using `sparkle:hardwareRequirements`
+
+### Changed
+
+- Improved performance for medium and low severity bottlenecks (query history, tab persistence, sidebar rendering)
+
 ## [0.20.3] - 2026-03-18
 
 ### Added

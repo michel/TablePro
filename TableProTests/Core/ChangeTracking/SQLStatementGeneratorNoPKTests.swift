@@ -23,7 +23,8 @@ struct SQLStatementGeneratorNoPKTests {
             tableName: tableName,
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
-            databaseType: databaseType
+            databaseType: databaseType,
+            dialect: PluginManager.shared.sqlDialect(for: databaseType)
         )
     }
 

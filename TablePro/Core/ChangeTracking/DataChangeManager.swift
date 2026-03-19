@@ -696,6 +696,7 @@ final class DataChangeManager {
             columns: columns,
             primaryKeyColumn: primaryKeyColumn,
             databaseType: databaseType,
+            dialect: PluginManager.shared.sqlDialect(for: databaseType),
             quoteIdentifier: pluginDriver?.quoteIdentifier
         )
         let statements = generator.generateStatements(
