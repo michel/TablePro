@@ -14,6 +14,8 @@ struct PluginIconView: View {
         } else {
             Image(name)
                 .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
         }
     }
 }

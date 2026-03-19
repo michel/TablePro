@@ -290,7 +290,7 @@ extension DatabaseType {
         if NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil {
             return Image(systemName: name)
         }
-        return Image(name)
+        return Image(name).resizable()
     }
 
     var defaultPort: Int {
