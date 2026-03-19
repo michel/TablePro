@@ -19,6 +19,9 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     private static let maxScanKeys = PluginRowLimits.defaultMax
 
+    private var cachedScanPattern: String?
+    private var cachedScanKeys: [String]?
+
     var serverVersion: String? {
         redisConnection?.serverVersion()
     }
@@ -42,6 +45,7 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let conn = RedisPluginConnection(
             host: config.host,
             port: config.port,
+            username: config.username.isEmpty ? nil : config.username,
             password: config.password.isEmpty ? nil : config.password,
             database: redisDb,
             sslConfig: sslConfig
@@ -54,6 +58,8 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     func disconnect() {
         redisConnection?.disconnect()
         redisConnection = nil
+        cachedScanPattern = nil
+        cachedScanKeys = nil
     }
 
     func ping() async throws {
@@ -70,28 +76,15 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     func execute(query: String) async throws -> PluginQueryResult {
         let startTime = Date()
+        cachedScanPattern = nil
+        cachedScanKeys = nil
+        redisConnection?.resetCancellation()
 
         guard let conn = redisConnection else {
             throw RedisPluginError.notConnected
         }
 
-        var trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmed.caseInsensitiveCompare("SELECT") == .orderedSame {
-            trimmed = "SELECT 0"
-        }
-
-        // Health monitor sends "SELECT 1" as a ping — intercept and remap to PING.
-        if trimmed.lowercased() == "select 1" {
-            _ = try await conn.executeCommand(["PING"])
-            return PluginQueryResult(
-                columns: ["ok"],
-                columnTypeNames: ["Int32"],
-                rows: [["1"]],
-                rowsAffected: 0,
-                executionTime: Date().timeIntervalSince(startTime)
-            )
-        }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let operation = try RedisCommandParser.parse(trimmed)
         return try await executeOperation(operation, connection: conn, startTime: startTime)
@@ -129,6 +122,7 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
     func fetchRows(query: String, offset: Int, limit: Int) async throws -> PluginQueryResult {
         let startTime = Date()
+        redisConnection?.resetCancellation()
 
         guard let conn = redisConnection else {
             throw RedisPluginError.notConnected
@@ -139,7 +133,18 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
 
         switch operation {
         case .scan(_, let pattern, _):
-            let allKeys = try await scanAllKeys(connection: conn, pattern: pattern, maxKeys: Self.maxScanKeys)
+            let dbIndex = conn.currentDatabase()
+            let cacheKey = "\(dbIndex):\(pattern ?? "*")"
+            let allKeys: [String]
+            if cachedScanPattern == cacheKey, let cached = cachedScanKeys {
+                allKeys = cached
+            } else {
+                allKeys = try await scanAllKeys(
+                    connection: conn, pattern: pattern, maxKeys: Self.maxScanKeys
+                )
+                cachedScanPattern = cacheKey
+                cachedScanKeys = allKeys
+            }
             let pageEnd = min(offset + limit, allKeys.count)
             guard offset < allKeys.count else {
                 return buildEmptyKeyResult(startTime: startTime)
@@ -165,37 +170,46 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     // MARK: - Schema Operations
 
     func fetchTables(schema: String?) async throws -> [PluginTableInfo] {
+        redisConnection?.resetCancellation()
         guard let conn = redisConnection else {
             throw RedisPluginError.notConnected
         }
 
+        // Parse key counts from INFO keyspace
         let result = try await conn.executeCommand(["INFO", "keyspace"])
-        guard let info = result.stringValue else { return [] }
+        var keyCounts: [String: Int] = [:]
+        if let info = result.stringValue {
+            for line in info.components(separatedBy: .newlines) {
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard trimmed.hasPrefix("db"),
+                      let colonIndex = trimmed.firstIndex(of: ":") else { continue }
 
-        var databases: [PluginTableInfo] = []
-        for line in info.components(separatedBy: .newlines) {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard trimmed.hasPrefix("db"),
-                  let colonIndex = trimmed.firstIndex(of: ":") else { continue }
+                let dbName = String(trimmed[trimmed.startIndex ..< colonIndex])
+                let statsStr = String(trimmed[trimmed.index(after: colonIndex)...])
 
-            let dbName = String(trimmed[trimmed.startIndex ..< colonIndex])
-            let statsStr = String(trimmed[trimmed.index(after: colonIndex)...])
-
-            var keyCount = 0
-            for stat in statsStr.components(separatedBy: ",") {
-                let parts = stat.components(separatedBy: "=")
-                if parts.count == 2, parts[0] == "keys", let count = Int(parts[1]) {
-                    keyCount = count
-                    break
+                for stat in statsStr.components(separatedBy: ",") {
+                    let parts = stat.components(separatedBy: "=")
+                    if parts.count == 2, parts[0] == "keys", let count = Int(parts[1]) {
+                        keyCounts[dbName] = count
+                        break
+                    }
                 }
-            }
-
-            if keyCount > 0 {
-                databases.append(PluginTableInfo(name: dbName, type: "TABLE", rowCount: keyCount))
             }
         }
 
-        return databases
+        // Get total database count from CONFIG GET databases
+        let configResult = try await conn.executeCommand(["CONFIG", "GET", "databases"])
+        var maxDatabases = 16
+        if let array = configResult.stringArrayValue, array.count >= 2, let count = Int(array[1]) {
+            maxDatabases = count
+        }
+
+        // Return all databases (including empty ones) so users can navigate to them
+        return (0 ..< maxDatabases).map { index in
+            let dbName = "db\(index)"
+            let keyCount = keyCounts[dbName] ?? 0
+            return PluginTableInfo(name: dbName, type: "TABLE", rowCount: keyCount)
+        }
     }
 
     func fetchColumns(table: String, schema: String?) async throws -> [PluginColumnInfo] {
@@ -291,7 +305,15 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     }
 
     func fetchDatabases() async throws -> [String] {
-        []
+        guard let conn = redisConnection else {
+            throw RedisPluginError.notConnected
+        }
+        let result = try await conn.executeCommand(["CONFIG", "GET", "databases"])
+        var maxDatabases = 16
+        if let array = result.stringArrayValue, array.count >= 2, let count = Int(array[1]) {
+            maxDatabases = count
+        }
+        return (0 ..< maxDatabases).map { "db\($0)" }
     }
 
     func fetchDatabaseMetadata(_ database: String) async throws -> PluginDatabaseMetadata {
@@ -358,11 +380,29 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     // MARK: - Database Switching
 
     func switchDatabase(to database: String) async throws {
+        redisConnection?.resetCancellation()
         guard let conn = redisConnection else { throw RedisPluginError.notConnected }
-        guard let dbIndex = Int(database) ?? Int(database.dropFirst(2)) else {
+        let dbIndex: Int
+        if let idx = Int(database) {
+            dbIndex = idx
+        } else if database.lowercased().hasPrefix("db"), let idx = Int(database.dropFirst(2)) {
+            dbIndex = idx
+        } else {
             throw RedisPluginError(code: 0, message: "Invalid database index: \(database)")
         }
         try await conn.selectDatabase(dbIndex)
+    }
+
+    // MARK: - Table Operations
+
+    func truncateTableStatements(table: String, schema: String?, cascade: Bool) -> [String]? {
+        ["FLUSHDB"]
+    }
+
+    func dropObjectStatement(name: String, objectType: String, schema: String?, cascade: Bool) -> String? {
+        // Redis databases are pre-allocated and cannot be dropped.
+        // Return empty string to prevent adapter from synthesizing SQL DROP.
+        ""
     }
 
     // MARK: - EXPLAIN
@@ -390,7 +430,7 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 return k
             case .sadd(let k, _), .srem(let k, _):
                 return k
-            case .zadd(let k, _), .zrem(let k, _):
+            case .zadd(let k, _, _), .zrem(let k, _):
                 return k
             case .del(let keys) where keys.count == 1:
                 return keys[0]
@@ -400,7 +440,8 @@ final class RedisPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         }()
 
         guard let key else { return nil }
-        return "DEBUG OBJECT \(key)"
+        let quoted = key.contains(" ") || key.contains("\"") ? "\"\(key.replacingOccurrences(of: "\"", with: "\\\""))\"" : key
+        return "DEBUG OBJECT \(quoted)"
     }
 
     // MARK: - View Templates
@@ -564,6 +605,8 @@ private extension RedisPluginDriver {
             if let opts = options {
                 if let ex = opts.ex { args += ["EX", String(ex)] }
                 if let px = opts.px { args += ["PX", String(px)] }
+                if let exat = opts.exat { args += ["EXAT", String(exat)] }
+                if let pxat = opts.pxat { args += ["PXAT", String(pxat)] }
                 if opts.nx { args.append("NX") }
                 if opts.xx { args.append("XX") }
             }
@@ -644,7 +687,10 @@ private extension RedisPluginDriver {
             return buildStatusResult(success ? "OK" : "Key not found or no TTL", startTime: startTime)
 
         case .rename(let key, let newKey):
-            _ = try await conn.executeCommand(["RENAME", key, newKey])
+            let reply = try await conn.executeCommand(["RENAME", key, newKey])
+            if case .error(let msg) = reply {
+                throw RedisPluginError(code: 0, message: "RENAME failed: \(msg)")
+            }
             return buildStatusResult("OK", startTime: startTime)
 
         case .exists(let keys):
@@ -729,7 +775,7 @@ private extension RedisPluginDriver {
         switch operation {
         case .lrange(let key, let start, let stop):
             let result = try await conn.executeCommand(["LRANGE", key, String(start), String(stop)])
-            return buildListResult(result, startTime: startTime)
+            return buildListResult(result, startOffset: start, startTime: startTime)
 
         case .lpush(let key, let values):
             let args = ["LPUSH", key] + values
@@ -831,24 +877,38 @@ private extension RedisPluginDriver {
         startTime: Date
     ) async throws -> PluginQueryResult {
         switch operation {
-        case .zrange(let key, let start, let stop, let withScores):
-            var args = ["ZRANGE", key, String(start), String(stop)]
-            if withScores { args.append("WITHSCORES") }
+        case .zrange(let key, let start, let stop, let flags):
+            var args = ["ZRANGE", key, start, stop]
+            args += flags
+            let withScores = flags.contains("WITHSCORES")
             let result = try await conn.executeCommand(args)
             return buildSortedSetResult(result, withScores: withScores, startTime: startTime)
 
-        case .zadd(let key, let scoreMembers):
+        case .zadd(let key, let flags, let scoreMembers):
             var args = ["ZADD", key]
+            args += flags
             for (score, member) in scoreMembers {
                 args += [String(score), member]
             }
             let result = try await conn.executeCommand(args)
-            let added = result.intValue ?? 0
+            if flags.contains("INCR") {
+                // INCR mode returns the new score (or nil for NX miss)
+                let scoreStr = result.stringValue ?? "nil"
+                return PluginQueryResult(
+                    columns: ["score"],
+                    columnTypeNames: ["String"],
+                    rows: [[scoreStr]],
+                    rowsAffected: 0,
+                    executionTime: Date().timeIntervalSince(startTime)
+                )
+            }
+            let count = result.intValue ?? 0
+            let columnName = flags.contains("CH") ? "changed" : "added"
             return PluginQueryResult(
-                columns: ["added"],
+                columns: [columnName],
                 columnTypeNames: ["Int64"],
-                rows: [[String(added)]],
-                rowsAffected: added,
+                rows: [[String(count)]],
+                rowsAffected: count,
                 executionTime: Date().timeIntervalSince(startTime)
             )
 
@@ -957,7 +1017,9 @@ private extension RedisPluginDriver {
             return buildStatusResult("OK", startTime: startTime)
 
         case .select(let database):
-            _ = try await conn.executeCommand(["SELECT", String(database)])
+            try await conn.selectDatabase(database)
+            cachedScanPattern = nil
+            cachedScanKeys = nil
             return buildStatusResult("OK", startTime: startTime)
 
         case .configGet(let parameter):
@@ -1085,22 +1147,59 @@ private extension RedisPluginDriver {
             return buildEmptyKeyResult(startTime: startTime)
         }
 
-        var commands: [[String]] = []
-        commands.reserveCapacity(keys.count * 2)
+        var typeAndTtlCommands: [[String]] = []
+        typeAndTtlCommands.reserveCapacity(keys.count * 2)
         for key in keys {
-            commands.append(["TYPE", key])
-            commands.append(["TTL", key])
+            typeAndTtlCommands.append(["TYPE", key])
+            typeAndTtlCommands.append(["TTL", key])
         }
-        let replies = try await conn.executePipeline(commands)
+        let typeAndTtlReplies = try await conn.executePipeline(typeAndTtlCommands)
+
+        var typeNames: [String] = []
+        typeNames.reserveCapacity(keys.count)
+        var ttlValues: [Int] = []
+        ttlValues.reserveCapacity(keys.count)
+        for i in 0 ..< keys.count {
+            let typeName = (typeAndTtlReplies[i * 2].stringValue ?? "unknown").uppercased()
+            let ttl = typeAndTtlReplies[i * 2 + 1].intValue ?? -1
+            typeNames.append(typeName)
+            ttlValues.append(ttl)
+        }
+
+        var previewCommands: [[String]] = []
+        previewCommands.reserveCapacity(keys.count)
+        var previewCommandIndices: [Int] = []
+        previewCommandIndices.reserveCapacity(keys.count)
+
+        for (i, key) in keys.enumerated() {
+            let command: [String]? = previewCommandForType(typeNames[i], key: key)
+            if let command {
+                previewCommandIndices.append(previewCommands.count)
+                previewCommands.append(command)
+            } else {
+                previewCommandIndices.append(-1)
+            }
+        }
+
+        var previewReplies: [RedisReply] = []
+        if !previewCommands.isEmpty {
+            previewReplies = try await conn.executePipeline(previewCommands)
+        }
 
         var rows: [[String?]] = []
+        rows.reserveCapacity(keys.count)
         for (i, key) in keys.enumerated() {
-            let typeName = (replies[i * 2].stringValue ?? "unknown").uppercased()
-            let ttl = replies[i * 2 + 1].intValue ?? -1
-            let ttlStr = String(ttl)
-
-            let value = try await fetchValuePreview(key: key, type: typeName, connection: conn)
-            rows.append([key, typeName, ttlStr, value])
+            let ttlStr = String(ttlValues[i])
+            let pipelineIndex = previewCommandIndices[i]
+            let preview: String?
+            if pipelineIndex >= 0, pipelineIndex < previewReplies.count {
+                preview = formatPreviewReply(
+                    previewReplies[pipelineIndex], type: typeNames[i]
+                )
+            } else {
+                preview = nil
+            }
+            rows.append([key, typeNames[i], ttlStr, preview])
         }
 
         return PluginQueryResult(
@@ -1113,47 +1212,64 @@ private extension RedisPluginDriver {
         )
     }
 
-    func fetchValuePreview(key: String, type: String, connection conn: RedisPluginConnection) async throws -> String? {
+    func previewCommandForType(_ type: String, key: String) -> [String]? {
         switch type.lowercased() {
         case "string":
-            let result = try await conn.executeCommand(["GET", key])
-            return truncatePreview(result.stringValue)
+            return ["GET", key]
+        case "hash":
+            return ["HSCAN", key, "0", "COUNT", String(Self.previewLimit)]
+        case "list":
+            return ["LRANGE", key, "0", String(Self.previewLimit - 1)]
+        case "set":
+            return ["SSCAN", key, "0", "COUNT", String(Self.previewLimit)]
+        case "zset":
+            return ["ZRANGE", key, "0", String(Self.previewLimit - 1), "WITHSCORES"]
+        case "stream":
+            return ["XREVRANGE", key, "+", "-", "COUNT", "5"]
+        default:
+            return nil
+        }
+    }
+
+    func formatPreviewReply(_ reply: RedisReply, type: String) -> String? {
+        switch type.lowercased() {
+        case "string":
+            return truncatePreview(reply.stringValue)
 
         case "hash":
-            let result = try await conn.executeCommand(["HSCAN", key, "0", "COUNT", String(Self.previewLimit)])
             let array: [String]
-            if case .array(let scanResult) = result,
+            if case .array(let scanResult) = reply,
                scanResult.count == 2,
                let items = scanResult[1].stringArrayValue {
                 array = items
-            } else if let items = result.stringArrayValue, !items.isEmpty {
+            } else if let items = reply.stringArrayValue, !items.isEmpty {
                 array = items
             } else {
                 return "{}"
             }
             guard !array.isEmpty else { return "{}" }
             var pairs: [String] = []
-            var i = 0
-            while i + 1 < array.count {
-                pairs.append("\"\(escapeJsonString(array[i]))\":\"\(escapeJsonString(array[i + 1]))\"")
-                i += 2
+            var idx = 0
+            while idx + 1 < array.count {
+                pairs.append(
+                    "\"\(escapeJsonString(array[idx]))\":\"\(escapeJsonString(array[idx + 1]))\""
+                )
+                idx += 2
             }
             return truncatePreview("{\(pairs.joined(separator: ","))}")
 
         case "list":
-            let result = try await conn.executeCommand(["LRANGE", key, "0", String(Self.previewLimit - 1)])
-            guard let items = result.stringArrayValue else { return "[]" }
+            guard let items = reply.stringArrayValue else { return "[]" }
             let quoted = items.map { "\"\(escapeJsonString($0))\"" }
             return truncatePreview("[\(quoted.joined(separator: ", "))]")
 
         case "set":
-            let result = try await conn.executeCommand(["SSCAN", key, "0", "COUNT", String(Self.previewLimit)])
             let members: [String]
-            if case .array(let scanResult) = result,
+            if case .array(let scanResult) = reply,
                scanResult.count == 2,
                let items = scanResult[1].stringArrayValue {
                 members = items
-            } else if let items = result.stringArrayValue {
+            } else if let items = reply.stringArrayValue {
                 members = items
             } else {
                 return "[]"
@@ -1162,15 +1278,37 @@ private extension RedisPluginDriver {
             return truncatePreview("[\(quoted.joined(separator: ", "))]")
 
         case "zset":
-            let result = try await conn.executeCommand(["ZRANGE", key, "0", String(Self.previewLimit - 1)])
-            guard let members = result.stringArrayValue else { return "[]" }
-            let quoted = members.map { "\"\(escapeJsonString($0))\"" }
-            return truncatePreview("[\(quoted.joined(separator: ", "))]")
+            // Parse WITHSCORES result: alternating member, score pairs
+            guard let items = reply.stringArrayValue, !items.isEmpty else { return "[]" }
+            var pairs: [String] = []
+            var i = 0
+            while i + 1 < items.count {
+                pairs.append("\(items[i]):\(items[i + 1])")
+                i += 2
+            }
+            return truncatePreview(pairs.joined(separator: ", "))
 
         case "stream":
-            let lenResult = try await conn.executeCommand(["XLEN", key])
-            let len = lenResult.intValue ?? 0
-            return "(\(len) entries)"
+            // Parse XREVRANGE result: array of [id, [field, value, ...]] entries
+            guard let entries = reply.arrayValue, !entries.isEmpty else {
+                return "(0 entries)"
+            }
+            var entryStrings: [String] = []
+            for entry in entries {
+                guard let parts = entry.arrayValue, parts.count >= 2,
+                      let entryId = parts[0].stringValue,
+                      let fields = parts[1].stringArrayValue else {
+                    continue
+                }
+                var fieldPairs: [String] = []
+                var j = 0
+                while j + 1 < fields.count {
+                    fieldPairs.append("\(fields[j])=\(fields[j + 1])")
+                    j += 2
+                }
+                entryStrings.append("\(entryId): \(fieldPairs.joined(separator: ", "))")
+            }
+            return truncatePreview(entryStrings.joined(separator: "; "))
 
         default:
             return nil
@@ -1179,22 +1317,28 @@ private extension RedisPluginDriver {
 
     func truncatePreview(_ value: String?) -> String? {
         guard let value else { return nil }
-        if value.count > Self.previewMaxChars {
-            return String(value.prefix(Self.previewMaxChars)) + "..."
+        let nsValue = value as NSString
+        if nsValue.length > Self.previewMaxChars {
+            return nsValue.substring(to: Self.previewMaxChars) + "..."
         }
         return value
     }
 
     func escapeJsonString(_ str: String) -> String {
         var result = ""
-        for char in str {
-            switch char {
+        for scalar in str.unicodeScalars {
+            switch scalar {
             case "\\": result += "\\\\"
             case "\"": result += "\\\""
             case "\n": result += "\\n"
             case "\r": result += "\\r"
             case "\t": result += "\\t"
-            default: result.append(char)
+            default:
+                if scalar.value < 0x20 {
+                    result += String(format: "\\u%04X", scalar.value)
+                } else {
+                    result += String(scalar)
+                }
             }
         }
         return result
@@ -1317,7 +1461,7 @@ private extension RedisPluginDriver {
         )
     }
 
-    func buildListResult(_ result: RedisReply, startTime: Date) -> PluginQueryResult {
+    func buildListResult(_ result: RedisReply, startOffset: Int = 0, startTime: Date) -> PluginQueryResult {
         guard let array = result.stringArrayValue else {
             return PluginQueryResult(
                 columns: ["Index", "Value"],
@@ -1329,7 +1473,7 @@ private extension RedisPluginDriver {
         }
 
         let rows = array.enumerated().map { index, value -> [String?] in
-            [String(index), value]
+            [String(startOffset + index), value]
         }
 
         return PluginQueryResult(
