@@ -219,32 +219,48 @@ with the release in Step 3 — no separate commit needed.
 ### Step 7: Check for Separate Plugin Changes
 
 After the app release is pushed, check if any **separate plugin bundles**
-(Oracle, ClickHouse, DuckDB, MSSQL, MongoDB, Redis, XLSX, MQL,
-SQLImport) have changes since their last
-release. Also check `Plugins/TableProPluginKit/` — changes there affect
-all plugins.
+have changes since their last release. Also check
+`Plugins/TableProPluginKit/` — changes there affect all plugins.
 
-**Detection**: For each separate plugin, find its latest tag and check
-for commits:
+**Important**: Do NOT use a hardcoded plugin list. Dynamically discover
+all separate plugins by scanning the `Plugins/` directory and excluding
+built-in plugins and the shared framework.
+
+**Detection**: Dynamically find all separate plugin directories and check
+each for changes:
 
 ```bash
-# Separate plugins and their directory + tag-name mappings:
-#   Oracle:     Plugins/OracleDriverPlugin/     plugin-oracle
-#   ClickHouse: Plugins/ClickHouseDriverPlugin/  plugin-clickhouse
-#   DuckDB:     Plugins/DuckDBDriverPlugin/      plugin-duckdb
-#   MSSQL:      Plugins/MSSQLDriverPlugin/       plugin-mssql
-#   MongoDB:    Plugins/MongoDBDriverPlugin/     plugin-mongodb
-#   Redis:      Plugins/RedisDriverPlugin/       plugin-redis
-#   XLSX:       Plugins/XLSXExportPlugin/        plugin-xlsx
-#   MQL:        Plugins/MQLExportPlugin/         plugin-mql
-#   SQLImport:  Plugins/SQLImportPlugin/         plugin-sqlimport
+# Built-in plugins (bundled in app) and shared framework — skip these:
+BUILTIN="MySQLDriverPlugin|PostgreSQLDriverPlugin|SQLiteDriverPlugin|CSVExportPlugin|JSONExportPlugin|SQLExportPlugin|TableProPluginKit"
 
-# For each plugin, find the latest tag:
-LAST_TAG=$(git tag -l "plugin-<name>-v*" --sort=-version:refname | head -1)
+# Discover all separate plugin directories dynamically:
+for dir in Plugins/*/; do
+  dirname=$(basename "$dir")
+  # Skip built-in plugins and PluginKit
+  echo "$dirname" | grep -qE "^($BUILTIN)$" && continue
 
-# Check for changes since that tag (include PluginKit as shared dependency):
-git log --oneline "$LAST_TAG"..HEAD -- Plugins/<PluginDir>/ Plugins/TableProPluginKit/
+  # Derive tag name from directory (e.g., OracleDriverPlugin -> oracle,
+  # XLSXExportPlugin -> xlsx, SQLImportPlugin -> sqlimport,
+  # CloudflareD1DriverPlugin -> d1, EtcdDriverPlugin -> etcd)
+  # Strip "DriverPlugin" or "ExportPlugin" or "ImportPlugin" suffix,
+  # then lowercase. For "CloudflareD1", use "d1". Apply custom mappings
+  # as needed based on the CI workflow's tag-name expectations.
+  tag_name=<derived-lowercase-name>
+
+  LAST_TAG=$(git tag -l "plugin-${tag_name}-v*" --sort=-version:refname | head -1)
+  # Check for changes since that tag (include PluginKit as shared dependency):
+  if [ -z "$LAST_TAG" ]; then
+    git log --oneline -- "Plugins/${dirname}/" "Plugins/TableProPluginKit/"
+  else
+    git log --oneline "${LAST_TAG}..HEAD" -- "Plugins/${dirname}/" "Plugins/TableProPluginKit/"
+  fi
+done
 ```
+
+The tag name derivation must match the CI workflow's mapping. Known
+mappings: `CloudflareD1DriverPlugin` → `d1`, `EtcdDriverPlugin` →
+`etcd`. For standard plugins, strip the suffix and lowercase (e.g.,
+`OracleDriverPlugin` → `oracle`, `XLSXExportPlugin` → `xlsx`).
 
 If `LAST_TAG` is empty (never released), check for changes since the
 beginning of the repo.
@@ -280,9 +296,8 @@ Plugin releases:
 
 ## Plugin Releases
 
-Separate plugin bundles (Oracle, ClickHouse, DuckDB, MSSQL, MongoDB,
-Redis, XLSX, MQL, SQLImport) are released independently from the main
-app via a dedicated workflow
+Separate plugin bundles (any plugin not built-in) are released
+independently from the main app via a dedicated workflow
 (`.github/workflows/build-plugin.yml`). They are also checked
 automatically during app releases (Step 7 above).
 
@@ -302,9 +317,9 @@ plugin-<name>-v<version>
 
 Examples: `plugin-oracle-v1.0.0`, `plugin-clickhouse-v1.2.0`
 
-The `<name>` must match one of the cases in the workflow's mapping:
-`oracle`, `clickhouse`, `duckdb`, `cassandra`, `mssql`, `mongodb`,
-`redis`, `xlsx`, `mql`, `sqlimport`.
+The `<name>` must match one of the cases in the workflow's mapping.
+Check `.github/workflows/build-plugin.yml` for the current list of
+supported names. New plugins must be added to the workflow mapping.
 
 ### Plugin Release Steps
 
