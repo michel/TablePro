@@ -61,17 +61,16 @@ struct DDLTextView: NSViewRepresentable {
     private static let syntaxPatterns: [(regex: NSRegularExpression, color: NSColor)] = {
         var patterns: [(NSRegularExpression, NSColor)] = []
 
-        // SQL Keywords (blue)
+        // SQL Keywords (blue) — single alternation regex for all keywords
         let keywords = [
             "CREATE", "TABLE", "PRIMARY", "KEY", "FOREIGN", "REFERENCES",
             "NOT", "NULL", "DEFAULT", "UNIQUE", "INDEX", "AUTO_INCREMENT",
             "ON", "DELETE", "UPDATE", "CASCADE", "RESTRICT", "SET",
             "INT", "INTEGER", "VARCHAR", "CHAR", "TEXT", "TIMESTAMP", "DATETIME"
         ]
-        for keyword in keywords {
-            if let regex = try? NSRegularExpression(pattern: "\\b\(keyword)\\b", options: .caseInsensitive) {
-                patterns.append((regex, .systemBlue))
-            }
+        let keywordPattern = "\\b(" + keywords.joined(separator: "|") + ")\\b"
+        if let regex = try? NSRegularExpression(pattern: keywordPattern, options: .caseInsensitive) {
+            patterns.append((regex, .systemBlue))
         }
 
         // Strings (red)
@@ -106,10 +105,12 @@ struct DDLTextView: NSViewRepresentable {
         textStorage.addAttribute(.font, value: font, range: fullRange)
         textStorage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: fullRange)
 
-        // Apply pre-compiled patterns
+        // Apply pre-compiled patterns (cap to 10k chars for large DDL safety)
         let text = textStorage.string
+        let highlightLength = min(textStorage.length, 10_000)
+        let highlightRange = NSRange(location: 0, length: highlightLength)
         for (regex, color) in Self.syntaxPatterns {
-            let matches = regex.matches(in: text, options: [], range: fullRange)
+            let matches = regex.matches(in: text, options: [], range: highlightRange)
             for match in matches {
                 textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
             }

@@ -57,6 +57,8 @@ final class PluginManager {
 
     private var pendingPluginURLs: [(url: URL, source: PluginSource)] = []
 
+    private var queryBuildingDriverCache: [String: (any PluginDatabaseDriver)?] = [:]
+
     private init() {}
 
     private func migrateDisabledPluginsKey() {
@@ -207,6 +209,8 @@ final class PluginManager {
 
             Self.logger.info("Loaded plugin '\(entry.name)' v\(entry.version) [\(item.source == .builtIn ? "built-in" : "user")]")
         }
+
+        queryBuildingDriverCache.removeAll()
     }
 
     private func discoverAllPlugins() {
@@ -247,6 +251,7 @@ final class PluginManager {
             }
         }
 
+        queryBuildingDriverCache.removeAll()
         hasFinishedInitialLoad = true
         validateDependencies()
         Self.logger.info("Loaded \(self.plugins.count) plugin(s): \(self.driverPlugins.count) driver(s), \(self.exportPlugins.count) export format(s), \(self.importPlugins.count) import format(s)")
@@ -622,13 +627,23 @@ final class PluginManager {
     /// Returns a temporary plugin driver for query building (buildBrowseQuery), or nil
     /// if the plugin doesn't implement custom query building (NoSQL hooks).
     func queryBuildingDriver(for databaseType: DatabaseType) -> (any PluginDatabaseDriver)? {
-        guard let plugin = driverPlugin(for: databaseType) else { return nil }
-        let config = DriverConnectionConfig(host: "", port: 0, username: "", password: "", database: "")
-        let driver = plugin.createDriver(config: config)
-        guard driver.buildBrowseQuery(table: "_probe", sortColumns: [], columns: [], limit: 1, offset: 0) != nil else {
+        let typeId = databaseType.pluginTypeId
+        if let cached = queryBuildingDriverCache[typeId] { return cached }
+        guard let plugin = driverPlugin(for: databaseType) else {
+            if hasFinishedInitialLoad {
+                queryBuildingDriverCache[typeId] = .some(nil)
+            }
             return nil
         }
-        return driver
+        let config = DriverConnectionConfig(host: "", port: 0, username: "", password: "", database: "")
+        let driver = plugin.createDriver(config: config)
+        let result: (any PluginDatabaseDriver)? =
+            driver.buildBrowseQuery(table: "_probe", sortColumns: [], columns: [], limit: 1, offset: 0) != nil
+            ? driver : nil
+        if hasFinishedInitialLoad {
+            queryBuildingDriverCache[typeId] = .some(result)
+        }
+        return result
     }
 
     func editorLanguage(for databaseType: DatabaseType) -> EditorLanguage {
@@ -856,6 +871,7 @@ final class PluginManager {
             unregisterCapabilities(pluginId: pluginId)
         }
 
+        queryBuildingDriverCache.removeAll()
         Self.logger.info("Plugin '\(pluginId)' \(enabled ? "enabled" : "disabled")")
     }
 
@@ -1004,6 +1020,8 @@ final class PluginManager {
         var disabled = disabledPluginIds
         disabled.remove(id)
         disabledPluginIds = disabled
+
+        queryBuildingDriverCache.removeAll()
 
         Self.logger.info("Uninstalled plugin '\(id)'")
         _needsRestart = true
