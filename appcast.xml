@@ -3,43 +3,47 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.20.4</title>
-            <pubDate>Thu, 19 Mar 2026 03:40:27 +0000</pubDate>
-            <sparkle:version>40</sparkle:version>
-            <sparkle:shortVersionString>0.20.4</sparkle:shortVersionString>
+            <title>0.21.0</title>
+            <pubDate>Thu, 19 Mar 2026 14:00:46 +0000</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>0.21.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>SQL syntax error when editing columns with reserved keyword names (e.g., `database`, `table`, `order`) in MySQL/PostgreSQL/SQLite</li>
-<li>High CPU usage and memory leaks at idle</li>
-<li>N+1 query performance in foreign key fetching with bulk queries</li>
-<li>Architecture-specific update delivery using `sparkle:hardwareRequirements`</li>
+<li>Cloudflare D1 database support</li>
+<li>Match highlighting in autocomplete suggestions (matched characters shown in bold)</li>
+<li>Loading spinner in autocomplete popup while fetching column metadata</li>
 </ul>
 <h3>Changed</h3>
 <ul>
-<li>Improved performance for medium and low severity bottlenecks (query history, tab persistence, sidebar rendering)</li>
+<li>Refactored autocomplete popup to native SwiftUI (visible selection highlight, native accent color, scroll-to-selection)</li>
+<li>Autocomplete now suppresses noisy empty-prefix suggestions in non-browseable contexts (e.g., after SELECT, WHERE)</li>
+<li>Autocomplete ranking stays consistent as you type (unified fuzzy scoring between initial display and live filtering)</li>
+<li>Increased autocomplete suggestion limit from 20 to 40 for schema-heavy contexts (FROM, SELECT, WHERE)</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.4/TablePro-0.20.4-arm64.zip" length="20083075" type="application/octet-stream" sparkle:edSignature="TQ+IIQ9gXd8lilDa4EXj+kFTRPXNN+aa1Ub/JulfdUdfLcotpkVZHp9BUfvuLFBBSGsi8gUBb4W74AuPrZcWAg=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.21.0/TablePro-0.21.0-arm64.zip" length="20134808" type="application/octet-stream" sparkle:edSignature="jUtBlQXZmtUMwi5oo6Z9Y1nw8RCms/EEm2OqNkUvHoIcAjUXbHPVWpZ2NFFgvMIIPW998EG0LqHj1ZZlT2d7AQ=="/>
         </item>
         <item>
-            <title>0.20.4</title>
-            <pubDate>Thu, 19 Mar 2026 03:40:27 +0000</pubDate>
-            <sparkle:version>40</sparkle:version>
-            <sparkle:shortVersionString>0.20.4</sparkle:shortVersionString>
+            <title>0.21.0</title>
+            <pubDate>Thu, 19 Mar 2026 14:00:46 +0000</pubDate>
+            <sparkle:version>41</sparkle:version>
+            <sparkle:shortVersionString>0.21.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>SQL syntax error when editing columns with reserved keyword names (e.g., `database`, `table`, `order`) in MySQL/PostgreSQL/SQLite</li>
-<li>High CPU usage and memory leaks at idle</li>
-<li>N+1 query performance in foreign key fetching with bulk queries</li>
-<li>Architecture-specific update delivery using `sparkle:hardwareRequirements`</li>
+<li>Cloudflare D1 database support</li>
+<li>Match highlighting in autocomplete suggestions (matched characters shown in bold)</li>
+<li>Loading spinner in autocomplete popup while fetching column metadata</li>
 </ul>
 <h3>Changed</h3>
 <ul>
-<li>Improved performance for medium and low severity bottlenecks (query history, tab persistence, sidebar rendering)</li>
+<li>Refactored autocomplete popup to native SwiftUI (visible selection highlight, native accent color, scroll-to-selection)</li>
+<li>Autocomplete now suppresses noisy empty-prefix suggestions in non-browseable contexts (e.g., after SELECT, WHERE)</li>
+<li>Autocomplete ranking stays consistent as you type (unified fuzzy scoring between initial display and live filtering)</li>
+<li>Increased autocomplete suggestion limit from 20 to 40 for schema-heavy contexts (FROM, SELECT, WHERE)</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.20.4/TablePro-0.20.4-x86_64.zip" length="19542648" type="application/octet-stream" sparkle:edSignature="oRk6h5SxxbokFqgccxQhtMTus+UVK8rO1jJyVCxJHqgVxKK3g5nifV3VwJ+P+Hg5UViRZTZjZWjmnbzxquM/Ag=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.21.0/TablePro-0.21.0-x86_64.zip" length="19599229" type="application/octet-stream" sparkle:edSignature="6OzXMFFO7aWENSUs8fMjPO8z67n/k3BfkM+snD5/Qlqazd3C7jN1tdrivp3HkZSGTgV/UTsqLwn6BgFrbHKOBQ=="/>
         </item>
     </channel>
 </rss>
