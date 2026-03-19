@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-03-19
+
 ### Added
 
 - Cloudflare D1 database support
@@ -942,7 +944,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.20.4...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/datlechin/tablepro/compare/v0.20.4...v0.21.0
 [0.20.4]: https://github.com/datlechin/tablepro/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/datlechin/tablepro/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/datlechin/tablepro/compare/v0.20.1...v0.20.2

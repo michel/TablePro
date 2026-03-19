@@ -180,7 +180,6 @@ final class SQLCompletionAdapter: CodeSuggestionDelegate {
         }
         textView.setCursorPositions([CursorPosition(range: NSRange(location: newPosition, length: 0))])
     }
-
 }
 
 // MARK: - SQLSuggestionEntry
