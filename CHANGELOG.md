@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.4] - 2026-03-19
+
 ### Fixed
 
 - SQL syntax error when editing columns with reserved keyword names (e.g., `database`, `table`, `order`) in MySQL/PostgreSQL/SQLite
@@ -927,7 +929,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.20.3...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.20.4...HEAD
+[0.20.4]: https://github.com/datlechin/tablepro/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/datlechin/tablepro/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/datlechin/tablepro/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/datlechin/tablepro/compare/v0.20.0...v0.20.1

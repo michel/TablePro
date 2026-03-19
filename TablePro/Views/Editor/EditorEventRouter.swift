@@ -160,5 +160,4 @@ internal final class EditorEventRouter {
 
         return event
     }
-
 }
