@@ -22,8 +22,20 @@ final class SQLCompletionProvider {
     /// Minimum prefix length to trigger suggestions
     private let minPrefixLength = 1
 
-    /// Maximum number of suggestions to return
-    private let maxSuggestions = 20
+    /// Default maximum number of suggestions to return
+    private let defaultMaxSuggestions = 20
+
+    /// Context-aware suggestion limit: schema-heavy clauses get more results
+    private func maxSuggestions(for clauseType: SQLClauseType) -> Int {
+        switch clauseType {
+        case .from, .join, .into, .dropObject, .createIndex,
+             .select, .where_, .and, .on, .having, .groupBy, .orderBy,
+             .set, .insertColumns, .returning, .using:
+            return 40
+        default:
+            return defaultMaxSuggestions
+        }
+    }
 
     // MARK: - Init
 
@@ -65,16 +77,17 @@ final class SQLCompletionProvider {
         // Get candidates based on context
         var candidates = await getCandidates(for: context)
 
-        // Filter by prefix
+        // Filter by prefix and compute match highlight ranges
         if !context.prefix.isEmpty {
             candidates = filterByPrefix(candidates, prefix: context.prefix)
+            populateMatchRanges(&candidates, prefix: context.prefix)
         }
 
         // Rank results
         candidates = rankResults(candidates, prefix: context.prefix, context: context)
 
         // Limit results
-        let limited = Array(candidates.prefix(maxSuggestions))
+        let limited = Array(candidates.prefix(maxSuggestions(for: context.clauseType)))
 
         return (limited, context)
     }
@@ -478,8 +491,17 @@ final class SQLCompletionProvider {
 
     // MARK: - Filtering
 
+    /// Filter and rank items by prefix, returning sorted results with match ranges
+    func filterAndRank(_ items: [SQLCompletionItem], prefix: String, context: SQLContext) -> [SQLCompletionItem] {
+        var filtered = filterByPrefix(items, prefix: prefix)
+        // Clear stale match ranges before recomputing
+        for i in filtered.indices { filtered[i].matchedRanges = [] }
+        populateMatchRanges(&filtered, prefix: prefix)
+        return rankResults(filtered, prefix: prefix, context: context)
+    }
+
     /// Filter candidates by prefix (case-insensitive) with fuzzy matching support
-    private func filterByPrefix(_ items: [SQLCompletionItem], prefix: String) -> [SQLCompletionItem] {
+    func filterByPrefix(_ items: [SQLCompletionItem], prefix: String) -> [SQLCompletionItem] {
         guard !prefix.isEmpty else { return items }
 
         let lowerPrefix = prefix.lowercased()
@@ -503,7 +525,7 @@ final class SQLCompletionProvider {
     /// Fuzzy matching with scoring: returns penalty score (higher = worse),
     /// nil = no match. Uses NSString character-at-index for O(1) random
     /// access instead of Swift String indexing (LP-9).
-    private func fuzzyMatchScore(pattern: String, target: String) -> Int? {
+    func fuzzyMatchScore(pattern: String, target: String) -> Int? {
         let nsPattern = pattern as NSString
         let nsTarget = target as NSString
         let patternLen = nsPattern.length
@@ -552,10 +574,98 @@ final class SQLCompletionProvider {
         fuzzyMatchScore(pattern: pattern, target: target) != nil
     }
 
+    /// Fuzzy matching that returns both score and matched character indices
+    private func fuzzyMatchWithIndices(pattern: String, target: String) -> (score: Int, indices: [Int])? {
+        let nsPattern = pattern as NSString
+        let nsTarget = target as NSString
+        let patternLen = nsPattern.length
+        let targetLen = nsTarget.length
+
+        guard patternLen > 0, targetLen > 0 else { return nil }
+
+        var patternIdx = 0
+        var targetIdx = 0
+        var gaps = 0
+        var consecutiveMatches = 0
+        var maxConsecutive = 0
+        var lastMatchIdx = -1
+        var matchedIndices: [Int] = []
+
+        while patternIdx < patternLen && targetIdx < targetLen {
+            let pChar = nsPattern.character(at: patternIdx)
+            let tChar = nsTarget.character(at: targetIdx)
+
+            if pChar == tChar {
+                matchedIndices.append(targetIdx)
+                if lastMatchIdx == targetIdx - 1 {
+                    consecutiveMatches += 1
+                    maxConsecutive = max(maxConsecutive, consecutiveMatches)
+                } else {
+                    if lastMatchIdx >= 0 {
+                        gaps += targetIdx - lastMatchIdx - 1
+                    }
+                    consecutiveMatches = 1
+                }
+                lastMatchIdx = targetIdx
+                patternIdx += 1
+            }
+            targetIdx += 1
+        }
+
+        guard patternIdx == patternLen else { return nil }
+
+        let basePenalty = 50
+        let gapPenalty = gaps * 10
+        let consecutiveBonus = maxConsecutive * 15
+        let score = max(0, basePenalty + gapPenalty - consecutiveBonus)
+        return (score, matchedIndices)
+    }
+
+    /// Populate matchedRanges on each item based on how it matched the prefix
+    private func populateMatchRanges(_ items: inout [SQLCompletionItem], prefix: String) {
+        guard !prefix.isEmpty else { return }
+        let lowerPrefix = prefix.lowercased()
+        let nsPrefix = lowerPrefix as NSString
+
+        for i in items.indices {
+            let nsFilterText = items[i].filterText as NSString
+            let prefixRange = nsFilterText.range(of: lowerPrefix, options: .anchored)
+            if prefixRange.location != NSNotFound {
+                items[i].matchedRanges = [0..<nsPrefix.length]
+            } else {
+                let containsRange = nsFilterText.range(of: lowerPrefix)
+                if containsRange.location != NSNotFound {
+                    items[i].matchedRanges = [containsRange.location..<(containsRange.location + containsRange.length)]
+                } else if let result = fuzzyMatchWithIndices(pattern: lowerPrefix, target: items[i].filterText) {
+                    items[i].matchedRanges = indicesToRanges(result.indices)
+                }
+            }
+        }
+    }
+
+    /// Convert sorted individual character indices into contiguous ranges
+    private func indicesToRanges(_ indices: [Int]) -> [Range<Int>] {
+        guard !indices.isEmpty else { return [] }
+        var ranges: [Range<Int>] = []
+        var start = indices[0]
+        var end = indices[0]
+        for i in 1..<indices.count {
+            if indices[i] == end + 1 {
+                end = indices[i]
+            } else {
+                ranges.append(start..<(end + 1))
+                start = indices[i]
+                end = indices[i]
+            }
+        }
+        ranges.append(start..<(end + 1))
+        return ranges
+    }
+
     // MARK: - Ranking
 
     /// Rank results by relevance
-    private func rankResults(_ items: [SQLCompletionItem], prefix: String, context: SQLContext) -> [SQLCompletionItem] {
+    func rankResults(_ items: [SQLCompletionItem], prefix: String, context: SQLContext) -> [SQLCompletionItem] {
         let lowerPrefix = prefix.lowercased()
 
         return items.sorted { a, b in
@@ -566,7 +676,7 @@ final class SQLCompletionProvider {
     }
 
     /// Calculate ranking score for an item (lower = better)
-    private func calculateScore(for item: SQLCompletionItem, prefix: String, context: SQLContext) -> Int {
+    func calculateScore(for item: SQLCompletionItem, prefix: String, context: SQLContext) -> Int {
         var score = item.sortPriority
 
         // Exact prefix match bonus

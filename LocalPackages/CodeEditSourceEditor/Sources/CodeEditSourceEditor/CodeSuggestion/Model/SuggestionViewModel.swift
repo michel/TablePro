@@ -11,6 +11,10 @@ import AppKit
 final class SuggestionViewModel: ObservableObject {
     /// The items to be displayed in the window
     @Published var items: [CodeSuggestionEntry] = []
+    @Published var selectedIndex: Int = 0
+    @Published var themeBackground: NSColor = .windowBackgroundColor
+    @Published var themeTextColor: NSColor = .labelColor
+
     var itemsRequestTask: Task<Void, Never>?
     weak var activeTextView: TextViewController?
 
@@ -18,6 +22,51 @@ final class SuggestionViewModel: ObservableObject {
 
     private var cursorPosition: CursorPosition?
     private var syntaxHighlightedCache: [Int: NSAttributedString] = [:]
+
+    var selectedItem: CodeSuggestionEntry? {
+        guard selectedIndex >= 0, selectedIndex < items.count else { return nil }
+        return items[selectedIndex]
+    }
+
+    func moveUp() {
+        guard selectedIndex > 0 else { return }
+        selectedIndex -= 1
+        notifySelection()
+    }
+
+    func moveDown() {
+        guard selectedIndex < items.count - 1 else { return }
+        selectedIndex += 1
+        notifySelection()
+    }
+
+    private func notifySelection() {
+        if let item = selectedItem {
+            delegate?.completionWindowDidSelect(item: item)
+        }
+    }
+
+    func updateTheme(from textView: TextViewController) {
+        themeTextColor = textView.theme.text.color
+        switch textView.systemAppearance {
+        case .aqua:
+            let color = textView.theme.background
+            if color != .clear {
+                themeBackground = NSColor(
+                    red: color.redComponent * 0.95,
+                    green: color.greenComponent * 0.95,
+                    blue: color.blueComponent * 0.95,
+                    alpha: 1.0
+                )
+            } else {
+                themeBackground = .windowBackgroundColor
+            }
+        case .darkAqua:
+            themeBackground = textView.theme.background
+        default:
+            break
+        }
+    }
 
     func showCompletions(
         textView: TextViewController,
@@ -59,7 +108,9 @@ final class SuggestionViewModel: ObservableObject {
                     }
 
                     self.items = completionItems.items
+                    self.selectedIndex = 0
                     self.syntaxHighlightedCache = [:]
+                    self.notifySelection()
                     showWindowOnParent(targetParentWindow, cursorRect)
                 }
             } catch {
@@ -91,6 +142,9 @@ final class SuggestionViewModel: ObservableObject {
         }
 
         items = newItems
+        selectedIndex = 0
+        syntaxHighlightedCache = [:]
+        notifySelection()
     }
 
     func didSelect(item: CodeSuggestionEntry) {
@@ -110,8 +164,12 @@ final class SuggestionViewModel: ObservableObject {
     }
 
     func willClose() {
+        itemsRequestTask?.cancel()
+        itemsRequestTask = nil
         items.removeAll()
+        selectedIndex = 0
         activeTextView = nil
+        delegate = nil
     }
 
     func syntaxHighlights(forIndex index: Int) -> NSAttributedString? {
