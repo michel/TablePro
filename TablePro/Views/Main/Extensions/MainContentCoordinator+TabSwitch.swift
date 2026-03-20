@@ -52,7 +52,7 @@ extension MainContentCoordinator {
             // reloadVersion bump below after everything is set up.
             let pendingState = newTab.pendingChanges
             if pendingState.hasChanges {
-                changeManager.restoreState(from: pendingState, tableName: newTab.tableName ?? "")
+                changeManager.restoreState(from: pendingState, tableName: newTab.tableName ?? "", databaseType: connection.type)
             } else {
                 changeManager.configureForTable(
                     tableName: newTab.tableName ?? "",
