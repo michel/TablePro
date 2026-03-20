@@ -18,6 +18,14 @@ private struct SortedRowsCache {
     let resultVersion: Int
 }
 
+/// Per-tab row provider cache entry — groups all cache-invalidation keys together
+private struct RowProviderCacheEntry {
+    let provider: InMemoryRowProvider
+    let resultVersion: Int
+    let metadataVersion: Int
+    let sortState: SortState
+}
+
 /// Main editor content with tab bar and content switching
 struct MainEditorContentView: View {
     // MARK: - Dependencies
@@ -62,10 +70,7 @@ struct MainEditorContentView: View {
     @State private var sortCache: [UUID: SortedRowsCache] = [:]
 
     // Per-tab row provider cache — avoids recreation on every SwiftUI render.
-    @State private var tabRowProviders: [UUID: InMemoryRowProvider] = [:]
-    @State private var tabProviderVersions: [UUID: Int] = [:]
-    @State private var tabProviderMetaVersions: [UUID: Int] = [:]
-    @State private var tabProviderSortStates: [UUID: SortState] = [:]
+    @State private var tabProviderCache: [UUID: RowProviderCacheEntry] = [:]
     @State private var cachedChangeManager: AnyChangeManager?
     @State private var favoriteDialogQuery: FavoriteDialogQuery?
 
@@ -120,52 +125,32 @@ struct MainEditorContentView: View {
             let openTabIds = Set(newIds)
             sortCache = sortCache.filter { openTabIds.contains($0.key) }
             coordinator.cleanupSortCache(openTabIds: openTabIds)
-            tabRowProviders = tabRowProviders.filter { openTabIds.contains($0.key) }
-            tabProviderVersions = tabProviderVersions.filter { openTabIds.contains($0.key) }
-            tabProviderMetaVersions = tabProviderMetaVersions.filter { openTabIds.contains($0.key) }
-            tabProviderSortStates = tabProviderSortStates.filter { openTabIds.contains($0.key) }
+            tabProviderCache = tabProviderCache.filter { openTabIds.contains($0.key) }
         }
         .onChange(of: tabManager.selectedTabId) { _, newId in
             updateHasQueryText()
 
             guard let newId, let tab = tabManager.selectedTab else { return }
-            if tabProviderVersions[newId] != tab.resultVersion
-                || tabProviderMetaVersions[newId] != tab.metadataVersion {
-                let provider = makeRowProvider(for: tab)
-                tabRowProviders[newId] = provider
-                tabProviderVersions[newId] = tab.resultVersion
-                tabProviderMetaVersions[newId] = tab.metadataVersion
-                tabProviderSortStates[newId] = tab.sortState
+            let cached = tabProviderCache[newId]
+            if cached?.resultVersion != tab.resultVersion
+                || cached?.metadataVersion != tab.metadataVersion {
+                cacheRowProvider(for: tab)
             }
         }
         .onAppear {
             updateHasQueryText()
             cachedChangeManager = AnyChangeManager(dataManager: changeManager)
             if let tab = tabManager.selectedTab {
-                let provider = makeRowProvider(for: tab)
-                tabRowProviders[tab.id] = provider
-                tabProviderVersions[tab.id] = tab.resultVersion
-                tabProviderMetaVersions[tab.id] = tab.metadataVersion
-                tabProviderSortStates[tab.id] = tab.sortState
+                cacheRowProvider(for: tab)
             }
         }
         .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
-            guard let tab = tabManager.selectedTab, newVersion != nil else {
-                return
-            }
-            let provider = makeRowProvider(for: tab)
-            tabRowProviders[tab.id] = provider
-            tabProviderVersions[tab.id] = tab.resultVersion
-            tabProviderMetaVersions[tab.id] = tab.metadataVersion
-            tabProviderSortStates[tab.id] = tab.sortState
+            guard let tab = tabManager.selectedTab, newVersion != nil else { return }
+            cacheRowProvider(for: tab)
         }
         .onChange(of: tabManager.selectedTab?.metadataVersion) { _, _ in
             guard let tab = tabManager.selectedTab else { return }
-            let provider = makeRowProvider(for: tab)
-            tabRowProviders[tab.id] = provider
-            tabProviderVersions[tab.id] = tab.resultVersion
-            tabProviderMetaVersions[tab.id] = tab.metadataVersion
-            tabProviderSortStates[tab.id] = tab.sortState
+            cacheRowProvider(for: tab)
         }
     }
 
@@ -354,16 +339,33 @@ struct MainEditorContentView: View {
 
     private func rowProvider(for tab: QueryTab) -> InMemoryRowProvider {
         if tab.rowBuffer.isEvicted {
-            tabRowProviders.removeValue(forKey: tab.id)
+            tabProviderCache.removeValue(forKey: tab.id)
             return makeRowProvider(for: tab)
         }
-        if let cached = tabRowProviders[tab.id],
-           tabProviderVersions[tab.id] == tab.resultVersion,
-           tabProviderMetaVersions[tab.id] == tab.metadataVersion,
-           tabProviderSortStates[tab.id] == tab.sortState {
-            return cached
+        if let entry = tabProviderCache[tab.id],
+           entry.resultVersion == tab.resultVersion,
+           entry.metadataVersion == tab.metadataVersion,
+           entry.sortState == tab.sortState {
+            return entry.provider
         }
-        return makeRowProvider(for: tab)
+        let provider = makeRowProvider(for: tab)
+        tabProviderCache[tab.id] = RowProviderCacheEntry(
+            provider: provider,
+            resultVersion: tab.resultVersion,
+            metadataVersion: tab.metadataVersion,
+            sortState: tab.sortState
+        )
+        return provider
+    }
+
+    private func cacheRowProvider(for tab: QueryTab) {
+        let provider = makeRowProvider(for: tab)
+        tabProviderCache[tab.id] = RowProviderCacheEntry(
+            provider: provider,
+            resultVersion: tab.resultVersion,
+            metadataVersion: tab.metadataVersion,
+            sortState: tab.sortState
+        )
     }
 
     private func makeRowProvider(for tab: QueryTab) -> InMemoryRowProvider {

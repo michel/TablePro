@@ -776,16 +776,16 @@ final class DataChangeManager {
         return state
     }
 
-    func restoreState(from state: TabPendingChanges, tableName: String, databaseType: DatabaseType? = nil) {
+    func restoreState(from state: TabPendingChanges, tableName: String, databaseType: DatabaseType) {
         self.tableName = tableName
+        self.columns = state.columns
+        self.primaryKeyColumn = state.primaryKeyColumn
+        self.databaseType = databaseType
         self.changes = state.changes
         self.deletedRowIndices = state.deletedRowIndices
         self.insertedRowIndices = state.insertedRowIndices
         self.modifiedCells = state.modifiedCells
         self.insertedRowData = state.insertedRowData
-        self.primaryKeyColumn = state.primaryKeyColumn
-        self.columns = state.columns
-        if let databaseType { self.databaseType = databaseType }
         self.hasChanges = !state.changes.isEmpty
         rebuildChangeIndex()
     }

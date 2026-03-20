@@ -75,7 +75,6 @@ extension MainContentCoordinator {
         }
 
         if changeManager.hasChanges {
-            changeManager.databaseType = dbType
             let editStatements = try changeManager.generateSQL()
             allStatements.append(contentsOf: editStatements)
         }
