@@ -65,6 +65,7 @@ struct MainEditorContentView: View {
     @State private var tabRowProviders: [UUID: InMemoryRowProvider] = [:]
     @State private var tabProviderVersions: [UUID: Int] = [:]
     @State private var tabProviderMetaVersions: [UUID: Int] = [:]
+    @State private var tabProviderSortStates: [UUID: SortState] = [:]
     @State private var cachedChangeManager: AnyChangeManager?
     @State private var favoriteDialogQuery: FavoriteDialogQuery?
 
@@ -122,6 +123,7 @@ struct MainEditorContentView: View {
             tabRowProviders = tabRowProviders.filter { openTabIds.contains($0.key) }
             tabProviderVersions = tabProviderVersions.filter { openTabIds.contains($0.key) }
             tabProviderMetaVersions = tabProviderMetaVersions.filter { openTabIds.contains($0.key) }
+            tabProviderSortStates = tabProviderSortStates.filter { openTabIds.contains($0.key) }
         }
         .onChange(of: tabManager.selectedTabId) { _, newId in
             updateHasQueryText()
@@ -133,6 +135,7 @@ struct MainEditorContentView: View {
                 tabRowProviders[newId] = provider
                 tabProviderVersions[newId] = tab.resultVersion
                 tabProviderMetaVersions[newId] = tab.metadataVersion
+                tabProviderSortStates[newId] = tab.sortState
             }
         }
         .onAppear {
@@ -143,6 +146,7 @@ struct MainEditorContentView: View {
                 tabRowProviders[tab.id] = provider
                 tabProviderVersions[tab.id] = tab.resultVersion
                 tabProviderMetaVersions[tab.id] = tab.metadataVersion
+                tabProviderSortStates[tab.id] = tab.sortState
             }
         }
         .onChange(of: tabManager.selectedTab?.resultVersion) { _, newVersion in
@@ -153,6 +157,7 @@ struct MainEditorContentView: View {
             tabRowProviders[tab.id] = provider
             tabProviderVersions[tab.id] = tab.resultVersion
             tabProviderMetaVersions[tab.id] = tab.metadataVersion
+            tabProviderSortStates[tab.id] = tab.sortState
         }
         .onChange(of: tabManager.selectedTab?.metadataVersion) { _, _ in
             guard let tab = tabManager.selectedTab else { return }
@@ -160,6 +165,7 @@ struct MainEditorContentView: View {
             tabRowProviders[tab.id] = provider
             tabProviderVersions[tab.id] = tab.resultVersion
             tabProviderMetaVersions[tab.id] = tab.metadataVersion
+            tabProviderSortStates[tab.id] = tab.sortState
         }
     }
 
@@ -353,7 +359,8 @@ struct MainEditorContentView: View {
         }
         if let cached = tabRowProviders[tab.id],
            tabProviderVersions[tab.id] == tab.resultVersion,
-           tabProviderMetaVersions[tab.id] == tab.metadataVersion {
+           tabProviderMetaVersions[tab.id] == tab.metadataVersion,
+           tabProviderSortStates[tab.id] == tab.sortState {
             return cached
         }
         return makeRowProvider(for: tab)
