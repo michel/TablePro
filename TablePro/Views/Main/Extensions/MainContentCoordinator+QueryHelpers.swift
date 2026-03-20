@@ -119,7 +119,7 @@ extension MainContentCoordinator {
         updatedTab.isExecuting = false
         updatedTab.lastExecutedAt = Date()
         updatedTab.tableName = tableName
-        updatedTab.isEditable = isEditable && updatedTab.isEditable
+        updatedTab.isEditable = isEditable
         // Populate enum values from column types for the enum popover
         for (index, colType) in updatedTab.columnTypes.enumerated() {
             if case .enumType(_, let values) = colType, let vals = values, index < updatedTab.resultColumns.count {
