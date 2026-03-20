@@ -89,14 +89,12 @@ public final class SuggestionController: NSWindowController {
         textView: TextViewController,
         delegate: CodeSuggestionDelegate,
         cursorPosition: CursorPosition,
-        isManualTrigger: Bool = false,
         asPopover: Bool = false
     ) {
         model.showCompletions(
             textView: textView,
             delegate: delegate,
-            cursorPosition: cursorPosition,
-            isManualTrigger: isManualTrigger
+            cursorPosition: cursorPosition
         ) { parentWindow, cursorRect in
             self.model.updateTheme(from: textView)
 

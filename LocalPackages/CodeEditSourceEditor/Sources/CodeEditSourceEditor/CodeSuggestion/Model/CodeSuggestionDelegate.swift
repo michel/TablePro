@@ -11,8 +11,7 @@ public protocol CodeSuggestionDelegate: AnyObject {
 
     func completionSuggestionsRequested(
         textView: TextViewController,
-        cursorPosition: CursorPosition,
-        isManualTrigger: Bool
+        cursorPosition: CursorPosition
     ) async -> (windowPosition: CursorPosition, items: [CodeSuggestionEntry])?
 
     // This can't be async, we need it to be snappy. At most, it should just be filtering completion items
@@ -37,19 +36,4 @@ public extension CodeSuggestionDelegate {
     func completionTriggerCharacters() -> Set<String> { [] }
     func completionWindowDidClose() { }
     func completionWindowDidSelect(item: CodeSuggestionEntry) { }
-
-    func completionSuggestionsRequested(
-        textView: TextViewController,
-        cursorPosition: CursorPosition,
-        isManualTrigger: Bool
-    ) async -> (windowPosition: CursorPosition, items: [CodeSuggestionEntry])? {
-        await completionSuggestionsRequested(textView: textView, cursorPosition: cursorPosition)
-    }
-
-    func completionSuggestionsRequested(
-        textView: TextViewController,
-        cursorPosition: CursorPosition
-    ) async -> (windowPosition: CursorPosition, items: [CodeSuggestionEntry])? {
-        nil
-    }
 }

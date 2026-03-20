@@ -8,11 +8,6 @@
 import AppKit
 import SwiftUI
 
-final class SuggestionPanel: NSPanel {
-    override var canBecomeKey: Bool { false }
-    override var canBecomeMain: Bool { false }
-}
-
 extension SuggestionController {
     /// Will constrain the window's frame to be within the visible screen
     public func constrainWindowToScreenEdges(cursorRect: NSRect, font: NSFont) {
@@ -95,26 +90,25 @@ extension SuggestionController {
 
     // MARK: - Private Methods
 
-    static func makeWindow() -> NSPanel {
-        let panel = SuggestionPanel(
+    static func makeWindow() -> NSWindow {
+        let window = NSWindow(
             contentRect: .zero,
             styleMask: [.resizable, .fullSizeContentView, .nonactivatingPanel, .utilityWindow],
             backing: .buffered,
             defer: false
         )
 
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.isExcludedFromWindowsMenu = true
-        panel.isReleasedWhenClosed = false
-        panel.level = .popUpMenu
-        panel.hasShadow = true
-        panel.isOpaque = false
-        panel.tabbingMode = .disallowed
-        panel.hidesOnDeactivate = true
-        panel.backgroundColor = .clear
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isExcludedFromWindowsMenu = true
+        window.isReleasedWhenClosed = false
+        window.level = .popUpMenu
+        window.hasShadow = true
+        window.isOpaque = false
+        window.tabbingMode = .disallowed
+        window.hidesOnDeactivate = true
+        window.backgroundColor = .clear
 
-        return panel
+        return window
     }
 }

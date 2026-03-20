@@ -59,10 +59,6 @@ final class SQLCompletionProvider {
         self.favoriteKeywords = keywords
     }
 
-    func retrySchemaIfNeeded() async {
-        await schemaProvider.retryLoadSchemaIfNeeded()
-    }
-
     // MARK: - Public API
 
     /// Get completion suggestions for the current cursor position

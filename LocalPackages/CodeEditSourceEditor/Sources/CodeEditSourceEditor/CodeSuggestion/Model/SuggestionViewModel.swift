@@ -6,11 +6,9 @@
 //
 
 import AppKit
-import os
 
 @MainActor
 final class SuggestionViewModel: ObservableObject {
-    private static let logger = Logger(subsystem: "com.TablePro", category: "SuggestionVM")
     /// The items to be displayed in the window
     @Published var items: [CodeSuggestionEntry] = []
     @Published var selectedIndex: Int = 0
@@ -74,17 +72,13 @@ final class SuggestionViewModel: ObservableObject {
         textView: TextViewController,
         delegate: CodeSuggestionDelegate,
         cursorPosition: CursorPosition,
-        isManualTrigger: Bool = false,
         showWindowOnParent: @escaping @MainActor (NSWindow, NSRect) -> Void
     ) {
         self.activeTextView = nil
         self.delegate = nil
         itemsRequestTask?.cancel()
 
-        guard let targetParentWindow = textView.view.window else {
-            Self.logger.warning("showCompletions: textView.view.window is nil")
-            return
-        }
+        guard let targetParentWindow = textView.view.window else { return }
 
         self.activeTextView = textView
         self.delegate = delegate
@@ -94,14 +88,10 @@ final class SuggestionViewModel: ObservableObject {
             do {
                 guard let completionItems = await delegate.completionSuggestionsRequested(
                     textView: textView,
-                    cursorPosition: cursorPosition,
-                    isManualTrigger: isManualTrigger
+                    cursorPosition: cursorPosition
                 ) else {
-                    Self.logger.debug("showCompletions: delegate returned nil items")
                     return
                 }
-
-                Self.logger.debug("showCompletions: got \(completionItems.items.count) items")
 
                 try Task.checkCancellation()
                 try await MainActor.run {
@@ -114,7 +104,6 @@ final class SuggestionViewModel: ObservableObject {
                           let cursorRect = textView.view.window?.convertToScreen(
                             textView.textView.convert(cursorRect, to: nil)
                           ) else {
-                        Self.logger.warning("showCompletions: cursor rect resolution failed")
                         return
                     }
 
@@ -136,10 +125,7 @@ final class SuggestionViewModel: ObservableObject {
         position: CursorPosition,
         close: () -> Void
     ) {
-        if itemsRequestTask != nil {
-            itemsRequestTask?.cancel()
-            itemsRequestTask = nil
-        }
+        guard itemsRequestTask == nil else { return }
 
         if activeTextView !== textView {
             close()

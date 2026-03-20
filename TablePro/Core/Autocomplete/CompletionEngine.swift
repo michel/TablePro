@@ -51,10 +51,6 @@ final class CompletionEngine {
         provider.updateFavoriteKeywords(keywords)
     }
 
-    func retrySchemaIfNeeded() async {
-        await provider.retrySchemaIfNeeded()
-    }
-
     /// Get completions for the given text and cursor position
     /// This is a pure function - no side effects
     func getCompletions(

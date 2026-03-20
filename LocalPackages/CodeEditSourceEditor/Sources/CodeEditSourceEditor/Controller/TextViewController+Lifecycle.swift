@@ -206,7 +206,6 @@ extension TextViewController {
 
     func handleEvent(event: NSEvent) -> NSEvent? {
         let modifierFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            .subtracting([.capsLock, .function])
         switch event.type {
         case .keyDown:
             let tabKey: UInt16 = 0x30
@@ -310,8 +309,7 @@ extension TextViewController {
             SuggestionController.shared.showCompletions(
                 textView: self,
                 delegate: completionDelegate,
-                cursorPosition: cursorPosition,
-                isManualTrigger: true
+                cursorPosition: cursorPosition
             )
             return nil
         }
