@@ -56,6 +56,11 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     @State private var hasLoadedData = false
 
     // SSH Configuration
+    @State private var sshProfileId: UUID?
+    @State private var sshProfiles: [SSHProfile] = []
+    @State private var showingCreateProfile = false
+    @State private var editingProfile: SSHProfile?
+    @State private var showingSaveAsProfile = false
     @State private var sshEnabled: Bool = false
     @State private var sshHost: String = ""
     @State private var sshPort: String = "22"
@@ -447,207 +452,290 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             }
 
             if sshEnabled {
-                Section(String(localized: "Server")) {
-                    if !sshConfigEntries.isEmpty {
-                        Picker(String(localized: "Config Host"), selection: $selectedSSHConfigHost)
-                        {
-                            Text(String(localized: "Manual")).tag("")
-                            ForEach(sshConfigEntries) { entry in
-                                Text(entry.displayName).tag(entry.host)
-                            }
+                sshProfileSection
+
+                if let profile = selectedSSHProfile {
+                    sshProfileSummarySection(profile)
+                } else if sshProfileId != nil {
+                    Section {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.yellow)
+                            Text("Selected SSH profile no longer exists.")
                         }
-                        .onChange(of: selectedSSHConfigHost) {
-                            applySSHConfigEntry(selectedSSHConfigHost)
+                        Button("Switch to Inline Configuration") {
+                            sshProfileId = nil
                         }
                     }
-                    if selectedSSHConfigHost.isEmpty || sshConfigEntries.isEmpty {
-                        TextField(
-                            String(localized: "SSH Host"),
-                            text: $sshHost,
-                            prompt: Text("ssh.example.com")
-                        )
-                    }
-                    TextField(
-                        String(localized: "SSH Port"),
-                        text: $sshPort,
-                        prompt: Text("22")
-                    )
-                    TextField(
-                        String(localized: "SSH User"),
-                        text: $sshUsername,
-                        prompt: Text("username")
-                    )
-                }
-                Section(String(localized: "Authentication")) {
-                    Picker(String(localized: "Method"), selection: $sshAuthMethod) {
-                        ForEach(SSHAuthMethod.allCases) { method in
-                            Text(method.rawValue).tag(method)
-                        }
-                    }
-                    if sshAuthMethod == .password {
-                        SecureField(String(localized: "Password"), text: $sshPassword)
-                    } else if sshAuthMethod == .sshAgent {
-                        Picker("Agent Socket", selection: $sshAgentSocketOption) {
-                            ForEach(SSHAgentSocketOption.allCases) { option in
-                                Text(option.displayName).tag(option)
-                            }
-                        }
-                        if sshAgentSocketOption == .custom {
-                            TextField(
-                                "Custom Path",
-                                text: $customSSHAgentSocketPath,
-                                prompt: Text("/path/to/agent.sock")
-                            )
-                        }
-                        Text("Keys are provided by the SSH agent (e.g. 1Password, ssh-agent).")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else if sshAuthMethod == .keyboardInteractive {
-                        SecureField(String(localized: "Password"), text: $sshPassword)
-                        Text(
-                            String(localized: "Password is sent via keyboard-interactive challenge-response.")
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    } else {
-                        LabeledContent(String(localized: "Key File")) {
-                            HStack {
-                                TextField(
-                                    "", text: $sshPrivateKeyPath, prompt: Text("~/.ssh/id_rsa"))
-                                Button(String(localized: "Browse")) { browseForPrivateKey() }
-                                    .controlSize(.small)
-                            }
-                        }
-                        SecureField(String(localized: "Passphrase"), text: $keyPassphrase)
-                    }
-                }
-
-                if sshAuthMethod == .keyboardInteractive || sshAuthMethod == .password {
-                    Section(String(localized: "Two-Factor Authentication")) {
-                        Picker(String(localized: "TOTP"), selection: $totpMode) {
-                            ForEach(TOTPMode.allCases) { mode in
-                                Text(mode.displayName).tag(mode)
-                            }
-                        }
-
-                        if totpMode == .autoGenerate {
-                            SecureField(String(localized: "TOTP Secret"), text: $totpSecret)
-                                .help(String(localized: "Base32-encoded secret from your authenticator setup"))
-
-                            Picker(String(localized: "Algorithm"), selection: $totpAlgorithm) {
-                                ForEach(TOTPAlgorithm.allCases) { algo in
-                                    Text(algo.rawValue).tag(algo)
-                                }
-                            }
-
-                            Picker(String(localized: "Digits"), selection: $totpDigits) {
-                                Text("6").tag(6)
-                                Text("8").tag(8)
-                            }
-
-                            Picker(String(localized: "Period"), selection: $totpPeriod) {
-                                Text("30s").tag(30)
-                                Text("60s").tag(60)
-                            }
-                        } else if totpMode == .promptAtConnect {
-                            Text(
-                                String(
-                                    localized:
-                                        "You will be prompted for a verification code each time you connect."
-                                )
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                Section {
-                    DisclosureGroup(String(localized: "Jump Hosts")) {
-                        ForEach($jumpHosts) { $jumpHost in
-                            DisclosureGroup {
-                                TextField(
-                                    String(localized: "Host"),
-                                    text: $jumpHost.host,
-                                    prompt: Text("bastion.example.com")
-                                )
-                                HStack {
-                                    TextField(
-                                        String(localized: "Port"),
-                                        text: Binding(
-                                            get: { String(jumpHost.port) },
-                                            set: { jumpHost.port = Int($0) ?? 22 }
-                                        ),
-                                        prompt: Text("22")
-                                    )
-                                    .frame(width: 80)
-                                    TextField(
-                                        String(localized: "Username"),
-                                        text: $jumpHost.username,
-                                        prompt: Text("admin")
-                                    )
-                                }
-                                Picker(String(localized: "Auth"), selection: $jumpHost.authMethod) {
-                                    ForEach(SSHJumpAuthMethod.allCases) { method in
-                                        Text(method.rawValue).tag(method)
-                                    }
-                                }
-                                if jumpHost.authMethod == .privateKey {
-                                    LabeledContent(String(localized: "Key File")) {
-                                        HStack {
-                                            TextField(
-                                                "", text: $jumpHost.privateKeyPath,
-                                                prompt: Text("~/.ssh/id_rsa"))
-                                            Button(String(localized: "Browse")) {
-                                                browseForJumpHostKey(jumpHost: $jumpHost)
-                                            }
-                                            .controlSize(.small)
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack {
-                                    Text(
-                                        jumpHost.host.isEmpty
-                                            ? String(localized: "New Jump Host")
-                                            : "\(jumpHost.username)@\(jumpHost.host)"
-                                    )
-                                    .foregroundStyle(jumpHost.host.isEmpty ? .secondary : .primary)
-                                    Spacer()
-                                    Button {
-                                        let idToRemove = jumpHost.id
-                                        withAnimation {
-                                            jumpHosts.removeAll { $0.id == idToRemove }
-                                        }
-                                    } label: {
-                                        Image(systemName: "minus.circle.fill")
-                                            .foregroundStyle(.red)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                        .onMove { indices, destination in
-                            jumpHosts.move(fromOffsets: indices, toOffset: destination)
-                        }
-
-                        Button {
-                            jumpHosts.append(SSHJumpHost())
-                        } label: {
-                            Label(String(localized: "Add Jump Host"), systemImage: "plus")
-                        }
-
-                        Text(
-                            "Jump hosts are connected in order before reaching the SSH server above. Only key and agent auth are supported for jumps."
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    }
+                } else {
+                    sshInlineFields
                 }
             }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
+    }
+
+    private var sshProfileSection: some View {
+        Section(String(localized: "SSH Profile")) {
+            Picker(String(localized: "Profile"), selection: $sshProfileId) {
+                Text("Inline Configuration").tag(UUID?.none)
+                ForEach(sshProfiles) { profile in
+                    Text("\(profile.name) (\(profile.username)@\(profile.host))").tag(UUID?.some(profile.id))
+                }
+            }
+
+            HStack(spacing: 12) {
+                Button("Create New Profile...") {
+                    showingCreateProfile = true
+                }
+
+                if sshProfileId != nil {
+                    Button("Edit Profile...") {
+                        if let profileId = sshProfileId {
+                            editingProfile = SSHProfileStorage.shared.profile(for: profileId)
+                        }
+                    }
+                }
+
+                if sshProfileId == nil && sshEnabled && !sshHost.isEmpty {
+                    Button("Save Current as Profile...") {
+                        showingSaveAsProfile = true
+                    }
+                }
+            }
+            .controlSize(.small)
+        }
+        .sheet(isPresented: $showingCreateProfile) {
+            SSHProfileEditorView(existingProfile: nil, onSave: { _ in
+                reloadProfiles()
+            })
+        }
+        .sheet(item: $editingProfile) { profile in
+            SSHProfileEditorView(existingProfile: profile, onSave: { _ in
+                reloadProfiles()
+            }, onDelete: {
+                reloadProfiles()
+            })
+        }
+        .sheet(isPresented: $showingSaveAsProfile) {
+            SSHProfileEditorView(
+                existingProfile: buildProfileFromInlineConfig(),
+                initialPassword: sshPassword,
+                initialKeyPassphrase: keyPassphrase,
+                initialTOTPSecret: totpSecret,
+                onSave: { savedProfile in
+                    sshProfileId = savedProfile.id
+                    reloadProfiles()
+                }
+            )
+        }
+    }
+
+    private var selectedSSHProfile: SSHProfile? {
+        guard let id = sshProfileId else { return nil }
+        return sshProfiles.first { $0.id == id }
+    }
+
+    private func reloadProfiles() {
+        sshProfiles = SSHProfileStorage.shared.loadProfiles()
+        // If the edited/deleted profile no longer exists, clear the selection
+        if let id = sshProfileId, !sshProfiles.contains(where: { $0.id == id }) {
+            sshProfileId = nil
+        }
+    }
+
+    private func buildProfileFromInlineConfig() -> SSHProfile {
+        SSHProfile(
+            name: "",
+            host: sshHost,
+            port: Int(sshPort) ?? 22,
+            username: sshUsername,
+            authMethod: sshAuthMethod,
+            privateKeyPath: sshPrivateKeyPath,
+            useSSHConfig: !selectedSSHConfigHost.isEmpty,
+            agentSocketPath: resolvedSSHAgentSocketPath,
+            jumpHosts: jumpHosts,
+            totpMode: totpMode,
+            totpAlgorithm: totpAlgorithm,
+            totpDigits: totpDigits,
+            totpPeriod: totpPeriod
+        )
+    }
+
+    private func sshProfileSummarySection(_ profile: SSHProfile) -> some View {
+        Section(String(localized: "Profile Settings")) {
+            LabeledContent(String(localized: "Host"), value: profile.host)
+            LabeledContent(String(localized: "Port"), value: String(profile.port))
+            LabeledContent(String(localized: "Username"), value: profile.username)
+            LabeledContent(String(localized: "Auth Method"), value: profile.authMethod.rawValue)
+            if !profile.privateKeyPath.isEmpty {
+                LabeledContent(String(localized: "Key File"), value: profile.privateKeyPath)
+            }
+            if !profile.jumpHosts.isEmpty {
+                LabeledContent(String(localized: "Jump Hosts"), value: "\(profile.jumpHosts.count)")
+            }
+        }
+    }
+
+    private var sshInlineFields: some View {
+        Group {
+            Section(String(localized: "Server")) {
+                if !sshConfigEntries.isEmpty {
+                    Picker(String(localized: "Config Host"), selection: $selectedSSHConfigHost) {
+                        Text(String(localized: "Manual")).tag("")
+                        ForEach(sshConfigEntries) { entry in
+                            Text(entry.displayName).tag(entry.host)
+                        }
+                    }
+                    .onChange(of: selectedSSHConfigHost) {
+                        applySSHConfigEntry(selectedSSHConfigHost)
+                    }
+                }
+                if selectedSSHConfigHost.isEmpty || sshConfigEntries.isEmpty {
+                    TextField(String(localized: "SSH Host"), text: $sshHost, prompt: Text("ssh.example.com"))
+                }
+                TextField(String(localized: "SSH Port"), text: $sshPort, prompt: Text("22"))
+                TextField(String(localized: "SSH User"), text: $sshUsername, prompt: Text("username"))
+            }
+
+            Section(String(localized: "Authentication")) {
+                Picker(String(localized: "Method"), selection: $sshAuthMethod) {
+                    ForEach(SSHAuthMethod.allCases) { method in
+                        Text(method.rawValue).tag(method)
+                    }
+                }
+                if sshAuthMethod == .password {
+                    SecureField(String(localized: "Password"), text: $sshPassword)
+                } else if sshAuthMethod == .sshAgent {
+                    Picker("Agent Socket", selection: $sshAgentSocketOption) {
+                        ForEach(SSHAgentSocketOption.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    if sshAgentSocketOption == .custom {
+                        TextField("Custom Path", text: $customSSHAgentSocketPath, prompt: Text("/path/to/agent.sock"))
+                    }
+                    Text("Keys are provided by the SSH agent (e.g. 1Password, ssh-agent).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if sshAuthMethod == .keyboardInteractive {
+                    SecureField(String(localized: "Password"), text: $sshPassword)
+                    Text(String(localized: "Password is sent via keyboard-interactive challenge-response."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    LabeledContent(String(localized: "Key File")) {
+                        HStack {
+                            TextField("", text: $sshPrivateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                            Button(String(localized: "Browse")) { browseForPrivateKey() }
+                                .controlSize(.small)
+                        }
+                    }
+                    SecureField(String(localized: "Passphrase"), text: $keyPassphrase)
+                }
+            }
+
+            if sshAuthMethod == .keyboardInteractive || sshAuthMethod == .password {
+                Section(String(localized: "Two-Factor Authentication")) {
+                    Picker(String(localized: "TOTP"), selection: $totpMode) {
+                        ForEach(TOTPMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+
+                    if totpMode == .autoGenerate {
+                        SecureField(String(localized: "TOTP Secret"), text: $totpSecret)
+                            .help(String(localized: "Base32-encoded secret from your authenticator setup"))
+                        Picker(String(localized: "Algorithm"), selection: $totpAlgorithm) {
+                            ForEach(TOTPAlgorithm.allCases) { algo in
+                                Text(algo.rawValue).tag(algo)
+                            }
+                        }
+                        Picker(String(localized: "Digits"), selection: $totpDigits) {
+                            Text("6").tag(6)
+                            Text("8").tag(8)
+                        }
+                        Picker(String(localized: "Period"), selection: $totpPeriod) {
+                            Text("30s").tag(30)
+                            Text("60s").tag(60)
+                        }
+                    } else if totpMode == .promptAtConnect {
+                        Text(String(localized: "You will be prompted for a verification code each time you connect."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Section {
+                DisclosureGroup(String(localized: "Jump Hosts")) {
+                    ForEach($jumpHosts) { $jumpHost in
+                        DisclosureGroup {
+                            TextField(String(localized: "Host"), text: $jumpHost.host, prompt: Text("bastion.example.com"))
+                            HStack {
+                                TextField(
+                                    String(localized: "Port"),
+                                    text: Binding(
+                                        get: { String(jumpHost.port) },
+                                        set: { jumpHost.port = Int($0) ?? 22 }
+                                    ),
+                                    prompt: Text("22")
+                                )
+                                .frame(width: 80)
+                                TextField(String(localized: "Username"), text: $jumpHost.username, prompt: Text("admin"))
+                            }
+                            Picker(String(localized: "Auth"), selection: $jumpHost.authMethod) {
+                                ForEach(SSHJumpAuthMethod.allCases) { method in
+                                    Text(method.rawValue).tag(method)
+                                }
+                            }
+                            if jumpHost.authMethod == .privateKey {
+                                LabeledContent(String(localized: "Key File")) {
+                                    HStack {
+                                        TextField("", text: $jumpHost.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                                        Button(String(localized: "Browse")) {
+                                            browseForJumpHostKey(jumpHost: $jumpHost)
+                                        }
+                                        .controlSize(.small)
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(
+                                    jumpHost.host.isEmpty
+                                        ? String(localized: "New Jump Host")
+                                        : "\(jumpHost.username)@\(jumpHost.host)"
+                                )
+                                .foregroundStyle(jumpHost.host.isEmpty ? .secondary : .primary)
+                                Spacer()
+                                Button {
+                                    let idToRemove = jumpHost.id
+                                    withAnimation { jumpHosts.removeAll { $0.id == idToRemove } }
+                                } label: {
+                                    Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .onMove { indices, destination in
+                        jumpHosts.move(fromOffsets: indices, toOffset: destination)
+                    }
+
+                    Button {
+                        jumpHosts.append(SSHJumpHost())
+                    } label: {
+                        Label(String(localized: "Add Jump Host"), systemImage: "plus")
+                    }
+
+                    Text("Jump hosts are connected in order before reaching the SSH server above. Only key and agent auth are supported for jumps.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     // MARK: - SSL/TLS Tab
@@ -881,7 +969,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 .allSatisfy { !(additionalFieldValues[$0.id] ?? "").isEmpty }
             basicValid = basicValid && hasRequiredFields && !password.isEmpty
         }
-        if sshEnabled {
+        if sshEnabled && sshProfileId == nil {
             let sshPortValid = sshPort.isEmpty || (Int(sshPort).map { (1...65_535).contains($0) } ?? false)
             let sshValid = !sshHost.isEmpty && !sshUsername.isEmpty && sshPortValid
             let authValid =
@@ -907,6 +995,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     }
 
     private func loadConnectionData() {
+        sshProfiles = SSHProfileStorage.shared.loadProfiles()
         // If editing, load from storage
         if let id = connectionId,
             let existing = storage.loadConnections().first(where: { $0.id == id })
@@ -920,7 +1009,9 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             type = existing.type
 
             // Load SSH configuration
+            sshProfileId = existing.sshProfileId
             sshEnabled = existing.sshConfig.enabled
+
             sshHost = existing.sshConfig.host
             sshPort = String(existing.sshConfig.port)
             sshUsername = existing.sshConfig.username
@@ -1036,6 +1127,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             color: connectionColor,
             tagId: selectedTagId,
             groupId: selectedGroupId,
+            sshProfileId: sshProfileId,
             safeModeLevel: safeModeLevel,
             aiPolicy: aiPolicy,
             redisDatabase: additionalFieldValues["redisDatabase"].map { Int($0) ?? 0 },
@@ -1048,17 +1140,25 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         if !password.isEmpty {
             storage.savePassword(password, for: connectionToSave.id)
         }
-        if sshEnabled && (sshAuthMethod == .password || sshAuthMethod == .keyboardInteractive)
-            && !sshPassword.isEmpty
-        {
-            storage.saveSSHPassword(sshPassword, for: connectionToSave.id)
-        }
-        if sshEnabled && sshAuthMethod == .privateKey && !keyPassphrase.isEmpty {
-            storage.saveKeyPassphrase(keyPassphrase, for: connectionToSave.id)
-        }
-        if sshEnabled && totpMode == .autoGenerate && !totpSecret.isEmpty {
-            storage.saveTOTPSecret(totpSecret, for: connectionToSave.id)
+        // Only save SSH secrets per-connection when using inline config (not a profile)
+        if sshEnabled && sshProfileId == nil {
+            if (sshAuthMethod == .password || sshAuthMethod == .keyboardInteractive)
+                && !sshPassword.isEmpty
+            {
+                storage.saveSSHPassword(sshPassword, for: connectionToSave.id)
+            }
+            if sshAuthMethod == .privateKey && !keyPassphrase.isEmpty {
+                storage.saveKeyPassphrase(keyPassphrase, for: connectionToSave.id)
+            }
+            if totpMode == .autoGenerate && !totpSecret.isEmpty {
+                storage.saveTOTPSecret(totpSecret, for: connectionToSave.id)
+            } else {
+                storage.deleteTOTPSecret(for: connectionToSave.id)
+            }
         } else {
+            // Clean up stale per-connection SSH secrets when using a profile or SSH disabled
+            storage.deleteSSHPassword(for: connectionToSave.id)
+            storage.deleteKeyPassphrase(for: connectionToSave.id)
             storage.deleteTOTPSecret(for: connectionToSave.id)
         }
 
@@ -1199,6 +1299,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             color: connectionColor,
             tagId: selectedTagId,
             groupId: selectedGroupId,
+            sshProfileId: sshProfileId,
             redisDatabase: additionalFieldValues["redisDatabase"].map { Int($0) ?? 0 },
             startupCommands: startupCommands.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? nil : startupCommands,
@@ -1211,22 +1312,25 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 if !password.isEmpty {
                     ConnectionStorage.shared.savePassword(password, for: testConn.id)
                 }
-                if sshEnabled
-                    && (sshAuthMethod == .password || sshAuthMethod == .keyboardInteractive)
-                    && !sshPassword.isEmpty
-                {
-                    ConnectionStorage.shared.saveSSHPassword(sshPassword, for: testConn.id)
-                }
-                if sshEnabled && sshAuthMethod == .privateKey && !keyPassphrase.isEmpty {
-                    ConnectionStorage.shared.saveKeyPassphrase(keyPassphrase, for: testConn.id)
-                }
-                if sshEnabled && totpMode == .autoGenerate && !totpSecret.isEmpty {
-                    ConnectionStorage.shared.saveTOTPSecret(totpSecret, for: testConn.id)
+                // Only write inline SSH secrets when not using a profile
+                if sshEnabled && sshProfileId == nil {
+                    if (sshAuthMethod == .password || sshAuthMethod == .keyboardInteractive)
+                        && !sshPassword.isEmpty
+                    {
+                        ConnectionStorage.shared.saveSSHPassword(sshPassword, for: testConn.id)
+                    }
+                    if sshAuthMethod == .privateKey && !keyPassphrase.isEmpty {
+                        ConnectionStorage.shared.saveKeyPassphrase(keyPassphrase, for: testConn.id)
+                    }
+                    if totpMode == .autoGenerate && !totpSecret.isEmpty {
+                        ConnectionStorage.shared.saveTOTPSecret(totpSecret, for: testConn.id)
+                    }
                 }
 
+                let sshPasswordForTest = sshProfileId == nil ? sshPassword : nil
                 let success = try await DatabaseManager.shared.testConnection(
-                    testConn, sshPassword: sshPassword)
-                ConnectionStorage.shared.deleteTOTPSecret(for: testConn.id)
+                    testConn, sshPassword: sshPasswordForTest)
+                cleanupTestSecrets(for: testConn.id)
                 await MainActor.run {
                     isTesting = false
                     if success {
@@ -1240,7 +1344,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                     }
                 }
             } catch {
-                ConnectionStorage.shared.deleteTOTPSecret(for: testConn.id)
+                cleanupTestSecrets(for: testConn.id)
                 await MainActor.run {
                     isTesting = false
                     testSucceeded = false
@@ -1269,6 +1373,13 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 database = url.path(percentEncoded: false)
             }
         }
+    }
+
+    private func cleanupTestSecrets(for testId: UUID) {
+        ConnectionStorage.shared.deletePassword(for: testId)
+        ConnectionStorage.shared.deleteSSHPassword(for: testId)
+        ConnectionStorage.shared.deleteKeyPassphrase(for: testId)
+        ConnectionStorage.shared.deleteTOTPSecret(for: testId)
     }
 
     private func browseForPrivateKey() {

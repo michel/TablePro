@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Reusable SSH tunnel profiles: save SSH configurations once and select them across multiple connections
+
 ### Fixed
 
 - etcd connection failing with 404 when gRPC gateway uses a different API prefix (auto-detects `/v3/`, `/v3beta/`, `/v3alpha/`)
