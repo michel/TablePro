@@ -79,6 +79,12 @@ struct SQLEditorView: View {
                     }
                 }
             }
+            .onChange(of: connectionId) { _, _ in
+                if let schemaProvider, let completionAdapter {
+                    completionAdapter.updateSchemaProvider(schemaProvider, databaseType: databaseType)
+                }
+                setupFavoritesObserver()
+            }
             .onChange(of: colorScheme) {
                 editorConfiguration = Self.makeConfiguration()
             }
