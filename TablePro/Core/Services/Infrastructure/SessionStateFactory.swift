@@ -25,6 +25,7 @@ enum SessionStateFactory {
     ) -> SessionState {
         let tabMgr = QueryTabManager()
         let changeMgr = DataChangeManager()
+        changeMgr.databaseType = connection.type
         let filterMgr = FilterStateManager()
         let colVisMgr = ColumnVisibilityManager()
         let toolbarSt = ConnectionToolbarState(connection: connection)
