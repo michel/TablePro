@@ -53,6 +53,7 @@ public protocol DriverPlugin: TableProPlugin {
     static var pathFieldRole: PathFieldRole { get }
     static var isDownloadable: Bool { get }
     static var postConnectActions: [PostConnectAction] { get }
+    static var parameterStyle: ParameterStyle { get }
 }
 
 public extension DriverPlugin {
@@ -110,6 +111,7 @@ public extension DriverPlugin {
     static var navigationModel: NavigationModel { .standard }
     static var explainVariants: [ExplainVariant] { [] }
     static var pathFieldRole: PathFieldRole { .database }
+    static var parameterStyle: ParameterStyle { .questionMark }
     static var isDownloadable: Bool { false }
     static var postConnectActions: [PostConnectAction] { [] }
 }

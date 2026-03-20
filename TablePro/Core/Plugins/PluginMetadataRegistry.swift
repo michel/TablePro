@@ -608,9 +608,9 @@ final class PluginMetadataRegistry: @unchecked Sendable {
     /// Used by PluginManager to self-register plugins at load time.
     func buildMetadataSnapshot(
         from driverType: any DriverPlugin.Type,
-        isDownloadable: Bool = false,
-        parameterStyle: ParameterStyle = .questionMark
+        isDownloadable: Bool = false
     ) -> PluginMetadataSnapshot {
+        let parameterStyle = driverType.parameterStyle
         let schemes = driverType.urlSchemes
         let primaryScheme = schemes.first ?? driverType.databaseTypeId.lowercased()
 

@@ -413,7 +413,6 @@ final class PluginManager {
                 }
 
                 // Self-register plugin metadata from the DriverPlugin protocol.
-                // parameterStyle defaults to .questionMark; built-in defaults already have correct values.
                 let snapshot = PluginMetadataRegistry.shared.buildMetadataSnapshot(
                     from: driverType,
                     isDownloadable: driverType.isDownloadable

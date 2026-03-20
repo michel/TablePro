@@ -29,6 +29,7 @@ final class DuckDBPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let fileExtensions: [String] = ["duckdb", "ddb"]
     static let brandColorHex = "#FFD900"
     static let supportsDatabaseSwitching = false
+    static let parameterStyle: ParameterStyle = .dollar
     static let systemDatabaseNames: [String] = ["information_schema", "pg_catalog"]
     static let databaseGroupingStrategy: GroupingStrategy = .flat
     static let columnTypesByCategory: [String: [String]] = [
