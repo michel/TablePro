@@ -40,7 +40,14 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     }
 
     private var hidePasswordField: Bool {
-        authSectionFields.contains { $0.hidesPassword && additionalFieldValues[$0.id] == "true" }
+        authSectionFields.contains { field in
+            guard field.hidesPassword else { return false }
+            if case .toggle = field.fieldType {
+                return additionalFieldValues[field.id] == "true"
+            }
+            // Non-toggle fields (e.g., .secure) with hidesPassword always hide the default password field
+            return true
+        }
     }
 
     @State private var name: String = ""
@@ -271,12 +278,14 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                     }
                 }
             } else if PluginManager.shared.connectionMode(for: type) == .apiOnly {
-                Section(String(localized: "Connection")) {
-                    TextField(
-                        String(localized: "Database"),
-                        text: $database,
-                        prompt: Text("database_name")
-                    )
+                if PluginManager.shared.supportsDatabaseSwitching(for: type) {
+                    Section(String(localized: "Connection")) {
+                        TextField(
+                            String(localized: "Database"),
+                            text: $database,
+                            prompt: Text("database_name")
+                        )
+                    }
                 }
             } else {
                 Section(String(localized: "Connection")) {
@@ -961,13 +970,22 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
     private var isValid: Bool {
         // Host and port can be empty (will use defaults: localhost and default port)
         let mode = PluginManager.shared.connectionMode(for: type)
-        let requiresDatabase = mode == .fileBased || mode == .apiOnly
-        var basicValid = !name.isEmpty && (requiresDatabase ? !database.isEmpty : true)
+        let supportsDatabaseField = mode == .fileBased
+            || (mode == .apiOnly && PluginManager.shared.supportsDatabaseSwitching(for: type))
+        var basicValid = !name.isEmpty && (supportsDatabaseField ? !database.isEmpty : true)
         if mode == .apiOnly {
             let hasRequiredFields = authSectionFields
                 .filter(\.isRequired)
                 .allSatisfy { !(additionalFieldValues[$0.id] ?? "").isEmpty }
-            basicValid = basicValid && hasRequiredFields && !password.isEmpty
+            basicValid = basicValid && hasRequiredFields
+            if !hidePasswordField {
+                basicValid = basicValid && !password.isEmpty
+            }
+            if hidePasswordField && additionalFieldValues["awsAuthMethod"] == "credentials" {
+                let hasAccessKey = !(additionalFieldValues["awsAccessKeyId"] ?? "").isEmpty
+                let hasSecret = !(additionalFieldValues["awsSecretAccessKey"] ?? "").isEmpty
+                basicValid = basicValid && hasAccessKey && hasSecret
+            }
         }
         if sshEnabled && sshProfileId == nil {
             let sshPortValid = sshPort.isEmpty || (Int(sshPort).map { (1...65_535).contains($0) } ?? false)
@@ -1052,6 +1070,13 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                 }
             }
 
+            for field in PluginManager.shared.additionalConnectionFields(for: existing.type)
+                where field.isSecure {
+                if let secureValue = storage.loadPluginSecureField(fieldId: field.id, for: existing.id) {
+                    additionalFieldValues[field.id] = secureValue
+                }
+            }
+
             // Load startup commands
             startupCommands = existing.startupCommands ?? ""
             preConnectScript = existing.preConnectScript ?? ""
@@ -1106,6 +1131,8 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             trimmedUsername.isEmpty && PluginManager.shared.requiresAuthentication(for: type)
                 ? "root" : trimmedUsername
 
+        let finalId = connectionId ?? UUID()
+
         var finalAdditionalFields = additionalFieldValues
         let trimmedScript = preConnectScript.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedScript.isEmpty {
@@ -1114,8 +1141,18 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
             finalAdditionalFields.removeValue(forKey: "preConnectScript")
         }
 
+        let secureFields = PluginManager.shared.additionalConnectionFields(for: type).filter(\.isSecure)
+        for field in secureFields {
+            if let value = finalAdditionalFields[field.id], !value.isEmpty {
+                storage.savePluginSecureField(value, fieldId: field.id, for: finalId)
+            } else {
+                storage.deletePluginSecureField(fieldId: field.id, for: finalId)
+            }
+            finalAdditionalFields.removeValue(forKey: field.id)
+        }
+
         let connectionToSave = DatabaseConnection(
-            id: connectionId ?? UUID(),
+            id: finalId,
             name: name,
             host: finalHost,
             port: finalPort,
@@ -1327,6 +1364,15 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                     }
                 }
 
+                for field in PluginManager.shared.additionalConnectionFields(for: type)
+                    where field.isSecure {
+                    if let value = additionalFieldValues[field.id], !value.isEmpty {
+                        ConnectionStorage.shared.savePluginSecureField(
+                            value, fieldId: field.id, for: testConn.id
+                        )
+                    }
+                }
+
                 let sshPasswordForTest = sshProfileId == nil ? sshPassword : nil
                 let success = try await DatabaseManager.shared.testConnection(
                     testConn, sshPassword: sshPasswordForTest)
@@ -1380,6 +1426,9 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
         ConnectionStorage.shared.deleteSSHPassword(for: testId)
         ConnectionStorage.shared.deleteKeyPassphrase(for: testId)
         ConnectionStorage.shared.deleteTOTPSecret(for: testId)
+        let secureFieldIds = PluginManager.shared.additionalConnectionFields(for: type)
+            .filter(\.isSecure).map(\.id)
+        ConnectionStorage.shared.deleteAllPluginSecureFields(for: testId, fieldIds: secureFieldIds)
     }
 
     private func browseForPrivateKey() {
