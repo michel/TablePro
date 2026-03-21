@@ -22,7 +22,7 @@ final class OpenAICompatibleProvider: AIProvider {
 
     init(endpoint: String, apiKey: String?, providerType: AIProviderType) {
         self.endpoint = endpoint.hasSuffix("/") ? String(endpoint.dropLast()) : endpoint
-        self.apiKey = apiKey
+        self.apiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.providerType = providerType
         self.session = URLSession(configuration: .ephemeral)
     }
@@ -147,7 +147,7 @@ final class OpenAICompatibleProvider: AIProvider {
             let isJSON = contentType.contains("application/json")
 
             if httpResponse.statusCode == 401 {
-                return false
+                throw AIProviderError.authenticationFailed("")
             }
 
             // Non-JSON response means wrong endpoint (e.g., HTML 404 page)
@@ -327,21 +327,23 @@ final class OpenAICompatibleProvider: AIProvider {
         var body = ""
         for try await line in bytes.lines {
             body += line
-            if body.count > 2_000 { break }
+            if (body as NSString).length > 2_000 { break }
         }
         return body
     }
 
     private func mapHTTPError(statusCode: Int, body: String) -> AIProviderError {
+        let message = AIProviderError.parseErrorMessage(from: body) ?? body
+
         switch statusCode {
         case 401:
-            return .authenticationFailed(body)
+            return .authenticationFailed(message)
         case 429:
             return .rateLimited
         case 404:
-            return .modelNotFound(body)
+            return .modelNotFound(message)
         default:
-            return .serverError(statusCode, body)
+            return .serverError(statusCode, message)
         }
     }
 }

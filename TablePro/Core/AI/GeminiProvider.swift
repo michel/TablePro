@@ -18,7 +18,7 @@ final class GeminiProvider: AIProvider {
 
     init(endpoint: String, apiKey: String) {
         self.endpoint = endpoint.hasSuffix("/") ? String(endpoint.dropLast()) : endpoint
-        self.apiKey = apiKey
+        self.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         self.session = URLSession(configuration: .ephemeral)
     }
 
@@ -154,13 +154,24 @@ final class GeminiProvider: AIProvider {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
 
-        let (_, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             return false
         }
 
-        return httpResponse.statusCode == 200
+        let statusCode = httpResponse.statusCode
+
+        if statusCode == 401 || statusCode == 403 {
+            throw AIProviderError.authenticationFailed("")
+        }
+
+        guard statusCode == 200 else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw mapHTTPError(statusCode: statusCode, body: body)
+        }
+
+        return true
     }
 
     // MARK: - Private
@@ -211,21 +222,23 @@ final class GeminiProvider: AIProvider {
         var body = ""
         for try await line in bytes.lines {
             body += line
-            if body.count > 2_000 { break }
+            if (body as NSString).length > 2_000 { break }
         }
         return body
     }
 
     private func mapHTTPError(statusCode: Int, body: String) -> AIProviderError {
+        let message = AIProviderError.parseErrorMessage(from: body) ?? body
+
         switch statusCode {
         case 401, 403:
-            return .authenticationFailed(body)
+            return .authenticationFailed(message)
         case 429:
             return .rateLimited
         case 404:
-            return .modelNotFound(body)
+            return .modelNotFound(message)
         default:
-            return .serverError(statusCode, body)
+            return .serverError(statusCode, message)
         }
     }
 }
