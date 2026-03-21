@@ -3,51 +3,45 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.22.0</title>
-            <pubDate>Sat, 21 Mar 2026 12:37:49 +0000</pubDate>
-            <sparkle:version>42</sparkle:version>
-            <sparkle:shortVersionString>0.22.0</sparkle:shortVersionString>
+            <title>0.22.1</title>
+            <pubDate>Sat, 21 Mar 2026 20:03:03 +0000</pubDate>
+            <sparkle:version>43</sparkle:version>
+            <sparkle:shortVersionString>0.22.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Export query results directly to CSV, JSON, SQL, XLSX, or MQL via File menu, context menu, or toolbar</li>
-<li>Pro license gating for Safe Mode (Touch ID) and XLSX export</li>
-<li>License activation dialog</li>
-<li>Reusable SSH tunnel profiles: save SSH configurations once and select them across multiple connections</li>
-<li>Ctrl+HJKL navigation as arrow key alternative for keyboards without dedicated arrow keys</li>
-<li>Amazon DynamoDB database support with PartiQL queries, AWS IAM/Profile/SSO authentication, GSI/LSI browsing, table scanning, capacity display, and DynamoDB Local support</li>
+<li>Show/hide row numbers column in data grid (Settings > Data Grid)</li>
+<li>Persist column widths and order per table across tab switches, view toggles, and app restarts</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>High CPU usage (79%+) and energy consumption when idle (#394)</li>
-<li>etcd connection failing with 404 when gRPC gateway uses a different API prefix (auto-detects `/v3/`, `/v3beta/`, `/v3alpha/`)</li>
-<li>Data grid editing (delete rows, modify cells, add rows) not working in query tabs (#383)</li>
+<li>Show correct version for installed registry plugins (#410)</li>
+<li>Dangling pointer in release builds due to incorrect withUnsafeBufferPointer usage</li>
+<li>AI provider connection test error handling (#407)</li>
+<li>Use-after-free crash in Redis plugin redisFree</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.0/TablePro-0.22.0-arm64.zip" length="20578818" type="application/octet-stream" sparkle:edSignature="Dn8Ctd7IY3UHG/azkRlXzxsqtDuTB201Z4jveA5bxSn9eZ16v3LlLaoSY68MMdl+pcJG+8b1PHTYXfz+yog6AA=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.1/TablePro-0.22.1-arm64.zip" length="20596228" type="application/octet-stream" sparkle:edSignature="WIib+kb+dMxSjXVqeIKkOiaDraR5wSjXOjl4HjYGNgydKmu7NY4YC3NgT32dmD5CEqWeJZLpD+4PIhZLPIJrAA=="/>
         </item>
         <item>
-            <title>0.22.0</title>
-            <pubDate>Sat, 21 Mar 2026 12:37:49 +0000</pubDate>
-            <sparkle:version>42</sparkle:version>
-            <sparkle:shortVersionString>0.22.0</sparkle:shortVersionString>
+            <title>0.22.1</title>
+            <pubDate>Sat, 21 Mar 2026 20:03:03 +0000</pubDate>
+            <sparkle:version>43</sparkle:version>
+            <sparkle:shortVersionString>0.22.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Export query results directly to CSV, JSON, SQL, XLSX, or MQL via File menu, context menu, or toolbar</li>
-<li>Pro license gating for Safe Mode (Touch ID) and XLSX export</li>
-<li>License activation dialog</li>
-<li>Reusable SSH tunnel profiles: save SSH configurations once and select them across multiple connections</li>
-<li>Ctrl+HJKL navigation as arrow key alternative for keyboards without dedicated arrow keys</li>
-<li>Amazon DynamoDB database support with PartiQL queries, AWS IAM/Profile/SSO authentication, GSI/LSI browsing, table scanning, capacity display, and DynamoDB Local support</li>
+<li>Show/hide row numbers column in data grid (Settings > Data Grid)</li>
+<li>Persist column widths and order per table across tab switches, view toggles, and app restarts</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>High CPU usage (79%+) and energy consumption when idle (#394)</li>
-<li>etcd connection failing with 404 when gRPC gateway uses a different API prefix (auto-detects `/v3/`, `/v3beta/`, `/v3alpha/`)</li>
-<li>Data grid editing (delete rows, modify cells, add rows) not working in query tabs (#383)</li>
+<li>Show correct version for installed registry plugins (#410)</li>
+<li>Dangling pointer in release builds due to incorrect withUnsafeBufferPointer usage</li>
+<li>AI provider connection test error handling (#407)</li>
+<li>Use-after-free crash in Redis plugin redisFree</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.0/TablePro-0.22.0-x86_64.zip" length="20066454" type="application/octet-stream" sparkle:edSignature="kaKaJee2Rc2EdoazZOMOdLFjOTpHenj/NzfSUVBETk2Zz5f8JfGBIPnN0EBPwzy7fbwNG2EJhvFi5m1rHizACQ=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.1/TablePro-0.22.1-x86_64.zip" length="20081427" type="application/octet-stream" sparkle:edSignature="MUP76lB9o91YY0ETI3txyn1V2s+p6liIBjWnNFS6dR+b5Op6MwLVkXMxT68fDA2JUIFH29JWhWOr1Lm2tfGbBw=="/>
         </item>
     </channel>
 </rss>
