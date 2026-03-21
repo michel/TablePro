@@ -8,7 +8,6 @@
 import Foundation
 
 extension String {
-
     /// Returns a classic hex dump representation of this string's bytes, or nil if empty.
     ///
     /// Format per line: `OFFSET  HH HH HH HH HH HH HH HH  HH HH HH HH HH HH HH HH  |ASCII...........|`

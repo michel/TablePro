@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-03-21
+
 ### Added
 
 - Export query results directly to CSV, JSON, SQL, XLSX, or MQL via File menu, context menu, or toolbar
@@ -960,7 +962,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/datlechin/tablepro/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/datlechin/tablepro/compare/v0.20.4...v0.21.0
 [0.20.4]: https://github.com/datlechin/tablepro/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/datlechin/tablepro/compare/v0.20.2...v0.20.3
