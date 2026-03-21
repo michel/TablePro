@@ -170,6 +170,19 @@ struct WelcomeWindowView: View {
                     Text("Version \(Bundle.main.appVersion)")
                         .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium))
                         .foregroundStyle(.secondary)
+
+                    if LicenseManager.shared.status.isValid {
+                        Label("Pro", systemImage: "checkmark.seal.fill")
+                            .font(.system(size: ThemeEngine.shared.activeTheme.typography.small, weight: .medium))
+                            .foregroundStyle(.green)
+                    } else {
+                        Button(action: { showActivationSheet = true }) {
+                            Text("Activate License")
+                                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
                 }
             }
 

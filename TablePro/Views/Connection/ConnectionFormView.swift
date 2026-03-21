@@ -377,7 +377,7 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                     }
                     Button(String(localized: "OK"), role: .cancel) {}
                 } message: {
-                    Text("Safe Mode, Safe Mode (Full), and Read-Only require a Pro license.")
+                    Text(String(localized: "Safe Mode, Safe Mode (Full), and Read-Only require a Pro license."))
                 }
             }
         }
