@@ -34,6 +34,7 @@ struct WelcomeWindowView: View {
         return Set(strings.compactMap { UUID(uuidString: $0) })
     }()
     @State private var showNewGroupSheet = false
+    @State private var showActivationSheet = false
     @State private var pluginInstallConnection: DatabaseConnection?
 
     @Environment(\.openWindow) private var openWindow
@@ -124,6 +125,9 @@ struct WelcomeWindowView: View {
                 groupStorage.addGroup(group)
                 groups = groupStorage.loadGroups()
             }
+        }
+        .sheet(isPresented: $showActivationSheet) {
+            LicenseActivationSheet()
         }
         .pluginInstallPrompt(connection: $pluginInstallConnection) { connection in
             connectAfterInstall(connection)

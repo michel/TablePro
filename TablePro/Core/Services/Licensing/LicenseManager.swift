@@ -246,8 +246,11 @@ final class LicenseManager {
 
     /// Evaluate current license status based on expiration, grace period, and signature validity
     private func evaluateStatus() {
+        let previousStatus = status
+
         guard let license else {
             status = .unlicensed
+            notifyIfChanged(from: previousStatus)
             return
         }
 
@@ -255,12 +258,15 @@ final class LicenseManager {
         switch license.status {
         case .suspended:
             status = .suspended
+            notifyIfChanged(from: previousStatus)
             return
         case .expired:
             status = .expired
+            notifyIfChanged(from: previousStatus)
             return
         case .deactivated:
             status = .deactivated
+            notifyIfChanged(from: previousStatus)
             return
         default:
             break
@@ -269,15 +275,24 @@ final class LicenseManager {
         // Check local expiration
         if license.isExpired {
             status = .expired
+            notifyIfChanged(from: previousStatus)
             return
         }
 
         // Check grace period
         if license.daysSinceLastValidation > gracePeriodDays {
             status = .validationFailed
+            notifyIfChanged(from: previousStatus)
             return
         }
 
         status = .active
+        notifyIfChanged(from: previousStatus)
+    }
+
+    private func notifyIfChanged(from previousStatus: LicenseStatus) {
+        if status != previousStatus {
+            NotificationCenter.default.post(name: .licenseStatusDidChange, object: nil)
+        }
     }
 }
