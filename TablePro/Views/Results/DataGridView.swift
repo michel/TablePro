@@ -61,6 +61,7 @@ struct DataGridView: NSViewRepresentable {
     var databaseType: DatabaseType?
     var tableName: String?
     var primaryKeyColumn: String?
+    var tabType: TabType?
     var showRowNumbers: Bool = true
     var hiddenColumns: Set<String> = []
     var onHideColumn: ((String) -> Void)?
@@ -271,6 +272,7 @@ struct DataGridView: NSViewRepresentable {
         coordinator.databaseType = databaseType
         coordinator.tableName = tableName
         coordinator.primaryKeyColumn = primaryKeyColumn
+        coordinator.tabType = tabType
 
         coordinator.rebuildVisualStateCache()
 
@@ -336,15 +338,11 @@ struct DataGridView: NSViewRepresentable {
                     column.headerCell.setAccessibilityLabel(
                         String(localized: "Column: \(columnName)")
                     )
-                    if let savedWidth = columnLayout.columnWidths[columnName] {
-                        column.width = savedWidth
-                    } else {
-                        column.width = coordinator.cellFactory.calculateOptimalColumnWidth(
-                            for: columnName,
-                            columnIndex: index,
-                            rowProvider: rowProvider
-                        )
-                    }
+                    column.width = coordinator.cellFactory.calculateOptimalColumnWidth(
+                        for: columnName,
+                        columnIndex: index,
+                        rowProvider: rowProvider
+                    )
                     column.minWidth = 30
                     column.resizingMask = .userResizingMask
                     column.isEditable = isEditable
@@ -358,20 +356,18 @@ struct DataGridView: NSViewRepresentable {
                           colIndex < rowProvider.columns.count else { continue }
                     let columnName = rowProvider.columns[colIndex]
                     column.title = columnName
-                    if let savedWidth = columnLayout.columnWidths[columnName] {
-                        column.width = savedWidth
-                    } else {
-                        column.width = coordinator.cellFactory.calculateOptimalColumnWidth(
-                            for: columnName,
-                            columnIndex: colIndex,
-                            rowProvider: rowProvider
-                        )
-                    }
+                    column.width = coordinator.cellFactory.calculateOptimalColumnWidth(
+                        for: columnName,
+                        columnIndex: colIndex,
+                        rowProvider: rowProvider
+                    )
                     column.isEditable = isEditable
                 }
             }
-            // Restore user-resized column widths after rebuild (only if user explicitly resized)
-            if coordinator.hasUserResizedColumns, !columnLayout.columnWidths.isEmpty {
+            let hasSavedLayout = !columnLayout.columnWidths.isEmpty
+
+            // Restore saved column widths after rebuild (from user resize or persisted layout)
+            if hasSavedLayout {
                 for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
                     guard let colIndex = Self.columnIndex(from: column.identifier),
                           colIndex < rowProvider.columns.count else { continue }
@@ -380,16 +376,19 @@ struct DataGridView: NSViewRepresentable {
                         column.width = savedWidth
                     }
                 }
+                coordinator.hasUserResizedColumns = true
             }
 
-            // Restore saved column order after rebuild (only if user explicitly reordered)
-            if coordinator.hasUserResizedColumns, let savedOrder = columnLayout.columnOrder {
+            // Restore saved column order after rebuild
+            if let savedOrder = columnLayout.columnOrder {
                 DataGridView.applyColumnOrder(savedOrder, to: tableView, columns: rowProvider.columns)
+                coordinator.hasUserResizedColumns = true
             }
 
             // Persist calculated widths so subsequent tab switches reuse them
             // instead of calling the expensive calculateOptimalColumnWidth.
-            if !coordinator.hasUserResizedColumns {
+            // Skip when saved layout exists to avoid overwriting persisted values.
+            if !coordinator.hasUserResizedColumns, !hasSavedLayout {
                 var newWidths: [String: CGFloat] = [:]
                 for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
                     guard let colIndex = Self.columnIndex(from: column.identifier),
@@ -624,6 +623,7 @@ struct DataGridView: NSViewRepresentable {
 
     static func dismantleNSView(_ nsView: NSScrollView, coordinator: TableViewCoordinator) {
         coordinator.overlayEditor?.dismiss(commit: false)
+        coordinator.persistColumnLayoutToStorage()
         if let observer = coordinator.settingsObserver {
             NotificationCenter.default.removeObserver(observer)
             coordinator.settingsObserver = nil
@@ -681,6 +681,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var databaseType: DatabaseType?
     var tableName: String?
     var primaryKeyColumn: String?
+    var tabType: TabType?
 
     /// Check if undo is available
     func canUndo() -> Bool {
@@ -690,6 +691,32 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     /// Check if redo is available
     func canRedo() -> Bool {
         changeManager.canRedo
+    }
+
+    /// Capture current column widths and order from the live NSTableView
+    /// and persist directly to ColumnLayoutStorage. Called from dismantleNSView
+    /// to guarantee layout is saved even when the view is torn down without
+    /// a SwiftUI render cycle (e.g., closing a tab).
+    func persistColumnLayoutToStorage() {
+        guard tabType == .table else { return }
+        guard let tableView, let connectionId, let tableName, !tableName.isEmpty else { return }
+        guard !rowProvider.columns.isEmpty else { return }
+
+        var widths: [String: CGFloat] = [:]
+        var order: [String] = []
+        for column in tableView.tableColumns where column.identifier.rawValue != "__rowNumber__" {
+            guard let colIndex = DataGridView.columnIndex(from: column.identifier),
+                  colIndex < rowProvider.columns.count else { continue }
+            let name = rowProvider.columns[colIndex]
+            widths[name] = column.width
+            order.append(name)
+        }
+
+        guard !widths.isEmpty else { return }
+        var layout = ColumnLayoutState()
+        layout.columnWidths = widths
+        layout.columnOrder = order
+        ColumnLayoutStorage.shared.save(layout, for: tableName, connectionId: connectionId)
     }
 
     weak var tableView: NSTableView?
@@ -717,6 +744,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var hasUserResizedColumns: Bool = false
     /// Guards against two-frame bounce when async column layout write-back triggers updateNSView
     var isWritingColumnLayout: Bool = false
+    /// Debounced work item for persisting column layout after resize/reorder
+    var layoutPersistWorkItem: DispatchWorkItem?
 
     private let cellIdentifier = NSUserInterfaceItemIdentifier("DataCell")
     static let rowViewIdentifier = NSUserInterfaceItemIdentifier("TableRowView")
