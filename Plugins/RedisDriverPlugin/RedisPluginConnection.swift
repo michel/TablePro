@@ -577,9 +577,11 @@ private extension RedisPluginConnection {
         let cStrings: [UnsafeMutablePointer<CChar>] = args.map { arg in
             let utf8 = Array(arg.utf8)
             let ptr = UnsafeMutablePointer<CChar>.allocate(capacity: utf8.count + 1)
-            if let base = utf8.withUnsafeBufferPointer({ $0.baseAddress }) {
-                base.withMemoryRebound(to: CChar.self, capacity: utf8.count) { src in
-                    ptr.initialize(from: src, count: utf8.count)
+            utf8.withUnsafeBufferPointer { buffer in
+                if let base = buffer.baseAddress {
+                    base.withMemoryRebound(to: CChar.self, capacity: utf8.count) { src in
+                        ptr.initialize(from: src, count: utf8.count)
+                    }
                 }
             }
             ptr[utf8.count] = 0
