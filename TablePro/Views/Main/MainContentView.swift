@@ -154,7 +154,7 @@ struct MainContentView: View {
                     mode: .queryResults(
                         connection: connection,
                         rowBuffer: tab.rowBuffer,
-                        suggestedFileName: "query_results"
+                        suggestedFileName: tab.tableName ?? "query_results"
                     )
                 )
             }

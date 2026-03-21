@@ -693,7 +693,7 @@ struct ExportDialog: View {
         if isQueryResultsMode {
             savePanel.message = String(localized: "Export \(queryResultsRowCount) row(s) to \(formatName)")
         } else {
-            savePanel.message = "Export \(exportableCount) table(s) to \(formatName)"
+            savePanel.message = String(localized: "Export \(exportableCount) table(s) to \(formatName)")
         }
 
         savePanel.begin { response in

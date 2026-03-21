@@ -261,6 +261,7 @@ final class ExportService {
             )
         } catch {
             try? FileManager.default.removeItem(at: url)
+            state.errorMessage = error.localizedDescription
             throw error
         }
 
