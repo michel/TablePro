@@ -3,47 +3,51 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.21.0</title>
-            <pubDate>Thu, 19 Mar 2026 14:00:46 +0000</pubDate>
-            <sparkle:version>41</sparkle:version>
-            <sparkle:shortVersionString>0.21.0</sparkle:shortVersionString>
+            <title>0.22.0</title>
+            <pubDate>Sat, 21 Mar 2026 12:37:49 +0000</pubDate>
+            <sparkle:version>42</sparkle:version>
+            <sparkle:shortVersionString>0.22.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Cloudflare D1 database support</li>
-<li>Match highlighting in autocomplete suggestions (matched characters shown in bold)</li>
-<li>Loading spinner in autocomplete popup while fetching column metadata</li>
+<li>Export query results directly to CSV, JSON, SQL, XLSX, or MQL via File menu, context menu, or toolbar</li>
+<li>Pro license gating for Safe Mode (Touch ID) and XLSX export</li>
+<li>License activation dialog</li>
+<li>Reusable SSH tunnel profiles: save SSH configurations once and select them across multiple connections</li>
+<li>Ctrl+HJKL navigation as arrow key alternative for keyboards without dedicated arrow keys</li>
+<li>Amazon DynamoDB database support with PartiQL queries, AWS IAM/Profile/SSO authentication, GSI/LSI browsing, table scanning, capacity display, and DynamoDB Local support</li>
 </ul>
-<h3>Changed</h3>
+<h3>Fixed</h3>
 <ul>
-<li>Refactored autocomplete popup to native SwiftUI (visible selection highlight, native accent color, scroll-to-selection)</li>
-<li>Autocomplete now suppresses noisy empty-prefix suggestions in non-browseable contexts (e.g., after SELECT, WHERE)</li>
-<li>Autocomplete ranking stays consistent as you type (unified fuzzy scoring between initial display and live filtering)</li>
-<li>Increased autocomplete suggestion limit from 20 to 40 for schema-heavy contexts (FROM, SELECT, WHERE)</li>
+<li>High CPU usage (79%+) and energy consumption when idle (#394)</li>
+<li>etcd connection failing with 404 when gRPC gateway uses a different API prefix (auto-detects `/v3/`, `/v3beta/`, `/v3alpha/`)</li>
+<li>Data grid editing (delete rows, modify cells, add rows) not working in query tabs (#383)</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.21.0/TablePro-0.21.0-arm64.zip" length="20134808" type="application/octet-stream" sparkle:edSignature="jUtBlQXZmtUMwi5oo6Z9Y1nw8RCms/EEm2OqNkUvHoIcAjUXbHPVWpZ2NFFgvMIIPW998EG0LqHj1ZZlT2d7AQ=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.0/TablePro-0.22.0-arm64.zip" length="20578818" type="application/octet-stream" sparkle:edSignature="Dn8Ctd7IY3UHG/azkRlXzxsqtDuTB201Z4jveA5bxSn9eZ16v3LlLaoSY68MMdl+pcJG+8b1PHTYXfz+yog6AA=="/>
         </item>
         <item>
-            <title>0.21.0</title>
-            <pubDate>Thu, 19 Mar 2026 14:00:46 +0000</pubDate>
-            <sparkle:version>41</sparkle:version>
-            <sparkle:shortVersionString>0.21.0</sparkle:shortVersionString>
+            <title>0.22.0</title>
+            <pubDate>Sat, 21 Mar 2026 12:37:49 +0000</pubDate>
+            <sparkle:version>42</sparkle:version>
+            <sparkle:shortVersionString>0.22.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Cloudflare D1 database support</li>
-<li>Match highlighting in autocomplete suggestions (matched characters shown in bold)</li>
-<li>Loading spinner in autocomplete popup while fetching column metadata</li>
+<li>Export query results directly to CSV, JSON, SQL, XLSX, or MQL via File menu, context menu, or toolbar</li>
+<li>Pro license gating for Safe Mode (Touch ID) and XLSX export</li>
+<li>License activation dialog</li>
+<li>Reusable SSH tunnel profiles: save SSH configurations once and select them across multiple connections</li>
+<li>Ctrl+HJKL navigation as arrow key alternative for keyboards without dedicated arrow keys</li>
+<li>Amazon DynamoDB database support with PartiQL queries, AWS IAM/Profile/SSO authentication, GSI/LSI browsing, table scanning, capacity display, and DynamoDB Local support</li>
 </ul>
-<h3>Changed</h3>
+<h3>Fixed</h3>
 <ul>
-<li>Refactored autocomplete popup to native SwiftUI (visible selection highlight, native accent color, scroll-to-selection)</li>
-<li>Autocomplete now suppresses noisy empty-prefix suggestions in non-browseable contexts (e.g., after SELECT, WHERE)</li>
-<li>Autocomplete ranking stays consistent as you type (unified fuzzy scoring between initial display and live filtering)</li>
-<li>Increased autocomplete suggestion limit from 20 to 40 for schema-heavy contexts (FROM, SELECT, WHERE)</li>
+<li>High CPU usage (79%+) and energy consumption when idle (#394)</li>
+<li>etcd connection failing with 404 when gRPC gateway uses a different API prefix (auto-detects `/v3/`, `/v3beta/`, `/v3alpha/`)</li>
+<li>Data grid editing (delete rows, modify cells, add rows) not working in query tabs (#383)</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.21.0/TablePro-0.21.0-x86_64.zip" length="19599229" type="application/octet-stream" sparkle:edSignature="6OzXMFFO7aWENSUs8fMjPO8z67n/k3BfkM+snD5/Qlqazd3C7jN1tdrivp3HkZSGTgV/UTsqLwn6BgFrbHKOBQ=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.0/TablePro-0.22.0-x86_64.zip" length="20066454" type="application/octet-stream" sparkle:edSignature="kaKaJee2Rc2EdoazZOMOdLFjOTpHenj/NzfSUVBETk2Zz5f8JfGBIPnN0EBPwzy7fbwNG2EJhvFi5m1rHizACQ=="/>
         </item>
     </channel>
 </rss>
