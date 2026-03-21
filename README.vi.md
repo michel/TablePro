@@ -51,7 +51,13 @@ Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
 ## Lịch sử Star
 
-[![Star History Chart](https://api.star-history.com/svg?repos=datlechin/TablePro&type=Date)](https://star-history.com/#datlechin/TablePro&Date)
+<a href="https://www.star-history.com/?repos=datlechin%2FTablePro&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=datlechin/TablePro&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=datlechin/TablePro&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=datlechin/TablePro&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ## Giấy phép
 
