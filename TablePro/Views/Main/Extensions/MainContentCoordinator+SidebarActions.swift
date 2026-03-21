@@ -62,6 +62,11 @@ extension MainContentCoordinator {
         activeSheet = .exportDialog
     }
 
+    func openExportQueryResultsDialog() {
+        guard let tab = tabManager.selectedTab, !tab.rowBuffer.rows.isEmpty else { return }
+        activeSheet = .exportQueryResults
+    }
+
     func openImportDialog() {
         guard !safeModeLevel.blocksAllWrites else { return }
         guard PluginManager.shared.supportsImport(for: connection.type) else {

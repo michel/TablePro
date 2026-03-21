@@ -158,6 +158,8 @@ final class MainContentCommandActions {
 
         observeKeyWindowOnly(.duplicateRow) { [weak self] _ in self?.duplicateRow() }
 
+        observeKeyWindowOnly(.exportQueryResults) { [weak self] _ in self?.exportQueryResults() }
+
         // Note: .copySelectedRows and .pasteRows observers call the data-grid
         // path directly (not the public methods) to avoid an infinite loop —
         // the public methods re-post these notifications for structure view.
@@ -446,6 +448,10 @@ final class MainContentCommandActions {
 
     func exportTables() {
         coordinator?.openExportDialog()
+    }
+
+    func exportQueryResults() {
+        coordinator?.openExportQueryResultsDialog()
     }
 
     func importTables() {

@@ -6,6 +6,14 @@
 import Foundation
 import TableProPluginKit
 
+// MARK: - Export Mode
+
+/// Defines the export mode: either exporting database tables or in-memory query results.
+enum ExportMode {
+    case tables(connection: DatabaseConnection, preselectedTables: Set<String>)
+    case queryResults(connection: DatabaseConnection, rowBuffer: RowBuffer, suggestedFileName: String)
+}
+
 // MARK: - Export Configuration
 
 @MainActor

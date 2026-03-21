@@ -142,16 +142,16 @@
             "value": "\"%@\" bu Mac ve başka bir cihazda değiştirildi."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "\"%@\" 在此 Mac 和另一台设备上均已修改。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "\"%@\" đã bị thay đổi trên cả máy Mac này và thiết bị khác."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"%@\" 在此 Mac 和另一台设备上均已修改。"
           }
         }
       }
@@ -330,16 +330,16 @@
             "value": "(bu Mac)"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "（此 Mac）"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "(máy Mac này)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "（此 Mac）"
           }
         }
       }
@@ -425,16 +425,16 @@
             "value": "%@ (%@@%@)"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@（%@@%@）"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ (%@@%@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@（%@@%@）"
           }
         }
       }
@@ -475,16 +475,16 @@
             "value": "%@ (Pro)"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@（Pro）"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ (Pro)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@（Pro）"
           }
         }
       }
@@ -741,16 +741,16 @@
             "value": "%@ requires a Pro license"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ 需要 Pro 许可证"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "%@ yêu cầu giấy phép Pro"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 需要 Pro 许可证"
           }
         }
       }
@@ -1002,16 +1002,16 @@
             "value": "%lld bayt"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld 字节"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld byte"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 字节"
           }
         }
       }
@@ -1030,16 +1030,16 @@
             "value": "%lld bağlantı bu profili kullanıyor. SSH tüneli olmadan bağlanmaya geri dönecekler."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld 个连接正在使用此配置。它们将回退为不使用 SSH 隧道。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "%lld kết nối đang sử dụng hồ sơ này. Chúng sẽ chuyển về không dùng SSH tunnel."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个连接正在使用此配置。它们将回退为不使用 SSH 隧道。"
           }
         }
       }
@@ -1203,6 +1203,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 行%@受影响"
+          }
+        }
+      }
+    },
+    "%lld row%@ to export": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld row%2$@ to export"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld hàng%@ để export"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 行%@待导出"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld satır%@ dışa aktarılacak"
           }
         }
       }
@@ -1819,16 +1847,16 @@
             "value": "1 / %lld çakışma"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "第 1 个冲突，共 %lld 个"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "1 trong %lld xung đột"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 1 个冲突，共 %lld 个"
           }
         }
       }
@@ -2415,16 +2443,16 @@
             "value": "Bir eşitleme çakışması tespit edildi ve çözülmesi gerekiyor."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "检测到同步冲突，需要解决。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Phát hiện xung đột đồng bộ và cần được giải quyết."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检测到同步冲突，需要解决。"
           }
         }
       }
@@ -2488,13 +2516,13 @@
             "value": "Access Key ID"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Access Key ID"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "Access Key ID"
@@ -2516,16 +2544,16 @@
             "value": "Account ID"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "账户 ID"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Account ID"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户 ID"
           }
         }
       }
@@ -2538,16 +2566,16 @@
             "value": "Hesap:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "账户："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tài khoản:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账户："
           }
         }
       }
@@ -2582,16 +2610,16 @@
             "value": "Lisansı Etkinleştir"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "激活许可证"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kích hoạt giấy phép"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "激活许可证"
           }
         }
       }
@@ -2604,16 +2632,16 @@
             "value": "Lisansı Etkinleştir..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "激活许可证…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kích hoạt giấy phép..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "激活许可证…"
           }
         }
       }
@@ -2654,16 +2682,16 @@
             "value": "Etkinleştirmeler (%lld / %lld)"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "激活数（%lld / %lld）"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kích hoạt (%1$lld / %2$lld)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "激活数（%lld / %lld）"
           }
         }
       }
@@ -2742,16 +2770,16 @@
             "value": "Ekle"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "添加"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thêm"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加"
           }
         }
       }
@@ -3515,16 +3543,16 @@
             "value": "Alternatif Satır"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "交替行"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Dòng xen kẽ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交替行"
           }
         }
       }
@@ -3582,16 +3610,16 @@
             "value": "Bilinmeyen bir eşitleme hatası oluştu: %@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "发生未知同步错误：%@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã xảy ra lỗi đồng bộ không xác định: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发生未知同步错误：%@"
           }
         }
       }
@@ -3648,16 +3676,16 @@
             "value": "Animasyonlar"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "动画"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hiệu ứng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "动画"
           }
         }
       }
@@ -3698,13 +3726,13 @@
             "value": "API Token"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "API Token"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "API Token"
@@ -4080,16 +4108,16 @@
             "value": "Kimlik Doğrulama Yöntemi"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "认证方式"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Phương thức xác thực"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "认证方式"
           }
         }
       }
@@ -4256,16 +4284,16 @@
             "value": "Otomatik"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自动"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tự động"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自动"
           }
         }
       }
@@ -4484,16 +4512,16 @@
             "value": "AWS Region"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "AWS 区域"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "AWS Region"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AWS 区域"
           }
         }
       }
@@ -4506,16 +4534,16 @@
             "value": "Arka Plan"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "背景"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nền"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背景"
           }
         }
       }
@@ -4528,16 +4556,16 @@
             "value": "Rozet Arka Planı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "徽章背景"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nền huy hiệu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "徽章背景"
           }
         }
       }
@@ -4550,16 +4578,16 @@
             "value": "Rozetler"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "徽章"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Huy hiệu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "徽章"
           }
         }
       }
@@ -4644,16 +4672,16 @@
             "value": "Faturalandırma:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "账单："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thanh toán:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "账单："
           }
         }
       }
@@ -4688,16 +4716,16 @@
             "value": "Gövde"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正文"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nội dung"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正文"
           }
         }
       }
@@ -4710,16 +4738,16 @@
             "value": "Bool False"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "布尔值 False"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bool False"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "布尔值 False"
           }
         }
       }
@@ -4732,16 +4760,16 @@
             "value": "Bool True"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "布尔值 True"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bool True"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "布尔值 True"
           }
         }
       }
@@ -4754,16 +4782,16 @@
             "value": "Kenarlık"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "边框"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Viền"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "边框"
           }
         }
       }
@@ -5064,16 +5092,16 @@
             "value": "Başlık"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "标题说明"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chú thích"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标题说明"
           }
         }
       }
@@ -5086,16 +5114,16 @@
             "value": "Kart Arka Planı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "卡片背景"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nền thẻ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卡片背景"
           }
         }
       }
@@ -5359,16 +5387,16 @@
             "value": "Durumu Kontrol Et"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "检查状态"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kiểm tra trạng thái"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检查状态"
           }
         }
       }
@@ -5849,16 +5877,16 @@
             "value": "İstemci Sertifikası"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "客户端证书"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chứng chỉ máy khách"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户端证书"
           }
         }
       }
@@ -6116,16 +6144,16 @@
             "value": "Renkler"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "颜色"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Màu sắc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "颜色"
           }
         }
       }
@@ -6530,16 +6558,16 @@
             "value": "Lisansınızı doğrulamak için internete bağlanın."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请连接互联网以验证您的许可证。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kết nối internet để xác minh giấy phép của bạn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请连接互联网以验证您的许可证。"
           }
         }
       }
@@ -6906,16 +6934,16 @@
             "value": "Bağlantılar:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "连接："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kết nối:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接："
           }
         }
       }
@@ -7017,16 +7045,16 @@
             "value": "Kontrol Arka Planı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "控件背景"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nền điều khiển"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "控件背景"
           }
         }
       }
@@ -7241,16 +7269,16 @@
             "value": "Hex Olarak Kopyala"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "复制为十六进制"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Sao chép dạng Hex"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制为十六进制"
           }
         }
       }
@@ -7263,16 +7291,16 @@
             "value": "JSON Olarak Kopyala"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "复制为 JSON"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Sao chép dạng JSON"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制为 JSON"
           }
         }
       }
@@ -7462,16 +7490,16 @@
             "value": "Köşe Yarıçapı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "圆角半径"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bo góc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圆角半径"
           }
         }
       }
@@ -7506,16 +7534,16 @@
             "value": "Lisans sunucusuna ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法连接许可证服务器。请检查网络连接后重试。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không thể kết nối đến máy chủ giấy phép. Kiểm tra kết nối internet và thử lại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法连接许可证服务器。请检查网络连接后重试。"
           }
         }
       }
@@ -7528,16 +7556,16 @@
             "value": "Sunucu yanıtı okunamadı. Biraz sonra tekrar deneyin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无法读取服务器响应。请稍后重试。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không thể đọc phản hồi từ máy chủ. Vui lòng thử lại sau."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取服务器响应。请稍后重试。"
           }
         }
       }
@@ -7776,16 +7804,16 @@
             "value": "Yeni Profil Oluştur..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新建配置…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tạo hồ sơ mới..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建配置…"
           }
         }
       }
@@ -8019,16 +8047,16 @@
             "value": "Mevcut Satır"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "当前行"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Dòng hiện tại"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前行"
           }
         }
       }
@@ -8109,16 +8137,16 @@
             "value": "İmleç"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "光标"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Con trỏ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "光标"
           }
         }
       }
@@ -8209,16 +8237,16 @@
             "value": "Özel Uç Nokta"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "自定义端点"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Endpoint tùy chỉnh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义端点"
           }
         }
       }
@@ -8363,16 +8391,16 @@
             "value": "Veri Tablosu Yazı Tipi"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "数据表格字体"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Phông chữ bảng dữ liệu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据表格字体"
           }
         }
       }
@@ -8540,16 +8568,16 @@
             "value": "Veritabanı İndeksi"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "数据库索引"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chỉ mục cơ sở dữ liệu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据库索引"
           }
         }
       }
@@ -9344,16 +9372,16 @@
             "value": "Klasörü Sil"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除文件夹"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xoá thư mục"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除文件夹"
           }
         }
       }
@@ -9366,16 +9394,16 @@
             "value": "Klasör Silinsin mi?"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除文件夹？"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xoá thư mục?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除文件夹？"
           }
         }
       }
@@ -9484,16 +9512,16 @@
             "value": "Profili Sil"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除配置"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xoá hồ sơ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除配置"
           }
         }
       }
@@ -9512,16 +9540,16 @@
             "value": "SSH Profili Silinsin mi?"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除 SSH 配置？"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xoá hồ sơ SSH?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除 SSH 配置？"
           }
         }
       }
@@ -9534,16 +9562,16 @@
             "value": "Temayı Sil"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "删除主题"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xoá chủ đề"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除主题"
           }
         }
       }
@@ -9556,16 +9584,16 @@
             "value": "Silindi"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已删除"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã xoá"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已删除"
           }
         }
       }
@@ -9578,16 +9606,16 @@
             "value": "Silinen Metin"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已删除文本"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Văn bản đã xoá"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已删除文本"
           }
         }
       }
@@ -10198,16 +10226,16 @@
             "value": "Renk ve düzeni özelleştirmek için çoğaltın."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "复制后可自定义颜色和布局。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nhân bản để tuỳ chỉnh màu sắc và bố cục."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制后可自定义颜色和布局。"
           }
         }
       }
@@ -10265,16 +10293,16 @@
             "value": "Temayı Çoğalt"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "复制主题"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nhân bản chủ đề"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制主题"
           }
         }
       }
@@ -10382,16 +10410,16 @@
             "value": "Profili Düzenle..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "编辑配置…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chỉnh sửa hồ sơ..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑配置…"
           }
         }
       }
@@ -10471,16 +10499,16 @@
             "value": "Düzenle..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "编辑…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chỉnh sửa..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑…"
           }
         }
       }
@@ -10537,16 +10565,16 @@
             "value": "Düzenleyici Yazı Tipi"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "编辑器字体"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Phông chữ trình soạn thảo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑器字体"
           }
         }
       }
@@ -10626,16 +10654,16 @@
             "value": "%@ Etkinleştir"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "启用 %@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bật %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启用 %@"
           }
         }
       }
@@ -10935,16 +10963,16 @@
             "value": "Pro özelliklerin kilidini açmak için lisans anahtarınızı girin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "输入许可证密钥以解锁 Pro 功能。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nhập mã giấy phép để mở khoá các tính năng Pro."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "输入许可证密钥以解锁 Pro 功能。"
           }
         }
       }
@@ -11266,16 +11294,16 @@
             "value": "Çalıştırıldı: %@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已执行：%@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã thực thi: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已执行：%@"
           }
         }
       }
@@ -11360,16 +11388,16 @@
             "value": "Bitiş Tarihi:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "到期时间："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hết hạn:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "到期时间："
           }
         }
       }
@@ -11525,6 +11553,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "导出"
+          }
+        }
+      }
+    },
+    "Export %lld row(s) to %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Export %1$lld row(s) to %2$@"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export %lld hàng sang %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出 %lld 行到 %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld satırı %@ olarak dışa aktar"
+          }
+        }
+      }
+    },
+    "Export %lld table(s) to %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Export %1$lld table(s) to %2$@"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export %lld bảng sang %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出 %lld 张表到 %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tabloyu %@ olarak dışa aktar"
           }
         }
       }
@@ -11759,16 +11843,38 @@
             "value": "Sorgu sonuçlarını ve tabloları Excel biçiminde dışa aktarın."
           }
         },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Xuất kết quả truy vấn và bảng sang định dạng Excel."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "将查询结果和表导出为 Excel 格式。"
           }
-        },
+        }
+      }
+    },
+    "Export Results...": {
+      "localizations": {
         "vi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Xuất kết quả truy vấn và bảng sang định dạng Excel."
+            "value": "Export Kết Quả..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出结果..."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonuçları Dışa Aktar..."
           }
         }
       }
@@ -11871,16 +11977,16 @@
             "value": "Çok Büyük"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "特大"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Rất lớn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "特大"
           }
         }
       }
@@ -12026,16 +12132,16 @@
             "value": "Eşitleme verisi kodlanamadı: %@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步数据编码失败：%@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không thể mã hoá dữ liệu đồng bộ: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步数据编码失败：%@"
           }
         }
       }
@@ -12385,16 +12491,16 @@
             "value": "Sunucu yanıtı ayrıştırılamadı: %@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "服务器响应解析失败：%@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không thể phân tích phản hồi máy chủ: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器响应解析失败：%@"
           }
         }
       }
@@ -12570,16 +12676,16 @@
             "value": "Aile"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "字体族"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Họ phông"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "字体族"
           }
         }
       }
@@ -12592,16 +12698,16 @@
             "value": "Hızlı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "快速"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nhanh"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速"
           }
         }
       }
@@ -12614,16 +12720,16 @@
             "value": "Sık Kullanılanlar"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "收藏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Yêu thích"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "收藏"
           }
         }
       }
@@ -12836,16 +12942,16 @@
             "value": "Filtre sık kullanılanları"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "筛选收藏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lọc yêu thích"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "筛选收藏"
           }
         }
       }
@@ -13056,16 +13162,16 @@
             "value": "Odak Kenarlığı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "焦点边框"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Viền khi chọn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "焦点边框"
           }
         }
       }
@@ -13078,16 +13184,16 @@
             "value": "Klasör adı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "文件夹名称"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tên thư mục"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件夹名称"
           }
         }
       }
@@ -13146,16 +13252,16 @@
             "value": "Yazı Tipleri"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "字体"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Phông chữ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "字体"
           }
         }
       }
@@ -13278,16 +13384,16 @@
             "value": "Fonksiyon"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "函数"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hàm"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "函数"
           }
         }
       }
@@ -13410,16 +13516,16 @@
             "value": "GitHub Deposu"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GitHub 仓库"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kho GitHub"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub 仓库"
           }
         }
       }
@@ -13432,16 +13538,16 @@
             "value": "Genel:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "全局："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chung:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全局："
           }
         }
       }
@@ -13653,16 +13759,16 @@
             "value": "Gruplar ve Etiketler:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分组与标签："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nhóm & thẻ:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分组与标签："
           }
         }
       }
@@ -13697,16 +13803,16 @@
             "value": "Hex bayt"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "十六进制字节"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Byte dạng Hex"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "十六进制字节"
           }
         }
       }
@@ -13874,16 +13980,16 @@
             "value": "Geçmiş Limiti:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "历史记录上限："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giới hạn lịch sử:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史记录上限："
           }
         }
       }
@@ -13940,16 +14046,16 @@
             "value": "Üzerine Gelme"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "悬停"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Di chuột"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "悬停"
           }
         }
       }
@@ -13962,16 +14068,16 @@
             "value": "Çok Büyük"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "超大"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Rất lớn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超大"
           }
         }
       }
@@ -13984,16 +14090,16 @@
             "value": "iCloud account is not available. Sign in to iCloud in System Settings."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 账户不可用。请在系统设置中登录 iCloud。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tài khoản iCloud không khả dụng. Đăng nhập iCloud trong Cài đặt hệ thống."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 账户不可用。请在系统设置中登录 iCloud。"
           }
         }
       }
@@ -14006,16 +14112,16 @@
             "value": "iCloud Connected"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 已连接"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã kết nối iCloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 已连接"
           }
         }
       }
@@ -14028,16 +14134,16 @@
             "value": "iCloud server error: %@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 服务器错误：%@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lỗi máy chủ iCloud: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 服务器错误：%@"
           }
         }
       }
@@ -14050,16 +14156,16 @@
             "value": "iCloud storage is full. Free up space or reduce the history sync limit."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 储存空间已满。请释放空间或减少历史记录同步上限。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bộ nhớ iCloud đã đầy. Giải phóng dung lượng hoặc giảm giới hạn đồng bộ lịch sử."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 储存空间已满。请释放空间或减少历史记录同步上限。"
           }
         }
       }
@@ -14072,16 +14178,16 @@
             "value": "iCloud Sync"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 同步"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ iCloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 同步"
           }
         }
       }
@@ -14094,16 +14200,16 @@
             "value": "iCloud Sync is active"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 同步已启用"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ iCloud đang hoạt động"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 同步已启用"
           }
         }
       }
@@ -14116,16 +14222,16 @@
             "value": "iCloud Sync:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 同步："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ iCloud:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 同步："
           }
         }
       }
@@ -14138,16 +14244,16 @@
             "value": "Simge Boyutları"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "图标大小"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kích thước biểu tượng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图标大小"
           }
         }
       }
@@ -14771,16 +14877,16 @@
             "value": "Bilgi"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "信息"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thông tin"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "信息"
           }
         }
       }
@@ -14799,16 +14905,16 @@
             "value": "Satır İçi Yapılandırma"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "内联配置"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cấu hình nội tuyến"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内联配置"
           }
         }
       }
@@ -14865,16 +14971,16 @@
             "value": "Düzenleyiciye Ekle"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "插入到编辑器"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chèn vào trình soạn thảo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插入到编辑器"
           }
         }
       }
@@ -14909,16 +15015,16 @@
             "value": "Eklendi"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已插入"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã chèn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已插入"
           }
         }
       }
@@ -15042,16 +15148,16 @@
             "value": "Temayı Yükle"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "安装主题"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cài đặt chủ đề"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装主题"
           }
         }
       }
@@ -15153,16 +15259,16 @@
             "value": "Arayüz"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "界面"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giao diện"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "界面"
           }
         }
       }
@@ -15287,16 +15393,16 @@
             "value": "Geçersiz hex"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无效的十六进制"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hex không hợp lệ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无效的十六进制"
           }
         }
       }
@@ -15354,16 +15460,16 @@
             "value": "Geçersiz lisans anahtarı biçimi. Yazım hatalarını kontrol edip tekrar deneyin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证密钥格式无效。请检查是否有拼写错误后重试。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Định dạng mã giấy phép không hợp lệ. Kiểm tra lỗi chính tả và thử lại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证密钥格式无效。请检查是否有拼写错误后重试。"
           }
         }
       }
@@ -15443,16 +15549,16 @@
             "value": "Görünmezler"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不可见字符"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Ký tự ẩn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不可见字符"
           }
         }
       }
@@ -15619,13 +15725,13 @@
             "value": "JSON"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "JSON"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "JSON"
@@ -15730,16 +15836,16 @@
             "value": "Keep Other Version"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保留其他版本"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giữ phiên bản khác"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留其他版本"
           }
         }
       }
@@ -15752,16 +15858,16 @@
             "value": "Keep This Mac's Version"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保留此 Mac 的版本"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giữ phiên bản máy Mac này"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保留此 Mac 的版本"
           }
         }
       }
@@ -15796,16 +15902,16 @@
             "value": "Anahtar Önek Kökü"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "键前缀根"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tiền tố gốc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "键前缀根"
           }
         }
       }
@@ -15884,16 +15990,16 @@
             "value": "Anahtar Kelime"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "关键字"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Từ khoá"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关键字"
           }
         }
       }
@@ -15906,16 +16012,16 @@
             "value": "Anahtar kelime boşluk içeremez"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "关键字不能包含空格"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Từ khoá không được chứa khoảng trắng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关键字不能包含空格"
           }
         }
       }
@@ -15928,16 +16034,16 @@
             "value": "Anahtar Kelime:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "关键字："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Từ khoá:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关键字："
           }
         }
       }
@@ -15950,16 +16056,16 @@
             "value": "keyword: %@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "关键字：%@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "từ khoá: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关键字：%@"
           }
         }
       }
@@ -15994,16 +16100,16 @@
             "value": "Büyük"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "大"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lớn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "大"
           }
         }
       }
@@ -16104,16 +16210,16 @@
             "value": "Son eşitleme %@"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "上次同步 %@"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ lần cuối %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次同步 %@"
           }
         }
       }
@@ -16126,16 +16232,16 @@
             "value": "Son Eşitlendi:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "上次同步："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ lần cuối:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上次同步："
           }
         }
       }
@@ -16170,16 +16276,16 @@
             "value": "Düzen"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "布局"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bố cục"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "布局"
           }
         }
       }
@@ -16304,16 +16410,16 @@
             "value": "Lisans süresi doldu — eşitleme duraklatıldı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证已过期 - 同步已暂停"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép hết hạn — tạm dừng đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证已过期 - 同步已暂停"
           }
         }
       }
@@ -16332,16 +16438,16 @@
             "value": "Lisans %lld gün içinde sona eriyor"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证将在 %lld 天后过期"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép hết hạn sau %lld ngày"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证将在 %lld 天后过期"
           }
         }
       }
@@ -16376,16 +16482,16 @@
             "value": "Lisans açık anahtarı geçersiz."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证公钥无效。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Khoá công khai giấy phép không hợp lệ."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证公钥无效。"
           }
         }
       }
@@ -16398,16 +16504,16 @@
             "value": "Uygulama paketinde lisans açık anahtarı bulunamadı."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "应用包中未找到许可证公钥。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không tìm thấy khoá công khai giấy phép trong gói ứng dụng."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用包中未找到许可证公钥。"
           }
         }
       }
@@ -16420,16 +16526,16 @@
             "value": "Lisans imza doğrulaması başarısız oldu."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证签名验证失败。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xác minh chữ ký giấy phép thất bại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证签名验证失败。"
           }
         }
       }
@@ -16448,16 +16554,16 @@
             "value": "Lisans doğrulaması başarısız oldu"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证验证失败"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xác thực giấy phép thất bại"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证验证失败"
           }
         }
       }
@@ -16470,16 +16576,16 @@
             "value": "Lisans doğrulaması başarısız oldu. Uygulamayı en son sürüme güncellemeyi deneyin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证验证失败。请尝试更新到最新版本。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xác minh giấy phép thất bại. Hãy thử cập nhật ứng dụng lên phiên bản mới nhất."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证验证失败。请尝试更新到最新版本。"
           }
         }
       }
@@ -16498,16 +16604,16 @@
             "value": "Ömür Boyu"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "终身"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Trọn đời"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终身"
           }
         }
       }
@@ -16587,16 +16693,16 @@
             "value": "Satır Numarası"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "行号"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Số dòng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行号"
           }
         }
       }
@@ -16945,16 +17051,16 @@
             "value": "Çok Büyük"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "巨大"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cực lớn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "巨大"
           }
         }
       }
@@ -17121,16 +17227,16 @@
             "value": "Maksimum etkinleştirme sayısına ulaşıldı."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已达到最大激活数。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã đạt số lượng kích hoạt tối đa."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已达到最大激活数。"
           }
         }
       }
@@ -17165,16 +17271,16 @@
             "value": "Orta"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "中等"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Trung bình"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中等"
           }
         }
       }
@@ -17320,16 +17426,16 @@
             "value": "Değiştirildi:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "修改时间："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã sửa đổi:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "修改时间："
           }
         }
       }
@@ -17411,16 +17517,16 @@
             "value": "Taşı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "移动到"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Di chuyển đến"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移动到"
           }
         }
       }
@@ -17553,16 +17659,16 @@
             "value": "Sunucum"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "我的服务器"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Máy chủ của tôi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我的服务器"
           }
         }
       }
@@ -17597,16 +17703,16 @@
             "value": "Ad:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "名称："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tên:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称："
           }
         }
       }
@@ -17664,16 +17770,16 @@
             "value": "Başka bir sayfaya gitmek kaydedilmemiş değişiklikleri siler."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "导航到其他页面将丢弃所有未保存的更改。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chuyển sang trang khác sẽ huỷ tất cả thay đổi chưa lưu."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导航到其他页面将丢弃所有未保存的更改。"
           }
         }
       }
@@ -17731,16 +17837,16 @@
             "value": "Ağ kullanılamıyor. Bağlantı sağlandığında değişiklikler eşitlenecek."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "网络不可用。恢复连接后将自动同步更改。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mạng không khả dụng. Các thay đổi sẽ được đồng bộ khi có kết nối trở lại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网络不可用。恢复连接后将自动同步更改。"
           }
         }
       }
@@ -17885,16 +17991,16 @@
             "value": "Yeni Sık Kullanılan"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新建收藏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mục yêu thích mới"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建收藏"
           }
         }
       }
@@ -17907,16 +18013,16 @@
             "value": "Yeni Sık Kullanılan..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新建收藏…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mục yêu thích mới..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建收藏…"
           }
         }
       }
@@ -17929,16 +18035,16 @@
             "value": "Yeni Klasör"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新建文件夹"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thư mục mới"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建文件夹"
           }
         }
       }
@@ -18063,16 +18169,16 @@
             "value": "Yeni Alt Klasör"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新建子文件夹"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thư mục con mới"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建子文件夹"
           }
         }
       }
@@ -18107,16 +18213,16 @@
             "value": "Yeni Tema"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "新建主题"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chủ đề mới"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建主题"
           }
         }
       }
@@ -18245,16 +18351,16 @@
             "value": "Etkinleştirme bulunamadı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "未找到激活记录"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không tìm thấy kích hoạt nào"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到激活记录"
           }
         }
       }
@@ -18555,16 +18661,16 @@
             "value": "No Favorites"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无收藏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không có mục yêu thích"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无收藏"
           }
         }
       }
@@ -18599,16 +18705,16 @@
             "value": "No iCloud"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无 iCloud"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không có iCloud"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无 iCloud"
           }
         }
       }
@@ -18754,16 +18860,16 @@
             "value": "No Matching Favorites"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "无匹配的收藏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không có mục yêu thích phù hợp"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无匹配的收藏"
           }
         }
       }
@@ -19463,16 +19569,16 @@
             "value": "Not Available"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不可用"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không khả dụng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不可用"
           }
         }
       }
@@ -19838,16 +19944,16 @@
             "value": "NULL Değer"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "NULL 值"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giá trị NULL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NULL 值"
           }
         }
       }
@@ -19883,16 +19989,16 @@
             "value": "Sayı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "数字"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Số"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数字"
           }
         }
       }
@@ -20306,16 +20412,16 @@
             "value": "Operator"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "运算符"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Toán tử"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运算符"
           }
         }
       }
@@ -20529,16 +20635,16 @@
             "value": "Other Device"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "其他设备"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thiết bị khác"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他设备"
           }
         }
       }
@@ -20739,16 +20845,16 @@
             "value": "Parolalar:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "密码："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mật khẩu:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密码："
           }
         }
       }
@@ -21944,16 +22050,16 @@
             "value": "Birincil Anahtar"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "主键"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Khoá chính"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主键"
           }
         }
       }
@@ -21989,16 +22095,16 @@
             "value": "Primary Text"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "主要文本"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Văn bản chính"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主要文本"
           }
         }
       }
@@ -22055,13 +22161,13 @@
             "value": "Pro"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Pro"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "Pro"
@@ -22077,16 +22183,16 @@
             "value": "Pro Lisans Gerekli"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "需要 Pro 许可证"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Yêu cầu giấy phép Pro"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需要 Pro 许可证"
           }
         }
       }
@@ -22099,16 +22205,16 @@
             "value": "Pro license required for iCloud Sync"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "iCloud 同步需要 Pro 许可证"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cần giấy phép Pro để sử dụng iCloud Sync"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud 同步需要 Pro 许可证"
           }
         }
       }
@@ -22127,16 +22233,16 @@
             "value": "Profil"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配置"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hồ sơ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置"
           }
         }
       }
@@ -22155,16 +22261,16 @@
             "value": "Profil Adı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配置名称"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tên hồ sơ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置名称"
           }
         }
       }
@@ -22183,16 +22289,16 @@
             "value": "Profil Ayarları"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配置设置"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cài đặt hồ sơ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配置设置"
           }
         }
       }
@@ -22278,16 +22384,16 @@
             "value": "Lisans Satın Al"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "购买许可证"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mua giấy phép"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "购买许可证"
           }
         }
       }
@@ -22500,16 +22606,16 @@
             "value": "Query History:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "查询历史："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lịch sử truy vấn:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查询历史："
           }
         }
       }
@@ -22544,16 +22650,16 @@
             "value": "Query:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "查询："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Truy vấn:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查询："
           }
         }
       }
@@ -23265,16 +23371,16 @@
             "value": "Sunucudan lisans durumunu yenile"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "从服务器刷新许可证状态"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Làm mới trạng thái giấy phép từ máy chủ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从服务器刷新许可证状态"
           }
         }
       }
@@ -23331,16 +23437,16 @@
             "value": "Registry"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "插件仓库"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kho plugin"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "插件仓库"
           }
         }
       }
@@ -23469,16 +23575,16 @@
             "value": "Yenile"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "续期"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Gia hạn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "续期"
           }
         }
       }
@@ -23497,16 +23603,16 @@
             "value": "Lisansı Yenile"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "续期许可证"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Gia hạn giấy phép"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "续期许可证"
           }
         }
       }
@@ -23519,16 +23625,16 @@
             "value": "Renew License..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "续期许可证…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Gia hạn giấy phép..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "续期许可证…"
           }
         }
       }
@@ -23585,16 +23691,16 @@
             "value": "Sorguları çalıştırmadan önce onay veya Touch ID gerektirir."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "执行查询前需要确认或 Touch ID。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Yêu cầu xác nhận hoặc Touch ID trước khi thực thi truy vấn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "执行查询前需要确认或 Touch ID。"
           }
         }
       }
@@ -23629,16 +23735,16 @@
             "value": "Zorunlu (doğrulamayı atla)"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "必需（跳过验证）"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Bắt buộc (bỏ qua xác minh)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "必需（跳过验证）"
           }
         }
       }
@@ -23811,16 +23917,16 @@
             "value": "Doğrulamayı Tekrar Dene"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重试验证"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thử lại xác thực"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试验证"
           }
         }
       }
@@ -23923,16 +24029,16 @@
             "value": "Root Level"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "根级别"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cấp gốc"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "根级别"
           }
         }
       }
@@ -24040,16 +24146,16 @@
             "value": "Row Heights"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "行高"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chiều cao dòng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行高"
           }
         }
       }
@@ -24084,16 +24190,16 @@
             "value": "Row Number"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "行号"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Số thứ tự dòng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "行号"
           }
         }
       }
@@ -24262,16 +24368,16 @@
             "value": "Güvenli Mod, Güvenli Mod (Tam) ve Salt Okunur için Pro lisans gereklidir."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "安全模式、安全模式（完整）和只读模式需要 Pro 许可证。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chế độ an toàn, Chế độ an toàn (toàn phần) và Chỉ đọc yêu cầu giấy phép Pro."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全模式、安全模式（完整）和只读模式需要 Pro 许可证。"
           }
         }
       }
@@ -24417,16 +24523,16 @@
             "value": "Save as Favorite"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存为收藏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lưu vào yêu thích"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存为收藏"
           }
         }
       }
@@ -24439,16 +24545,16 @@
             "value": "Save as Favorite..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存为收藏…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lưu vào yêu thích..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存为收藏…"
           }
         }
       }
@@ -24556,16 +24662,16 @@
             "value": "Geçerli Ayarları Profil Olarak Kaydet..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "将当前设置保存为配置…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lưu hiện tại thành hồ sơ..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将当前设置保存为配置…"
           }
         }
       }
@@ -24622,16 +24728,16 @@
             "value": "Save frequently used queries\nfor quick access."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "保存常用查询\n以便快速访问。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lưu các truy vấn thường dùng\nđể truy cập nhanh."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存常用查询\n以便快速访问。"
           }
         }
       }
@@ -25156,16 +25262,16 @@
             "value": "Secondary Text"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "次要文本"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Văn bản phụ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次要文本"
           }
         }
       }
@@ -25184,13 +25290,13 @@
             "value": "Secret Access Key"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Secret Access Key"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "Secret Access Key"
@@ -25206,16 +25312,16 @@
             "value": "Section Header"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "分区标题"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tiêu đề mục"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分区标题"
           }
         }
       }
@@ -25251,13 +25357,13 @@
             "value": "SELECT * FROM users WHERE id = 42;"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "SELECT * FROM users WHERE id = 42;"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "SELECT * FROM users WHERE id = 42;"
@@ -25495,16 +25601,16 @@
             "value": "Selected Item"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选中项"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mục đã chọn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选中项"
           }
         }
       }
@@ -25523,16 +25629,16 @@
             "value": "Seçilen SSH profili artık mevcut değil."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "所选 SSH 配置已不存在。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hồ sơ SSH đã chọn không còn tồn tại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选 SSH 配置已不存在。"
           }
         }
       }
@@ -25545,16 +25651,16 @@
             "value": "Selection"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选区"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Vùng chọn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选区"
           }
         }
       }
@@ -25668,13 +25774,13 @@
             "value": "Session Token"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Session Token"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "Session Token"
@@ -25823,16 +25929,16 @@
             "value": "Settings were changed"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "设置已更改"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cài đặt đã bị thay đổi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置已更改"
           }
         }
       }
@@ -25845,16 +25951,16 @@
             "value": "Settings were changed on both this Mac and another device."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "设置在此 Mac 和另一台设备上均已更改。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cài đặt đã bị thay đổi trên cả máy Mac này và thiết bị khác."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置在此 Mac 和另一台设备上均已更改。"
           }
         }
       }
@@ -25867,16 +25973,16 @@
             "value": "Settings:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "设置："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cài đặt:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置："
           }
         }
       }
@@ -25889,16 +25995,16 @@
             "value": "Shadows the SQL keyword '%@'"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "与 SQL 关键字 '%@' 冲突"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Trùng với từ khoá SQL '%@'"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "与 SQL 关键字 '%@' 冲突"
           }
         }
       }
@@ -26266,16 +26372,16 @@
             "value": "Sidebar"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "侧边栏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thanh bên"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "侧边栏"
           }
         }
       }
@@ -26311,16 +26417,16 @@
             "value": "Sign in to iCloud in System Settings to enable sync."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请在系统设置中登录 iCloud 以启用同步。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đăng nhập iCloud trong Cài đặt hệ thống để bật đồng bộ."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请在系统设置中登录 iCloud 以启用同步。"
           }
         }
       }
@@ -26333,16 +26439,16 @@
             "value": "Sign in to iCloud to enable sync"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "登录 iCloud 以启用同步"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đăng nhập iCloud để bật đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登录 iCloud 以启用同步"
           }
         }
       }
@@ -26488,16 +26594,16 @@
             "value": "Slow"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "慢速"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chậm"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "慢速"
           }
         }
       }
@@ -26510,16 +26616,16 @@
             "value": "Small"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "小"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nhỏ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小"
           }
         }
       }
@@ -26532,16 +26638,16 @@
             "value": "Smooth"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "平滑"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mượt"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平滑"
           }
         }
       }
@@ -26576,16 +26682,16 @@
             "value": "Bir sorun oluştu (hata %lld). Biraz sonra tekrar deneyin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "出现问题（错误 %lld）。请稍后重试。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã xảy ra lỗi (mã %lld). Vui lòng thử lại sau."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出现问题（错误 %lld）。请稍后重试。"
           }
         }
       }
@@ -26643,16 +26749,16 @@
             "value": "Spacing"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "间距"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Khoảng cách"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "间距"
           }
         }
       }
@@ -26687,16 +26793,16 @@
             "value": "Sponsor"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "赞助"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tài trợ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赞助"
           }
         }
       }
@@ -26709,16 +26815,16 @@
             "value": "Sponsor TablePro"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "赞助 TablePro"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tài trợ TablePro"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "赞助 TablePro"
           }
         }
       }
@@ -27094,16 +27200,16 @@
             "value": "SSH Profili"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SSH 配置"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hồ sơ SSH"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 配置"
           }
         }
       }
@@ -27122,16 +27228,16 @@
             "value": "SSH Profilleri:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SSH 配置："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hồ sơ SSH:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSH 配置："
           }
         }
       }
@@ -27505,16 +27611,16 @@
             "value": "Status Colors"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "状态颜色"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Màu trạng thái"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态颜色"
           }
         }
       }
@@ -27527,16 +27633,16 @@
             "value": "Status Dot"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "状态指示点"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chấm trạng thái"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态指示点"
           }
         }
       }
@@ -27555,16 +27661,16 @@
             "value": "Durum:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "状态："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Trạng thái:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态："
           }
         }
       }
@@ -27643,16 +27749,16 @@
             "value": "String"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "字符串"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chuỗi"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "字符串"
           }
         }
       }
@@ -27894,16 +28000,16 @@
             "value": "Satır İçi Yapılandırmaya Geç"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "切换为内联配置"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chuyển sang cấu hình nội tuyến"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换为内联配置"
           }
         }
       }
@@ -27916,16 +28022,16 @@
             "value": "Sync"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步"
           }
         }
       }
@@ -27938,16 +28044,16 @@
             "value": "Sync Categories"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步分类"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Danh mục đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步分类"
           }
         }
       }
@@ -27960,16 +28066,16 @@
             "value": "Sync Conflict"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步冲突"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xung đột đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步冲突"
           }
         }
       }
@@ -27982,16 +28088,16 @@
             "value": "Sync connections, settings, and history across your Macs."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在多台 Mac 之间同步连接、设置和历史记录。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ kết nối, cài đặt và lịch sử giữa các máy Mac."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在多台 Mac 之间同步连接、设置和历史记录。"
           }
         }
       }
@@ -28004,16 +28110,16 @@
             "value": "Sync Error"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步错误"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Lỗi đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步错误"
           }
         }
       }
@@ -28026,16 +28132,16 @@
             "value": "Sync Now"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "立即同步"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ ngay"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "立即同步"
           }
         }
       }
@@ -28048,16 +28154,16 @@
             "value": "Sync Off"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步已关闭"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tắt đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步已关闭"
           }
         }
       }
@@ -28070,16 +28176,16 @@
             "value": "Sync paused — Pro license expired"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "同步已暂停 - Pro 许可证已过期"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tạm dừng đồng bộ — giấy phép Pro đã hết hạn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步已暂停 - Pro 许可证已过期"
           }
         }
       }
@@ -28092,16 +28198,16 @@
             "value": "Sync zone not found. A full sync will be performed."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "未找到同步区域。将执行完整同步。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Không tìm thấy vùng đồng bộ. Sẽ thực hiện đồng bộ toàn bộ."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到同步区域。将执行完整同步。"
           }
         }
       }
@@ -28114,16 +28220,16 @@
             "value": "Synced"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已同步"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đã đồng bộ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已同步"
           }
         }
       }
@@ -28136,16 +28242,16 @@
             "value": "Syncing with iCloud..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在与 iCloud 同步…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đang đồng bộ với iCloud..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在与 iCloud 同步…"
           }
         }
       }
@@ -28158,16 +28264,16 @@
             "value": "Syncing..."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "正在同步…"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đang đồng bộ..."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在同步…"
           }
         }
       }
@@ -28180,16 +28286,16 @@
             "value": "Syncs connections, settings, and history across your Macs via iCloud."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "通过 iCloud 在多台 Mac 之间同步连接、设置和历史记录。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ kết nối, cài đặt và lịch sử giữa các máy Mac qua iCloud."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通过 iCloud 在多台 Mac 之间同步连接、设置和历史记录。"
           }
         }
       }
@@ -28208,16 +28314,16 @@
             "value": "Parolaları iCloud Keychain ile senkronize eder (uçtan uca şifreli)."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "通过 iCloud 钥匙串同步密码（端到端加密）。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đồng bộ mật khẩu qua iCloud Keychain (mã hoá đầu cuối)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通过 iCloud 钥匙串同步密码（端到端加密）。"
           }
         }
       }
@@ -28230,16 +28336,16 @@
             "value": "Syntax Colors"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "语法颜色"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Màu cú pháp"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语法颜色"
           }
         }
       }
@@ -28521,16 +28627,16 @@
             "value": "TablePro Website"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TablePro 网站"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Trang web TablePro"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TablePro 网站"
           }
         }
       }
@@ -28745,16 +28851,16 @@
             "value": "Tertiary Text"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "辅助文本"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Văn bản thứ ba"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "辅助文本"
           }
         }
       }
@@ -28811,16 +28917,16 @@
             "value": "Metin"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "文本"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Văn bản"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文本"
           }
         }
       }
@@ -28833,16 +28939,16 @@
             "value": "Bu geçerli bir lisans anahtarı gibi görünmüyor. Yazım hatalarını kontrol edip tekrar deneyin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "这看起来不是有效的许可证密钥。请检查是否有拼写错误后重试。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mã giấy phép không hợp lệ. Kiểm tra lỗi chính tả và thử lại."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这看起来不是有效的许可证密钥。请检查是否有拼写错误后重试。"
           }
         }
       }
@@ -28927,16 +29033,16 @@
             "value": "The folder \"%@\" will be deleted. Items inside will be moved to the parent level."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "文件夹 \"%@\" 将被删除。其中的项目将移至上一级。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thư mục \"%@\" sẽ bị xoá. Các mục bên trong sẽ được chuyển lên cấp cha."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件夹 \"%@\" 将被删除。其中的项目将移至上一级。"
           }
         }
       }
@@ -28977,16 +29083,16 @@
             "value": "Lisans askıya alındı."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证已被暂停。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép đã bị đình chỉ."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证已被暂停。"
           }
         }
       }
@@ -28999,16 +29105,16 @@
             "value": "Lisansın süresi doldu."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证已过期。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép đã hết hạn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证已过期。"
           }
         }
       }
@@ -29021,16 +29127,16 @@
             "value": "Lisans anahtarı geçersiz."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "许可证密钥无效。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Mã giấy phép không hợp lệ."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "许可证密钥无效。"
           }
         }
       }
@@ -29176,16 +29282,16 @@
             "value": "This is a built-in theme."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "这是内置主题。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đây là chủ đề mặc định."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这是内置主题。"
           }
         }
       }
@@ -29198,16 +29304,16 @@
             "value": "This is a registry theme."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "这是插件仓库主题。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Đây là chủ đề từ kho plugin."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这是插件仓库主题。"
           }
         }
       }
@@ -29220,16 +29326,16 @@
             "value": "This keyword is already in use"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此关键字已被使用"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Từ khoá này đã được sử dụng"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此关键字已被使用"
           }
         }
       }
@@ -29242,16 +29348,16 @@
             "value": "Bu lisans askıya alındı. Yardım için destek ile iletişime geçin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此许可证已被暂停。请联系支持团队获取帮助。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép này đã bị đình chỉ. Liên hệ hỗ trợ để được giúp đỡ."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此许可证已被暂停。请联系支持团队获取帮助。"
           }
         }
       }
@@ -29264,16 +29370,16 @@
             "value": "Bu lisansın süresi doldu. Pro özellikleri kullanmaya devam etmek için yenileyin."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此许可证已过期。请续期以继续使用 Pro 功能。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép này đã hết hạn. Gia hạn để tiếp tục sử dụng các tính năng Pro."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此许可证已过期。请续期以继续使用 Pro 功能。"
           }
         }
       }
@@ -29286,16 +29392,16 @@
             "value": "Bu lisans etkinleştirme sınırına ulaştı. Önce başka bir Mac'i devre dışı bırakın."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此许可证已达到激活上限。请先停用另一台 Mac。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép này đã đạt giới hạn kích hoạt. Hãy huỷ kích hoạt một máy Mac khác trước."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此许可证已达到激活上限。请先停用另一台 Mac。"
           }
         }
       }
@@ -29308,16 +29414,16 @@
             "value": "This Mac"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此 Mac"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Máy Mac này"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Mac"
           }
         }
       }
@@ -29330,16 +29436,16 @@
             "value": "Bu makine bu lisans için etkinleştirilmemiş."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此设备未激活该许可证。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Máy này chưa được kích hoạt cho giấy phép này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备未激活该许可证。"
           }
         }
       }
@@ -29352,16 +29458,16 @@
             "value": "Bu makine etkinleştirilmemiş."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此设备未激活。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Máy này chưa được kích hoạt."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此设备未激活。"
           }
         }
       }
@@ -29446,16 +29552,16 @@
             "value": "Bu profil kalıcı olarak silinecek."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此配置将被永久删除。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hồ sơ này sẽ bị xoá vĩnh viễn."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此配置将被永久删除。"
           }
         }
       }
@@ -29663,16 +29769,16 @@
             "value": "Katman:"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "等级："
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Hạng:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等级："
           }
         }
       }
@@ -29707,16 +29813,16 @@
             "value": "Tiny"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "极小"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Rất nhỏ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "极小"
           }
         }
       }
@@ -29729,16 +29835,16 @@
             "value": "Tiny Dot"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "极小圆点"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chấm nhỏ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "极小圆点"
           }
         }
       }
@@ -29751,16 +29857,16 @@
             "value": "Title 2"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "标题 2"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tiêu đề 2"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标题 2"
           }
         }
       }
@@ -29773,16 +29879,16 @@
             "value": "Title 3"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "标题 3"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Tiêu đề 3"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标题 3"
           }
         }
       }
@@ -29795,16 +29901,16 @@
             "value": "TLS Mode"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TLS 模式"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Chế độ TLS"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TLS 模式"
           }
         }
       }
@@ -30176,16 +30282,16 @@
             "value": "Toolbar"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "工具栏"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Thanh công cụ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工具栏"
           }
         }
       }
@@ -30573,16 +30679,16 @@
             "value": "Typography"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "排版"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Kiểu chữ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排版"
           }
         }
       }
@@ -31485,16 +31591,16 @@
             "value": "CA Doğrula"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "验证 CA"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xác minh CA"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验证 CA"
           }
         }
       }
@@ -31529,16 +31635,16 @@
             "value": "Kimliği Doğrula"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "验证身份"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xác minh danh tính"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "验证身份"
           }
         }
       }
@@ -31756,16 +31862,16 @@
             "value": "Uyarı"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "警告"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Cảnh báo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "警告"
           }
         }
       }
@@ -31941,16 +32047,16 @@
             "value": "When enabled, this favorite is visible in all connections"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "启用后，此收藏在所有连接中可见"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Khi bật, mục yêu thích này hiển thị trong tất cả kết nối"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启用后，此收藏在所有连接中可见"
           }
         }
       }
@@ -32007,16 +32113,16 @@
             "value": "Window Background"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "窗口背景"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Nền cửa sổ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "窗口背景"
           }
         }
       }
@@ -32119,16 +32225,16 @@
             "value": "XLSX Dışa Aktarma"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XLSX 导出"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xuất XLSX"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "XLSX 导出"
           }
         }
       }
@@ -32141,16 +32247,16 @@
             "value": "XLSX dışa aktarma için Pro lisans gereklidir."
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "XLSX 导出需要 Pro 许可证。"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Xuất XLSX yêu cầu giấy phép Pro."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "XLSX 导出需要 Pro 许可证。"
           }
         }
       }
@@ -32163,13 +32269,13 @@
             "value": "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
           }
         },
-        "zh-Hans": {
+        "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
           }
         },
-        "vi": {
+        "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
@@ -32383,16 +32489,16 @@
             "value": "Lisansınızın süresi doldu"
           }
         },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "您的许可证已过期"
-          }
-        },
         "vi": {
           "stringUnit": {
             "state": "translated",
             "value": "Giấy phép của bạn đã hết hạn"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "您的许可证已过期"
           }
         }
       }
