@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.1] - 2026-03-22
+
 ### Added
 
 - Show/hide row numbers column in data grid (Settings > Data Grid)
@@ -967,7 +969,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/datlechin/tablepro/compare/v0.22.1...HEAD
+[0.22.1]: https://github.com/datlechin/tablepro/compare/v0.22.0...v0.22.1
 [0.22.0]: https://github.com/datlechin/tablepro/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/datlechin/tablepro/compare/v0.20.4...v0.21.0
 [0.20.4]: https://github.com/datlechin/tablepro/compare/v0.20.3...v0.20.4
