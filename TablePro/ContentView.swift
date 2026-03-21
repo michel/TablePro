@@ -18,6 +18,7 @@ struct ContentView: View {
     let payload: EditorTabPayload?
 
     @State private var currentSession: ConnectionSession?
+    @State private var closingSessionId: UUID?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showNewConnectionSheet = false
     @State private var showEditConnectionSheet = false
@@ -70,6 +71,7 @@ struct ContentView: View {
             // Right sidebar toggle is handled by MainContentView (has the binding)
             // Left sidebar toggle uses native NSSplitViewController.toggleSidebar via responder chain
             .onChange(of: DatabaseManager.shared.currentSessionId, initial: true) { _, newSessionId in
+                guard closingSessionId == nil else { return }
                 let ourConnectionId = payload?.connectionId
                 if ourConnectionId != nil {
                     guard newSessionId == ourConnectionId else { return }
@@ -102,59 +104,9 @@ struct ContentView: View {
                     columnVisibility = .detailOnly
                 }
             }
-            .onChange(of: (payload?.connectionId ?? currentSession?.id).flatMap { DatabaseManager.shared.connectionStatusVersions[$0] }, initial: true) { _, _ in
-                let sessions = DatabaseManager.shared.activeSessions
-                let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
-                guard let sid = connectionId else {
-                    if currentSession != nil { currentSession = nil }
-                    return
-                }
-                guard let newSession = sessions[sid] else {
-                    if currentSession?.id == sid {
-                        rightPanelState?.teardown()
-                        rightPanelState = nil
-                        sessionState?.coordinator.teardown()
-                        sessionState = nil
-                        currentSession = nil
-                        columnVisibility = .detailOnly
-                        AppState.shared.isConnected = false
-                        AppState.shared.safeModeLevel = .silent
-                        AppState.shared.editorLanguage = .sql
-                        AppState.shared.currentDatabaseType = nil
-                        AppState.shared.supportsDatabaseSwitching = true
-
-                        // Close all native tab windows for this connection and
-                        // force AppKit to deallocate them instead of pooling.
-                        let tabbingId = "com.TablePro.main.\(sid.uuidString)"
-                        DispatchQueue.main.async {
-                            for window in NSApp.windows where window.tabbingIdentifier == tabbingId {
-                                window.isReleasedWhenClosed = true
-                                window.close()
-                            }
-                        }
-                    }
-                    return
-                }
-                if let existing = currentSession,
-                   existing.isContentViewEquivalent(to: newSession) {
-                    return
-                }
-                currentSession = newSession
-                if rightPanelState == nil {
-                    rightPanelState = RightPanelState()
-                }
-                if sessionState == nil {
-                    sessionState = SessionStateFactory.create(
-                        connection: newSession.connection,
-                        payload: payload
-                    )
-                }
-                AppState.shared.isConnected = true
-                AppState.shared.safeModeLevel = newSession.connection.safeModeLevel
-                AppState.shared.editorLanguage = PluginManager.shared.editorLanguage(for: newSession.connection.type)
-                AppState.shared.currentDatabaseType = newSession.connection.type
-                AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
-                    for: newSession.connection.type)
+            .task { handleConnectionStatusChange() }
+            .onReceive(NotificationCenter.default.publisher(for: .connectionStatusDidChange)) { _ in
+                handleConnectionStatusChange()
             }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { notification in
                 // Only process notifications for our own window to avoid every
@@ -376,6 +328,63 @@ struct ContentView: View {
             set: { $0.tableOperationOptions = $1 },
             defaultValue: [:]
         )
+    }
+
+    // MARK: - Connection Status
+
+    private func handleConnectionStatusChange() {
+        guard closingSessionId == nil else { return }
+        let sessions = DatabaseManager.shared.activeSessions
+        let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
+        guard let sid = connectionId else {
+            if currentSession != nil { currentSession = nil }
+            return
+        }
+        guard let newSession = sessions[sid] else {
+            if currentSession?.id == sid {
+                closingSessionId = sid
+                rightPanelState?.teardown()
+                rightPanelState = nil
+                sessionState?.coordinator.teardown()
+                sessionState = nil
+                currentSession = nil
+                columnVisibility = .detailOnly
+                AppState.shared.isConnected = false
+                AppState.shared.safeModeLevel = .silent
+                AppState.shared.editorLanguage = .sql
+                AppState.shared.currentDatabaseType = nil
+                AppState.shared.supportsDatabaseSwitching = true
+
+                let tabbingId = "com.TablePro.main.\(sid.uuidString)"
+                DispatchQueue.main.async {
+                    for window in NSApp.windows where window.tabbingIdentifier == tabbingId {
+                        window.isReleasedWhenClosed = true
+                        window.close()
+                    }
+                }
+            }
+            return
+        }
+        if let existing = currentSession,
+           existing.isContentViewEquivalent(to: newSession) {
+            return
+        }
+        currentSession = newSession
+        if rightPanelState == nil {
+            rightPanelState = RightPanelState()
+        }
+        if sessionState == nil {
+            sessionState = SessionStateFactory.create(
+                connection: newSession.connection,
+                payload: payload
+            )
+        }
+        AppState.shared.isConnected = true
+        AppState.shared.safeModeLevel = newSession.connection.safeModeLevel
+        AppState.shared.editorLanguage = PluginManager.shared.editorLanguage(for: newSession.connection.type)
+        AppState.shared.currentDatabaseType = newSession.connection.type
+        AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
+            for: newSession.connection.type)
     }
 
     // MARK: - Actions
