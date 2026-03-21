@@ -142,9 +142,22 @@ struct MainContentView: View {
         case .exportDialog:
             ExportDialog(
                 isPresented: dismissBinding,
-                connection: connection,
-                preselectedTables: Set(sidebarState.selectedTables.map(\.name))
+                mode: .tables(
+                    connection: connection,
+                    preselectedTables: Set(sidebarState.selectedTables.map(\.name))
+                )
             )
+        case .exportQueryResults:
+            if let tab = coordinator.tabManager.selectedTab {
+                ExportDialog(
+                    isPresented: dismissBinding,
+                    mode: .queryResults(
+                        connection: connection,
+                        rowBuffer: tab.rowBuffer,
+                        suggestedFileName: "query_results"
+                    )
+                )
+            }
         case .importDialog:
             ImportDialog(
                 isPresented: dismissBinding,

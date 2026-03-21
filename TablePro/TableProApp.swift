@@ -245,6 +245,11 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .export))
             .disabled(!appState.isConnected)
 
+            Button("Export Results...") {
+                actions?.exportQueryResults()
+            }
+            .disabled(!appState.isConnected)
+
             if appState.currentDatabaseType.map({ PluginManager.shared.supportsImport(for: $0) }) ?? true {
                 Button("Import...") {
                     actions?.importTables()

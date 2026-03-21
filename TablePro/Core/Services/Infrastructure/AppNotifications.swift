@@ -24,6 +24,10 @@ extension Notification.Name {
 
     static let licenseStatusDidChange = Notification.Name("licenseStatusDidChange")
 
+    // MARK: - Export
+
+    static let exportQueryResults = Notification.Name("exportQueryResults")
+
     // MARK: - SQL Favorites
 
     static let sqlFavoritesDidUpdate = Notification.Name("sqlFavoritesDidUpdate")

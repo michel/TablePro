@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export query results directly to CSV, JSON, SQL, XLSX, or MQL via File menu, context menu, or toolbar
 - Pro license gating for Safe Mode (Touch ID) and XLSX export
 - License activation dialog
 

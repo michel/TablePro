@@ -132,6 +132,17 @@ final class TableRowViewWithMenu: NSTableRowView {
                 menu.addItem(setValueItem)
             }
 
+            // Export Results
+            menu.addItem(NSMenuItem.separator())
+
+            let exportItem = NSMenuItem(
+                title: String(localized: "Export Results..."),
+                action: #selector(exportResults),
+                keyEquivalent: ""
+            )
+            exportItem.target = self
+            menu.addItem(exportItem)
+
             // Duplicate & Delete
             if coordinator.isEditable {
                 let duplicateItem = NSMenuItem(
@@ -246,6 +257,10 @@ final class TableRowViewWithMenu: NSTableRowView {
             ? coordinator.selectedRowIndices
             : [rowIndex]
         coordinator.copyRowsAsUpdate(at: indices)
+    }
+
+    @objc private func exportResults() {
+        NotificationCenter.default.post(name: .exportQueryResults, object: nil)
     }
 
     @objc private func copyAsJson() {

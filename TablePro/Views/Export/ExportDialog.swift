@@ -15,8 +15,7 @@ import UniformTypeIdentifiers
 /// Main export dialog view
 struct ExportDialog: View {
     @Binding var isPresented: Bool
-    let connection: DatabaseConnection
-    let preselectedTables: Set<String>
+    let mode: ExportMode
 
     // MARK: - State
 
@@ -38,17 +37,47 @@ struct ExportDialog: View {
 
     @State private var exportServiceState = ExportServiceState()
 
+    // MARK: - Mode Helpers
+
+    private var connection: DatabaseConnection {
+        switch mode {
+        case .tables(let conn, _): return conn
+        case .queryResults(let conn, _, _): return conn
+        }
+    }
+
+    private var isQueryResultsMode: Bool {
+        if case .queryResults = mode { return true }
+        return false
+    }
+
+    private var queryResultsRowCount: Int {
+        if case .queryResults(_, let rowBuffer, _) = mode {
+            return rowBuffer.rows.count
+        }
+        return 0
+    }
+
+    private var preselectedTables: Set<String> {
+        if case .tables(_, let tables) = mode {
+            return tables
+        }
+        return []
+    }
+
     // MARK: - Body
 
     var body: some View {
         VStack(spacing: 0) {
             // Content
             HStack(spacing: 0) {
-                // Left: Table tree view
-                tableSelectionView
-                    .frame(width: leftPanelWidth)
+                if !isQueryResultsMode {
+                    // Left: Table tree view
+                    tableSelectionView
+                        .frame(width: leftPanelWidth)
 
-                Divider()
+                    Divider()
+                }
 
                 // Right: Export options
                 exportOptionsView
@@ -83,7 +112,14 @@ struct ExportDialog: View {
             }
         }
         .task {
-            await loadDatabaseItems()
+            if isQueryResultsMode {
+                if case .queryResults(_, _, let suggestedFileName) = mode {
+                    config.fileName = suggestedFileName
+                }
+                isLoading = false
+            } else {
+                await loadDatabaseItems()
+            }
         }
         .sheet(isPresented: $showProgressDialog) {
             ExportProgressView(
@@ -151,7 +187,7 @@ struct ExportDialog: View {
     }
 
     private var dialogWidth: CGFloat {
-        leftPanelWidth + 280
+        isQueryResultsMode ? 280 : leftPanelWidth + 280
     }
 
     // MARK: - Table Selection View
@@ -251,6 +287,10 @@ struct ExportDialog: View {
                         }
                         .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                         .buttonStyle(.link)
+                    } else if isQueryResultsMode {
+                        Text("\(queryResultsRowCount) row\(queryResultsRowCount == 1 ? "" : "s") to export")
+                            .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                            .foregroundStyle(.secondary)
                     } else {
                         Text("\(exportableCount) table\(exportableCount == 1 ? "" : "s") to export")
                             .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
@@ -346,7 +386,7 @@ struct ExportDialog: View {
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.return, modifiers: [])
-            .disabled(exportableCount == 0 || isExporting || !isFileNameValid || availableFormats.isEmpty || isProGatedFormat(config.formatId))
+            .disabled(isExportDisabled)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -375,6 +415,16 @@ struct ExportDialog: View {
 
     private var fileExtension: String {
         currentPlugin?.currentFileExtension ?? config.formatId
+    }
+
+    private var isExportDisabled: Bool {
+        if isExporting || !isFileNameValid || availableFormats.isEmpty || isProGatedFormat(config.formatId) {
+            return true
+        }
+        if isQueryResultsMode {
+            return queryResultsRowCount == 0
+        }
+        return exportableCount == 0
     }
 
     private static let formatDisplayOrder = ["csv", "json", "sql", "xlsx", "mql"]
@@ -640,13 +690,21 @@ struct ExportDialog: View {
         }
 
         let formatName = currentPlugin.map { type(of: $0).formatDisplayName } ?? config.formatId.uppercased()
-        savePanel.message = "Export \(exportableCount) table(s) to \(formatName)"
+        if isQueryResultsMode {
+            savePanel.message = String(localized: "Export \(queryResultsRowCount) row(s) to \(formatName)")
+        } else {
+            savePanel.message = "Export \(exportableCount) table(s) to \(formatName)"
+        }
 
         savePanel.begin { response in
             guard response == .OK, let url = savePanel.url else { return }
 
             Task {
-                await startExport(to: url)
+                if self.isQueryResultsMode {
+                    await self.startQueryResultsExport(to: url)
+                } else {
+                    await self.startExport(to: url)
+                }
             }
         }
     }
@@ -702,6 +760,43 @@ struct ExportDialog: View {
         }
     }
 
+    @MainActor
+    private func startQueryResultsExport(to url: URL) async {
+        guard case .queryResults(_, let rowBuffer, _) = mode else { return }
+
+        isExporting = true
+        exportedFileURL = url
+
+        let service = ExportService(databaseType: connection.type)
+        exportServiceState.setService(service)
+        showProgressDialog = true
+
+        do {
+            try await service.exportQueryResults(
+                rowBuffer: rowBuffer,
+                config: config,
+                to: url
+            )
+
+            showProgressDialog = false
+            isExporting = false
+
+            if hideSuccessDialog {
+                isPresented = false
+            } else {
+                showSuccessDialog = true
+            }
+        } catch {
+            showProgressDialog = false
+            isExporting = false
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Export Error"),
+                message: error.localizedDescription,
+                window: nil
+            )
+        }
+    }
+
     private func openContainingFolder() {
         guard let url = exportedFileURL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -741,7 +836,6 @@ final class ExportServiceState {
 
     return ExportDialog(
         isPresented: .constant(true),
-        connection: connection,
-        preselectedTables: ["users"]
+        mode: .tables(connection: connection, preselectedTables: ["users"])
     )
 }
