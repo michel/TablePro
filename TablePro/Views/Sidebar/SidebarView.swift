@@ -68,6 +68,9 @@ struct SidebarView: View {
             schemaProvider: schemaProvider
         )
         vm.debouncedSearchText = sidebarState.searchText
+        if databaseType == .redis, let existingVM = sidebarState.redisKeyTreeViewModel {
+            vm.redisKeyTreeViewModel = existingVM
+        }
         _viewModel = State(wrappedValue: vm)
         self.activeTableName = activeTableName
         self.connectionId = connectionId
@@ -243,6 +246,28 @@ struct SidebarView: View {
                                 coordinator?.showAllTablesMetadata()
                             }
                         }
+                }
+
+                if viewModel.databaseType == .redis, let keyTreeVM = sidebarState.redisKeyTreeViewModel {
+                    Section(isExpanded: $viewModel.isRedisKeysExpanded) {
+                        RedisKeyTreeView(
+                            nodes: keyTreeVM.displayNodes(searchText: viewModel.debouncedSearchText),
+                            expandedPrefixes: Binding(
+                                get: { keyTreeVM.expandedPrefixes },
+                                set: { keyTreeVM.expandedPrefixes = $0 }
+                            ),
+                            isLoading: keyTreeVM.isLoading,
+                            isTruncated: keyTreeVM.isTruncated,
+                            onSelectNamespace: { prefix in
+                                coordinator?.browseRedisNamespace(prefix)
+                            },
+                            onSelectKey: { key, keyType in
+                                coordinator?.openRedisKey(key, keyType: keyType)
+                            }
+                        )
+                    } header: {
+                        Text("Keys")
+                    }
                 }
             }
         }

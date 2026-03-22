@@ -460,6 +460,70 @@ extension MainContentCoordinator {
             }
             toolbarState.databaseName = database
             executeTableTabQueryDirectly()
+
+            let separator = connection.additionalFields["redisSeparator"] ?? ":"
+            if sidebarViewModel?.redisKeyTreeViewModel == nil {
+                let vm = RedisKeyTreeViewModel()
+                sidebarViewModel?.redisKeyTreeViewModel = vm
+                let sidebarState = SharedSidebarState.forConnection(connId)
+                sidebarState.redisKeyTreeViewModel = vm
+            }
+            Task {
+                await sidebarViewModel?.redisKeyTreeViewModel?.loadKeys(
+                    connectionId: connId,
+                    database: database,
+                    separator: separator
+                )
+            }
         }
+    }
+
+    func initRedisKeyTreeIfNeeded() {
+        guard connection.type == .redis else { return }
+        let sidebarState = SharedSidebarState.forConnection(connectionId)
+        guard sidebarState.redisKeyTreeViewModel == nil else { return }
+
+        let vm = RedisKeyTreeViewModel()
+        sidebarState.redisKeyTreeViewModel = vm
+        sidebarViewModel?.redisKeyTreeViewModel = vm
+
+        let connId = connectionId
+        let database = toolbarState.databaseName
+        let separator = connection.additionalFields["redisSeparator"] ?? ":"
+        Task {
+            await vm.loadKeys(connectionId: connId, database: database, separator: separator)
+        }
+    }
+
+    // MARK: - Redis Key Tree Navigation
+
+    func browseRedisNamespace(_ prefix: String) {
+        let separator = connection.additionalFields["redisSeparator"] ?? ":"
+        let escapedPrefix = prefix.replacingOccurrences(of: "\"", with: "\\\"")
+        let query = "SCAN 0 MATCH \"\(escapedPrefix)*\" COUNT 200"
+        let title = prefix.hasSuffix(separator) ? String(prefix.dropLast(separator.count)) : prefix
+        tabManager.addTab(initialQuery: query, title: title)
+        runQuery()
+    }
+
+    func openRedisKey(_ keyName: String, keyType: String) {
+        let escapedKey = keyName.replacingOccurrences(of: "\"", with: "\\\"")
+        let query: String
+        switch keyType.lowercased() {
+        case "hash":
+            query = "HGETALL \"\(escapedKey)\""
+        case "list":
+            query = "LRANGE \"\(escapedKey)\" 0 -1"
+        case "set":
+            query = "SMEMBERS \"\(escapedKey)\""
+        case "zset":
+            query = "ZRANGE \"\(escapedKey)\" 0 -1 WITHSCORES"
+        case "stream":
+            query = "XRANGE \"\(escapedKey)\" - +"
+        default:
+            query = "GET \"\(escapedKey)\""
+        }
+        tabManager.addTab(initialQuery: query, title: keyName)
+        runQuery()
     }
 }

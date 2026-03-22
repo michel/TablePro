@@ -28,6 +28,13 @@ final class RedisPlugin: NSObject, TableProPlugin, DriverPlugin {
             defaultValue: "0",
             fieldType: .stepper(range: ConnectionField.IntRange(0...15))
         ),
+        ConnectionField(
+            id: "redisSeparator",
+            label: String(localized: "Key Separator"),
+            defaultValue: ":",
+            fieldType: .text,
+            section: .advanced
+        ),
     ]
     static let additionalDatabaseTypeIds: [String] = []
 
@@ -45,7 +52,7 @@ final class RedisPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let supportsSchemaEditing = false
     static let supportsDatabaseSwitching = false
     static let supportsImport = false
-    static let tableEntityName = "Keys"
+    static let tableEntityName = "Databases"
     static let supportsForeignKeyDisable = false
     static let supportsReadOnlyMode = false
     static let databaseGroupingStrategy: GroupingStrategy = .flat
