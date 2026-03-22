@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - MongoDB `authSource` defaults to database name per MongoDB URI spec instead of always "admin"
+
+### Fixed
+
+- Onboarding "Get Started" button not rendering on macOS 15 until window loses focus (#420)
 - MongoDB collection loading uses `estimatedDocumentCount` and smaller schema sample for faster sidebar population
 
 ## [0.22.1] - 2026-03-22
