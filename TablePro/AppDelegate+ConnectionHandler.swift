@@ -440,7 +440,7 @@ extension AppDelegate {
             tagId = ConnectionURLParser.tagId(fromEnvName: envName)
         }
 
-        var connection = DatabaseConnection(
+        return DatabaseConnection(
             name: parsed.connectionName ?? parsed.suggestedName,
             host: parsed.host,
             port: parsed.port ?? parsed.type.defaultPort,
@@ -452,19 +452,8 @@ extension AppDelegate {
             color: color,
             tagId: tagId,
             mongoAuthSource: parsed.authSource,
-            mongoUseSrv: parsed.useSrv,
-            mongoAuthMechanism: parsed.mongoQueryParams["authMechanism"],
-            mongoReplicaSet: parsed.mongoQueryParams["replicaSet"],
             redisDatabase: parsed.redisDatabase,
             oracleServiceName: parsed.oracleServiceName
         )
-
-        for (key, value) in parsed.mongoQueryParams where !value.isEmpty {
-            if key != "authMechanism" && key != "replicaSet" {
-                connection.additionalFields["mongoParam_\(key)"] = value
-            }
-        }
-
-        return connection
     }
 }

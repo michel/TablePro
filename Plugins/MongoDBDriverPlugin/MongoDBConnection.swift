@@ -62,10 +62,6 @@ final class MongoDBConnection: @unchecked Sendable {
     private let authSource: String?
     private let readPreference: String?
     private let writeConcern: String?
-    private let useSrv: Bool
-    private let authMechanism: String?
-    private let replicaSet: String?
-    private let extraUriParams: [String: String]
 
     private let stateLock = NSLock()
     private var _isConnected: Bool = false
@@ -118,11 +114,7 @@ final class MongoDBConnection: @unchecked Sendable {
         sslClientCertPath: String = "",
         authSource: String? = nil,
         readPreference: String? = nil,
-        writeConcern: String? = nil,
-        useSrv: Bool = false,
-        authMechanism: String? = nil,
-        replicaSet: String? = nil,
-        extraUriParams: [String: String] = [:]
+        writeConcern: String? = nil
     ) {
         self.host = host
         self.port = port
@@ -135,10 +127,6 @@ final class MongoDBConnection: @unchecked Sendable {
         self.authSource = authSource
         self.readPreference = readPreference
         self.writeConcern = writeConcern
-        self.useSrv = useSrv
-        self.authMechanism = authMechanism
-        self.replicaSet = replicaSet
-        self.extraUriParams = extraUriParams
     }
 
     deinit {
@@ -162,8 +150,7 @@ final class MongoDBConnection: @unchecked Sendable {
     // MARK: - URI Construction
 
     private func buildUri() -> String {
-        let scheme = useSrv ? "mongodb+srv" : "mongodb"
-        var uri = "\(scheme)://"
+        var uri = "mongodb://"
 
         if !user.isEmpty {
             let encodedUser = user.addingPercentEncoding(withAllowedCharacters: .urlUserAllowed) ?? user
@@ -180,21 +167,10 @@ final class MongoDBConnection: @unchecked Sendable {
         let encodedHost = host.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? host
         let encodedDb = database.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? database
 
-        if useSrv {
-            uri += encodedHost
-        } else {
-            uri += "\(encodedHost):\(port)"
-        }
+        uri += "\(encodedHost):\(port)"
         uri += database.isEmpty ? "/" : "/\(encodedDb)"
 
-        let effectiveAuthSource: String
-        if let source = authSource, !source.isEmpty {
-            effectiveAuthSource = source
-        } else if !database.isEmpty {
-            effectiveAuthSource = database
-        } else {
-            effectiveAuthSource = "admin"
-        }
+        let effectiveAuthSource = authSource.flatMap { $0.isEmpty ? nil : $0 } ?? "admin"
         let encodedAuthSource = effectiveAuthSource
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? effectiveAuthSource
         var params: [String] = [
@@ -229,22 +205,6 @@ final class MongoDBConnection: @unchecked Sendable {
         }
         if let wc = writeConcern, !wc.isEmpty {
             params.append("w=\(wc)")
-        }
-        if let mechanism = authMechanism, !mechanism.isEmpty {
-            params.append("authMechanism=\(mechanism)")
-        }
-        if let rs = replicaSet, !rs.isEmpty {
-            params.append("replicaSet=\(rs)")
-        }
-
-        let explicitKeys: Set<String> = [
-            "authSource", "readPreference", "w", "authMechanism", "replicaSet",
-            "connectTimeoutMS", "serverSelectionTimeoutMS", "tls",
-            "tlsAllowInvalidCertificates", "tlsCAFile", "tlsCertificateKeyFile"
-        ]
-        for (key, value) in extraUriParams where !explicitKeys.contains(key) {
-            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
-            params.append("\(key)=\(encodedValue)")
         }
 
         uri += "?" + params.joined(separator: "&")
