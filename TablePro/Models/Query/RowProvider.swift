@@ -210,12 +210,6 @@ final class InMemoryRowProvider: RowProvider {
         return columnIndex < rowCache.count ? rowCache[columnIndex] : nil
     }
 
-    /// Invalidate display cache for a specific row (after edit).
-    func invalidateDisplayCache(row: Int) {
-        let cacheKey = resolveCacheKey(for: row)
-        displayCache.removeValue(forKey: cacheKey)
-    }
-
     /// Invalidate entire display cache (after settings change, full reload).
     func invalidateDisplayCache() {
         displayCache.removeAll()
