@@ -15,8 +15,8 @@ struct TabEvictionTests {
 
     // MARK: - Helpers
 
-    private func makeTestRows(count: Int) -> [QueryResultRow] {
-        (0..<count).map { QueryResultRow(id: $0, values: ["value_\($0)"]) }
+    private func makeTestRows(count: Int) -> [[String?]] {
+        (0..<count).map { ["value_\($0)"] }
     }
 
     private func makeTestTab(

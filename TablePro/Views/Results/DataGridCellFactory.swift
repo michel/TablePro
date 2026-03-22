@@ -26,7 +26,7 @@ final class DataGridCellFactory {
     private let largeDatasetThreshold = 5_000
 
     /// Maximum characters to render in a cell (for performance with very large text)
-    private let maxCellTextLength = 10_000
+
 
     // MARK: - Cached Settings
 
@@ -131,8 +131,8 @@ final class DataGridCellFactory {
         tableView: NSTableView,
         row: Int,
         columnIndex: Int,
-        value: String?,
-        columnType: ColumnType?,
+        displayValue: String?,
+        rawValue: String?,
         visualState: RowVisualState,
         isEditable: Bool,
         isLargeDataset: Bool,
@@ -246,7 +246,7 @@ final class DataGridCellFactory {
             button.action = fkArrowAction
             button.fkRow = row
             button.fkColumnIndex = columnIndex
-            button.isHidden = (value == nil || value?.isEmpty == true)
+            button.isHidden = (rawValue == nil || rawValue?.isEmpty == true)
         }
 
         cell.isEditable = isEditable
@@ -257,7 +257,7 @@ final class DataGridCellFactory {
         let isInserted = visualState.isInserted
         let isModified = visualState.modifiedColumns.contains(columnIndex)
 
-        configureTextContent(cell: cell, value: value, columnType: columnType, isLargeDataset: isLargeDataset)
+        configureTextContent(cell: cell, displayValue: displayValue, rawValue: rawValue, isLargeDataset: isLargeDataset)
 
         // Batch layer updates to avoid implicit animations
         CATransaction.begin()
@@ -288,9 +288,9 @@ final class DataGridCellFactory {
 
         // Accessibility: describe cell content for VoiceOver
         if !isLargeDataset && Self.cachedVoiceOverEnabled {
-            let displayValue = value ?? String(localized: "NULL")
+            let accessibilityValue = rawValue ?? String(localized: "NULL")
             cell.setAccessibilityLabel(
-                String(localized: "Row \(row + 1), column \(columnIndex + 1): \(displayValue)")
+                String(localized: "Row \(row + 1), column \(columnIndex + 1): \(accessibilityValue)")
             )
         }
 
@@ -299,10 +299,15 @@ final class DataGridCellFactory {
 
     // MARK: - Cell Text Content
 
-    private func configureTextContent(cell: NSTextField, value: String?, columnType: ColumnType?, isLargeDataset: Bool) {
+    private func configureTextContent(
+        cell: NSTextField,
+        displayValue: String?,
+        rawValue: String?,
+        isLargeDataset: Bool
+    ) {
         cell.placeholderString = nil
 
-        if value == nil {
+        if rawValue == nil {
             cell.stringValue = ""
             cell.font = ThemeEngine.shared.dataGridFonts.italic
             cell.tag = DataGridFontVariant.italic
@@ -310,7 +315,7 @@ final class DataGridCellFactory {
                 cell.placeholderString = nullDisplayString
             }
             cell.textColor = .secondaryLabelColor
-        } else if value == "__DEFAULT__" {
+        } else if rawValue == "__DEFAULT__" {
             cell.stringValue = ""
             cell.font = ThemeEngine.shared.dataGridFonts.medium
             cell.tag = DataGridFontVariant.medium
@@ -318,7 +323,7 @@ final class DataGridCellFactory {
                 cell.placeholderString = "DEFAULT"
             }
             cell.textColor = .systemBlue
-        } else if value == "" {
+        } else if rawValue == "" {
             cell.stringValue = ""
             cell.font = ThemeEngine.shared.dataGridFonts.italic
             cell.tag = DataGridFontVariant.italic
@@ -327,27 +332,8 @@ final class DataGridCellFactory {
             }
             cell.textColor = .secondaryLabelColor
         } else {
-            var displayValue = value ?? ""
-
-            if let columnType = columnType, !displayValue.isEmpty {
-                if columnType.isDateType {
-                    if let formattedDate = DateFormattingService.shared.format(dateString: displayValue) {
-                        displayValue = formattedDate
-                    }
-                } else if BlobFormattingService.shared.requiresFormatting(columnType: columnType) {
-                    displayValue = BlobFormattingService.shared.formatIfNeeded(displayValue, columnType: columnType, for: .grid)
-                }
-            }
-
-            let nsDisplayValue = displayValue as NSString
-            if nsDisplayValue.length > maxCellTextLength {
-                displayValue = nsDisplayValue.substring(to: maxCellTextLength) + "..."
-            }
-
-            displayValue = displayValue.sanitizedForCellDisplay
-
-            cell.stringValue = displayValue
-            (cell as? CellTextField)?.originalValue = value
+            cell.stringValue = displayValue ?? ""
+            (cell as? CellTextField)?.originalValue = rawValue
             cell.textColor = .labelColor
             cell.font = ThemeEngine.shared.dataGridFonts.regular
             cell.tag = DataGridFontVariant.regular

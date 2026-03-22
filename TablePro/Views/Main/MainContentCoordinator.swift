@@ -97,6 +97,11 @@ final class MainContentCoordinator {
 
     // MARK: - Internal State
 
+    /// Cached column types per table for selective queries (avoids refetching schema).
+    /// Key: "connectionId:databaseName:tableName"
+    @ObservationIgnored var cachedTableColumnTypes: [String: [ColumnType]] = [:]
+    @ObservationIgnored var cachedTableColumnNames: [String: [String]] = [:]
+
     @ObservationIgnored internal var queryGeneration: Int = 0
     @ObservationIgnored internal var currentQueryTask: Task<Void, Never>?
     @ObservationIgnored internal var redisDatabaseSwitchTask: Task<Void, Never>?
@@ -838,14 +843,14 @@ final class MainContentCoordinator {
                 }
                 let safeColumns: [String]
                 let safeColumnTypes: [ColumnType]
-                let safeRows: [QueryResultRow]
+                let safeRows: [[String?]]
                 let safeExecutionTime: TimeInterval
                 let safeRowsAffected: Int
                 do {
                     let result = try await queryDriver.execute(query: effectiveSQL)
                     safeColumns = result.columns
                     safeColumnTypes = result.columnTypes
-                    safeRows = result.toQueryResultRows()
+                    safeRows = result.rows
                     safeExecutionTime = result.executionTime
                     safeRowsAffected = result.rowsAffected
                 }
@@ -1188,7 +1193,7 @@ final class MainContentCoordinator {
     /// Multi-column sort returning index permutation (nonisolated for background thread).
     /// Returns an array of indices into the original `rows` array, sorted by the given columns.
     nonisolated private static func multiColumnSortIndices(
-        rows: [QueryResultRow],
+        rows: [[String?]],
         sortColumns: [SortColumn]
     ) -> [Int] {
         // Fast path: single-column sort avoids intermediate key array allocation
@@ -1198,8 +1203,8 @@ final class MainContentCoordinator {
             let ascending = col.direction == .ascending
             var indices = Array(0..<rows.count)
             indices.sort { i1, i2 in
-                let v1 = colIndex < rows[i1].values.count ? (rows[i1].values[colIndex] ?? "") : ""
-                let v2 = colIndex < rows[i2].values.count ? (rows[i2].values[colIndex] ?? "") : ""
+                let v1 = colIndex < rows[i1].count ? (rows[i1][colIndex] ?? "") : ""
+                let v2 = colIndex < rows[i2].count ? (rows[i2][colIndex] ?? "") : ""
                 let cmp = v1.localizedStandardCompare(v2)
                 return ascending ? cmp == .orderedAscending : cmp == .orderedDescending
             }
@@ -1209,8 +1214,8 @@ final class MainContentCoordinator {
         // Pre-extract sort keys for each row to avoid repeated access during comparison
         let sortKeys: [[String]] = rows.map { row in
             sortColumns.map { sortCol in
-                sortCol.columnIndex < row.values.count
-                    ? (row.values[sortCol.columnIndex] ?? "") : ""
+                sortCol.columnIndex < row.count
+                    ? (row[sortCol.columnIndex] ?? "") : ""
             }
         }
 

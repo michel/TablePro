@@ -31,7 +31,7 @@ struct RowOperationsManagerTests {
     @Test("addNewRow appends row to resultRows")
     func addNewRowAppendsRow() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 3)
+        var rows = TestFixtures.makeRows(count: 3)
         let originalCount = rows.count
 
         _ = manager.addNewRow(
@@ -46,7 +46,7 @@ struct RowOperationsManagerTests {
     @Test("addNewRow returns correct row index")
     func addNewRowReturnsCorrectIndex() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 5)
+        var rows = TestFixtures.makeRows(count: 5)
 
         let result = manager.addNewRow(
             columns: ["id", "name", "email"],
@@ -61,7 +61,7 @@ struct RowOperationsManagerTests {
     @Test("addNewRow uses DEFAULT marker for columns with defaults")
     func addNewRowUsesDefaultMarker() {
         let (manager, _) = makeManager()
-        var rows: [QueryResultRow] = []
+        var rows: [[String?]] = []
         let defaults: [String: String?] = [
             "id": "auto_increment",
             "name": nil,
@@ -82,7 +82,7 @@ struct RowOperationsManagerTests {
     @Test("addNewRow uses nil for columns without defaults")
     func addNewRowUsesNilForNoDefaults() {
         let (manager, _) = makeManager()
-        var rows: [QueryResultRow] = []
+        var rows: [[String?]] = []
         let defaults: [String: String?] = [
             "id": "auto_increment"
         ]
@@ -101,7 +101,7 @@ struct RowOperationsManagerTests {
     @Test("addNewRow records insertion in change manager")
     func addNewRowRecordsInsertion() {
         let (manager, changeManager) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 2)
+        var rows = TestFixtures.makeRows(count: 2)
 
         let result = manager.addNewRow(
             columns: ["id", "name", "email"],
@@ -117,7 +117,7 @@ struct RowOperationsManagerTests {
     @Test("addNewRow increments change manager reload version")
     func addNewRowIncrementsReloadVersion() {
         let (manager, changeManager) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 2)
+        var rows = TestFixtures.makeRows(count: 2)
         let versionBefore = changeManager.reloadVersion
 
         _ = manager.addNewRow(
@@ -132,7 +132,7 @@ struct RowOperationsManagerTests {
     @Test("multiple addNewRow calls append sequential rows")
     func multipleAddNewRowAppendsSequentially() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 2)
+        var rows = TestFixtures.makeRows(count: 2)
 
         let r1 = manager.addNewRow(columns: ["id", "name", "email"], columnDefaults: [:], resultRows: &rows)
         let r2 = manager.addNewRow(columns: ["id", "name", "email"], columnDefaults: [:], resultRows: &rows)
@@ -149,8 +149,8 @@ struct RowOperationsManagerTests {
     @Test("duplicateRow copies source row values")
     func duplicateRowCopiesValues() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 3)
-        let sourceValues = rows[1].values
+        var rows = TestFixtures.makeRows(count: 3)
+        let sourceValues = rows[1]
 
         let result = manager.duplicateRow(
             sourceRowIndex: 1,
@@ -167,7 +167,7 @@ struct RowOperationsManagerTests {
     @Test("duplicateRow sets primary key to DEFAULT")
     func duplicateRowSetsPkToDefault() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 3)
+        var rows = TestFixtures.makeRows(count: 3)
 
         let result = manager.duplicateRow(
             sourceRowIndex: 0,
@@ -182,7 +182,7 @@ struct RowOperationsManagerTests {
     @Test("duplicateRow returns nil for invalid source index")
     func duplicateRowReturnsNilForInvalidIndex() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 3)
+        var rows = TestFixtures.makeRows(count: 3)
 
         let result = manager.duplicateRow(
             sourceRowIndex: 10,
@@ -198,7 +198,7 @@ struct RowOperationsManagerTests {
     @Test("deleteSelectedRows marks existing rows as deleted")
     func deleteSelectedRowsMarksExistingAsDeleted() {
         let (manager, changeManager) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 5)
+        var rows = TestFixtures.makeRows(count: 5)
 
         _ = manager.deleteSelectedRows(
             selectedIndices: [1, 3],
@@ -213,7 +213,7 @@ struct RowOperationsManagerTests {
     @Test("deleteSelectedRows removes inserted rows from resultRows")
     func deleteSelectedRowsRemovesInsertedRows() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 3)
+        var rows = TestFixtures.makeRows(count: 3)
 
         // Insert a new row first
         let result = manager.addNewRow(
@@ -235,7 +235,7 @@ struct RowOperationsManagerTests {
     @Test("deleteSelectedRows returns correct next selection")
     func deleteSelectedRowsReturnsNextSelection() {
         let (manager, _) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 5)
+        var rows = TestFixtures.makeRows(count: 5)
 
         // Insert a row, then delete it — next selection should be valid
         _ = manager.addNewRow(columns: ["id", "name", "email"], columnDefaults: [:], resultRows: &rows)
@@ -256,7 +256,7 @@ struct RowOperationsManagerTests {
     @Test("addNewRow then edit cell preserves insertion state")
     func addNewRowThenEditPreservesInsertion() {
         let (manager, changeManager) = makeManager()
-        var rows = TestFixtures.makeQueryResultRows(count: 2)
+        var rows = TestFixtures.makeRows(count: 2)
 
         // Add a new row
         let result = manager.addNewRow(

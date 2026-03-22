@@ -39,26 +39,20 @@ final class RowOperationsManager {
     func addNewRow(
         columns: [String],
         columnDefaults: [String: String?],
-        resultRows: inout [QueryResultRow]
+        resultRows: inout [[String?]]
     ) -> (rowIndex: Int, values: [String?])? {
-        // Create new row values with DEFAULT markers
         var newRowValues: [String?] = []
         for column in columns {
             if let defaultValue = columnDefaults[column], defaultValue != nil {
-                // Use __DEFAULT__ marker so generateInsertSQL skips this column
                 newRowValues.append("__DEFAULT__")
             } else {
-                // NULL for columns without defaults
                 newRowValues.append(nil)
             }
         }
 
-        // Add to resultRows
         let newRowIndex = resultRows.count
-        let newRow = QueryResultRow(id: newRowIndex, values: newRowValues)
-        resultRows.append(newRow)
+        resultRows.append(newRowValues)
 
-        // Record in change manager as pending INSERT
         changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newRowValues)
 
         return (newRowIndex, newRowValues)
@@ -75,26 +69,20 @@ final class RowOperationsManager {
     func duplicateRow(
         sourceRowIndex: Int,
         columns: [String],
-        resultRows: inout [QueryResultRow]
+        resultRows: inout [[String?]]
     ) -> (rowIndex: Int, values: [String?])? {
         guard sourceRowIndex < resultRows.count else { return nil }
 
-        // Copy values from selected row
-        let sourceRow = resultRows[sourceRowIndex]
-        var newValues = sourceRow.values
+        var newValues = resultRows[sourceRowIndex]
 
-        // Set primary key column to DEFAULT so DB auto-generates
         if let pkColumn = changeManager.primaryKeyColumn,
            let pkIndex = columns.firstIndex(of: pkColumn) {
             newValues[pkIndex] = "__DEFAULT__"
         }
 
-        // Add the duplicated row
         let newRowIndex = resultRows.count
-        let newRow = QueryResultRow(id: newRowIndex, values: newValues)
-        resultRows.append(newRow)
+        resultRows.append(newValues)
 
-        // Record in change manager as pending INSERT
         changeManager.recordRowInsertion(rowIndex: newRowIndex, values: newValues)
 
         return (newRowIndex, newValues)
@@ -109,26 +97,22 @@ final class RowOperationsManager {
     /// - Returns: Next row index to select after deletion, or -1 if no rows left
     func deleteSelectedRows(
         selectedIndices: Set<Int>,
-        resultRows: inout [QueryResultRow]
+        resultRows: inout [[String?]]
     ) -> Int {
         guard !selectedIndices.isEmpty else { return -1 }
 
-        // Separate inserted rows from existing rows
         var insertedRowsToDelete: [Int] = []
         var existingRowsToDelete: [(rowIndex: Int, originalRow: [String?])] = []
 
-        // Find the lowest selected row index for selection movement
         let minSelectedRow = selectedIndices.min() ?? 0
         let maxSelectedRow = selectedIndices.max() ?? 0
 
-        // Categorize rows (process in descending order to maintain correct indices)
         for rowIndex in selectedIndices.sorted(by: >) {
             if changeManager.isRowInserted(rowIndex) {
                 insertedRowsToDelete.append(rowIndex)
             } else if !changeManager.isRowDeleted(rowIndex) {
                 if rowIndex < resultRows.count {
-                    let originalRow = resultRows[rowIndex].values
-                    existingRowsToDelete.append((rowIndex: rowIndex, originalRow: originalRow))
+                    existingRowsToDelete.append((rowIndex: rowIndex, originalRow: resultRows[rowIndex]))
                 }
             }
         }
@@ -174,7 +158,7 @@ final class RowOperationsManager {
     /// Undo the last change
     /// - Parameter resultRows: Current rows (will be mutated)
     /// - Returns: Updated selection indices
-    func undoLastChange(resultRows: inout [QueryResultRow]) -> Set<Int>? {
+    func undoLastChange(resultRows: inout [[String?]]) -> Set<Int>? {
         guard let result = changeManager.undoLastChange() else { return nil }
 
         var adjustedSelection: Set<Int>?
@@ -182,7 +166,7 @@ final class RowOperationsManager {
         switch result.action {
         case .cellEdit(let rowIndex, let columnIndex, _, let previousValue, _):
             if rowIndex < resultRows.count {
-                resultRows[rowIndex].values[columnIndex] = previousValue
+                resultRows[rowIndex][columnIndex] = previousValue
             }
 
         case .rowInsertion(let rowIndex):
@@ -192,22 +176,16 @@ final class RowOperationsManager {
             }
 
         case .rowDeletion:
-            // Row is restored in changeManager - visual indicator will be removed
             break
 
         case .batchRowDeletion:
-            // All rows are restored in changeManager
             break
 
         case .batchRowInsertion(let rowIndices, let rowValues):
-            // Restore deleted inserted rows - add them back to resultRows
             for (index, rowIndex) in rowIndices.enumerated().reversed() {
                 guard index < rowValues.count else { continue }
                 guard rowIndex <= resultRows.count else { continue }
-
-                let values = rowValues[index]
-                let newRow = QueryResultRow(id: rowIndex, values: values)
-                resultRows.insert(newRow, at: rowIndex)
+                resultRows.insert(rowValues[index], at: rowIndex)
             }
         }
 
@@ -219,32 +197,28 @@ final class RowOperationsManager {
     ///   - resultRows: Current rows (will be mutated)
     ///   - columns: Column names for new row creation
     /// - Returns: Updated selection indices
-    func redoLastChange(resultRows: inout [QueryResultRow], columns: [String]) -> Set<Int>? {
+    func redoLastChange(resultRows: inout [[String?]], columns: [String]) -> Set<Int>? {
         guard let result = changeManager.redoLastChange() else { return nil }
 
         switch result.action {
         case .cellEdit(let rowIndex, let columnIndex, _, _, let newValue):
             if rowIndex < resultRows.count {
-                resultRows[rowIndex].values[columnIndex] = newValue
+                resultRows[rowIndex][columnIndex] = newValue
             }
 
         case .rowInsertion(let rowIndex):
             let newValues = [String?](repeating: nil, count: columns.count)
-            let newRow = QueryResultRow(id: rowIndex, values: newValues)
             if rowIndex <= resultRows.count {
-                resultRows.insert(newRow, at: rowIndex)
+                resultRows.insert(newValues, at: rowIndex)
             }
 
         case .rowDeletion:
-            // Row is re-marked as deleted in changeManager
             break
 
         case .batchRowDeletion:
-            // Rows are re-marked as deleted
             break
 
         case .batchRowInsertion(let rowIndices, _):
-            // Redo the deletion - remove the rows from resultRows again
             for rowIndex in rowIndices.sorted(by: >) {
                 guard rowIndex < resultRows.count else { continue }
                 resultRows.remove(at: rowIndex)
@@ -264,7 +238,7 @@ final class RowOperationsManager {
     /// - Returns: Adjusted selection indices
     func undoInsertRow(
         at rowIndex: Int,
-        resultRows: inout [QueryResultRow],
+        resultRows: inout [[String?]],
         selectedIndices: Set<Int>
     ) -> Set<Int> {
         guard rowIndex >= 0 && rowIndex < resultRows.count else { return selectedIndices }
@@ -297,7 +271,7 @@ final class RowOperationsManager {
     ///   - includeHeaders: Whether to prepend column headers as the first TSV line
     func copySelectedRowsToClipboard(
         selectedIndices: Set<Int>,
-        resultRows: [QueryResultRow],
+        resultRows: [[String?]],
         columns: [String] = [],
         includeHeaders: Bool = false
     ) {
@@ -315,7 +289,7 @@ final class RowOperationsManager {
 
         let indicesToCopy = isTruncated ? Array(sortedIndices.prefix(Self.maxClipboardRows)) : sortedIndices
 
-        let columnCount = resultRows.first?.values.count ?? 1
+        let columnCount = resultRows.first?.count ?? 1
         let estimatedRowLength = columnCount * 12
         var result = ""
         result.reserveCapacity(indicesToCopy.count * estimatedRowLength)
@@ -329,9 +303,8 @@ final class RowOperationsManager {
 
         for rowIndex in indicesToCopy {
             guard rowIndex < resultRows.count else { continue }
-            let row = resultRows[rowIndex]
             if !result.isEmpty { result.append("\n") }
-            for (colIdx, value) in row.values.enumerated() {
+            for (colIdx, value) in resultRows[rowIndex].enumerated() {
                 if colIdx > 0 { result.append("\t") }
                 result.append(value ?? "NULL")
             }
@@ -358,7 +331,7 @@ final class RowOperationsManager {
     func pasteRowsFromClipboard(
         columns: [String],
         primaryKeyColumn: String?,
-        resultRows: inout [QueryResultRow],
+        resultRows: inout [[String?]],
         clipboard: ClipboardProvider? = nil,
         parser: RowDataParser? = nil
     ) -> [(rowIndex: Int, values: [String?])] {
@@ -448,18 +421,16 @@ final class RowOperationsManager {
     /// - Returns: Array of (rowIndex, values) for inserted rows
     private func insertParsedRows(
         _ parsedRows: [ParsedRow],
-        into resultRows: inout [QueryResultRow]
+        into resultRows: inout [[String?]]
     ) -> [(rowIndex: Int, values: [String?])] {
         var pastedRowInfo: [(Int, [String?])] = []
 
         for parsedRow in parsedRows {
             let rowValues = parsedRow.values
 
-            // Add to resultRows
-            resultRows.append(QueryResultRow(id: resultRows.count, values: rowValues))
+            resultRows.append(rowValues)
             let newRowIndex = resultRows.count - 1
 
-            // Record as pending INSERT in change manager
             changeManager.recordRowInsertion(rowIndex: newRowIndex, values: rowValues)
 
             pastedRowInfo.append((newRowIndex, rowValues))

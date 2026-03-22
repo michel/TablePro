@@ -423,7 +423,7 @@ struct InMemoryRowProviderTests {
     @Test("updateRows replaces all data")
     func updateRowsReplaces() {
         let provider = TestFixtures.makeInMemoryRowProvider(rowCount: 3)
-        let newRows = [QueryResultRow(id: 0, values: ["new_a", "new_b", "new_c"])]
+        let newRows: [[String?]] = [["new_a", "new_b", "new_c"]]
         provider.updateRows(newRows)
         #expect(provider.totalRowCount == 1)
         #expect(provider.value(atRow: 0, column: 0) == "new_a")

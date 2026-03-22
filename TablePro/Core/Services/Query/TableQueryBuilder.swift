@@ -41,6 +41,10 @@ struct TableQueryBuilder {
 
     // MARK: - Identifier Quoting
 
+    func quoteIdentifier(_ name: String) -> String {
+        quote(name)
+    }
+
     private func quote(_ name: String) -> String {
         if let pluginDriver { return pluginDriver.quoteIdentifier(name) }
         return dialectQuote(name)
@@ -53,7 +57,8 @@ struct TableQueryBuilder {
         sortState: SortState? = nil,
         columns: [String] = [],
         limit: Int = 200,
-        offset: Int = 0
+        offset: Int = 0,
+        columnExclusions: [ColumnExclusion] = []
     ) -> String {
         if let pluginDriver {
             let sortCols = sortColumnsAsTuples(sortState)
@@ -66,7 +71,8 @@ struct TableQueryBuilder {
         }
 
         let quotedTable = quote(tableName)
-        var query = "SELECT * FROM \(quotedTable)"
+        let selectClause = buildSelectClause(columns: columns, exclusions: columnExclusions)
+        var query = "SELECT \(selectClause) FROM \(quotedTable)"
 
         if let orderBy = buildOrderByClause(sortState: sortState, columns: columns) {
             query += " \(orderBy)"
@@ -83,7 +89,8 @@ struct TableQueryBuilder {
         sortState: SortState? = nil,
         columns: [String] = [],
         limit: Int = 200,
-        offset: Int = 0
+        offset: Int = 0,
+        columnExclusions: [ColumnExclusion] = []
     ) -> String {
         if let pluginDriver {
             let sortCols = sortColumnsAsTuples(sortState)
@@ -100,7 +107,8 @@ struct TableQueryBuilder {
         }
 
         let quotedTable = quote(tableName)
-        var query = "SELECT * FROM \(quotedTable)"
+        let selectClause = buildSelectClause(columns: columns, exclusions: columnExclusions)
+        var query = "SELECT \(selectClause) FROM \(quotedTable)"
 
         if let dialect {
             let activeFilters = filters.filter { $0.isEnabled }
@@ -125,7 +133,8 @@ struct TableQueryBuilder {
         columns: [String],
         sortState: SortState? = nil,
         limit: Int = 200,
-        offset: Int = 0
+        offset: Int = 0,
+        columnExclusions: [ColumnExclusion] = []
     ) -> String {
         if let pluginDriver {
             let sortCols = sortColumnsAsTuples(sortState)
@@ -138,7 +147,8 @@ struct TableQueryBuilder {
         }
 
         let quotedTable = quote(tableName)
-        var query = "SELECT * FROM \(quotedTable)"
+        let selectClause = buildSelectClause(columns: columns, exclusions: columnExclusions)
+        var query = "SELECT \(selectClause) FROM \(quotedTable)"
 
         if let dialect {
             let filterGen = FilterSQLGenerator(dialect: dialect, quoteIdentifier: dialectQuote)
@@ -165,7 +175,8 @@ struct TableQueryBuilder {
         sortState: SortState? = nil,
         columns: [String] = [],
         limit: Int = 200,
-        offset: Int = 0
+        offset: Int = 0,
+        columnExclusions: [ColumnExclusion] = []
     ) -> String {
         if let pluginDriver {
             let sortCols = sortColumnsAsTuples(sortState)
@@ -183,7 +194,8 @@ struct TableQueryBuilder {
         }
 
         let quotedTable = quote(tableName)
-        var query = "SELECT * FROM \(quotedTable)"
+        let selectClause = buildSelectClause(columns: columns, exclusions: columnExclusions)
+        var query = "SELECT \(selectClause) FROM \(quotedTable)"
 
         if let dialect {
             let activeFilters = filters.filter { $0.isEnabled }
@@ -273,6 +285,19 @@ struct TableQueryBuilder {
     }
 
     // MARK: - Private Helpers
+
+    private func buildSelectClause(columns: [String], exclusions: [ColumnExclusion]) -> String {
+        guard !exclusions.isEmpty, !columns.isEmpty else { return "*" }
+
+        let exclusionMap = Dictionary(exclusions.map { ($0.columnName, $0.placeholderExpression) }) { _, last in last }
+
+        return columns.map { col in
+            if let placeholder = exclusionMap[col] {
+                return "\(placeholder) AS \(quote(col))"
+            }
+            return quote(col)
+        }.joined(separator: ", ")
+    }
 
     private func buildPaginationClause(limit: Int, offset: Int) -> String {
         if let dialect, dialect.paginationStyle == .offsetFetch {

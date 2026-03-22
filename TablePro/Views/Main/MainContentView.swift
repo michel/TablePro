@@ -849,7 +849,7 @@ struct MainContentView: View {
         var allRows: [[String?]] = []
         for index in selectedRowIndices.sorted() {
             if index < tab.resultRows.count {
-                allRows.append(tab.resultRows[index].values)
+                allRows.append(tab.resultRows[index])
             }
         }
 
@@ -898,7 +898,7 @@ struct MainContentView: View {
 
             for rowIndex in capturedEditState.selectedRowIndices {
                 guard rowIndex < tab.resultRows.count else { continue }
-                let originalRow = tab.resultRows[rowIndex].values
+                let originalRow = tab.resultRows[rowIndex]
                 let oldValue = columnIndex < originalRow.count ? originalRow[columnIndex] : nil
 
                 capturedCoordinator.changeManager.recordCellChange(
@@ -967,7 +967,7 @@ struct MainContentView: View {
 
         for row in displayRows {
             let values = columns.indices.map { i in
-                i < row.values.count ? (row.values[i] ?? "NULL") : "NULL"
+                i < row.count ? (row[i] ?? "NULL") : "NULL"
             }
             lines.append(values.joined(separator: " | "))
         }

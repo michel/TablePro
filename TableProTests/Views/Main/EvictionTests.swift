@@ -32,7 +32,7 @@ struct EvictionTests {
     private func addLoadedTab(to tabManager: QueryTabManager, tableName: String = "users") {
         tabManager.addTableTab(tableName: tableName)
         guard let index = tabManager.selectedTabIndex else { return }
-        let rows = TestFixtures.makeQueryResultRows(count: 10)
+        let rows = TestFixtures.makeRows(count: 10)
         tabManager.tabs[index].rowBuffer.rows = rows
         tabManager.tabs[index].rowBuffer.columns = ["id", "name", "email"]
         tabManager.tabs[index].lastExecutedAt = Date()

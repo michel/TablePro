@@ -431,10 +431,10 @@ struct MainEditorContentView: View {
             let row1 = tab.resultRows[idx1]
             let row2 = tab.resultRows[idx2]
             for sortCol in sortColumns {
-                let val1 = sortCol.columnIndex < row1.values.count
-                    ? (row1.values[sortCol.columnIndex] ?? "") : ""
-                let val2 = sortCol.columnIndex < row2.values.count
-                    ? (row2.values[sortCol.columnIndex] ?? "") : ""
+                let val1 = sortCol.columnIndex < row1.count
+                    ? (row1[sortCol.columnIndex] ?? "") : ""
+                let val2 = sortCol.columnIndex < row2.count
+                    ? (row2[sortCol.columnIndex] ?? "") : ""
                 let result = val1.localizedStandardCompare(val2)
                 if result == .orderedSame { continue }
                 return sortCol.direction == .ascending

@@ -26,6 +26,7 @@ extension MainContentCoordinator {
             self.tabManager.tabs[capturedTabIndex].pagination.reset()
 
             let tab = self.tabManager.tabs[capturedTabIndex]
+            let exclusions = self.columnExclusions(for: capturedTableName)
             let newQuery: String
 
             // Combine with quick search if active
@@ -39,7 +40,8 @@ extension MainContentCoordinator {
                     sortState: tab.sortState,
                     columns: tab.resultColumns,
                     limit: tab.pagination.pageSize,
-                    offset: tab.pagination.currentOffset
+                    offset: tab.pagination.currentOffset,
+                    columnExclusions: exclusions
                 )
             } else {
                 newQuery = self.queryBuilder.buildFilteredQuery(
@@ -49,7 +51,8 @@ extension MainContentCoordinator {
                     sortState: tab.sortState,
                     columns: tab.resultColumns,
                     limit: tab.pagination.pageSize,
-                    offset: tab.pagination.currentOffset
+                    offset: tab.pagination.currentOffset,
+                    columnExclusions: exclusions
                 )
             }
 
@@ -83,6 +86,7 @@ extension MainContentCoordinator {
             self.tabManager.tabs[capturedTabIndex].pagination.reset()
 
             let tab = self.tabManager.tabs[capturedTabIndex]
+            let exclusions = self.columnExclusions(for: capturedTableName)
             let newQuery: String
 
             // Combine with applied filters if present
@@ -96,7 +100,8 @@ extension MainContentCoordinator {
                     sortState: tab.sortState,
                     columns: tab.resultColumns,
                     limit: tab.pagination.pageSize,
-                    offset: tab.pagination.currentOffset
+                    offset: tab.pagination.currentOffset,
+                    columnExclusions: exclusions
                 )
             } else {
                 newQuery = self.queryBuilder.buildQuickSearchQuery(
@@ -105,7 +110,8 @@ extension MainContentCoordinator {
                     columns: tab.resultColumns,
                     sortState: tab.sortState,
                     limit: tab.pagination.pageSize,
-                    offset: tab.pagination.currentOffset
+                    offset: tab.pagination.currentOffset,
+                    columnExclusions: exclusions
                 )
             }
 
@@ -127,6 +133,7 @@ extension MainContentCoordinator {
             guard capturedTabIndex < self.tabManager.tabs.count else { return }
 
             let tab = self.tabManager.tabs[capturedTabIndex]
+            let exclusions = self.columnExclusions(for: capturedTableName)
             let newQuery: String
 
             // Preserve active quick search when clearing filter rows
@@ -137,7 +144,8 @@ extension MainContentCoordinator {
                     columns: tab.resultColumns,
                     sortState: tab.sortState,
                     limit: tab.pagination.pageSize,
-                    offset: tab.pagination.currentOffset
+                    offset: tab.pagination.currentOffset,
+                    columnExclusions: exclusions
                 )
             } else {
                 newQuery = self.queryBuilder.buildBaseQuery(
@@ -145,7 +153,8 @@ extension MainContentCoordinator {
                     sortState: tab.sortState,
                     columns: tab.resultColumns,
                     limit: tab.pagination.pageSize,
-                    offset: tab.pagination.currentOffset
+                    offset: tab.pagination.currentOffset,
+                    columnExclusions: exclusions
                 )
             }
 
@@ -162,6 +171,7 @@ extension MainContentCoordinator {
         let tab = tabManager.tabs[tabIndex]
         let hasFilters = filterStateManager.hasAppliedFilters
         let hasSearch = filterStateManager.hasActiveQuickSearch
+        let exclusions = columnExclusions(for: tableName)
 
         let newQuery: String
         if hasFilters && hasSearch {
@@ -174,7 +184,8 @@ extension MainContentCoordinator {
                 sortState: tab.sortState,
                 columns: tab.resultColumns,
                 limit: tab.pagination.pageSize,
-                offset: tab.pagination.currentOffset
+                offset: tab.pagination.currentOffset,
+                columnExclusions: exclusions
             )
         } else if hasFilters {
             newQuery = queryBuilder.buildFilteredQuery(
@@ -184,7 +195,8 @@ extension MainContentCoordinator {
                 sortState: tab.sortState,
                 columns: tab.resultColumns,
                 limit: tab.pagination.pageSize,
-                offset: tab.pagination.currentOffset
+                offset: tab.pagination.currentOffset,
+                columnExclusions: exclusions
             )
         } else if hasSearch {
             newQuery = queryBuilder.buildQuickSearchQuery(
@@ -193,7 +205,8 @@ extension MainContentCoordinator {
                 columns: tab.resultColumns,
                 sortState: tab.sortState,
                 limit: tab.pagination.pageSize,
-                offset: tab.pagination.currentOffset
+                offset: tab.pagination.currentOffset,
+                columnExclusions: exclusions
             )
         } else {
             newQuery = queryBuilder.buildBaseQuery(
@@ -201,7 +214,8 @@ extension MainContentCoordinator {
                 sortState: tab.sortState,
                 columns: tab.resultColumns,
                 limit: tab.pagination.pageSize,
-                offset: tab.pagination.currentOffset
+                offset: tab.pagination.currentOffset,
+                columnExclusions: exclusions
             )
         }
 

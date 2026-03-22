@@ -7,16 +7,6 @@
 
 import Foundation
 
-/// Represents a row of query results for UI display
-struct QueryResultRow: Identifiable, Equatable {
-    let id: Int
-    var values: [String?]
-
-    static func == (lhs: QueryResultRow, rhs: QueryResultRow) -> Bool {
-        lhs.id == rhs.id && lhs.values.count == rhs.values.count && lhs.values == rhs.values
-    }
-}
-
 /// Result of a database query execution
 struct QueryResult {
     let columns: [String]
@@ -39,16 +29,6 @@ struct QueryResult {
 
     var columnCount: Int {
         columns.count
-    }
-
-    /// Convert to QueryResultRow format for UI
-    func toQueryResultRows() -> [QueryResultRow] {
-        var result = [QueryResultRow]()
-        result.reserveCapacity(rows.count)
-        for (index, row) in rows.enumerated() {
-            result.append(QueryResultRow(id: index, values: row))
-        }
-        return result
     }
 
     static let empty = QueryResult(
