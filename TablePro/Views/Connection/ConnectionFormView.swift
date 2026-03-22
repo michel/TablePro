@@ -1542,8 +1542,31 @@ struct ConnectionFormView: View { // swiftlint:disable:this type_body_length
                     applySSHAgentSocketPath(parsed.agentSocket ?? "")
                 }
             }
+            // Clear stale MongoDB fields before applying new import
+            let mongoKeys = additionalFieldValues.keys.filter {
+                $0.hasPrefix("mongo") || $0.hasPrefix("mongoParam_")
+            }
+            for key in mongoKeys {
+                additionalFieldValues.removeValue(forKey: key)
+            }
             if let authSourceValue = parsed.authSource, !authSourceValue.isEmpty {
                 additionalFieldValues["mongoAuthSource"] = authSourceValue
+            }
+            if parsed.useSrv {
+                additionalFieldValues["mongoUseSrv"] = "true"
+                if sslMode == .disabled {
+                    sslMode = .required
+                }
+            }
+            for (key, value) in parsed.mongoQueryParams where !value.isEmpty {
+                switch key {
+                case "authMechanism":
+                    additionalFieldValues["mongoAuthMechanism"] = value
+                case "replicaSet":
+                    additionalFieldValues["mongoReplicaSet"] = value
+                default:
+                    additionalFieldValues["mongoParam_\(key)"] = value
+                }
             }
             if parsed.type.pluginTypeId == "Redis", !parsed.database.isEmpty {
                 additionalFieldValues["redisDatabase"] = parsed.database
