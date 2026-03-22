@@ -140,7 +140,7 @@ final class StructureRowProvider {
     // MARK: - InMemoryRowProvider-compatible methods
 
     func row(at index: Int) -> [String?]? {
-        guard index < rows.count else { return nil }
+        guard index >= 0, index < rows.count else { return nil }
         return rows[index]
     }
 

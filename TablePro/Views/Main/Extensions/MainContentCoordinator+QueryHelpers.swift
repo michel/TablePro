@@ -143,9 +143,10 @@ extension MainContentCoordinator {
 
         tabManager.tabs[idx] = updatedTab
 
-        // Cache column types for selective queries on subsequent page/filter/sort reloads
-        if let tbl = tableName, !tbl.isEmpty {
-            let cacheKey = "\(conn.id):\(tbl)"
+        // Cache column types for selective queries on subsequent page/filter/sort reloads.
+        // Only cache from schema-backed table loads (not arbitrary SELECTs which may have partial columns).
+        if let tbl = tableName, !tbl.isEmpty, hasSchema {
+            let cacheKey = "\(conn.id):\(conn.database):\(tbl)"
             cachedTableColumnTypes[cacheKey] = columnTypes
             cachedTableColumnNames[cacheKey] = columns
         }
@@ -373,7 +374,7 @@ extension MainContentCoordinator {
     /// Build column exclusions for a table using cached column type info.
     /// Returns empty if no cached types exist (first load uses SELECT *).
     func columnExclusions(for tableName: String) -> [ColumnExclusion] {
-        let cacheKey = "\(connectionId):\(tableName)"
+        let cacheKey = "\(connectionId):\(connection.database):\(tableName)"
         guard let cachedTypes = cachedTableColumnTypes[cacheKey],
               let cachedCols = cachedTableColumnNames[cacheKey] else {
             return []

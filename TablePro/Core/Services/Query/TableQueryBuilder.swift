@@ -289,7 +289,7 @@ struct TableQueryBuilder {
     private func buildSelectClause(columns: [String], exclusions: [ColumnExclusion]) -> String {
         guard !exclusions.isEmpty, !columns.isEmpty else { return "*" }
 
-        let exclusionMap = Dictionary(uniqueKeysWithValues: exclusions.map { ($0.columnName, $0.placeholderExpression) })
+        let exclusionMap = Dictionary(exclusions.map { ($0.columnName, $0.placeholderExpression) }) { _, last in last }
 
         return columns.map { col in
             if let placeholder = exclusionMap[col] {

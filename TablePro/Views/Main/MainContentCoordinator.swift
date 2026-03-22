@@ -98,7 +98,7 @@ final class MainContentCoordinator {
     // MARK: - Internal State
 
     /// Cached column types per table for selective queries (avoids refetching schema).
-    /// Key: "connectionId:tableName"
+    /// Key: "connectionId:databaseName:tableName"
     @ObservationIgnored var cachedTableColumnTypes: [String: [ColumnType]] = [:]
     @ObservationIgnored var cachedTableColumnNames: [String: [String]] = [:]
 
