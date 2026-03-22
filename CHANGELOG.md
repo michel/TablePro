@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keyboard focus navigation (Tab, Ctrl+J/K/N/P, arrow keys) for connection list, quick switcher, and database switcher
 
+### Fixed
+
+- MongoDB connection failing when importing `mongodb+srv://` URIs (#419)
+
 ## [0.22.1] - 2026-03-22
 
 ### Added
