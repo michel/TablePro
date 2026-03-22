@@ -3,45 +3,55 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.22.1</title>
-            <pubDate>Sat, 21 Mar 2026 20:03:03 +0000</pubDate>
-            <sparkle:version>43</sparkle:version>
-            <sparkle:shortVersionString>0.22.1</sparkle:shortVersionString>
+            <title>0.23.0</title>
+            <pubDate>Sun, 22 Mar 2026 15:06:29 +0000</pubDate>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>0.23.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Show/hide row numbers column in data grid (Settings > Data Grid)</li>
-<li>Persist column widths and order per table across tab switches, view toggles, and app restarts</li>
+<li>Redis key namespace tree view with collapse/expand grouping in sidebar (#418)</li>
+<li>Keyboard focus navigation (Tab, Ctrl+J/K/N/P, arrow keys) for connection list, quick switcher, and database switcher</li>
+<li>MongoDB `mongodb+srv://` URI support with SRV toggle, Auth Mechanism dropdown, and Replica Set field (#419)</li>
+<li>Show all available database types in connection form with install status badge (#418)</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>MongoDB `authSource` defaults to database name per MongoDB URI spec instead of always "admin"</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>Show correct version for installed registry plugins (#410)</li>
-<li>Dangling pointer in release builds due to incorrect withUnsafeBufferPointer usage</li>
-<li>AI provider connection test error handling (#407)</li>
-<li>Use-after-free crash in Redis plugin redisFree</li>
+<li>DuckDB: TIMESTAMPTZ, TIMETZ, and other temporal columns displaying as null (#424)</li>
+<li>Onboarding "Get Started" button not rendering on macOS 15 until window loses focus (#420)</li>
+<li>MongoDB collection loading uses `estimatedDocumentCount` and smaller schema sample for faster sidebar population</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.1/TablePro-0.22.1-arm64.zip" length="20596228" type="application/octet-stream" sparkle:edSignature="WIib+kb+dMxSjXVqeIKkOiaDraR5wSjXOjl4HjYGNgydKmu7NY4YC3NgT32dmD5CEqWeJZLpD+4PIhZLPIJrAA=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.0/TablePro-0.23.0-arm64.zip" length="20687910" type="application/octet-stream" sparkle:edSignature="EbWpEbT3qEwxjFw2/hNcpje11QLne0v9l62v/W+9ygaN/lpqgC2ebhQNW4eIZFn2F/xF9uUfNL6/uBkFelvkDA=="/>
         </item>
         <item>
-            <title>0.22.1</title>
-            <pubDate>Sat, 21 Mar 2026 20:03:03 +0000</pubDate>
-            <sparkle:version>43</sparkle:version>
-            <sparkle:shortVersionString>0.22.1</sparkle:shortVersionString>
+            <title>0.23.0</title>
+            <pubDate>Sun, 22 Mar 2026 15:06:29 +0000</pubDate>
+            <sparkle:version>44</sparkle:version>
+            <sparkle:shortVersionString>0.23.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Show/hide row numbers column in data grid (Settings > Data Grid)</li>
-<li>Persist column widths and order per table across tab switches, view toggles, and app restarts</li>
+<li>Redis key namespace tree view with collapse/expand grouping in sidebar (#418)</li>
+<li>Keyboard focus navigation (Tab, Ctrl+J/K/N/P, arrow keys) for connection list, quick switcher, and database switcher</li>
+<li>MongoDB `mongodb+srv://` URI support with SRV toggle, Auth Mechanism dropdown, and Replica Set field (#419)</li>
+<li>Show all available database types in connection form with install status badge (#418)</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>MongoDB `authSource` defaults to database name per MongoDB URI spec instead of always "admin"</li>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>Show correct version for installed registry plugins (#410)</li>
-<li>Dangling pointer in release builds due to incorrect withUnsafeBufferPointer usage</li>
-<li>AI provider connection test error handling (#407)</li>
-<li>Use-after-free crash in Redis plugin redisFree</li>
+<li>DuckDB: TIMESTAMPTZ, TIMETZ, and other temporal columns displaying as null (#424)</li>
+<li>Onboarding "Get Started" button not rendering on macOS 15 until window loses focus (#420)</li>
+<li>MongoDB collection loading uses `estimatedDocumentCount` and smaller schema sample for faster sidebar population</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.22.1/TablePro-0.22.1-x86_64.zip" length="20081427" type="application/octet-stream" sparkle:edSignature="MUP76lB9o91YY0ETI3txyn1V2s+p6liIBjWnNFS6dR+b5Op6MwLVkXMxT68fDA2JUIFH29JWhWOr1Lm2tfGbBw=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.0/TablePro-0.23.0-x86_64.zip" length="20176728" type="application/octet-stream" sparkle:edSignature="CmX8kskiL8WY30IkKsGf5/Z7bvkPqDEZCocRrGCxSH2JxN2xJtIhKU8qm4wPw7viufzBqwcli1RwMVN4HyyaDg=="/>
         </item>
     </channel>
 </rss>
