@@ -96,6 +96,13 @@ enum ColumnType: Equatable {
         return false
     }
 
+    /// Whether this type is a very large text type that should be excluded from browse queries.
+    /// Only MEDIUMTEXT (16MB), LONGTEXT (4GB), and CLOB — not plain TEXT (65KB) or TINYTEXT (255B).
+    var isVeryLongText: Bool {
+        guard let raw = rawType?.uppercased() else { return false }
+        return raw == "MEDIUMTEXT" || raw == "LONGTEXT" || raw == "CLOB"
+    }
+
     /// Whether this type is an enum column
     var isEnumType: Bool {
         switch self {

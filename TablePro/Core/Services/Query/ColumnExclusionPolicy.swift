@@ -33,25 +33,17 @@ enum ColumnExclusionPolicy {
             let colType = columnTypes[i]
             let quoted = quoteIdentifier(col)
 
-            if colType.isBlobType {
-                let lengthFn = lengthFunction(for: databaseType, column: quoted)
-                result.append(ColumnExclusion(columnName: col, placeholderExpression: lengthFn))
-            } else if colType.isLongText {
+            // Only exclude very large text types (MEDIUMTEXT, LONGTEXT, CLOB).
+            // Plain TEXT/TINYTEXT are small enough to fetch in full.
+            // BLOB columns are NOT excluded because no lazy-load fetch path exists
+            // for editing, export, or change tracking — placeholder values would corrupt data.
+            if colType.isVeryLongText {
                 let substringExpr = substringExpression(for: databaseType, column: quoted, length: 256)
                 result.append(ColumnExclusion(columnName: col, placeholderExpression: substringExpr))
             }
         }
 
         return result
-    }
-
-    private static func lengthFunction(for dbType: DatabaseType, column: String) -> String {
-        switch dbType {
-        case .mssql:
-            return "DATALENGTH(\(column))"
-        default:
-            return "LENGTH(\(column))"
-        }
     }
 
     private static func substringExpression(for dbType: DatabaseType, column: String, length: Int) -> String {

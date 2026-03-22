@@ -814,6 +814,7 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                     || prev.nullDisplay != settings.nullDisplay
 
                 if dataChanged {
+                    self.rowProvider.invalidateDisplayCache()
                     let visibleRect = tableView.visibleRect
                     let visibleRange = tableView.rows(in: visibleRect)
                     if visibleRange.length > 0 {

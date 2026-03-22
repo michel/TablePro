@@ -19,8 +19,8 @@ struct ColumnExclusionPolicyTests {
         "\"\(name)\""
     }
 
-    @Test("BLOB column excluded with LENGTH expression")
-    func blobColumnExcluded() {
+    @Test("BLOB column NOT excluded (no lazy-load fetch path for editing/export)")
+    func blobColumnNotExcluded() {
         let columns = ["id", "name", "photo"]
         let types: [ColumnType] = [
             .integer(rawType: "INT"),
@@ -31,9 +31,7 @@ struct ColumnExclusionPolicyTests {
             columns: columns, columnTypes: types,
             databaseType: .mysql, quoteIdentifier: quoteMySQL
         )
-        #expect(exclusions.count == 1)
-        #expect(exclusions[0].columnName == "photo")
-        #expect(exclusions[0].placeholderExpression == "LENGTH(`photo`)")
+        #expect(exclusions.isEmpty)
     }
 
     @Test("LONGTEXT column excluded with SUBSTRING expression")
@@ -90,32 +88,41 @@ struct ColumnExclusionPolicyTests {
         #expect(exclusions.isEmpty)
     }
 
-    @Test("MSSQL uses DATALENGTH for BLOB columns")
-    func mssqlUsesDatalength() {
+    @Test("MSSQL BLOB column NOT excluded")
+    func mssqlBlobNotExcluded() {
         let columns = ["data"]
         let types: [ColumnType] = [.blob(rawType: "VARBINARY")]
         let exclusions = ColumnExclusionPolicy.exclusions(
             columns: columns, columnTypes: types,
             databaseType: .mssql, quoteIdentifier: quoteStandard
         )
-        #expect(exclusions.count == 1)
-        #expect(exclusions[0].placeholderExpression == "DATALENGTH(\"data\")")
+        #expect(exclusions.isEmpty)
     }
 
-    @Test("SQLite uses SUBSTR for LONGTEXT columns")
-    func sqliteUsesSubstr() {
+    @Test("Plain TEXT column NOT excluded (only MEDIUMTEXT/LONGTEXT/CLOB)")
+    func plainTextNotExcluded() {
         let columns = ["body"]
         let types: [ColumnType] = [.text(rawType: "TEXT")]
         let exclusions = ColumnExclusionPolicy.exclusions(
             columns: columns, columnTypes: types,
             databaseType: .sqlite, quoteIdentifier: quoteStandard
         )
-        // TEXT is isLongText = true for SQLite
+        #expect(exclusions.isEmpty)
+    }
+
+    @Test("SQLite uses SUBSTR for CLOB columns")
+    func sqliteUsesSubstr() {
+        let columns = ["body"]
+        let types: [ColumnType] = [.text(rawType: "CLOB")]
+        let exclusions = ColumnExclusionPolicy.exclusions(
+            columns: columns, columnTypes: types,
+            databaseType: .sqlite, quoteIdentifier: quoteStandard
+        )
         #expect(exclusions.count == 1)
         #expect(exclusions[0].placeholderExpression == "SUBSTR(\"body\", 1, 256)")
     }
 
-    @Test("Mixed BLOB and LONGTEXT columns both excluded")
+    @Test("Only MEDIUMTEXT excluded in mixed column set, BLOB kept")
     func mixedExclusions() {
         let columns = ["id", "photo", "content", "name"]
         let types: [ColumnType] = [
@@ -128,11 +135,9 @@ struct ColumnExclusionPolicyTests {
             columns: columns, columnTypes: types,
             databaseType: .postgresql, quoteIdentifier: quoteStandard
         )
-        #expect(exclusions.count == 2)
-        #expect(exclusions[0].columnName == "photo")
-        #expect(exclusions[0].placeholderExpression == "LENGTH(\"photo\")")
-        #expect(exclusions[1].columnName == "content")
-        #expect(exclusions[1].placeholderExpression == "SUBSTRING(\"content\", 1, 256)")
+        #expect(exclusions.count == 1)
+        #expect(exclusions[0].columnName == "content")
+        #expect(exclusions[0].placeholderExpression == "SUBSTRING(\"content\", 1, 256)")
     }
 
     @Test("Mismatched column/type counts handled safely")
