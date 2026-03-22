@@ -64,7 +64,7 @@ struct ColumnWidthOptimizationTests {
     func longContentCapsAtMax() {
         let factory = DataGridCellFactory()
         let longValue = String(repeating: "X", count: 5_000)
-        let rows = [QueryResultRow(id: 0, values: [longValue])]
+        let rows: [[String?]] = [[longValue]]
         let provider = InMemoryRowProvider(rows: rows, columns: ["data"])
 
         let width = factory.calculateOptimalColumnWidth(
@@ -80,8 +80,8 @@ struct ColumnWidthOptimizationTests {
         let factory = DataGridCellFactory()
         let columnCount = 60
         let columns = (0..<columnCount).map { "col_\($0)" }
-        let rows = (0..<100).map { rowIdx in
-            QueryResultRow(id: rowIdx, values: columns.map { "\($0)_val_\(rowIdx)" })
+        let rows: [[String?]] = (0..<100).map { rowIdx in
+            columns.map { "\($0)_val_\(rowIdx)" }
         }
         let provider = InMemoryRowProvider(rows: rows, columns: columns)
 
@@ -111,10 +111,10 @@ struct ColumnWidthOptimizationTests {
     @Test("Nil cell values do not crash width calculation")
     func nilCellValuesSafe() {
         let factory = DataGridCellFactory()
-        let rows = [
-            QueryResultRow(id: 0, values: [nil]),
-            QueryResultRow(id: 1, values: ["hello"]),
-            QueryResultRow(id: 2, values: [nil]),
+        let rows: [[String?]] = [
+            [nil],
+            ["hello"],
+            [nil],
         ]
         let provider = InMemoryRowProvider(rows: rows, columns: ["name"])
 

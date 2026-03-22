@@ -21,13 +21,13 @@ final class StructureRowProvider {
     private let databaseType: DatabaseType
 
     // Computed properties that match InMemoryRowProvider interface
-    var rows: [QueryResultRow] {
+    var rows: [[String?]] {
         switch tab {
         case .columns:
             let fields = PluginManager.shared.structureColumnFields(for: databaseType)
             let ordered = Self.canonicalFieldOrder.filter { fields.contains($0) }
-            return changeManager.workingColumns.enumerated().map { index, column in
-                let values: [String] = ordered.map { field in
+            return changeManager.workingColumns.map { column in
+                ordered.map { field -> String? in
                     switch field {
                     case .name: column.name
                     case .type: column.dataType
@@ -37,27 +37,26 @@ final class StructureRowProvider {
                     case .comment: column.comment ?? ""
                     }
                 }
-                return QueryResultRow(id: index, values: values)
             }
         case .indexes:
-            return changeManager.workingIndexes.enumerated().map { index, indexInfo in
-                QueryResultRow(id: index, values: [
+            return changeManager.workingIndexes.map { indexInfo in
+                [
                     indexInfo.name,
                     indexInfo.columns.joined(separator: ", "),
                     indexInfo.type.rawValue,
                     indexInfo.isUnique ? "YES" : "NO"
-                ])
+                ]
             }
         case .foreignKeys:
-            return changeManager.workingForeignKeys.enumerated().map { index, fk in
-                QueryResultRow(id: index, values: [
+            return changeManager.workingForeignKeys.map { fk in
+                [
                     fk.name,
                     fk.columns.joined(separator: ", "),
                     fk.referencedTable,
                     fk.referencedColumns.joined(separator: ", "),
                     fk.onDelete.rawValue,
                     fk.onUpdate.rawValue
-                ])
+                ]
             }
         case .ddl, .parts:
             return []
@@ -140,7 +139,7 @@ final class StructureRowProvider {
 
     // MARK: - InMemoryRowProvider-compatible methods
 
-    func row(at index: Int) -> QueryResultRow? {
+    func row(at index: Int) -> [String?]? {
         guard index < rows.count else { return nil }
         return rows[index]
     }

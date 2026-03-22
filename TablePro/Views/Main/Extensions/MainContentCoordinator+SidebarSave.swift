@@ -27,7 +27,7 @@ extension MainContentCoordinator {
         // Build RowChange array from sidebar edits
         let changes: [RowChange] = selectedRowIndices.sorted().compactMap { rowIndex in
             guard rowIndex < tab.resultRows.count else { return nil }
-            let originalRow = tab.resultRows[rowIndex].values
+            let originalRow = tab.resultRows[rowIndex]
             return RowChange(
                 rowIndex: rowIndex,
                 type: .update,

@@ -59,7 +59,7 @@ extension MainContentCoordinator {
         if let index = tabManager.selectedTabIndex {
             for (rowIndex, columnIndex, originalValue) in originalValues {
                 if rowIndex < tabManager.tabs[index].resultRows.count {
-                    tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = originalValue
+                    tabManager.tabs[index].resultRows[rowIndex][columnIndex] = originalValue
                 }
             }
 

@@ -22,7 +22,7 @@ extension MainContentView {
         var data: [(column: String, value: String?, type: String)] = []
 
         for (i, col) in tab.resultColumns.enumerated() {
-            let value = i < row.values.count ? row.values[i] : nil
+            let value = i < row.count ? row[i] : nil
             let type = i < tab.columnTypes.count ? tab.columnTypes[i].displayName : "string"
             data.append((column: col, value: value, type: type))
         }

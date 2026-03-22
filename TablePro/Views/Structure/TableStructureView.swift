@@ -423,7 +423,7 @@ struct TableStructureView: View {
         var lines: [String] = []
         for row in rowIndices.sorted() {
             guard let rowData = provider.row(at: row) else { continue }
-            let line = rowData.values.map { $0 ?? "NULL" }.joined(separator: "\t")
+            let line = rowData.map { $0 ?? "NULL" }.joined(separator: "\t")
             lines.append(line)
         }
         let tsvString = lines.joined(separator: "\n")

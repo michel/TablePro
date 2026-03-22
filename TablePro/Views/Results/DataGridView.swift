@@ -944,9 +944,9 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     DataGridView(
         rowProvider: InMemoryRowProvider(
             rows: [
-                QueryResultRow(id: 0, values: ["1", "John", "john@example.com"]),
-                QueryResultRow(id: 1, values: ["2", "Jane", nil]),
-                QueryResultRow(id: 2, values: ["3", "Bob", "bob@example.com"]),
+                ["1", "John", "john@example.com"],
+                ["2", "Jane", nil],
+                ["3", "Bob", "bob@example.com"],
             ],
             columns: ["id", "name", "email"]
         ),

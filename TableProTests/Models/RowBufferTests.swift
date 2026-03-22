@@ -17,7 +17,7 @@ struct RowBufferTests {
 
     @Test("Init with data preserves all fields")
     func initWithData() {
-        let rows = TestFixtures.makeQueryResultRows(count: 5)
+        let rows = TestFixtures.makeRows(count: 5)
         let buffer = RowBuffer(
             rows: rows,
             columns: ["id", "name", "email"],
@@ -33,7 +33,7 @@ struct RowBufferTests {
 
     @Test("evict() clears rows and sets isEvicted")
     func evictClearsRows() {
-        let buffer = RowBuffer(rows: TestFixtures.makeQueryResultRows(count: 10), columns: ["a"])
+        let buffer = RowBuffer(rows: TestFixtures.makeRows(count: 10), columns: ["a"])
         buffer.evict()
         #expect(buffer.rows.isEmpty)
         #expect(buffer.isEvicted == true)
@@ -43,7 +43,7 @@ struct RowBufferTests {
     func evictPreservesMetadata() {
         let fk = TestFixtures.makeForeignKeyInfo()
         let buffer = RowBuffer(
-            rows: TestFixtures.makeQueryResultRows(count: 3),
+            rows: TestFixtures.makeRows(count: 3),
             columns: ["id", "user_id"],
             columnTypes: [.integer(rawType: "INT"), .integer(rawType: "INT")],
             columnDefaults: ["id": nil],
@@ -61,7 +61,7 @@ struct RowBufferTests {
 
     @Test("Double evict is no-op")
     func doubleEvictNoOp() {
-        let buffer = RowBuffer(rows: TestFixtures.makeQueryResultRows(count: 3), columns: ["a"])
+        let buffer = RowBuffer(rows: TestFixtures.makeRows(count: 3), columns: ["a"])
         buffer.evict()
         buffer.evict()
         #expect(buffer.isEvicted == true)
@@ -72,11 +72,11 @@ struct RowBufferTests {
 
     @Test("restore() repopulates rows and clears isEvicted")
     func restoreRepopulates() {
-        let buffer = RowBuffer(rows: TestFixtures.makeQueryResultRows(count: 3), columns: ["a"])
+        let buffer = RowBuffer(rows: TestFixtures.makeRows(count: 3), columns: ["a"])
         buffer.evict()
         #expect(buffer.isEvicted == true)
 
-        let newRows = TestFixtures.makeQueryResultRows(count: 5)
+        let newRows = TestFixtures.makeRows(count: 5)
         buffer.restore(rows: newRows)
         #expect(buffer.rows.count == 5)
         #expect(buffer.isEvicted == false)
@@ -84,7 +84,7 @@ struct RowBufferTests {
 
     @Test("restore() with empty rows clears eviction flag")
     func restoreEmptyRows() {
-        let buffer = RowBuffer(rows: TestFixtures.makeQueryResultRows(count: 3), columns: ["a"])
+        let buffer = RowBuffer(rows: TestFixtures.makeRows(count: 3), columns: ["a"])
         buffer.evict()
         buffer.restore(rows: [])
         #expect(buffer.isEvicted == false)
@@ -95,7 +95,7 @@ struct RowBufferTests {
 
     @Test("copy() creates independent buffer")
     func copyCreatesIndependent() {
-        let original = RowBuffer(rows: TestFixtures.makeQueryResultRows(count: 3), columns: ["a", "b"])
+        let original = RowBuffer(rows: TestFixtures.makeRows(count: 3), columns: ["a", "b"])
         let copied = original.copy()
         copied.rows.removeAll()
         #expect(original.rows.count == 3)
@@ -104,7 +104,7 @@ struct RowBufferTests {
 
     @Test("copy() preserves eviction state as false")
     func copyPreservesNonEvictedState() {
-        let original = RowBuffer(rows: TestFixtures.makeQueryResultRows(count: 3), columns: ["a"])
+        let original = RowBuffer(rows: TestFixtures.makeRows(count: 3), columns: ["a"])
         let copied = original.copy()
         #expect(copied.isEvicted == false)
     }

@@ -21,7 +21,7 @@ struct RowProviderSyncTests {
         rowCount: Int = 3,
         columns: [String] = ["id", "name", "email"]
     ) -> (manager: DataChangeManager, provider: InMemoryRowProvider) {
-        let rows = TestFixtures.makeQueryResultRows(count: rowCount, columns: columns)
+        let rows = TestFixtures.makeRows(count: rowCount, columns: columns)
         let provider = InMemoryRowProvider(rows: rows, columns: columns)
         let manager = DataChangeManager()
         manager.configureForTable(tableName: "test", columns: columns, primaryKeyColumn: "id")
@@ -60,7 +60,7 @@ struct RowProviderSyncTests {
         providerA.updateValue("new", at: 1, columnIndex: 1)
 
         // Simulate SwiftUI providing a stale cached provider
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
         #expect(providerB.value(atRow: 1, column: 1) == "name_1")
 
@@ -90,7 +90,7 @@ struct RowProviderSyncTests {
             originalRow: originalRow
         )
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -121,7 +121,7 @@ struct RowProviderSyncTests {
             originalRow: originalRow2
         )
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -145,7 +145,7 @@ struct RowProviderSyncTests {
 
         _ = manager.undoLastChange()
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -169,7 +169,7 @@ struct RowProviderSyncTests {
         _ = manager.undoLastChange()
         _ = manager.redoLastChange()
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -196,8 +196,8 @@ struct RowProviderSyncTests {
         )
 
         // Fresh providerB needs 4 rows to match
-        var rows = TestFixtures.makeQueryResultRows(count: 3, columns: columns)
-        rows.append(QueryResultRow(id: 3, values: ["", "", ""]))
+        var rows = TestFixtures.makeRows(count: 3, columns: columns)
+        rows.append(["", "", ""])
         let providerB = InMemoryRowProvider(rows: rows, columns: columns)
 
         reapplyChanges(from: manager, to: providerB)
@@ -211,7 +211,7 @@ struct RowProviderSyncTests {
 
         manager.recordRowDeletion(rowIndex: 1, originalRow: originalRow)
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         // Should not crash; delete changes have no cellChanges
@@ -245,7 +245,7 @@ struct RowProviderSyncTests {
             originalRow: originalRow
         )
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -266,7 +266,7 @@ struct RowProviderSyncTests {
             originalRow: originalRow
         )
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -291,7 +291,7 @@ struct RowProviderSyncTests {
             originalRow: originalRow
         )
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -302,7 +302,7 @@ struct RowProviderSyncTests {
     func reapplyWithNoChangesIsNoOp() {
         let (manager, _) = makeScenario()
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         reapplyChanges(from: manager, to: providerB)
@@ -326,7 +326,7 @@ struct RowProviderSyncTests {
             (rowIndex: 1, originalRow: originalRow1),
         ])
 
-        let rows = TestFixtures.makeQueryResultRows(count: 3, columns: ["id", "name", "email"])
+        let rows = TestFixtures.makeRows(count: 3, columns: ["id", "name", "email"])
         let providerB = InMemoryRowProvider(rows: rows, columns: ["id", "name", "email"])
 
         // Should not crash; batch delete changes have no cellChanges

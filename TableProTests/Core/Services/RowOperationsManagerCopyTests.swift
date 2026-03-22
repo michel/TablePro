@@ -43,7 +43,7 @@ struct RowOperationsManagerCopyTests {
     private func copyAndCapture(
         manager: RowOperationsManager,
         indices: Set<Int>,
-        rows: [QueryResultRow],
+        rows: [[String?]],
         columns: [String] = [],
         includeHeaders: Bool = false
     ) -> String? {
@@ -63,7 +63,7 @@ struct RowOperationsManagerCopyTests {
     @Test("Single row copy produces tab-separated values")
     func singleRowTSV() {
         let (manager, _) = makeManager()
-        let rows = [QueryResultRow(id: 0, values: ["1", "Alice", "alice@test.com"])]
+        let rows: [[String?]] = [["1", "Alice", "alice@test.com"]]
 
         let result = copyAndCapture(manager: manager, indices: [0], rows: rows)
 
@@ -75,9 +75,9 @@ struct RowOperationsManagerCopyTests {
     @Test("Multiple rows separated by newlines in TSV format")
     func multipleRowsTSV() {
         let (manager, _) = makeManager()
-        let rows = [
-            QueryResultRow(id: 0, values: ["1", "Alice", "a@test.com"]),
-            QueryResultRow(id: 1, values: ["2", "Bob", "b@test.com"]),
+        let rows: [[String?]] = [
+            ["1", "Alice", "a@test.com"],
+            ["2", "Bob", "b@test.com"],
         ]
 
         let result = copyAndCapture(manager: manager, indices: [0, 1], rows: rows)
@@ -90,7 +90,7 @@ struct RowOperationsManagerCopyTests {
     @Test("NULL values rendered as literal NULL string")
     func nullValuesRenderedAsNullString() {
         let (manager, _) = makeManager()
-        let rows = [QueryResultRow(id: 0, values: [nil, "Alice", nil])]
+        let rows: [[String?]] = [[nil, "Alice", nil]]
 
         let result = copyAndCapture(manager: manager, indices: [0], rows: rows)
 
@@ -100,9 +100,9 @@ struct RowOperationsManagerCopyTests {
     @Test("Mixed NULL and non-NULL values in same row")
     func mixedNullAndNonNull() {
         let (manager, _) = makeManager()
-        let rows = [
-            QueryResultRow(id: 0, values: ["1", nil, "a@test.com"]),
-            QueryResultRow(id: 1, values: [nil, "Bob", nil]),
+        let rows: [[String?]] = [
+            ["1", nil, "a@test.com"],
+            [nil, "Bob", nil],
         ]
 
         let result = copyAndCapture(manager: manager, indices: [0, 1], rows: rows)
@@ -118,7 +118,7 @@ struct RowOperationsManagerCopyTests {
     @Test("Empty selection produces no clipboard write")
     func emptySelectionNoWrite() {
         let (manager, _) = makeManager()
-        let rows = TestFixtures.makeQueryResultRows(count: 3)
+        let rows = TestFixtures.makeRows(count: 3)
         let clipboard = MockClipboardProvider()
         ClipboardService.shared = clipboard
 
@@ -136,8 +136,8 @@ struct RowOperationsManagerCopyTests {
     func largeRowCount() {
         let (manager, _) = makeManager()
         let count = 1_000
-        let rows = (0..<count).map { i in
-            QueryResultRow(id: i, values: ["\(i)", "name_\(i)", "email_\(i)"])
+        let rows: [[String?]] = (0..<count).map { i in
+            ["\(i)", "name_\(i)", "email_\(i)"]
         }
 
         let result = copyAndCapture(
@@ -157,10 +157,10 @@ struct RowOperationsManagerCopyTests {
     @Test("Copied rows are in sorted index order regardless of selection order")
     func rowsInSortedOrder() {
         let (manager, _) = makeManager()
-        let rows = [
-            QueryResultRow(id: 0, values: ["A"]),
-            QueryResultRow(id: 1, values: ["B"]),
-            QueryResultRow(id: 2, values: ["C"]),
+        let rows: [[String?]] = [
+            ["A"],
+            ["B"],
+            ["C"],
         ]
 
         let result = copyAndCapture(manager: manager, indices: [2, 0], rows: rows)
@@ -173,7 +173,7 @@ struct RowOperationsManagerCopyTests {
     @Test("Copy with headers prepends column names as first TSV line")
     func copyWithHeaders() {
         let (manager, _) = makeManager()
-        let rows = [QueryResultRow(id: 0, values: ["1", "Alice", "a@test.com"])]
+        let rows: [[String?]] = [["1", "Alice", "a@test.com"]]
 
         let result = copyAndCapture(
             manager: manager,
@@ -194,7 +194,7 @@ struct RowOperationsManagerCopyTests {
     @Test("Out-of-bounds indices are skipped gracefully")
     func outOfBoundsIndicesSkipped() {
         let (manager, _) = makeManager()
-        let rows = [QueryResultRow(id: 0, values: ["1", "Alice"])]
+        let rows: [[String?]] = [["1", "Alice"]]
 
         let result = copyAndCapture(manager: manager, indices: [0, 5, 10], rows: rows)
 
@@ -206,7 +206,7 @@ struct RowOperationsManagerCopyTests {
     @Test("Row with all NULL values produces tab-separated NULL strings")
     func allNullRow() {
         let (manager, _) = makeManager()
-        let rows = [QueryResultRow(id: 0, values: [nil, nil, nil])]
+        let rows: [[String?]] = [[nil, nil, nil]]
 
         let result = copyAndCapture(manager: manager, indices: [0], rows: rows)
 

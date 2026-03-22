@@ -203,14 +203,14 @@ enum TestFixtures {
         )
     }
 
-    static func makeQueryResultRows(count: Int, columns: [String] = ["id", "name", "email"]) -> [QueryResultRow] {
+    static func makeRows(count: Int, columns: [String] = ["id", "name", "email"]) -> [[String?]] {
         (0..<count).map { i in
-            QueryResultRow(id: i, values: columns.indices.map { col in "\(columns[col])_\(i)" })
+            columns.map { col in "\(col)_\(i)" as String? }
         }
     }
 
     static func makeInMemoryRowProvider(rowCount: Int = 3, columns: [String] = ["id", "name", "email"]) -> InMemoryRowProvider {
-        let rows = makeQueryResultRows(count: rowCount, columns: columns)
+        let rows = makeRows(count: rowCount, columns: columns)
         return InMemoryRowProvider(rows: rows, columns: columns)
     }
 

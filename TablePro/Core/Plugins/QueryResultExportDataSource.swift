@@ -27,7 +27,7 @@ final class QueryResultExportDataSource: PluginExportDataSource, @unchecked Send
         // Snapshot data at init time for thread safety
         self.columns = rowBuffer.columns
         self.columnTypeNames = rowBuffer.columnTypes.map { $0.rawType ?? "" }
-        self.rows = rowBuffer.rows.map { $0.values }
+        self.rows = rowBuffer.rows
     }
 
     func fetchRows(table: String, databaseName: String, offset: Int, limit: Int) async throws -> PluginQueryResult {

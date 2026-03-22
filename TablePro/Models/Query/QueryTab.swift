@@ -215,7 +215,7 @@ struct ColumnLayoutState: Equatable {
 /// When QueryTab (a struct) is copied via CoW, only this 8-byte reference is copied
 /// instead of duplicating potentially large result arrays.
 final class RowBuffer {
-    var rows: [QueryResultRow]
+    var rows: [[String?]]
     var columns: [String]
     var columnTypes: [ColumnType]
     var columnDefaults: [String: String?]
@@ -224,7 +224,7 @@ final class RowBuffer {
     var columnNullable: [String: Bool]
 
     init(
-        rows: [QueryResultRow] = [],
+        rows: [[String?]] = [],
         columns: [String] = [],
         columnTypes: [ColumnType] = [],
         columnDefaults: [String: String?] = [:],
@@ -265,7 +265,7 @@ final class RowBuffer {
     }
 
     /// Restore row data after eviction
-    func restore(rows newRows: [QueryResultRow]) {
+    func restore(rows newRows: [[String?]]) {
         self.rows = newRows
         isEvicted = false
     }
@@ -314,7 +314,7 @@ struct QueryTab: Identifiable, Equatable {
         set { rowBuffer.columnNullable = newValue }
     }
 
-    var resultRows: [QueryResultRow] {
+    var resultRows: [[String?]] {
         get { rowBuffer.rows }
         set { rowBuffer.rows = newValue }
     }

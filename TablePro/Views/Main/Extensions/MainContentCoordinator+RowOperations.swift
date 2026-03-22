@@ -143,7 +143,7 @@ extension MainContentCoordinator {
         let tab = tabManager.tabs[index]
         let rows = indices.sorted().compactMap { idx -> [String?]? in
             guard idx < tab.resultRows.count else { return nil }
-            return tab.resultRows[idx].values
+            return tab.resultRows[idx]
         }
         guard !rows.isEmpty else { return }
         let converter = JsonRowConverter(
@@ -193,7 +193,7 @@ extension MainContentCoordinator {
         guard let index = tabManager.selectedTabIndex,
               rowIndex < tabManager.tabs[index].resultRows.count else { return }
 
-        tabManager.tabs[index].resultRows[rowIndex].values[columnIndex] = value
+        tabManager.tabs[index].resultRows[rowIndex][columnIndex] = value
         tabManager.tabs[index].hasUserInteraction = true
     }
 }

@@ -28,14 +28,9 @@ extension TableViewCoordinator {
             return nil
         }
 
-        let value = rowProvider.value(atRow: row, column: columnIndex)
+        let rawValue = rowProvider.value(atRow: row, column: columnIndex)
+        let displayValue = rowProvider.displayValue(atRow: row, column: columnIndex)
         let state = visualState(for: row)
-
-        // Get column type for date formatting
-        let columnType: ColumnType? = {
-            guard columnIndex < rowProvider.columnTypes.count else { return nil }
-            return rowProvider.columnTypes[columnIndex]
-        }()
 
         let tableColumnIndex = columnIndex + 1
         let isFocused: Bool = {
@@ -67,8 +62,8 @@ extension TableViewCoordinator {
             tableView: tableView,
             row: row,
             columnIndex: columnIndex,
-            value: value,
-            columnType: columnType,
+            displayValue: displayValue,
+            rawValue: rawValue,
             visualState: state,
             isEditable: isEditable && !state.isDeleted,
             isLargeDataset: isLargeDataset,

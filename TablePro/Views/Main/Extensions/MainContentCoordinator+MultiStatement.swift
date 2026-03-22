@@ -105,8 +105,8 @@ extension MainContentCoordinator {
                         // Deep copy to prevent C buffer retention issues
                         let safeColumns = selectResult.columns.map { String($0) }
                         let safeColumnTypes = selectResult.columnTypes
-                        let safeRows = selectResult.rows.enumerated().map { index, row in
-                            QueryResultRow(id: index, values: row.map { $0.map { String($0) } })
+                        let safeRows = selectResult.rows.map { row in
+                            row.map { $0.map { String($0) } }
                         }
                         let tableName = lastSelectSQL.flatMap {
                             extractTableName(from: $0)
