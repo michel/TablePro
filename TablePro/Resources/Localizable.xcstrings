@@ -10516,6 +10516,16 @@
         }
       }
     },
+    "Editable Hex" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hex có thể chỉnh sửa"
+          }
+        }
+      }
+    },
     "Editing" : {
       "localizations" : {
         "tr" : {
@@ -15254,6 +15264,16 @@
         }
       }
     },
+    "Installing…" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang cài đặt…"
+          }
+        }
+      }
+    },
     "Interface" : {
       "localizations" : {
         "tr" : {
@@ -15959,6 +15979,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keyboard Interactive"
+          }
+        }
+      }
+    },
+    "Keys" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Khóa"
           }
         }
       }
@@ -16819,6 +16849,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在加载数据库..."
+          }
+        }
+      }
+    },
+    "Loading keys…" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đang tải khóa…"
           }
         }
       }
@@ -18744,6 +18784,16 @@
         }
       }
     },
+    "No keys" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có khóa"
+          }
+        }
+      }
+    },
     "No limit" : {
       "localizations" : {
         "tr" : {
@@ -19714,6 +19764,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不在列表中"
+          }
+        }
+      }
+    },
+    "Not Installed" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa cài đặt"
           }
         }
       }
@@ -21035,6 +21095,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择一列"
+          }
+        }
+      }
+    },
+    "Plugin" : {
+      "comment" : "Plugin is a technical term",
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plugin"
           }
         }
       }
@@ -26389,6 +26460,16 @@
         }
       }
     },
+    "Showing first 50,000 keys" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hiển thị 50.000 khóa đầu tiên"
+          }
+        }
+      }
+    },
     "Sidebar" : {
       "localizations" : {
         "tr" : {
@@ -30538,6 +30619,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "清空表 '%@'"
+          }
+        }
+      }
+    },
+    "Truncated — read only" : {
+      "localizations" : {
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã cắt bớt — chỉ đọc"
           }
         }
       }

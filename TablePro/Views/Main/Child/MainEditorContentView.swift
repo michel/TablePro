@@ -345,7 +345,7 @@ struct MainEditorContentView: View {
 
     private func rowProvider(for tab: QueryTab) -> InMemoryRowProvider {
         if tab.rowBuffer.isEvicted {
-            tabProviderCache.removeValue(forKey: tab.id)
+            DispatchQueue.main.async { tabProviderCache.removeValue(forKey: tab.id) }
             return makeRowProvider(for: tab)
         }
         if let entry = tabProviderCache[tab.id],
@@ -355,12 +355,14 @@ struct MainEditorContentView: View {
             return entry.provider
         }
         let provider = makeRowProvider(for: tab)
-        tabProviderCache[tab.id] = RowProviderCacheEntry(
-            provider: provider,
-            resultVersion: tab.resultVersion,
-            metadataVersion: tab.metadataVersion,
-            sortState: tab.sortState
-        )
+        DispatchQueue.main.async {
+            tabProviderCache[tab.id] = RowProviderCacheEntry(
+                provider: provider,
+                resultVersion: tab.resultVersion,
+                metadataVersion: tab.metadataVersion,
+                sortState: tab.sortState
+            )
+        }
         return provider
     }
 
