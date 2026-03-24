@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- ClickHouse, MSSQL, Redis, XLSX Export, MQL Export, and SQL Import now ship as built-in plugins
 - Large document safety caps for syntax highlighting (skip >5MB, throttle >50KB)
 
 ## [0.23.2] - 2026-03-24
