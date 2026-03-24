@@ -107,15 +107,18 @@ extension AppDelegate {
     }
 
     func isMainWindow(_ window: NSWindow) -> Bool {
-        window.identifier?.rawValue == WindowId.main
+        guard let rawValue = window.identifier?.rawValue else { return false }
+        return rawValue == WindowId.main || rawValue.hasPrefix("\(WindowId.main)-")
     }
 
     func isWelcomeWindow(_ window: NSWindow) -> Bool {
-        window.identifier?.rawValue == WindowId.welcome
+        guard let rawValue = window.identifier?.rawValue else { return false }
+        return rawValue == WindowId.welcome || rawValue.hasPrefix("\(WindowId.welcome)-")
     }
 
     private func isConnectionFormWindow(_ window: NSWindow) -> Bool {
-        window.identifier?.rawValue == WindowId.connectionForm
+        guard let rawValue = window.identifier?.rawValue else { return false }
+        return rawValue == WindowId.connectionForm || rawValue.hasPrefix("\(WindowId.connectionForm)-")
     }
 
     // MARK: - Welcome Window
@@ -239,14 +242,25 @@ extension AppDelegate {
             let existingIdentifier = NSApp.windows
                 .first { $0 !== window && isMainWindow($0) && $0.isVisible }?
                 .tabbingIdentifier
-            window.tabbingIdentifier = TabbingIdentifierResolver.resolve(
+            let resolvedIdentifier = TabbingIdentifierResolver.resolve(
                 pendingConnectionId: pendingId,
                 existingIdentifier: existingIdentifier
             )
+            window.tabbingIdentifier = resolvedIdentifier
             configuredWindows.insert(windowId)
 
             if !NSWindow.allowsAutomaticWindowTabbing {
                 NSWindow.allowsAutomaticWindowTabbing = true
+            }
+
+            // Explicitly attach to existing tab group — automatic tabbing
+            // doesn't work when tabbingIdentifier is set after window creation.
+            if let existingWindow = NSApp.windows.first(where: {
+                $0 !== window && isMainWindow($0) && $0.isVisible
+                    && $0.tabbingIdentifier == resolvedIdentifier
+            }) {
+                existingWindow.addTabbedWindow(window, ordered: .above)
+                window.makeKeyAndOrderFront(nil)
             }
         }
     }
@@ -317,8 +331,8 @@ extension AppDelegate {
     }
 
     func closeRestoredMainWindows() {
-        DispatchQueue.main.async {
-            for window in NSApp.windows where window.identifier?.rawValue.contains("main") == true {
+        DispatchQueue.main.async { [weak self] in
+            for window in NSApp.windows where self?.isMainWindow(window) == true {
                 window.close()
             }
         }

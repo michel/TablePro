@@ -253,6 +253,11 @@ struct MainContentView: View {
                     // Only handleTabsChange(count=0) clears state (user explicitly closed all tabs).
                     guard !WindowLifecycleMonitor.shared.hasWindows(for: connectionId) else { return }
                     await DatabaseManager.shared.disconnectSession(connectionId)
+
+                    // Give SwiftUI/AppKit time to deallocate view hierarchies,
+                    // then hint malloc to return freed pages to the OS
+                    try? await Task.sleep(for: .seconds(2))
+                    malloc_zone_pressure_relief(nil, 0)
                 }
             }
             .onChange(of: pendingChangeTrigger) {
@@ -595,6 +600,7 @@ struct MainContentView: View {
             isPreview: isPreview
         )
         viewWindow = window
+        isKeyWindow = window.isKeyWindow
 
         // Update command actions window reference now that it's available
         commandActions?.window = window

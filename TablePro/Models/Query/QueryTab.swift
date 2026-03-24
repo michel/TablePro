@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import os
 import TableProPluginKit
 
 /// Type of tab
@@ -268,6 +269,13 @@ final class RowBuffer {
     func restore(rows newRows: [[String?]]) {
         self.rows = newRows
         isEvicted = false
+    }
+
+    deinit {
+        #if DEBUG
+        Logger(subsystem: "com.TablePro", category: "RowBuffer")
+            .debug("RowBuffer deallocated — columns: \(self.columns.count), evicted: \(self.isEvicted)")
+        #endif
     }
 }
 
@@ -675,5 +683,12 @@ final class QueryTabManager {
         if let index = tabs.firstIndex(where: { $0.id == tab.id }) {
             tabs[index] = tab
         }
+    }
+
+    deinit {
+        #if DEBUG
+        Logger(subsystem: "com.TablePro", category: "QueryTabManager")
+            .debug("QueryTabManager deallocated")
+        #endif
     }
 }
