@@ -19,6 +19,8 @@ struct EditableFieldView: View {
     let isPendingNull: Bool
     let isPendingDefault: Bool
     let isModified: Bool
+    let isTruncated: Bool
+    let isLoadingFullValue: Bool
 
     let onSetNull: () -> Void
     let onSetDefault: () -> Void
@@ -63,6 +65,16 @@ struct EditableFieldView: View {
                     .padding(.vertical, 1)
                     .background(.quaternary)
                     .clipShape(Capsule())
+
+                if isTruncated && !isLoadingFullValue {
+                    Text("truncated")
+                        .font(.system(size: ThemeEngine.shared.activeTheme.typography.tiny, weight: .medium))
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(.orange.opacity(0.15))
+                        .clipShape(Capsule())
+                }
             }
 
             // Line 2: full-width editor with inline menu overlay
@@ -80,7 +92,22 @@ struct EditableFieldView: View {
 
     @ViewBuilder
     private var typeAwareEditor: some View {
-        if isPendingNull || isPendingDefault {
+        if isLoadingFullValue {
+            TextField("", text: .constant(""))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                .disabled(true)
+                .overlay {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+        } else if isTruncated {
+            Text("Failed to load full value")
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
+        } else if isPendingNull || isPendingDefault {
             TextField(isPendingNull ? "NULL" : "DEFAULT", text: .constant(""))
                 .textFieldStyle(.roundedBorder)
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
