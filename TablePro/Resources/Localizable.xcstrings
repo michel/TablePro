@@ -179,6 +179,7 @@
       }
     },
     "(%@)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -3920,6 +3921,9 @@
         }
       }
     },
+    "Are you sure you want to delete %lld connections? This cannot be undone." : {
+
+    },
     "Are you sure you want to delete this connection? This cannot be undone." : {
       "localizations" : {
         "tr" : {
@@ -6521,6 +6525,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "连接"
+          }
+        }
+      }
+    },
+    "Connect %lld Connections" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Connect %lld Connection"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Connect %lld Connections"
+                }
+              }
+            }
           }
         }
       }
@@ -9295,6 +9321,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除 (⌫)"
+          }
+        }
+      }
+    },
+    "Delete %lld Connections" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Connection"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Delete %lld Connections"
+                }
+              }
+            }
           }
         }
       }
@@ -12270,6 +12318,9 @@
           }
         }
       }
+    },
+    "Failed to load full value" : {
+
     },
     "Failed to load plugin registry" : {
       "extractionState" : "stale",
@@ -17574,6 +17625,9 @@
         }
       }
     },
+    "Move to Group" : {
+
+    },
     "Move Up" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18113,6 +18167,9 @@
           }
         }
       }
+    },
+    "New Group..." : {
+
     },
     "New Jump Host" : {
       "localizations" : {
@@ -23568,6 +23625,9 @@
           }
         }
       }
+    },
+    "Remove from Group" : {
+
     },
     "Remove license from this machine" : {
       "localizations" : {
