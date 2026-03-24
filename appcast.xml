@@ -3,37 +3,47 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.23.1</title>
-            <pubDate>Tue, 24 Mar 2026 01:34:22 +0000</pubDate>
-            <sparkle:version>45</sparkle:version>
-            <sparkle:shortVersionString>0.23.1</sparkle:shortVersionString>
+            <title>0.23.2</title>
+            <pubDate>Tue, 24 Mar 2026 13:48:22 +0000</pubDate>
+            <sparkle:version>46</sparkle:version>
+            <sparkle:shortVersionString>0.23.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Test Connection button in SSH profile editor to validate SSH connectivity independently</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Improve performance: faster sorting, lower memory usage, adaptive tab eviction</li>
+<li>MongoDB Atlas connections failing to authenticate (#438)</li>
+<li>MongoDB TLS certificate verification skipped for SRV connections</li>
+<li>Active tab data no longer refreshes when switching back to the app window</li>
+<li>Undo history preserved when switching between database tables</li>
+<li>Health monitor now detects stuck queries beyond the configured timeout</li>
+<li>SSH tunnel closure errors now logged instead of silently discarded</li>
+<li>Schema/database restore errors during reconnect now logged</li>
+<li>Memory not released after closing tabs</li>
+<li>New tabs opening as separate windows instead of joining the connection tab group</li>
+<li>Clicking tables in sidebar not opening table tabs</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.1/TablePro-0.23.1-arm64.zip" length="20712387" type="application/octet-stream" sparkle:edSignature="0S4aj/EoVreJ2xy+8JPfbwwQXjl5LB3qZV7fe2sNYhq6zSNlAoh0H8IBMq2RP6Q4yoXdKL+4HdxgtIYu4GEuDw=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.2/TablePro-0.23.2-arm64.zip" length="20720955" type="application/octet-stream" sparkle:edSignature="0W2Xer02xzc06tE6N+IzjH/dgVtNM+KhPxBrWHvRasBUx8olTOXap87ldwa/u9mJeU+2+xoXHJ+if0JYiJCxDw=="/>
         </item>
         <item>
-            <title>0.23.1</title>
-            <pubDate>Tue, 24 Mar 2026 01:34:22 +0000</pubDate>
-            <sparkle:version>45</sparkle:version>
-            <sparkle:shortVersionString>0.23.1</sparkle:shortVersionString>
+            <title>0.23.2</title>
+            <pubDate>Tue, 24 Mar 2026 13:48:22 +0000</pubDate>
+            <sparkle:version>46</sparkle:version>
+            <sparkle:shortVersionString>0.23.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Test Connection button in SSH profile editor to validate SSH connectivity independently</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Improve performance: faster sorting, lower memory usage, adaptive tab eviction</li>
+<li>MongoDB Atlas connections failing to authenticate (#438)</li>
+<li>MongoDB TLS certificate verification skipped for SRV connections</li>
+<li>Active tab data no longer refreshes when switching back to the app window</li>
+<li>Undo history preserved when switching between database tables</li>
+<li>Health monitor now detects stuck queries beyond the configured timeout</li>
+<li>SSH tunnel closure errors now logged instead of silently discarded</li>
+<li>Schema/database restore errors during reconnect now logged</li>
+<li>Memory not released after closing tabs</li>
+<li>New tabs opening as separate windows instead of joining the connection tab group</li>
+<li>Clicking tables in sidebar not opening table tabs</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.1/TablePro-0.23.1-x86_64.zip" length="20196846" type="application/octet-stream" sparkle:edSignature="qvKiJiz99y42LSULIKvmNid/9AhRJXAZeLb5XAQ4isFhh0pHgkRQrnVn1pYZSIYmlfmWaiiZOrBXyIDgXWt8Dw=="/>
+            <enclosure url="https://github.com/datlechin/TablePro/releases/download/v0.23.2/TablePro-0.23.2-x86_64.zip" length="20216007" type="application/octet-stream" sparkle:edSignature="jBmG7cQCneAwXAcDaVkLJgbTWoVvOAZLk2OWd6hXNM7xof6n7a8+AbffOsiAPjx2jY34LumkRhR4Na4/nu+7Dg=="/>
         </item>
     </channel>
 </rss>
