@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-03-26
+
+### Fixed
+
+- Keyboard shortcut hints in welcome window footer overflowing and truncating when too many items are displayed
+
 ## [0.24.0] - 2026-03-26
 
 ### Added
@@ -1038,7 +1044,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.24.0...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.24.1...HEAD
+[0.24.1]: https://github.com/TableProApp/TablePro/compare/v0.24.0...v0.24.1
 [0.24.0]: https://github.com/TableProApp/TablePro/compare/v0.23.2...v0.24.0
 [0.23.2]: https://github.com/TableProApp/TablePro/compare/v0.23.1...v0.23.2
 [0.23.1]: https://github.com/TableProApp/TablePro/compare/v0.23.0...v0.23.1
