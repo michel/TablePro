@@ -455,20 +455,10 @@ final class DatabaseManager {
         sshPasswordOverride: String? = nil
     ) async throws -> DatabaseConnection {
         // Resolve SSH configuration: profile takes priority over inline
-        let sshConfig: SSHConfiguration
-        let isProfile: Bool
-        let secretOwnerId: UUID
-
-        if let profileId = connection.sshProfileId,
-           let profile = SSHProfileStorage.shared.profile(for: profileId) {
-            sshConfig = profile.toSSHConfiguration()
-            secretOwnerId = profileId
-            isProfile = true
-        } else {
-            sshConfig = connection.sshConfig
-            secretOwnerId = connection.id
-            isProfile = false
-        }
+        let profile = connection.sshProfileId.flatMap { SSHProfileStorage.shared.profile(for: $0) }
+        let sshConfig = connection.effectiveSSHConfig(profile: profile)
+        let isProfile = connection.sshProfileId != nil && profile != nil
+        let secretOwnerId = (isProfile ? connection.sshProfileId : nil) ?? connection.id
 
         guard sshConfig.enabled else {
             return connection

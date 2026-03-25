@@ -464,7 +464,8 @@ struct WelcomeWindowView: View {
     }
 
     private func connectionRow(for connection: DatabaseConnection) -> some View {
-        ConnectionRow(connection: connection, onConnect: { connectToDatabase(connection) })
+        let sshProfile = connection.sshProfileId.flatMap { SSHProfileStorage.shared.profile(for: $0) }
+        return ConnectionRow(connection: connection, sshProfile: sshProfile, onConnect: { connectToDatabase(connection) })
             .tag(connection.id)
             .listRowInsets(ThemeEngine.shared.activeTheme.spacing.listRowInsets.swiftUI)
             .listRowSeparator(.hidden)
@@ -644,8 +645,21 @@ struct WelcomeWindowView: View {
 
             Button {
                 let pw = ConnectionStorage.shared.loadPassword(for: connection.id)
-                let sshPw = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
-                let url = ConnectionURLFormatter.format(connection, password: pw, sshPassword: sshPw)
+                let sshPw: String?
+                let sshProfile: SSHProfile?
+                if let profileId = connection.sshProfileId {
+                    sshPw = SSHProfileStorage.shared.loadSSHPassword(for: profileId)
+                    sshProfile = SSHProfileStorage.shared.profile(for: profileId)
+                } else {
+                    sshPw = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
+                    sshProfile = nil
+                }
+                let url = ConnectionURLFormatter.format(
+                    connection,
+                    password: pw,
+                    sshPassword: sshPw,
+                    sshProfile: sshProfile
+                )
                 ClipboardService.shared.writeText(url)
             } label: {
                 Label(String(localized: "Copy as URL"), systemImage: "link")
@@ -998,6 +1012,7 @@ struct WelcomeWindowView: View {
 
 private struct ConnectionRow: View {
     let connection: DatabaseConnection
+    let sshProfile: SSHProfile?
     var onConnect: (() -> Void)?
 
     private var displayTag: ConnectionTag? {
@@ -1053,8 +1068,9 @@ private struct ConnectionRow: View {
     }
 
     private var connectionSubtitle: String {
-        if connection.sshConfig.enabled {
-            return "SSH : \(connection.sshConfig.username)@\(connection.sshConfig.host)"
+        let ssh = connection.effectiveSSHConfig(profile: sshProfile)
+        if ssh.enabled {
+            return "SSH : \(ssh.username)@\(ssh.host)"
         }
         if connection.host.isEmpty {
             return connection.database.isEmpty ? connection.type.rawValue : connection.database
