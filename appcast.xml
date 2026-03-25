@@ -3,47 +3,53 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.23.2</title>
-            <pubDate>Tue, 24 Mar 2026 13:48:22 +0000</pubDate>
-            <sparkle:version>46</sparkle:version>
-            <sparkle:shortVersionString>0.23.2</sparkle:shortVersionString>
+            <title>0.24.0</title>
+            <pubDate>Wed, 25 Mar 2026 18:50:54 +0000</pubDate>
+            <sparkle:version>47</sparkle:version>
+            <sparkle:shortVersionString>0.24.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>MongoDB Atlas connections failing to authenticate (#438)</li>
-<li>MongoDB TLS certificate verification skipped for SRV connections</li>
-<li>Active tab data no longer refreshes when switching back to the app window</li>
-<li>Undo history preserved when switching between database tables</li>
-<li>Health monitor now detects stuck queries beyond the configured timeout</li>
-<li>SSH tunnel closure errors now logged instead of silently discarded</li>
-<li>Schema/database restore errors during reconnect now logged</li>
-<li>Memory not released after closing tabs</li>
-<li>New tabs opening as separate windows instead of joining the connection tab group</li>
-<li>Clicking tables in sidebar not opening table tabs</li>
+<li>Multi-select connections in Welcome window (Cmd+Click, Shift+Click) with bulk delete (⌘⌫), Move to Group, and multi-connect</li>
+<li>Reorder connections within groups and reorder groups in Welcome window</li>
+<li>ClickHouse, MSSQL, Redis, XLSX Export, MQL Export, and SQL Import now ship as built-in plugins</li>
+<li>Large document safety caps for syntax highlighting (skip >5MB, throttle >50KB)</li>
+<li>Lazy-load full values for LONGTEXT/MEDIUMTEXT/CLOB columns in the detail pane sidebar</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>SSH profile connections displaying incorrect host/username on the Welcome window home screen (#454)</li>
+<li>Saved connections disappearing after normal app quit (Cmd+Q) while persisting after force quit (#452)</li>
+<li>Crash when disconnecting an etcd connection while requests are in-flight</li>
+<li>Detail pane showing truncated values for LONGTEXT/MEDIUMTEXT/CLOB columns, preventing correct editing</li>
+<li>Redis hash/list/set/zset/stream views showing empty or misaligned rows when values contained binary, null, or integer types</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.23.2/TablePro-0.23.2-arm64.zip" length="20720955" type="application/octet-stream" sparkle:edSignature="0W2Xer02xzc06tE6N+IzjH/dgVtNM+KhPxBrWHvRasBUx8olTOXap87ldwa/u9mJeU+2+xoXHJ+if0JYiJCxDw=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.24.0/TablePro-0.24.0-arm64.zip" length="26148715" type="application/octet-stream" sparkle:edSignature="LwARrwIN9qUbPiuzNXq8QpNdwRETdMx37QpebW/KALocULpaSf9iCn3mZmLgSSrHPoCQbPwzDDbzaB1R+Jf9Ag=="/>
         </item>
         <item>
-            <title>0.23.2</title>
-            <pubDate>Tue, 24 Mar 2026 13:48:22 +0000</pubDate>
-            <sparkle:version>46</sparkle:version>
-            <sparkle:shortVersionString>0.23.2</sparkle:shortVersionString>
+            <title>0.24.0</title>
+            <pubDate>Wed, 25 Mar 2026 18:50:54 +0000</pubDate>
+            <sparkle:version>47</sparkle:version>
+            <sparkle:shortVersionString>0.24.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>MongoDB Atlas connections failing to authenticate (#438)</li>
-<li>MongoDB TLS certificate verification skipped for SRV connections</li>
-<li>Active tab data no longer refreshes when switching back to the app window</li>
-<li>Undo history preserved when switching between database tables</li>
-<li>Health monitor now detects stuck queries beyond the configured timeout</li>
-<li>SSH tunnel closure errors now logged instead of silently discarded</li>
-<li>Schema/database restore errors during reconnect now logged</li>
-<li>Memory not released after closing tabs</li>
-<li>New tabs opening as separate windows instead of joining the connection tab group</li>
-<li>Clicking tables in sidebar not opening table tabs</li>
+<li>Multi-select connections in Welcome window (Cmd+Click, Shift+Click) with bulk delete (⌘⌫), Move to Group, and multi-connect</li>
+<li>Reorder connections within groups and reorder groups in Welcome window</li>
+<li>ClickHouse, MSSQL, Redis, XLSX Export, MQL Export, and SQL Import now ship as built-in plugins</li>
+<li>Large document safety caps for syntax highlighting (skip >5MB, throttle >50KB)</li>
+<li>Lazy-load full values for LONGTEXT/MEDIUMTEXT/CLOB columns in the detail pane sidebar</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>SSH profile connections displaying incorrect host/username on the Welcome window home screen (#454)</li>
+<li>Saved connections disappearing after normal app quit (Cmd+Q) while persisting after force quit (#452)</li>
+<li>Crash when disconnecting an etcd connection while requests are in-flight</li>
+<li>Detail pane showing truncated values for LONGTEXT/MEDIUMTEXT/CLOB columns, preventing correct editing</li>
+<li>Redis hash/list/set/zset/stream views showing empty or misaligned rows when values contained binary, null, or integer types</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.23.2/TablePro-0.23.2-x86_64.zip" length="20216007" type="application/octet-stream" sparkle:edSignature="jBmG7cQCneAwXAcDaVkLJgbTWoVvOAZLk2OWd6hXNM7xof6n7a8+AbffOsiAPjx2jY34LumkRhR4Na4/nu+7Dg=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.24.0/TablePro-0.24.0-x86_64.zip" length="23074075" type="application/octet-stream" sparkle:edSignature="CZ9rG9K7+wQ7HNrsEm6K70+G2TYspPm28jqz/QUM1IiKOJGJDwZvbR/DUFdlX21wKbmb2c2tv7J+iO/9xPtbAg=="/>
         </item>
     </channel>
 </rss>
