@@ -3,53 +3,29 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.24.0</title>
-            <pubDate>Wed, 25 Mar 2026 18:50:54 +0000</pubDate>
-            <sparkle:version>47</sparkle:version>
-            <sparkle:shortVersionString>0.24.0</sparkle:shortVersionString>
+            <title>0.24.1</title>
+            <pubDate>Wed, 25 Mar 2026 19:44:17 +0000</pubDate>
+            <sparkle:version>48</sparkle:version>
+            <sparkle:shortVersionString>0.24.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Multi-select connections in Welcome window (Cmd+Click, Shift+Click) with bulk delete (⌘⌫), Move to Group, and multi-connect</li>
-<li>Reorder connections within groups and reorder groups in Welcome window</li>
-<li>ClickHouse, MSSQL, Redis, XLSX Export, MQL Export, and SQL Import now ship as built-in plugins</li>
-<li>Large document safety caps for syntax highlighting (skip >5MB, throttle >50KB)</li>
-<li>Lazy-load full values for LONGTEXT/MEDIUMTEXT/CLOB columns in the detail pane sidebar</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>SSH profile connections displaying incorrect host/username on the Welcome window home screen (#454)</li>
-<li>Saved connections disappearing after normal app quit (Cmd+Q) while persisting after force quit (#452)</li>
-<li>Crash when disconnecting an etcd connection while requests are in-flight</li>
-<li>Detail pane showing truncated values for LONGTEXT/MEDIUMTEXT/CLOB columns, preventing correct editing</li>
-<li>Redis hash/list/set/zset/stream views showing empty or misaligned rows when values contained binary, null, or integer types</li>
+<li>Keyboard shortcut hints in welcome window footer overflowing and truncating when too many items are displayed</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.24.0/TablePro-0.24.0-arm64.zip" length="26148715" type="application/octet-stream" sparkle:edSignature="LwARrwIN9qUbPiuzNXq8QpNdwRETdMx37QpebW/KALocULpaSf9iCn3mZmLgSSrHPoCQbPwzDDbzaB1R+Jf9Ag=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.24.1/TablePro-0.24.1-arm64.zip" length="26150478" type="application/octet-stream" sparkle:edSignature="LhdBCflzB3yxT7XusORtPqoonffKl7layhaTXfJRb7xeG16S8ftX6M78/8iM6zm2/wIcw22bvolmRzM1M2lfAg=="/>
         </item>
         <item>
-            <title>0.24.0</title>
-            <pubDate>Wed, 25 Mar 2026 18:50:54 +0000</pubDate>
-            <sparkle:version>47</sparkle:version>
-            <sparkle:shortVersionString>0.24.0</sparkle:shortVersionString>
+            <title>0.24.1</title>
+            <pubDate>Wed, 25 Mar 2026 19:44:17 +0000</pubDate>
+            <sparkle:version>48</sparkle:version>
+            <sparkle:shortVersionString>0.24.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
+            <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Fixed</h3>
 <ul>
-<li>Multi-select connections in Welcome window (Cmd+Click, Shift+Click) with bulk delete (⌘⌫), Move to Group, and multi-connect</li>
-<li>Reorder connections within groups and reorder groups in Welcome window</li>
-<li>ClickHouse, MSSQL, Redis, XLSX Export, MQL Export, and SQL Import now ship as built-in plugins</li>
-<li>Large document safety caps for syntax highlighting (skip >5MB, throttle >50KB)</li>
-<li>Lazy-load full values for LONGTEXT/MEDIUMTEXT/CLOB columns in the detail pane sidebar</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>SSH profile connections displaying incorrect host/username on the Welcome window home screen (#454)</li>
-<li>Saved connections disappearing after normal app quit (Cmd+Q) while persisting after force quit (#452)</li>
-<li>Crash when disconnecting an etcd connection while requests are in-flight</li>
-<li>Detail pane showing truncated values for LONGTEXT/MEDIUMTEXT/CLOB columns, preventing correct editing</li>
-<li>Redis hash/list/set/zset/stream views showing empty or misaligned rows when values contained binary, null, or integer types</li>
+<li>Keyboard shortcut hints in welcome window footer overflowing and truncating when too many items are displayed</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.24.0/TablePro-0.24.0-x86_64.zip" length="23074075" type="application/octet-stream" sparkle:edSignature="CZ9rG9K7+wQ7HNrsEm6K70+G2TYspPm28jqz/QUM1IiKOJGJDwZvbR/DUFdlX21wKbmb2c2tv7J+iO/9xPtbAg=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.24.1/TablePro-0.24.1-x86_64.zip" length="23075342" type="application/octet-stream" sparkle:edSignature="StoTuuC9xH4T7dA0sjfu+tougd5g/o0yDszE4AgyYzF2IVQA5BfaL7q3nYtlGCwoFcaNozMrs1Vok2qirtxGAA=="/>
         </item>
     </channel>
 </rss>
