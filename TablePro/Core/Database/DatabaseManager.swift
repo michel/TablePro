@@ -458,7 +458,7 @@ final class DatabaseManager {
         let profile = connection.sshProfileId.flatMap { SSHProfileStorage.shared.profile(for: $0) }
         let sshConfig = connection.effectiveSSHConfig(profile: profile)
         let isProfile = connection.sshProfileId != nil && profile != nil
-        let secretOwnerId = connection.sshProfileId.flatMap { profile != nil ? $0 : nil } ?? connection.id
+        let secretOwnerId = (isProfile ? connection.sshProfileId : nil) ?? connection.id
 
         guard sshConfig.enabled else {
             return connection

@@ -464,7 +464,8 @@ struct WelcomeWindowView: View {
     }
 
     private func connectionRow(for connection: DatabaseConnection) -> some View {
-        ConnectionRow(connection: connection, onConnect: { connectToDatabase(connection) })
+        let sshProfile = connection.sshProfileId.flatMap { SSHProfileStorage.shared.profile(for: $0) }
+        return ConnectionRow(connection: connection, sshProfile: sshProfile, onConnect: { connectToDatabase(connection) })
             .tag(connection.id)
             .listRowInsets(ThemeEngine.shared.activeTheme.spacing.listRowInsets.swiftUI)
             .listRowSeparator(.hidden)
@@ -1011,6 +1012,7 @@ struct WelcomeWindowView: View {
 
 private struct ConnectionRow: View {
     let connection: DatabaseConnection
+    let sshProfile: SSHProfile?
     var onConnect: (() -> Void)?
 
     private var displayTag: ConnectionTag? {
@@ -1066,8 +1068,7 @@ private struct ConnectionRow: View {
     }
 
     private var connectionSubtitle: String {
-        let profile = connection.sshProfileId.flatMap { SSHProfileStorage.shared.profile(for: $0) }
-        let ssh = connection.effectiveSSHConfig(profile: profile)
+        let ssh = connection.effectiveSSHConfig(profile: sshProfile)
         if ssh.enabled {
             return "SSH : \(ssh.username)@\(ssh.host)"
         }
