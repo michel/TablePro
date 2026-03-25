@@ -240,14 +240,23 @@ struct WelcomeWindowView: View {
             Spacer()
 
             // Footer hints
-            HStack(spacing: 16) {
-                SyncStatusIndicator()
-                KeyboardHint(keys: "↵", label: "Connect")
-                KeyboardHint(keys: "⌘N", label: "New")
-                KeyboardHint(keys: "⌘,", label: "Settings")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    SyncStatusIndicator()
+                    KeyboardHint(keys: "↵", label: "Connect")
+                    KeyboardHint(keys: "⌘N", label: "New")
+                    KeyboardHint(keys: "⌘,", label: "Settings")
+                }
+                HStack(spacing: 8) {
+                    SyncStatusIndicator()
+                    KeyboardHint(keys: "↵", label: "Connect")
+                    KeyboardHint(keys: "⌘N", label: "New")
+                    KeyboardHint(keys: "⌘,", label: nil)
+                }
             }
             .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
             .foregroundStyle(.tertiary)
+            .padding(.horizontal, ThemeEngine.shared.activeTheme.spacing.sm)
             .padding(.bottom, ThemeEngine.shared.activeTheme.spacing.lg)
         }
         .frame(width: 260)
@@ -1103,7 +1112,7 @@ private struct WelcomeButtonStyle: ButtonStyle {
 
 private struct KeyboardHint: View {
     let keys: String
-    let label: String
+    let label: String?
 
     var body: some View {
         HStack(spacing: 4) {
@@ -1115,7 +1124,9 @@ private struct KeyboardHint: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color(nsColor: .quaternaryLabelColor))
                 )
-            Text(label)
+            if let label {
+                Text(label)
+            }
         }
     }
 }
