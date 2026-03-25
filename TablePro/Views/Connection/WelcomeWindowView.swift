@@ -644,8 +644,21 @@ struct WelcomeWindowView: View {
 
             Button {
                 let pw = ConnectionStorage.shared.loadPassword(for: connection.id)
-                let sshPw = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
-                let url = ConnectionURLFormatter.format(connection, password: pw, sshPassword: sshPw)
+                let sshPw: String?
+                let sshProfile: SSHProfile?
+                if let profileId = connection.sshProfileId {
+                    sshPw = SSHProfileStorage.shared.loadSSHPassword(for: profileId)
+                    sshProfile = SSHProfileStorage.shared.profile(for: profileId)
+                } else {
+                    sshPw = ConnectionStorage.shared.loadSSHPassword(for: connection.id)
+                    sshProfile = nil
+                }
+                let url = ConnectionURLFormatter.format(
+                    connection,
+                    password: pw,
+                    sshPassword: sshPw,
+                    sshProfile: sshProfile
+                )
                 ClipboardService.shared.writeText(url)
             } label: {
                 Label(String(localized: "Copy as URL"), systemImage: "link")
@@ -1053,8 +1066,10 @@ private struct ConnectionRow: View {
     }
 
     private var connectionSubtitle: String {
-        if connection.sshConfig.enabled {
-            return "SSH : \(connection.sshConfig.username)@\(connection.sshConfig.host)"
+        let profile = connection.sshProfileId.flatMap { SSHProfileStorage.shared.profile(for: $0) }
+        let ssh = connection.effectiveSSHConfig(profile: profile)
+        if ssh.enabled {
+            return "SSH : \(ssh.username)@\(ssh.host)"
         }
         if connection.host.isEmpty {
             return connection.database.isEmpty ? connection.type.rawValue : connection.database

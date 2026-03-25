@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- SSH profile connections displaying incorrect host/username on the Welcome window home screen (#454)
 - Saved connections disappearing after normal app quit (Cmd+Q) while persisting after force quit (#452)
 - Crash when disconnecting an etcd connection while requests are in-flight
 - Detail pane showing truncated values for LONGTEXT/MEDIUMTEXT/CLOB columns, preventing correct editing

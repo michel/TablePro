@@ -6,7 +6,12 @@
 import Foundation
 
 struct ConnectionURLFormatter {
-    static func format(_ connection: DatabaseConnection, password: String?, sshPassword: String?) -> String {
+    static func format(
+        _ connection: DatabaseConnection,
+        password: String?,
+        sshPassword: String?,
+        sshProfile: SSHProfile? = nil
+    ) -> String {
         let scheme = urlScheme(for: connection.type)
 
         if connection.type == .sqlite {
@@ -17,8 +22,9 @@ struct ConnectionURLFormatter {
             return formatDuckDB(connection.database)
         }
 
-        if connection.sshConfig.enabled {
-            return formatSSH(connection, scheme: scheme, password: password)
+        let ssh = connection.effectiveSSHConfig(profile: sshProfile)
+        if ssh.enabled {
+            return formatSSH(connection, sshConfig: ssh, scheme: scheme, password: password)
         }
 
         return formatStandard(connection, scheme: scheme, password: password)
@@ -47,12 +53,12 @@ struct ConnectionURLFormatter {
 
     private static func formatSSH(
         _ connection: DatabaseConnection,
+        sshConfig ssh: SSHConfiguration,
         scheme: String,
         password: String?
     ) -> String {
         var result = "\(scheme)+ssh://"
 
-        let ssh = connection.sshConfig
         if !ssh.username.isEmpty {
             result += "\(percentEncodeUserinfo(ssh.username))@"
         }
@@ -81,7 +87,7 @@ struct ConnectionURLFormatter {
             : connection.database
         result += "/\(sshPathComponent)"
 
-        let query = buildQueryString(connection)
+        let query = buildQueryString(connection, sshConfig: ssh)
         if !query.isEmpty {
             result += "?\(query)"
         }
@@ -122,7 +128,11 @@ struct ConnectionURLFormatter {
         return result
     }
 
-    private static func buildQueryString(_ connection: DatabaseConnection) -> String {
+    private static func buildQueryString(
+        _ connection: DatabaseConnection,
+        sshConfig: SSHConfiguration? = nil
+    ) -> String {
+        let ssh = sshConfig ?? connection.sshConfig
         var params: [String] = []
 
         if !connection.name.isEmpty {
@@ -135,15 +145,15 @@ struct ConnectionURLFormatter {
             params.append("name=\(encoded)")
         }
 
-        if connection.sshConfig.enabled && connection.sshConfig.authMethod == .privateKey {
+        if ssh.enabled && ssh.authMethod == .privateKey {
             params.append("usePrivateKey=true")
         }
 
-        if connection.sshConfig.enabled && connection.sshConfig.authMethod == .sshAgent {
+        if ssh.enabled && ssh.authMethod == .sshAgent {
             params.append("useSSHAgent=true")
-            if !connection.sshConfig.agentSocketPath.isEmpty {
-                let encoded = connection.sshConfig.agentSocketPath
-                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? connection.sshConfig.agentSocketPath
+            if !ssh.agentSocketPath.isEmpty {
+                let encoded = ssh.agentSocketPath
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ssh.agentSocketPath
                 params.append("agentSocket=\(encoded)")
             }
         }
