@@ -55,24 +55,43 @@ extension AppDelegate {
             ConnectionStorage.shared.savePassword(parsed.password, for: connection.id)
         }
 
-        if DatabaseManager.shared.activeSessions[connection.id]?.driver != nil {
-            handlePostConnectionActions(parsed, connectionId: connection.id)
+        // Check if already connected or connecting (by ID or by params).
+        // This catches duplicates from URL handler, auto-reconnect, or any other source.
+        if DatabaseManager.shared.activeSessions[connection.id] != nil {
+            if DatabaseManager.shared.activeSessions[connection.id]?.driver != nil {
+                handlePostConnectionActions(parsed, connectionId: connection.id)
+            }
             bringConnectionWindowToFront(connection.id)
             return
         }
 
-        if let activeId = findActiveSessionByParams(parsed) {
-            handlePostConnectionActions(parsed, connectionId: activeId)
-            bringConnectionWindowToFront(activeId)
+        if let existingId = findSessionByParams(parsed) {
+            if DatabaseManager.shared.activeSessions[existingId]?.driver != nil {
+                handlePostConnectionActions(parsed, connectionId: existingId)
+            }
+            bringConnectionWindowToFront(existingId)
             return
         }
 
-        openNewConnectionWindow(for: connection)
+        // Skip if already connecting this connection from a URL (prevents duplicates).
+        // Use param key to catch transient connections with different UUIDs
+        // even before connectToSession creates the session.
+        let paramKey = Self.paramKey(for: parsed)
+        guard !connectingURLConnectionIds.contains(connection.id),
+              !connectingURLParamKeys.contains(paramKey) else {
+            return
+        }
+        connectingURLConnectionIds.insert(connection.id)
+        connectingURLParamKeys.insert(paramKey)
 
         Task { @MainActor in
-            defer { self.endFileOpenSuppression() }
+            defer {
+                self.connectingURLConnectionIds.remove(connection.id)
+                self.connectingURLParamKeys.remove(paramKey)
+            }
             do {
                 try await DatabaseManager.shared.connectToSession(connection)
+                self.openNewConnectionWindow(for: connection)
                 for window in NSApp.windows where self.isWelcomeWindow(window) {
                     window.close()
                 }
@@ -114,12 +133,16 @@ extension AppDelegate {
             type: .sqlite
         )
 
-        openNewConnectionWindow(for: connection)
+        guard !connectingFilePaths.contains(filePath) else { return }
+        connectingFilePaths.insert(filePath)
 
         Task { @MainActor in
-            defer { self.endFileOpenSuppression() }
+            defer {
+                self.connectingFilePaths.remove(filePath)
+            }
             do {
                 try await DatabaseManager.shared.connectToSession(connection)
+                self.openNewConnectionWindow(for: connection)
                 for window in NSApp.windows where self.isWelcomeWindow(window) {
                     window.close()
                 }
@@ -160,12 +183,16 @@ extension AppDelegate {
             type: .duckdb
         )
 
-        openNewConnectionWindow(for: connection)
+        guard !connectingFilePaths.contains(filePath) else { return }
+        connectingFilePaths.insert(filePath)
 
         Task { @MainActor in
-            defer { self.endFileOpenSuppression() }
+            defer {
+                self.connectingFilePaths.remove(filePath)
+            }
             do {
                 try await DatabaseManager.shared.connectToSession(connection)
+                self.openNewConnectionWindow(for: connection)
                 for window in NSApp.windows where self.isWelcomeWindow(window) {
                     window.close()
                 }
@@ -206,12 +233,16 @@ extension AppDelegate {
             type: dbType
         )
 
-        openNewConnectionWindow(for: connection)
+        guard !connectingFilePaths.contains(filePath) else { return }
+        connectingFilePaths.insert(filePath)
 
         Task { @MainActor in
-            defer { self.endFileOpenSuppression() }
+            defer {
+                self.connectingFilePaths.remove(filePath)
+            }
             do {
                 try await DatabaseManager.shared.connectToSession(connection)
+                self.openNewConnectionWindow(for: connection)
                 for window in NSApp.windows where self.isWelcomeWindow(window) {
                     window.close()
                 }
@@ -225,7 +256,9 @@ extension AppDelegate {
     // MARK: - Unified Queue
 
     func scheduleQueuedURLProcessing() {
-        guard !isProcessingQueuedURLs else { return }
+        guard !isProcessingQueuedURLs else {
+            return
+        }
         isProcessingQueuedURLs = true
 
         Task { @MainActor [weak self] in
@@ -256,7 +289,7 @@ extension AppDelegate {
                 case .genericDatabaseFile(let url, let dbType): self.handleGenericDatabaseFile(url, type: dbType)
                 }
             }
-            // Flag management is handled by endFileOpenSuppression() in each handler
+            self.endFileOpenSuppression()
         }
     }
 
@@ -363,9 +396,9 @@ extension AppDelegate {
 
     // MARK: - Session Lookup
 
-    private func findActiveSessionByParams(_ parsed: ParsedConnectionURL) -> UUID? {
+    /// Finds any session (connected or still connecting) matching the parsed URL params.
+    private func findSessionByParams(_ parsed: ParsedConnectionURL) -> UUID? {
         for (id, session) in DatabaseManager.shared.activeSessions {
-            guard session.driver != nil else { continue }
             let conn = session.connection
             if conn.type == parsed.type
                 && conn.host == parsed.host
@@ -377,6 +410,12 @@ extension AppDelegate {
             }
         }
         return nil
+    }
+
+    /// Normalized key for deduplicating connection attempts by URL params.
+    static func paramKey(for parsed: ParsedConnectionURL) -> String {
+        let rdb = parsed.redisDatabase.map { "/redis:\($0)" } ?? ""
+        return "\(parsed.type.rawValue):\(parsed.username)@\(parsed.host):\(parsed.port ?? 0)/\(parsed.database)\(rdb)"
     }
 
     func bringConnectionWindowToFront(_ connectionId: UUID) {

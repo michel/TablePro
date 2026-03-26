@@ -256,9 +256,6 @@ struct ContentView: View {
         .navigationSubtitle(currentSession?.connection.name ?? "")
     }
 
-    // Removed: newConnectionSheet and editConnectionSheet helpers
-    // Connection forms are now handled by the separate connection-form window
-
     // MARK: - Session State Bindings
 
     /// Generic helper to create bindings that update session state
@@ -338,7 +335,9 @@ struct ContentView: View {
     // MARK: - Connection Status
 
     private func handleConnectionStatusChange() {
-        guard closingSessionId == nil else { return }
+        guard closingSessionId == nil else {
+            return
+        }
         let sessions = DatabaseManager.shared.activeSessions
         let connectionId = payload?.connectionId ?? currentSession?.id ?? DatabaseManager.shared.currentSessionId
         guard let sid = connectionId else {
@@ -360,13 +359,10 @@ struct ContentView: View {
                 AppState.shared.currentDatabaseType = nil
                 AppState.shared.supportsDatabaseSwitching = true
 
-                let tabbingId = "com.TablePro.main.\(sid.uuidString)"
-                DispatchQueue.main.async {
-                    for window in NSApp.windows where window.tabbingIdentifier == tabbingId {
-                        window.isReleasedWhenClosed = true
-                        window.close()
-                    }
-                }
+                // Window cleanup is handled by windowWillClose (opens welcome)
+                // and windowDidBecomeKey (hides restored orphan windows).
+                // Do NOT close windows here — it triggers SwiftUI state
+                // restoration which creates an infinite close→restore loop.
             }
             return
         }
@@ -375,6 +371,10 @@ struct ContentView: View {
             return
         }
         currentSession = newSession
+        // Update window title on first session connect (fixes cold-launch stale title)
+        if payload?.tableName == nil, windowTitle == "SQL Query" || windowTitle.hasSuffix(" Query") {
+            windowTitle = newSession.connection.name
+        }
         if rightPanelState == nil {
             rightPanelState = RightPanelState()
         }
