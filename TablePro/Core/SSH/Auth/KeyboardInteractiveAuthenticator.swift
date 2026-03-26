@@ -55,7 +55,7 @@ private let kbdintCallback: @convention(c) (
         let promptText: String
         if let textPtr = prompt.text, prompt.length > 0 {
             let buffer = UnsafeBufferPointer(start: textPtr, count: Int(prompt.length))
-            promptText = String(decoding: buffer, as: UTF8.self)
+            promptText = String(decoding: buffer, as: UTF8.self) // swiftlint:disable:this optional_data_string_conversion
         } else {
             promptText = ""
         }

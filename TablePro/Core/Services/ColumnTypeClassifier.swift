@@ -10,7 +10,6 @@
 import Foundation
 
 struct ColumnTypeClassifier {
-
     func classify(rawTypeName: String) -> ColumnType {
         let stripped = stripWrappers(rawTypeName)
         let (base, params) = extractBaseAndParams(stripped)
@@ -89,7 +88,6 @@ struct ColumnTypeClassifier {
 
     // MARK: - Type Lookup Table
 
-    // swiftlint:disable:next function_body_length
     private static let typeLookup: [String: (String) -> ColumnType] = {
         var map: [String: (String) -> ColumnType] = [:]
 
