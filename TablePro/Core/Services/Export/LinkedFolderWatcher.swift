@@ -71,14 +71,14 @@ final class LinkedFolderWatcher {
     }
 
     /// Scans folders on a background thread to avoid blocking the main actor.
-    private nonisolated static func scanFoldersAsync(_ folders: [LinkedFolder]) async -> [LinkedConnection] {
+    nonisolated private static func scanFoldersAsync(_ folders: [LinkedFolder]) async -> [LinkedConnection] {
         await Task.detached(priority: .utility) {
             scanFolders(folders)
         }.value
     }
 
     /// Pure scanning logic. Runs on any thread.
-    private nonisolated static func scanFolders(_ folders: [LinkedFolder]) -> [LinkedConnection] {
+    nonisolated private static func scanFolders(_ folders: [LinkedFolder]) -> [LinkedConnection] {
         var results: [LinkedConnection] = []
         let fm = FileManager.default
 
@@ -160,7 +160,7 @@ final class LinkedFolderWatcher {
 
     // MARK: - Stable IDs (SHA-256 based, deterministic across launches)
 
-    private nonisolated static func stableId(folderId: UUID, connection: ExportableConnection) -> UUID {
+    nonisolated private static func stableId(folderId: UUID, connection: ExportableConnection) -> UUID {
         let key = "\(folderId.uuidString)|\(connection.name)|\(connection.host)|\(connection.port)|\(connection.type)"
         let digest = SHA256.hash(data: Data(key.utf8))
         var bytes = Array(digest.prefix(16))
