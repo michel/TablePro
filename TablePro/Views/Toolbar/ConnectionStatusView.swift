@@ -72,13 +72,6 @@ struct ConnectionStatusView: View {
             Image(systemName: "cylinder")
                 .font(.system(size: 13))
                 .foregroundStyle(ThemeEngine.shared.colors.toolbar.secondaryTextSwiftUI)
-                .overlay(alignment: .bottomTrailing) {
-                    Image(systemName: safeModeLevel.iconName)
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(safeModeLevel.badgeColor)
-                        .offset(x: 3, y: 2)
-                        .help(safeModeLevel.displayName)
-                }
 
             Text(databaseName)
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium, weight: .medium))
