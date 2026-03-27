@@ -13,6 +13,8 @@ internal enum ProFeature: String, CaseIterable {
     case safeMode
     case xlsxExport
     case encryptedExport
+    case envVarReferences
+    case linkedFolders
 
     var displayName: String {
         switch self {
@@ -24,6 +26,10 @@ internal enum ProFeature: String, CaseIterable {
             return String(localized: "XLSX Export")
         case .encryptedExport:
             return String(localized: "Encrypted Export")
+        case .envVarReferences:
+            return String(localized: "Environment Variables")
+        case .linkedFolders:
+            return String(localized: "Linked Folders")
         }
     }
 
@@ -37,6 +43,10 @@ internal enum ProFeature: String, CaseIterable {
             return "tablecells"
         case .encryptedExport:
             return "lock.doc"
+        case .envVarReferences:
+            return "dollarsign.square"
+        case .linkedFolders:
+            return "folder.badge.gearshape"
         }
     }
 
@@ -50,6 +60,10 @@ internal enum ProFeature: String, CaseIterable {
             return String(localized: "Export query results and tables to Excel format.")
         case .encryptedExport:
             return String(localized: "Export connections with encrypted credentials.")
+        case .envVarReferences:
+            return String(localized: "Use environment variables in connection fields.")
+        case .linkedFolders:
+            return String(localized: "Watch shared folders for connection files.")
         }
     }
 }
