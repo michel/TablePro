@@ -9,6 +9,7 @@
 import AppKit
 import os
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - WelcomeWindowView
 
@@ -43,6 +44,7 @@ struct WelcomeWindowView: View {
     @State private var pendingMoveToNewGroup: [DatabaseConnection] = []
     @State private var showActivationSheet = false
     @State private var pluginInstallConnection: DatabaseConnection?
+    @State private var importFileURL: IdentifiableURL?
 
     @Environment(\.openWindow) private var openWindow
 
@@ -158,6 +160,25 @@ struct WelcomeWindowView: View {
         }
         .pluginInstallPrompt(connection: $pluginInstallConnection) { connection in
             connectAfterInstall(connection)
+        }
+        .sheet(item: $importFileURL) { item in
+            ConnectionImportSheet(fileURL: item.url) { count in
+                // Delay to let the sheet fully dismiss before showing alert
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showImportResultAlert(count: count)
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .connectionShareFileOpened)) { notification in
+            guard let url = notification.object as? URL else { return }
+            importFileURL = IdentifiableURL(url: url)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .exportConnections)) { _ in
+            guard !connections.isEmpty else { return }
+            exportConnections(connections)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .importConnections)) { _ in
+            importConnectionsFromFile()
         }
     }
 
@@ -380,6 +401,14 @@ struct WelcomeWindowView: View {
         Button(action: { openWindow(id: "connection-form") }) {
             Label("New Connection...", systemImage: "plus")
         }
+
+        Divider()
+
+        Button {
+            importConnectionsFromFile()
+        } label: {
+            Label(String(localized: "Import Connections..."), systemImage: "square.and.arrow.down")
+        }
     }
 
     // MARK: - Connection List
@@ -479,6 +508,29 @@ struct WelcomeWindowView: View {
             .listRowInsets(ThemeEngine.shared.activeTheme.spacing.listRowInsets.swiftUI)
             .listRowSeparator(.hidden)
             .contextMenu { contextMenuContent(for: connection) }
+            .onDrag {
+                let provider = NSItemProvider()
+                provider.registerFileRepresentation(
+                    forTypeIdentifier: UTType.tableproConnectionShare.identifier,
+                    visibility: .all
+                ) { completion in
+                    do {
+                        let envelope = ConnectionExportService.buildEnvelope(for: [connection])
+                        let data = try ConnectionExportService.encode(envelope)
+                        let safeName = connection.name
+                            .replacingOccurrences(of: "/", with: "-")
+                            .replacingOccurrences(of: ":", with: "-")
+                        let tempURL = FileManager.default.temporaryDirectory
+                            .appendingPathComponent("\(safeName)-\(connection.id.uuidString).tablepro")
+                        try data.write(to: tempURL, options: .atomic)
+                        completion(tempURL, true, nil)
+                    } catch {
+                        completion(nil, false, error)
+                    }
+                    return nil
+                }
+                return provider
+            }
     }
 
     private func groupHeader(for group: ConnectionGroup) -> some View {
@@ -614,6 +666,17 @@ struct WelcomeWindowView: View {
 
             Divider()
 
+            Button {
+                exportConnections(Array(selectedConnections))
+            } label: {
+                Label(
+                    String(localized: "Export \(selectedConnectionIds.count) Connections..."),
+                    systemImage: "square.and.arrow.up"
+                )
+            }
+
+            Divider()
+
             moveToGroupMenu(for: selectedConnections)
 
             let validGroupIds = Set(groups.map(\.id))
@@ -652,6 +715,8 @@ struct WelcomeWindowView: View {
                 Label(String(localized: "Duplicate"), systemImage: "doc.on.doc")
             }
 
+            Divider()
+
             Button {
                 let pw = ConnectionStorage.shared.loadPassword(for: connection.id)
                 let sshPw: String?
@@ -672,6 +737,19 @@ struct WelcomeWindowView: View {
                 ClipboardService.shared.writeText(url)
             } label: {
                 Label(String(localized: "Copy as URL"), systemImage: "link")
+            }
+
+            Button {
+                let link = ConnectionExportService.buildImportDeeplink(for: connection)
+                ClipboardService.shared.writeText(link)
+            } label: {
+                Label(String(localized: "Copy as Import Link"), systemImage: "link.badge.plus")
+            }
+
+            Button {
+                exportConnections([connection])
+            } label: {
+                Label(String(localized: "Export..."), systemImage: "square.and.arrow.up")
             }
 
             Divider()
@@ -746,6 +824,61 @@ struct WelcomeWindowView: View {
             connections[i].groupId = nil
         }
         storage.saveConnections(connections)
+    }
+
+    // MARK: - Connection Sharing
+
+    private func exportConnections(_ connectionsToExport: [DatabaseConnection]) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.tableproConnectionShare]
+        let defaultName = connectionsToExport.count == 1
+            ? "\(connectionsToExport[0].name).tablepro"
+            : "Connections.tablepro"
+        panel.nameFieldStringValue = defaultName
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try ConnectionExportService.exportConnections(connectionsToExport, to: url)
+        } catch {
+            AlertHelper.showErrorSheet(
+                title: String(localized: "Export Failed"),
+                message: error.localizedDescription,
+                window: NSApp.keyWindow
+            )
+        }
+    }
+
+    private func importConnectionsFromFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.tableproConnectionShare]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        importFileURL = IdentifiableURL(url: url)
+    }
+
+    private func showImportResultAlert(count: Int) {
+        let alert = NSAlert()
+        if count > 0 {
+            alert.alertStyle = .informational
+            alert.messageText = String(localized: "Import Complete")
+            alert.informativeText = count == 1
+                ? String(localized: "1 connection was imported.")
+                : String(localized: "\(count) connections were imported.")
+            alert.icon = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil)?
+                .withSymbolConfiguration(.init(paletteColors: [.white, .systemGreen]))
+        } else {
+            alert.alertStyle = .informational
+            alert.messageText = String(localized: "No Connections Imported")
+            alert.informativeText = String(localized: "All selected connections were skipped.")
+        }
+        alert.addButton(withTitle: String(localized: "OK"))
+        if let window = NSApp.keyWindow {
+            alert.beginSheetModal(for: window)
+        } else {
+            alert.runModal()
+        }
     }
 
     // MARK: - Actions

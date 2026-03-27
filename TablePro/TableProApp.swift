@@ -239,6 +239,16 @@ struct AppMenuCommands: Commands {
 
             Divider()
 
+            Button(String(localized: "Export Connections...")) {
+                NotificationCenter.default.post(name: .exportConnections, object: nil)
+            }
+
+            Button(String(localized: "Import Connections...")) {
+                NotificationCenter.default.post(name: .importConnections, object: nil)
+            }
+
+            Divider()
+
             Button("Export...") {
                 actions?.exportTables()
             }
