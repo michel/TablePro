@@ -45,6 +45,7 @@ struct WelcomeWindowView: View {
     @State private var showActivationSheet = false
     @State private var pluginInstallConnection: DatabaseConnection?
     @State private var importFileURL: IdentifiableURL?
+    @State private var pendingExportConnections: IdentifiableConnections?
 
     @Environment(\.openWindow) private var openWindow
 
@@ -168,6 +169,9 @@ struct WelcomeWindowView: View {
                     showImportResultAlert(count: count)
                 }
             }
+        }
+        .sheet(item: $pendingExportConnections) { item in
+            ConnectionExportOptionsSheet(connections: item.connections)
         }
         .onReceive(NotificationCenter.default.publisher(for: .connectionShareFileOpened)) { notification in
             guard let url = notification.object as? URL else { return }
@@ -508,29 +512,6 @@ struct WelcomeWindowView: View {
             .listRowInsets(ThemeEngine.shared.activeTheme.spacing.listRowInsets.swiftUI)
             .listRowSeparator(.hidden)
             .contextMenu { contextMenuContent(for: connection) }
-            .onDrag {
-                let provider = NSItemProvider()
-                provider.registerFileRepresentation(
-                    forTypeIdentifier: UTType.tableproConnectionShare.identifier,
-                    visibility: .all
-                ) { completion in
-                    do {
-                        let envelope = ConnectionExportService.buildEnvelope(for: [connection])
-                        let data = try ConnectionExportService.encode(envelope)
-                        let safeName = connection.name
-                            .replacingOccurrences(of: "/", with: "-")
-                            .replacingOccurrences(of: ":", with: "-")
-                        let tempURL = FileManager.default.temporaryDirectory
-                            .appendingPathComponent("\(safeName)-\(connection.id.uuidString).tablepro")
-                        try data.write(to: tempURL, options: .atomic)
-                        completion(tempURL, true, nil)
-                    } catch {
-                        completion(nil, false, error)
-                    }
-                    return nil
-                }
-                return provider
-            }
     }
 
     private func groupHeader(for group: ConnectionGroup) -> some View {
@@ -829,24 +810,7 @@ struct WelcomeWindowView: View {
     // MARK: - Connection Sharing
 
     private func exportConnections(_ connectionsToExport: [DatabaseConnection]) {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.tableproConnectionShare]
-        let defaultName = connectionsToExport.count == 1
-            ? "\(connectionsToExport[0].name).tablepro"
-            : "Connections.tablepro"
-        panel.nameFieldStringValue = defaultName
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        do {
-            try ConnectionExportService.exportConnections(connectionsToExport, to: url)
-        } catch {
-            AlertHelper.showErrorSheet(
-                title: String(localized: "Export Failed"),
-                message: error.localizedDescription,
-                window: NSApp.keyWindow
-            )
-        }
+        pendingExportConnections = IdentifiableConnections(connections: connectionsToExport)
     }
 
     private func importConnectionsFromFile() {
