@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Linked Folders: watch a shared directory for `.tablepro` files, auto-sync connections to sidebar (Pro)
-- Environment variable references: use `$VAR` and `${VAR}` in `.tablepro` files, resolved at connection time (Pro)
-- Encrypted connection export with credentials: Pro users can include passwords in exports, protected by AES-256-GCM encryption with a passphrase
-- Connection sharing: export/import connections as `.tablepro` files (#466)
-- Import preview with duplicate detection, warning badges, and per-item resolution
-- "Copy as Import Link" context menu action for sharing via `tablepro://` URLs
-- `.tablepro` file type registration (double-click to import, drag-and-drop)
-- Environment variable references (`$VAR` / `${VAR}`) in connection fields (host, database, username, SSH, SSL paths, startup commands, additional fields) — Pro feature
+- Connection sharing: export/import connections as `.tablepro` files with import preview and duplicate detection (#466)
+- Encrypted export with credentials, protected by AES-256-GCM passphrase (Pro)
+- Linked Folders: watch a shared directory for `.tablepro` files (Pro)
+- Environment variable references (`$VAR`, `${VAR}`) in connection fields (Pro)
 
 ## [0.24.2] - 2026-03-26
 
