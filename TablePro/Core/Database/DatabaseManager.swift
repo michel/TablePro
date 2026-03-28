@@ -5,6 +5,7 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
+import AppKit
 import Foundation
 import Observation
 import os
@@ -123,6 +124,22 @@ final class DatabaseManager {
         if let script = resolvedConnection.preConnectScript,
            !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
+            let confirmed = await AlertHelper.confirmDestructive(
+                title: String(localized: "Pre-Connect Script"),
+                message: String(localized: "Connection \"\(connection.name)\" has a script that will run before connecting:\n\n\(script)"),
+                confirmButton: String(localized: "Run Script"),
+                cancelButton: String(localized: "Cancel"),
+                window: NSApp.keyWindow
+            )
+
+            guard confirmed else {
+                removeSessionEntry(for: connection.id)
+                currentSessionId = nil
+                throw PreConnectHookRunner.HookError.scriptFailed(
+                    exitCode: 1, stderr: "User cancelled pre-connect script"
+                )
+            }
+
             do {
                 try await PreConnectHookRunner.run(script: script)
             } catch {
