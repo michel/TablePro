@@ -185,6 +185,20 @@ extension AppDelegate {
 
         Task { @MainActor in
             do {
+                // Confirm pre-connect script if present (deep links are external, so always confirm)
+                if let script = connection.preConnectScript,
+                   !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                {
+                    let confirmed = await AlertHelper.confirmDestructive(
+                        title: String(localized: "Pre-Connect Script"),
+                        message: String(localized: "Connection \"\(connection.name)\" has a script that will run before connecting:\n\n\(script)"),
+                        confirmButton: String(localized: "Run Script"),
+                        cancelButton: String(localized: "Cancel"),
+                        window: NSApp.keyWindow
+                    )
+                    guard confirmed else { return }
+                }
+
                 try await DatabaseManager.shared.connectToSession(connection)
                 for window in NSApp.windows where self.isWelcomeWindow(window) {
                     window.close()

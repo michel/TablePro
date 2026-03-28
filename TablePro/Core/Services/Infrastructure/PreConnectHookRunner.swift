@@ -14,6 +14,7 @@ enum PreConnectHookRunner {
     enum HookError: LocalizedError {
         case scriptFailed(exitCode: Int32, stderr: String)
         case timeout
+        case cancelled
 
         var errorDescription: String? {
             switch self {
@@ -25,6 +26,8 @@ enum PreConnectHookRunner {
                 return String(localized: "Pre-connect script failed (exit \(exitCode)): \(message)")
             case .timeout:
                 return String(localized: "Pre-connect script timed out after 10 seconds")
+            case .cancelled:
+                return String(localized: "Pre-connect script was cancelled")
             }
         }
     }

@@ -2973,6 +2973,9 @@
         }
       }
     },
+    "Add Connection" : {
+
+    },
     "Add filter" : {
       "localizations" : {
         "tr" : {
@@ -3764,6 +3767,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "始终允许"
+          }
+        }
+      }
+    },
+    "An external link wants to add a database connection:\n\nName: %@\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "An external link wants to add a database connection:\n\nName: %1$@\n%2$@"
+          }
+        }
+      }
+    },
+    "An external link wants to open a query on connection \"%@\":\n\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "An external link wants to open a query on connection \"%1$@\":\n\n%2$@"
           }
         }
       }
@@ -6972,6 +6995,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "连接"
+          }
+        }
+      }
+    },
+    "Connection \"%@\" has a script that will run before connecting:\n\n%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Connection \"%1$@\" has a script that will run before connecting:\n\n%2$@"
           }
         }
       }
@@ -15055,6 +15088,9 @@
         }
       }
     },
+    "Import Connection from Link" : {
+
+    },
     "Import Connections" : {
       "localizations" : {
         "tr" : {
@@ -21374,6 +21410,12 @@
         }
       }
     },
+    "Open Query" : {
+
+    },
+    "Open Query from Link" : {
+
+    },
     "Open Redis CLI" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -22694,6 +22736,9 @@
           }
         }
       }
+    },
+    "Pre-connect script was cancelled" : {
+
     },
     "Precision" : {
       "extractionState" : "stale",
@@ -25552,6 +25597,9 @@
           }
         }
       }
+    },
+    "Run Script" : {
+
     },
     "Safe Mode" : {
       "localizations" : {
