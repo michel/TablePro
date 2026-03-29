@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 TablePro is a native macOS database client (SwiftUI + AppKit) — a fast, lightweight alternative to TablePlus. macOS 14.0+, Swift 5.9, Universal Binary (arm64 + x86_64).
 
 - **Source**: `TablePro/` — `Core/` (business logic, services), `Views/` (UI), `Models/` (data structures), `ViewModels/`, `Extensions/`, `Theme/`
-- **Plugins**: `Plugins/` — `.tableplugin` bundles + `TableProPluginKit` shared framework. Built-in (bundled in app): MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, Redis, DynamoDB, CSV, JSON, SQL export, XLSX, MQL, SQLImport. Separately distributed via plugin registry: MongoDB, Oracle, DuckDB, Cassandra, Etcd, CloudflareD1, BigQuery
+- **Plugins**: `Plugins/` — `.tableplugin` bundles + `TableProPluginKit` shared framework. Built-in (bundled in app): MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, Redis, CSV, JSON, SQL export, XLSX, MQL, SQLImport. Separately distributed via plugin registry: MongoDB, Oracle, DuckDB, Cassandra, Etcd, CloudflareD1, DynamoDB, BigQuery
 - **C bridges**: Each plugin contains its own C bridge module (e.g., `Plugins/MySQLDriverPlugin/CMariaDB/`, `Plugins/PostgreSQLDriverPlugin/CLibPQ/`)
 - **Static libs**: `Libs/` — pre-built `libmariadb*.a`, `libpq*.a`, etc. Downloaded from GitHub Releases via `scripts/download-libs.sh` (not in git)
 - **SPM deps**: CodeEditSourceEditor (`main` branch, tree-sitter editor), Sparkle (2.8.1, auto-update), OracleNIO. Managed via Xcode, no `Package.swift`.
@@ -88,7 +88,7 @@ Plugin bundles under `Plugins/`:
 | CassandraDriverPlugin  | Cassandra, ScyllaDB  | CCassandra           | Registry     |
 | EtcdDriverPlugin       | Etcd                 | (gRPC/HTTP)          | Registry     |
 | CloudflareD1Plugin     | Cloudflare D1        | (URLSession HTTP)    | Registry     |
-| DynamoDBDriverPlugin   | DynamoDB             | (AWS SDK)            | Built-in     |
+| DynamoDBDriverPlugin   | DynamoDB             | (AWS SDK)            | Registry     |
 | BigQueryDriverPlugin   | BigQuery             | (URLSession REST)    | Registry     |
 
 When adding a new driver: create a new plugin bundle under `Plugins/`, implement `DriverPlugin` + `PluginDatabaseDriver`, add target to pbxproj, add `DatabaseType` static constant, add case to `resolve_plugin_info()` in `.github/workflows/build-plugin.yml`, add row to `docs/index.mdx` supported databases table, and add CHANGELOG entry. See `docs/development/plugin-system/` for details.
@@ -252,3 +252,5 @@ Write like a developer, not a marketing AI. Be specific (numbers, tech names) ov
 GitHub Actions (`.github/workflows/build.yml`) triggered by `v*` tags: lint → build arm64 → build x86_64 → release (DMG/ZIP + Sparkle signatures). Release notes auto-extracted from `CHANGELOG.md`.
 
 **Plugin CI** (`.github/workflows/build-plugin.yml`): triggered by `plugin-*-v*` tags. GitHub only fires one workflow per multi-tag `git push` — push tags individually or use `workflow_dispatch` with comma-separated tags for bulk releases.
+
+**Plugin tag naming**: Tag names must match the CI workflow's `resolve_plugin_info()` mapping. Notable non-obvious mappings: `CloudflareD1DriverPlugin` → `plugin-cloudflare-d1-v*`, `EtcdDriverPlugin` → `plugin-etcd-v*`. Check existing tags with `git tag -l "plugin-*"` before creating new ones.

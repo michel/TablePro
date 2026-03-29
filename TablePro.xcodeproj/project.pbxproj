@@ -36,7 +36,6 @@
 		5A86F000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
 		5A86F000D00000000 /* SQLImport.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5A86F000100000000 /* SQLImport.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5A87A000A00000000 /* TableProPluginKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A860000100000000 /* TableProPluginKit.framework */; };
-		5ABQR00000000000000000D0 /* BigQueryDriverPlugin.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5ABQR00300000000000000A0 /* BigQueryDriverPlugin.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5ABQR00100000000000000A1 /* BigQueryAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABQR00200000000000000A1 /* BigQueryAuth.swift */; };
 		5ABQR00100000000000000A2 /* BigQueryConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABQR00200000000000000A2 /* BigQueryConnection.swift */; };
 		5ABQR00100000000000000A3 /* BigQueryPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABQR00200000000000000A3 /* BigQueryPlugin.swift */; };
@@ -51,7 +50,6 @@
 		5ACE00012F4F000000000006 /* CodeEditTextView in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000007 /* CodeEditTextView */; };
 		5ACE00012F4F00000000000A /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F000000000009 /* Sparkle */; };
 		5ACE00012F4F00000000000D /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5ACE00012F4F00000000000C /* MarkdownUI */; };
-		5ADDB00000000000000000D0 /* DynamoDBDriverPlugin.tableplugin in Copy Plug-Ins */ = {isa = PBXBuildFile; fileRef = 5ADDB00300000000000000A0 /* DynamoDBDriverPlugin.tableplugin */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5ADDB00100000000000000A1 /* DynamoDBConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ADDB00200000000000000A1 /* DynamoDBConnection.swift */; };
 		5ADDB00100000000000000A2 /* DynamoDBItemFlattener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ADDB00200000000000000A2 /* DynamoDBItemFlattener.swift */; };
 		5ADDB00100000000000000A3 /* DynamoDBPartiQLParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ADDB00200000000000000A3 /* DynamoDBPartiQLParser.swift */; };
@@ -219,8 +217,6 @@
 				5A86D000D00000000 /* XLSXExport.tableplugin in Copy Plug-Ins */,
 				5A86E000D00000000 /* MQLExport.tableplugin in Copy Plug-Ins */,
 				5A86F000D00000000 /* SQLImport.tableplugin in Copy Plug-Ins */,
-				5ADDB00000000000000000D0 /* DynamoDBDriverPlugin.tableplugin in Copy Plug-Ins */,
-				5ABQR00000000000000000D0 /* BigQueryDriverPlugin.tableplugin in Copy Plug-Ins */,
 			);
 			name = "Copy Plug-Ins";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2097,7 +2093,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_APP_SANDBOX = NO;
@@ -2169,7 +2165,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = YES;
-				CURRENT_PROJECT_VERSION = 51;
+				CURRENT_PROJECT_VERSION = 52;
 				DEAD_CODE_STRIPPING = YES;
 				DEPLOYMENT_POSTPROCESSING = YES;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
