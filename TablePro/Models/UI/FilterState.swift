@@ -121,7 +121,6 @@ final class FilterStateManager {
 
         // Also remove from applied filters if it was applied
         appliedFilters.removeAll { $0.id == filter.id }
-
     }
 
     /// Update a filter

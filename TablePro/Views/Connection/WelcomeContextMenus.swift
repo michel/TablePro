@@ -201,7 +201,7 @@ func flattenGroupsForMenu(groups: [ConnectionGroup], parentId: UUID? = nil, dept
     let levelGroups: [ConnectionGroup]
     if parentId == nil {
         levelGroups = groups
-            .filter { $0.parentId == nil || !validGroupIds.contains($0.parentId!) }
+            .filter { $0.parentId == nil || ($0.parentId.flatMap { validGroupIds.contains($0) } != true) }
             .sorted {
                 $0.sortOrder != $1.sortOrder
                     ? $0.sortOrder < $1.sortOrder

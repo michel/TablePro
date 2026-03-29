@@ -33,7 +33,7 @@ func buildGroupTree(
     let levelGroups: [ConnectionGroup]
     if parentId == nil {
         levelGroups = groups
-            .filter { $0.parentId == nil || !validGroupIds.contains($0.parentId!) }
+            .filter { $0.parentId == nil || ($0.parentId.flatMap { validGroupIds.contains($0) } != true) }
             .sorted { $0.sortOrder != $1.sortOrder ? $0.sortOrder < $1.sortOrder : $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     } else {
         levelGroups = groups
@@ -149,7 +149,7 @@ func depthOf(groupId: UUID?, groups: [ConnectionGroup], visited: Set<UUID> = [])
 func maxDescendantDepth(groupId: UUID, groups: [ConnectionGroup]) -> Int {
     let children = groups.filter { $0.parentId == groupId }
     if children.isEmpty { return 0 }
-    return 1 + children.map { maxDescendantDepth(groupId: $0.id, groups: groups) }.max()!
+    return 1 + (children.map { maxDescendantDepth(groupId: $0.id, groups: groups) }.max() ?? 0)
 }
 
 func connectionCount(in groupId: UUID, connections: [DatabaseConnection], groups: [ConnectionGroup]) -> Int {

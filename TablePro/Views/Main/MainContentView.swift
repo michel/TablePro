@@ -331,7 +331,7 @@ struct MainContentView: View {
             if needsLazyLoad && !hasPendingEdits && isConnected {
                 coordinator.runQuery()
             }
-        }
+            }
             .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification))
         { notification in
             guard let notificationWindow = notification.object as? NSWindow,
@@ -349,7 +349,7 @@ struct MainContentView: View {
                 guard !Task.isCancelled else { return }
                 coordinator.evictInactiveRowData()
             }
-        }
+            }
             .onChange(of: tables) { _, newTables in
                 let syncAction = SidebarSyncAction.resolveOnTablesLoad(
                     newTables: newTables,
