@@ -371,11 +371,26 @@ struct QueryTab: Identifiable, Equatable {
     // Source file URL for .sql files opened from disk (used for deduplication)
     var sourceFileURL: URL?
 
+    // Snapshot of file content at last save/load (nil for non-file tabs).
+    // Used to detect unsaved changes via isFileDirty.
+    var savedFileContent: String?
+
     // Version counter incremented when resultRows changes (used for sort caching)
     var resultVersion: Int
 
     // Version counter incremented when FK/metadata arrives (Phase 2), used to invalidate caches
     var metadataVersion: Int
+
+    /// Whether the editor content differs from the last saved/loaded file content.
+    /// Returns false for tabs not backed by a file.
+    /// Uses O(1) length pre-check to avoid O(n) string comparison on every keystroke.
+    var isFileDirty: Bool {
+        guard sourceFileURL != nil, let saved = savedFileContent else { return false }
+        let queryNS = query as NSString
+        let savedNS = saved as NSString
+        if queryNS.length != savedNS.length { return true }
+        return queryNS != savedNS
+    }
 
     init(
         id: UUID = UUID(),
@@ -576,6 +591,9 @@ final class QueryTabManager {
 
         newTab.databaseName = databaseName
         newTab.sourceFileURL = sourceFileURL
+        if sourceFileURL != nil {
+            newTab.savedFileContent = newTab.query
+        }
         tabs.append(newTab)
         selectedTabId = newTab.id
     }
