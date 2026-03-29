@@ -165,6 +165,11 @@ jobs:
                 DISPLAY_NAME="DynamoDB Driver"; SUMMARY="Amazon DynamoDB driver with PartiQL queries and AWS IAM/Profile/SSO authentication"
                 DB_TYPE_IDS='["DynamoDB"]'; ICON="dynamodb-icon"; BUNDLE_NAME="DynamoDBDriverPlugin"
                 CATEGORY="database-driver"; HOMEPAGE="https://docs.tablepro.app/databases/dynamodb" ;;
+              bigquery)
+                TARGET="BigQueryDriverPlugin"; BUNDLE_ID="com.TablePro.BigQueryDriverPlugin"
+                DISPLAY_NAME="BigQuery Driver"; SUMMARY="Google BigQuery analytics database driver via REST API"
+                DB_TYPE_IDS='["BigQuery"]'; ICON="bigquery-icon"; BUNDLE_NAME="BigQueryDriverPlugin"
+                CATEGORY="database-driver"; HOMEPAGE="https://docs.tablepro.app/databases/bigquery" ;;
               xlsx)
                 TARGET="XLSXExport"; BUNDLE_ID="com.TablePro.XLSXExportPlugin"
                 DISPLAY_NAME="XLSX Export"; SUMMARY="Export data to Microsoft Excel XLSX format"

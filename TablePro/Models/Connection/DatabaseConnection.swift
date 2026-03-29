@@ -238,6 +238,7 @@ extension DatabaseType {
     static let etcd = DatabaseType(rawValue: "etcd")
     static let cloudflareD1 = DatabaseType(rawValue: "Cloudflare D1")
     static let dynamodb = DatabaseType(rawValue: "DynamoDB")
+    static let bigQuery = DatabaseType(rawValue: "BigQuery")
 }
 
 extension DatabaseType: Codable {
