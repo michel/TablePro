@@ -3,35 +3,69 @@
     <channel>
         <title>TablePro</title>
         <item>
-            <title>0.25.0</title>
-            <pubDate>Fri, 27 Mar 2026 13:49:42 +0000</pubDate>
-            <sparkle:version>50</sparkle:version>
-            <sparkle:shortVersionString>0.25.0</sparkle:shortVersionString>
+            <title>0.26.0</title>
+            <pubDate>Sun, 29 Mar 2026 14:47:05 +0000</pubDate>
+            <sparkle:version>51</sparkle:version>
+            <sparkle:shortVersionString>0.26.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Connection sharing: export/import connections as `.tablepro` files with import preview and duplicate detection (#466)</li>
-<li>Encrypted export with credentials, protected by AES-256-GCM passphrase (Pro)</li>
-<li>Linked Folders: watch a shared directory for `.tablepro` files (Pro)</li>
-<li>Environment variable references (`$VAR`, `${VAR}`) in connection fields (Pro)</li>
+<li>Global toggle to disable all AI features (Settings > AI)</li>
+<li>Drag to reorder columns in the Structure tab (MySQL/MariaDB)</li>
+<li>Nested hierarchical groups for connection list (up to 3 levels deep)</li>
+<li>Confirmation dialogs for deep link queries, connection imports, and pre-connect scripts</li>
+<li>JSON fields in Row Details sidebar now display in a scrollable monospaced text area</li>
+<li>Open, save, and save-as for SQL files with native macOS title bar integration (#475)</li>
+<li>BigQuery plugin support (Google BigQuery analytics via REST API)</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Removed query history sync from iCloud Sync (connections, groups, settings, and SSH profiles still sync)</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>SQL editor not auto-focused on new tab and cursor missing after tab switch</li>
+<li>Long lines not scrollable horizontally in the SQL editor</li>
+<li>Home and End keys not moving cursor in the SQL editor (#448)</li>
+<li>SSH profile lost after app restart when iCloud Sync enabled</li>
+<li>MariaDB JSON columns showing as hex dumps instead of JSON text</li>
+<li>MongoDB Atlas TLS certificate verification failure</li>
+<li>ENUM/SET dropdown chevron buttons not showing on first table open</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.25.0/TablePro-0.25.0-arm64.zip" length="26344335" type="application/octet-stream" sparkle:edSignature="2MYKHGlH+5YaAhMc6uHlVEzTOwuLIgoAMx8Igpu/TeMMFBJF4XIrNYXIH+py9X4o4p8Tx5LbwuCERmeovmzkAw=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.26.0/TablePro-0.26.0-arm64.zip" length="26643700" type="application/octet-stream" sparkle:edSignature="fwz3CPLIjIQ59KojGTg5+ORSM3LIrA/8GblZIFyszgGKgIx16PJHsiaIOKZK9UjfWxCiCWri0h9lvL8O6RliDA=="/>
         </item>
         <item>
-            <title>0.25.0</title>
-            <pubDate>Fri, 27 Mar 2026 13:49:42 +0000</pubDate>
-            <sparkle:version>50</sparkle:version>
-            <sparkle:shortVersionString>0.25.0</sparkle:shortVersionString>
+            <title>0.26.0</title>
+            <pubDate>Sun, 29 Mar 2026 14:47:05 +0000</pubDate>
+            <sparkle:version>51</sparkle:version>
+            <sparkle:shortVersionString>0.26.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description><![CDATA[<body style="font-family: -apple-system, sans-serif; font-size: 13px; padding: 8px;"><h3>Added</h3>
 <ul>
-<li>Connection sharing: export/import connections as `.tablepro` files with import preview and duplicate detection (#466)</li>
-<li>Encrypted export with credentials, protected by AES-256-GCM passphrase (Pro)</li>
-<li>Linked Folders: watch a shared directory for `.tablepro` files (Pro)</li>
-<li>Environment variable references (`$VAR`, `${VAR}`) in connection fields (Pro)</li>
+<li>Global toggle to disable all AI features (Settings > AI)</li>
+<li>Drag to reorder columns in the Structure tab (MySQL/MariaDB)</li>
+<li>Nested hierarchical groups for connection list (up to 3 levels deep)</li>
+<li>Confirmation dialogs for deep link queries, connection imports, and pre-connect scripts</li>
+<li>JSON fields in Row Details sidebar now display in a scrollable monospaced text area</li>
+<li>Open, save, and save-as for SQL files with native macOS title bar integration (#475)</li>
+<li>BigQuery plugin support (Google BigQuery analytics via REST API)</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Removed query history sync from iCloud Sync (connections, groups, settings, and SSH profiles still sync)</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>SQL editor not auto-focused on new tab and cursor missing after tab switch</li>
+<li>Long lines not scrollable horizontally in the SQL editor</li>
+<li>Home and End keys not moving cursor in the SQL editor (#448)</li>
+<li>SSH profile lost after app restart when iCloud Sync enabled</li>
+<li>MariaDB JSON columns showing as hex dumps instead of JSON text</li>
+<li>MongoDB Atlas TLS certificate verification failure</li>
+<li>ENUM/SET dropdown chevron buttons not showing on first table open</li>
 </ul></body>]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.25.0/TablePro-0.25.0-x86_64.zip" length="23280529" type="application/octet-stream" sparkle:edSignature="KrhICT8nA0RknwMnwnC9Eg4IxeN9pxmf5tTARDPS87xwDHkbFFJKIGlHUIpd/uKJLsJt3Lz3YVOIiSkmiHAHDA=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.26.0/TablePro-0.26.0-x86_64.zip" length="23591041" type="application/octet-stream" sparkle:edSignature="UasOp3LeppyKJVrB+P/NoFutS4t69VbEZ5vkCMIIUaM9IA1xYl9Llib3Ikyn0yk258uw/W99078hPrJHUFPoAA=="/>
         </item>
     </channel>
 </rss>
