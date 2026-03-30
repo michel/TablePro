@@ -116,6 +116,7 @@ struct ContentView: View {
                         AppState.shared.currentDatabaseType = session.connection.type
                         AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
                             for: session.connection.type)
+                            || PluginManager.shared.supportsSchemaSwitching(for: session.connection.type)
                     }
                 } else {
                     currentSession = nil
@@ -156,6 +157,7 @@ struct ContentView: View {
                     AppState.shared.currentDatabaseType = session.connection.type
                     AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
                         for: session.connection.type)
+                        || PluginManager.shared.supportsSchemaSwitching(for: session.connection.type)
                 } else {
                     AppState.shared.isConnected = false
                     AppState.shared.safeModeLevel = .silent
@@ -408,6 +410,7 @@ struct ContentView: View {
         AppState.shared.currentDatabaseType = newSession.connection.type
         AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
             for: newSession.connection.type)
+            || PluginManager.shared.supportsSchemaSwitching(for: newSession.connection.type)
     }
 
     // MARK: - Actions
