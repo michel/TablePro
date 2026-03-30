@@ -172,6 +172,11 @@ struct MainEditorContentView: View {
             queryTabContent(tab: tab)
         case .table:
             tableTabContent(tab: tab)
+        case .createTable:
+            CreateTableView(
+                connection: connection,
+                coordinator: coordinator
+            )
         }
     }
 
