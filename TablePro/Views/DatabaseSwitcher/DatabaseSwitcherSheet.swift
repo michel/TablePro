@@ -69,8 +69,10 @@ struct DatabaseSwitcherSheet: View {
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .semibold))
                 .padding(.vertical, 12)
 
-            // Databases / Schemas toggle (PostgreSQL only)
-            if PluginManager.shared.supportsSchemaSwitching(for: databaseType) {
+            // Databases / Schemas toggle — only show when both modes are available
+            if PluginManager.shared.supportsSchemaSwitching(for: databaseType)
+                && PluginManager.shared.supportsDatabaseSwitching(for: databaseType)
+            {
                 Picker("", selection: $viewModel.mode) {
                     Text(String(localized: "Databases"))
                         .tag(DatabaseSwitcherViewModel.Mode.database)
