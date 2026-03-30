@@ -600,7 +600,7 @@ struct MainEditorContentView: View {
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(Color(nsColor: .quaternaryLabelColor))
                         )
-                    Text("Switch Database")
+                    Text("Switch \(PluginManager.shared.containerEntityName(for: connection.type))")
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                 }

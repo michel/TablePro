@@ -180,7 +180,8 @@ struct SidebarView: View {
     private var emptyState: some View {
         let entityName = PluginManager.shared.tableEntityName(for: viewModel.databaseType)
         let noItemsLabel = String(localized: "No \(entityName)")
-        let noItemsDetail = String(localized: "This database has no \(entityName.lowercased()) yet.")
+        let containerName = PluginManager.shared.containerEntityName(for: viewModel.databaseType).lowercased()
+        let noItemsDetail = "This \(containerName) has no \(entityName.lowercased()) yet."
         return VStack(spacing: 6) {
             Image(systemName: "tablecells")
                 .font(.system(size: 28, weight: .thin))

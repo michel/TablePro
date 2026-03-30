@@ -251,6 +251,7 @@
       }
     },
     "(%lld active)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -3017,7 +3018,11 @@
         }
       }
     },
+    "Add Filter" : {
+
+    },
     "Add Filter (Cmd+Shift+F)" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -3038,6 +3043,9 @@
           }
         }
       }
+    },
+    "Add filter row" : {
+
     },
     "Add Folder..." : {
       "localizations" : {
@@ -4051,7 +4059,11 @@
         }
       }
     },
+    "Apply" : {
+
+    },
     "Apply All" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -4095,7 +4107,11 @@
         }
       }
     },
+    "Apply filters" : {
+
+    },
     "Apply this filter" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -4118,6 +4134,7 @@
       }
     },
     "Apply This Filter" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -5978,6 +5995,7 @@
       }
     },
     "Clear search" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -6000,6 +6018,7 @@
       }
     },
     "Clear Search" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -6334,6 +6353,9 @@
         }
       }
     },
+    "Close preview" : {
+
+    },
     "Close Tab" : {
       "localizations" : {
         "tr" : {
@@ -6491,6 +6513,7 @@
       }
     },
     "Column" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -7660,6 +7683,9 @@
           }
         }
       }
+    },
+    "Copied to clipboard" : {
+
     },
     "Copied!" : {
       "localizations" : {
@@ -10791,6 +10817,7 @@
       }
     },
     "Duplicate filter" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -13836,7 +13863,11 @@
         }
       }
     },
+    "Filter column" : {
+
+    },
     "Filter column: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -13902,7 +13933,11 @@
         }
       }
     },
+    "Filter operator" : {
+
+    },
     "Filter operator: %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -13924,7 +13959,11 @@
         }
       }
     },
+    "Filter options" : {
+
+    },
     "Filter presets" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -13947,6 +13986,7 @@
       }
     },
     "Filter settings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -13969,6 +14009,7 @@
       }
     },
     "Filter Settings" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -13989,6 +14030,12 @@
           }
         }
       }
+    },
+    "Filter Settings..." : {
+
+    },
+    "Filter value" : {
+
     },
     "Filter with column" : {
       "localizations" : {
@@ -14897,6 +14944,7 @@
       }
     },
     "History Limit:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -21711,6 +21759,12 @@
         }
       }
     },
+    "Open File" : {
+
+    },
+    "Open File..." : {
+
+    },
     "Open MQL Editor" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -23483,6 +23537,9 @@
         }
       }
     },
+    "Preview Query" : {
+
+    },
     "Preview Schema Changes" : {
       "localizations" : {
         "tr" : {
@@ -24221,6 +24278,7 @@
       }
     },
     "Query History:" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -24287,6 +24345,7 @@
       }
     },
     "Quick search across all columns..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -25073,6 +25132,9 @@
         }
       }
     },
+    "Remove all filters and reload" : {
+
+    },
     "Remove filter" : {
       "localizations" : {
         "tr" : {
@@ -25116,6 +25178,9 @@
           }
         }
       }
+    },
+    "Remove filter row" : {
+
     },
     "Remove Folder" : {
       "localizations" : {
@@ -26182,6 +26247,7 @@
       }
     },
     "Save and load filter presets" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -26224,6 +26290,9 @@
           }
         }
       }
+    },
+    "Save As" : {
+
     },
     "Save as Favorite" : {
       "localizations" : {
@@ -26313,6 +26382,9 @@
           }
         }
       }
+    },
+    "Save As..." : {
+
     },
     "Save Changes" : {
       "localizations" : {
@@ -26473,6 +26545,9 @@
           }
         }
       }
+    },
+    "Save SQL file" : {
+
     },
     "Save Table Template" : {
       "extractionState" : "stale",
@@ -26896,6 +26971,9 @@
         }
       }
     },
+    "Second filter value" : {
+
+    },
     "Second value is required for BETWEEN" : {
       "localizations" : {
         "tr" : {
@@ -27214,7 +27292,11 @@
         }
       }
     },
+    "Select filter column" : {
+
+    },
     "Select filter for %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -27235,6 +27317,9 @@
           }
         }
       }
+    },
+    "Select filter operator" : {
+
     },
     "Select Plugin" : {
       "localizations" : {
@@ -27280,6 +27365,9 @@
           }
         }
       }
+    },
+    "Select SQL files to open" : {
+
     },
     "Select Tab %lld" : {
       "localizations" : {
@@ -30058,6 +30146,7 @@
       }
     },
     "Syncs connections, settings, and history across your Macs via iCloud." : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -30078,6 +30167,9 @@
           }
         }
       }
+    },
+    "Syncs connections, settings, and SSH profiles across your Macs via iCloud." : {
+
     },
     "Syncs passwords via iCloud Keychain (end-to-end encrypted)." : {
       "localizations" : {
@@ -34125,6 +34217,9 @@
           }
         }
       }
+    },
+    "WHERE clause" : {
+
     },
     "WHERE clause..." : {
       "localizations" : {

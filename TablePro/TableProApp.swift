@@ -176,7 +176,7 @@ struct AppMenuCommands: Commands {
             }
             .disabled(!appState.isConnected || appState.isReadOnly)
 
-            Button("Open Database...") {
+            Button("Open \(AppState.shared.currentDatabaseType.map { PluginManager.shared.containerEntityName(for: $0) } ?? "Database")...") {
                 actions?.openDatabaseSwitcher()
             }
             .optionalKeyboardShortcut(shortcut(for: .openDatabase))

@@ -81,9 +81,9 @@ struct TableProToolbar: ViewModifier {
                         Button {
                             actions?.openDatabaseSwitcher()
                         } label: {
-                            Label("Database", systemImage: "cylinder")
+                            Label(PluginManager.shared.containerEntityName(for: state.databaseType), systemImage: "cylinder")
                         }
-                        .help("Open Database (⌘K)")
+                        .help("Open \(PluginManager.shared.containerEntityName(for: state.databaseType)) (⌘K)")
                         .disabled(
                             state.connectionState != .connected
                                 || PluginManager.shared.connectionMode(for: state.databaseType) == .fileBased)

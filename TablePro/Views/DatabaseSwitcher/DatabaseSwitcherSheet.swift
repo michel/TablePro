@@ -63,9 +63,7 @@ struct DatabaseSwitcherSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header
-            Text(isSchemaMode
-                ? String(localized: "Open Schema")
-                : String(localized: "Open Database"))
+            Text("Open \(PluginManager.shared.containerEntityName(for: databaseType))")
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .semibold))
                 .padding(.vertical, 12)
 

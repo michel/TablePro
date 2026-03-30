@@ -411,7 +411,7 @@ extension MainContentCoordinator {
 
             navigationLogger.error("Failed to switch database: \(error.localizedDescription, privacy: .public)")
             AlertHelper.showErrorSheet(
-                title: String(localized: "Database Switch Failed"),
+                title: "\(PluginManager.shared.containerEntityName(for: connection.type)) Switch Failed",
                 message: error.localizedDescription,
                 window: NSApplication.shared.keyWindow
             )
