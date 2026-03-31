@@ -107,64 +107,15 @@ extension MainContentCoordinator {
 
                 // All statements succeeded — update tab with results
                 await MainActor.run {
-                    currentQueryTask = nil
-                    toolbarState.setExecuting(false)
-                    toolbarState.lastQueryDuration = cumulativeTime
-
-                    guard capturedGeneration == queryGeneration else { return }
-                    guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else {
-                        return
-                    }
-
-                    var updatedTab = tabManager.tabs[idx]
-
-                    if let selectResult = lastSelectResult {
-                        // Deep copy to prevent C buffer retention issues
-                        let safeColumns = selectResult.columns.map { String($0) }
-                        let safeColumnTypes = selectResult.columnTypes
-                        let safeRows = selectResult.rows.map { row in
-                            row.map { $0.map { String($0) } }
-                        }
-                        let tableName = lastSelectSQL.flatMap {
-                            extractTableName(from: $0)
-                        }
-
-                        updatedTab.resultColumns = safeColumns
-                        updatedTab.columnTypes = safeColumnTypes
-                        updatedTab.resultRows = safeRows
-                        updatedTab.tableName = tableName
-                        updatedTab.isEditable = tableName != nil && updatedTab.isEditable
-                    } else {
-                        // No SELECT results — clear grid, show rowsAffected summary
-                        updatedTab.resultColumns = []
-                        updatedTab.columnTypes = []
-                        updatedTab.resultRows = []
-                        updatedTab.tableName = nil
-                        updatedTab.isEditable = false
-                    }
-
-                    updatedTab.resultVersion += 1
-                    updatedTab.executionTime = cumulativeTime
-                    updatedTab.rowsAffected = totalRowsAffected
-                    updatedTab.isExecuting = false
-                    updatedTab.lastExecutedAt = Date()
-                    updatedTab.errorMessage = nil
-
-                    // Build ResultSet objects for each executed statement
-                    let pinnedResults = updatedTab.resultSets.filter(\.isPinned)
-                    updatedTab.resultSets = pinnedResults + newResultSets
-                    updatedTab.activeResultSetId = newResultSets.last?.id
-                    if updatedTab.isResultsCollapsed {
-                        updatedTab.isResultsCollapsed = false
-                    }
-                    toolbarState.isResultsCollapsed = false
-
-                    tabManager.tabs[idx] = updatedTab
-
-                    if tabManager.selectedTabId == tabId {
-                        changeManager.clearChangesAndUndoHistory()
-                        changeManager.reloadVersion += 1
-                    }
+                    applyMultiStatementResults(
+                        tabId: tabId,
+                        capturedGeneration: capturedGeneration,
+                        cumulativeTime: cumulativeTime,
+                        totalRowsAffected: totalRowsAffected,
+                        lastSelectResult: lastSelectResult,
+                        lastSelectSQL: lastSelectSQL,
+                        newResultSets: newResultSets
+                    )
                 }
             } catch {
                 // Rollback on failure
@@ -220,6 +171,74 @@ extension MainContentCoordinator {
                     )
                 }
             }
+        }
+    }
+
+    // MARK: - Multi-Statement Result Application
+
+    private func applyMultiStatementResults(
+        tabId: UUID,
+        capturedGeneration: Int,
+        cumulativeTime: TimeInterval,
+        totalRowsAffected: Int,
+        lastSelectResult: QueryResult?,
+        lastSelectSQL: String?,
+        newResultSets: [ResultSet]
+    ) {
+        currentQueryTask = nil
+        toolbarState.setExecuting(false)
+        toolbarState.lastQueryDuration = cumulativeTime
+
+        guard capturedGeneration == queryGeneration else { return }
+        guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else {
+            return
+        }
+
+        var updatedTab = tabManager.tabs[idx]
+
+        if let selectResult = lastSelectResult {
+            let safeColumns = selectResult.columns.map { String($0) }
+            let safeColumnTypes = selectResult.columnTypes
+            let safeRows = selectResult.rows.map { row in
+                row.map { $0.map { String($0) } }
+            }
+            let tableName = lastSelectSQL.flatMap {
+                extractTableName(from: $0)
+            }
+
+            updatedTab.resultColumns = safeColumns
+            updatedTab.columnTypes = safeColumnTypes
+            updatedTab.resultRows = safeRows
+            updatedTab.tableName = tableName
+            updatedTab.isEditable = tableName != nil && updatedTab.isEditable
+        } else {
+            updatedTab.resultColumns = []
+            updatedTab.columnTypes = []
+            updatedTab.resultRows = []
+            updatedTab.tableName = nil
+            updatedTab.isEditable = false
+        }
+
+        updatedTab.resultVersion += 1
+        updatedTab.executionTime = cumulativeTime
+        updatedTab.rowsAffected = totalRowsAffected
+        updatedTab.isExecuting = false
+        updatedTab.lastExecutedAt = Date()
+        updatedTab.errorMessage = nil
+
+        let pinnedResults = updatedTab.resultSets.filter(\.isPinned)
+        updatedTab.resultSets = pinnedResults + newResultSets
+        updatedTab.activeResultSetId = newResultSets.last?.id
+        if updatedTab.isResultsCollapsed {
+            updatedTab.isResultsCollapsed = false
+        }
+        toolbarState.isResultsCollapsed = false
+
+        tabManager.tabs[idx] = updatedTab
+
+        if tabManager.selectedTabId == tabId {
+            changeManager.clearChangesAndUndoHistory()
+            changeManager.reloadVersion += 1
         }
     }
 }
