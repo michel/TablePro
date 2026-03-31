@@ -9,7 +9,7 @@ import TableProModels
 
 struct RowDetailView: View {
     let columns: [ColumnInfo]
-    let rows: [[String?]]
+    @State private var rows: [[String?]]
     let table: TableInfo?
     let session: ConnectionSession?
     let columnDetails: [ColumnInfo]
@@ -33,7 +33,7 @@ struct RowDetailView: View {
         onSaved: (() -> Void)? = nil
     ) {
         self.columns = columns
-        self.rows = rows
+        _rows = State(initialValue: rows)
         self.table = table
         self.session = session
         self.columnDetails = columnDetails
@@ -294,6 +294,7 @@ struct RowDetailView: View {
 
         do {
             _ = try await session.driver.execute(query: sql)
+            rows[currentIndex] = editedValues
             isEditing = false
             showSaveSuccess = true
             onSaved?()
