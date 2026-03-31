@@ -48,10 +48,15 @@ struct ConnectedView: View {
         }
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .task { await connect() }
-        .onDisappear {
+        .task {
+            await connect()
+        }
+        .task(id: "lifecycle") {
+            // Wait for task cancellation (view removed from navigation stack)
+            // then disconnect. This avoids false onDisappear during push navigation.
+            do { try await Task.sleep(for: .seconds(.max)) } catch {}
             if let session {
-                Task { try? await session.driver.disconnect() }
+                try? await session.driver.disconnect()
             }
         }
     }
