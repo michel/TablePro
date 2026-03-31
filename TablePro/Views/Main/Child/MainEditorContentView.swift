@@ -161,6 +161,10 @@ struct MainEditorContentView: View {
             guard let tab = tabManager.selectedTab else { return }
             cacheRowProvider(for: tab)
         }
+        .onChange(of: tabManager.selectedTab?.activeResultSetId) { _, _ in
+            guard let tab = tabManager.selectedTab else { return }
+            cacheRowProvider(for: tab)
+        }
     }
 
     // MARK: - Tab Content
@@ -185,47 +189,50 @@ struct MainEditorContentView: View {
     @ViewBuilder
     private func queryTabContent(tab: QueryTab) -> some View {
         @Bindable var bindableCoordinator = coordinator
-        VSplitView {
-            // Query Editor (top)
-            VStack(spacing: 0) {
-                QueryEditorView(
-                    queryText: queryTextBinding(for: tab),
-                    cursorPositions: $bindableCoordinator.cursorPositions,
-                    onExecute: { coordinator.runQuery() },
-                    schemaProvider: coordinator.schemaProvider,
-                    databaseType: coordinator.connection.type,
-                    connectionId: coordinator.connection.id,
-                    onCloseTab: {
-                        NSApp.keyWindow?.close()
-                    },
-                    onExecuteQuery: { coordinator.runQuery() },
-                    onExplain: { variant in
-                        if let variant {
-                            coordinator.runClickHouseExplain(variant: variant)
-                        } else {
-                            coordinator.runExplainQuery()
+        QuerySplitView(
+            isBottomCollapsed: tab.isResultsCollapsed,
+            autosaveName: "QuerySplit-\(connectionId)-\(tab.id)",
+            topContent: {
+                VStack(spacing: 0) {
+                    QueryEditorView(
+                        queryText: queryTextBinding(for: tab),
+                        cursorPositions: $bindableCoordinator.cursorPositions,
+                        onExecute: { coordinator.runQuery() },
+                        schemaProvider: coordinator.schemaProvider,
+                        databaseType: coordinator.connection.type,
+                        connectionId: coordinator.connection.id,
+                        onCloseTab: {
+                            NSApp.keyWindow?.close()
+                        },
+                        onExecuteQuery: { coordinator.runQuery() },
+                        onExplain: { variant in
+                            if let variant {
+                                coordinator.runClickHouseExplain(variant: variant)
+                            } else {
+                                coordinator.runExplainQuery()
+                            }
+                        },
+                        onAIExplain: { text in
+                            coordinator.showAIChatPanel()
+                            coordinator.aiViewModel?.handleExplainSelection(text)
+                        },
+                        onAIOptimize: { text in
+                            coordinator.showAIChatPanel()
+                            coordinator.aiViewModel?.handleOptimizeSelection(text)
+                        },
+                        onSaveAsFavorite: { text in
+                            guard !text.isEmpty else { return }
+                            favoriteDialogQuery = FavoriteDialogQuery(query: text)
                         }
-                    },
-                    onAIExplain: { text in
-                        coordinator.showAIChatPanel()
-                        coordinator.aiViewModel?.handleExplainSelection(text)
-                    },
-                    onAIOptimize: { text in
-                        coordinator.showAIChatPanel()
-                        coordinator.aiViewModel?.handleOptimizeSelection(text)
-                    },
-                    onSaveAsFavorite: { text in
-                        guard !text.isEmpty else { return }
-                        favoriteDialogQuery = FavoriteDialogQuery(query: text)
-                    }
-                )
+                    )
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            },
+            bottomContent: {
+                resultsSection(tab: tab)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(minHeight: 100, idealHeight: 200)
-
-            // Results (bottom)
-            resultsSection(tab: tab)
-                .frame(minHeight: 150)
-        }
+        )
     }
 
     private func updateHasQueryText() {
@@ -296,37 +303,89 @@ struct MainEditorContentView: View {
                 .frame(maxHeight: .infinity)
             } else if let explainText = tab.explainText {
                 ExplainResultView(text: explainText, executionTime: tab.explainExecutionTime)
-            } else if tab.resultColumns.isEmpty && tab.errorMessage == nil
-                && tab.lastExecutedAt != nil && !tab.isExecuting
-            {
-                QuerySuccessView(
-                    rowsAffected: tab.rowsAffected,
-                    executionTime: tab.executionTime,
-                    statusMessage: tab.statusMessage
-                )
             } else {
-                // Filter panel (collapsible, above data grid)
-                if filterStateManager.isVisible && tab.tabType == .table {
-                    FilterPanelView(
-                        filterState: filterStateManager,
-                        columns: tab.resultColumns,
-                        primaryKeyColumn: changeManager.primaryKeyColumn,
-                        databaseType: connection.type,
-                        onApply: onApplyFilters,
-                        onUnset: onClearFilters
-                    )
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                // Result tab bar (when multiple result sets)
+                if tab.resultSets.count > 1 {
+                    resultTabBar(tab: tab)
                     Divider()
                 }
 
-                dataGridView(tab: tab)
+                // Inline error banner (when active result set has error)
+                if let error = tab.activeResultSet?.errorMessage {
+                    InlineErrorBanner(
+                        message: error,
+                        onDismiss: { tab.activeResultSet?.errorMessage = nil }
+                    )
+                    Divider()
+                }
+
+                // Content: success view OR filter+grid
+                if let rs = tab.activeResultSet, rs.resultColumns.isEmpty,
+                   rs.errorMessage == nil, tab.lastExecutedAt != nil, !tab.isExecuting
+                {
+                    ResultSuccessView(
+                        rowsAffected: rs.rowsAffected,
+                        executionTime: rs.executionTime,
+                        statusMessage: rs.statusMessage
+                    )
+                } else if tab.resultColumns.isEmpty && tab.errorMessage == nil
+                    && tab.lastExecutedAt != nil && !tab.isExecuting
+                {
+                    if tab.resultSets.isEmpty {
+                        Spacer()
+                    } else {
+                        ResultSuccessView(
+                            rowsAffected: tab.rowsAffected,
+                            executionTime: tab.executionTime,
+                            statusMessage: tab.statusMessage
+                        )
+                    }
+                } else {
+                    // Filter panel (collapsible, above data grid)
+                    if filterStateManager.isVisible && tab.tabType == .table {
+                        FilterPanelView(
+                            filterState: filterStateManager,
+                            columns: tab.resultColumns,
+                            primaryKeyColumn: changeManager.primaryKeyColumn,
+                            databaseType: connection.type,
+                            onApply: onApplyFilters,
+                            onUnset: onClearFilters
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        Divider()
+                    }
+
+                    dataGridView(tab: tab)
+                }
             }
 
             statusBar(tab: tab)
         }
-        .frame(minHeight: 150)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.easeInOut(duration: 0.2), value: filterStateManager.isVisible)
         .animation(.easeInOut(duration: 0.2), value: tab.errorMessage)
+    }
+
+    private func resultTabBar(tab: QueryTab) -> some View {
+        ResultTabBar(
+            resultSets: tab.resultSets,
+            activeResultSetId: Binding(
+                get: { tab.activeResultSetId },
+                set: { newId in
+                    if let tabIdx = coordinator.tabManager.selectedTabIndex {
+                        coordinator.tabManager.tabs[tabIdx].activeResultSetId = newId
+                    }
+                }
+            ),
+            onClose: { id in
+                coordinator.closeResultSet(id: id)
+            },
+            onPin: { id in
+                guard let tabIdx = coordinator.tabManager.selectedTabIndex else { return }
+                coordinator.tabManager.tabs[tabIdx].resultSets.first { $0.id == id }?.isPinned.toggle()
+                coordinator.tabManager.tabs[tabIdx].resultVersion += 1
+            }
+        )
     }
 
     @ViewBuilder
@@ -407,7 +466,20 @@ struct MainEditorContentView: View {
     }
 
     private func makeRowProvider(for tab: QueryTab) -> InMemoryRowProvider {
-        InMemoryRowProvider(
+        // Use active ResultSet data when available (multi-statement results)
+        if let rs = tab.activeResultSet, !rs.resultColumns.isEmpty {
+            return InMemoryRowProvider(
+                rowBuffer: rs.rowBuffer,
+                sortIndices: sortIndicesForTab(tab),
+                columns: rs.resultColumns,
+                columnDefaults: rs.columnDefaults,
+                columnTypes: rs.columnTypes,
+                columnForeignKeys: rs.columnForeignKeys,
+                columnEnumValues: rs.columnEnumValues,
+                columnNullable: rs.columnNullable
+            )
+        }
+        return InMemoryRowProvider(
             rowBuffer: tab.rowBuffer,
             sortIndices: sortIndicesForTab(tab),
             columns: tab.resultColumns,
@@ -422,7 +494,21 @@ struct MainEditorContentView: View {
     /// Returns sort index permutation for a tab, or nil if no sorting is needed.
     /// For table tabs, sorting is handled server-side via SQL ORDER BY.
     private func sortIndicesForTab(_ tab: QueryTab) -> [Int]? {
-        guard !tab.rowBuffer.isEvicted else { return nil }
+        // Resolve data source: active ResultSet or tab-level fallback
+        let rowBuffer: RowBuffer
+        let rows: [[String?]]
+        let colTypes: [ColumnType]
+        if let rs = tab.activeResultSet, !rs.resultColumns.isEmpty {
+            rowBuffer = rs.rowBuffer
+            rows = rs.resultRows
+            colTypes = rs.columnTypes
+        } else {
+            rowBuffer = tab.rowBuffer
+            rows = tab.resultRows
+            colTypes = tab.columnTypes
+        }
+
+        guard !rowBuffer.isEvicted else { return nil }
 
         // Table tabs: no client-side sorting
         if tab.tabType == .table {
@@ -444,7 +530,7 @@ struct MainEditorContentView: View {
         }
 
         // For large datasets sorted async, return nil (unsorted) until cache is ready
-        if tab.resultRows.count > 10_000 {
+        if rows.count > 10_000 {
             return nil
         }
 
@@ -458,10 +544,10 @@ struct MainEditorContentView: View {
         }
 
         let sortColumns = tab.sortState.columns
-        let indices = Array(tab.resultRows.indices)
+        let indices = Array(rows.indices)
         let sortedIndices = indices.sorted { idx1, idx2 in
-            let row1 = tab.resultRows[idx1]
-            let row2 = tab.resultRows[idx2]
+            let row1 = rows[idx1]
+            let row2 = rows[idx2]
             for sortCol in sortColumns {
                 let val1 =
                     sortCol.columnIndex < row1.count
@@ -470,8 +556,8 @@ struct MainEditorContentView: View {
                     sortCol.columnIndex < row2.count
                     ? (row2[sortCol.columnIndex] ?? "") : ""
                 let colType =
-                    sortCol.columnIndex < tab.columnTypes.count
-                    ? tab.columnTypes[sortCol.columnIndex] : nil
+                    sortCol.columnIndex < colTypes.count
+                    ? colTypes[sortCol.columnIndex] : nil
                 let result = RowSortComparator.compare(val1, val2, columnType: colType)
                 if result == .orderedSame { continue }
                 return sortCol.direction == .ascending

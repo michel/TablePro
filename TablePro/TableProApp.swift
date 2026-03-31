@@ -367,6 +367,32 @@ struct AppMenuCommands: Commands {
             }
             .optionalKeyboardShortcut(shortcut(for: .toggleHistory))
             .disabled(!appState.isConnected)
+
+            Divider()
+
+            Button("Toggle Results") {
+                actions?.toggleResults()
+            }
+            .optionalKeyboardShortcut(shortcut(for: .toggleResults))
+            .disabled(!appState.isConnected)
+
+            Button("Previous Result") {
+                actions?.previousResultTab()
+            }
+            .optionalKeyboardShortcut(shortcut(for: .previousResultTab))
+            .disabled(!appState.isConnected)
+
+            Button("Next Result") {
+                actions?.nextResultTab()
+            }
+            .optionalKeyboardShortcut(shortcut(for: .nextResultTab))
+            .disabled(!appState.isConnected)
+
+            Button("Close Result Tab") {
+                actions?.closeResultTab()
+            }
+            .optionalKeyboardShortcut(shortcut(for: .closeResultTab))
+            .disabled(!appState.isConnected)
         }
 
         // Tab navigation shortcuts — native macOS window tabs

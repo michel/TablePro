@@ -117,7 +117,7 @@ struct TableProToolbar: ViewModifier {
 
                 // MARK: - Primary Action (Right)
 
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         actions?.openQuickSwitcher()
                     } label: {
@@ -125,9 +125,7 @@ struct TableProToolbar: ViewModifier {
                     }
                     .help("Quick Switcher (⌘P)")
                     .disabled(state.connectionState != .connected)
-                }
 
-                ToolbarItem(placement: .primaryAction) {
                     Button {
                         actions?.newTab()
                     } label: {
@@ -157,6 +155,21 @@ struct TableProToolbar: ViewModifier {
                     .disabled(!state.hasDataPendingChanges || state.connectionState != .connected)
                     .popover(isPresented: $state.showSQLReviewPopover) {
                         SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
+                    }
+                }
+
+                if !state.isTableTab {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { actions?.toggleResults() } label: {
+                            Label(
+                                "Results",
+                                systemImage: state.isResultsCollapsed
+                                    ? "rectangle.bottomhalf.inset.filled"
+                                    : "rectangle.inset.filled"
+                            )
+                        }
+                        .help(String(localized: "Toggle Results (⌘⌥R)"))
+                        .disabled(state.connectionState != .connected)
                     }
                 }
 

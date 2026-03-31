@@ -71,6 +71,10 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
     case toggleInspector
     case toggleFilters
     case toggleHistory
+    case toggleResults
+    case previousResultTab
+    case nextResultTab
+    case closeResultTab
 
     // Tabs
     case showPreviousTabBrackets
@@ -94,7 +98,8 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
              .delete, .selectAll, .clearSelection, .addRow,
              .duplicateRow, .truncateTable:
             return .edit
-        case .toggleTableBrowser, .toggleInspector, .toggleFilters, .toggleHistory:
+        case .toggleTableBrowser, .toggleInspector, .toggleFilters, .toggleHistory,
+             .toggleResults, .previousResultTab, .nextResultTab, .closeResultTab:
             return .view
         case .showPreviousTabBrackets, .showNextTabBrackets,
              .previousTabArrows, .nextTabArrows:
@@ -137,6 +142,10 @@ enum ShortcutAction: String, Codable, CaseIterable, Identifiable {
         case .toggleInspector: return String(localized: "Toggle Inspector")
         case .toggleFilters: return String(localized: "Toggle Filters")
         case .toggleHistory: return String(localized: "Toggle History")
+        case .toggleResults: return String(localized: "Toggle Results")
+        case .previousResultTab: return String(localized: "Previous Result")
+        case .nextResultTab: return String(localized: "Next Result")
+        case .closeResultTab: return String(localized: "Close Result Tab")
         case .showPreviousTabBrackets: return String(localized: "Show Previous Tab")
         case .showNextTabBrackets: return String(localized: "Show Next Tab")
         case .previousTabArrows: return String(localized: "Previous Tab (Alt)")
@@ -440,6 +449,10 @@ struct KeyboardSettings: Codable, Equatable {
         .toggleInspector: KeyCombo(key: "b", command: true, shift: true),
         .toggleFilters: KeyCombo(key: "f", command: true),
         .toggleHistory: KeyCombo(key: "y", command: true),
+        .toggleResults: KeyCombo(key: "r", command: true, option: true),
+        .previousResultTab: KeyCombo(key: "[", command: true, option: true),
+        .nextResultTab: KeyCombo(key: "]", command: true, option: true),
+        .closeResultTab: KeyCombo(key: "w", command: true, shift: true),
 
         // Tabs
         .showPreviousTabBrackets: KeyCombo(key: "[", command: true, shift: true),

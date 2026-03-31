@@ -538,6 +538,39 @@ final class MainContentCommandActions {
         rightPanelState.isPresented.toggle()
     }
 
+    func toggleResults() {
+        guard let coordinator, let tabIndex = coordinator.tabManager.selectedTabIndex else { return }
+        coordinator.tabManager.tabs[tabIndex].isResultsCollapsed.toggle()
+        coordinator.toolbarState.isResultsCollapsed = coordinator.tabManager.tabs[tabIndex].isResultsCollapsed
+    }
+
+    func previousResultTab() {
+        guard let coordinator, let tabIndex = coordinator.tabManager.selectedTabIndex else { return }
+        let tab = coordinator.tabManager.tabs[tabIndex]
+        guard tab.resultSets.count > 1,
+              let currentId = tab.activeResultSetId ?? tab.resultSets.last?.id,
+              let currentIndex = tab.resultSets.firstIndex(where: { $0.id == currentId }),
+              currentIndex > 0 else { return }
+        coordinator.tabManager.tabs[tabIndex].activeResultSetId = tab.resultSets[currentIndex - 1].id
+    }
+
+    func nextResultTab() {
+        guard let coordinator, let tabIndex = coordinator.tabManager.selectedTabIndex else { return }
+        let tab = coordinator.tabManager.tabs[tabIndex]
+        guard tab.resultSets.count > 1,
+              let currentId = tab.activeResultSetId ?? tab.resultSets.last?.id,
+              let currentIndex = tab.resultSets.firstIndex(where: { $0.id == currentId }),
+              currentIndex < tab.resultSets.count - 1 else { return }
+        coordinator.tabManager.tabs[tabIndex].activeResultSetId = tab.resultSets[currentIndex + 1].id
+    }
+
+    func closeResultTab() {
+        guard let coordinator else { return }
+        let tab = coordinator.tabManager.selectedTab
+        guard let activeId = tab?.activeResultSetId ?? tab?.resultSets.last?.id else { return }
+        coordinator.closeResultSet(id: activeId)
+    }
+
     // MARK: - Database Operations (Group A — Called Directly)
 
     func openDatabaseSwitcher() {
