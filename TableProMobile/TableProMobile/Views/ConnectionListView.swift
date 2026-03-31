@@ -9,6 +9,12 @@ import TableProModels
 struct ConnectionListView: View {
     @Environment(AppState.self) private var appState
     @State private var showingAddConnection = false
+    @State private var editingConnection: DatabaseConnection?
+
+    private var groupedConnections: [(String, [DatabaseConnection])] {
+        let grouped = Dictionary(grouping: appState.connections) { $0.type.rawValue.capitalized }
+        return grouped.sorted { $0.key < $1.key }
+    }
 
     var body: some View {
         NavigationStack {
@@ -35,6 +41,16 @@ struct ConnectionListView: View {
                     showingAddConnection = false
                 }
             }
+            .sheet(item: $editingConnection) { connection in
+                ConnectionFormView(editing: connection) { updated in
+                    appState.removeConnection(connection)
+                    appState.addConnection(updated)
+                    editingConnection = nil
+                }
+            }
+            .navigationDestination(for: DatabaseConnection.self) { connection in
+                ConnectedView(connection: connection)
+            }
         }
     }
 
@@ -53,42 +69,83 @@ struct ConnectionListView: View {
 
     private var connectionList: some View {
         List {
-            ForEach(appState.connections) { connection in
-                NavigationLink(value: connection) {
-                    ConnectionRow(connection: connection)
-                }
-            }
-            .onDelete { indexSet in
-                for index in indexSet {
-                    appState.removeConnection(appState.connections[index])
+            ForEach(groupedConnections, id: \.0) { sectionTitle, connections in
+                Section(sectionTitle) {
+                    ForEach(connections) { connection in
+                        NavigationLink(value: connection) {
+                            ConnectionRow(connection: connection)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                appState.removeConnection(connection)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .contextMenu {
+                            Button {
+                                editingConnection = connection
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            Button {
+                                var duplicate = connection
+                                duplicate.id = UUID()
+                                duplicate.name = "\(connection.name) Copy"
+                                appState.addConnection(duplicate)
+                            } label: {
+                                Label("Duplicate", systemImage: "doc.on.doc")
+                            }
+                            Divider()
+                            Button(role: .destructive) {
+                                appState.removeConnection(connection)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
                 }
             }
         }
-        .navigationDestination(for: DatabaseConnection.self) { connection in
-            ConnectedView(connection: connection)
-        }
+        .listStyle(.insetGrouped)
     }
 }
 
-struct ConnectionRow: View {
+private struct ConnectionRow: View {
     let connection: DatabaseConnection
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: iconName(for: connection.type))
                 .font(.title2)
-                .foregroundStyle(.secondary)
-                .frame(width: 32)
+                .foregroundStyle(iconColor(for: connection.type))
+                .frame(width: 36, height: 36)
+                .background(iconColor(for: connection.type).opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.name.isEmpty ? connection.host : connection.name)
                     .font(.body)
                     .fontWeight(.medium)
 
-                Text("\(connection.type.rawValue) — \(connection.host):\(connection.port)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    if connection.type != .sqlite {
+                        Text("\(connection.host):\(connection.port)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(connection.database.components(separatedBy: "/").last ?? "database")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
+
+            Spacer()
+
+            Circle()
+                .fill(.green.opacity(0.8))
+                .frame(width: 8, height: 8)
         }
         .padding(.vertical, 4)
     }
@@ -99,7 +156,23 @@ struct ConnectionRow: View {
         case .postgresql, .redshift: return "elephant"
         case .sqlite: return "doc"
         case .redis: return "key"
-        default: return "server.rack"
+        case .mongodb: return "leaf"
+        case .clickhouse: return "bolt"
+        case .mssql: return "server.rack"
+        default: return "externaldrive"
+        }
+    }
+
+    private func iconColor(for type: DatabaseType) -> Color {
+        switch type {
+        case .mysql, .mariadb: return .orange
+        case .postgresql, .redshift: return .blue
+        case .sqlite: return .green
+        case .redis: return .red
+        case .mongodb: return .green
+        case .clickhouse: return .yellow
+        case .mssql: return .indigo
+        default: return .gray
         }
     }
 }

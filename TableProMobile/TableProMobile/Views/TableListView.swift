@@ -11,38 +11,75 @@ struct TableListView: View {
     let connection: DatabaseConnection
     let tables: [TableInfo]
     let session: ConnectionSession?
+    var onRefresh: (() async -> Void)?
 
     @State private var searchText = ""
 
     private var filteredTables: [TableInfo] {
-        if searchText.isEmpty { return tables }
-        return tables.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        let filtered = searchText.isEmpty ? tables : tables.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText)
+        }
+        return filtered
+    }
+
+    private var tableSections: [(String, [TableInfo])] {
+        let tableItems = filteredTables.filter { $0.type == .table || $0.type == .systemTable }
+        let viewItems = filteredTables.filter { $0.type == .view || $0.type == .materializedView }
+
+        var sections: [(String, [TableInfo])] = []
+        if !tableItems.isEmpty {
+            sections.append(("Tables", tableItems))
+        }
+        if !viewItems.isEmpty {
+            sections.append(("Views", viewItems))
+        }
+        return sections
     }
 
     var body: some View {
         List {
-            ForEach(filteredTables) { table in
-                NavigationLink(value: table) {
-                    TableRow(table: table)
+            ForEach(tableSections, id: \.0) { sectionTitle, items in
+                Section {
+                    ForEach(items) { table in
+                        NavigationLink(value: table) {
+                            TableRow(table: table)
+                        }
+                        .swipeActions(edge: .leading) {
+                            NavigationLink(value: QuickQuery(table: table)) {
+                                Label("Query", systemImage: "terminal")
+                            }
+                            .tint(.blue)
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text(sectionTitle)
+                        Spacer()
+                        Text("\(items.count)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .searchable(text: $searchText, prompt: "Search tables")
         .navigationTitle("Tables")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    QueryEditorView(session: session)
-                } label: {
-                    Image(systemName: "terminal")
-                }
-            }
+        .refreshable {
+            await onRefresh?()
         }
         .navigationDestination(for: TableInfo.self) { table in
             DataBrowserView(
                 connection: connection,
                 table: table,
                 session: session
+            )
+        }
+        .navigationDestination(for: QuickQuery.self) { query in
+            QueryEditorView(
+                session: session,
+                tables: tables,
+                initialQuery: "SELECT * FROM \(query.table.name) LIMIT 100"
             )
         }
         .overlay {
@@ -59,26 +96,42 @@ struct TableListView: View {
     }
 }
 
-struct TableRow: View {
+struct QuickQuery: Hashable {
+    let table: TableInfo
+}
+
+private struct TableRow: View {
     let table: TableInfo
 
     var body: some View {
         HStack {
-            Image(systemName: table.type == .view ? "eye" : "tablecells")
+            Image(systemName: table.type == .view || table.type == .materializedView ? "eye" : "tablecells")
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(table.name)
-                    .font(.body)
+            Text(table.name)
+                .font(.body)
 
-                if let rowCount = table.rowCount {
-                    Text("\(rowCount) rows")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            Spacer()
+
+            if let rowCount = table.rowCount {
+                Text(formatRowCount(rowCount))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(.fill.tertiary)
+                    .clipShape(Capsule())
             }
         }
     }
-}
 
+    private func formatRowCount(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            return String(format: "%.1fM", Double(count) / 1_000_000)
+        } else if count >= 1000 {
+            return String(format: "%.1fK", Double(count) / 1000)
+        }
+        return "\(count)"
+    }
+}

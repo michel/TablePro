@@ -9,16 +9,23 @@ import TableProModels
 
 struct QueryEditorView: View {
     let session: ConnectionSession?
+    var tables: [TableInfo] = []
+    var initialQuery: String = ""
 
     @State private var query = ""
     @State private var result: QueryResult?
     @State private var errorMessage: String?
     @State private var isExecuting = false
     @State private var executionTime: TimeInterval?
+    @State private var queryHistory: [String] = []
+    @State private var showHistory = false
+    @State private var showTemplates = false
+    @FocusState private var editorFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             editorArea
+            keywordAccessory
             Divider()
             resultArea
         }
@@ -30,11 +37,58 @@ struct QueryEditorView: View {
                     Task { await executeQuery() }
                 } label: {
                     Image(systemName: isExecuting ? "stop.fill" : "play.fill")
+                        .foregroundStyle(isExecuting ? .red : .green)
                 }
                 .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isExecuting)
             }
+
+            ToolbarItem(placement: .secondaryAction) {
+                Menu {
+                    Button {
+                        showHistory = true
+                    } label: {
+                        Label("History", systemImage: "clock")
+                    }
+                    .disabled(queryHistory.isEmpty)
+
+                    if !tables.isEmpty {
+                        Menu {
+                            ForEach(tables) { table in
+                                Button(table.name) {
+                                    query = "SELECT * FROM \(table.name) LIMIT 100"
+                                }
+                            }
+                        } label: {
+                            Label("SELECT * FROM ...", systemImage: "text.badge.star")
+                        }
+                    }
+
+                    Divider()
+
+                    Button(role: .destructive) {
+                        query = ""
+                        result = nil
+                        errorMessage = nil
+                        executionTime = nil
+                    } label: {
+                        Label("Clear", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .onAppear {
+            if !initialQuery.isEmpty {
+                query = initialQuery
+            }
+        }
+        .sheet(isPresented: $showHistory) {
+            historySheet
         }
     }
+
+    // MARK: - Editor
 
     private var editorArea: some View {
         VStack(spacing: 0) {
@@ -42,44 +96,103 @@ struct QueryEditorView: View {
                 .font(.system(.body, design: .monospaced))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
-                .frame(minHeight: 120, maxHeight: 200)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 100, maxHeight: 180)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
+                .focused($editorFocused)
 
-            HStack {
-                if let time = executionTime {
-                    Text(String(format: "%.2fms", time * 1000))
-                        .font(.caption)
+            if executionTime != nil || result != nil {
+                HStack {
+                    if let time = executionTime {
+                        Label(
+                            String(format: "%.1fms", time * 1000),
+                            systemImage: "clock"
+                        )
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if let result, !result.rows.isEmpty {
+                        Text("\(result.rows.count) rows")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                Spacer()
-                if let result, !result.rows.isEmpty {
-                    Text("\(result.rows.count) rows")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 6)
         }
     }
+
+    // MARK: - SQL Keyword Accessory
+
+    private var keywordAccessory: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(spacing: 6) {
+                keywordRow(["SELECT", "FROM", "WHERE", "AND", "OR", "JOIN"])
+                keywordRow(["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER"])
+                keywordRow(["LIMIT", "ORDER BY", "GROUP BY", "HAVING", "AS", "IN"])
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+        }
+        .background(.bar)
+    }
+
+    private func keywordRow(_ keywords: [String]) -> some View {
+        HStack(spacing: 6) {
+            ForEach(keywords, id: \.self) { keyword in
+                Button {
+                    insertKeyword(keyword)
+                } label: {
+                    Text(keyword)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .fontDesign(.monospaced)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(.fill.secondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func insertKeyword(_ keyword: String) {
+        let needsLeadingSpace = !query.isEmpty && !query.hasSuffix(" ") && !query.hasSuffix("\n")
+        query += (needsLeadingSpace ? " " : "") + keyword + " "
+        editorFocused = true
+    }
+
+    // MARK: - Results
 
     private var resultArea: some View {
         Group {
             if isExecuting {
-                ProgressView("Executing...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Executing...")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let errorMessage {
                 ScrollView {
-                    Text(errorMessage)
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundStyle(.red)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.red)
+                        Text(errorMessage)
+                            .font(.system(.footnote, design: .monospaced))
+                            .foregroundStyle(.red)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } else if let result {
                 if result.columns.isEmpty {
-                    VStack {
+                    VStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.largeTitle)
                             .foregroundStyle(.green)
@@ -105,28 +218,79 @@ struct QueryEditorView: View {
     }
 
     private func resultTable(_ result: QueryResult) -> some View {
-        List {
-            ForEach(Array(result.rows.enumerated()), id: \.offset) { _, row in
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(zip(result.columns, row)), id: \.0.name) { col, value in
-                        HStack(spacing: 6) {
+        ScrollView(.horizontal) {
+            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
+                Section {
+                    ForEach(Array(result.rows.enumerated()), id: \.offset) { _, row in
+                        HStack(spacing: 0) {
+                            ForEach(Array(zip(result.columns, row).enumerated()), id: \.offset) { _, pair in
+                                let (_, value) = pair
+                                Text(value ?? "NULL")
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundStyle(value == nil ? .secondary : .primary)
+                                    .lineLimit(1)
+                                    .frame(width: 140, alignment: .leading)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 8)
+                            }
+                        }
+                        Divider()
+                    }
+                } header: {
+                    HStack(spacing: 0) {
+                        ForEach(result.columns) { col in
                             Text(col.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 100, alignment: .trailing)
-
-                            Text(value ?? "NULL")
-                                .font(.system(.body, design: .monospaced))
-                                .foregroundStyle(value == nil ? .secondary : .primary)
-                                .lineLimit(2)
+                                .font(.system(.caption, design: .monospaced))
+                                .fontWeight(.semibold)
+                                .frame(width: 140, alignment: .leading)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 8)
                         }
                     }
+                    .background(.bar)
+                    Divider()
                 }
-                .padding(.vertical, 4)
             }
         }
-        .listStyle(.plain)
     }
+
+    // MARK: - History
+
+    private var historySheet: some View {
+        NavigationStack {
+            List {
+                ForEach(queryHistory.reversed(), id: \.self) { historyQuery in
+                    Button {
+                        query = historyQuery
+                        showHistory = false
+                    } label: {
+                        Text(historyQuery)
+                            .font(.system(.footnote, design: .monospaced))
+                            .lineLimit(3)
+                            .foregroundStyle(.primary)
+                    }
+                }
+            }
+            .navigationTitle("Query History")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showHistory = false }
+                }
+            }
+            .overlay {
+                if queryHistory.isEmpty {
+                    ContentUnavailableView(
+                        "No History",
+                        systemImage: "clock",
+                        description: Text("Executed queries will appear here.")
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Execution
 
     private func executeQuery() async {
         guard let session else { return }
@@ -141,6 +305,13 @@ struct QueryEditorView: View {
             let queryResult = try await session.driver.execute(query: trimmed)
             self.result = queryResult
             self.executionTime = queryResult.executionTime
+
+            if !queryHistory.contains(trimmed) {
+                queryHistory.append(trimmed)
+                if queryHistory.count > 50 {
+                    queryHistory.removeFirst()
+                }
+            }
         } catch {
             self.errorMessage = error.localizedDescription
         }

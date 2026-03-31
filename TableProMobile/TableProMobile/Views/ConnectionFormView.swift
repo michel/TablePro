@@ -27,6 +27,11 @@ struct ConnectionFormView: View {
     @State private var showNewDatabaseAlert = false
     @State private var newDatabaseName = ""
 
+    // Test connection
+    @State private var isTesting = false
+    @State private var testResult: TestResult?
+
+    private let existingConnection: DatabaseConnection?
     var onSave: (DatabaseConnection) -> Void
 
     private let databaseTypes: [(DatabaseType, String)] = [
@@ -35,6 +40,23 @@ struct ConnectionFormView: View {
         (.sqlite, "SQLite"),
         (.redis, "Redis"),
     ]
+
+    init(editing connection: DatabaseConnection? = nil, onSave: @escaping (DatabaseConnection) -> Void) {
+        self.existingConnection = connection
+        self.onSave = onSave
+        if let connection {
+            _name = State(initialValue: connection.name)
+            _type = State(initialValue: connection.type)
+            _host = State(initialValue: connection.host)
+            _port = State(initialValue: String(connection.port))
+            _username = State(initialValue: connection.username)
+            _database = State(initialValue: connection.database)
+            _sslEnabled = State(initialValue: connection.sslEnabled)
+            if connection.type == .sqlite {
+                _selectedFileURL = State(initialValue: URL(fileURLWithPath: connection.database))
+            }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -66,8 +88,36 @@ struct ConnectionFormView: View {
                         Toggle("SSL", isOn: $sslEnabled)
                     }
                 }
+
+                Section {
+                    Button {
+                        Task { await testConnection() }
+                    } label: {
+                        HStack {
+                            if isTesting {
+                                ProgressView()
+                                    .controlSize(.small)
+                                Text("Testing...")
+                            } else {
+                                Label("Test Connection", systemImage: "antenna.radiowaves.left.and.right")
+                            }
+                        }
+                    }
+                    .disabled(isTesting || !canSave)
+
+                    if let testResult {
+                        HStack(spacing: 8) {
+                            Image(systemName: testResult.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(testResult.success ? .green : .red)
+                            Text(testResult.message)
+                                .font(.footnote)
+                                .foregroundStyle(testResult.success ? .green : .red)
+                        }
+                    }
+                }
             }
-            .navigationTitle("New Connection")
+            .scrollDismissesKeyboard(.interactively)
+            .navigationTitle(existingConnection != nil ? "Edit Connection" : "New Connection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -186,7 +236,6 @@ struct ConnectionFormView: View {
     private func handleFilePickerResult(_ result: Result<[URL], Error>) {
         guard case .success(let urls) = result, let url = urls.first else { return }
 
-        // Save security-scoped bookmark for reopening after app restart
         guard url.startAccessingSecurityScopedResource() else { return }
         defer { url.stopAccessingSecurityScopedResource() }
 
@@ -196,7 +245,6 @@ struct ConnectionFormView: View {
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
-            // Copy file to app's Documents for reliable access
             let destURL = copyToDocuments(url)
             selectedFileURL = destURL
             database = destURL.path
@@ -204,10 +252,8 @@ struct ConnectionFormView: View {
                 name = destURL.deletingPathExtension().lastPathComponent
             }
 
-            // Store bookmark for original location reference
             BookmarkStore.save(bookmarkData, for: destURL.lastPathComponent)
         } catch {
-            // Fallback: just use the file path directly
             selectedFileURL = url
             database = url.path
             if name.isEmpty {
@@ -233,7 +279,6 @@ struct ConnectionFormView: View {
         let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let fileURL = documentsDir.appendingPathComponent(safeName)
 
-        // SQLite creates the file on first connect — just set the path
         selectedFileURL = fileURL
         database = fileURL.path
         if name.isEmpty {
@@ -242,8 +287,29 @@ struct ConnectionFormView: View {
         newDatabaseName = ""
     }
 
-    private func save() {
-        let connection = DatabaseConnection(
+    private func testConnection() async {
+        isTesting = true
+        testResult = nil
+
+        let connection = buildConnection()
+        if !password.isEmpty {
+            try? appState.connectionManager.storePassword(password, for: connection.id)
+        }
+
+        do {
+            let session = try await appState.connectionManager.connect(connection)
+            try? await session.driver.disconnect()
+            testResult = TestResult(success: true, message: "Connection successful")
+        } catch {
+            testResult = TestResult(success: false, message: error.localizedDescription)
+        }
+
+        isTesting = false
+    }
+
+    private func buildConnection() -> DatabaseConnection {
+        DatabaseConnection(
+            id: existingConnection?.id ?? UUID(),
             name: name.isEmpty ? (selectedFileURL?.lastPathComponent ?? host) : name,
             type: type,
             host: host,
@@ -252,6 +318,10 @@ struct ConnectionFormView: View {
             database: database,
             sslEnabled: sslEnabled
         )
+    }
+
+    private func save() {
+        let connection = buildConnection()
 
         if !password.isEmpty {
             try? appState.connectionManager.storePassword(password, for: connection.id)
@@ -259,6 +329,11 @@ struct ConnectionFormView: View {
 
         onSave(connection)
     }
+}
+
+private struct TestResult {
+    let success: Bool
+    let message: String
 }
 
 // MARK: - Bookmark Storage
