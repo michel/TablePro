@@ -15,7 +15,12 @@ struct ConnectedView: View {
     @State private var tables: [TableInfo] = []
     @State private var isConnecting = true
     @State private var errorMessage: String?
-    @State private var selectedTab = 0
+    @State private var selectedTab = ConnectedTab.tables
+
+    enum ConnectedTab: String, CaseIterable {
+        case tables = "Tables"
+        case query = "Query"
+    }
 
     private var displayName: String {
         connection.name.isEmpty ? connection.host : connection.name
@@ -38,62 +43,44 @@ struct ConnectedView: View {
                     .buttonStyle(.borderedProminent)
                 }
             } else {
-                connectedTabs
+                connectedContent
             }
         }
-        .toolbar(session != nil && errorMessage == nil ? .hidden : .visible, for: .navigationBar)
+        .navigationTitle(displayName)
+        .navigationBarTitleDisplayMode(.inline)
         .task { await connect() }
         .onDisappear {
-            Task {
-                if let session {
-                    try? await session.driver.disconnect()
-                }
+            if let session {
+                Task { try? await session.driver.disconnect() }
             }
         }
     }
 
-    private var connectedTabs: some View {
-        TabView(selection: $selectedTab) {
-            Tab("Tables", systemImage: "tablecells", value: 0) {
-                NavigationStack {
-                    TableListView(
-                        connection: connection,
-                        tables: tables,
-                        session: session,
-                        onRefresh: { await refreshTables() }
-                    )
-                    .toolbar {
-                        ToolbarItem(placement: .status) {
-                            connectionStatusBadge
-                        }
-                    }
+    private var connectedContent: some View {
+        VStack(spacing: 0) {
+            Picker("Tab", selection: $selectedTab) {
+                ForEach(ConnectedTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
                 }
             }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
 
-            Tab("Query", systemImage: "terminal", value: 1) {
-                NavigationStack {
-                    QueryEditorView(
-                        session: session,
-                        tables: tables
-                    )
-                    .toolbar {
-                        ToolbarItem(placement: .status) {
-                            connectionStatusBadge
-                        }
-                    }
-                }
+            switch selectedTab {
+            case .tables:
+                TableListView(
+                    connection: connection,
+                    tables: tables,
+                    session: session,
+                    onRefresh: { await refreshTables() }
+                )
+            case .query:
+                QueryEditorView(
+                    session: session,
+                    tables: tables
+                )
             }
-        }
-    }
-
-    private var connectionStatusBadge: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(.green)
-                .frame(width: 6, height: 6)
-            Text(displayName)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
         }
     }
 
