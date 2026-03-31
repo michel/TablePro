@@ -61,6 +61,14 @@ public final class ConnectionManager: @unchecked Sendable {
         }
     }
 
+    public func storePassword(_ password: String, for connectionId: UUID) throws {
+        try secureStore.store(password, forKey: connectionId.uuidString)
+    }
+
+    public func deletePassword(for connectionId: UUID) throws {
+        try secureStore.delete(forKey: connectionId.uuidString)
+    }
+
     public func disconnect(_ connectionId: UUID) async {
         let session = removeSession(for: connectionId)
         guard let session else { return }
