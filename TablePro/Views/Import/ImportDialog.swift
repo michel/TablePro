@@ -33,6 +33,7 @@ struct ImportDialog: View {
     @State private var importResult: PluginImportResult?
     @State private var importError: (any Error)?
 
+    @State private var hasPreviewError = false
     @State private var tempPreviewURL: URL?
     @State private var loadFileTask: Task<Void, Never>?
 
@@ -276,7 +277,7 @@ struct ImportDialog: View {
                 performImport()
             }
             .buttonStyle(.borderedProminent)
-            .disabled(fileURL == nil || importServiceState.isImporting || availableFormats.isEmpty)
+            .disabled(fileURL == nil || importServiceState.isImporting || availableFormats.isEmpty || hasPreviewError)
             .keyboardShortcut(.return, modifiers: [])
         }
         .padding(16)
@@ -305,12 +306,14 @@ struct ImportDialog: View {
     @MainActor
     private func loadFile(_ url: URL) async {
         cleanupTempFiles()
+        hasPreviewError = false
 
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isDirectory),
             !isDirectory.boolValue
         else {
             filePreview = String(localized: "Error: Selected path is not a regular file")
+            hasPreviewError = true
             return
         }
 
@@ -331,7 +334,8 @@ struct ImportDialog: View {
                 tempPreviewURL = urlToRead
             }
         } catch {
-            filePreview = String(localized: "Failed to decompress file: \(error.localizedDescription)")
+            filePreview = "Failed to decompress file: \(error.localizedDescription)"
+            hasPreviewError = true
             return
         }
 
@@ -350,11 +354,14 @@ struct ImportDialog: View {
 
             if let preview = String(data: previewData, encoding: selectedEncoding.encoding) {
                 filePreview = preview
+                hasPreviewError = false
             } else {
-                filePreview = String(localized: "Failed to load preview using encoding: \(selectedEncoding.rawValue). Try selecting a different text encoding.")
+                filePreview = "Failed to load preview using encoding: \(selectedEncoding.rawValue). Try selecting a different text encoding."
+                hasPreviewError = true
             }
         } catch {
-            filePreview = String(localized: "Failed to load preview: \(error.localizedDescription)")
+            filePreview = "Failed to load preview: \(error.localizedDescription)"
+            hasPreviewError = true
         }
 
         Task {
