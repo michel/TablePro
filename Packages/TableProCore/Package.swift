@@ -1,0 +1,54 @@
+// swift-tools-version: 5.9
+
+import PackageDescription
+
+let package = Package(
+    name: "TableProCore",
+    platforms: [
+        .macOS(.v14),
+        .iOS(.v17)
+    ],
+    products: [
+        .library(name: "TableProPluginKit", targets: ["TableProPluginKit"]),
+        .library(name: "TableProModels", targets: ["TableProModels"]),
+        .library(name: "TableProDatabase", targets: ["TableProDatabase"]),
+        .library(name: "TableProQuery", targets: ["TableProQuery"])
+    ],
+    targets: [
+        .target(
+            name: "TableProPluginKit",
+            dependencies: [],
+            path: "Sources/TableProPluginKit"
+        ),
+        .target(
+            name: "TableProModels",
+            dependencies: ["TableProPluginKit"],
+            path: "Sources/TableProModels"
+        ),
+        .target(
+            name: "TableProDatabase",
+            dependencies: ["TableProModels", "TableProPluginKit"],
+            path: "Sources/TableProDatabase"
+        ),
+        .target(
+            name: "TableProQuery",
+            dependencies: ["TableProModels", "TableProPluginKit"],
+            path: "Sources/TableProQuery"
+        ),
+        .testTarget(
+            name: "TableProModelsTests",
+            dependencies: ["TableProModels", "TableProPluginKit"],
+            path: "Tests/TableProModelsTests"
+        ),
+        .testTarget(
+            name: "TableProDatabaseTests",
+            dependencies: ["TableProDatabase", "TableProModels", "TableProPluginKit"],
+            path: "Tests/TableProDatabaseTests"
+        ),
+        .testTarget(
+            name: "TableProQueryTests",
+            dependencies: ["TableProQuery", "TableProModels", "TableProPluginKit"],
+            path: "Tests/TableProQueryTests"
+        )
+    ]
+)
