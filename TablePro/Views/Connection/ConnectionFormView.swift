@@ -68,6 +68,7 @@ struct ConnectionFormView: View {
     @State private var connectionURL: String = ""
     @State private var urlParseError: String?
     @State private var showURLImport = false
+    @State private var promptForPassword: Bool = false
     @State private var hasLoadedData = false
 
     // SSH Configuration
@@ -202,6 +203,7 @@ struct ConnectionFormView: View {
             connectAfterInstall(connection)
         }
         .onChange(of: pgpassTrigger) { _, _ in updatePgpassStatus() }
+        .onChange(of: usePgpass) { _, newValue in if newValue { promptForPassword = false } }
     }
 
     // MARK: - Tab Picker Helpers
@@ -419,10 +421,11 @@ struct ConnectionFormView: View {
                         }
                     }
                     if !hidePasswordField {
-                        let isApiOnly = PluginManager.shared.connectionMode(for: type) == .apiOnly
-                        SecureField(
-                            isApiOnly ? String(localized: "API Token") : String(localized: "Password"),
-                            text: $password
+                        PasswordPromptToggle(
+                            type: type,
+                            promptForPassword: $promptForPassword,
+                            password: $password,
+                            additionalFieldValues: $additionalFieldValues
                         )
                     }
                     if additionalFieldValues["usePgpass"] == "true" {
@@ -666,7 +669,7 @@ struct ConnectionFormView: View {
                 .filter(\.isRequired)
                 .allSatisfy { !(additionalFieldValues[$0.id] ?? "").isEmpty }
             basicValid = basicValid && hasRequiredFields
-            if !hidePasswordField {
+            if !hidePasswordField && !promptForPassword {
                 basicValid = basicValid && !password.isEmpty
             }
             // Generic: validate required visible fields
@@ -763,6 +766,7 @@ struct ConnectionFormView: View {
 
             // Load additional fields from connection
             additionalFieldValues = existing.additionalFields
+            promptForPassword = existing.promptForPassword
 
             // Migrate legacy redisDatabase to additionalFields
             if additionalFieldValues["redisDatabase"] == nil,
@@ -853,6 +857,8 @@ struct ConnectionFormView: View {
             finalAdditionalFields.removeValue(forKey: "preConnectScript")
         }
 
+        finalAdditionalFields["promptForPassword"] = promptForPassword ? "true" : nil
+
         let secureFields = PluginManager.shared.additionalConnectionFields(for: type).filter(\.isSecure)
         for field in secureFields {
             if let value = finalAdditionalFields[field.id], !value.isEmpty {
@@ -886,7 +892,9 @@ struct ConnectionFormView: View {
         )
 
         // Save passwords to Keychain
-        if !password.isEmpty {
+        if promptForPassword {
+            storage.deletePassword(for: connectionToSave.id)
+        } else if !password.isEmpty {
             storage.savePassword(password, for: connectionToSave.id)
         }
         // Only save SSH secrets per-connection when using inline config (not a profile)
@@ -948,22 +956,24 @@ struct ConnectionFormView: View {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
-                if case PluginError.pluginNotInstalled = error {
-                    Self.logger.info("Plugin not installed for \(connection.type.rawValue), prompting install")
-                    handleMissingPlugin(connection: connection)
-                } else {
-                    Self.logger.error(
-                        "Failed to connect: \(error.localizedDescription, privacy: .public)")
-                    NSApplication.shared.closeWindows(withId: "main")
-                    openWindow(id: "welcome")
-                    AlertHelper.showErrorSheet(
-                        title: String(localized: "Connection Failed"),
-                        message: error.localizedDescription,
-                        window: nil
-                    )
-                }
+                handleConnectError(error, connection: connection)
             }
         }
+    }
+
+    private func handleConnectError(_ error: Error, connection: DatabaseConnection) {
+        if case PluginError.pluginNotInstalled = error {
+            handleMissingPlugin(connection: connection)
+            return
+        }
+        NSApplication.shared.closeWindows(withId: "main")
+        openWindow(id: "welcome")
+        guard !(error is CancellationError) else { return }
+        Self.logger.error("Failed to connect: \(error.localizedDescription, privacy: .public)")
+        AlertHelper.showErrorSheet(
+            title: String(localized: "Connection Failed"),
+            message: error.localizedDescription, window: nil
+        )
     }
 
     private func handleMissingPlugin(connection: DatabaseConnection) {
@@ -981,15 +991,7 @@ struct ConnectionFormView: View {
             do {
                 try await dbManager.connectToSession(connection)
             } catch {
-                Self.logger.error(
-                    "Failed to connect after plugin install: \(error.localizedDescription, privacy: .public)")
-                NSApplication.shared.closeWindows(withId: "main")
-                openWindow(id: "welcome")
-                AlertHelper.showErrorSheet(
-                    title: String(localized: "Connection Failed"),
-                    message: error.localizedDescription,
-                    window: nil
-                )
+                handleConnectError(error, connection: connection)
             }
         }
     }
@@ -1064,8 +1066,8 @@ struct ConnectionFormView: View {
 
         Task {
             do {
-                // Save passwords temporarily for test
-                if !password.isEmpty {
+                // Save passwords temporarily for test (skip when prompt mode is active)
+                if !password.isEmpty && !promptForPassword {
                     ConnectionStorage.shared.savePassword(password, for: testConn.id)
                 }
                 // Only write inline SSH secrets when not using a profile
@@ -1093,8 +1095,22 @@ struct ConnectionFormView: View {
                 }
 
                 let sshPasswordForTest = sshProfileId == nil ? sshPassword : nil
+                let isApiOnly = PluginManager.shared.connectionMode(for: type) == .apiOnly
+                let testPwOverride: String? = promptForPassword
+                    ? (password.isEmpty
+                        ? PasswordPromptHelper.prompt(connectionName: name.isEmpty ? host : name, isAPIToken: isApiOnly)
+                        : password)
+                    : nil
+                guard !promptForPassword || testPwOverride != nil else {
+                    cleanupTestSecrets(for: testConn.id)
+                    isTesting = false
+                    return
+                }
                 let success = try await DatabaseManager.shared.testConnection(
-                    testConn, sshPassword: sshPasswordForTest)
+                    testConn,
+                    sshPassword: sshPasswordForTest,
+                    passwordOverride: testPwOverride
+                )
                 cleanupTestSecrets(for: testConn.id)
                 await MainActor.run {
                     isTesting = false
