@@ -78,6 +78,19 @@ public final class ConnectionManager: @unchecked Sendable {
         }
     }
 
+    public func disconnectAll() async {
+        let ids = allSessionIds()
+        for id in ids {
+            await disconnect(id)
+        }
+    }
+
+    private func allSessionIds() -> [UUID] {
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(sessions.keys)
+    }
+
     public func updateSession(_ connectionId: UUID, _ mutation: (inout ConnectionSession) -> Void) {
         lock.lock()
         defer { lock.unlock() }

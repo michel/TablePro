@@ -42,6 +42,12 @@ final class AppState {
         try? connectionManager.deletePassword(for: connection.id)
         storage.save(connections)
     }
+
+    func disconnectAll() {
+        Task {
+            await connectionManager.disconnectAll()
+        }
+    }
 }
 
 // MARK: - Persistence
