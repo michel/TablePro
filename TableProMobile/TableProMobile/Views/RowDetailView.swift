@@ -67,16 +67,6 @@ struct RowDetailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("Row \(currentIndex + 1) of \(rows.count)")
         .navigationBarTitleDisplayMode(.inline)
-        .gesture(
-            DragGesture(minimumDistance: 50)
-                .onEnded { value in
-                    if value.translation.width > 50, currentIndex > 0 {
-                        withAnimation { currentIndex -= 1 }
-                    } else if value.translation.width < -50, currentIndex < rows.count - 1 {
-                        withAnimation { currentIndex += 1 }
-                    }
-                }
-        )
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button {
