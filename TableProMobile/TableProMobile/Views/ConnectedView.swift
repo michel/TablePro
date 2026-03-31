@@ -54,7 +54,7 @@ struct ConnectedView: View {
         .task(id: "lifecycle") {
             // Wait for task cancellation (view removed from navigation stack)
             // then disconnect. This avoids false onDisappear during push navigation.
-            do { try await Task.sleep(for: .seconds(.max)) } catch {}
+            do { try await Task.sleep(for: .seconds(Double.greatestFiniteMagnitude)) } catch {}
             if let session {
                 try? await session.driver.disconnect()
             }
