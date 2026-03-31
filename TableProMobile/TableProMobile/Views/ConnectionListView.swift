@@ -153,7 +153,7 @@ private struct ConnectionRow: View {
     private func iconName(for type: DatabaseType) -> String {
         switch type {
         case .mysql, .mariadb: return "cylinder"
-        case .postgresql, .redshift: return "elephant"
+        case .postgresql, .redshift: return "cylinder.split.1x2"
         case .sqlite: return "doc"
         case .redis: return "key"
         case .mongodb: return "leaf"

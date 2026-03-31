@@ -130,10 +130,20 @@ struct QueryEditorView: View {
 
     private var keywordAccessory: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            VStack(spacing: 6) {
-                keywordRow(["SELECT", "FROM", "WHERE", "AND", "OR", "JOIN"])
-                keywordRow(["INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "ALTER"])
-                keywordRow(["LIMIT", "ORDER BY", "GROUP BY", "HAVING", "AS", "IN"])
+            HStack(spacing: 6) {
+                ForEach(keywords, id: \.self) { keyword in
+                    Button { insertKeyword(keyword) } label: {
+                        Text(keyword)
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .fontDesign(.monospaced)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(.fill.secondary)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
@@ -141,25 +151,13 @@ struct QueryEditorView: View {
         .background(.bar)
     }
 
-    private func keywordRow(_ keywords: [String]) -> some View {
-        HStack(spacing: 6) {
-            ForEach(keywords, id: \.self) { keyword in
-                Button {
-                    insertKeyword(keyword)
-                } label: {
-                    Text(keyword)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .fontDesign(.monospaced)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(.fill.secondary)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
+    private let keywords = [
+        "SELECT", "FROM", "WHERE", "AND", "OR", "JOIN",
+        "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE",
+        "CREATE", "TABLE", "DROP", "ALTER",
+        "LIMIT", "ORDER BY", "GROUP BY", "HAVING", "AS", "IN",
+        "NOT", "NULL", "LIKE", "BETWEEN", "COUNT", "DISTINCT"
+    ]
 
     private func insertKeyword(_ keyword: String) {
         let needsLeadingSpace = !query.isEmpty && !query.hasSuffix(" ") && !query.hasSuffix("\n")
@@ -224,26 +222,33 @@ struct QueryEditorView: View {
                 Section {
                     ForEach(Array(result.rows.enumerated()), id: \.offset) { _, row in
                         HStack(spacing: 0) {
-                            ForEach(Array(zip(result.columns, row).enumerated()), id: \.offset) { _, pair in
-                                let (_, value) = pair
+                            ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, column in
+                                let value = colIndex < row.count ? row[colIndex] : nil
                                 Text(value ?? "NULL")
                                     .font(.system(.caption, design: .monospaced))
                                     .foregroundStyle(value == nil ? .secondary : .primary)
                                     .lineLimit(1)
-                                    .frame(width: 140, alignment: .leading)
+                                    .frame(width: columnWidth(for: colIndex, column: column, rows: result.rows), alignment: .leading)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 8)
+                                    .contextMenu {
+                                        Button {
+                                            UIPasteboard.general.string = value ?? ""
+                                        } label: {
+                                            Label("Copy", systemImage: "doc.on.doc")
+                                        }
+                                    }
                             }
                         }
                         Divider()
                     }
                 } header: {
                     HStack(spacing: 0) {
-                        ForEach(result.columns) { col in
+                        ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, col in
                             Text(col.name)
                                 .font(.system(.caption, design: .monospaced))
                                 .fontWeight(.semibold)
-                                .frame(width: 140, alignment: .leading)
+                                .frame(width: columnWidth(for: colIndex, column: col, rows: result.rows), alignment: .leading)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 8)
                         }
@@ -253,6 +258,15 @@ struct QueryEditorView: View {
                 }
             }
         }
+    }
+
+    private func columnWidth(for columnIndex: Int, column: ColumnInfo, rows: [[String?]]) -> CGFloat {
+        let headerWidth = CGFloat(column.name.count) * 8 + 16
+        let maxDataWidth = rows.prefix(20).compactMap { row -> CGFloat? in
+            guard columnIndex < row.count, let value = row[columnIndex] else { return nil }
+            return min(CGFloat(value.count) * 7.5, 200) + 16
+        }.max() ?? 60
+        return max(max(headerWidth, maxDataWidth), 60)
     }
 
     // MARK: - History

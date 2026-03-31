@@ -76,6 +76,7 @@ struct DataBrowserView: View {
                         maxPreviewColumns: maxPreviewColumns
                     )
                 }
+                .listRowBackground(Color(.secondarySystemGroupedBackground))
             }
 
             if hasMore {
@@ -152,19 +153,26 @@ private struct RowCard: View {
     let row: [String?]
     let maxPreviewColumns: Int
 
+    private var sortedPairs: [(column: ColumnInfo, value: String?)] {
+        let paired = zip(columns, row).map { ($0, $1) }
+        let pkPairs = paired.filter { $0.0.isPrimaryKey }
+        let nonPkPairs = paired.filter { !$0.0.isPrimaryKey }
+        return (pkPairs + nonPkPairs).prefix(maxPreviewColumns).map { ($0.0, $0.1) }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(zip(columns.prefix(maxPreviewColumns), row.prefix(maxPreviewColumns)).enumerated()), id: \.offset) { _, pair in
-                let (col, value) = pair
+            ForEach(Array(sortedPairs.enumerated()), id: \.offset) { _, pair in
                 HStack(spacing: 8) {
-                    Text(col.name)
+                    Text(pair.column.name)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(minWidth: 60, alignment: .leading)
 
-                    if let value {
+                    if let value = pair.value {
                         Text(value)
                             .font(.subheadline)
+                            .fontWeight(pair.column.isPrimaryKey ? .semibold : .regular)
                             .lineLimit(1)
                     } else {
                         Text("NULL")
