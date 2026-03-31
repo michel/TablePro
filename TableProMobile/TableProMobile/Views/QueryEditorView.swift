@@ -96,6 +96,7 @@ struct QueryEditorView: View {
                 .font(.system(.body, design: .monospaced))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .keyboardType(.asciiCapable)
                 .scrollContentBackground(.hidden)
                 .frame(minHeight: 100, maxHeight: 180)
                 .padding(.horizontal, 8)
