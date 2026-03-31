@@ -116,7 +116,7 @@ struct InsertRowView: View {
             .onAppear {
                 values = Array(repeating: "", count: columnDetails.count)
                 isNullFlags = columnDetails.map { col in
-                    col.isPrimaryKey || col.isNullable
+                    col.isPrimaryKey
                 }
             }
             .alert("Error", isPresented: $showOperationError) {
