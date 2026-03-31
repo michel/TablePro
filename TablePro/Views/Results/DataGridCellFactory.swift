@@ -230,8 +230,12 @@ final class DataGridCellFactory {
             isNewCell = true
         }
 
-        // Re-apply single-line properties (editing may reset these on reused cells)
-        if !isNewCell {
+        if !isNewCell && (
+            cell.lineBreakMode != .byTruncatingTail ||
+            cell.maximumNumberOfLines != 1 ||
+            cell.cell?.truncatesLastVisibleLine != true ||
+            cell.cell?.usesSingleLineMode != true
+        ) {
             cell.lineBreakMode = .byTruncatingTail
             cell.maximumNumberOfLines = 1
             cell.cell?.truncatesLastVisibleLine = true

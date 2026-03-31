@@ -174,6 +174,7 @@ struct DataGridView: NSViewRepresentable {
         scrollView.documentView = tableView
         context.coordinator.tableView = tableView
         context.coordinator.onMoveRow = onMoveRow
+        context.coordinator.rebuildColumnMetadataCache()
         if let connectionId {
             context.coordinator.observeTeardown(connectionId: connectionId)
         }
@@ -280,6 +281,16 @@ struct DataGridView: NSViewRepresentable {
         }
 
         coordinator.updateCache()
+        coordinator.rebuildColumnMetadataCache()
+
+        if previousIdentity == nil || previousIdentity?.rowCount == 0 {
+            let rowH = tableView.rowHeight
+            if rowH > 0 {
+                let visibleRows = Int(tableView.visibleRect.height / rowH) + 5
+                coordinator.rowProvider.preWarmDisplayCache(upTo: visibleRows)
+            }
+        }
+
         coordinator.changeManager = changeManager
         coordinator.isEditable = isEditable
         coordinator.onRefresh = onRefresh
