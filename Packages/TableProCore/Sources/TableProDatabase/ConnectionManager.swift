@@ -1,9 +1,8 @@
 import Foundation
 import TableProModels
-import TableProPluginKit
 
 public final class ConnectionManager: @unchecked Sendable {
-    private let pluginLoader: PluginLoader
+    private let driverFactory: DriverFactory
     private let secureStore: SecureStore
     private let sshProvider: SSHProvider?
 
@@ -11,11 +10,11 @@ public final class ConnectionManager: @unchecked Sendable {
     private var sessions: [UUID: ConnectionSession] = [:]
 
     public init(
-        pluginLoader: PluginLoader,
+        driverFactory: DriverFactory,
         secureStore: SecureStore,
         sshProvider: SSHProvider? = nil
     ) {
-        self.pluginLoader = pluginLoader
+        self.driverFactory = driverFactory
         self.secureStore = secureStore
         self.sshProvider = sshProvider
     }
@@ -39,21 +38,11 @@ public final class ConnectionManager: @unchecked Sendable {
         }
 
         do {
-            guard let plugin = pluginLoader.driverPlugin(for: connection.type.pluginTypeId) else {
-                throw ConnectionError.pluginNotFound(connection.type.rawValue)
-            }
+            var effectiveConnection = connection
+            effectiveConnection.host = effectiveHost
+            effectiveConnection.port = effectivePort
 
-            let config = DriverConnectionConfig(
-                host: effectiveHost,
-                port: effectivePort,
-                username: connection.username,
-                password: password ?? "",
-                database: connection.database,
-                additionalFields: connection.additionalFields
-            )
-            let pluginDriver = plugin.createDriver(config: config)
-
-            let driver = PluginDriverAdapter(pluginDriver: pluginDriver)
+            let driver = try driverFactory.createDriver(for: effectiveConnection, password: password)
             try await driver.connect()
 
             let session = ConnectionSession(
@@ -74,10 +63,8 @@ public final class ConnectionManager: @unchecked Sendable {
 
     public func disconnect(_ connectionId: UUID) async {
         let session = removeSession(for: connectionId)
-
         guard let session else { return }
         try? await session.driver.disconnect()
-
         if let sshProvider {
             try? await sshProvider.closeTunnel(for: connectionId)
         }
@@ -99,6 +86,12 @@ public final class ConnectionManager: @unchecked Sendable {
         updateSession(connectionId) { $0.activeDatabase = database }
     }
 
+    public func session(for connectionId: UUID) -> ConnectionSession? {
+        lock.lock()
+        defer { lock.unlock() }
+        return sessions[connectionId]
+    }
+
     private func storeSession(_ session: ConnectionSession, for id: UUID) {
         lock.lock()
         sessions[id] = session
@@ -110,11 +103,5 @@ public final class ConnectionManager: @unchecked Sendable {
         let session = sessions.removeValue(forKey: id)
         lock.unlock()
         return session
-    }
-
-    public func session(for connectionId: UUID) -> ConnectionSession? {
-        lock.lock()
-        defer { lock.unlock() }
-        return sessions[connectionId]
     }
 }

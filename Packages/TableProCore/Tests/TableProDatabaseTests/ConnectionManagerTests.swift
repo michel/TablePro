@@ -2,70 +2,53 @@ import Testing
 import Foundation
 @testable import TableProDatabase
 @testable import TableProModels
-@testable import TableProPluginKit
 
 // MARK: - Mock Types
 
-private final class MockPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
-    var connected = false
-    var disconnected = false
+private final class MockDatabaseDriver: DatabaseDriver, @unchecked Sendable {
+    var isConnected = false
+    var shouldFailConnect = false
 
     func connect() async throws {
-        connected = true
+        if shouldFailConnect { throw NSError(domain: "test", code: 1) }
+        isConnected = true
     }
 
-    func disconnect() {
-        disconnected = true
+    func disconnect() async throws { isConnected = false }
+    func ping() async throws -> Bool { isConnected }
+
+    func execute(query: String) async throws -> QueryResult {
+        QueryResult(columns: [], rows: [], rowsAffected: 0, executionTime: 0, isTruncated: false, statusMessage: nil)
     }
 
-    func execute(query: String) async throws -> PluginQueryResult {
-        .empty
-    }
-
-    func fetchTables(schema: String?) async throws -> [PluginTableInfo] { [] }
-    func fetchColumns(table: String, schema: String?) async throws -> [PluginColumnInfo] { [] }
-    func fetchIndexes(table: String, schema: String?) async throws -> [PluginIndexInfo] { [] }
-    func fetchForeignKeys(table: String, schema: String?) async throws -> [PluginForeignKeyInfo] { [] }
-    func fetchTableDDL(table: String, schema: String?) async throws -> String { "" }
-    func fetchViewDefinition(view: String, schema: String?) async throws -> String { "" }
-    func fetchTableMetadata(table: String, schema: String?) async throws -> PluginTableMetadata {
-        PluginTableMetadata(tableName: table)
-    }
+    func cancelCurrentQuery() async throws {}
+    func fetchTables(schema: String?) async throws -> [TableInfo] { [] }
+    func fetchColumns(table: String, schema: String?) async throws -> [ColumnInfo] { [] }
+    func fetchIndexes(table: String, schema: String?) async throws -> [IndexInfo] { [] }
+    func fetchForeignKeys(table: String, schema: String?) async throws -> [ForeignKeyInfo] { [] }
     func fetchDatabases() async throws -> [String] { [] }
-    func fetchDatabaseMetadata(_ database: String) async throws -> PluginDatabaseMetadata {
-        PluginDatabaseMetadata(name: database)
-    }
+    func switchDatabase(to name: String) async throws {}
+    var supportsSchemas: Bool { false }
+    func switchSchema(to name: String) async throws {}
+    var currentSchema: String? { nil }
+    var supportsTransactions: Bool { false }
+    func beginTransaction() async throws {}
+    func commitTransaction() async throws {}
+    func rollbackTransaction() async throws {}
+    var serverVersion: String? { nil }
 }
 
-private final class MockDriverPlugin: DriverPlugin {
-    static var pluginName: String { "MockDriver" }
-    static var pluginVersion: String { "1.0" }
-    static var pluginDescription: String { "Mock" }
-    static var capabilities: [PluginCapability] { [.databaseDriver] }
+private final class MockDriverFactory: DriverFactory, @unchecked Sendable {
+    var drivers: [String: any DatabaseDriver] = [:]
 
-    static var databaseTypeId: String { "mock" }
-    static var databaseDisplayName: String { "Mock DB" }
-    static var iconName: String { "server.rack" }
-    static var defaultPort: Int { 5432 }
-
-    required init() {}
-
-    private static let sharedDriver = MockPluginDriver()
-
-    func createDriver(config: DriverConnectionConfig) -> any PluginDatabaseDriver {
-        MockDriverPlugin.sharedDriver
-    }
-}
-
-private final class MockPluginLoader: PluginLoader, Sendable {
-    func availablePlugins() -> [any DriverPlugin] {
-        [MockDriverPlugin()]
+    func createDriver(for connection: DatabaseConnection, password: String?) throws -> any DatabaseDriver {
+        guard let driver = drivers[connection.type.rawValue] else {
+            throw ConnectionError.driverNotFound(connection.type.rawValue)
+        }
+        return driver
     }
 
-    func driverPlugin(for typeId: String) -> (any DriverPlugin)? {
-        if typeId == "mock" { return MockDriverPlugin() }
-        return nil
-    }
+    func supportedTypes() -> [DatabaseType] { [] }
 }
 
 private final class MockSecureStore: SecureStore, Sendable {
@@ -88,9 +71,10 @@ private final class MockSecureStore: SecureStore, Sendable {
 struct ConnectionManagerTests {
     @Test("Connect creates a session")
     func connectCreatesSession() async throws {
-        let loader = MockPluginLoader()
+        let factory = MockDriverFactory()
+        factory.drivers["mock"] = MockDatabaseDriver()
         let store = MockSecureStore()
-        let manager = ConnectionManager(pluginLoader: loader, secureStore: store)
+        let manager = ConnectionManager(driverFactory: factory, secureStore: store)
 
         let connection = DatabaseConnection(
             name: "Test",
@@ -109,9 +93,10 @@ struct ConnectionManagerTests {
 
     @Test("Disconnect removes session")
     func disconnectRemovesSession() async throws {
-        let loader = MockPluginLoader()
+        let factory = MockDriverFactory()
+        factory.drivers["mock"] = MockDatabaseDriver()
         let store = MockSecureStore()
-        let manager = ConnectionManager(pluginLoader: loader, secureStore: store)
+        let manager = ConnectionManager(driverFactory: factory, secureStore: store)
 
         let connection = DatabaseConnection(
             name: "Test",
@@ -125,11 +110,11 @@ struct ConnectionManagerTests {
         #expect(session == nil)
     }
 
-    @Test("Connect with unknown plugin throws error")
-    func connectUnknownPlugin() async throws {
-        let loader = MockPluginLoader()
+    @Test("Connect with unknown type throws driverNotFound")
+    func connectUnknownType() async throws {
+        let factory = MockDriverFactory()
         let store = MockSecureStore()
-        let manager = ConnectionManager(pluginLoader: loader, secureStore: store)
+        let manager = ConnectionManager(driverFactory: factory, secureStore: store)
 
         let connection = DatabaseConnection(
             name: "Test",
@@ -143,9 +128,10 @@ struct ConnectionManagerTests {
 
     @Test("Connect with SSH but no provider throws error")
     func connectSSHNoProvider() async throws {
-        let loader = MockPluginLoader()
+        let factory = MockDriverFactory()
+        factory.drivers["mock"] = MockDatabaseDriver()
         let store = MockSecureStore()
-        let manager = ConnectionManager(pluginLoader: loader, secureStore: store, sshProvider: nil)
+        let manager = ConnectionManager(driverFactory: factory, secureStore: store, sshProvider: nil)
 
         var connection = DatabaseConnection(
             name: "Test",
@@ -157,5 +143,48 @@ struct ConnectionManagerTests {
         await #expect(throws: ConnectionError.self) {
             _ = try await manager.connect(connection)
         }
+    }
+
+    @Test("SSH tunnel cleanup on connect failure")
+    func sshTunnelCleanupOnFailure() async throws {
+        let factory = MockDriverFactory()
+        let failingDriver = MockDatabaseDriver()
+        failingDriver.shouldFailConnect = true
+        factory.drivers["mock"] = failingDriver
+
+        let store = MockSecureStore()
+        let sshProvider = MockSSHProvider()
+        let manager = ConnectionManager(driverFactory: factory, secureStore: store, sshProvider: sshProvider)
+
+        var connection = DatabaseConnection(
+            name: "Test",
+            type: DatabaseType(rawValue: "mock")
+        )
+        connection.sshEnabled = true
+        connection.sshConfiguration = SSHConfiguration(host: "jump.example.com")
+
+        await #expect(throws: Error.self) {
+            _ = try await manager.connect(connection)
+        }
+
+        #expect(sshProvider.closedTunnels.contains(connection.id))
+    }
+}
+
+// MARK: - Mock SSH Provider
+
+private final class MockSSHProvider: SSHProvider, @unchecked Sendable {
+    var closedTunnels: Set<UUID> = []
+
+    func createTunnel(
+        config: SSHConfiguration,
+        remoteHost: String,
+        remotePort: Int
+    ) async throws -> SSHTunnel {
+        SSHTunnel(localHost: "127.0.0.1", localPort: 33306)
+    }
+
+    func closeTunnel(for connectionId: UUID) async throws {
+        closedTunnels.insert(connectionId)
     }
 }

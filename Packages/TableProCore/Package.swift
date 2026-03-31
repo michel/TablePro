@@ -27,7 +27,7 @@ let package = Package(
         ),
         .target(
             name: "TableProDatabase",
-            dependencies: ["TableProModels", "TableProPluginKit"],
+            dependencies: ["TableProModels"],
             path: "Sources/TableProDatabase"
         ),
         .target(
@@ -42,7 +42,7 @@ let package = Package(
         ),
         .testTarget(
             name: "TableProDatabaseTests",
-            dependencies: ["TableProDatabase", "TableProModels", "TableProPluginKit"],
+            dependencies: ["TableProDatabase", "TableProModels"],
             path: "Tests/TableProDatabaseTests"
         ),
         .testTarget(

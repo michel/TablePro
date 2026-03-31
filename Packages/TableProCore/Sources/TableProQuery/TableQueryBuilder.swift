@@ -2,16 +2,37 @@ import Foundation
 import TableProModels
 import TableProPluginKit
 
+/// Allows NoSQL drivers to provide custom query building.
+public protocol CustomQueryBuilder: Sendable {
+    func buildBrowseQuery(
+        table: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String?
+
+    func buildFilteredQuery(
+        table: String,
+        filters: [(column: String, op: String, value: String)],
+        logicMode: String,
+        sortColumns: [(columnIndex: Int, ascending: Bool)],
+        columns: [String],
+        limit: Int,
+        offset: Int
+    ) -> String?
+}
+
 public struct TableQueryBuilder: Sendable {
     private let dialect: SQLDialectDescriptor?
-    private let pluginDriver: (any PluginDatabaseDriver)?
+    private let customQueryBuilder: (any CustomQueryBuilder)?
 
     public init(
         dialect: SQLDialectDescriptor? = nil,
-        pluginDriver: (any PluginDatabaseDriver)? = nil
+        customQueryBuilder: (any CustomQueryBuilder)? = nil
     ) {
         self.dialect = dialect
-        self.pluginDriver = pluginDriver
+        self.customQueryBuilder = customQueryBuilder
     }
 
     public func buildBrowseQuery(
@@ -20,11 +41,11 @@ public struct TableQueryBuilder: Sendable {
         limit: Int,
         offset: Int
     ) -> String {
-        if let driver = pluginDriver {
+        if let builder = customQueryBuilder {
             let sortColumns = sortState.columns.enumerated().map { (index, col) in
                 (columnIndex: index, ascending: col.ascending)
             }
-            if let query = driver.buildBrowseQuery(
+            if let query = builder.buildBrowseQuery(
                 table: tableName,
                 sortColumns: sortColumns,
                 columns: [],
@@ -54,14 +75,14 @@ public struct TableQueryBuilder: Sendable {
         limit: Int,
         offset: Int
     ) -> String {
-        if let driver = pluginDriver {
+        if let builder = customQueryBuilder {
             let filterTuples = filters.filter { $0.isEnabled && $0.isValid }.map { f in
                 (column: f.columnName, op: f.filterOperator.sqlSymbol, value: f.value)
             }
             let sortColumns = sortState.columns.enumerated().map { (index, col) in
                 (columnIndex: index, ascending: col.ascending)
             }
-            if let query = driver.buildFilteredQuery(
+            if let query = builder.buildFilteredQuery(
                 table: tableName,
                 filters: filterTuples,
                 logicMode: logicMode.rawValue,
