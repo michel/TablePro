@@ -29,6 +29,15 @@ struct TableListView: View {
         }
         .searchable(text: $searchText, prompt: "Search tables")
         .navigationTitle("Tables")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    QueryEditorView(session: session)
+                } label: {
+                    Image(systemName: "terminal")
+                }
+            }
+        }
         .navigationDestination(for: TableInfo.self) { table in
             DataBrowserView(
                 connection: connection,
