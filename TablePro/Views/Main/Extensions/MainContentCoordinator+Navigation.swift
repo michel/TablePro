@@ -305,8 +305,9 @@ extension MainContentCoordinator {
     }
 
     private func currentSchemaName(fallback: String) -> String {
-        if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable {
-            return schemaDriver.escapedSchema
+        if let schemaDriver = DatabaseManager.shared.driver(for: connectionId) as? SchemaSwitchable,
+           let schema = schemaDriver.escapedSchema {
+            return schema
         }
         return fallback
     }

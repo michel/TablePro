@@ -1016,8 +1016,9 @@ final class DatabaseManager {
         // Query the actual constraint name from pg_constraint
         let escapedTable = tableName.replacingOccurrences(of: "'", with: "''")
         let schema: String
-        if let schemaDriver = driver as? SchemaSwitchable {
-            schema = schemaDriver.escapedSchema
+        if let schemaDriver = driver as? SchemaSwitchable,
+           let escaped = schemaDriver.escapedSchema {
+            schema = escaped
         } else {
             schema = "public"
         }
