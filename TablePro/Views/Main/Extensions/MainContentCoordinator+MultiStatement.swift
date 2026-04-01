@@ -51,10 +51,23 @@ extension MainContentCoordinator {
                 // Wrap in a transaction for atomicity
                 try await driver.beginTransaction()
 
+                /// Rollback transaction and reset executing state for early exits.
+                @MainActor func rollbackAndResetState() async {
+                    try? await driver.rollbackTransaction()
+                    if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                        tabManager.tabs[idx].isExecuting = false
+                    }
+                    currentQueryTask = nil
+                    toolbarState.setExecuting(false)
+                }
+
                 for (stmtIndex, sql) in statements.enumerated() {
-                    guard !Task.isCancelled else { break }
+                    guard !Task.isCancelled else {
+                        await rollbackAndResetState()
+                        return
+                    }
                     guard capturedGeneration == queryGeneration else {
-                        try? await driver.rollbackTransaction()
+                        await rollbackAndResetState()
                         return
                     }
 
@@ -123,7 +136,19 @@ extension MainContentCoordinator {
                     try? await driver.rollbackTransaction()
                 }
 
-                guard capturedGeneration == queryGeneration else { return }
+                // Always reset isExecuting even if generation is stale —
+                // skipping this leaves the tab permanently stuck in "executing" state.
+                if capturedGeneration != queryGeneration {
+                    await MainActor.run { [weak self] in
+                        guard let self else { return }
+                        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                            tabManager.tabs[idx].isExecuting = false
+                        }
+                        currentQueryTask = nil
+                        toolbarState.setExecuting(false)
+                    }
+                    return
+                }
 
                 let failedStmtIndex = executedCount + 1
                 let contextMsg = "Statement \(failedStmtIndex)/\(totalCount) failed: "
@@ -189,7 +214,13 @@ extension MainContentCoordinator {
         toolbarState.setExecuting(false)
         toolbarState.lastQueryDuration = cumulativeTime
 
-        guard capturedGeneration == queryGeneration else { return }
+        // Always reset isExecuting even if generation is stale
+        if capturedGeneration != queryGeneration {
+            if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                tabManager.tabs[idx].isExecuting = false
+            }
+            return
+        }
         guard let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) else {
             return
         }
