@@ -906,15 +906,7 @@ final class MainContentCoordinator {
 
                 guard !Task.isCancelled else {
                     parallelSchemaTask?.cancel()
-                    await MainActor.run { [weak self] in
-                        guard let self else { return }
-                        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
-                            tabManager.tabs[idx].isExecuting = false
-                        }
-                        currentQueryTask = nil
-                        toolbarState.setExecuting(false)
-                        toolbarState.lastQueryDuration = safeExecutionTime
-                    }
+                    await resetExecutionState(tabId: tabId, executionTime: safeExecutionTime)
                     return
                 }
 
@@ -1008,6 +1000,17 @@ final class MainContentCoordinator {
                 }
             }
         }
+    }
+
+    /// Reset execution state when a query is cancelled
+    @MainActor
+    private func resetExecutionState(tabId: UUID, executionTime: TimeInterval) {
+        if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+            tabManager.tabs[idx].isExecuting = false
+        }
+        currentQueryTask = nil
+        toolbarState.setExecuting(false)
+        toolbarState.lastQueryDuration = executionTime
     }
 
     /// Fetch enum/set values for columns from database-specific sources
