@@ -40,15 +40,15 @@ Hoặc tải DMG từ [GitHub Releases](https://github.com/TableProApp/TablePro/
 
 Tài liệu đầy đủ tại [docs.tablepro.app](https://docs.tablepro.app).
 
+## Hỗ trợ phát triển
+
+TablePro miễn phí và mã nguồn mở. Nếu bạn thấy hữu ích, hãy cân nhắc [mua license](https://tablepro.app) để hỗ trợ phát triển và nhận các tính năng cao cấp.
+
 ## Nhà tài trợ
 
 Cảm ơn những người tuyệt vời đã hỗ trợ TablePro:
 
-- **[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)**
-- **[Nimbus](https://getnimbus.io?ref=tablepro)**
-- **[Visnalize](https://visnalize.com?ref=tablepro)**
-- **[Huy TQ](https://github.com/imhuytq)**
-- **[Unikorn](https://unikorn.vn?ref=tablepro)**
+**[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)** · **[Nimbus](https://getnimbus.io?ref=tablepro)** · **[Visnalize](https://visnalize.com?ref=tablepro)** · **[Huy TQ](https://github.com/imhuytq)** · **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
 ## Lịch sử Star
 
