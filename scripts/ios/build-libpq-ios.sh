@@ -281,7 +281,6 @@ build_slice() {
         src/common/pg_prng.c
         src/common/md5.c
         src/common/md5_int.c
-        src/common/pg_bitutils.c
     )
 
     # --- Port library source files ---
@@ -299,6 +298,7 @@ build_slice() {
         src/port/pgstrcasecmp.c
         src/port/explicit_bzero.c
         src/port/user.c
+        src/port/pg_bitutils.c
     )
 
     cd "$NATIVE_DIR"
