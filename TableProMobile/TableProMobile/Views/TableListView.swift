@@ -45,7 +45,7 @@ struct TableListView: View {
                             TableRow(table: table)
                         }
                         .swipeActions(edge: .leading) {
-                            NavigationLink(value: QuickQuery(table: table)) {
+                            NavigationLink(value: QuickQuery(table: table, databaseType: connection.type)) {
                                 Label("Query", systemImage: "terminal")
                             }
                             .tint(.blue)
@@ -79,7 +79,9 @@ struct TableListView: View {
             QueryEditorView(
                 session: session,
                 tables: tables,
-                initialQuery: "SELECT * FROM \(query.table.name) LIMIT 100"
+                initialQuery: SQLBuilder.buildSelect(
+                    table: query.table.name, type: query.databaseType, limit: 100, offset: 0
+                )
             )
         }
         .overlay {
@@ -98,6 +100,7 @@ struct TableListView: View {
 
 struct QuickQuery: Hashable {
     let table: TableInfo
+    let databaseType: DatabaseType
 }
 
 private struct TableRow: View {

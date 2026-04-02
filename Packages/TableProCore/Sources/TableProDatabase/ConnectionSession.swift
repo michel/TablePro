@@ -1,6 +1,9 @@
 import Foundation
 import TableProModels
 
+/// Note: Views hold a snapshot of this struct. Mutable fields (activeDatabase, status)
+/// are only updated through ConnectionManager.updateSession and should be re-fetched
+/// from the manager when needed rather than read from a held copy.
 public struct ConnectionSession: Sendable {
     public let connectionId: UUID
     public let driver: any DatabaseDriver

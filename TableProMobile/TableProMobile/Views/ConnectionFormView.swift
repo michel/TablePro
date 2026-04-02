@@ -291,19 +291,23 @@ struct ConnectionFormView: View {
         isTesting = true
         testResult = nil
 
-        let connection = buildConnection()
+        let tempId = UUID()
+        var testConn = buildConnection()
+        testConn.id = tempId
+
         if !password.isEmpty {
-            try? appState.connectionManager.storePassword(password, for: connection.id)
+            try? appState.connectionManager.storePassword(password, for: tempId)
         }
 
         do {
-            _ = try await appState.connectionManager.connect(connection)
-            await appState.connectionManager.disconnect(connection.id)
+            _ = try await appState.connectionManager.connect(testConn)
+            await appState.connectionManager.disconnect(tempId)
             testResult = TestResult(success: true, message: "Connection successful")
         } catch {
             testResult = TestResult(success: false, message: error.localizedDescription)
         }
 
+        try? appState.connectionManager.deletePassword(for: tempId)
         isTesting = false
     }
 

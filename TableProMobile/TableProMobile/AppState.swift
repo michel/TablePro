@@ -42,29 +42,39 @@ final class AppState {
         try? connectionManager.deletePassword(for: connection.id)
         storage.save(connections)
     }
-
-    func disconnectAll() {
-        Task {
-            await connectionManager.disconnectAll()
-        }
-    }
 }
 
 // MARK: - Persistence
 
 private struct ConnectionPersistence {
-    private let key = "com.TablePro.Mobile.connections"
+    private var fileURL: URL {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("TableProMobile", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("connections.json")
+    }
 
     func save(_ connections: [DatabaseConnection]) {
         guard let data = try? JSONEncoder().encode(connections) else { return }
-        UserDefaults.standard.set(data, forKey: key)
+        try? data.write(to: fileURL, options: [.atomic, .completeFileProtection])
     }
 
     func load() -> [DatabaseConnection] {
+        guard let data = try? Data(contentsOf: fileURL),
+              let connections = try? JSONDecoder().decode([DatabaseConnection].self, from: data) else {
+            return migrateFromUserDefaults()
+        }
+        return connections
+    }
+
+    private func migrateFromUserDefaults() -> [DatabaseConnection] {
+        let key = "com.TablePro.Mobile.connections"
         guard let data = UserDefaults.standard.data(forKey: key),
               let connections = try? JSONDecoder().decode([DatabaseConnection].self, from: data) else {
             return []
         }
+        save(connections)
+        UserDefaults.standard.removeObject(forKey: key)
         return connections
     }
 }

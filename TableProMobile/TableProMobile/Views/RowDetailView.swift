@@ -13,6 +13,7 @@ struct RowDetailView: View {
     let table: TableInfo?
     let session: ConnectionSession?
     let columnDetails: [ColumnInfo]
+    let databaseType: DatabaseType
     var onSaved: (() -> Void)?
 
     @State private var currentIndex: Int
@@ -30,6 +31,7 @@ struct RowDetailView: View {
         table: TableInfo? = nil,
         session: ConnectionSession? = nil,
         columnDetails: [ColumnInfo] = [],
+        databaseType: DatabaseType = .sqlite,
         onSaved: (() -> Void)? = nil
     ) {
         self.columns = columns
@@ -37,6 +39,7 @@ struct RowDetailView: View {
         self.table = table
         self.session = session
         self.columnDetails = columnDetails
+        self.databaseType = databaseType
         self.onSaved = onSaved
         _currentIndex = State(initialValue: initialIndex)
     }
@@ -297,8 +300,9 @@ struct RowDetailView: View {
             return
         }
 
-        let sql = SQLHelper.buildUpdate(
+        let sql = SQLBuilder.buildUpdate(
             table: table.name,
+            type: databaseType,
             changes: changes,
             primaryKeys: pkValues
         )

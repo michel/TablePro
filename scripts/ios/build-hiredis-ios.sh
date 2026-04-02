@@ -101,13 +101,6 @@ build_hiredis_slice() {
     mkdir -p "$BUILD"
     cd "$BUILD"
 
-    local CMAKE_SYSTEM
-    if [ "$SDK_NAME" = "iphoneos" ]; then
-        CMAKE_SYSTEM="iOS"
-    else
-        CMAKE_SYSTEM="iOS"
-    fi
-
     # Create a temporary OpenSSL prefix that cmake can find
     local OPENSSL_PREFIX="$BUILD_DIR/openssl-prefix-$SDK_NAME-$ARCH"
     mkdir -p "$OPENSSL_PREFIX/lib" "$OPENSSL_PREFIX/include"

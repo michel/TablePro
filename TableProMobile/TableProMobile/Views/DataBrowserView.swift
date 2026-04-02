@@ -92,6 +92,7 @@ struct DataBrowserView: View {
                 table: table,
                 columnDetails: columnDetails,
                 session: session,
+                databaseType: connection.type,
                 onInserted: {
                     Task { await loadData() }
                 }
@@ -125,6 +126,7 @@ struct DataBrowserView: View {
                         table: table,
                         session: session,
                         columnDetails: columnDetails,
+                        databaseType: connection.type,
                         onSaved: {
                             Task { await loadData() }
                         }
@@ -188,12 +190,17 @@ struct DataBrowserView: View {
         pagination.reset()
 
         do {
-            let query = "SELECT * FROM `\(table.name)` LIMIT \(pagination.pageSize) OFFSET \(pagination.currentOffset)"
+            let query = SQLBuilder.buildSelect(
+                table: table.name, type: connection.type,
+                limit: pagination.pageSize, offset: pagination.currentOffset
+            )
             let result = try await session.driver.execute(query: query)
             self.columns = result.columns
             self.rows = result.rows
             self.hasMore = result.rows.count >= pagination.pageSize
 
+            // columnDetails (from fetchColumns) provides PK info for edit/delete.
+            // columns (from query result) only have name/type, no PK metadata.
             if columnDetails.isEmpty {
                 self.columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
             }
@@ -212,7 +219,10 @@ struct DataBrowserView: View {
         pagination.currentPage += 1
 
         do {
-            let query = "SELECT * FROM `\(table.name)` LIMIT \(pagination.pageSize) OFFSET \(pagination.currentOffset)"
+            let query = SQLBuilder.buildSelect(
+                table: table.name, type: connection.type,
+                limit: pagination.pageSize, offset: pagination.currentOffset
+            )
             let result = try await session.driver.execute(query: query)
             rows.append(contentsOf: result.rows)
             hasMore = result.rows.count >= pagination.pageSize
@@ -235,7 +245,7 @@ struct DataBrowserView: View {
             return
         }
 
-        let sql = SQLHelper.buildDelete(table: table.name, primaryKeys: pkValues)
+        let sql = SQLBuilder.buildDelete(table: table.name, type: connection.type, primaryKeys: pkValues)
 
         do {
             _ = try await session.driver.execute(query: sql)

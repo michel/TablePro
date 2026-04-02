@@ -44,8 +44,7 @@ struct ConnectionListView: View {
             }
             .sheet(item: $editingConnection) { connection in
                 ConnectionFormView(editing: connection) { updated in
-                    appState.removeConnection(connection)
-                    appState.addConnection(updated)
+                    appState.updateConnection(updated)
                     editingConnection = nil
                 }
             }

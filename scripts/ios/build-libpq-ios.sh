@@ -280,16 +280,28 @@ build_slice() {
 
     # Compile all source files
     local ALL_OBJS=()
+    local FAILED_SRCS=()
     for src in "${LIBPQ_SRCS[@]}" "${COMMON_SRCS[@]}" "${PORT_SRCS[@]}"; do
         local obj_name=$(basename "${src%.c}.o")
         if [ -f "$src" ]; then
-            $CC $CFLAGS $PG_INCLUDES -DFRONTEND -c "$src" -o "$OBJ_DIR/$obj_name" 2>/dev/null || {
-                echo "   WARNING: skipped $src"
-                continue
-            }
-            ALL_OBJS+=("$OBJ_DIR/$obj_name")
+            if $CC $CFLAGS $PG_INCLUDES -DFRONTEND -c "$src" -o "$OBJ_DIR/$obj_name" 2>"$OBJ_DIR/${obj_name}.err"; then
+                ALL_OBJS+=("$OBJ_DIR/$obj_name")
+            else
+                FAILED_SRCS+=("$src")
+                echo "   FAILED: $src"
+                cat "$OBJ_DIR/${obj_name}.err"
+            fi
         fi
     done
+
+    if [ ${#FAILED_SRCS[@]} -gt 0 ]; then
+        echo ""
+        echo "ERROR: ${#FAILED_SRCS[@]} source files failed to compile:"
+        printf '   %s\n' "${FAILED_SRCS[@]}"
+        echo ""
+        echo "Fix the compilation errors above before creating xcframework."
+        exit 1
+    fi
 
     # strchrnul compat
     cat > "$OBJ_DIR/strchrnul_compat.c" << 'EOF'

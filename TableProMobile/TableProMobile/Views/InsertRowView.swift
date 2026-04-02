@@ -11,6 +11,7 @@ struct InsertRowView: View {
     let table: TableInfo
     let columnDetails: [ColumnInfo]
     let session: ConnectionSession?
+    let databaseType: DatabaseType
     var onInserted: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
@@ -182,8 +183,9 @@ struct InsertRowView: View {
             }
         }
 
-        let sql = SQLHelper.buildInsert(
+        let sql = SQLBuilder.buildInsert(
             table: table.name,
+            type: databaseType,
             columns: insertColumns,
             values: insertValues
         )

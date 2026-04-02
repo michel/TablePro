@@ -122,8 +122,8 @@ build_mariadb_slice() {
         -DCLIENT_PLUGIN_PVIO_NPIPE=OFF \
         -DCLIENT_PLUGIN_PVIO_SHMEM=OFF
 
-    cmake --build . --target mariadb_obj -j"$NCPU" 2>&1
-    cmake --build . --target mariadbclient -j"$NCPU" 2>&1
+    run_quiet cmake --build . --target mariadb_obj -j"$NCPU"
+    run_quiet cmake --build . --target mariadbclient -j"$NCPU"
 
     # Copy static lib and headers directly (cmake install fails looking for .so plugins)
     mkdir -p "$INSTALL_DIR/lib" "$INSTALL_DIR/include/mariadb"

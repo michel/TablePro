@@ -18,13 +18,10 @@ struct TableProMobileApp: App {
                 .environment(appState)
         }
         .onChange(of: scenePhase) { _, phase in
-            switch phase {
-            case .background:
-                appState.disconnectAll()
-            case .active:
-                break
-            default:
-                break
+            if phase == .background {
+                Task {
+                    await appState.connectionManager.disconnectAll()
+                }
             }
         }
     }
