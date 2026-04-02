@@ -395,7 +395,7 @@ private actor PostgreSQLActor {
 
 // MARK: - PostgreSQL OID Type Names
 
-private func pgOidToTypeName(_ oid: UInt32) -> String {
+private nonisolated func pgOidToTypeName(_ oid: UInt32) -> String {
     switch oid {
     case 16: return "boolean"
     case 17: return "bytea"

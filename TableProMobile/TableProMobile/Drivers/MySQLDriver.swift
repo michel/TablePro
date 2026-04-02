@@ -299,9 +299,8 @@ private actor MySQLActor {
             for i in 0..<fieldCount {
                 if let value = row[i] {
                     let len = Int(lengths?[i] ?? 0)
-                    rowData.append(String(bytesNoCopy: UnsafeMutableRawPointer(mutating: value),
-                                          length: len, encoding: .utf8, freeWhenDone: false)
-                                   ?? String(cString: value))
+                    let data = Data(bytes: value, count: len)
+                    rowData.append(String(data: data, encoding: .utf8) ?? String(cString: value))
                 } else {
                     rowData.append(nil)
                 }
@@ -319,7 +318,7 @@ private actor MySQLActor {
 
 // MARK: - MySQL Field Type Names
 
-private func mysqlFieldTypeName(_ typeValue: UInt32) -> String {
+private nonisolated func mysqlFieldTypeName(_ typeValue: UInt32) -> String {
     switch typeValue {
     case 0: return "DECIMAL"
     case 1: return "TINYINT"

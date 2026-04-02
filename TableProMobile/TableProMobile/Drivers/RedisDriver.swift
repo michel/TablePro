@@ -403,7 +403,7 @@ private actor RedisActor {
         guard let ctx else { throw RedisError.notConnected }
 
         let argc = Int32(args.count)
-        var cStrings = args.map { strdup($0) }
+        let cStrings = args.map { strdup($0) }
         defer { cStrings.forEach { free($0) } }
 
         var argv: [UnsafePointer<CChar>?] = cStrings.map { UnsafePointer($0) }

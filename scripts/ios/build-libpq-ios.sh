@@ -146,6 +146,8 @@ if kill -0 $CONFIGURE_PID 2>/dev/null; then
 #define HAVE_STRONG_RANDOM 1
 #define pg_restrict __restrict
 #define HAVE_FUNCNAME__FUNC 1
+#define INT64_MODIFIER "l"
+#define HAVE_INT64_TIMESTAMP 1
 PGCFG
 
     cat > "$NATIVE_DIR/src/include/pg_config_ext.h" << 'PGCFGEXT'
@@ -224,7 +226,7 @@ build_slice() {
         TARGET_FLAG="-target arm64-apple-ios${IOS_DEPLOY_TARGET}"
     fi
 
-    local -a CFLAGS=(-arch "$ARCH" -isysroot "$SDK" $TARGET_FLAG -mios-version-min="$IOS_DEPLOY_TARGET" -O2 -Wno-int-conversion -Wno-ignored-attributes -Wno-implicit-function-declaration)
+    local -a CFLAGS=(-arch "$ARCH" -isysroot "$SDK" $TARGET_FLAG -mios-version-min="$IOS_DEPLOY_TARGET" -O2 -DHAVE_STRCHRNUL=1 -Wno-int-conversion -Wno-ignored-attributes -Wno-implicit-function-declaration -Wno-error -w)
     local -a PG_INCLUDES=(-I"$NATIVE_DIR/src/include" -I"$NATIVE_DIR/src/include/port/darwin" -I"$NATIVE_DIR/src/interfaces/libpq" -I"$NATIVE_DIR/src/port" -I"$OPENSSL_PREFIX/include" -I"$NATIVE_DIR/src/common")
 
     local OBJ_DIR="$BUILD_DIR/obj-$SDK_NAME-$ARCH"
@@ -269,6 +271,14 @@ build_slice() {
         src/common/encnames.c
         src/common/fe_memutils.c
         src/common/psprintf.c
+        src/common/logging.c
+        src/common/percentrepl.c
+        src/common/md5_common.c
+        src/common/sha1.c
+        src/common/sha1_int.c
+        src/common/sha2.c
+        src/common/sha2_int.c
+        src/common/pg_prng.c
     )
 
     # --- Port library source files ---
@@ -278,9 +288,14 @@ build_slice() {
         src/port/noblock.c
         src/port/pg_strong_random.c
         src/port/pgstrsignal.c
+        src/port/snprintf.c
         src/port/strerror.c
         src/port/thread.c
         src/port/path.c
+        src/port/pg_strong_random.c
+        src/port/pgstrcasecmp.c
+        src/port/explicit_bzero.c
+        src/port/user.c
     )
 
     cd "$NATIVE_DIR"
