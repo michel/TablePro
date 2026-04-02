@@ -53,7 +53,7 @@ else
   ')
 fi
 
-DOWNLOAD_PREFIX="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-TableProApp/TablePro}/releases/download/v${VERSION}"
+DOWNLOAD_PREFIX="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-TableProApp/TablePro}/releases/download/v${VERSION}/"
 
 KEY_FILE=$(mktemp)
 trap 'rm -rf "$KEY_FILE"' EXIT
@@ -146,7 +146,15 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Copy result
+# 5. Fix download URLs
+# ---------------------------------------------------------------------------
+# Sparkle 2.9+ may ignore --download-url-prefix for new entries.
+# Ensure all archive URLs for this version point to the correct GitHub
+# Release download path: .../releases/download/v<VERSION>/<filename>
+sed -i '' -E "s|releases/download/(TablePro-${VERSION}-)|releases/download/v${VERSION}/\1|g" "$FINAL_APPCAST"
+
+# ---------------------------------------------------------------------------
+# 6. Copy result
 # ---------------------------------------------------------------------------
 mkdir -p appcast
 cp "$FINAL_APPCAST" appcast/appcast.xml

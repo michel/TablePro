@@ -18,7 +18,7 @@
 <li>Separate preferred themes for Light and Dark appearance modes, with automatic switching in Auto mode</li>
 </ul>
 ]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/TablePro-0.27.2-arm64.zip" length="26384688" type="application/octet-stream" sparkle:edSignature="9Q/8sA4sCcrAFxF29MX02af+BOaGUh0YtQeWBQ4N3kMd7erTYL06fzfRuPfBINKom9F+4C+p/+UFWPWSvP8HCg=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.2/TablePro-0.27.2-arm64.zip" length="26384688" type="application/octet-stream" sparkle:edSignature="9Q/8sA4sCcrAFxF29MX02af+BOaGUh0YtQeWBQ4N3kMd7erTYL06fzfRuPfBINKom9F+4C+p/+UFWPWSvP8HCg=="/>
         </item>
         <item>
             <title>0.27.2</title>
@@ -35,7 +35,7 @@
 <li>Separate preferred themes for Light and Dark appearance modes, with automatic switching in Auto mode</li>
 </ul>
 ]]></description>
-            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/TablePro-0.27.2-x86_64.zip" length="23317588" type="application/octet-stream" sparkle:edSignature="PdQKj619//HV3pB9EYSILbm4VgMFh0qFqcSt+HBAN2rTNSZtUzpLm04oTd7LUdwuHs4aSHhmdjRmfUr9WkSfAg=="/>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.2/TablePro-0.27.2-x86_64.zip" length="23317588" type="application/octet-stream" sparkle:edSignature="PdQKj619//HV3pB9EYSILbm4VgMFh0qFqcSt+HBAN2rTNSZtUzpLm04oTd7LUdwuHs4aSHhmdjRmfUr9WkSfAg=="/>
         </item>
         <item>
             <title>0.27.1</title>
