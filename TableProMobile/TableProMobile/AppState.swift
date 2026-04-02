@@ -18,9 +18,11 @@ final class AppState {
     init() {
         let driverFactory = IOSDriverFactory()
         let secureStore = KeychainSecureStore()
+        let sshProvider = IOSSSHProvider(secureStore: secureStore)
         self.connectionManager = ConnectionManager(
             driverFactory: driverFactory,
-            secureStore: secureStore
+            secureStore: secureStore,
+            sshProvider: sshProvider
         )
         connections = storage.load()
     }

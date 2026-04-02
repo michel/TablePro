@@ -27,6 +27,17 @@ struct ConnectionFormView: View {
     @State private var showNewDatabaseAlert = false
     @State private var newDatabaseName = ""
 
+    // SSH
+    @State private var sshEnabled = false
+    @State private var sshHost = ""
+    @State private var sshPort = "22"
+    @State private var sshUsername = ""
+    @State private var sshPassword = ""
+    @State private var sshAuthMethod: SSHConfiguration.SSHAuthMethod = .password
+    @State private var sshKeyPath = ""
+    @State private var sshKeyPassphrase = ""
+    @State private var showSSHKeyPicker = false
+
     // Test connection
     @State private var isTesting = false
     @State private var testResult: TestResult?
@@ -52,6 +63,14 @@ struct ConnectionFormView: View {
             _username = State(initialValue: connection.username)
             _database = State(initialValue: connection.database)
             _sslEnabled = State(initialValue: connection.sslEnabled)
+            _sshEnabled = State(initialValue: connection.sshEnabled)
+            if let ssh = connection.sshConfiguration {
+                _sshHost = State(initialValue: ssh.host)
+                _sshPort = State(initialValue: String(ssh.port))
+                _sshUsername = State(initialValue: ssh.username)
+                _sshAuthMethod = State(initialValue: ssh.authMethod)
+                _sshKeyPath = State(initialValue: ssh.privateKeyPath ?? "")
+            }
             if connection.type == .sqlite {
                 _selectedFileURL = State(initialValue: URL(fileURLWithPath: connection.database))
             }
@@ -87,6 +106,10 @@ struct ConnectionFormView: View {
                     Section {
                         Toggle("SSL", isOn: $sslEnabled)
                     }
+                }
+
+                if type != .sqlite {
+                    sshSection
                 }
 
                 Section {
@@ -134,6 +157,15 @@ struct ConnectionFormView: View {
                 allowsMultipleSelection: false
             ) { result in
                 handleFilePickerResult(result)
+            }
+            .fileImporter(
+                isPresented: $showSSHKeyPicker,
+                allowedContentTypes: [.data],
+                allowsMultipleSelection: false
+            ) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    sshKeyPath = url.path
+                }
             }
             .alert("New Database", isPresented: $showNewDatabaseAlert) {
                 TextField("Database name", text: $newDatabaseName)
@@ -206,6 +238,53 @@ struct ConnectionFormView: View {
             Section("Database") {
                 TextField("Database Name", text: $database)
                     .textInputAutocapitalization(.never)
+            }
+        }
+    }
+
+    // MARK: - SSH Section
+
+    @ViewBuilder
+    private var sshSection: some View {
+        Section {
+            Toggle("SSH Tunnel", isOn: $sshEnabled)
+        }
+
+        if sshEnabled {
+            Section("SSH Server") {
+                TextField("SSH Host", text: $sshHost)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                TextField("SSH Port", text: $sshPort)
+                    .keyboardType(.numberPad)
+                TextField("SSH Username", text: $sshUsername)
+                    .textInputAutocapitalization(.never)
+
+                Picker("Auth Method", selection: $sshAuthMethod) {
+                    Text("Password").tag(SSHConfiguration.SSHAuthMethod.password)
+                    Text("Private Key").tag(SSHConfiguration.SSHAuthMethod.publicKey)
+                }
+            }
+
+            if sshAuthMethod == .password {
+                Section("SSH Password") {
+                    SecureField("Password", text: $sshPassword)
+                }
+            } else {
+                Section("Private Key") {
+                    Button {
+                        showSSHKeyPicker = true
+                    } label: {
+                        HStack {
+                            Text(sshKeyPath.isEmpty
+                                ? "Select Private Key"
+                                : URL(fileURLWithPath: sshKeyPath).lastPathComponent)
+                            Spacer()
+                            Image(systemName: "folder")
+                        }
+                    }
+                    SecureField("Passphrase (optional)", text: $sshKeyPassphrase)
+                }
             }
         }
     }
@@ -299,6 +378,14 @@ struct ConnectionFormView: View {
             try? appState.connectionManager.storePassword(password, for: tempId)
         }
 
+        let secureStore = KeychainSecureStore()
+        if sshEnabled && !sshPassword.isEmpty {
+            try? secureStore.store(sshPassword, forKey: "ssh-\(sshHost)-\(sshUsername)")
+        }
+        if sshEnabled && !sshKeyPassphrase.isEmpty {
+            try? secureStore.store(sshKeyPassphrase, forKey: "ssh-key-\(sshHost)-\(sshUsername)")
+        }
+
         do {
             _ = try await appState.connectionManager.connect(testConn)
             await appState.connectionManager.disconnect(tempId)
@@ -312,7 +399,7 @@ struct ConnectionFormView: View {
     }
 
     private func buildConnection() -> DatabaseConnection {
-        DatabaseConnection(
+        var conn = DatabaseConnection(
             id: existingConnection?.id ?? UUID(),
             name: name.isEmpty ? (selectedFileURL?.lastPathComponent ?? host) : name,
             type: type,
@@ -320,8 +407,19 @@ struct ConnectionFormView: View {
             port: Int(port) ?? 3306,
             username: username,
             database: database,
+            sshEnabled: sshEnabled,
             sslEnabled: sslEnabled
         )
+        if sshEnabled {
+            conn.sshConfiguration = SSHConfiguration(
+                host: sshHost,
+                port: Int(sshPort) ?? 22,
+                username: sshUsername,
+                authMethod: sshAuthMethod,
+                privateKeyPath: sshKeyPath.isEmpty ? nil : sshKeyPath
+            )
+        }
+        return conn
     }
 
     private func save() {
@@ -329,6 +427,16 @@ struct ConnectionFormView: View {
 
         if !password.isEmpty {
             try? appState.connectionManager.storePassword(password, for: connection.id)
+        }
+
+        if sshEnabled {
+            let secureStore = KeychainSecureStore()
+            if !sshPassword.isEmpty {
+                try? secureStore.store(sshPassword, forKey: "ssh-\(sshHost)-\(sshUsername)")
+            }
+            if !sshKeyPassphrase.isEmpty {
+                try? secureStore.store(sshKeyPassphrase, forKey: "ssh-key-\(sshHost)-\(sshUsername)")
+            }
         }
 
         onSave(connection)
