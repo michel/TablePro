@@ -101,7 +101,7 @@ struct GeneralSettings: Codable, Equatable {
 
 // MARK: - Appearance Settings
 
-/// Controls NSApp.appearance independent of the active theme.
+/// Controls which appearance the app uses: forced light, forced dark, or follow system.
 enum AppAppearanceMode: String, Codable, CaseIterable {
     case light
     case dark
@@ -116,46 +116,41 @@ enum AppAppearanceMode: String, Codable, CaseIterable {
     }
 }
 
-/// Appearance settings
+/// Appearance settings — couples appearance mode with theme selection.
+/// Each appearance (light/dark) has its own preferred theme so the active theme
+/// always matches the window chrome.
 struct AppearanceSettings: Codable, Equatable {
-    var activeThemeId: String
     var appearanceMode: AppAppearanceMode
+    var preferredLightThemeId: String
+    var preferredDarkThemeId: String
 
     static let `default` = AppearanceSettings(
-        activeThemeId: "tablepro.default-light",
-        appearanceMode: .auto
+        appearanceMode: .auto,
+        preferredLightThemeId: "tablepro.default-light",
+        preferredDarkThemeId: "tablepro.default-dark"
     )
 
-    init(activeThemeId: String = "tablepro.default-light", appearanceMode: AppAppearanceMode = .auto) {
-        self.activeThemeId = activeThemeId
+    init(
+        appearanceMode: AppAppearanceMode = .auto,
+        preferredLightThemeId: String = "tablepro.default-light",
+        preferredDarkThemeId: String = "tablepro.default-dark"
+    ) {
         self.appearanceMode = appearanceMode
+        self.preferredLightThemeId = preferredLightThemeId
+        self.preferredDarkThemeId = preferredDarkThemeId
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Migration: try new field first, then fall back to old theme field
-        if let themeId = try container.decodeIfPresent(String.self, forKey: .activeThemeId) {
-            activeThemeId = themeId
-        } else if let oldTheme = try? container.decodeIfPresent(String.self, forKey: .theme) {
-            // Migrate from old AppTheme enum
-            switch oldTheme {
-            case "dark": activeThemeId = "tablepro.default-dark"
-            default: activeThemeId = "tablepro.default-light"
-            }
-        } else {
-            activeThemeId = "tablepro.default-light"
-        }
         appearanceMode = try container.decodeIfPresent(AppAppearanceMode.self, forKey: .appearanceMode) ?? .auto
+        preferredLightThemeId = try container.decodeIfPresent(String.self, forKey: .preferredLightThemeId)
+            ?? "tablepro.default-light"
+        preferredDarkThemeId = try container.decodeIfPresent(String.self, forKey: .preferredDarkThemeId)
+            ?? "tablepro.default-dark"
     }
 
     private enum CodingKeys: String, CodingKey {
-        case activeThemeId, theme, appearanceMode
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(activeThemeId, forKey: .activeThemeId)
-        try container.encode(appearanceMode, forKey: .appearanceMode)
+        case appearanceMode, preferredLightThemeId, preferredDarkThemeId
     }
 }
 

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Option to group all connection tabs in one window instead of separate windows per connection
 
+### Changed
+
+- Separate preferred themes for Light and Dark appearance modes, with automatic switching in Auto mode
+
 ## [0.27.1] - 2026-04-01
 
 ### Fixed
