@@ -406,10 +406,10 @@ private actor RedisActor {
         var cStrings = args.map { strdup($0) }
         defer { cStrings.forEach { free($0) } }
 
-        let argv: [UnsafePointer<CChar>?] = cStrings.map { UnsafePointer($0) }
-        let argvlen: [Int] = args.map { $0.utf8.count }
+        var argv: [UnsafePointer<CChar>?] = cStrings.map { UnsafePointer($0) }
+        var argvlen: [Int] = args.map { $0.utf8.count }
 
-        guard let rawReply = redisCommandArgv(ctx, argc, argv, argvlen) else {
+        guard let rawReply = redisCommandArgv(ctx, argc, &argv, &argvlen) else {
             if ctx.pointee.err != 0 {
                 let msg = withUnsafePointer(to: &ctx.pointee.errstr.0) { String(cString: $0) }
                 throw RedisError.queryFailed(msg)
