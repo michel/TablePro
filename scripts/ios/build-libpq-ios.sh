@@ -136,6 +136,16 @@ if kill -0 $CONFIGURE_PID 2>/dev/null; then
 #define ACCEPT_TYPE_ARG2 struct sockaddr *
 #define ACCEPT_TYPE_ARG3 socklen_t
 #define ACCEPT_TYPE_RETURN int
+#define MEMSET_LOOP_LIMIT 1024
+#define PG_KRB_SRVNAM "postgres"
+#define PG_PRINTF_ATTRIBUTE printf
+#define STRERROR_R_INT 1
+#define HAVE_DECL_STRLCAT 1
+#define HAVE_DECL_STRLCPY 1
+#define HAVE_DECL_STRTOINT 0
+#define HAVE_STRONG_RANDOM 1
+#define pg_restrict __restrict
+#define HAVE_FUNCNAME__FUNC 1
 PGCFG
 
     cat > "$NATIVE_DIR/src/include/pg_config_ext.h" << 'PGCFGEXT'
@@ -214,8 +224,8 @@ build_slice() {
         TARGET_FLAG="-target arm64-apple-ios${IOS_DEPLOY_TARGET}"
     fi
 
-    local CFLAGS="-arch $ARCH -isysroot $SDK $TARGET_FLAG -mios-version-min=$IOS_DEPLOY_TARGET -O2"
-    local PG_INCLUDES="-I$NATIVE_DIR/src/include -I$NATIVE_DIR/src/include/port/darwin -I$NATIVE_DIR/src/interfaces/libpq -I$NATIVE_DIR/src/port -I$OPENSSL_PREFIX/include -I$NATIVE_DIR/src/common"
+    local -a CFLAGS=(-arch "$ARCH" -isysroot "$SDK" $TARGET_FLAG -mios-version-min="$IOS_DEPLOY_TARGET" -O2 -Wno-int-conversion -Wno-ignored-attributes -Wno-implicit-function-declaration)
+    local -a PG_INCLUDES=(-I"$NATIVE_DIR/src/include" -I"$NATIVE_DIR/src/include/port/darwin" -I"$NATIVE_DIR/src/interfaces/libpq" -I"$NATIVE_DIR/src/port" -I"$OPENSSL_PREFIX/include" -I"$NATIVE_DIR/src/common")
 
     local OBJ_DIR="$BUILD_DIR/obj-$SDK_NAME-$ARCH"
     mkdir -p "$OBJ_DIR" "$INSTALL_DIR/lib" "$INSTALL_DIR/include"
@@ -258,8 +268,6 @@ build_slice() {
         src/common/wchar.c
         src/common/encnames.c
         src/common/fe_memutils.c
-        src/common/logging.c
-        src/common/percentrepl.c
         src/common/psprintf.c
     )
 
@@ -270,7 +278,6 @@ build_slice() {
         src/port/noblock.c
         src/port/pg_strong_random.c
         src/port/pgstrsignal.c
-        src/port/snprintf.c
         src/port/strerror.c
         src/port/thread.c
         src/port/path.c
@@ -284,7 +291,7 @@ build_slice() {
     for src in "${LIBPQ_SRCS[@]}" "${COMMON_SRCS[@]}" "${PORT_SRCS[@]}"; do
         local obj_name=$(basename "${src%.c}.o")
         if [ -f "$src" ]; then
-            if $CC $CFLAGS $PG_INCLUDES -DFRONTEND -c "$src" -o "$OBJ_DIR/$obj_name" 2>"$OBJ_DIR/${obj_name}.err"; then
+            if "$CC" "${CFLAGS[@]}" "${PG_INCLUDES[@]}" -DFRONTEND -c "$src" -o "$OBJ_DIR/$obj_name" 2>"$OBJ_DIR/${obj_name}.err"; then
                 ALL_OBJS+=("$OBJ_DIR/$obj_name")
             else
                 FAILED_SRCS+=("$src")
@@ -311,7 +318,7 @@ char *strchrnul(const char *s, int c) {
     return (char *)s;
 }
 EOF
-    $CC $CFLAGS -c "$OBJ_DIR/strchrnul_compat.c" -o "$OBJ_DIR/strchrnul_compat.o"
+    "$CC" "${CFLAGS[@]}" -c "$OBJ_DIR/strchrnul_compat.c" -o "$OBJ_DIR/strchrnul_compat.o"
     ALL_OBJS+=("$OBJ_DIR/strchrnul_compat.o")
 
     # Create static library
