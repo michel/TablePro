@@ -101,7 +101,10 @@ build_mariadb_slice() {
         -DCMAKE_OSX_SYSROOT="$SDK_PATH" \
         -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
         -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+        -DCMAKE_C_FLAGS="-Wno-default-const-init-var-unsafe -Wno-inline-asm -Wno-error=inline-asm" \
         -DBUILD_SHARED_LIBS=OFF \
+        -DWITH_EXTERNAL_ZLIB=ON \
         -DWITH_SSL=OPENSSL \
         -DOPENSSL_ROOT_DIR="$OPENSSL_PREFIX" \
         -DOPENSSL_SSL_LIBRARY="$OPENSSL_PREFIX/lib/libssl.a" \
@@ -119,8 +122,14 @@ build_mariadb_slice() {
         -DCLIENT_PLUGIN_PVIO_NPIPE=OFF \
         -DCLIENT_PLUGIN_PVIO_SHMEM=OFF
 
-    run_quiet cmake --build . --config Release -j"$NCPU"
-    run_quiet cmake --install . --config Release
+    cmake --build . --target mariadb_obj -j"$NCPU" 2>&1
+    cmake --build . --target mariadbclient -j"$NCPU" 2>&1
+
+    # Copy static lib and headers directly (cmake install fails looking for .so plugins)
+    mkdir -p "$INSTALL_DIR/lib" "$INSTALL_DIR/include/mariadb"
+    cp libmariadb/libmariadbclient.a "$INSTALL_DIR/lib/libmariadb.a"
+    cp "$SRC_COPY/include/"*.h "$INSTALL_DIR/include/mariadb/" 2>/dev/null || true
+    cp "$BUILD/include/"*.h "$INSTALL_DIR/include/mariadb/" 2>/dev/null || true
 
     echo "   Installed to $INSTALL_DIR"
 }
@@ -138,9 +147,9 @@ SIM_DIR="$BUILD_DIR/install-iphonesimulator-arm64"
 rm -rf "$LIBS_DIR/MariaDB.xcframework"
 
 # Find the actual .a file (may be in lib/ or lib/mariadb/)
-DEVICE_LIB=$(find "$DEVICE_DIR" -name "libmariadb.a" | head -1)
-SIM_LIB=$(find "$SIM_DIR" -name "libmariadb.a" | head -1)
-DEVICE_HEADERS=$(find "$DEVICE_DIR" -name "mysql.h" -exec dirname {} \; | head -1)
+DEVICE_LIB=$(find "$DEVICE_DIR" -name "libmariadb.a" -o -name "libmariadbclient.a" | head -1)
+SIM_LIB=$(find "$SIM_DIR" -name "libmariadb.a" -o -name "libmariadbclient.a" | head -1)
+DEVICE_HEADERS=$(find "$DEVICE_DIR" -path "*/mariadb/*.h" -exec dirname {} \; | sort -u | head -1)
 
 if [ -z "$DEVICE_LIB" ] || [ -z "$SIM_LIB" ]; then
     echo "ERROR: libmariadb.a not found in install directories"
