@@ -279,6 +279,9 @@ build_slice() {
         src/common/sha2.c
         src/common/sha2_int.c
         src/common/pg_prng.c
+        src/common/md5.c
+        src/common/md5_int.c
+        src/common/pg_bitutils.c
     )
 
     # --- Port library source files ---
