@@ -290,23 +290,29 @@ actor SSHTunnel {
         relayTask?.cancel()
         keepAliveTask?.cancel()
 
+        // Close listen socket first — stops accept loop
         if listenFD >= 0 {
             shutdown(listenFD, SHUT_RDWR)
             Darwin.close(listenFD)
             listenFD = -1
         }
 
+        // Shutdown SSH socket — breaks relay poll() immediately
+        if socketFD >= 0 {
+            shutdown(socketFD, SHUT_RDWR)
+            Darwin.close(socketFD)
+            socketFD = -1
+        }
+
+        // Acquire lock to ensure relay thread has exited libssh2 calls
+        sessionLock.lock()
         if let session {
             libssh2_session_set_blocking(session, 1)
             tablepro_libssh2_session_disconnect(session, "Closing tunnel")
             libssh2_session_free(session)
             self.session = nil
         }
-
-        if socketFD >= 0 {
-            Darwin.close(socketFD)
-            socketFD = -1
-        }
+        sessionLock.unlock()
 
         Self.logger.info("Tunnel closed (local port \(self.localPort))")
     }
@@ -417,10 +423,12 @@ actor SSHTunnel {
         defer {
             buffer.deallocate()
             Darwin.close(clientFD)
-            lock.lock()
-            libssh2_channel_close(channel)
-            libssh2_channel_free(channel)
-            lock.unlock()
+            if aliveFlag.value {
+                lock.lock()
+                libssh2_channel_close(channel)
+                libssh2_channel_free(channel)
+                lock.unlock()
+            }
         }
 
         while aliveFlag.value {
