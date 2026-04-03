@@ -237,5 +237,4 @@ struct SchemaStatementGenerator {
             isDestructive: true
         )
     }
-
 }
