@@ -104,13 +104,24 @@ public enum SyncRecordMapper {
         let sortOrder = (record["sortOrder"] as? Int64).map { Int($0) } ?? 0
         let isReadOnly = (record["isReadOnly"] as? Int64 ?? 0) != 0
         let queryTimeout = (record["queryTimeoutSeconds"] as? Int64).map { Int($0) }
-        let sshEnabled = (record["sshEnabled"] as? Int64 ?? 0) != 0
-        let sslEnabled = (record["sslEnabled"] as? Int64 ?? 0) != 0
-
         var sshConfig: SSHConfiguration?
         if let sshData = record["sshConfigJson"] as? Data {
             sshConfig = try? decoder.decode(SSHConfiguration.self, from: sshData)
         }
+
+        // macOS stores SSH enabled inside sshConfigJson ("enabled" field),
+        // not as a top-level CKRecord field. Fall back to checking the JSON.
+        let sshEnabled: Bool
+        if let explicit = record["sshEnabled"] as? Int64 {
+            sshEnabled = explicit != 0
+        } else if let sshData = record["sshConfigJson"] as? Data,
+                  let json = try? JSONSerialization.jsonObject(with: sshData) as? [String: Any] {
+            sshEnabled = json["enabled"] as? Bool ?? (sshConfig != nil && !(sshConfig?.host.isEmpty ?? true))
+        } else {
+            sshEnabled = false
+        }
+
+        let sslEnabled = (record["sslEnabled"] as? Int64 ?? 0) != 0
 
         var sslConfig: SSLConfiguration?
         if let sslData = record["sslConfigJson"] as? Data {
