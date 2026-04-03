@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.3] - 2026-04-03
+
 ### Added
 
 - Structure tab context menu with Copy Name, Copy Definition (SQL), Duplicate, and Delete for columns, indexes, and foreign keys
@@ -14,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Column header: sort ascending/descending and show all hidden columns in context menu
 - Data grid: preview and navigate FK references from right-click context menu
 - Data grid: add row from right-click on empty space
+
+### Fixed
+
+- Oracle: crash when opening views caused by OracleNIO state-machine corruption from concurrent queries, LONG column types, and DBMS_METADATA errors
 
 ## [0.27.2] - 2026-04-02
 
@@ -1142,7 +1148,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.27.2...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.27.3...HEAD
+[0.27.3]: https://github.com/TableProApp/TablePro/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/TableProApp/TablePro/compare/v0.27.1...v0.27.2
 [0.27.1]: https://github.com/TableProApp/TablePro/compare/v0.27.0...v0.27.1
 [0.27.0]: https://github.com/TableProApp/TablePro/compare/v0.26.0...v0.27.0
