@@ -81,24 +81,13 @@ private struct ConnectionPersistence {
               let connections = try? JSONDecoder().decode([DatabaseConnection].self, from: data) else {
             return migrateFromUserDefaults()
         }
-        let migrated = connections.map { migrateTypeIfNeeded($0) }
-        if migrated != connections { save(migrated) }
-        return migrated
-    }
-
-    private func migrateTypeIfNeeded(_ connection: DatabaseConnection) -> DatabaseConnection {
-        let typeMap: [String: DatabaseType] = [
-            "mysql": .mysql, "mariadb": .mariadb, "postgresql": .postgresql,
-            "sqlite": .sqlite, "redis": .redis, "mongodb": .mongodb,
-            "clickhouse": .clickhouse, "mssql": .mssql, "oracle": .oracle,
-            "duckdb": .duckdb, "cassandra": .cassandra, "redshift": .redshift,
-            "etcd": .etcd, "cloudflared1": .cloudflareD1, "dynamodb": .dynamodb,
-            "bigquery": .bigquery,
-        ]
-        guard let corrected = typeMap[connection.type.rawValue] else { return connection }
-        var migrated = connection
-        migrated.type = corrected
-        return migrated
+        let normalized = connections.map { conn -> DatabaseConnection in
+            var c = conn
+            c.type = conn.type.normalized
+            return c
+        }
+        if normalized != connections { save(normalized) }
+        return normalized
     }
 
     private func migrateFromUserDefaults() -> [DatabaseConnection] {

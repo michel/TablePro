@@ -36,7 +36,7 @@ enum SSHTunnelFactory {
             }
             try await tunnel.authenticatePassword(username: config.username, password: password)
 
-        case .privateKey, .publicKey:
+        case .privateKey:
             guard let keyPath = config.privateKeyPath else {
                 throw SSHTunnelError.authenticationFailed("No private key path provided")
             }

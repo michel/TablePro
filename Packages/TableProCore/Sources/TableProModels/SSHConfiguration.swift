@@ -8,14 +8,11 @@ public struct SSHConfiguration: Codable, Hashable, Sendable {
     public var privateKeyPath: String?
     public var jumpHosts: [SSHJumpHost]
 
-    // Raw values match macOS for CloudKit sync compatibility
     public enum SSHAuthMethod: String, Codable, Sendable {
         case password
-        case privateKey     // macOS uses "privateKey"
-        case publicKey      // alias — decoded from "publicKey" if ever stored
-        case sshAgent       // macOS uses "sshAgent"
+        case privateKey
+        case sshAgent
         case keyboardInteractive
-        case agent          // alias — decoded from "agent" if ever stored
 
         public init(from decoder: Decoder) throws {
             let raw = try decoder.singleValueContainer().decode(String.self)
@@ -25,16 +22,6 @@ public struct SSHConfiguration: Codable, Hashable, Sendable {
             case "sshAgent", "agent": self = .sshAgent
             case "keyboardInteractive": self = .keyboardInteractive
             default: self = .password
-            }
-        }
-
-        public func encode(to encoder: Encoder) throws {
-            var container = encoder.singleValueContainer()
-            switch self {
-            case .password: try container.encode("password")
-            case .privateKey, .publicKey: try container.encode("privateKey")
-            case .sshAgent, .agent: try container.encode("sshAgent")
-            case .keyboardInteractive: try container.encode("keyboardInteractive")
             }
         }
     }
