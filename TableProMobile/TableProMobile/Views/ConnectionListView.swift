@@ -17,6 +17,10 @@ struct ConnectionListView: View {
         return grouped.sorted { $0.key < $1.key }
     }
 
+    private var isSyncing: Bool {
+        appState.syncCoordinator.status == .syncing
+    }
+
     var body: some View {
         NavigationSplitView {
             sidebar
@@ -27,6 +31,21 @@ struct ConnectionListView: View {
                             showingAddConnection = true
                         } label: {
                             Image(systemName: "plus")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarLeading) {
+                        if isSyncing {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Button {
+                                Task {
+                                    await appState.syncCoordinator.sync(
+                                        localConnections: appState.connections)
+                                }
+                            } label: {
+                                Image(systemName: "arrow.triangle.2.circlepath.icloud")
+                            }
                         }
                     }
                 }
@@ -59,21 +78,20 @@ struct ConnectionListView: View {
 
     @ViewBuilder
     private var sidebar: some View {
-        if appState.connections.isEmpty {
+        if appState.connections.isEmpty && !isSyncing {
             ContentUnavailableView {
                 Label("No Connections", systemImage: "server.rack")
             } description: {
-                Text("Add a database connection or pull to sync from iCloud.")
+                Text("Add a database connection to get started.")
             } actions: {
                 Button("Add Connection") {
                     showingAddConnection = true
                 }
                 .buttonStyle(.borderedProminent)
-
-                Button("Sync from iCloud") {
-                    Task { await appState.syncCoordinator.sync(localConnections: appState.connections) }
-                }
             }
+        } else if appState.connections.isEmpty && isSyncing {
+            ProgressView("Syncing from iCloud...")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List(selection: $selectedConnection) {
                 ForEach(groupedConnections, id: \.0) { sectionTitle, connections in
