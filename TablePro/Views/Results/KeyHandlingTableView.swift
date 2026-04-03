@@ -243,6 +243,14 @@ final class KeyHandlingTableView: NSTableView {
             break
         }
 
+        // Cmd+Return: preview referenced FK row
+        if key == .return && modifiers.contains(.command) && selectedRow >= 0 && focusedColumn >= 1 {
+            coordinator?.showForeignKeyPreview(
+                tableView: self, row: selectedRow, column: focusedColumn, columnIndex: focusedColumn - 1
+            )
+            return
+        }
+
         // For all other keys, use interpretKeyEvents to map to standard selectors
         // This handles Return → insertNewline(_:), Delete → deleteBackward(_:), ESC → cancelOperation(_:)
         interpretKeyEvents([event])
