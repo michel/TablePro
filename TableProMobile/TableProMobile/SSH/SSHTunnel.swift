@@ -246,7 +246,7 @@ actor SSHTunnel {
                 let sshFD = await self.socketFD
                 let flag = self.aliveFlag
                 let lock = self.sessionLock
-                Task.detached {
+                Thread.detachNewThread {
                     SSHTunnel.relayStatic(
                         clientFD: clientFD, channel: channel, sshFD: sshFD,
                         aliveFlag: flag, lock: lock
