@@ -12,6 +12,7 @@ import TableProModels
 final class AppState {
     var connections: [DatabaseConnection] = []
     let connectionManager: ConnectionManager
+    let syncCoordinator = IOSSyncCoordinator()
 
     private let storage = ConnectionPersistence()
 
@@ -25,17 +26,29 @@ final class AppState {
             sshProvider: sshProvider
         )
         connections = storage.load()
+
+        syncCoordinator.onConnectionsChanged = { [weak self] merged in
+            guard let self else { return }
+            self.connections = merged
+            self.storage.save(merged)
+        }
+
+        Task { await syncCoordinator.sync(localConnections: connections) }
     }
 
     func addConnection(_ connection: DatabaseConnection) {
         connections.append(connection)
         storage.save(connections)
+        syncCoordinator.markDirty(connection.id)
+        syncCoordinator.scheduleSyncAfterChange(localConnections: connections)
     }
 
     func updateConnection(_ connection: DatabaseConnection) {
         if let index = connections.firstIndex(where: { $0.id == connection.id }) {
             connections[index] = connection
             storage.save(connections)
+            syncCoordinator.markDirty(connection.id)
+            syncCoordinator.scheduleSyncAfterChange(localConnections: connections)
         }
     }
 
@@ -43,6 +56,8 @@ final class AppState {
         connections.removeAll { $0.id == connection.id }
         try? connectionManager.deletePassword(for: connection.id)
         storage.save(connections)
+        syncCoordinator.markDeleted(connection.id)
+        syncCoordinator.scheduleSyncAfterChange(localConnections: connections)
     }
 }
 
