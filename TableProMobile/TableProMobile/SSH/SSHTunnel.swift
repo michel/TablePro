@@ -173,6 +173,29 @@ actor SSHTunnel {
         Self.logger.debug("Public key authentication successful for \(username)")
     }
 
+    func authenticatePublicKeyFromMemory(username: String, keyContent: String, passphrase: String?) throws {
+        guard let session else {
+            throw SSHTunnelError.authenticationFailed("No active session")
+        }
+
+        let rc = keyContent.withCString { keyPtr in
+            libssh2_userauth_publickey_frommemory(
+                session,
+                username,
+                username.utf8.count,
+                nil, 0,
+                keyPtr, keyContent.utf8.count,
+                passphrase
+            )
+        }
+
+        if rc != 0 {
+            throw SSHTunnelError.authenticationFailed("In-memory key authentication failed (error \(rc))")
+        }
+
+        Self.logger.debug("In-memory key authentication successful for \(username)")
+    }
+
     // MARK: - Port Forwarding
 
     func startForwarding(remoteHost: String, remotePort: Int) throws {

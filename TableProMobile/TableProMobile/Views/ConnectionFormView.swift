@@ -35,8 +35,15 @@ struct ConnectionFormView: View {
     @State private var sshPassword = ""
     @State private var sshAuthMethod: SSHConfiguration.SSHAuthMethod = .password
     @State private var sshKeyPath = ""
+    @State private var sshKeyContent = ""
     @State private var sshKeyPassphrase = ""
+    @State private var sshKeyInputMode = KeyInputMode.file
     @State private var showSSHKeyPicker = false
+
+    enum KeyInputMode: String, CaseIterable {
+        case file = "Import File"
+        case paste = "Paste Key"
+    }
 
     // Test connection
     @State private var isTesting = false
@@ -71,6 +78,10 @@ struct ConnectionFormView: View {
                 _sshUsername = State(initialValue: ssh.username)
                 _sshAuthMethod = State(initialValue: ssh.authMethod)
                 _sshKeyPath = State(initialValue: ssh.privateKeyPath ?? "")
+                _sshKeyContent = State(initialValue: ssh.privateKeyData ?? "")
+                if ssh.privateKeyData != nil && !ssh.privateKeyData!.isEmpty {
+                    _sshKeyInputMode = State(initialValue: .paste)
+                }
             }
             if connection.type == .sqlite {
                 _selectedFileURL = State(initialValue: URL(fileURLWithPath: connection.database))
@@ -273,17 +284,43 @@ struct ConnectionFormView: View {
                 }
             } else {
                 Section("Private Key") {
-                    Button {
-                        showSSHKeyPicker = true
-                    } label: {
-                        HStack {
-                            Text(sshKeyPath.isEmpty
-                                ? "Select Private Key"
-                                : URL(fileURLWithPath: sshKeyPath).lastPathComponent)
-                            Spacer()
-                            Image(systemName: "folder")
+                    Picker("Input Method", selection: $sshKeyInputMode) {
+                        ForEach(KeyInputMode.allCases, id: \.self) { mode in
+                            Text(mode.rawValue).tag(mode)
                         }
                     }
+                    .pickerStyle(.segmented)
+
+                    if sshKeyInputMode == .file {
+                        Button {
+                            showSSHKeyPicker = true
+                        } label: {
+                            HStack {
+                                Text(sshKeyPath.isEmpty
+                                    ? "Select Private Key"
+                                    : URL(fileURLWithPath: sshKeyPath).lastPathComponent)
+                                Spacer()
+                                Image(systemName: "folder")
+                            }
+                        }
+                    } else {
+                        TextEditor(text: $sshKeyContent)
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(minHeight: 120)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .overlay(alignment: .topLeading) {
+                                if sshKeyContent.isEmpty {
+                                    Text("Paste private key (PEM format)")
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundStyle(.tertiary)
+                                        .padding(.top, 8)
+                                        .padding(.leading, 4)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                    }
+
                     SecureField("Passphrase (optional)", text: $sshKeyPassphrase)
                 }
             }
@@ -417,7 +454,8 @@ struct ConnectionFormView: View {
                 port: Int(sshPort) ?? 22,
                 username: sshUsername,
                 authMethod: sshAuthMethod,
-                privateKeyPath: sshKeyPath.isEmpty ? nil : sshKeyPath
+                privateKeyPath: sshKeyPath.isEmpty ? nil : sshKeyPath,
+                privateKeyData: sshKeyContent.isEmpty ? nil : sshKeyContent
             )
         }
         return conn
