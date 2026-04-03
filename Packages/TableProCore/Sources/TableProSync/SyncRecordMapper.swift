@@ -175,14 +175,21 @@ public enum SyncRecordMapper {
         if let colorTag = connection.colorTag {
             record["color"] = colorTag as CKRecordValue
             record["colorTag"] = colorTag as CKRecordValue
+        } else {
+            record["color"] = nil
+            record["colorTag"] = nil
         }
 
         if let groupId = connection.groupId {
             record["groupId"] = groupId.uuidString as CKRecordValue
+        } else {
+            record["groupId"] = nil
         }
 
         if let queryTimeout = connection.queryTimeoutSeconds {
             record["queryTimeoutSeconds"] = Int64(queryTimeout) as CKRecordValue
+        } else {
+            record["queryTimeoutSeconds"] = nil
         }
 
         if let sshConfig = connection.sshConfiguration {
@@ -191,18 +198,24 @@ public enum SyncRecordMapper {
             if let data = try? encoder.encode(syncSafe) {
                 record["sshConfigJson"] = data as CKRecordValue
             }
+        } else {
+            record["sshConfigJson"] = nil
         }
 
         if let sslConfig = connection.sslConfiguration {
             if let data = try? encoder.encode(sslConfig) {
                 record["sslConfigJson"] = data as CKRecordValue
             }
+        } else {
+            record["sslConfigJson"] = nil
         }
 
         if !connection.additionalFields.isEmpty {
             if let data = try? encoder.encode(connection.additionalFields) {
                 record["additionalFieldsJson"] = data as CKRecordValue
             }
+        } else {
+            record["additionalFieldsJson"] = nil
         }
 
         record["modifiedAtLocal"] = Date() as CKRecordValue

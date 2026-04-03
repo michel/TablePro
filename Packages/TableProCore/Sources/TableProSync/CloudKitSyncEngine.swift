@@ -81,7 +81,7 @@ public actor CloudKitSyncEngine {
             )
             // .changedKeys overwrites only the fields we set, safe for partial updates
             operation.savePolicy = .changedKeys
-            operation.isAtomic = false
+            operation.isAtomic = true
 
             return try await withCheckedThrowingContinuation { continuation in
                 operation.perRecordSaveBlock = { recordID, result in
@@ -148,6 +148,8 @@ public actor CloudKitSyncEngine {
                     newToken = serverToken
                 case .failure(let error):
                     Self.logger.warning("Zone fetch result error: \(error.localizedDescription)")
+                    // Zone-level failure with records collected so far is acceptable —
+                    // newToken stays nil, forcing a full re-fetch on next sync cycle.
                 }
             }
 
@@ -160,7 +162,12 @@ public actor CloudKitSyncEngine {
                         newToken: newToken
                     ))
                 case .failure(let error):
-                    continuation.resume(throwing: error)
+                    // Map CKError.changeTokenExpired to SyncError.tokenExpired
+                    if let ckError = error as? CKError, ckError.code == .changeTokenExpired {
+                        continuation.resume(throwing: SyncError.tokenExpired)
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
 

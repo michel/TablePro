@@ -55,6 +55,9 @@ final class AppState {
     func removeConnection(_ connection: DatabaseConnection) {
         connections.removeAll { $0.id == connection.id }
         try? connectionManager.deletePassword(for: connection.id)
+        let secureStore = KeychainSecureStore()
+        try? secureStore.delete(forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
+        try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
         storage.save(connections)
         syncCoordinator.markDeleted(connection.id)
         syncCoordinator.scheduleSyncAfterChange(localConnections: connections)

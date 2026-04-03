@@ -12,7 +12,8 @@ public struct Tombstone: Codable, Sendable {
     }
 }
 
-public final class SyncMetadataStorage: Sendable {
+@MainActor
+public final class SyncMetadataStorage {
     private static let logger = Logger(subsystem: "com.TablePro", category: "SyncMetadataStorage")
 
     private let defaults: UserDefaults
