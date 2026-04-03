@@ -13,6 +13,7 @@ final class AppState {
     var connections: [DatabaseConnection] = []
     let connectionManager: ConnectionManager
     let syncCoordinator = IOSSyncCoordinator()
+    let sshProvider: IOSSSHProvider
 
     private let storage = ConnectionPersistence()
 
@@ -20,6 +21,7 @@ final class AppState {
         let driverFactory = IOSDriverFactory()
         let secureStore = KeychainSecureStore()
         let sshProvider = IOSSSHProvider(secureStore: secureStore)
+        self.sshProvider = sshProvider
         self.connectionManager = ConnectionManager(
             driverFactory: driverFactory,
             secureStore: secureStore,

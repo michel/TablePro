@@ -403,10 +403,10 @@ struct ConnectionFormView: View {
 
         let secureStore = KeychainSecureStore()
         if sshEnabled && !sshPassword.isEmpty {
-            try? secureStore.store(sshPassword, forKey: "ssh-\(sshHost)-\(sshUsername)")
+            try? secureStore.store(sshPassword, forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
         }
         if sshEnabled && !sshKeyPassphrase.isEmpty {
-            try? secureStore.store(sshKeyPassphrase, forKey: "ssh-key-\(sshHost)-\(sshUsername)")
+            try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
         }
 
         do {
@@ -456,21 +456,12 @@ struct ConnectionFormView: View {
         if sshEnabled {
             let secureStore = KeychainSecureStore()
 
-            if let existing = existingConnection,
-               let oldSSH = existing.sshConfiguration {
-                let oldKey = "ssh-\(oldSSH.host)-\(oldSSH.username)"
-                let newKey = "ssh-\(sshHost)-\(sshUsername)"
-                if oldKey != newKey {
-                    try? secureStore.delete(forKey: oldKey)
-                    try? secureStore.delete(forKey: "ssh-key-\(oldSSH.host)-\(oldSSH.username)")
-                }
-            }
 
             if !sshPassword.isEmpty {
-                try? secureStore.store(sshPassword, forKey: "ssh-\(sshHost)-\(sshUsername)")
+                try? secureStore.store(sshPassword, forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
             }
             if !sshKeyPassphrase.isEmpty {
-                try? secureStore.store(sshKeyPassphrase, forKey: "ssh-key-\(sshHost)-\(sshUsername)")
+                try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
             }
         }
 

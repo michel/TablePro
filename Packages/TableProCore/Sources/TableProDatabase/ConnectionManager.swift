@@ -20,7 +20,7 @@ public final class ConnectionManager: @unchecked Sendable {
     }
 
     public func connect(_ connection: DatabaseConnection) async throws -> ConnectionSession {
-        let password = try secureStore.retrieve(forKey: connection.id.uuidString)
+        let password = try secureStore.retrieve(forKey: Self.passwordKey(for: connection.id))
 
         var effectiveHost = connection.host
         var effectivePort = connection.port
@@ -62,11 +62,15 @@ public final class ConnectionManager: @unchecked Sendable {
     }
 
     public func storePassword(_ password: String, for connectionId: UUID) throws {
-        try secureStore.store(password, forKey: connectionId.uuidString)
+        try secureStore.store(password, forKey: Self.passwordKey(for: connectionId))
     }
 
     public func deletePassword(for connectionId: UUID) throws {
-        try secureStore.delete(forKey: connectionId.uuidString)
+        try secureStore.delete(forKey: Self.passwordKey(for: connectionId))
+    }
+
+    private static func passwordKey(for connectionId: UUID) -> String {
+        "com.TablePro.password.\(connectionId.uuidString)"
     }
 
     public func disconnect(_ connectionId: UUID) async {

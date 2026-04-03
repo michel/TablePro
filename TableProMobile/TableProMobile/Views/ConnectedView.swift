@@ -92,6 +92,8 @@ struct ConnectedView: View {
         isConnecting = true
         errorMessage = nil
 
+        appState.sshProvider.pendingConnectionId = connection.id
+
         do {
             let session = try await appState.connectionManager.connect(connection)
             self.session = session

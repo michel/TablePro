@@ -11,6 +11,9 @@ final class IOSSSHProvider: SSHProvider, @unchecked Sendable {
     private let tunnelStore = TunnelStore()
     private let secureStore: SecureStore
 
+    /// Set by caller before createTunnel to enable connectionId-based Keychain lookup
+    var pendingConnectionId: UUID?
+
     init(secureStore: SecureStore) {
         self.secureStore = secureStore
     }
@@ -20,12 +23,21 @@ final class IOSSSHProvider: SSHProvider, @unchecked Sendable {
         remoteHost: String,
         remotePort: Int
     ) async throws -> TableProDatabase.SSHTunnel {
-        let sshPassword = try? secureStore.retrieve(forKey: "ssh-\(config.host)-\(config.username)")
-        let keyPassphrase: String? = if config.privateKeyPath != nil || config.privateKeyData != nil {
-            try? secureStore.retrieve(forKey: "ssh-key-\(config.host)-\(config.username)")
+        // Resolve SSH credentials using macOS-compatible Keychain keys
+        let sshPassword: String?
+        let keyPassphrase: String?
+
+        if let connId = pendingConnectionId {
+            sshPassword = try? secureStore.retrieve(
+                forKey: "com.TablePro.sshpassword.\(connId.uuidString)")
+            keyPassphrase = try? secureStore.retrieve(
+                forKey: "com.TablePro.keypassphrase.\(connId.uuidString)")
         } else {
-            nil
+            sshPassword = nil
+            keyPassphrase = nil
         }
+
+        pendingConnectionId = nil
 
         let tunnel = try await SSHTunnelFactory.create(
             config: config,
