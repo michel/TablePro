@@ -55,6 +55,7 @@ struct ConnectionListView: View {
             NavigationStack {
                 if let connection = selectedConnection {
                     ConnectedView(connection: connection)
+                        .id(connection.id)
                 } else {
                     ContentUnavailableView(
                         "Select a Connection",
