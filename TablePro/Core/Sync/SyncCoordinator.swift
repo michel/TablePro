@@ -279,10 +279,13 @@ final class SyncCoordinator {
             }
         }
 
-        guard !recordsToSave.isEmpty || !recordIDsToDelete.isEmpty else { return }
+        // Deduplicate deletion IDs to prevent CloudKit "can't delete same record twice" error
+        let uniqueDeletions = Array(Set(recordIDsToDelete))
+
+        guard !recordsToSave.isEmpty || !uniqueDeletions.isEmpty else { return }
 
         do {
-            try await engine.push(records: recordsToSave, deletions: recordIDsToDelete)
+            try await engine.push(records: recordsToSave, deletions: uniqueDeletions)
 
             // Clear dirty flags only for types that were actually pushed
             if settings.syncConnections {

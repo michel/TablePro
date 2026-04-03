@@ -44,8 +44,10 @@ final class IOSSyncCoordinator {
 
             try await getEngine().ensureZoneExists()
             let remoteChanges = try await pull()
+            print("SYNC: pulled \(remoteChanges.changed.count) changed, \(remoteChanges.deletedIDs.count) deleted")
             try await push(localConnections: localConnections)
             let merged = merge(local: localConnections, remote: remoteChanges)
+            print("SYNC: local=\(localConnections.count), merged=\(merged.count)")
             onConnectionsChanged?(merged)
 
             metadata.lastSyncDate = Date()
