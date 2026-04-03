@@ -1,6 +1,6 @@
 import Foundation
 
-public enum SyncError: Error, LocalizedError, Sendable {
+public enum SyncError: Error, LocalizedError, Equatable, Sendable {
     case noAccount
     case networkUnavailable
     case zoneCreationFailed(String)

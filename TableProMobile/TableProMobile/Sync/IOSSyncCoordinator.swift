@@ -158,12 +158,3 @@ final class IOSSyncCoordinator {
     }
 }
 
-// SyncError Equatable for token expiry check
-extension SyncError: Equatable {
-    public static func == (lhs: SyncError, rhs: SyncError) -> Bool {
-        switch (lhs, rhs) {
-        case (.tokenExpired, .tokenExpired): return true
-        default: return false
-        }
-    }
-}
