@@ -9,10 +9,14 @@ import TableProModels
 
 final class IOSDriverFactory: DriverFactory {
     func createDriver(for connection: DatabaseConnection, password: String?) throws -> any DatabaseDriver {
-        switch connection.type {
-        case .sqlite:
+        // Normalize type for case-insensitive matching
+        // macOS uses "MySQL"/"PostgreSQL", iOS uses "mysql"/"postgresql"
+        let typeKey = connection.type.rawValue.lowercased()
+
+        switch typeKey {
+        case "sqlite":
             return SQLiteDriver(path: connection.database)
-        case .mysql, .mariadb:
+        case "mysql", "mariadb":
             return MySQLDriver(
                 host: connection.host,
                 port: connection.port,
@@ -20,7 +24,7 @@ final class IOSDriverFactory: DriverFactory {
                 password: password ?? "",
                 database: connection.database
             )
-        case .postgresql, .redshift:
+        case "postgresql", "redshift":
             return PostgreSQLDriver(
                 host: connection.host,
                 port: connection.port,
@@ -28,7 +32,7 @@ final class IOSDriverFactory: DriverFactory {
                 password: password ?? "",
                 database: connection.database
             )
-        case .redis:
+        case "redis":
             let dbIndex = Int(connection.database) ?? 0
             return RedisDriver(
                 host: connection.host,
