@@ -96,6 +96,25 @@ struct ConnectedView: View {
         isConnecting = true
         errorMessage = nil
 
+        // Reuse existing session if still alive in ConnectionManager
+        if let existing = appState.connectionManager.session(for: connection.id) {
+            self.session = existing
+            do {
+                self.tables = try await existing.driver.fetchTables(schema: nil)
+            } catch {
+                // Session stale — disconnect and reconnect
+                await appState.connectionManager.disconnect(connection.id)
+                await connectFresh()
+                return
+            }
+            isConnecting = false
+            return
+        }
+
+        await connectFresh()
+    }
+
+    private func connectFresh() async {
         appState.sshProvider.pendingConnectionId = connection.id
 
         do {
