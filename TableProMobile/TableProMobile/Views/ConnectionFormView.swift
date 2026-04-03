@@ -47,6 +47,7 @@ struct ConnectionFormView: View {
 
     private let databaseTypes: [(DatabaseType, String)] = [
         (.mysql, "MySQL"),
+        (.mariadb, "MariaDB"),
         (.postgresql, "PostgreSQL"),
         (.sqlite, "SQLite"),
         (.redis, "Redis"),
