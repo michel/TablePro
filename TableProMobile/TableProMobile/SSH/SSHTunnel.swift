@@ -9,13 +9,13 @@ import Foundation
 import CLibSSH2
 import os
 
-final class AliveFlag: Sendable {
-    private let lock = NSLock()
+final class AliveFlag: @unchecked Sendable {
+    private let _lock = NSLock()
     private var _value = true
 
     var value: Bool {
-        get { lock.lock(); defer { lock.unlock() }; return _value }
-        set { lock.lock(); _value = newValue; lock.unlock() }
+        get { _lock.lock(); defer { _lock.unlock() }; return _value }
+        set { _lock.lock(); _value = newValue; _lock.unlock() }
     }
 }
 
@@ -246,9 +246,10 @@ actor SSHTunnel {
                 let sshFD = await self.socketFD
                 let flag = self.aliveFlag
                 let lock = self.sessionLock
+                nonisolated(unsafe) let unsafeChannel = channel
                 Thread.detachNewThread {
                     SSHTunnel.relayStatic(
-                        clientFD: clientFD, channel: channel, sshFD: sshFD,
+                        clientFD: clientFD, channel: unsafeChannel, sshFD: sshFD,
                         aliveFlag: flag, lock: lock
                     )
                 }
