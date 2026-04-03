@@ -9,6 +9,16 @@ import Foundation
 import CLibSSH2
 import os
 
+final class AliveFlag: Sendable {
+    private let lock = NSLock()
+    private var _value = true
+
+    var value: Bool {
+        get { lock.lock(); defer { lock.unlock() }; return _value }
+        set { lock.lock(); _value = newValue; lock.unlock() }
+    }
+}
+
 actor SSHTunnel {
     private static let logger = Logger(subsystem: "com.TablePro.Mobile", category: "SSHTunnel")
 
@@ -16,13 +26,18 @@ actor SSHTunnel {
     private var socketFD: Int32 = -1
     private var listenFD: Int32 = -1
     private var localPort: Int = 0
-    private var isAlive = true
+    nonisolated let aliveFlag = AliveFlag()
     private var relayTask: Task<Void, Never>?
     private var keepAliveTask: Task<Void, Never>?
 
     private static let bufferSize = 32_768
     private static let connectionTimeout: Int32 = 10
     nonisolated let sessionLock = NSLock()
+
+    private var isAlive: Bool {
+        get { aliveFlag.value }
+        set { aliveFlag.value = newValue }
+    }
 
     var port: Int { localPort }
 
@@ -229,12 +244,12 @@ actor SSHTunnel {
                 Self.logger.debug("Client connected, relaying to \(remoteHost):\(remotePort)")
 
                 let sshFD = self.socketFD
-                let alive = { self.isAlive }
-                let sessionLock = self.sessionLock
+                let flag = self.aliveFlag
+                let lock = self.sessionLock
                 Task.detached {
                     SSHTunnel.relayStatic(
                         clientFD: clientFD, channel: channel, sshFD: sshFD,
-                        isAlive: alive, lock: sessionLock
+                        aliveFlag: flag, lock: lock
                     )
                 }
             }
@@ -396,7 +411,7 @@ actor SSHTunnel {
     // This prevents blocking the actor, which other code (PQexec, keepalive) needs.
     private static func relayStatic(
         clientFD: Int32, channel: OpaquePointer, sshFD: Int32,
-        isAlive: @escaping () -> Bool, lock: NSLock
+        aliveFlag: AliveFlag, lock: NSLock
     ) {
         let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
         defer {
@@ -408,7 +423,7 @@ actor SSHTunnel {
             lock.unlock()
         }
 
-        while isAlive() {
+        while aliveFlag.value {
             var pollFDs = [
                 pollfd(fd: clientFD, events: Int16(POLLIN), revents: 0),
                 pollfd(fd: sshFD, events: Int16(POLLIN), revents: 0),
