@@ -31,14 +31,16 @@ struct ConnectionListView: View {
                     }
                 }
         } detail: {
-            if let connection = selectedConnection {
-                ConnectedView(connection: connection)
-            } else {
-                ContentUnavailableView(
-                    "Select a Connection",
-                    systemImage: "server.rack",
-                    description: Text("Choose a connection from the sidebar.")
-                )
+            NavigationStack {
+                if let connection = selectedConnection {
+                    ConnectedView(connection: connection)
+                } else {
+                    ContentUnavailableView(
+                        "Select a Connection",
+                        systemImage: "server.rack",
+                        description: Text("Choose a connection from the sidebar.")
+                    )
+                }
             }
         }
         .sheet(isPresented: $showingAddConnection) {
