@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>PreferenceSpecifiers</key>
@@ -48,7 +49,7 @@
 			<key>Key</key>
 			<string>website_preference</string>
 			<key>DefaultValue</key>
-			<string>tablepro.io</string>
+			<string>tablepro.app</string>
 		</dict>
 	</array>
 	<key>StringsTable</key>

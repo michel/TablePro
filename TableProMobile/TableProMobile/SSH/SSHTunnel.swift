@@ -20,7 +20,7 @@ final class AliveFlag: @unchecked Sendable {
 }
 
 actor SSHTunnel {
-    private static let logger = Logger(subsystem: "com.TablePro.Mobile", category: "SSHTunnel")
+    private static let logger = Logger(subsystem: "com.TablePro", category: "SSHTunnel")
 
     private var session: OpaquePointer?
     private var socketFD: Int32 = -1

@@ -12,7 +12,7 @@ import TableProSync
 
 @MainActor @Observable
 final class IOSSyncCoordinator {
-    private static let logger = Logger(subsystem: "com.TablePro.Mobile", category: "Sync")
+    private static let logger = Logger(subsystem: "com.TablePro", category: "Sync")
 
     var status: SyncStatus = .idle
     var lastSyncDate: Date?

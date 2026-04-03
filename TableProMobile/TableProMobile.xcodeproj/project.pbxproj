@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		5A87EEED2F7F893000D028D0 /* TableProSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5A87EEEC2F7F893000D028D0 /* TableProSync */; };
+		5AA1143B2F7FFFC700ADCD58 /* Settings.bundle in Resources */ = {isa = PBXBuildFile; fileRef = 5AA1143A2F7FFFC700ADCD58 /* Settings.bundle */; };
 		5AA3133A2F7EA5B4008EBA97 /* LibPQ.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA313342F7EA5B4008EBA97 /* LibPQ.xcframework */; };
 		5AA3133C2F7EA5B4008EBA97 /* Hiredis.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA313352F7EA5B4008EBA97 /* Hiredis.xcframework */; };
 		5AA3133E2F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA313362F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework */; };
@@ -480,6 +481,7 @@
 		5A87EEE82F7F891F00D028D0 /* SyncMetadataStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMetadataStorage.swift; sourceTree = "<group>"; };
 		5A87EEE92F7F891F00D028D0 /* SyncRecordMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRecordMapper.swift; sourceTree = "<group>"; };
 		5A87EEEA2F7F891F00D028D0 /* SyncRecordType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRecordType.swift; sourceTree = "<group>"; };
+		5AA1143A2F7FFFC700ADCD58 /* Settings.bundle */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.plug-in"; path = Settings.bundle; sourceTree = "<group>"; };
 		5AA313342F7EA5B4008EBA97 /* LibPQ.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = LibPQ.xcframework; path = ../Libs/ios/LibPQ.xcframework; sourceTree = "<group>"; };
 		5AA313352F7EA5B4008EBA97 /* Hiredis.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Hiredis.xcframework; path = ../Libs/ios/Hiredis.xcframework; sourceTree = "<group>"; };
 		5AA313362F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "OpenSSL-Crypto.xcframework"; path = "../Libs/ios/OpenSSL-Crypto.xcframework"; sourceTree = "<group>"; };
@@ -1550,6 +1552,7 @@
 		5AB9F3D02F7C1C12001F3337 = {
 			isa = PBXGroup;
 			children = (
+				5AA1143A2F7FFFC700ADCD58 /* Settings.bundle */,
 				5AB9F3DB2F7C1C12001F3337 /* TableProMobile */,
 				5AA313332F7EA5B4008EBA97 /* Frameworks */,
 				5AB9F3DA2F7C1C12001F3337 /* Products */,
@@ -1636,6 +1639,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5AA1143B2F7FFFC700ADCD58 /* Settings.bundle in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

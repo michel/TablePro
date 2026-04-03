@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>PreferenceSpecifiers</key>
@@ -8,7 +9,7 @@
 			<key>Type</key>
 			<string>PSGroupSpecifier</string>
 			<key>FooterText</key>
-			<string>TablePro Mobile stores your database connection details locally on your device and optionally syncs them via iCloud. Passwords are stored securely in the iOS Keychain. No data is collected or shared with third parties. For the full privacy policy, visit tablepro.io/privacy.</string>
+			<string>TablePro stores your database connection details locally on your device and optionally syncs them via iCloud. Passwords are stored securely in the iOS Keychain. No data is collected or shared with third parties. For the full privacy policy, visit tablepro.app/privacy.</string>
 		</dict>
 	</array>
 	<key>StringsTable</key>
