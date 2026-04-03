@@ -387,8 +387,10 @@ actor SSHTunnel {
         defer {
             buffer.deallocate()
             Darwin.close(clientFD)
-            libssh2_channel_close(channel)
-            libssh2_channel_free(channel)
+            if isAlive, session != nil {
+                libssh2_channel_close(channel)
+                libssh2_channel_free(channel)
+            }
         }
 
         while isAlive {
