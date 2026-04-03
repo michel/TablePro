@@ -14,8 +14,15 @@ final class IOSSyncCoordinator {
     var status: SyncStatus = .idle
     var lastSyncDate: Date?
 
-    private let engine = CloudKitSyncEngine()
+    private var engine: CloudKitSyncEngine?
     private let metadata = SyncMetadataStorage()
+
+    private func getEngine() -> CloudKitSyncEngine {
+        if engine == nil {
+            engine = CloudKitSyncEngine()
+        }
+        return engine!
+    }
     private var debounceTask: Task<Void, Never>?
 
     // Callback to update AppState connections
@@ -28,13 +35,13 @@ final class IOSSyncCoordinator {
         status = .syncing
 
         do {
-            let accountStatus = try await engine.accountStatus()
+            let accountStatus = try await getEngine().accountStatus()
             guard accountStatus == .available else {
                 status = .error("iCloud account not available")
                 return
             }
 
-            try await engine.ensureZoneExists()
+            try await getEngine().ensureZoneExists()
             try await push(localConnections: localConnections)
             let remoteConnections = try await pull()
             let merged = merge(local: localConnections, remote: remoteConnections)
@@ -72,7 +79,7 @@ final class IOSSyncCoordinator {
     // MARK: - Push
 
     private func push(localConnections: [DatabaseConnection]) async throws {
-        let zoneID = await engine.currentZoneID
+        let zoneID = await getEngine().currentZoneID
 
         // Dirty connections
         let dirtyIDs = metadata.dirtyIDs(for: .connection)
@@ -88,7 +95,7 @@ final class IOSSyncCoordinator {
 
         guard !dirtyRecords.isEmpty || !deletions.isEmpty else { return }
 
-        try await engine.push(records: dirtyRecords, deletions: deletions)
+        try await getEngine().push(records: dirtyRecords, deletions: deletions)
         metadata.clearDirty(type: .connection)
         metadata.clearTombstones(type: .connection)
     }
@@ -97,7 +104,7 @@ final class IOSSyncCoordinator {
 
     private func pull() async throws -> [DatabaseConnection] {
         let token = metadata.loadToken()
-        let result = try await engine.pull(since: token)
+        let result = try await getEngine().pull(since: token)
 
         if let newToken = result.newToken {
             metadata.saveToken(newToken)
