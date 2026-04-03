@@ -63,12 +63,16 @@ struct ConnectionListView: View {
             ContentUnavailableView {
                 Label("No Connections", systemImage: "server.rack")
             } description: {
-                Text("Add a database connection to get started.")
+                Text("Add a database connection or pull to sync from iCloud.")
             } actions: {
                 Button("Add Connection") {
                     showingAddConnection = true
                 }
                 .buttonStyle(.borderedProminent)
+
+                Button("Sync from iCloud") {
+                    Task { await appState.syncCoordinator.sync(localConnections: appState.connections) }
+                }
             }
         } else {
             List(selection: $selectedConnection) {
