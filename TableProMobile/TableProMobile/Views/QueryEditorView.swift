@@ -220,47 +220,45 @@ struct QueryEditorView: View {
     }
 
     private func resultTable(_ result: QueryResult) -> some View {
-        ScrollView(.horizontal) {
-            LazyVStack(alignment: .leading, spacing: 0, pinnedViews: .sectionHeaders) {
-                Section {
-                    ForEach(Array(result.rows.enumerated()), id: \.offset) { _, row in
-                        HStack(spacing: 0) {
-                            ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, column in
-                                let value = colIndex < row.count ? row[colIndex] : nil
-                                Text(verbatim: value ?? "NULL")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundStyle(value == nil ? .secondary : .primary)
-                                    .lineLimit(1)
-                                    .frame(width: columnWidth(for: colIndex, column: column, rows: result.rows), alignment: .leading)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 8)
-                                    .contextMenu {
-                                        Button {
-                                            UIPasteboard.general.string = value ?? ""
-                                        } label: {
-                                            Label("Copy", systemImage: "doc.on.doc")
-                                        }
-                                    }
-                            }
-                        }
-                        Divider()
+        let widths = result.columns.enumerated().map { i, col in
+            columnWidth(for: i, column: col, rows: result.rows)
+        }
+
+        return ScrollView([.horizontal, .vertical]) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack(spacing: 0) {
+                    ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, col in
+                        Text(verbatim: col.name)
+                            .font(.system(.caption, design: .monospaced))
+                            .fontWeight(.semibold)
+                            .frame(width: widths[colIndex], alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 8)
                     }
-                } header: {
+                }
+                .background(.bar)
+                Divider()
+
+                // Rows
+                ForEach(Array(result.rows.enumerated()), id: \.offset) { _, row in
                     HStack(spacing: 0) {
-                        ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, col in
-                            Text(verbatim: col.name)
+                        ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, _ in
+                            let value = colIndex < row.count ? row[colIndex] : nil
+                            Text(verbatim: value ?? "NULL")
                                 .font(.system(.caption, design: .monospaced))
-                                .fontWeight(.semibold)
-                                .frame(width: columnWidth(for: colIndex, column: col, rows: result.rows), alignment: .leading)
+                                .foregroundStyle(value == nil ? .secondary : .primary)
+                                .lineLimit(1)
+                                .frame(width: widths[colIndex], alignment: .leading)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 8)
                         }
                     }
-                    .background(.bar)
                     Divider()
                 }
             }
         }
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     private func columnWidth(for columnIndex: Int, column: ColumnInfo, rows: [[String?]]) -> CGFloat {
