@@ -22,6 +22,7 @@ actor SSHTunnel {
 
     private static let bufferSize = 32_768
     private static let connectionTimeout: Int32 = 10
+    nonisolated let sessionLock = NSLock()
 
     var port: Int { localPort }
 
@@ -227,8 +228,14 @@ actor SSHTunnel {
 
                 Self.logger.debug("Client connected, relaying to \(remoteHost):\(remotePort)")
 
-                Task.detached { [weak self] in
-                    await self?.relay(clientFD: clientFD, channel: channel)
+                let sshFD = self.socketFD
+                let alive = { self.isAlive }
+                let sessionLock = self.sessionLock
+                Task.detached {
+                    SSHTunnel.relayStatic(
+                        clientFD: clientFD, channel: channel, sshFD: sshFD,
+                        isAlive: alive, lock: sessionLock
+                    )
                 }
             }
 
@@ -299,8 +306,10 @@ actor SSHTunnel {
 
     private func sendKeepAlive() -> Bool {
         guard let session else { return true }
+        sessionLock.lock()
         var secondsToNext: Int32 = 0
         let rc = libssh2_keepalive_send(session, &secondsToNext)
+        sessionLock.unlock()
         return rc != 0
     }
 
@@ -382,21 +391,27 @@ actor SSHTunnel {
         }
     }
 
-    private func relay(clientFD: Int32, channel: OpaquePointer) {
-        let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: Self.bufferSize)
+    // Relay runs outside the actor on a detached thread.
+    // Uses NSLock to serialize libssh2 calls (libssh2 is not thread-safe per-session).
+    // This prevents blocking the actor, which other code (PQexec, keepalive) needs.
+    private static func relayStatic(
+        clientFD: Int32, channel: OpaquePointer, sshFD: Int32,
+        isAlive: @escaping () -> Bool, lock: NSLock
+    ) {
+        let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: bufferSize)
         defer {
             buffer.deallocate()
             Darwin.close(clientFD)
-            if isAlive, session != nil {
-                libssh2_channel_close(channel)
-                libssh2_channel_free(channel)
-            }
+            lock.lock()
+            libssh2_channel_close(channel)
+            libssh2_channel_free(channel)
+            lock.unlock()
         }
 
-        while isAlive {
+        while isAlive() {
             var pollFDs = [
                 pollfd(fd: clientFD, events: Int16(POLLIN), revents: 0),
-                pollfd(fd: socketFD, events: Int16(POLLIN), revents: 0),
+                pollfd(fd: sshFD, events: Int16(POLLIN), revents: 0),
             ]
 
             let pollResult = poll(&pollFDs, 2, 500)
@@ -404,7 +419,11 @@ actor SSHTunnel {
 
             // Channel -> Client
             if pollFDs[1].revents & Int16(POLLIN) != 0 {
-                let readResult = Int(tablepro_libssh2_channel_read(channel, buffer, Self.bufferSize))
+                lock.lock()
+                let readResult = Int(tablepro_libssh2_channel_read(channel, buffer, bufferSize))
+                let eof = libssh2_channel_eof(channel)
+                lock.unlock()
+
                 if readResult > 0 {
                     var totalSent = 0
                     while totalSent < readResult {
@@ -412,7 +431,7 @@ actor SSHTunnel {
                         if sent <= 0 { return }
                         totalSent += sent
                     }
-                } else if readResult == 0 || libssh2_channel_eof(channel) != 0 {
+                } else if readResult == 0 || eof != 0 {
                     return
                 } else if readResult != Int(LIBSSH2_ERROR_EAGAIN) {
                     return
@@ -421,20 +440,23 @@ actor SSHTunnel {
 
             // Client -> Channel
             if pollFDs[0].revents & Int16(POLLIN) != 0 {
-                let clientRead = recv(clientFD, buffer, Self.bufferSize, 0)
+                let clientRead = recv(clientFD, buffer, bufferSize, 0)
                 if clientRead <= 0 { return }
 
                 var totalWritten = 0
                 while totalWritten < Int(clientRead) {
+                    lock.lock()
                     let written = Int(tablepro_libssh2_channel_write(
                         channel,
                         buffer.advanced(by: totalWritten),
                         Int(clientRead) - totalWritten
                     ))
+                    lock.unlock()
+
                     if written > 0 {
                         totalWritten += written
                     } else if written == Int(LIBSSH2_ERROR_EAGAIN) {
-                        if !waitForSocket(timeoutMs: 1_000) { return }
+                        usleep(10_000)
                     } else {
                         return
                     }
