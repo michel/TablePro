@@ -14,7 +14,7 @@ struct ConnectionListView: View {
     @State private var selectedConnection: DatabaseConnection?
 
     private var groupedConnections: [(String, [DatabaseConnection])] {
-        let grouped = Dictionary(grouping: appState.connections) { $0.type.rawValue.capitalized }
+        let grouped = Dictionary(grouping: appState.connections) { $0.type.rawValue }
         return grouped.sorted { $0.key < $1.key }
     }
 
@@ -165,7 +165,7 @@ private struct ConnectionRow: View {
                     .fontWeight(.medium)
 
                 if connection.type != .sqlite {
-                    Text("\(connection.host):\(connection.port)")
+                    Text(verbatim: "\(connection.host):\(connection.port)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
