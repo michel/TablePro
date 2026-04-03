@@ -243,7 +243,7 @@ actor SSHTunnel {
 
                 Self.logger.debug("Client connected, relaying to \(remoteHost):\(remotePort)")
 
-                let sshFD = self.socketFD
+                let sshFD = await self.socketFD
                 let flag = self.aliveFlag
                 let lock = self.sessionLock
                 Task.detached {
