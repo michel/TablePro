@@ -227,7 +227,7 @@ struct QueryEditorView: View {
                         HStack(spacing: 0) {
                             ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, column in
                                 let value = colIndex < row.count ? row[colIndex] : nil
-                                Text(value ?? "NULL")
+                                Text(verbatim: value ?? "NULL")
                                     .font(.system(.caption, design: .monospaced))
                                     .foregroundStyle(value == nil ? .secondary : .primary)
                                     .lineLimit(1)
@@ -248,7 +248,7 @@ struct QueryEditorView: View {
                 } header: {
                     HStack(spacing: 0) {
                         ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, col in
-                            Text(col.name)
+                            Text(verbatim: col.name)
                                 .font(.system(.caption, design: .monospaced))
                                 .fontWeight(.semibold)
                                 .frame(width: columnWidth(for: colIndex, column: col, rows: result.rows), alignment: .leading)
