@@ -25,7 +25,7 @@ public struct SyncConflict: Identifiable, Sendable {
     }
 }
 
-public enum SyncStatus: Sendable {
+public enum SyncStatus: Equatable, Sendable {
     case idle
     case syncing
     case error(String)
