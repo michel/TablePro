@@ -31,6 +31,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
     var onFilterColumn: ((String) -> Void)?
     var onHideColumn: ((String) -> Void)?
     var onMoveRow: ((Int, Int) -> Void)?
+    var rowViewProvider: ((NSTableView, Int, TableViewCoordinator) -> NSTableRowView)?
+    var emptySpaceMenu: (() -> NSMenu?)?
     var onNavigateFK: ((String, ForeignKeyInfo) -> Void)?
     var getVisualState: ((Int) -> RowVisualState)?
     var dropdownColumns: Set<Int>?
@@ -243,6 +245,8 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
         onFilterColumn = nil
         onHideColumn = nil
         onNavigateFK = nil
+        rowViewProvider = nil
+        emptySpaceMenu = nil
         getVisualState = nil
     }
 

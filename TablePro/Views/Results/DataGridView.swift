@@ -66,6 +66,8 @@ struct DataGridView: NSViewRepresentable {
     var hiddenColumns: Set<String> = []
     var onHideColumn: ((String) -> Void)?
     var onMoveRow: ((Int, Int) -> Void)?
+    var rowViewProvider: ((NSTableView, Int, TableViewCoordinator) -> NSTableRowView)?
+    var emptySpaceMenu: (() -> NSMenu?)?
 
     @Binding var selectedRowIndices: Set<Int>
     @Binding var sortState: SortState
@@ -177,6 +179,8 @@ struct DataGridView: NSViewRepresentable {
         scrollView.documentView = tableView
         context.coordinator.tableView = tableView
         context.coordinator.onMoveRow = onMoveRow
+        context.coordinator.rowViewProvider = rowViewProvider
+        context.coordinator.emptySpaceMenu = emptySpaceMenu
         context.coordinator.rebuildColumnMetadataCache()
         if let connectionId {
             context.coordinator.observeTeardown(connectionId: connectionId)
@@ -240,6 +244,8 @@ struct DataGridView: NSViewRepresentable {
             coordinator.onDeleteRows = onDeleteRows
             coordinator.getVisualState = getVisualState
             coordinator.onNavigateFK = onNavigateFK
+            coordinator.rowViewProvider = rowViewProvider
+            coordinator.emptySpaceMenu = emptySpaceMenu
             return
         }
         let previousIdentity = coordinator.lastIdentity
@@ -307,6 +313,8 @@ struct DataGridView: NSViewRepresentable {
         coordinator.onMoveRow = onMoveRow
         coordinator.getVisualState = getVisualState
         coordinator.onNavigateFK = onNavigateFK
+        coordinator.rowViewProvider = rowViewProvider
+        coordinator.emptySpaceMenu = emptySpaceMenu
         coordinator.dropdownColumns = dropdownColumns
         coordinator.typePickerColumns = typePickerColumns
         coordinator.connectionId = connectionId
