@@ -6,11 +6,14 @@
 import CloudKit
 import Foundation
 import Observation
+import os
 import TableProModels
 import TableProSync
 
 @MainActor @Observable
 final class IOSSyncCoordinator {
+    private static let logger = Logger(subsystem: "com.TablePro.Mobile", category: "Sync")
+
     var status: SyncStatus = .idle
     var lastSyncDate: Date?
 
@@ -44,10 +47,10 @@ final class IOSSyncCoordinator {
 
             try await getEngine().ensureZoneExists()
             let remoteChanges = try await pull()
-            print("SYNC: pulled \(remoteChanges.changed.count) changed, \(remoteChanges.deletedIDs.count) deleted")
+            Self.logger.info("Pulled \(remoteChanges.changed.count) changed, \(remoteChanges.deletedIDs.count) deleted")
             try await push(localConnections: localConnections)
             let merged = merge(local: localConnections, remote: remoteChanges)
-            print("SYNC: local=\(localConnections.count), merged=\(merged.count)")
+            Self.logger.info("Merged: local=\(localConnections.count), result=\(merged.count)")
             onConnectionsChanged?(merged)
 
             metadata.lastSyncDate = Date()

@@ -17,24 +17,26 @@ final class PostgreSQLDriver: DatabaseDriver, @unchecked Sendable {
     private let user: String
     private let password: String
     private let database: String
+    private let sslEnabled: Bool
 
     var supportsSchemas: Bool { true }
     private(set) var currentSchema: String? = "public"
     var supportsTransactions: Bool { true }
     private(set) var serverVersion: String?
 
-    init(host: String, port: Int, user: String, password: String, database: String) {
+    init(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) {
         self.host = host
         self.port = port
         self.user = user
         self.password = password
         self.database = database
+        self.sslEnabled = sslEnabled
     }
 
     // MARK: - Connection
 
     func connect() async throws {
-        try await actor.connect(host: host, port: port, user: user, password: password, database: database)
+        try await actor.connect(host: host, port: port, user: user, password: password, database: database, sslEnabled: sslEnabled)
         serverVersion = await actor.serverVersion()
     }
 
@@ -274,14 +276,15 @@ final class PostgreSQLDriver: DatabaseDriver, @unchecked Sendable {
 private actor PostgreSQLActor {
     private var conn: OpaquePointer?
 
-    func connect(host: String, port: Int, user: String, password: String, database: String) throws {
+    func connect(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) throws {
         let escapedHost = escapeConnParam(host)
         let escapedUser = escapeConnParam(user)
         let escapedPass = escapeConnParam(password)
         let escapedDb = escapeConnParam(database)
+        let sslmode = sslEnabled ? "require" : "disable"
 
         let connStr = "host='\(escapedHost)' port='\(port)' dbname='\(escapedDb)' " +
-            "user='\(escapedUser)' password='\(escapedPass)' connect_timeout='10' sslmode='disable'"
+            "user='\(escapedUser)' password='\(escapedPass)' connect_timeout='10' sslmode='\(sslmode)'"
 
         let connection = PQconnectdb(connStr)
 

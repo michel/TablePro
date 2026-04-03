@@ -9,9 +9,32 @@ import TableProDatabase
 
 final class KeychainSecureStore: SecureStore {
     private let serviceName = "com.TablePro"
-    private let accessGroup = "D7HJ5TFYCU.com.TablePro.shared"
+    private let accessGroup: String
+
+    private static func resolveAccessGroup() -> String {
+        // Read team ID prefix from provisioning at runtime
+        if let seedID = Bundle.main.infoDictionary?["AppIdentifierPrefix"] as? String {
+            return "\(seedID)com.TablePro.shared"
+        }
+        // Fallback: query Keychain for the app's default access group
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: "__accessgroup_probe__",
+            kSecReturnAttributes as String: true,
+        ]
+        var result: AnyObject?
+        SecItemAdd(query as CFDictionary, &result)
+        SecItemDelete(query as CFDictionary)
+        if let attrs = result as? [String: Any],
+           let group = attrs[kSecAttrAccessGroup as String] as? String {
+            let prefix = group.components(separatedBy: ".").first ?? ""
+            return "\(prefix).com.TablePro.shared"
+        }
+        return "D7HJ5TFYCU.com.TablePro.shared"
+    }
 
     init() {
+        self.accessGroup = Self.resolveAccessGroup()
         migrateFromOldServiceIfNeeded()
     }
 

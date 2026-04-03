@@ -26,7 +26,8 @@ final class IOSDriverFactory: DriverFactory {
                 port: connection.port,
                 user: connection.username,
                 password: password ?? "",
-                database: connection.database
+                database: connection.database,
+                sslEnabled: connection.sslEnabled
             )
         case .redis:
             let dbIndex = Int(connection.database) ?? 0
