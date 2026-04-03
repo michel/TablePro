@@ -17,11 +17,16 @@ public struct SSHConfiguration: Codable, Hashable, Sendable {
         public init(from decoder: Decoder) throws {
             let raw = try decoder.singleValueContainer().decode(String.self)
             switch raw {
-            case "password": self = .password
-            case "privateKey", "publicKey": self = .privateKey
-            case "sshAgent", "agent": self = .sshAgent
-            case "keyboardInteractive": self = .keyboardInteractive
-            default: self = .password
+            case "password", "Password":
+                self = .password
+            case "privateKey", "publicKey", "Private Key":
+                self = .privateKey
+            case "sshAgent", "agent", "SSH Agent":
+                self = .sshAgent
+            case "keyboardInteractive", "Keyboard Interactive":
+                self = .keyboardInteractive
+            default:
+                self = .password
             }
         }
     }
