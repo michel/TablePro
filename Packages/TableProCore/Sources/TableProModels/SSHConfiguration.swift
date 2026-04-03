@@ -8,10 +8,35 @@ public struct SSHConfiguration: Codable, Hashable, Sendable {
     public var privateKeyPath: String?
     public var jumpHosts: [SSHJumpHost]
 
+    // Raw values match macOS for CloudKit sync compatibility
     public enum SSHAuthMethod: String, Codable, Sendable {
         case password
-        case publicKey
-        case agent
+        case privateKey     // macOS uses "privateKey"
+        case publicKey      // alias — decoded from "publicKey" if ever stored
+        case sshAgent       // macOS uses "sshAgent"
+        case keyboardInteractive
+        case agent          // alias — decoded from "agent" if ever stored
+
+        public init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            switch raw {
+            case "password": self = .password
+            case "privateKey", "publicKey": self = .privateKey
+            case "sshAgent", "agent": self = .sshAgent
+            case "keyboardInteractive": self = .keyboardInteractive
+            default: self = .password
+            }
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            switch self {
+            case .password: try container.encode("password")
+            case .privateKey, .publicKey: try container.encode("privateKey")
+            case .sshAgent, .agent: try container.encode("sshAgent")
+            case .keyboardInteractive: try container.encode("keyboardInteractive")
+            }
+        }
     }
 
     public init(
@@ -28,6 +53,34 @@ public struct SSHConfiguration: Codable, Hashable, Sendable {
         self.authMethod = authMethod
         self.privateKeyPath = privateKeyPath
         self.jumpHosts = jumpHosts
+    }
+
+    // Custom Codable to handle macOS extra fields gracefully
+    private enum CodingKeys: String, CodingKey {
+        case host, port, username, authMethod, privateKeyPath, jumpHosts
+        // macOS-only fields we read but ignore
+        case enabled, useSSHConfig, agentSocketPath
+        case totpMode, totpAlgorithm, totpDigits, totpPeriod
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        host = (try? container.decode(String.self, forKey: .host)) ?? ""
+        port = (try? container.decode(Int.self, forKey: .port)) ?? 22
+        username = (try? container.decode(String.self, forKey: .username)) ?? ""
+        authMethod = (try? container.decode(SSHAuthMethod.self, forKey: .authMethod)) ?? .password
+        privateKeyPath = try? container.decode(String.self, forKey: .privateKeyPath)
+        jumpHosts = (try? container.decode([SSHJumpHost].self, forKey: .jumpHosts)) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(host, forKey: .host)
+        try container.encode(port, forKey: .port)
+        try container.encode(username, forKey: .username)
+        try container.encode(authMethod, forKey: .authMethod)
+        try container.encodeIfPresent(privateKeyPath, forKey: .privateKeyPath)
+        try container.encode(jumpHosts, forKey: .jumpHosts)
     }
 }
 

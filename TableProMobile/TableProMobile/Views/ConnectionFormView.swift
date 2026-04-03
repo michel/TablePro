@@ -262,7 +262,7 @@ struct ConnectionFormView: View {
 
                 Picker("Auth Method", selection: $sshAuthMethod) {
                     Text("Password").tag(SSHConfiguration.SSHAuthMethod.password)
-                    Text("Private Key").tag(SSHConfiguration.SSHAuthMethod.publicKey)
+                    Text("Private Key").tag(SSHConfiguration.SSHAuthMethod.privateKey)
                 }
             }
 
