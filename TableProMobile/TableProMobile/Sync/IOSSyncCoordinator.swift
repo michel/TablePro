@@ -114,7 +114,12 @@ final class IOSSyncCoordinator {
 
     // MARK: - Pull
 
-    private func pull() async throws -> [DatabaseConnection] {
+    private struct PullChanges {
+        var changed: [DatabaseConnection] = []
+        var deletedIDs: Set<UUID> = []
+    }
+
+    private func pull() async throws -> PullChanges {
         let token = metadata.loadToken()
         let result = try await getEngine().pull(since: token)
 
@@ -122,34 +127,44 @@ final class IOSSyncCoordinator {
             metadata.saveToken(newToken)
         }
 
-        var connections: [DatabaseConnection] = []
+        var changes = PullChanges()
 
         for record in result.changedRecords {
             if record.recordType == SyncRecordType.connection.rawValue {
                 if let connection = SyncRecordMapper.toConnection(record) {
                     cachedRecords[connection.id] = record
-                    connections.append(connection)
+                    changes.changed.append(connection)
                 }
             }
         }
 
-        return connections
+        for recordID in result.deletedRecordIDs {
+            let name = recordID.recordName
+            if name.hasPrefix("Connection_") {
+                let uuidStr = String(name.dropFirst("Connection_".count))
+                if let uuid = UUID(uuidString: uuidStr) {
+                    changes.deletedIDs.insert(uuid)
+                }
+            }
+        }
+
+        return changes
     }
 
     // MARK: - Merge (last-write-wins)
 
-    private func merge(local: [DatabaseConnection], remote: [DatabaseConnection]) -> [DatabaseConnection] {
-        var result = local
-        let localMap = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
+    private func merge(local: [DatabaseConnection], remote: PullChanges) -> [DatabaseConnection] {
+        // Remove deleted connections
+        var result = local.filter { !remote.deletedIDs.contains($0.id) }
 
-        for remoteConn in remote {
+        let localMap = Dictionary(uniqueKeysWithValues: result.map { ($0.id, $0) })
+
+        for remoteConn in remote.changed {
             if localMap[remoteConn.id] != nil {
-                // Exists locally — replace with server version (last-write-wins)
                 if let index = result.firstIndex(where: { $0.id == remoteConn.id }) {
                     result[index] = remoteConn
                 }
-            } else {
-                // New from server
+            } else if !remote.deletedIDs.contains(remoteConn.id) {
                 result.append(remoteConn)
             }
         }
