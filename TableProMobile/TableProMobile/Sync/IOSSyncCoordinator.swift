@@ -19,10 +19,10 @@ final class IOSSyncCoordinator {
     private var cachedRecords: [UUID: CKRecord] = [:]
 
     private func getEngine() -> CloudKitSyncEngine {
-        if engine == nil {
-            engine = CloudKitSyncEngine()
-        }
-        return engine!
+        if let engine { return engine }
+        let newEngine = CloudKitSyncEngine()
+        engine = newEngine
+        return newEngine
     }
     private var debounceTask: Task<Void, Never>?
 
@@ -31,7 +31,7 @@ final class IOSSyncCoordinator {
 
     // MARK: - Sync
 
-    func sync(localConnections: [DatabaseConnection]) async {
+    func sync(localConnections: [DatabaseConnection], isRetry: Bool = false) async {
         guard status != .syncing else { return }
         status = .syncing
 
@@ -52,9 +52,13 @@ final class IOSSyncCoordinator {
             lastSyncDate = metadata.lastSyncDate
             status = .idle
         } catch let error as SyncError where error == .tokenExpired {
+            guard !isRetry else {
+                status = .error("Sync failed after token refresh")
+                return
+            }
             metadata.saveToken(nil)
             status = .idle
-            await sync(localConnections: localConnections)
+            await sync(localConnections: localConnections, isRetry: true)
         } catch {
             status = .error(error.localizedDescription)
         }

@@ -275,14 +275,10 @@ private actor PostgreSQLActor {
     private var conn: OpaquePointer?
 
     func connect(host: String, port: Int, user: String, password: String, database: String) throws {
-        let escapedHost = host.replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\\", with: "\\\\")
-        let escapedUser = user.replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\\", with: "\\\\")
-        let escapedPass = password.replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\\", with: "\\\\")
-        let escapedDb = database.replacingOccurrences(of: "'", with: "\\'")
-            .replacingOccurrences(of: "\\", with: "\\\\")
+        let escapedHost = escapeConnParam(host)
+        let escapedUser = escapeConnParam(user)
+        let escapedPass = escapeConnParam(password)
+        let escapedDb = escapeConnParam(database)
 
         let connStr = "host='\(escapedHost)' port='\(port)' dbname='\(escapedDb)' " +
             "user='\(escapedUser)' password='\(escapedPass)' connect_timeout='10' sslmode='disable'"
@@ -296,6 +292,11 @@ private actor PostgreSQLActor {
         }
 
         self.conn = connection
+    }
+
+    private func escapeConnParam(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
     }
 
     func close() {

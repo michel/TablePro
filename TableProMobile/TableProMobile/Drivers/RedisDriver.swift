@@ -371,6 +371,8 @@ private actor RedisActor {
         if database != 0 {
             let reply = try executeCommand(["SELECT", String(database)])
             if case .error(let msg) = reply {
+                redisFree(context)
+                self.ctx = nil
                 throw RedisError.connectionFailed("Failed to select database \(database): \(msg)")
             }
         }

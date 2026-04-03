@@ -356,26 +356,11 @@ struct ConnectionFormView: View {
         guard url.startAccessingSecurityScopedResource() else { return }
         defer { url.stopAccessingSecurityScopedResource() }
 
-        do {
-            let bookmarkData = try url.bookmarkData(
-                options: .minimalBookmark,
-                includingResourceValuesForKeys: nil,
-                relativeTo: nil
-            )
-            let destURL = copyToDocuments(url)
-            selectedFileURL = destURL
-            database = destURL.path
-            if name.isEmpty {
-                name = destURL.deletingPathExtension().lastPathComponent
-            }
-
-            BookmarkStore.save(bookmarkData, for: destURL.lastPathComponent)
-        } catch {
-            selectedFileURL = url
-            database = url.path
-            if name.isEmpty {
-                name = url.deletingPathExtension().lastPathComponent
-            }
+        let destURL = copyToDocuments(url)
+        selectedFileURL = destURL
+        database = destURL.path
+        if name.isEmpty {
+            name = destURL.deletingPathExtension().lastPathComponent
         }
     }
 
@@ -470,6 +455,17 @@ struct ConnectionFormView: View {
 
         if sshEnabled {
             let secureStore = KeychainSecureStore()
+
+            if let existing = existingConnection,
+               let oldSSH = existing.sshConfiguration {
+                let oldKey = "ssh-\(oldSSH.host)-\(oldSSH.username)"
+                let newKey = "ssh-\(sshHost)-\(sshUsername)"
+                if oldKey != newKey {
+                    try? secureStore.delete(forKey: oldKey)
+                    try? secureStore.delete(forKey: "ssh-key-\(oldSSH.host)-\(oldSSH.username)")
+                }
+            }
+
             if !sshPassword.isEmpty {
                 try? secureStore.store(sshPassword, forKey: "ssh-\(sshHost)-\(sshUsername)")
             }
@@ -487,26 +483,3 @@ private struct TestResult {
     let message: String
 }
 
-// MARK: - Bookmark Storage
-
-enum BookmarkStore {
-    private static let key = "com.TablePro.Mobile.bookmarks"
-
-    static func save(_ data: Data, for filename: String) {
-        var bookmarks = loadAll()
-        bookmarks[filename] = data
-        UserDefaults.standard.set(try? JSONEncoder().encode(bookmarks), forKey: key)
-    }
-
-    static func load(for filename: String) -> Data? {
-        loadAll()[filename]
-    }
-
-    private static func loadAll() -> [String: Data] {
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let dict = try? JSONDecoder().decode([String: Data].self, from: data) else {
-            return [:]
-        }
-        return dict
-    }
-}

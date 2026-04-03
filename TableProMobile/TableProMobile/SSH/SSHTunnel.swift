@@ -54,7 +54,7 @@ actor SSHTunnel {
             }
 
             let flags = fcntl(fd, F_GETFL, 0)
-            fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+            _ = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
 
             let connectResult = Darwin.connect(fd, addrInfo.pointee.ai_addr, addrInfo.pointee.ai_addrlen)
 
@@ -88,7 +88,7 @@ actor SSHTunnel {
                 }
             }
 
-            fcntl(fd, F_SETFL, flags)
+            _ = fcntl(fd, F_SETFL, flags)
 
             socketFD = fd
             Self.logger.debug("TCP connected to \(host):\(port)")
@@ -401,7 +401,7 @@ actor SSHTunnel {
             if pollResult < 0 { break }
 
             // Channel -> Client
-            if pollFDs[1].revents & Int16(POLLIN) != 0 || pollResult == 0 {
+            if pollFDs[1].revents & Int16(POLLIN) != 0 {
                 let readResult = Int(tablepro_libssh2_channel_read(channel, buffer, Self.bufferSize))
                 if readResult > 0 {
                     var totalSent = 0

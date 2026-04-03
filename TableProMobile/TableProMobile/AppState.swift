@@ -32,8 +32,6 @@ final class AppState {
             self.connections = merged
             self.storage.save(merged)
         }
-
-        Task { await syncCoordinator.sync(localConnections: connections) }
     }
 
     func addConnection(_ connection: DatabaseConnection) {

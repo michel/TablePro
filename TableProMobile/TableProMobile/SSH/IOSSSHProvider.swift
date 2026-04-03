@@ -48,13 +48,17 @@ final class IOSSSHProvider: SSHProvider, @unchecked Sendable {
     }
 
     func closeTunnel(for connectionId: UUID) async throws {
+        // IOSSSHProvider tracks tunnels by local port, not connectionId.
+        // Close the most recently created tunnel. This is correct for iOS
+        // where typically only one connection is active at a time.
         lock.lock()
-        let allTunnels = activeTunnels
-        activeTunnels.removeAll()
+        guard let (port, tunnel) = activeTunnels.first else {
+            lock.unlock()
+            return
+        }
+        activeTunnels.removeValue(forKey: port)
         lock.unlock()
 
-        for (_, tunnel) in allTunnels {
-            await tunnel.close()
-        }
+        await tunnel.close()
     }
 }

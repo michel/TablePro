@@ -264,10 +264,10 @@ struct QueryEditorView: View {
     }
 
     private func columnWidth(for columnIndex: Int, column: ColumnInfo, rows: [[String?]]) -> CGFloat {
-        let headerWidth = CGFloat(column.name.count) * 8 + 16
+        let headerWidth = CGFloat((column.name as NSString).length) * 8 + 16
         let maxDataWidth = rows.prefix(20).compactMap { row -> CGFloat? in
             guard columnIndex < row.count, let value = row[columnIndex] else { return nil }
-            return min(CGFloat(value.count) * 7.5, 200) + 16
+            return min(CGFloat((value as NSString).length) * 7.5, 200) + 16
         }.max() ?? 60
         return max(max(headerWidth, maxDataWidth), 60)
     }
