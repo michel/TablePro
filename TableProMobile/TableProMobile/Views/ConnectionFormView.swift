@@ -365,7 +365,9 @@ struct ConnectionFormView: View {
     }
 
     private func copyToDocuments(_ sourceURL: URL) -> URL {
-        let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return sourceURL
+        }
         let destURL = documentsDir.appendingPathComponent(sourceURL.lastPathComponent)
 
         if !FileManager.default.fileExists(atPath: destURL.path) {
@@ -378,7 +380,7 @@ struct ConnectionFormView: View {
         guard !newDatabaseName.isEmpty else { return }
 
         let safeName = newDatabaseName.hasSuffix(".db") ? newDatabaseName : "\(newDatabaseName).db"
-        let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
         let fileURL = documentsDir.appendingPathComponent(safeName)
 
         selectedFileURL = fileURL

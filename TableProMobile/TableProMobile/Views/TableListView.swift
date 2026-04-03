@@ -44,12 +44,6 @@ struct TableListView: View {
                         NavigationLink(value: table) {
                             TableRow(table: table)
                         }
-                        .swipeActions(edge: .leading) {
-                            NavigationLink(value: QuickQuery(table: table, databaseType: connection.type)) {
-                                Label("Query", systemImage: "terminal")
-                            }
-                            .tint(.blue)
-                        }
                     }
                 } header: {
                     HStack {
@@ -64,7 +58,6 @@ struct TableListView: View {
         }
         .listStyle(.insetGrouped)
         .searchable(text: $searchText, prompt: "Search tables")
-        .navigationTitle("Tables")
         .refreshable {
             await onRefresh?()
         }
@@ -73,15 +66,6 @@ struct TableListView: View {
                 connection: connection,
                 table: table,
                 session: session
-            )
-        }
-        .navigationDestination(for: QuickQuery.self) { query in
-            QueryEditorView(
-                session: session,
-                tables: tables,
-                initialQuery: SQLBuilder.buildSelect(
-                    table: query.table.name, type: query.databaseType, limit: 100, offset: 0
-                )
             )
         }
         .overlay {
@@ -96,11 +80,6 @@ struct TableListView: View {
             }
         }
     }
-}
-
-struct QuickQuery: Hashable {
-    let table: TableInfo
-    let databaseType: DatabaseType
 }
 
 private struct TableRow: View {

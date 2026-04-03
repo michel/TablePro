@@ -27,8 +27,6 @@ struct QueryEditorView: View {
             Divider()
             resultSection
         }
-        .navigationTitle("Query")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .onAppear {
             if !initialQuery.isEmpty { query = initialQuery }
@@ -129,15 +127,15 @@ struct QueryEditorView: View {
                 Section {
                     ForEach(Array(result.columns.enumerated()), id: \.offset) { colIndex, col in
                         let value = colIndex < row.count ? row[colIndex] : nil
-                        HStack {
+                        HStack(alignment: .top) {
                             Text(verbatim: col.name)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                                .frame(minWidth: 70, alignment: .leading)
-                            Spacer()
+                                .frame(width: 90, alignment: .leading)
                             Text(verbatim: value ?? "NULL")
                                 .font(.system(.body, design: .monospaced))
                                 .foregroundStyle(value == nil ? .secondary : .primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .lineLimit(3)
                                 .textSelection(.enabled)
                         }
@@ -173,7 +171,6 @@ struct QueryEditorView: View {
                 Task { await executeQuery() }
             } label: {
                 Image(systemName: isExecuting ? "stop.fill" : "play.fill")
-                    .foregroundStyle(isExecuting ? .red : .green)
             }
             .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isExecuting)
         }

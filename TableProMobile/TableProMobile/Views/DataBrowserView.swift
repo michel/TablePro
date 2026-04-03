@@ -70,18 +70,17 @@ struct DataBrowserView: View {
         .navigationTitle(table.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .status) {
+                Text(verbatim: "\(rows.count) rows")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             ToolbarItem(placement: .primaryAction) {
-                HStack(spacing: 12) {
-                    Text("\(rows.count) rows")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if !isView {
-                        Button {
-                            showInsertSheet = true
-                        } label: {
-                            Image(systemName: "plus")
-                        }
+                if !isView {
+                    Button {
+                        showInsertSheet = true
+                    } label: {
+                        Image(systemName: "plus")
                     }
                 }
             }
@@ -117,6 +116,7 @@ struct DataBrowserView: View {
 
     private var cardList: some View {
         List {
+            // Offset-based identity is acceptable here: rows don't animate/reorder
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                 NavigationLink {
                     RowDetailView(
@@ -288,12 +288,12 @@ private struct RowCard: View {
                         .frame(minWidth: 60, alignment: .leading)
 
                     if let value = pair.value {
-                        Text(value)
+                        Text(verbatim: value)
                             .font(.subheadline)
                             .fontWeight(pair.column.isPrimaryKey ? .semibold : .regular)
                             .lineLimit(1)
                     } else {
-                        Text("NULL")
+                        Text(verbatim: "NULL")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .italic()

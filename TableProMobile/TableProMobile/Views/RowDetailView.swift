@@ -61,19 +61,7 @@ struct RowDetailView: View {
 
     var body: some View {
         List {
-            if showSaveSuccess {
-                Section {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                        Text("Row updated successfully.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            ForEach(Array(zip(columns, isEditing ? editedValues : currentRow).enumerated()), id: \.offset) { index, pair in
+            ForEach(Array(zip(columns, isEditing ? editedValues : currentRow).enumerated()), id: \.element.0.name) { index, pair in
                 let (column, value) = pair
                 let isPK = columnDetail(for: column.name)?.isPrimaryKey ?? column.isPrimaryKey
                 Section {
@@ -125,6 +113,16 @@ struct RowDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .overlay(alignment: .bottom) {
+            if showSaveSuccess {
+                Label("Row updated", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline)
+                    .padding()
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.bottom)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .navigationTitle("Row \(currentIndex + 1) of \(rows.count)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -237,11 +235,11 @@ struct RowDetailView: View {
     @ViewBuilder
     private func fieldContent(value: String?) -> some View {
         if let value {
-            Text(value)
+            Text(verbatim: value)
                 .font(.body)
                 .textSelection(.enabled)
         } else {
-            Text("NULL")
+            Text(verbatim: "NULL")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .italic()

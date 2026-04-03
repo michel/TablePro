@@ -30,8 +30,10 @@ struct ConnectedView: View {
     var body: some View {
         Group {
             if isConnecting {
-                ProgressView("Connecting to \(displayName)...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ProgressView {
+                    Text(verbatim: "Connecting to \(displayName)...")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let errorMessage {
                 ContentUnavailableView {
                     Label("Connection Failed", systemImage: "exclamationmark.triangle")

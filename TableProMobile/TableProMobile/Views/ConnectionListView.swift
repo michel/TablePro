@@ -35,19 +35,20 @@ struct ConnectionListView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarLeading) {
-                        if isSyncing {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Button {
-                                Task {
-                                    await appState.syncCoordinator.sync(
-                                        localConnections: appState.connections)
-                                }
-                            } label: {
+                        Button {
+                            Task {
+                                await appState.syncCoordinator.sync(
+                                    localConnections: appState.connections)
+                            }
+                        } label: {
+                            if isSyncing {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
                                 Image(systemName: "arrow.triangle.2.circlepath.icloud")
                             }
                         }
+                        .disabled(isSyncing)
                     }
                 }
         } detail: {
@@ -138,7 +139,7 @@ struct ConnectionListView: View {
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.sidebar)
             .refreshable {
                 await appState.syncCoordinator.sync(localConnections: appState.connections)
             }
