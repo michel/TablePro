@@ -323,14 +323,6 @@ build_for_arch() {
     prepare_libmongoc "$arch"
     prepare_hiredis "$arch"
 
-    # Remove AppIcon.icon if present — Xcode 26's automatic icon format
-    # uses SVG rendering with GPU effects (shadows, translucency) that
-    # crashes actool/ibtoold in headless CI environments.
-    # The traditional AppIcon.appiconset in Assets.xcassets is used instead.
-    if [ -d "TablePro/AppIcon.icon" ]; then
-        echo "🎨 Removing AppIcon.icon (not supported in headless CI)..."
-        rm -rf "TablePro/AppIcon.icon"
-    fi
 
     # Persistent SPM package cache (speeds up CI on self-hosted runners)
     SPM_CACHE_DIR="${HOME}/.spm-cache"
