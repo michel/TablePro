@@ -1264,7 +1264,11 @@ struct ConnectionFormView: View {
             urlParseError = error.localizedDescription
         }
     }
+}
 
+// MARK: - SSH Agent Helpers
+
+extension ConnectionFormView {
     private func applySSHAgentSocketPath(_ socketPath: String) {
         let option = SSHAgentSocketOption(socketPath: socketPath)
         sshAgentSocketOption = option

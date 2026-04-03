@@ -44,15 +44,15 @@ Or download the DMG from [GitHub Releases](https://github.com/TableProApp/TableP
 
 Full documentation is available at [docs.tablepro.app](https://docs.tablepro.app).
 
+## Support Development
+
+TablePro is free and open source. If you find it useful, consider [purchasing a license](https://tablepro.app) to support ongoing development and get access to premium features.
+
 ## Sponsors
 
 Thanks to these amazing people for supporting TablePro:
 
-- **[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)**
-- **[Nimbus](https://getnimbus.io?ref=tablepro)**
-- **[Visnalize](https://visnalize.com?ref=tablepro)**
-- **[Huy TQ](https://github.com/imhuytq)**
-- **[Unikorn](https://unikorn.vn?ref=tablepro)**
+**[Dwarves Foundation](https://dwarves.foundation/?ref=tablepro)** · **[Nimbus](https://getnimbus.io?ref=tablepro)** · **[Visnalize](https://visnalize.com?ref=tablepro)** · **[Huy TQ](https://github.com/imhuytq)** · **[Unikorn](https://unikorn.vn?ref=tablepro)**
 
 ## Star History
 

@@ -109,8 +109,9 @@ internal final class ThemeEngine {
 
     private init() {
         let allThemes = ThemeStorage.loadAllThemes()
-        let activeId = ThemeStorage.loadActiveThemeId()
-        let theme = allThemes.first { $0.id == activeId } ?? .default
+        // Start with the default theme; AppSettingsManager.init() will call
+        // updateAppearanceAndTheme() to activate the correct preferred theme.
+        let theme = ThemeDefinition.default
 
         self.activeTheme = theme
         self.colors = ResolvedThemeColors(from: theme)
@@ -140,7 +141,6 @@ internal final class ThemeEngine {
         editorFonts = EditorFontCache(from: theme.fonts)
         dataGridFonts = DataGridFontCacheResolved(from: theme.fonts)
 
-        ThemeStorage.saveActiveThemeId(theme.id)
         notifyThemeDidChange()
 
         Self.logger.info("Activated theme: \(theme.name) (\(theme.id))")
@@ -163,9 +163,27 @@ internal final class ThemeEngine {
         try ThemeStorage.deleteUserTheme(id: id)
         reloadAvailableThemes()
 
-        // If deleted the active theme, fall back to default
-        if id == activeTheme.id {
-            activateTheme(id: "tablepro.default-light")
+        // If deleted a preferred theme, reset that slot to default
+        var appearance = AppSettingsManager.shared.appearance
+        var changed = false
+        if id == appearance.preferredLightThemeId {
+            appearance.preferredLightThemeId = "tablepro.default-light"
+            changed = true
+        }
+        if id == appearance.preferredDarkThemeId {
+            appearance.preferredDarkThemeId = "tablepro.default-dark"
+            changed = true
+        }
+        if changed {
+            AppSettingsManager.shared.appearance = appearance
+        } else if id == activeTheme.id {
+            // Deleted a non-preferred but currently active theme — re-anchor to preferred
+            let appearance = AppSettingsManager.shared.appearance
+            updateAppearanceAndTheme(
+                mode: appearance.appearanceMode,
+                lightThemeId: appearance.preferredLightThemeId,
+                darkThemeId: appearance.preferredDarkThemeId
+            )
         }
     }
 
@@ -209,6 +227,11 @@ internal final class ThemeEngine {
         activeTheme = theme
         editorFonts = EditorFontCache(from: theme.fonts)
         notifyThemeDidChange()
+
+        // Persist so the zoom survives re-activation (e.g. system appearance change)
+        if theme.isEditable {
+            try? ThemeStorage.saveUserTheme(theme)
+        }
     }
 
     // MARK: - Font Cache Reload (accessibility)
@@ -273,13 +296,51 @@ internal final class ThemeEngine {
     // MARK: - Appearance
 
     @ObservationIgnored private(set) var appearanceMode: AppAppearanceMode = .auto
+    private(set) var effectiveAppearance: ThemeAppearance = .light
+    @ObservationIgnored private var currentLightThemeId: String = "tablepro.default-light"
+    @ObservationIgnored private var currentDarkThemeId: String = "tablepro.default-dark"
+    @ObservationIgnored private var systemAppearanceObserver: NSObjectProtocol?
 
-    func updateAppearanceMode(_ mode: AppAppearanceMode) {
+    /// Central entry point: resolves effective appearance, picks the correct theme, activates it,
+    /// and derives NSApp.appearance from the theme's own appearance metadata.
+    func updateAppearanceAndTheme(
+        mode: AppAppearanceMode,
+        lightThemeId: String,
+        darkThemeId: String
+    ) {
         appearanceMode = mode
-        applyAppearance(mode)
+        currentLightThemeId = lightThemeId
+        currentDarkThemeId = darkThemeId
+
+        let resolved = resolveEffectiveAppearance(mode)
+        effectiveAppearance = resolved
+
+        let themeId = resolved == .dark ? darkThemeId : lightThemeId
+        activateTheme(id: themeId)
+        applyNSAppAppearance(mode: mode)
+
+        updateSystemAppearanceObserver(mode: mode)
     }
 
-    private func applyAppearance(_ mode: AppAppearanceMode) {
+    /// Resolve which appearance is in effect right now.
+    private func resolveEffectiveAppearance(_ mode: AppAppearanceMode) -> ThemeAppearance {
+        switch mode {
+        case .light: return .light
+        case .dark: return .dark
+        case .auto: return systemIsDark() ? .dark : .light
+        }
+    }
+
+    /// Check if the system is currently in dark mode.
+    /// Reads the global `AppleInterfaceStyle` default directly so we get the real
+    /// system setting, not the app's own forced appearance.
+    private func systemIsDark() -> Bool {
+        UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+    }
+
+    /// Set NSApp.appearance based on the appearance mode (not the theme).
+    /// Auto mode sets nil so the system controls the chrome.
+    private func applyNSAppAppearance(mode: AppAppearanceMode) {
         switch mode {
         case .light:
             NSApp?.appearance = NSAppearance(named: .aqua)
@@ -287,6 +348,35 @@ internal final class ThemeEngine {
             NSApp?.appearance = NSAppearance(named: .darkAqua)
         case .auto:
             NSApp?.appearance = nil
+        }
+    }
+
+    // MARK: - System Appearance Observer
+
+    private func updateSystemAppearanceObserver(mode: AppAppearanceMode) {
+        // Remove existing observer
+        if let observer = systemAppearanceObserver {
+            DistributedNotificationCenter.default().removeObserver(observer)
+            systemAppearanceObserver = nil
+        }
+
+        guard mode == .auto else { return }
+
+        // Install observer for system appearance changes
+        systemAppearanceObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.appearanceMode == .auto else { return }
+                let newAppearance = self.systemIsDark() ? ThemeAppearance.dark : ThemeAppearance.light
+                guard newAppearance != self.effectiveAppearance else { return }
+                self.effectiveAppearance = newAppearance
+                let themeId = newAppearance == .dark ? self.currentDarkThemeId : self.currentLightThemeId
+                self.activateTheme(id: themeId)
+                self.applyNSAppAppearance(mode: .auto)
+            }
         }
     }
 

@@ -243,6 +243,14 @@ final class KeyHandlingTableView: NSTableView {
             break
         }
 
+        // Cmd+Return: preview referenced FK row
+        if key == .return && modifiers.contains(.command) && selectedRow >= 0 && focusedColumn >= 1 {
+            coordinator?.showForeignKeyPreview(
+                tableView: self, row: selectedRow, column: focusedColumn, columnIndex: focusedColumn - 1
+            )
+            return
+        }
+
         // For all other keys, use interpretKeyEvents to map to standard selectors
         // This handles Return → insertNewline(_:), Delete → deleteBackward(_:), ESC → cancelOperation(_:)
         interpretKeyEvents([event])
@@ -412,11 +420,16 @@ final class KeyHandlingTableView: NSTableView {
         let clickedRow = row(at: point)
 
         if clickedRow >= 0,
-           let rowView = rowView(atRow: clickedRow, makeIfNecessary: false) as? TableRowViewWithMenu {
+           let rowView = rowView(atRow: clickedRow, makeIfNecessary: false) {
             if !selectedRowIndexes.contains(clickedRow) {
                 selectRowIndexes(IndexSet(integer: clickedRow), byExtendingSelection: false)
             }
             return rowView.menu(for: event)
+        }
+
+        // Empty space: ask coordinator for a fallback menu (e.g., Structure tab "Add" actions)
+        if let menu = coordinator?.emptySpaceMenu?() {
+            return menu
         }
 
         return super.menu(for: event)
