@@ -403,11 +403,13 @@ struct ConnectionFormView: View {
 
         let secureStore = KeychainSecureStore()
         if sshEnabled && !sshPassword.isEmpty {
-            try? secureStore.store(sshPassword, forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
+            try? secureStore.store(sshPassword, forKey: "com.TablePro.sshpassword.\(tempId.uuidString)")
         }
         if sshEnabled && !sshKeyPassphrase.isEmpty {
-            try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
+            try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
         }
+
+        appState.sshProvider.pendingConnectionId = tempId
 
         do {
             _ = try await appState.connectionManager.connect(testConn)
@@ -418,6 +420,8 @@ struct ConnectionFormView: View {
         }
 
         try? appState.connectionManager.deletePassword(for: tempId)
+        try? secureStore.delete(forKey: "com.TablePro.sshpassword.\(tempId.uuidString)")
+        try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
         isTesting = false
     }
 
