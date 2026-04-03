@@ -1797,6 +1797,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lz",
@@ -1835,6 +1836,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
 					"-lz",
