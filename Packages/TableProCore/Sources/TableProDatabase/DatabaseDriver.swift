@@ -18,6 +18,7 @@ public protocol DatabaseDriver: AnyObject, Sendable {
     func switchDatabase(to name: String) async throws
     var supportsSchemas: Bool { get }
     func switchSchema(to name: String) async throws
+    func fetchSchemas() async throws -> [String]
     var currentSchema: String? { get }
 
     var supportsTransactions: Bool { get }
