@@ -267,7 +267,7 @@ struct DataBrowserView: View {
         let pkValues = primaryKeyValues(for: row)
 
         guard !pkValues.isEmpty else {
-            operationError = "Cannot delete: no primary key columns found."
+            operationError = AppError(category: .config, title: "Cannot Delete", message: "No primary key columns found.", recovery: "This table needs a primary key to identify rows for deletion.", underlying: nil)
             showOperationError = true
             return
         }
