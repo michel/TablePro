@@ -341,11 +341,10 @@ build_for_arch() {
     prepare_libmongoc "$arch"
     prepare_hiredis "$arch"
 
-    # Remove AppIcon.icon if present — Xcode 26's Icon Composer format
-    # crashes actool/ibtoold in headless CI. Falls back to AppIcon.appiconset
-    # in Assets.xcassets (traditional PNG-based icon).
-    if [ -d "TablePro/AppIcon.icon" ]; then
-        echo "🎨 Removing AppIcon.icon (falls back to AppIcon.appiconset for CI)..."
+    # Xcode 26's Icon Composer (.icon) crashes actool in headless CI.
+    # Keep AppIcon.appiconset as fallback; remove .icon so actool uses it.
+    if [ -d "TablePro/AppIcon.icon" ] && [ -d "TablePro/Assets.xcassets/AppIcon.appiconset" ]; then
+        echo "🎨 Using AppIcon.appiconset fallback for headless CI..."
         rm -rf "TablePro/AppIcon.icon"
     fi
 
