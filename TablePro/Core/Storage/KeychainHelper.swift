@@ -11,6 +11,7 @@ final class KeychainHelper {
     static let shared = KeychainHelper()
 
     private let service = "com.TablePro"
+    private let accessGroup = "D7HJ5TFYCU.com.TablePro.shared"
     private static let logger = Logger(subsystem: "com.TablePro", category: "KeychainHelper")
     private static let migrationKey = "com.TablePro.keychainMigratedToDataProtection"
     static let passwordSyncEnabledKey = "com.TablePro.keychainPasswordSyncEnabled"
@@ -31,6 +32,7 @@ final class KeychainHelper {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecValueData as String: data,
             kSecUseDataProtectionKeychain as String: true,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
@@ -47,6 +49,7 @@ final class KeychainHelper {
                 kSecClass as String: kSecClassGenericPassword,
                 kSecAttrService as String: service,
                 kSecAttrAccount as String: key,
+                kSecAttrAccessGroup as String: accessGroup,
                 kSecUseDataProtectionKeychain as String: true,
                 kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
             ]
@@ -69,6 +72,7 @@ final class KeychainHelper {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecUseDataProtectionKeychain as String: true,
             kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
             kSecReturnData as String: true,
@@ -93,6 +97,7 @@ final class KeychainHelper {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
+            kSecAttrAccessGroup as String: accessGroup,
             kSecUseDataProtectionKeychain as String: true,
             kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
         ]

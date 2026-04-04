@@ -1,0 +1,464 @@
+//
+//  PostgreSQLDriver.swift
+//  TableProMobile
+//
+//  PostgreSQL driver conforming to DatabaseDriver directly (no plugin layer).
+//
+
+import CLibPQ
+import Foundation
+import TableProDatabase
+import TableProModels
+
+final class PostgreSQLDriver: DatabaseDriver, @unchecked Sendable {
+    private let actor = PostgreSQLActor()
+    private let host: String
+    private let port: Int
+    private let user: String
+    private let password: String
+    private let database: String
+    private let sslEnabled: Bool
+
+    var supportsSchemas: Bool { true }
+    private(set) var currentSchema: String? = "public"
+    var supportsTransactions: Bool { true }
+    private(set) var serverVersion: String?
+
+    init(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) {
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.database = database
+        self.sslEnabled = sslEnabled
+    }
+
+    // MARK: - Connection
+
+    func connect() async throws {
+        try await actor.connect(host: host, port: port, user: user, password: password, database: database, sslEnabled: sslEnabled)
+        serverVersion = await actor.serverVersion()
+    }
+
+    func disconnect() async throws {
+        await actor.close()
+    }
+
+    func ping() async throws -> Bool {
+        _ = try await actor.execute("SELECT 1")
+        return true
+    }
+
+    // MARK: - Query Execution
+
+    func execute(query: String) async throws -> QueryResult {
+        let raw = try await actor.execute(query)
+        return QueryResult(
+            columns: raw.columns.enumerated().map { i, name in
+                ColumnInfo(
+                    name: name,
+                    typeName: i < raw.columnTypes.count ? raw.columnTypes[i] : "",
+                    isPrimaryKey: false,
+                    isNullable: true,
+                    defaultValue: nil,
+                    comment: nil,
+                    characterMaxLength: nil,
+                    ordinalPosition: i
+                )
+            },
+            rows: raw.rows,
+            rowsAffected: raw.rowsAffected,
+            executionTime: raw.executionTime,
+            isTruncated: raw.isTruncated,
+            statusMessage: nil
+        )
+    }
+
+    func cancelCurrentQuery() async throws {
+        await actor.cancel()
+    }
+
+    // MARK: - Schema
+
+    func fetchTables(schema: String?) async throws -> [TableInfo] {
+        let schemaName = schema ?? "public"
+        let safe = schemaName.replacingOccurrences(of: "'", with: "''")
+        let raw = try await actor.execute("""
+            SELECT table_name, table_type
+            FROM information_schema.tables
+            WHERE table_schema = '\(safe)'
+            ORDER BY table_name
+            """)
+
+        return raw.rows.compactMap { row in
+            guard row.count >= 2, let name = row[0] else { return nil }
+            let typeStr = row[1]?.uppercased() ?? "TABLE"
+            let kind: TableInfo.TableKind
+            switch typeStr {
+            case "VIEW": kind = .view
+            case "SYSTEM TABLE": kind = .systemTable
+            default: kind = .table
+            }
+            return TableInfo(name: name, type: kind, rowCount: nil, dataSize: nil, comment: nil)
+        }
+    }
+
+    func fetchColumns(table: String, schema: String?) async throws -> [ColumnInfo] {
+        let schemaName = schema ?? "public"
+        let safeTbl = table.replacingOccurrences(of: "'", with: "''")
+        let safeSchema = schemaName.replacingOccurrences(of: "'", with: "''")
+
+        let raw = try await actor.execute("""
+            SELECT
+                c.column_name,
+                c.data_type,
+                c.is_nullable,
+                c.column_default,
+                c.character_maximum_length,
+                CASE WHEN pk.column_name IS NOT NULL THEN 'YES' ELSE 'NO' END AS is_pk
+            FROM information_schema.columns c
+            LEFT JOIN (
+                SELECT kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                    AND tc.table_schema = kcu.table_schema
+                WHERE tc.constraint_type = 'PRIMARY KEY'
+                    AND tc.table_schema = '\(safeSchema)'
+                    AND tc.table_name = '\(safeTbl)'
+            ) pk ON c.column_name = pk.column_name
+            WHERE c.table_schema = '\(safeSchema)' AND c.table_name = '\(safeTbl)'
+            ORDER BY c.ordinal_position
+            """)
+
+        return raw.rows.enumerated().compactMap { index, row in
+            guard row.count >= 6, let name = row[0], let dataType = row[1] else { return nil }
+            let maxLen = row[4].flatMap { Int($0) }
+            return ColumnInfo(
+                name: name,
+                typeName: dataType,
+                isPrimaryKey: row[5] == "YES",
+                isNullable: row[2]?.uppercased() == "YES",
+                defaultValue: row[3],
+                comment: nil,
+                characterMaxLength: maxLen,
+                ordinalPosition: index
+            )
+        }
+    }
+
+    func fetchIndexes(table: String, schema: String?) async throws -> [IndexInfo] {
+        let schemaName = schema ?? "public"
+        let safeTbl = table.replacingOccurrences(of: "'", with: "''")
+        let safeSchema = schemaName.replacingOccurrences(of: "'", with: "''")
+
+        let raw = try await actor.execute("""
+            SELECT
+                i.relname AS index_name,
+                ix.indisunique,
+                ix.indisprimary,
+                a.attname AS column_name
+            FROM pg_index ix
+            JOIN pg_class t ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+            WHERE n.nspname = '\(safeSchema)' AND t.relname = '\(safeTbl)'
+            ORDER BY i.relname, a.attnum
+            """)
+
+        var indexMap: [String: (isUnique: Bool, isPrimary: Bool, columns: [String])] = [:]
+        var order: [String] = []
+
+        for row in raw.rows {
+            guard row.count >= 4, let indexName = row[0], let colName = row[3] else { continue }
+            if indexMap[indexName] == nil {
+                indexMap[indexName] = (
+                    isUnique: row[1] == "t",
+                    isPrimary: row[2] == "t",
+                    columns: []
+                )
+                order.append(indexName)
+            }
+            indexMap[indexName]?.columns.append(colName)
+        }
+
+        return order.compactMap { name in
+            guard let entry = indexMap[name] else { return nil }
+            return IndexInfo(
+                name: name,
+                columns: entry.columns,
+                isUnique: entry.isUnique,
+                isPrimary: entry.isPrimary,
+                type: "BTREE"
+            )
+        }
+    }
+
+    func fetchForeignKeys(table: String, schema: String?) async throws -> [ForeignKeyInfo] {
+        let schemaName = schema ?? "public"
+        let safeTbl = table.replacingOccurrences(of: "'", with: "''")
+        let safeSchema = schemaName.replacingOccurrences(of: "'", with: "''")
+
+        let raw = try await actor.execute("""
+            SELECT
+                tc.constraint_name,
+                kcu.column_name,
+                ccu.table_name AS referenced_table,
+                ccu.column_name AS referenced_column,
+                rc.delete_rule,
+                rc.update_rule
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage ccu
+                ON tc.constraint_name = ccu.constraint_name
+                AND tc.table_schema = ccu.table_schema
+            JOIN information_schema.referential_constraints rc
+                ON tc.constraint_name = rc.constraint_name
+                AND tc.table_schema = rc.constraint_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_schema = '\(safeSchema)'
+                AND tc.table_name = '\(safeTbl)'
+            ORDER BY tc.constraint_name
+            """)
+
+        return raw.rows.compactMap { row in
+            guard row.count >= 6,
+                  let name = row[0],
+                  let column = row[1],
+                  let refTable = row[2],
+                  let refColumn = row[3] else { return nil }
+            return ForeignKeyInfo(
+                name: name,
+                column: column,
+                referencedTable: refTable,
+                referencedColumn: refColumn,
+                onDelete: row[4] ?? "NO ACTION",
+                onUpdate: row[5] ?? "NO ACTION"
+            )
+        }
+    }
+
+    func fetchDatabases() async throws -> [String] {
+        let raw = try await actor.execute(
+            "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname"
+        )
+        return raw.rows.compactMap { $0.first ?? nil }
+    }
+
+    func switchDatabase(to name: String) async throws {
+        throw PostgreSQLError.unsupported("PostgreSQL requires a new connection to switch databases")
+    }
+
+    func switchSchema(to name: String) async throws {
+        let safe = name.replacingOccurrences(of: "\"", with: "\"\"")
+        _ = try await actor.execute("SET search_path TO \"\(safe)\"")
+        currentSchema = name
+    }
+
+    func fetchSchemas() async throws -> [String] {
+        let result = try await execute(query: "SELECT schema_name FROM information_schema.schemata ORDER BY schema_name")
+        return result.rows.compactMap { $0.first ?? nil }
+    }
+
+    func beginTransaction() async throws {
+        _ = try await actor.execute("BEGIN")
+    }
+
+    func commitTransaction() async throws {
+        _ = try await actor.execute("COMMIT")
+    }
+
+    func rollbackTransaction() async throws {
+        _ = try await actor.execute("ROLLBACK")
+    }
+}
+
+// MARK: - PostgreSQL Actor (thread-safe C API access)
+
+private actor PostgreSQLActor {
+    private var conn: OpaquePointer?
+
+    func connect(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) throws {
+        // Close existing connection if reconnecting
+        if let conn { PQfinish(conn); self.conn = nil }
+
+        let escapedHost = escapeConnParam(host)
+        let escapedUser = escapeConnParam(user)
+        let escapedPass = escapeConnParam(password)
+        let escapedDb = escapeConnParam(database)
+        let sslmode = sslEnabled ? "require" : "disable"
+
+        let connStr = "host='\(escapedHost)' port='\(port)' dbname='\(escapedDb)' " +
+            "user='\(escapedUser)' password='\(escapedPass)' connect_timeout='10' sslmode='\(sslmode)'"
+
+        let connection = PQconnectdb(connStr)
+
+        guard PQstatus(connection) == CONNECTION_OK else {
+            let msg = connection.flatMap { String(cString: PQerrorMessage($0)) } ?? "Unknown error"
+            PQfinish(connection)
+            throw PostgreSQLError.connectionFailed(msg)
+        }
+
+        self.conn = connection
+    }
+
+    private func escapeConnParam(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+    }
+
+    func close() {
+        if let conn {
+            PQfinish(conn)
+            self.conn = nil
+        }
+    }
+
+    func cancel() {
+        guard let conn else { return }
+        let cancel = PQgetCancel(conn)
+        if let cancel {
+            var errbuf = [CChar](repeating: 0, count: 256)
+            PQcancel(cancel, &errbuf, Int32(errbuf.count))
+            PQfreeCancel(cancel)
+        }
+    }
+
+    func serverVersion() -> String? {
+        guard let conn else { return nil }
+        let version = PQserverVersion(conn)
+        if version == 0 { return nil }
+        let major = version / 10000
+        let minor = (version / 100) % 100
+        let patch = version % 100
+        return "\(major).\(minor).\(patch)"
+    }
+
+    func execute(_ query: String) throws -> RawPGResult {
+        guard let conn else { throw PostgreSQLError.notConnected }
+
+        let start = Date()
+        let result = PQexec(conn, query)
+        defer {
+            if result != nil { PQclear(result) }
+        }
+
+        let status = PQresultStatus(result)
+
+        if status == PGRES_FATAL_ERROR {
+            let msg = result.flatMap { String(cString: PQresultErrorMessage($0)) } ?? "Unknown error"
+            throw PostgreSQLError.queryFailed(msg)
+        }
+
+        if status == PGRES_COMMAND_OK {
+            let affectedStr = result.flatMap { String(cString: PQcmdTuples($0)) } ?? "0"
+            let affected = Int(affectedStr) ?? 0
+            return RawPGResult(
+                columns: [], columnTypes: [], rows: [],
+                rowsAffected: affected, executionTime: Date().timeIntervalSince(start), isTruncated: false
+            )
+        }
+
+        guard status == PGRES_TUPLES_OK else {
+            let msg = result.flatMap { String(cString: PQresultErrorMessage($0)) } ?? "Unexpected result status"
+            throw PostgreSQLError.queryFailed(msg)
+        }
+
+        let rowCount = Int(PQntuples(result))
+        let colCount = Int(PQnfields(result))
+
+        var columns: [String] = []
+        var columnTypes: [String] = []
+
+        for i in 0..<Int32(colCount) {
+            let name = PQfname(result, i).map { String(cString: $0) } ?? "col_\(i)"
+            columns.append(name)
+            let oid = PQftype(result, i)
+            columnTypes.append(pgOidToTypeName(oid))
+        }
+
+        var rows: [[String?]] = []
+        let maxRows = min(rowCount, 100_000)
+        let isTruncated = rowCount > 100_000
+
+        for r in 0..<Int32(maxRows) {
+            var rowData: [String?] = []
+            for c in 0..<Int32(colCount) {
+                if PQgetisnull(result, r, c) == 1 {
+                    rowData.append(nil)
+                } else if let value = PQgetvalue(result, r, c) {
+                    rowData.append(String(cString: value))
+                } else {
+                    rowData.append(nil)
+                }
+            }
+            rows.append(rowData)
+        }
+
+        return RawPGResult(
+            columns: columns, columnTypes: columnTypes, rows: rows,
+            rowsAffected: 0, executionTime: Date().timeIntervalSince(start), isTruncated: isTruncated
+        )
+    }
+}
+
+// MARK: - PostgreSQL OID Type Names
+
+private nonisolated func pgOidToTypeName(_ oid: UInt32) -> String {
+    switch oid {
+    case 16: return "boolean"
+    case 17: return "bytea"
+    case 18: return "char"
+    case 19: return "name"
+    case 20: return "bigint"
+    case 21: return "smallint"
+    case 23: return "integer"
+    case 25: return "text"
+    case 26: return "oid"
+    case 114: return "json"
+    case 142: return "xml"
+    case 700: return "real"
+    case 701: return "double precision"
+    case 869: return "inet"
+    case 1042: return "char"
+    case 1043: return "varchar"
+    case 1082: return "date"
+    case 1083: return "time"
+    case 1114: return "timestamp"
+    case 1184: return "timestamptz"
+    case 1700: return "numeric"
+    case 2950: return "uuid"
+    case 3802: return "jsonb"
+    default: return "unknown"
+    }
+}
+
+private struct RawPGResult: Sendable {
+    let columns: [String]
+    let columnTypes: [String]
+    let rows: [[String?]]
+    let rowsAffected: Int
+    let executionTime: TimeInterval
+    let isTruncated: Bool
+}
+
+// MARK: - Errors
+
+enum PostgreSQLError: Error, LocalizedError {
+    case connectionFailed(String)
+    case notConnected
+    case queryFailed(String)
+    case unsupported(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .connectionFailed(let msg): return "PostgreSQL connection failed: \(msg)"
+        case .notConnected: return "Not connected to PostgreSQL database"
+        case .queryFailed(let msg): return "PostgreSQL query failed: \(msg)"
+        case .unsupported(let msg): return msg
+        }
+    }
+}

@@ -1,6 +1,7 @@
 name: Build TablePro
 
 on:
+  workflow_dispatch:
   push:
     tags: ["v*"]
     paths-ignore:
