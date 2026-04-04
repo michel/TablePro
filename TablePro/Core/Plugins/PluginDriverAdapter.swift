@@ -279,6 +279,10 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
 
     // MARK: - Transaction Management
 
+    var supportsTransactions: Bool {
+        pluginDriver.supportsTransactions
+    }
+
     func beginTransaction() async throws {
         try await pluginDriver.beginTransaction()
     }

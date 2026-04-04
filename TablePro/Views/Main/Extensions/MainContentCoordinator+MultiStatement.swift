@@ -48,12 +48,17 @@ extension MainContentCoordinator {
                     throw DatabaseError.notConnected
                 }
 
-                // Wrap in a transaction for atomicity
-                try await driver.beginTransaction()
+                let useTransaction = driver.supportsTransactions
+
+                if useTransaction {
+                    try await driver.beginTransaction()
+                }
 
                 /// Rollback transaction and reset executing state for early exits.
                 @MainActor func rollbackAndResetState() async {
-                    try? await driver.rollbackTransaction()
+                    if useTransaction {
+                        try? await driver.rollbackTransaction()
+                    }
                     if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
                         tabManager.tabs[idx].isExecuting = false
                     }
@@ -115,8 +120,9 @@ extension MainContentCoordinator {
                     }
                 }
 
-                // Commit the transaction
-                try await driver.commitTransaction()
+                if useTransaction {
+                    try await driver.commitTransaction()
+                }
 
                 // All statements succeeded — update tab with results
                 await MainActor.run {
@@ -131,8 +137,7 @@ extension MainContentCoordinator {
                     )
                 }
             } catch {
-                // Rollback on failure
-                if let driver = DatabaseManager.shared.driver(for: conn.id) {
+                if let driver = DatabaseManager.shared.driver(for: conn.id), driver.supportsTransactions {
                     try? await driver.rollbackTransaction()
                 }
 

@@ -200,6 +200,24 @@ final class D1HttpClient: @unchecked Sendable {
         return first
     }
 
+    func executeBatchRaw(statements: [(sql: String, params: [Any?]?)]) async throws -> [D1RawResultPayload] {
+        let dbId = databaseId
+        let batch = statements.map { stmt -> [String: Any] in
+            var entry: [String: Any] = ["sql": stmt.sql]
+            if let params = stmt.params {
+                entry["params"] = params.map { $0 ?? NSNull() }
+            }
+            return entry
+        }
+        let body = try JSONSerialization.data(withJSONObject: ["batch": batch])
+
+        let url = try baseURL(databaseId: dbId).appendingPathComponent("raw")
+        let data = try await performRequest(url: url, method: "POST", body: body)
+        let envelope = try JSONDecoder().decode(D1ApiResponse<[D1RawResultPayload]>.self, from: data)
+        try checkApiSuccess(envelope)
+        return envelope.result ?? []
+    }
+
     func getDatabaseDetails() async throws -> D1DatabaseInfo {
         let dbId = databaseId
         let url = try baseURL(databaseId: dbId)

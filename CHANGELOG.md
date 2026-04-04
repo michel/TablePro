@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Cloudflare D1: batch query execution via REST API for multi-statement SQL
+- Cloudflare D1: schema editing — CREATE TABLE, ADD/DROP COLUMN, CREATE/DROP INDEX
+
+### Fixed
+
+- Multi-statement SQL execution fails on Cloudflare D1, ClickHouse, and other drivers that don't support transactions
+
 ### Changed
 
 - Use Apple-standard `xcodebuild archive` + `exportArchive` build pipeline with dSYM collection

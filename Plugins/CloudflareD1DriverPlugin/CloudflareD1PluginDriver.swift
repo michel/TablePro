@@ -145,6 +145,21 @@ final class CloudflareD1PluginDriver: PluginDatabaseDriver, @unchecked Sendable 
         return mapRawResult(payload, executionTime: executionTime)
     }
 
+    func executeBatch(queries: [String]) async throws -> [PluginQueryResult] {
+        guard let client = getClient() else {
+            throw CloudflareD1Error.notConnected
+        }
+
+        let startTime = Date()
+        let statements = queries.map { (sql: $0, params: nil as [Any?]?) }
+        let payloads = try await client.executeBatchRaw(statements: statements)
+        let elapsed = Date().timeIntervalSince(startTime)
+
+        return payloads.enumerated().map { _, payload in
+            mapRawResult(payload, executionTime: payload.meta?.duration ?? (elapsed / Double(payloads.count)))
+        }
+    }
+
     func cancelQuery() throws {
         lock.lock()
         httpClient?.cancelCurrentTask()
@@ -577,7 +592,110 @@ final class CloudflareD1PluginDriver: PluginDatabaseDriver, @unchecked Sendable 
         throw CloudflareD1Error(message: String(localized: "Transactions are not supported by Cloudflare D1"))
     }
 
+    // MARK: - DDL Generation
+
+    func generateCreateTableSQL(definition: PluginCreateTableDefinition) -> String? {
+        guard !definition.columns.isEmpty else { return nil }
+
+        let tableName = quoteIdentifier(definition.tableName)
+        let pkColumns = definition.columns.filter { $0.isPrimaryKey }
+        let inlinePK = pkColumns.count == 1
+        var parts: [String] = definition.columns.map { d1ColumnDefinition($0, inlinePK: inlinePK) }
+
+        if pkColumns.count > 1 {
+            let pkCols = pkColumns.map { quoteIdentifier($0.name) }.joined(separator: ", ")
+            parts.append("PRIMARY KEY (\(pkCols))")
+        }
+
+        for fk in definition.foreignKeys {
+            parts.append(d1ForeignKeyDefinition(fk))
+        }
+
+        let sql = "CREATE TABLE \(tableName) (\n  " +
+            parts.joined(separator: ",\n  ") +
+            "\n);"
+
+        return sql
+    }
+
+    func generateAddColumnSQL(table: String, column: PluginColumnDefinition) -> String? {
+        var def = "\(quoteIdentifier(column.name)) \(column.dataType)"
+        if !column.isNullable { def += " NOT NULL" }
+        if let defaultValue = column.defaultValue, !defaultValue.isEmpty {
+            def += " DEFAULT \(d1DefaultValue(defaultValue))"
+        }
+        return "ALTER TABLE \(quoteIdentifier(table)) ADD COLUMN \(def)"
+    }
+
+    func generateDropColumnSQL(table: String, columnName: String) -> String? {
+        "ALTER TABLE \(quoteIdentifier(table)) DROP COLUMN \(quoteIdentifier(columnName))"
+    }
+
+    func generateAddIndexSQL(table: String, index: PluginIndexDefinition) -> String? {
+        let uniqueStr = index.isUnique ? "UNIQUE " : ""
+        let cols = index.columns.map { quoteIdentifier($0) }.joined(separator: ", ")
+        return "CREATE \(uniqueStr)INDEX \(quoteIdentifier(index.name)) ON \(quoteIdentifier(table)) (\(cols))"
+    }
+
+    func generateDropIndexSQL(table: String, indexName: String) -> String? {
+        "DROP INDEX IF EXISTS \(quoteIdentifier(indexName))"
+    }
+
+    func generateColumnDefinitionSQL(column: PluginColumnDefinition) -> String? {
+        d1ColumnDefinition(column, inlinePK: column.isPrimaryKey)
+    }
+
+    func generateIndexDefinitionSQL(index: PluginIndexDefinition, tableName: String?) -> String? {
+        let uniqueStr = index.isUnique ? "UNIQUE " : ""
+        let cols = index.columns.map { quoteIdentifier($0) }.joined(separator: ", ")
+        let onClause = tableName.map { " ON \(quoteIdentifier($0))" } ?? ""
+        return "CREATE \(uniqueStr)INDEX \(quoteIdentifier(index.name))\(onClause) (\(cols))"
+    }
+
+    func generateForeignKeyDefinitionSQL(fk: PluginForeignKeyDefinition) -> String? {
+        d1ForeignKeyDefinition(fk)
+    }
+
     // MARK: - Private Helpers
+
+    private func d1ColumnDefinition(_ col: PluginColumnDefinition, inlinePK: Bool) -> String {
+        var def = "\(quoteIdentifier(col.name)) \(col.dataType)"
+        if inlinePK && col.isPrimaryKey {
+            def += " PRIMARY KEY"
+            if col.autoIncrement {
+                def += " AUTOINCREMENT"
+            }
+        }
+        if !col.isNullable {
+            def += " NOT NULL"
+        }
+        if let defaultValue = col.defaultValue {
+            def += " DEFAULT \(d1DefaultValue(defaultValue))"
+        }
+        return def
+    }
+
+    private func d1DefaultValue(_ value: String) -> String {
+        let upper = value.uppercased()
+        if upper == "NULL" || upper == "CURRENT_TIMESTAMP" || upper == "CURRENT_DATE" || upper == "CURRENT_TIME"
+            || value.hasPrefix("'") || Int64(value) != nil || Double(value) != nil {
+            return value
+        }
+        return "'\(escapeStringLiteral(value))'"
+    }
+
+    private func d1ForeignKeyDefinition(_ fk: PluginForeignKeyDefinition) -> String {
+        let cols = fk.columns.map { quoteIdentifier($0) }.joined(separator: ", ")
+        let refCols = fk.referencedColumns.map { quoteIdentifier($0) }.joined(separator: ", ")
+        var def = "FOREIGN KEY (\(cols)) REFERENCES \(quoteIdentifier(fk.referencedTable)) (\(refCols))"
+        if fk.onDelete != "NO ACTION" {
+            def += " ON DELETE \(fk.onDelete)"
+        }
+        if fk.onUpdate != "NO ACTION" {
+            def += " ON UPDATE \(fk.onUpdate)"
+        }
+        return def
+    }
 
     private func getClient() -> D1HttpClient? {
         lock.lock()

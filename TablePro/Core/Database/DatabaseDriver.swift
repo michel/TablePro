@@ -129,6 +129,9 @@ protocol DatabaseDriver: AnyObject {
 
     // MARK: - Transaction Management
 
+    /// Whether this driver supports transactions (e.g., Cloudflare D1, ClickHouse do not)
+    var supportsTransactions: Bool { get }
+
     /// Begin a transaction
     func beginTransaction() async throws
 
@@ -307,6 +310,8 @@ extension DatabaseDriver {
 
     /// Default: no schema support (MySQL/SQLite don't use schemas in the same way)
     func fetchSchemas() async throws -> [String] { [] }
+
+    var supportsTransactions: Bool { true }
 
     /// Default no-op implementation for drivers that don't support query cancellation
     func cancelQuery() throws {
