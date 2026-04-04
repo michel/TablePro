@@ -282,7 +282,7 @@ struct RowDetailView: View {
         }
 
         guard !pkValues.isEmpty else {
-            operationError = "Cannot save: no primary key values found."
+            operationError = AppError(category: .config, title: "Cannot Save", message: "No primary key values found.", recovery: "This table needs a primary key to identify the row.", underlying: nil)
             showOperationError = true
             return
         }
