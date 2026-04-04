@@ -17,24 +17,26 @@ final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
     private let user: String
     private let password: String
     private let database: String
+    let sslEnabled: Bool
 
     var supportsSchemas: Bool { false }
     var currentSchema: String? { nil }
     var supportsTransactions: Bool { true }
     private(set) var serverVersion: String?
 
-    init(host: String, port: Int, user: String, password: String, database: String) {
+    init(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) {
         self.host = host
         self.port = port
         self.user = user
         self.password = password
         self.database = database
+        self.sslEnabled = sslEnabled
     }
 
     // MARK: - Connection
 
     func connect() async throws {
-        try await actor.connect(host: host, port: port, user: user, password: password, database: database)
+        try await actor.connect(host: host, port: port, user: user, password: password, database: database, sslEnabled: sslEnabled)
         serverVersion = await actor.serverVersion()
     }
 
@@ -194,6 +196,8 @@ final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
         throw MySQLError.unsupported("MySQL does not support schemas")
     }
 
+    func fetchSchemas() async throws -> [String] { [] }
+
     func beginTransaction() async throws {
         _ = try await actor.execute("START TRANSACTION")
     }
@@ -212,7 +216,10 @@ final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
 private actor MySQLActor {
     private var mysql: UnsafeMutablePointer<MYSQL>?
 
-    func connect(host: String, port: Int, user: String, password: String, database: String) throws {
+    func connect(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool) throws {
+        // Close existing connection if reconnecting
+        if let mysql { mysql_close(mysql); self.mysql = nil }
+
         guard let handle = mysql_init(nil) else {
             throw MySQLError.connectionFailed("Failed to initialize MySQL client")
         }
@@ -221,6 +228,25 @@ private actor MySQLActor {
 
         var timeout: UInt32 = 10
         mysql_options(handle, MYSQL_OPT_CONNECT_TIMEOUT, &timeout)
+        var readTimeout: UInt32 = 30
+        mysql_options(handle, MYSQL_OPT_READ_TIMEOUT, &readTimeout)
+        var writeTimeout: UInt32 = 30
+        mysql_options(handle, MYSQL_OPT_WRITE_TIMEOUT, &writeTimeout)
+
+        var reconnect: my_bool = 0
+        mysql_options(handle, MYSQL_OPT_RECONNECT, &reconnect)
+
+        if sslEnabled {
+            var sslEnforce: my_bool = 1
+            mysql_options(handle, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+            var sslVerify: my_bool = 0
+            mysql_options(handle, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+        } else {
+            var sslEnforce: my_bool = 0
+            mysql_options(handle, MYSQL_OPT_SSL_ENFORCE, &sslEnforce)
+            var sslVerify: my_bool = 0
+            mysql_options(handle, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &sslVerify)
+        }
 
         guard mysql_real_connect(
             handle, host, user, password, database, UInt32(port), nil, 0
@@ -262,7 +288,10 @@ private actor MySQLActor {
             throw MySQLError.queryFailed(String(cString: mysql_error(mysql)))
         }
 
-        guard let result = mysql_use_result(mysql) else {
+        guard let result = mysql_store_result(mysql) else {
+            if mysql_field_count(mysql) != 0 {
+                throw MySQLError.queryFailed(String(cString: mysql_error(mysql)))
+            }
             let affected = Int(mysql_affected_rows(mysql))
             return RawMySQLResult(
                 columns: [], columnTypes: [], rows: [],
@@ -288,10 +317,7 @@ private actor MySQLActor {
 
         while let row = mysql_fetch_row(result) {
             if rows.count >= maxRows {
-                return RawMySQLResult(
-                    columns: columns, columnTypes: columnTypes, rows: rows,
-                    rowsAffected: 0, executionTime: Date().timeIntervalSince(start), isTruncated: true
-                )
+                break
             }
 
             let lengths = mysql_fetch_lengths(result)
@@ -308,10 +334,11 @@ private actor MySQLActor {
             rows.append(rowData)
         }
 
+        let isTruncated = rows.count >= maxRows
         let affected = columns.isEmpty ? Int(mysql_affected_rows(mysql)) : 0
         return RawMySQLResult(
             columns: columns, columnTypes: columnTypes, rows: rows,
-            rowsAffected: affected, executionTime: Date().timeIntervalSince(start), isTruncated: false
+            rowsAffected: affected, executionTime: Date().timeIntervalSince(start), isTruncated: isTruncated
         )
     }
 }

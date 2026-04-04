@@ -179,6 +179,8 @@ final class SQLiteDriver: DatabaseDriver, @unchecked Sendable {
         throw SQLiteError.unsupported("SQLite does not support schemas")
     }
 
+    func fetchSchemas() async throws -> [String] { [] }
+
     func beginTransaction() async throws {
         _ = try await actor.execute("BEGIN TRANSACTION")
     }
@@ -200,6 +202,8 @@ private actor SQLiteActor {
     func open(path: String) throws {
         if sqlite3_open(path, &db) != SQLITE_OK {
             let msg = db.map { String(cString: sqlite3_errmsg($0)) } ?? "Unknown error"
+            if let db { sqlite3_close(db) }
+            self.db = nil
             throw SQLiteError.connectionFailed(msg)
         }
         sqlite3_busy_timeout(db, 5000)

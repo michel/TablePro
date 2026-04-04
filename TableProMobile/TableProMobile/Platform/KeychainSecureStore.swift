@@ -11,10 +11,16 @@ final class KeychainSecureStore: SecureStore {
     private let serviceName = "com.TablePro"
     private let accessGroup: String
 
+    private static var cachedAccessGroup: String?
+
     private static func resolveAccessGroup() -> String {
+        if let cached = cachedAccessGroup { return cached }
+
         // Read team ID prefix from provisioning at runtime
         if let seedID = Bundle.main.infoDictionary?["AppIdentifierPrefix"] as? String {
-            return "\(seedID)com.TablePro.shared"
+            let group = "\(seedID)com.TablePro.shared"
+            cachedAccessGroup = group
+            return group
         }
         // Fallback: query Keychain for the app's default access group
         let query: [String: Any] = [
@@ -28,9 +34,13 @@ final class KeychainSecureStore: SecureStore {
         if let attrs = result as? [String: Any],
            let group = attrs[kSecAttrAccessGroup as String] as? String {
             let prefix = group.components(separatedBy: ".").first ?? ""
-            return "\(prefix).com.TablePro.shared"
+            let resolved = "\(prefix).com.TablePro.shared"
+            cachedAccessGroup = resolved
+            return resolved
         }
-        return "D7HJ5TFYCU.com.TablePro.shared"
+        let fallback = "D7HJ5TFYCU.com.TablePro.shared"
+        cachedAccessGroup = fallback
+        return fallback
     }
 
     init() {

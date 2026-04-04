@@ -35,7 +35,7 @@ final class IOSSyncCoordinator {
     // MARK: - Sync
 
     func sync(localConnections: [DatabaseConnection], isRetry: Bool = false) async {
-        guard status != .syncing else { return }
+        guard isRetry || status != .syncing else { return }
         status = .syncing
 
         do {
@@ -65,7 +65,6 @@ final class IOSSyncCoordinator {
                 return
             }
             metadata.saveToken(nil)
-            status = .idle
             await sync(localConnections: localConnections, isRetry: true)
         } catch {
             status = .error(error.localizedDescription)

@@ -119,7 +119,7 @@ struct ConnectionFormView: View {
                     serverSection
                 }
 
-                if type != .sqlite && type != .redis {
+                if type != .sqlite {
                     Section {
                         Toggle("SSL", isOn: $sslEnabled)
                     }
@@ -165,6 +165,22 @@ struct ConnectionFormView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .onAppear {
+                if let conn = existingConnection {
+                    let connKey = "com.TablePro.password.\(conn.id.uuidString)"
+                    if let stored = try? appState.secureStore.retrieve(forKey: connKey), !stored.isEmpty {
+                        password = stored
+                    }
+                    if sshEnabled {
+                        if let sshPwd = try? appState.secureStore.retrieve(forKey: "com.TablePro.sshpassword.\(conn.id.uuidString)"), !sshPwd.isEmpty {
+                            sshPassword = sshPwd
+                        }
+                        if let passphrase = try? appState.secureStore.retrieve(forKey: "com.TablePro.keypassphrase.\(conn.id.uuidString)"), !passphrase.isEmpty {
+                            sshKeyPassphrase = passphrase
+                        }
+                    }
+                }
+            }
             .navigationTitle(existingConnection != nil ? "Edit Connection" : "New Connection")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -376,6 +392,7 @@ struct ConnectionFormView: View {
         switch type {
         case .mysql, .mariadb: port = "3306"
         case .postgresql: port = "5432"
+        case .redshift: port = "5439"
         case .redis: port = "6379"
         case .sqlite: port = ""
         default: port = "3306"
@@ -448,12 +465,19 @@ struct ConnectionFormView: View {
             try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
         }
 
+        defer {
+            try? appState.connectionManager.deletePassword(for: tempId)
+            try? secureStore.delete(forKey: "com.TablePro.sshpassword.\(tempId.uuidString)")
+            try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
+            isTesting = false
+        }
+
         await appState.sshProvider.setPendingConnectionId(tempId)
 
         do {
             _ = try await appState.connectionManager.connect(testConn)
             await appState.connectionManager.disconnect(tempId)
-            testResult = TestResult(success: true, message: "Connection successful", recovery: nil)
+            testResult = TestResult(success: true, message: String(localized: "Connection successful"), recovery: nil)
         } catch {
             let context = ErrorContext(
                 operation: "testConnection",
@@ -464,11 +488,6 @@ struct ConnectionFormView: View {
             let classified = ErrorClassifier.classify(error, context: context)
             testResult = TestResult(success: false, message: classified.message, recovery: classified.recovery)
         }
-
-        try? appState.connectionManager.deletePassword(for: tempId)
-        try? secureStore.delete(forKey: "com.TablePro.sshpassword.\(tempId.uuidString)")
-        try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
-        isTesting = false
     }
 
     private func buildConnection() -> DatabaseConnection {

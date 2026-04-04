@@ -69,14 +69,14 @@ struct TableListView: View {
             )
         }
         .overlay {
-            if filteredTables.isEmpty && !searchText.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-            } else if tables.isEmpty {
+            if tables.isEmpty {
                 ContentUnavailableView(
                     "No Tables",
                     systemImage: "tablecells",
                     description: Text("This database has no tables.")
                 )
+            } else if filteredTables.isEmpty && !searchText.isEmpty {
+                ContentUnavailableView.search(text: searchText)
             }
         }
     }

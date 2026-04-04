@@ -305,15 +305,19 @@ actor SSHTunnel {
             socketFD = -1
         }
 
-        // Acquire lock to ensure relay thread has exited libssh2 calls
-        sessionLock.lock()
-        if let session {
-            libssh2_session_set_blocking(session, 1)
-            tablepro_libssh2_session_disconnect(session, "Closing tunnel")
-            libssh2_session_free(session)
-            self.session = nil
+        // Free session off-actor to avoid blocking
+        let sess = session
+        session = nil
+        let lock = sessionLock
+        if let sess {
+            Thread.detachNewThread {
+                lock.lock()
+                libssh2_session_set_blocking(sess, 1)
+                tablepro_libssh2_session_disconnect(sess, "Closing tunnel")
+                libssh2_session_free(sess)
+                lock.unlock()
+            }
         }
-        sessionLock.unlock()
 
         Self.logger.info("Tunnel closed (local port \(self.localPort))")
     }
@@ -385,9 +389,10 @@ actor SSHTunnel {
     }
 
     private func openDirectTcpipChannel(remoteHost: String, remotePort: Int) -> OpaquePointer? {
-        guard let session else { return nil }
+        for _ in 0..<30 {
+            guard isAlive, let session else { return nil }
 
-        while true {
+            sessionLock.lock()
             let channel = libssh2_channel_direct_tcpip_ex(
                 session,
                 remoteHost,
@@ -395,12 +400,13 @@ actor SSHTunnel {
                 "127.0.0.1",
                 Int32(localPort)
             )
+            let errNo = libssh2_session_last_errno(session)
+            sessionLock.unlock()
 
             if let channel {
                 return channel
             }
 
-            let errNo = libssh2_session_last_errno(session)
             guard errNo == LIBSSH2_ERROR_EAGAIN else {
                 return nil
             }
@@ -409,6 +415,7 @@ actor SSHTunnel {
                 return nil
             }
         }
+        return nil
     }
 
     // Relay runs outside the actor on a detached thread.
@@ -422,12 +429,12 @@ actor SSHTunnel {
         defer {
             buffer.deallocate()
             Darwin.close(clientFD)
+            lock.lock()
             if aliveFlag.value {
-                lock.lock()
                 libssh2_channel_close(channel)
                 libssh2_channel_free(channel)
-                lock.unlock()
             }
+            lock.unlock()
         }
 
         while aliveFlag.value {

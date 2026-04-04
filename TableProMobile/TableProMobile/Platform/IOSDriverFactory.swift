@@ -18,7 +18,8 @@ final class IOSDriverFactory: DriverFactory {
                 port: connection.port,
                 user: connection.username,
                 password: password ?? "",
-                database: connection.database
+                database: connection.database,
+                sslEnabled: connection.sslEnabled
             )
         case .postgresql, .redshift:
             return PostgreSQLDriver(
@@ -35,7 +36,8 @@ final class IOSDriverFactory: DriverFactory {
                 host: connection.host,
                 port: connection.port,
                 password: password,
-                database: dbIndex
+                database: dbIndex,
+                sslEnabled: connection.sslEnabled
             )
         default:
             throw ConnectionError.driverNotFound(connection.type.rawValue)

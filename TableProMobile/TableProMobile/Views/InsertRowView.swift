@@ -16,8 +16,26 @@ struct InsertRowView: View {
     var onInserted: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @State private var values: [String] = []
-    @State private var isNullFlags: [Bool] = []
+    @State private var values: [String]
+    @State private var isNullFlags: [Bool]
+
+    init(
+        table: TableInfo,
+        columnDetails: [ColumnInfo],
+        session: ConnectionSession?,
+        databaseType: DatabaseType,
+        onInserted: (() -> Void)? = nil
+    ) {
+        self.table = table
+        self.columnDetails = columnDetails
+        self.session = session
+        self.databaseType = databaseType
+        self.onInserted = onInserted
+        _values = State(initialValue: Array(repeating: "", count: columnDetails.count))
+        _isNullFlags = State(initialValue: columnDetails.map { col in
+            col.isPrimaryKey && col.typeName.uppercased().contains("INT")
+        })
+    }
     @State private var isSaving = false
     @State private var operationError: AppError?
     @State private var showOperationError = false
@@ -113,12 +131,6 @@ struct InsertRowView: View {
                         }
                     }
                     .disabled(isSaving)
-                }
-            }
-            .onAppear {
-                values = Array(repeating: "", count: columnDetails.count)
-                isNullFlags = columnDetails.map { col in
-                    col.isPrimaryKey && isAutoIncrement(col)
                 }
             }
             .alert(operationError?.title ?? "Error", isPresented: $showOperationError) {

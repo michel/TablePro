@@ -22,10 +22,11 @@ struct DataBrowserView: View {
     @State private var isLoadingMore = false
     @State private var appError: AppError?
     @State private var toastMessage: String?
+    @State private var toastTask: Task<Void, Never>?
     @State private var pagination = PaginationState(pageSize: 100, currentPage: 0)
     @State private var hasMore = true
     @State private var showInsertSheet = false
-    @State private var deleteTarget: Int?
+    @State private var deleteTarget: [(column: String, value: String)]?
     @State private var showDeleteConfirmation = false
     @State private var operationError: AppError?
     @State private var showOperationError = false
@@ -72,6 +73,17 @@ struct DataBrowserView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    StructureView(
+                        table: table,
+                        session: session,
+                        databaseType: connection.type
+                    )
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 if !isView {
                     Button {
@@ -96,8 +108,8 @@ struct DataBrowserView: View {
         }
         .alert("Delete Row", isPresented: $showDeleteConfirmation) {
             Button("Delete", role: .destructive) {
-                if let index = deleteTarget {
-                    Task { await deleteRow(at: index) }
+                if let pkValues = deleteTarget {
+                    Task { await deleteRow(withPKs: pkValues) }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -108,10 +120,15 @@ struct DataBrowserView: View {
             if let toastMessage {
                 ErrorToast(message: toastMessage)
                     .onAppear {
-                        Task {
+                        toastTask?.cancel()
+                        toastTask = Task {
                             try? await Task.sleep(nanoseconds: 3_000_000_000)
                             withAnimation { self.toastMessage = nil }
                         }
+                    }
+                    .onDisappear {
+                        toastTask?.cancel()
+                        toastTask = nil
                     }
             }
         }
@@ -155,7 +172,7 @@ struct DataBrowserView: View {
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     if !isView && hasPrimaryKeys {
                         Button(role: .destructive) {
-                            deleteTarget = index
+                            deleteTarget = primaryKeyValues(for: rows[index])
                             showDeleteConfirmation = true
                         } label: {
                             Label("Delete", systemImage: "trash")
@@ -254,23 +271,14 @@ struct DataBrowserView: View {
         } catch {
             pagination.currentPage -= 1
             Self.logger.warning("Failed to load next page: \(error.localizedDescription, privacy: .public)")
-            withAnimation { toastMessage = "Failed to load more rows" }
+            withAnimation { toastMessage = String(localized: "Failed to load more rows") }
         }
 
         isLoadingMore = false
     }
 
-    private func deleteRow(at index: Int) async {
-        guard let session, index < rows.count else { return }
-
-        let row = rows[index]
-        let pkValues = primaryKeyValues(for: row)
-
-        guard !pkValues.isEmpty else {
-            operationError = AppError(category: .config, title: "Cannot Delete", message: "No primary key columns found.", recovery: "This table needs a primary key to identify rows for deletion.", underlying: nil)
-            showOperationError = true
-            return
-        }
+    private func deleteRow(withPKs pkValues: [(column: String, value: String)]) async {
+        guard let session, !pkValues.isEmpty else { return }
 
         let sql = SQLBuilder.buildDelete(table: table.name, type: connection.type, primaryKeys: pkValues)
 

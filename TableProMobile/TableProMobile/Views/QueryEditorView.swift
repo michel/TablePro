@@ -21,7 +21,7 @@ struct QueryEditorView: View {
     @State private var isExecuting = false
     @State private var executionTime: TimeInterval?
     @State private var executeTask: Task<Void, Never>?
-    @State private var queryHistory: [String] = []
+    @Binding var queryHistory: [String]
     @State private var showHistory = false
     @FocusState private var editorFocused: Bool
 

@@ -258,6 +258,11 @@ final class PostgreSQLDriver: DatabaseDriver, @unchecked Sendable {
         currentSchema = name
     }
 
+    func fetchSchemas() async throws -> [String] {
+        let result = try await execute(query: "SELECT schema_name FROM information_schema.schemata ORDER BY schema_name")
+        return result.rows.compactMap { $0.first ?? nil }
+    }
+
     func beginTransaction() async throws {
         _ = try await actor.execute("BEGIN")
     }
@@ -277,6 +282,9 @@ private actor PostgreSQLActor {
     private var conn: OpaquePointer?
 
     func connect(host: String, port: Int, user: String, password: String, database: String, sslEnabled: Bool = false) throws {
+        // Close existing connection if reconnecting
+        if let conn { PQfinish(conn); self.conn = nil }
+
         let escapedHost = escapeConnParam(host)
         let escapedUser = escapeConnParam(user)
         let escapedPass = escapeConnParam(password)

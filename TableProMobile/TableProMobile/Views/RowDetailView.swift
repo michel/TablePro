@@ -114,6 +114,7 @@ struct RowDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollDismissesKeyboard(.interactively)
         .overlay(alignment: .bottom) {
             if showSaveSuccess {
                 Label("Row updated", systemImage: "checkmark.circle.fill")
@@ -313,6 +314,7 @@ struct RowDetailView: View {
 
         do {
             _ = try await session.driver.execute(query: sql)
+            guard currentIndex >= 0, currentIndex < rows.count else { return }
             rows[currentIndex] = editedValues
             isEditing = false
             showSaveSuccess = true

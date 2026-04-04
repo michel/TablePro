@@ -8,6 +8,7 @@
 
 import CRedis
 import Foundation
+import os
 import TableProDatabase
 import TableProModels
 
@@ -17,23 +18,25 @@ final class RedisDriver: DatabaseDriver, @unchecked Sendable {
     private let port: Int
     private let password: String?
     private let database: Int
+    let sslEnabled: Bool
 
     var supportsSchemas: Bool { false }
     var currentSchema: String? { nil }
     var supportsTransactions: Bool { false }
     private(set) var serverVersion: String?
 
-    init(host: String, port: Int, password: String?, database: Int = 0) {
+    init(host: String, port: Int, password: String?, database: Int = 0, sslEnabled: Bool = false) {
         self.host = host
         self.port = port
         self.password = password
         self.database = database
+        self.sslEnabled = sslEnabled
     }
 
     // MARK: - Connection
 
     func connect() async throws {
-        try await actor.connect(host: host, port: port, password: password, database: database)
+        try await actor.connect(host: host, port: port, password: password, database: database, sslEnabled: sslEnabled)
         serverVersion = try? await actor.fetchServerVersion()
     }
 
@@ -169,6 +172,8 @@ final class RedisDriver: DatabaseDriver, @unchecked Sendable {
     func switchSchema(to name: String) async throws {
         throw RedisError.unsupported("Redis does not support schemas")
     }
+
+    func fetchSchemas() async throws -> [String] { [] }
 
     func beginTransaction() async throws {
         throw RedisError.unsupported("Transactions not supported in mobile Redis driver")
@@ -340,9 +345,21 @@ private enum RedisReplyValue: Sendable {
 // MARK: - Redis Actor (thread-safe C API access)
 
 private actor RedisActor {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "RedisActor")
     private var ctx: UnsafeMutablePointer<redisContext>?
+    private var sslContext: OpaquePointer?
 
-    func connect(host: String, port: Int, password: String?, database: Int) throws {
+    private static let initSSL: Void = {
+        let result = redisInitOpenSSL()
+        if result != REDIS_OK {
+            logger.warning("redisInitOpenSSL failed with code \(result)")
+        }
+    }()
+
+    func connect(host: String, port: Int, password: String?, database: Int, sslEnabled: Bool) throws {
+        // Close existing connection if reconnecting
+        close()
+
         var tv = timeval(tv_sec: 10, tv_usec: 0)
         guard let context = redisConnectWithTimeout(host, Int32(port), tv) else {
             throw RedisError.connectionFailed("Failed to create Redis context")
@@ -357,24 +374,53 @@ private actor RedisActor {
         tv = timeval(tv_sec: 30, tv_usec: 0)
         redisSetTimeout(context, tv)
 
-        self.ctx = context
+        if sslEnabled {
+            _ = Self.initSSL
 
-        if let password, !password.isEmpty {
-            let reply = try executeCommand(["AUTH", password])
-            if case .error(let msg) = reply {
-                redisFree(context)
-                self.ctx = nil
-                throw RedisError.connectionFailed("Authentication failed: \(msg)")
+            let ssl: OpaquePointer = try host.withCString { hostCStr in
+                var sslError = redisSSLContextError(0)
+                var options = redisSSLOptions()
+                memset(&options, 0, MemoryLayout<redisSSLOptions>.size)
+                options.server_name = hostCStr
+                options.verify_mode = REDIS_SSL_VERIFY_NONE
+
+                guard let ssl = redisCreateSSLContextWithOptions(&options, &sslError) else {
+                    redisFree(context)
+                    throw RedisError.connectionFailed("Failed to create SSL context (error \(sslError.rawValue))")
+                }
+                return ssl
             }
+
+            let result = redisInitiateSSLWithContext(context, ssl)
+            if result != REDIS_OK {
+                redisFreeSSLContext(ssl)
+                let msg = withUnsafePointer(to: &context.pointee.errstr.0) { String(cString: $0) }
+                redisFree(context)
+                throw RedisError.connectionFailed("SSL handshake failed: \(msg)")
+            }
+
+            self.sslContext = ssl
         }
 
-        if database != 0 {
-            let reply = try executeCommand(["SELECT", String(database)])
-            if case .error(let msg) = reply {
-                redisFree(context)
-                self.ctx = nil
-                throw RedisError.connectionFailed("Failed to select database \(database): \(msg)")
+        self.ctx = context
+
+        do {
+            if let password, !password.isEmpty {
+                let reply = try executeCommand(["AUTH", password])
+                if case .error(let msg) = reply {
+                    throw RedisError.connectionFailed("Authentication failed: \(msg)")
+                }
             }
+
+            if database != 0 {
+                let reply = try executeCommand(["SELECT", String(database)])
+                if case .error(let msg) = reply {
+                    throw RedisError.connectionFailed("Failed to select database \(database): \(msg)")
+                }
+            }
+        } catch {
+            close()
+            throw error
         }
     }
 
@@ -382,6 +428,10 @@ private actor RedisActor {
         if let ctx {
             redisFree(ctx)
             self.ctx = nil
+        }
+        if let sslContext {
+            redisFreeSSLContext(sslContext)
+            self.sslContext = nil
         }
     }
 
