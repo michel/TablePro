@@ -17,6 +17,7 @@ struct OnboardingView: View {
             getStartedPage.tag(1)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
+        .indexViewStyle(.page(backgroundDisplayMode: .always))
         .sheet(isPresented: $showAddConnection, onDismiss: {
             if didAddConnection {
                 completeOnboarding()
