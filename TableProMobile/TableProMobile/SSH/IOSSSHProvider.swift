@@ -27,11 +27,19 @@ final class IOSSSHProvider: SSHProvider, @unchecked Sendable {
         let sshPassword: String?
         let keyPassphrase: String?
 
+        var resolvedConfig = config
+
         if let connId = pendingConnectionId {
             sshPassword = try? secureStore.retrieve(
                 forKey: "com.TablePro.sshpassword.\(connId.uuidString)")
             keyPassphrase = try? secureStore.retrieve(
                 forKey: "com.TablePro.keypassphrase.\(connId.uuidString)")
+
+            // Restore key content from Keychain if not in config
+            if resolvedConfig.privateKeyData == nil || resolvedConfig.privateKeyData?.isEmpty == true {
+                resolvedConfig.privateKeyData = try? secureStore.retrieve(
+                    forKey: "com.TablePro.sshkeydata.\(connId.uuidString)")
+            }
         } else {
             sshPassword = nil
             keyPassphrase = nil
@@ -40,7 +48,7 @@ final class IOSSSHProvider: SSHProvider, @unchecked Sendable {
         pendingConnectionId = nil
 
         let tunnel = try await SSHTunnelFactory.create(
-            config: config,
+            config: resolvedConfig,
             remoteHost: remoteHost,
             remotePort: remotePort,
             sshPassword: sshPassword,

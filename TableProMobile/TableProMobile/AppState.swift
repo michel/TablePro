@@ -58,6 +58,7 @@ final class AppState {
         let secureStore = KeychainSecureStore()
         try? secureStore.delete(forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
         try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
+        try? secureStore.delete(forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")
         storage.save(connections)
         syncCoordinator.markDeleted(connection.id)
         syncCoordinator.scheduleSyncAfterChange(localConnections: connections)

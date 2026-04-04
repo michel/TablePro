@@ -483,6 +483,9 @@ struct ConnectionFormView: View {
             if !sshKeyPassphrase.isEmpty {
                 try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
             }
+            if !sshKeyContent.isEmpty {
+                try? secureStore.store(sshKeyContent, forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")
+            }
         }
 
         onSave(connection)
