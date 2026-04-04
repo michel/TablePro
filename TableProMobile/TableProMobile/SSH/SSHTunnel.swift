@@ -13,6 +13,8 @@ final class AliveFlag: Sendable {
     private let _lock = NSLock()
     private nonisolated(unsafe) var _value = true
 
+    nonisolated init() {}
+
     nonisolated var value: Bool {
         get { _lock.lock(); defer { _lock.unlock() }; return _value }
         set { _lock.lock(); _value = newValue; _lock.unlock() }
