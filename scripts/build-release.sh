@@ -367,7 +367,6 @@ build_for_arch() {
         -arch "$arch" \
         -archivePath "$archive_path" \
         ONLY_ACTIVE_ARCH=YES \
-        CODE_SIGN_IDENTITY="$SIGN_IDENTITY" \
         CODE_SIGN_STYLE=Automatic \
         DEVELOPMENT_TEAM="$TEAM_ID" \
         ${ANALYTICS_HMAC_SECRET:+ANALYTICS_HMAC_SECRET="$ANALYTICS_HMAC_SECRET"} \
