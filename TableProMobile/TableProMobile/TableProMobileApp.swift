@@ -15,8 +15,13 @@ struct TableProMobileApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ConnectionListView()
-                .environment(appState)
+            if appState.hasCompletedOnboarding {
+                ConnectionListView()
+                    .environment(appState)
+            } else {
+                OnboardingView()
+                    .environment(appState)
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {

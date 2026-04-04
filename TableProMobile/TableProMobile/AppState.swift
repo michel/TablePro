@@ -54,6 +54,10 @@ final class AppState {
         }
     }
 
+    var hasCompletedOnboarding: Bool = UserDefaults.standard.bool(forKey: "com.TablePro.hasCompletedOnboarding") {
+        didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "com.TablePro.hasCompletedOnboarding") }
+    }
+
     func removeConnection(_ connection: DatabaseConnection) {
         connections.removeAll { $0.id == connection.id }
         try? connectionManager.deletePassword(for: connection.id)
