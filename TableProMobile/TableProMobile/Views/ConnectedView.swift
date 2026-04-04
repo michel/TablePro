@@ -264,7 +264,12 @@ struct ConnectedView: View {
         guard let session, supportsDatabaseSwitching else { return }
         do {
             databases = try await session.driver.fetchDatabases()
-            activeDatabase = connection.database
+            // Use session's active database (may differ from connection.database after a switch)
+            if let stored = appState.connectionManager.session(for: connection.id) {
+                activeDatabase = stored.activeDatabase
+            } else {
+                activeDatabase = connection.database
+            }
         } catch {
             // Silently fail — just don't show picker
         }
@@ -303,7 +308,7 @@ struct ConnectedView: View {
             await reconnectWithDatabase(name)
         } else {
             do {
-                try await session.driver.switchDatabase(to: name)
+                try await appState.connectionManager.switchDatabase(connection.id, to: name)
                 activeDatabase = name
                 self.tables = try await session.driver.fetchTables(schema: nil)
             } catch {
