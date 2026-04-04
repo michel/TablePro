@@ -9,11 +9,11 @@ import Foundation
 import CLibSSH2
 import os
 
-final class AliveFlag: @unchecked Sendable {
+final class AliveFlag: Sendable {
     private let _lock = NSLock()
-    private var _value = true
+    private nonisolated(unsafe) var _value = true
 
-    var value: Bool {
+    nonisolated var value: Bool {
         get { _lock.lock(); defer { _lock.unlock() }; return _value }
         set { _lock.lock(); _value = newValue; _lock.unlock() }
     }
@@ -310,11 +310,12 @@ actor SSHTunnel {
         session = nil
         let lock = sessionLock
         if let sess {
+            nonisolated(unsafe) let unsafeSess = sess
             Thread.detachNewThread {
                 lock.lock()
-                libssh2_session_set_blocking(sess, 1)
-                tablepro_libssh2_session_disconnect(sess, "Closing tunnel")
-                libssh2_session_free(sess)
+                libssh2_session_set_blocking(unsafeSess, 1)
+                tablepro_libssh2_session_disconnect(unsafeSess, "Closing tunnel")
+                libssh2_session_free(unsafeSess)
                 lock.unlock()
             }
         }

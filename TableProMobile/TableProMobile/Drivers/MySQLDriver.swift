@@ -144,8 +144,8 @@ final class MySQLDriver: DatabaseDriver, @unchecked Sendable {
     }
 
     func fetchForeignKeys(table: String, schema: String?) async throws -> [ForeignKeyInfo] {
-        let safe = SQLBuilder.escapeString(table)
-        let dbSafe = SQLBuilder.escapeString(database)
+        let safe = table.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "''")
+        let dbSafe = database.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "''")
         let query = """
             SELECT
                 kcu.CONSTRAINT_NAME,
