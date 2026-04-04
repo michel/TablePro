@@ -115,7 +115,7 @@ struct ConnectedView: View {
     }
 
     private func connectFresh() async {
-        appState.sshProvider.pendingConnectionId = connection.id
+        await appState.sshProvider.setPendingConnectionId(connection.id)
 
         do {
             let session = try await appState.connectionManager.connect(connection)
@@ -135,6 +135,7 @@ struct ConnectedView: View {
         } catch {
             // Connection lost — reconnect
             do {
+                await appState.sshProvider.setPendingConnectionId(connection.id)
                 let newSession = try await appState.connectionManager.connect(connection)
                 self.session = newSession
             } catch {

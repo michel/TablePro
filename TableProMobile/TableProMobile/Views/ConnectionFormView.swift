@@ -382,11 +382,16 @@ struct ConnectionFormView: View {
         guard let documentsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return sourceURL
         }
-        let destURL = documentsDir.appendingPathComponent(sourceURL.lastPathComponent)
+        var destURL = documentsDir.appendingPathComponent(sourceURL.lastPathComponent)
 
-        if !FileManager.default.fileExists(atPath: destURL.path) {
-            try? FileManager.default.copyItem(at: sourceURL, to: destURL)
+        if FileManager.default.fileExists(atPath: destURL.path) {
+            let name = sourceURL.deletingPathExtension().lastPathComponent
+            let ext = sourceURL.pathExtension
+            let suffix = UUID().uuidString.prefix(8)
+            destURL = documentsDir.appendingPathComponent("\(name)_\(suffix).\(ext)")
         }
+
+        try? FileManager.default.copyItem(at: sourceURL, to: destURL)
         return destURL
     }
 
@@ -425,7 +430,7 @@ struct ConnectionFormView: View {
             try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(tempId.uuidString)")
         }
 
-        appState.sshProvider.pendingConnectionId = tempId
+        await appState.sshProvider.setPendingConnectionId(tempId)
 
         do {
             _ = try await appState.connectionManager.connect(testConn)

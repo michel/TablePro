@@ -14,12 +14,14 @@ final class AppState {
     let connectionManager: ConnectionManager
     let syncCoordinator = IOSSyncCoordinator()
     let sshProvider: IOSSSHProvider
+    let secureStore: KeychainSecureStore
 
     private let storage = ConnectionPersistence()
 
     init() {
         let driverFactory = IOSDriverFactory()
         let secureStore = KeychainSecureStore()
+        self.secureStore = secureStore
         let sshProvider = IOSSSHProvider(secureStore: secureStore)
         self.sshProvider = sshProvider
         self.connectionManager = ConnectionManager(
@@ -55,7 +57,6 @@ final class AppState {
     func removeConnection(_ connection: DatabaseConnection) {
         connections.removeAll { $0.id == connection.id }
         try? connectionManager.deletePassword(for: connection.id)
-        let secureStore = KeychainSecureStore()
         try? secureStore.delete(forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
         try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
         try? secureStore.delete(forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")

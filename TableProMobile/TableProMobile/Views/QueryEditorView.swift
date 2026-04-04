@@ -17,6 +17,7 @@ struct QueryEditorView: View {
     @State private var errorMessage: String?
     @State private var isExecuting = false
     @State private var executionTime: TimeInterval?
+    @State private var executeTask: Task<Void, Never>?
     @State private var queryHistory: [String] = []
     @State private var showHistory = false
     @FocusState private var editorFocused: Bool
@@ -168,11 +169,16 @@ struct QueryEditorView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button {
-                Task { await executeQuery() }
+                if isExecuting {
+                    executeTask?.cancel()
+                    Task { try? await session?.driver.cancelCurrentQuery() }
+                } else {
+                    executeTask = Task { await executeQuery() }
+                }
             } label: {
                 Image(systemName: isExecuting ? "stop.fill" : "play.fill")
             }
-            .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isExecuting)
+            .disabled(!isExecuting && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
 
         ToolbarItem(placement: .secondaryAction) {

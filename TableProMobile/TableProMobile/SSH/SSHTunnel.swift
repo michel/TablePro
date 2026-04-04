@@ -321,9 +321,7 @@ actor SSHTunnel {
     // MARK: - Private Helpers
 
     private func markDead() {
-        isAlive = false
-        relayTask?.cancel()
-        keepAliveTask?.cancel()
+        close()
     }
 
     private func sendKeepAlive() -> Bool {
