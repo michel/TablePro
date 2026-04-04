@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -48,6 +49,10 @@ struct ConnectionFormView: View {
     // Test connection
     @State private var isTesting = false
     @State private var testResult: TestResult?
+    @State private var credentialError: String?
+    @State private var showCredentialError = false
+
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ConnectionFormView")
 
     private let existingConnection: DatabaseConnection?
     var onSave: (DatabaseConnection) -> Void
@@ -141,12 +146,20 @@ struct ConnectionFormView: View {
                     .disabled(isTesting || !canSave)
 
                     if let testResult {
-                        HStack(spacing: 8) {
-                            Image(systemName: testResult.success ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .foregroundStyle(testResult.success ? .green : .red)
-                            Text(testResult.message)
-                                .font(.footnote)
-                                .foregroundStyle(testResult.success ? .green : .red)
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 8) {
+                                Image(systemName: testResult.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(testResult.success ? .green : .red)
+                                Text(verbatim: testResult.message)
+                                    .font(.footnote)
+                                    .foregroundStyle(testResult.success ? .green : .red)
+                            }
+                            if let recovery = testResult.recovery {
+                                Text(verbatim: recovery)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.leading, 28)
+                            }
                         }
                     }
                 }
@@ -199,6 +212,11 @@ struct ConnectionFormView: View {
                 Button("Cancel", role: .cancel) { newDatabaseName = "" }
             } message: {
                 Text("Enter a name for the new SQLite database.")
+            }
+            .alert("Keychain Warning", isPresented: $showCredentialError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(credentialError ?? "Failed to save credentials.")
             }
         }
     }
@@ -435,9 +453,16 @@ struct ConnectionFormView: View {
         do {
             _ = try await appState.connectionManager.connect(testConn)
             await appState.connectionManager.disconnect(tempId)
-            testResult = TestResult(success: true, message: "Connection successful")
+            testResult = TestResult(success: true, message: "Connection successful", recovery: nil)
         } catch {
-            testResult = TestResult(success: false, message: error.localizedDescription)
+            let context = ErrorContext(
+                operation: "testConnection",
+                databaseType: type,
+                host: host,
+                sshEnabled: sshEnabled
+            )
+            let classified = ErrorClassifier.classify(error, context: context)
+            testResult = TestResult(success: false, message: classified.message, recovery: classified.recovery)
         }
 
         try? appState.connectionManager.deletePassword(for: tempId)
@@ -473,24 +498,49 @@ struct ConnectionFormView: View {
 
     private func save() {
         let connection = buildConnection()
+        var storageFailed = false
 
         if !password.isEmpty {
-            try? appState.connectionManager.storePassword(password, for: connection.id)
+            do {
+                try appState.connectionManager.storePassword(password, for: connection.id)
+            } catch {
+                Self.logger.error("Failed to store password: \(error.localizedDescription, privacy: .public)")
+                storageFailed = true
+            }
         }
 
         if sshEnabled {
             let secureStore = KeychainSecureStore()
 
-
             if !sshPassword.isEmpty {
-                try? secureStore.store(sshPassword, forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
+                do {
+                    try secureStore.store(sshPassword, forKey: "com.TablePro.sshpassword.\(connection.id.uuidString)")
+                } catch {
+                    Self.logger.error("Failed to store SSH password: \(error.localizedDescription, privacy: .public)")
+                    storageFailed = true
+                }
             }
             if !sshKeyPassphrase.isEmpty {
-                try? secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
+                do {
+                    try secureStore.store(sshKeyPassphrase, forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
+                } catch {
+                    Self.logger.error("Failed to store SSH key passphrase: \(error.localizedDescription, privacy: .public)")
+                    storageFailed = true
+                }
             }
             if !sshKeyContent.isEmpty {
-                try? secureStore.store(sshKeyContent, forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")
+                do {
+                    try secureStore.store(sshKeyContent, forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")
+                } catch {
+                    Self.logger.error("Failed to store SSH key data: \(error.localizedDescription, privacy: .public)")
+                    storageFailed = true
+                }
             }
+        }
+
+        if storageFailed {
+            credentialError = "Some credentials could not be saved to the keychain. You may need to re-enter them later."
+            showCredentialError = true
         }
 
         onSave(connection)
@@ -500,5 +550,6 @@ struct ConnectionFormView: View {
 private struct TestResult {
     let success: Bool
     let message: String
+    let recovery: String?
 }
 

@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -18,7 +19,7 @@ struct InsertRowView: View {
     @State private var values: [String] = []
     @State private var isNullFlags: [Bool] = []
     @State private var isSaving = false
-    @State private var operationError: String?
+    @State private var operationError: AppError?
     @State private var showOperationError = false
 
     var body: some View {
@@ -120,10 +121,15 @@ struct InsertRowView: View {
                     col.isPrimaryKey && isAutoIncrement(col)
                 }
             }
-            .alert("Error", isPresented: $showOperationError) {
+            .alert(operationError?.title ?? "Error", isPresented: $showOperationError) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(operationError ?? "An unknown error occurred.")
+                VStack {
+                    Text(operationError?.message ?? "An unknown error occurred.")
+                    if let recovery = operationError?.recovery {
+                        Text(verbatim: recovery)
+                    }
+                }
             }
         }
     }
@@ -195,7 +201,8 @@ struct InsertRowView: View {
             onInserted?()
             dismiss()
         } catch {
-            operationError = error.localizedDescription
+            let context = ErrorContext(operation: "insertRow", databaseType: databaseType)
+            operationError = ErrorClassifier.classify(error, context: context)
             showOperationError = true
         }
     }

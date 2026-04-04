@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -20,7 +21,7 @@ struct RowDetailView: View {
     @State private var isEditing = false
     @State private var editedValues: [String?] = []
     @State private var isSaving = false
-    @State private var operationError: String?
+    @State private var operationError: AppError?
     @State private var showOperationError = false
     @State private var showSaveSuccess = false
 
@@ -180,10 +181,15 @@ struct RowDetailView: View {
                 .disabled(currentIndex >= rows.count - 1 || isEditing)
             }
         }
-        .alert("Error", isPresented: $showOperationError) {
+        .alert(operationError?.title ?? "Error", isPresented: $showOperationError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(operationError ?? "An unknown error occurred.")
+            VStack {
+                Text(operationError?.message ?? "An unknown error occurred.")
+                if let recovery = operationError?.recovery {
+                    Text(verbatim: recovery)
+                }
+            }
         }
     }
 
@@ -316,7 +322,8 @@ struct RowDetailView: View {
                 withAnimation { showSaveSuccess = false }
             }
         } catch {
-            operationError = error.localizedDescription
+            let context = ErrorContext(operation: "saveChanges", databaseType: databaseType)
+            operationError = ErrorClassifier.classify(error, context: context)
             showOperationError = true
         }
     }

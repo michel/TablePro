@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -12,9 +13,11 @@ struct QueryEditorView: View {
     var tables: [TableInfo] = []
     var initialQuery: String = ""
 
+    private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
+
     @State private var query = ""
     @State private var result: QueryResult?
-    @State private var errorMessage: String?
+    @State private var appError: AppError?
     @State private var isExecuting = false
     @State private var executionTime: TimeInterval?
     @State private var executeTask: Task<Void, Never>?
@@ -45,7 +48,7 @@ struct QueryEditorView: View {
                 .textInputAutocapitalization(.never)
                 .keyboardType(.asciiCapable)
                 .scrollContentBackground(.hidden)
-                .frame(minHeight: 80, maxHeight: result != nil || errorMessage != nil ? 120 : 250)
+                .frame(minHeight: 80, maxHeight: result != nil || appError != nil ? 120 : 250)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .focused($editorFocused)
@@ -82,14 +85,22 @@ struct QueryEditorView: View {
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
+            } else if let appError {
                 ScrollView {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.red)
-                        Text(verbatim: errorMessage)
-                            .font(.system(.footnote, design: .monospaced))
-                            .foregroundStyle(.red)
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.red)
+                            Text(verbatim: appError.message)
+                                .font(.system(.footnote, design: .monospaced))
+                                .foregroundStyle(.red)
+                        }
+                        if let recovery = appError.recovery {
+                            Text(verbatim: recovery)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 28)
+                        }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -207,7 +218,7 @@ struct QueryEditorView: View {
                 Button(role: .destructive) {
                     query = ""
                     result = nil
-                    errorMessage = nil
+                    appError = nil
                     executionTime = nil
                 } label: {
                     Label("Clear", systemImage: "trash")
@@ -263,7 +274,7 @@ struct QueryEditorView: View {
 
         editorFocused = false
         isExecuting = true
-        errorMessage = nil
+        appError = nil
         result = nil
 
         do {
@@ -278,7 +289,8 @@ struct QueryEditorView: View {
                 }
             }
         } catch {
-            self.errorMessage = error.localizedDescription
+            let context = ErrorContext(operation: "executeQuery")
+            self.appError = ErrorClassifier.classify(error, context: context)
         }
 
         isExecuting = false

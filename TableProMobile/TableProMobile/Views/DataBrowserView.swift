@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -12,18 +13,21 @@ struct DataBrowserView: View {
     let table: TableInfo
     let session: ConnectionSession?
 
+    private static let logger = Logger(subsystem: "com.TablePro", category: "DataBrowserView")
+
     @State private var columns: [ColumnInfo] = []
     @State private var columnDetails: [ColumnInfo] = []
     @State private var rows: [[String?]] = []
     @State private var isLoading = true
     @State private var isLoadingMore = false
-    @State private var errorMessage: String?
+    @State private var appError: AppError?
+    @State private var toastMessage: String?
     @State private var pagination = PaginationState(pageSize: 100, currentPage: 0)
     @State private var hasMore = true
     @State private var showInsertSheet = false
     @State private var deleteTarget: Int?
     @State private var showDeleteConfirmation = false
-    @State private var operationError: String?
+    @State private var operationError: AppError?
     @State private var showOperationError = false
 
     private let maxPreviewColumns = 4
@@ -41,16 +45,9 @@ struct DataBrowserView: View {
             if isLoading {
                 ProgressView("Loading data...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
-                ContentUnavailableView {
-                    Label("Query Failed", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(errorMessage)
-                } actions: {
-                    Button("Retry") {
-                        Task { await loadData() }
-                    }
-                    .buttonStyle(.borderedProminent)
+            } else if let appError {
+                ErrorView(error: appError) {
+                    await loadData()
                 }
             } else if rows.isEmpty {
                 ContentUnavailableView {
@@ -107,10 +104,27 @@ struct DataBrowserView: View {
         } message: {
             Text("Are you sure you want to delete this row? This action cannot be undone.")
         }
-        .alert("Error", isPresented: $showOperationError) {
+        .overlay(alignment: .bottom) {
+            if let toastMessage {
+                ErrorToast(message: toastMessage)
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(nanoseconds: 3_000_000_000)
+                            withAnimation { self.toastMessage = nil }
+                        }
+                    }
+            }
+        }
+        .animation(.default, value: toastMessage)
+        .alert(operationError?.title ?? "Error", isPresented: $showOperationError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(operationError ?? "An unknown error occurred.")
+            VStack {
+                Text(operationError?.message ?? "An unknown error occurred.")
+                if let recovery = operationError?.recovery {
+                    Text(verbatim: recovery)
+                }
+            }
         }
     }
 
@@ -178,7 +192,13 @@ struct DataBrowserView: View {
 
     private func loadData(isInitial: Bool = false) async {
         guard let session else {
-            errorMessage = "Not connected"
+            appError = AppError(
+                category: .config,
+                title: "Not Connected",
+                message: "No active database session.",
+                recovery: "Go back and reconnect to the database.",
+                underlying: nil
+            )
             isLoading = false
             return
         }
@@ -186,7 +206,7 @@ struct DataBrowserView: View {
         if isInitial || rows.isEmpty {
             isLoading = true
         }
-        errorMessage = nil
+        appError = nil
         pagination.reset()
 
         do {
@@ -207,7 +227,12 @@ struct DataBrowserView: View {
 
             isLoading = false
         } catch {
-            errorMessage = error.localizedDescription
+            let context = ErrorContext(
+                operation: "loadData",
+                databaseType: connection.type,
+                host: connection.host
+            )
+            appError = ErrorClassifier.classify(error, context: context)
             isLoading = false
         }
     }
@@ -228,6 +253,8 @@ struct DataBrowserView: View {
             hasMore = result.rows.count >= pagination.pageSize
         } catch {
             pagination.currentPage -= 1
+            Self.logger.warning("Failed to load next page: \(error.localizedDescription, privacy: .public)")
+            withAnimation { toastMessage = "Failed to load more rows" }
         }
 
         isLoadingMore = false
@@ -251,7 +278,12 @@ struct DataBrowserView: View {
             _ = try await session.driver.execute(query: sql)
             await loadData()
         } catch {
-            operationError = error.localizedDescription
+            let context = ErrorContext(
+                operation: "deleteRow",
+                databaseType: connection.type,
+                host: connection.host
+            )
+            operationError = ErrorClassifier.classify(error, context: context)
             showOperationError = true
         }
     }

@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -12,10 +13,13 @@ struct ConnectedView: View {
     @Environment(\.scenePhase) private var scenePhase
     let connection: DatabaseConnection
 
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ConnectedView")
+
     @State private var session: ConnectionSession?
     @State private var tables: [TableInfo] = []
     @State private var isConnecting = true
-    @State private var errorMessage: String?
+    @State private var appError: AppError?
+    @State private var toastMessage: String?
     @State private var selectedTab = ConnectedTab.tables
 
     enum ConnectedTab: String, CaseIterable {
@@ -34,21 +38,26 @@ struct ConnectedView: View {
                     Text(verbatim: "Connecting to \(displayName)...")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let errorMessage {
-                ContentUnavailableView {
-                    Label("Connection Failed", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(errorMessage)
-                } actions: {
-                    Button("Retry") {
-                        Task { await connect() }
-                    }
-                    .buttonStyle(.borderedProminent)
+            } else if let appError {
+                ErrorView(error: appError) {
+                    await connect()
                 }
             } else {
                 connectedContent
             }
         }
+        .overlay(alignment: .bottom) {
+            if let toastMessage {
+                ErrorToast(message: toastMessage)
+                    .onAppear {
+                        Task {
+                            try? await Task.sleep(nanoseconds: 3_000_000_000)
+                            withAnimation { self.toastMessage = nil }
+                        }
+                    }
+            }
+        }
+        .animation(.default, value: toastMessage)
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task { await connect() }
@@ -94,7 +103,7 @@ struct ConnectedView: View {
         }
 
         isConnecting = true
-        errorMessage = nil
+        appError = nil
 
         // Reuse existing session if still alive in ConnectionManager
         if let existing = appState.connectionManager.session(for: connection.id) {
@@ -123,7 +132,13 @@ struct ConnectedView: View {
             self.tables = try await session.driver.fetchTables(schema: nil)
             isConnecting = false
         } catch {
-            errorMessage = error.localizedDescription
+            let context = ErrorContext(
+                operation: "connect",
+                databaseType: connection.type,
+                host: connection.host,
+                sshEnabled: connection.sshEnabled
+            )
+            appError = ErrorClassifier.classify(error, context: context)
             isConnecting = false
         }
     }
@@ -139,7 +154,13 @@ struct ConnectedView: View {
                 let newSession = try await appState.connectionManager.connect(connection)
                 self.session = newSession
             } catch {
-                errorMessage = error.localizedDescription
+                let context = ErrorContext(
+                    operation: "reconnect",
+                    databaseType: connection.type,
+                    host: connection.host,
+                    sshEnabled: connection.sshEnabled
+                )
+                appError = ErrorClassifier.classify(error, context: context)
                 self.session = nil
             }
         }
@@ -150,7 +171,8 @@ struct ConnectedView: View {
         do {
             self.tables = try await session.driver.fetchTables(schema: nil)
         } catch {
-            // Keep existing tables on refresh failure
+            Self.logger.warning("Failed to refresh tables: \(error.localizedDescription, privacy: .public)")
+            withAnimation { toastMessage = "Failed to refresh tables" }
         }
     }
 }
