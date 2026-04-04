@@ -354,15 +354,22 @@ build_for_arch() {
 
     mkdir -p build
 
-    # Create archive entitlements without iCloud (Developer ID profiles don't
-    # include iCloud capability). Full entitlements are used for final codesign.
+    # Create minimal entitlements for archive — Developer ID profiles don't
+    # support iCloud/keychain-access-groups. Full entitlements are used for final codesign.
     local archive_entitlements="build/archive-entitlements.plist"
-    if [ -f "$ENTITLEMENTS" ]; then
-        echo "🔑 Preparing CI entitlements (stripping iCloud for archive)..."
-        cp "$ENTITLEMENTS" "$archive_entitlements"
-        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.icloud-container-identifiers" "$archive_entitlements" 2>/dev/null || true
-        /usr/libexec/PlistBuddy -c "Delete :com.apple.developer.icloud-services" "$archive_entitlements" 2>/dev/null || true
-    fi
+    echo "🔑 Preparing minimal CI entitlements for archive..."
+    cat > "$archive_entitlements" <<ENTPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>
+ENTPLIST
 
     # Generate ExportOptions.plist
     local export_options="build/ExportOptions-${arch}.plist"
