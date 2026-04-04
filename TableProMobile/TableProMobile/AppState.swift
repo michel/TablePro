@@ -30,6 +30,7 @@ final class AppState {
             sshProvider: sshProvider
         )
         connections = storage.load()
+        secureStore.cleanOrphanedCredentials(validConnectionIds: Set(connections.map(\.id)))
 
         syncCoordinator.onConnectionsChanged = { [weak self] merged in
             guard let self else { return }

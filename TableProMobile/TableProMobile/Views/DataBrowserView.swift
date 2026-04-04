@@ -238,9 +238,7 @@ struct DataBrowserView: View {
 
             // columnDetails (from fetchColumns) provides PK info for edit/delete.
             // columns (from query result) only have name/type, no PK metadata.
-            if columnDetails.isEmpty {
-                self.columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
-            }
+            self.columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
 
             isLoading = false
         } catch {

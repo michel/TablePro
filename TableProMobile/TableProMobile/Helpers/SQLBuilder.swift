@@ -19,7 +19,9 @@ enum SQLBuilder {
     }
 
     static func escapeString(_ value: String) -> String {
-        value.replacingOccurrences(of: "'", with: "''")
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "''")
     }
 
     static func buildSelect(table: String, type: DatabaseType, limit: Int, offset: Int) -> String {
