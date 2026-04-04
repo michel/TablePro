@@ -125,7 +125,7 @@ struct RowDetailView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .navigationTitle("Row \(currentIndex + 1) of \(rows.count)")
+        .navigationTitle(String(format: String(localized: "Row %d of %d"), currentIndex + 1, rows.count))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

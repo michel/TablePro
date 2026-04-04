@@ -111,18 +111,18 @@ enum ErrorClassifier {
         let recovery: String
 
         if msg.lowercased().contains("authentication") || msg.lowercased().contains("key") {
-            recovery = "Check your SSH username, password, or private key."
+            recovery = String(localized: "Check your SSH username, password, or private key.")
         } else if msg.lowercased().contains("handshake") {
-            recovery = "The SSH server may be unreachable or running a different protocol."
+            recovery = String(localized: "The SSH server may be unreachable or running a different protocol.")
         } else if msg.lowercased().contains("channel") {
-            recovery = "The SSH tunnel connected but could not forward to the database port."
+            recovery = String(localized: "The SSH tunnel connected but could not forward to the database port.")
         } else {
-            recovery = "Check your SSH host, port, and credentials."
+            recovery = String(localized: "Check your SSH host, port, and credentials.")
         }
 
         return AppError(
             category: .ssh,
-            title: "SSH Tunnel Failed",
+            title: String(localized: "SSH Tunnel Failed"),
             message: msg,
             recovery: recovery,
             underlying: error
@@ -133,9 +133,9 @@ enum ErrorClassifier {
         let dbName = context.databaseType?.rawValue ?? "Database"
         return AppError(
             category: .auth,
-            title: "Authentication Failed",
+            title: String(localized: "Authentication Failed"),
             message: error.localizedDescription,
-            recovery: "Check your \(dbName) username and password.",
+            recovery: String(format: String(localized: "Check your %@ username and password."), dbName),
             underlying: error
         )
     }
@@ -145,16 +145,16 @@ enum ErrorClassifier {
         let recovery: String
 
         if msg.lowercased().contains("timeout") || msg.lowercased().contains("timed out") {
-            recovery = "The server is not responding. Check your network connection and that the server is running."
+            recovery = String(localized: "The server is not responding. Check the host and port.")
         } else if msg.lowercased().contains("refused") {
-            recovery = "Connection refused. Verify the host address and port number."
+            recovery = String(localized: "Connection refused. The server may not be running or the port is incorrect.")
         } else {
-            recovery = "Check your network connection and server availability."
+            recovery = String(localized: "Check your network connection and server availability.")
         }
 
         return AppError(
             category: .network,
-            title: "Connection Failed",
+            title: String(localized: "Connection Failed"),
             message: msg,
             recovery: recovery,
             underlying: error
@@ -166,18 +166,18 @@ enum ErrorClassifier {
         let recovery: String
 
         if msg.lowercased().contains("syntax") {
-            recovery = "Check your SQL syntax."
+            recovery = String(localized: "Check your SQL syntax.")
         } else if msg.lowercased().contains("constraint") || msg.lowercased().contains("duplicate") {
-            recovery = "The operation violates a database constraint. Check for duplicate or missing required values."
+            recovery = String(localized: "The operation violates a database constraint.")
         } else if msg.lowercased().contains("no such table") || msg.lowercased().contains("does not exist") {
-            recovery = "The table or column does not exist. It may have been renamed or deleted."
+            recovery = String(localized: "The table or column does not exist.")
         } else {
-            recovery = "Check your query and try again."
+            recovery = String(localized: "Check your query and try again.")
         }
 
         return AppError(
             category: .query,
-            title: "Query Error",
+            title: String(localized: "Query Error"),
             message: msg,
             recovery: recovery,
             underlying: error
@@ -187,9 +187,9 @@ enum ErrorClassifier {
     private static func config(_ error: Error, context: ErrorContext) -> AppError {
         return AppError(
             category: .config,
-            title: "Configuration Error",
+            title: String(localized: "Configuration Error"),
             message: error.localizedDescription,
-            recovery: "Check your connection settings.",
+            recovery: String(localized: "Check your connection settings."),
             underlying: error
         )
     }

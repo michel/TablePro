@@ -181,7 +181,7 @@ struct ConnectionFormView: View {
                     }
                 }
             }
-            .navigationTitle(existingConnection != nil ? "Edit Connection" : "New Connection")
+            .navigationTitle(existingConnection != nil ? String(localized: "Edit Connection") : String(localized: "New Connection"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

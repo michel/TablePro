@@ -51,7 +51,7 @@ struct ConnectedView: View {
         Group {
             if isConnecting {
                 ProgressView {
-                    Text(verbatim: "Connecting to \(displayName)...")
+                    Text(String(format: String(localized: "Connecting to %@..."), displayName))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let appError {

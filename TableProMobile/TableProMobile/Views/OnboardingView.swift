@@ -77,8 +77,8 @@ struct OnboardingView: View {
                     actionCard(
                         icon: "icloud.and.arrow.down",
                         color: .blue,
-                        title: "Sync from iCloud",
-                        description: "Import connections from your Mac"
+                        title: String(localized: "Sync from iCloud"),
+                        description: String(localized: "Import connections from your Mac")
                     )
                 }
                 .buttonStyle(.plain)
@@ -87,8 +87,8 @@ struct OnboardingView: View {
                     actionCard(
                         icon: "plus.circle.fill",
                         color: .green,
-                        title: "Add Connection",
-                        description: "Set up a new database connection"
+                        title: String(localized: "Add Connection"),
+                        description: String(localized: "Set up a new database connection")
                     )
                 }
                 .buttonStyle(.plain)
