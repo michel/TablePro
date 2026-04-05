@@ -24,6 +24,11 @@ enum SQLBuilder {
             .replacingOccurrences(of: "'", with: "''")
     }
 
+    static func buildCount(table: String, type: DatabaseType) -> String {
+        let quoted = quoteIdentifier(table, for: type)
+        return "SELECT COUNT(*) FROM \(quoted)"
+    }
+
     static func buildSelect(table: String, type: DatabaseType, limit: Int, offset: Int) -> String {
         let quoted = quoteIdentifier(table, for: type)
         return "SELECT * FROM \(quoted) LIMIT \(limit) OFFSET \(offset)"

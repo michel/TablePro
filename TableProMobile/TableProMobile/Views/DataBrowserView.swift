@@ -19,12 +19,10 @@ struct DataBrowserView: View {
     @State private var columnDetails: [ColumnInfo] = []
     @State private var rows: [[String?]] = []
     @State private var isLoading = true
-    @State private var isLoadingMore = false
     @State private var appError: AppError?
     @State private var toastMessage: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var pagination = PaginationState(pageSize: 100, currentPage: 0)
-    @State private var hasMore = true
     @State private var showInsertSheet = false
     @State private var deleteTarget: [(column: String, value: String)]?
     @State private var showDeleteConfirmation = false
@@ -39,6 +37,16 @@ struct DataBrowserView: View {
 
     private var hasPrimaryKeys: Bool {
         columnDetails.contains { $0.isPrimaryKey }
+    }
+
+    private var paginationLabel: String {
+        guard !rows.isEmpty else { return "" }
+        let start = pagination.currentOffset + 1
+        let end = pagination.currentOffset + rows.count
+        if let total = pagination.totalRows {
+            return "\(start)–\(end) of \(total)"
+        }
+        return "\(start)–\(end)"
     }
 
     var body: some View {
@@ -69,7 +77,7 @@ struct DataBrowserView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .status) {
-                Text(verbatim: "\(rows.count) rows")
+                Text(verbatim: paginationLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -92,6 +100,29 @@ struct DataBrowserView: View {
                         Image(systemName: "plus")
                     }
                 }
+            }
+            ToolbarItemGroup(placement: .bottomBar) {
+                Button {
+                    Task { await goToPreviousPage() }
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .disabled(pagination.currentPage == 0 || isLoading)
+
+                Spacer()
+
+                Text(paginationLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button {
+                    Task { await goToNextPage() }
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .disabled(!pagination.hasNextPage || isLoading)
             }
         }
         .task { await loadData(isInitial: true) }
@@ -147,7 +178,6 @@ struct DataBrowserView: View {
 
     private var cardList: some View {
         List {
-            // Offset-based identity is acceptable here: rows don't animate/reorder
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                 NavigationLink {
                     RowDetailView(
@@ -180,28 +210,6 @@ struct DataBrowserView: View {
                     }
                 }
             }
-
-            if hasMore {
-                Section {
-                    Button {
-                        Task { await loadNextPage() }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isLoadingMore {
-                                ProgressView()
-                                    .controlSize(.small)
-                                Text("Loading...")
-                            } else {
-                                Label("Load More", systemImage: "arrow.down.circle")
-                            }
-                            Spacer()
-                        }
-                        .foregroundStyle(.blue)
-                    }
-                    .disabled(isLoadingMore)
-                }
-            }
         }
         .listStyle(.plain)
         .refreshable { await loadData() }
@@ -224,7 +232,6 @@ struct DataBrowserView: View {
             isLoading = true
         }
         appError = nil
-        pagination.reset()
 
         do {
             let query = SQLBuilder.buildSelect(
@@ -234,11 +241,12 @@ struct DataBrowserView: View {
             let result = try await session.driver.execute(query: query)
             self.columns = result.columns
             self.rows = result.rows
-            self.hasMore = result.rows.count >= pagination.pageSize
 
             // columnDetails (from fetchColumns) provides PK info for edit/delete.
             // columns (from query result) only have name/type, no PK metadata.
             self.columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
+
+            await fetchTotalRows(session: session)
 
             isLoading = false
         } catch {
@@ -252,27 +260,27 @@ struct DataBrowserView: View {
         }
     }
 
-    private func loadNextPage() async {
-        guard let session else { return }
-
-        isLoadingMore = true
-        pagination.currentPage += 1
-
+    private func fetchTotalRows(session: ConnectionSession) async {
         do {
-            let query = SQLBuilder.buildSelect(
-                table: table.name, type: connection.type,
-                limit: pagination.pageSize, offset: pagination.currentOffset
-            )
-            let result = try await session.driver.execute(query: query)
-            rows.append(contentsOf: result.rows)
-            hasMore = result.rows.count >= pagination.pageSize
+            let countQuery = SQLBuilder.buildCount(table: table.name, type: connection.type)
+            let countResult = try await session.driver.execute(query: countQuery)
+            if let firstRow = countResult.rows.first, let firstCol = firstRow.first {
+                pagination.totalRows = Int(firstCol ?? "0")
+            }
         } catch {
-            pagination.currentPage -= 1
-            Self.logger.warning("Failed to load next page: \(error.localizedDescription, privacy: .public)")
-            withAnimation { toastMessage = String(localized: "Failed to load more rows") }
+            Self.logger.warning("Failed to fetch row count: \(error.localizedDescription, privacy: .public)")
         }
+    }
 
-        isLoadingMore = false
+    private func goToNextPage() async {
+        pagination.currentPage += 1
+        await loadData()
+    }
+
+    private func goToPreviousPage() async {
+        guard pagination.currentPage > 0 else { return }
+        pagination.currentPage -= 1
+        await loadData()
     }
 
     private func deleteRow(withPKs pkValues: [(column: String, value: String)]) async {
