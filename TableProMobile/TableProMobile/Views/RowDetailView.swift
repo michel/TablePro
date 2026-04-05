@@ -166,10 +166,11 @@ struct RowDetailView: View {
 
                 Spacer()
 
-                Text("\(currentIndex + 1) / \(rows.count)")
+                Text("\(currentIndex + 1) of \(rows.count)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+                    .fixedSize()
 
                 Spacer()
 
