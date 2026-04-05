@@ -7,6 +7,7 @@ import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
+import TableProQuery
 
 struct DataBrowserView: View {
     let connection: DatabaseConnection
@@ -29,6 +30,9 @@ struct DataBrowserView: View {
     @State private var showOperationError = false
     @State private var showGoToPage = false
     @State private var goToPageInput = ""
+    @State private var filters: [TableFilter] = []
+    @State private var filterLogicMode: FilterLogicMode = .and
+    @State private var showFilterBar = false
 
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
@@ -46,6 +50,10 @@ struct DataBrowserView: View {
             return "\(start)–\(end) of \(total)"
         }
         return "\(start)–\(end)"
+    }
+
+    private var hasActiveFilters: Bool {
+        filters.contains { $0.isEnabled && $0.isValid }
     }
 
     var body: some View {
@@ -113,6 +121,48 @@ struct DataBrowserView: View {
 
     private var rowList: some View {
         List {
+            if showFilterBar {
+                Section {
+                    if filters.count > 1 {
+                        Picker("Logic", selection: $filterLogicMode) {
+                            Text("AND").tag(FilterLogicMode.and)
+                            Text("OR").tag(FilterLogicMode.or)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    ForEach($filters) { $filter in
+                        FilterRowView(
+                            filter: $filter,
+                            columns: columns,
+                            onDelete: { filters.removeAll { $0.id == filter.id } }
+                        )
+                    }
+
+                    HStack {
+                        Button {
+                            filters.append(TableFilter(columnName: columns.first?.name ?? ""))
+                        } label: {
+                            Label("Add Filter", systemImage: "plus.circle")
+                        }
+                        Spacer()
+                        Button("Apply") {
+                            applyFilters()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!hasActiveFilters)
+                    }
+
+                    if hasActiveFilters {
+                        Button("Clear Filters", role: .destructive) {
+                            clearFilters()
+                        }
+                    }
+                } header: {
+                    Text("Filters")
+                }
+            }
+
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                 NavigationLink {
                     RowDetailView(
@@ -156,6 +206,13 @@ struct DataBrowserView: View {
 
     @ToolbarContentBuilder
     private var topToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { withAnimation { showFilterBar.toggle() } } label: {
+                Image(systemName: hasActiveFilters
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle")
+            }
+        }
         ToolbarItem(placement: .topBarTrailing) {
             NavigationLink {
                 StructureView(table: table, session: session, databaseType: connection.type)
@@ -251,10 +308,19 @@ struct DataBrowserView: View {
         appError = nil
 
         do {
-            let query = SQLBuilder.buildSelect(
-                table: table.name, type: connection.type,
-                limit: pagination.pageSize, offset: pagination.currentOffset
-            )
+            let query: String
+            if hasActiveFilters {
+                query = SQLBuilder.buildFilteredSelect(
+                    table: table.name, type: connection.type,
+                    filters: filters, logicMode: filterLogicMode,
+                    limit: pagination.pageSize, offset: pagination.currentOffset
+                )
+            } else {
+                query = SQLBuilder.buildSelect(
+                    table: table.name, type: connection.type,
+                    limit: pagination.pageSize, offset: pagination.currentOffset
+                )
+            }
             let result = try await session.driver.execute(query: query)
             columns = result.columns
             rows = result.rows
@@ -276,7 +342,15 @@ struct DataBrowserView: View {
 
     private func fetchTotalRows(session: ConnectionSession) async {
         do {
-            let countQuery = SQLBuilder.buildCount(table: table.name, type: connection.type)
+            let countQuery: String
+            if hasActiveFilters {
+                countQuery = SQLBuilder.buildFilteredCount(
+                    table: table.name, type: connection.type,
+                    filters: filters, logicMode: filterLogicMode
+                )
+            } else {
+                countQuery = SQLBuilder.buildCount(table: table.name, type: connection.type)
+            }
             let countResult = try await session.driver.execute(query: countQuery)
             if let firstRow = countResult.rows.first, let firstCol = firstRow.first {
                 pagination.totalRows = Int(firstCol ?? "0")
@@ -347,6 +421,97 @@ struct DataBrowserView: View {
                   colIndex < row.count,
                   let value = row[colIndex] else { return nil }
             return (column: col.name, value: value)
+        }
+    }
+
+    private func applyFilters() {
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        Task { await loadData() }
+    }
+
+    private func clearFilters() {
+        filters.removeAll()
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        Task { await loadData() }
+    }
+}
+
+// MARK: - Filter Row
+
+private struct FilterRowView: View {
+    @Binding var filter: TableFilter
+    let columns: [ColumnInfo]
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Picker("Column", selection: $filter.columnName) {
+                    ForEach(columns, id: \.name) { col in
+                        Text(col.name).tag(col.name)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Button(role: .destructive) { onDelete() } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Picker("Operator", selection: $filter.filterOperator) {
+                ForEach(FilterOperator.allCases, id: \.self) { op in
+                    Text(op.displayName).tag(op)
+                }
+            }
+            .pickerStyle(.menu)
+
+            if filter.filterOperator.needsValue {
+                TextField("Value", text: $filter.value)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+
+            if filter.filterOperator == .between {
+                TextField("Second value", text: $filter.secondValue)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+        }
+    }
+}
+
+// MARK: - Filter Operator Display
+
+extension FilterOperator {
+    var displayName: String {
+        switch self {
+        case .equal: return "equals"
+        case .notEqual: return "not equals"
+        case .greaterThan: return "greater than"
+        case .greaterThanOrEqual: return "≥"
+        case .lessThan: return "less than"
+        case .lessThanOrEqual: return "≤"
+        case .like: return "like"
+        case .notLike: return "not like"
+        case .isNull: return "is null"
+        case .isNotNull: return "is not null"
+        case .in: return "in"
+        case .notIn: return "not in"
+        case .between: return "between"
+        case .contains: return "contains"
+        case .startsWith: return "starts with"
+        case .endsWith: return "ends with"
+        }
+    }
+
+    var needsValue: Bool {
+        switch self {
+        case .isNull, .isNotNull: return false
+        default: return true
         }
     }
 }

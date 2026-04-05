@@ -5,6 +5,8 @@
 
 import Foundation
 import TableProModels
+import TableProPluginKit
+import TableProQuery
 
 enum SQLBuilder {
     static func quoteIdentifier(_ name: String, for type: DatabaseType) -> String {
@@ -77,5 +79,63 @@ enum SQLBuilder {
             return "NULL"
         }.joined(separator: ", ")
         return "INSERT INTO \(quotedTable) (\(cols)) VALUES (\(vals))"
+    }
+
+    static func buildFilteredSelect(
+        table: String, type: DatabaseType,
+        filters: [TableFilter], logicMode: FilterLogicMode,
+        limit: Int, offset: Int
+    ) -> String {
+        let dialect = dialectDescriptor(for: type)
+        let generator = FilterSQLGenerator(dialect: dialect)
+        let whereClause = generator.generateWhereClause(from: filters, logicMode: logicMode)
+        let quoted = quoteIdentifier(table, for: type)
+        if whereClause.isEmpty {
+            return "SELECT * FROM \(quoted) LIMIT \(limit) OFFSET \(offset)"
+        }
+        return "SELECT * FROM \(quoted) \(whereClause) LIMIT \(limit) OFFSET \(offset)"
+    }
+
+    static func buildFilteredCount(
+        table: String, type: DatabaseType,
+        filters: [TableFilter], logicMode: FilterLogicMode
+    ) -> String {
+        let dialect = dialectDescriptor(for: type)
+        let generator = FilterSQLGenerator(dialect: dialect)
+        let whereClause = generator.generateWhereClause(from: filters, logicMode: logicMode)
+        let quoted = quoteIdentifier(table, for: type)
+        if whereClause.isEmpty {
+            return "SELECT COUNT(*) FROM \(quoted)"
+        }
+        return "SELECT COUNT(*) FROM \(quoted) \(whereClause)"
+    }
+
+    private static func dialectDescriptor(for type: DatabaseType) -> SQLDialectDescriptor {
+        switch type {
+        case .mysql, .mariadb:
+            return SQLDialectDescriptor(
+                identifierQuote: "`",
+                keywords: [],
+                functions: [],
+                dataTypes: [],
+                likeEscapeStyle: .implicit,
+                requiresBackslashEscaping: true
+            )
+        case .postgresql, .redshift:
+            return SQLDialectDescriptor(
+                identifierQuote: "\"",
+                keywords: [],
+                functions: [],
+                dataTypes: [],
+                likeEscapeStyle: .explicit
+            )
+        default:
+            return SQLDialectDescriptor(
+                identifierQuote: "\"",
+                keywords: [],
+                functions: [],
+                dataTypes: []
+            )
+        }
     }
 }
