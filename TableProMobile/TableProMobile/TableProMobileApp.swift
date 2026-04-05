@@ -26,7 +26,7 @@ struct TableProMobileApp: App {
             }
             .onOpenURL { url in
                 guard url.scheme == "tablepro",
-                      url.host == "connect",
+                      url.host(percentEncoded: false) == "connect",
                       let uuidString = url.pathComponents.dropFirst().first,
                       let uuid = UUID(uuidString: uuidString) else { return }
                 appState.pendingConnectionId = uuid

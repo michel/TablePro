@@ -171,16 +171,18 @@ final class AppState {
     // MARK: - Widget
 
     private func updateWidgetData() {
-        let items = connections.map { conn in
-            WidgetConnectionItem(
-                id: conn.id,
-                name: conn.name.isEmpty ? conn.host : conn.name,
-                type: conn.type.rawValue,
-                host: conn.host,
-                port: conn.port,
-                sortOrder: conn.sortOrder
-            )
-        }
+        let items = connections
+            .sorted { ($0.sortOrder, $0.name) < ($1.sortOrder, $1.name) }
+            .map { conn in
+                WidgetConnectionItem(
+                    id: conn.id,
+                    name: conn.name.isEmpty ? conn.host : conn.name,
+                    type: conn.type.rawValue,
+                    host: conn.host,
+                    port: conn.port,
+                    sortOrder: conn.sortOrder
+                )
+            }
         SharedConnectionStore.write(items)
         WidgetCenter.shared.reloadAllTimelines()
     }

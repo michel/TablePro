@@ -510,6 +510,7 @@
 		5AA136042F82610F00ADCD58 /* TableProWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TableProWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5AA136052F82610F00ADCD58 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		5AA136072F82610F00ADCD58 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		5AA136322F82675600ADCD58 /* TableProWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TableProWidgetExtension.entitlements; sourceTree = "<group>"; };
 		5AA313342F7EA5B4008EBA97 /* LibPQ.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = LibPQ.xcframework; path = ../Libs/ios/LibPQ.xcframework; sourceTree = "<group>"; };
 		5AA313352F7EA5B4008EBA97 /* Hiredis.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Hiredis.xcframework; path = ../Libs/ios/Hiredis.xcframework; sourceTree = "<group>"; };
 		5AA313362F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "OpenSSL-Crypto.xcframework"; path = "../Libs/ios/OpenSSL-Crypto.xcframework"; sourceTree = "<group>"; };
@@ -1618,6 +1619,7 @@
 		5AB9F3D02F7C1C12001F3337 = {
 			isa = PBXGroup;
 			children = (
+				5AA136322F82675600ADCD58 /* TableProWidgetExtension.entitlements */,
 				5AB9F3DB2F7C1C12001F3337 /* TableProMobile */,
 				5AA136092F82610F00ADCD58 /* TableProWidget */,
 				5AA313332F7EA5B4008EBA97 /* Frameworks */,
@@ -1777,6 +1779,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = TableProWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
@@ -1784,7 +1787,7 @@
 				INFOPLIST_FILE = TableProWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TableProWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1808,6 +1811,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = TableProWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
@@ -1815,7 +1819,7 @@
 				INFOPLIST_FILE = TableProWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TableProWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

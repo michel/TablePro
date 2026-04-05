@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - iOS: connection groups and tags
+- iOS: Quick Connect Home Screen widget
 
 ## [0.27.4] - 2026-04-05
 
