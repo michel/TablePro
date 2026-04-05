@@ -36,11 +36,24 @@ struct ContentView: View {
     private let storage = ConnectionStorage.shared
 
     init(payload: EditorTabPayload?) {
-        self.payload = payload
+        // When payload is nil (macOS native tab bar "+" button), infer
+        // the connectionId from the key window so the new tab inherits
+        // the correct connection instead of showing an empty state.
+        var effectivePayload = payload
+        if effectivePayload == nil, let keyWindow = NSApp.keyWindow,
+           let connectionId = WindowLifecycleMonitor.shared.connectionIdFromWindow(keyWindow) {
+            effectivePayload = EditorTabPayload(
+                connectionId: connectionId,
+                tabType: .query,
+                isNewTab: true
+            )
+        }
+        self.payload = effectivePayload
+
         let defaultTitle: String
-        if let tableName = payload?.tableName {
+        if let tableName = effectivePayload?.tableName {
             defaultTitle = tableName
-        } else if let connectionId = payload?.connectionId,
+        } else if let connectionId = effectivePayload?.connectionId,
                   let connection = DatabaseManager.shared.activeSessions[connectionId]?.connection {
             let langName = PluginManager.shared.queryLanguageName(for: connection.type)
             defaultTitle = "\(langName) Query"
@@ -52,7 +65,7 @@ struct ContentView: View {
         // For Cmd+T (new tab), the session already exists. Resolve synchronously
         // to avoid the "Connecting..." flash while waiting for async onChange.
         var resolvedSession: ConnectionSession?
-        if let connectionId = payload?.connectionId {
+        if let connectionId = effectivePayload?.connectionId {
             resolvedSession = DatabaseManager.shared.activeSessions[connectionId]
         }
         _currentSession = State(initialValue: resolvedSession)
@@ -60,7 +73,7 @@ struct ContentView: View {
         if let session = resolvedSession {
             _rightPanelState = State(initialValue: RightPanelState())
             _sessionState = State(initialValue: SessionStateFactory.create(
-                connection: session.connection, payload: payload
+                connection: session.connection, payload: effectivePayload
             ))
         } else {
             _rightPanelState = State(initialValue: nil)
