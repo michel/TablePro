@@ -46,11 +46,10 @@ struct GroupManagementView: View {
                 .onMove { source, destination in
                     var sorted = appState.groups.sorted(by: { $0.sortOrder < $1.sortOrder })
                     sorted.move(fromOffsets: source, toOffset: destination)
-                    for (index, group) in sorted.enumerated() {
-                        var updated = group
-                        updated.sortOrder = index
-                        appState.updateGroup(updated)
+                    for index in sorted.indices {
+                        sorted[index].sortOrder = index
                     }
+                    appState.reorderGroups(sorted)
                 }
             }
             .overlay {
@@ -65,7 +64,7 @@ struct GroupManagementView: View {
             .navigationTitle("Groups")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {

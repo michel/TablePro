@@ -10,29 +10,31 @@ struct ConnectionColorPicker: View {
     @Binding var selection: ConnectionColor
 
     var body: some View {
-        HStack(spacing: 12) {
-            ForEach(ConnectionColor.allCases) { color in
-                Button {
-                    selection = color
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Self.swiftUIColor(for: color))
-                            .frame(width: 28, height: 28)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(ConnectionColor.allCases) { color in
+                    Button {
+                        selection = color
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Self.swiftUIColor(for: color))
+                                .frame(width: 28, height: 28)
 
-                        if selection == color {
-                            Image(systemName: "checkmark")
-                                .font(.caption.bold())
-                                .foregroundStyle(.white)
+                            if selection == color {
+                                Image(systemName: "checkmark")
+                                    .font(.caption.bold())
+                                    .foregroundStyle(.white)
+                            }
                         }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Circle())
                     }
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Circle())
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
     }
 
     static func swiftUIColor(for color: ConnectionColor) -> Color {

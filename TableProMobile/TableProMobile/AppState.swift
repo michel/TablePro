@@ -120,6 +120,15 @@ final class AppState {
         }
     }
 
+    func reorderGroups(_ reordered: [ConnectionGroup]) {
+        groups = reordered
+        groupStorage.save(groups)
+        for group in reordered {
+            syncCoordinator.markDirtyGroup(group.id)
+        }
+        syncCoordinator.scheduleSyncAfterChange()
+    }
+
     func deleteGroup(_ groupId: UUID) {
         groups.removeAll { $0.id == groupId }
         groupStorage.save(groups)
@@ -129,6 +138,7 @@ final class AppState {
             syncCoordinator.markDirty(connections[index].id)
         }
         storage.save(connections)
+        updateWidgetData()
 
         syncCoordinator.markDeletedGroup(groupId)
         syncCoordinator.scheduleSyncAfterChange()
@@ -163,6 +173,7 @@ final class AppState {
             syncCoordinator.markDirty(connections[index].id)
         }
         storage.save(connections)
+        updateWidgetData()
 
         syncCoordinator.markDeletedTag(tagId)
         syncCoordinator.scheduleSyncAfterChange()
