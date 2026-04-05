@@ -119,12 +119,6 @@ internal final class WindowLifecycleMonitor {
         return entries[windowId]?.connectionId
     }
 
-    /// Look up the connectionId for a given NSWindow by matching its reference.
-    internal func connectionIdFromWindow(_ window: NSWindow) -> UUID? {
-        purgeStaleEntries()
-        return entries.values.first { $0.window === window }?.connectionId
-    }
-
     /// Check if any windows are registered for a connection.
     internal func hasWindows(for connectionId: UUID) -> Bool {
         purgeStaleEntries()
