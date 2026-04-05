@@ -97,24 +97,28 @@ struct DataBrowserView: View {
                 }
             }
         }
-        .safeAreaInset(edge: .bottom) {
+        .toolbar {
             if !rows.isEmpty {
-                HStack {
+                ToolbarItem(placement: .bottomBar) {
                     Button {
                         Task { await goToPreviousPage() }
                     } label: {
                         Image(systemName: "chevron.left")
                     }
                     .disabled(pagination.currentPage == 0 || isLoading)
-
+                }
+                ToolbarItem(placement: .bottomBar) {
                     Spacer()
-
+                }
+                ToolbarItem(placement: .bottomBar) {
                     Text(paginationLabel)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-
+                }
+                ToolbarItem(placement: .bottomBar) {
                     Spacer()
-
+                }
+                ToolbarItem(placement: .bottomBar) {
                     Button {
                         Task { await goToNextPage() }
                     } label: {
@@ -122,9 +126,6 @@ struct DataBrowserView: View {
                     }
                     .disabled(!pagination.hasNextPage || isLoading)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(.ultraThinMaterial)
             }
         }
         .task { await loadData(isInitial: true) }
