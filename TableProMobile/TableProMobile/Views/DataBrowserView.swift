@@ -7,6 +7,7 @@ import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
+import TableProQuery
 
 struct DataBrowserView: View {
     let connection: DatabaseConnection
@@ -29,6 +30,9 @@ struct DataBrowserView: View {
     @State private var showOperationError = false
     @State private var showGoToPage = false
     @State private var goToPageInput = ""
+    @State private var filters: [TableFilter] = []
+    @State private var filterLogicMode: FilterLogicMode = .and
+    @State private var showFilterSheet = false
 
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
@@ -48,6 +52,10 @@ struct DataBrowserView: View {
         return "\(start)–\(end)"
     }
 
+    private var hasActiveFilters: Bool {
+        filters.contains { $0.isEnabled && $0.isValid }
+    }
+
     var body: some View {
         content
             .navigationTitle(table.name)
@@ -57,6 +65,15 @@ struct DataBrowserView: View {
             .toolbar { paginationToolbar }
             .task { await loadData(isInitial: true) }
             .sheet(isPresented: $showInsertSheet) { insertSheet }
+            .sheet(isPresented: $showFilterSheet) {
+                FilterSheetView(
+                    filters: $filters,
+                    logicMode: $filterLogicMode,
+                    columns: columns,
+                    onApply: { applyFilters() },
+                    onClear: { clearFilters() }
+                )
+            }
             .confirmationDialog("Delete Row", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     if let pkValues = deleteTarget {
@@ -111,6 +128,10 @@ struct DataBrowserView: View {
         }
     }
 
+    private var activeFilterCount: Int {
+        filters.filter { $0.isEnabled && $0.isValid }.count
+    }
+
     private var rowList: some View {
         List {
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
@@ -156,6 +177,14 @@ struct DataBrowserView: View {
 
     @ToolbarContentBuilder
     private var topToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showFilterSheet = true } label: {
+                Image(systemName: hasActiveFilters
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle")
+            }
+            .badge(activeFilterCount)
+        }
         ToolbarItem(placement: .topBarTrailing) {
             NavigationLink {
                 StructureView(table: table, session: session, databaseType: connection.type)
@@ -251,10 +280,19 @@ struct DataBrowserView: View {
         appError = nil
 
         do {
-            let query = SQLBuilder.buildSelect(
-                table: table.name, type: connection.type,
-                limit: pagination.pageSize, offset: pagination.currentOffset
-            )
+            let query: String
+            if hasActiveFilters {
+                query = SQLBuilder.buildFilteredSelect(
+                    table: table.name, type: connection.type,
+                    filters: filters, logicMode: filterLogicMode,
+                    limit: pagination.pageSize, offset: pagination.currentOffset
+                )
+            } else {
+                query = SQLBuilder.buildSelect(
+                    table: table.name, type: connection.type,
+                    limit: pagination.pageSize, offset: pagination.currentOffset
+                )
+            }
             let result = try await session.driver.execute(query: query)
             columns = result.columns
             rows = result.rows
@@ -276,7 +314,15 @@ struct DataBrowserView: View {
 
     private func fetchTotalRows(session: ConnectionSession) async {
         do {
-            let countQuery = SQLBuilder.buildCount(table: table.name, type: connection.type)
+            let countQuery: String
+            if hasActiveFilters {
+                countQuery = SQLBuilder.buildFilteredCount(
+                    table: table.name, type: connection.type,
+                    filters: filters, logicMode: filterLogicMode
+                )
+            } else {
+                countQuery = SQLBuilder.buildCount(table: table.name, type: connection.type)
+            }
             let countResult = try await session.driver.execute(query: countQuery)
             if let firstRow = countResult.rows.first, let firstCol = firstRow.first {
                 pagination.totalRows = Int(firstCol ?? "0")
@@ -347,6 +393,162 @@ struct DataBrowserView: View {
                   colIndex < row.count,
                   let value = row[colIndex] else { return nil }
             return (column: col.name, value: value)
+        }
+    }
+
+    private func applyFilters() {
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        Task { await loadData() }
+    }
+
+    private func clearFilters() {
+        filters.removeAll()
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        Task { await loadData() }
+    }
+}
+
+// MARK: - Filter Sheet
+
+private struct FilterSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var filters: [TableFilter]
+    @Binding var logicMode: FilterLogicMode
+    let columns: [ColumnInfo]
+    let onApply: () -> Void
+    let onClear: () -> Void
+
+    @State private var draft: [TableFilter] = []
+    @State private var draftLogicMode: FilterLogicMode = .and
+
+    private var hasValidFilters: Bool {
+        draft.contains { $0.isEnabled && $0.isValid }
+    }
+
+    private func bindingForFilter(_ id: UUID) -> Binding<TableFilter>? {
+        guard let index = draft.firstIndex(where: { $0.id == id }) else { return nil }
+        return $draft[index]
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if draft.count > 1 {
+                    Section {
+                        Picker("Logic", selection: $draftLogicMode) {
+                            Text("AND").tag(FilterLogicMode.and)
+                            Text("OR").tag(FilterLogicMode.or)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+
+                ForEach(draft) { filter in
+                    if let binding = bindingForFilter(filter.id) {
+                        Section {
+                            Picker("Column", selection: binding.columnName) {
+                                ForEach(columns, id: \.name) { col in
+                                    Text(col.name).tag(col.name)
+                                }
+                            }
+
+                            Picker("Operator", selection: binding.filterOperator) {
+                                ForEach(FilterOperator.allCases, id: \.self) { op in
+                                    Text(op.displayName).tag(op)
+                                }
+                            }
+
+                            if filter.filterOperator.needsValue {
+                                TextField("Value", text: binding.value)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            }
+
+                            if filter.filterOperator == .between {
+                                TextField("Second value", text: binding.secondValue)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            }
+                        }
+                    }
+                }
+                .onDelete { indexSet in
+                    draft.remove(atOffsets: indexSet)
+                }
+
+                Section {
+                    Button {
+                        draft.append(TableFilter(columnName: columns.first?.name ?? ""))
+                    } label: {
+                        Label("Add Filter", systemImage: "plus.circle")
+                    }
+                }
+
+                if !draft.isEmpty {
+                    Section {
+                        Button("Clear All Filters", role: .destructive) {
+                            filters.removeAll()
+                            logicMode = .and
+                            onClear()
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Apply") {
+                        filters = draft
+                        logicMode = draftLogicMode
+                        onApply()
+                        dismiss()
+                    }
+                    .disabled(!hasValidFilters)
+                }
+            }
+            .onAppear {
+                draft = filters
+                draftLogicMode = logicMode
+            }
+        }
+    }
+}
+
+// MARK: - Filter Operator Display
+
+extension FilterOperator {
+    var displayName: String {
+        switch self {
+        case .equal: return "equals"
+        case .notEqual: return "not equals"
+        case .greaterThan: return "greater than"
+        case .greaterThanOrEqual: return "≥"
+        case .lessThan: return "less than"
+        case .lessThanOrEqual: return "≤"
+        case .like: return "like"
+        case .notLike: return "not like"
+        case .isNull: return "is null"
+        case .isNotNull: return "is not null"
+        case .in: return "in"
+        case .notIn: return "not in"
+        case .between: return "between"
+        case .contains: return "contains"
+        case .startsWith: return "starts with"
+        case .endsWith: return "ends with"
+        }
+    }
+
+    var needsValue: Bool {
+        switch self {
+        case .isNull, .isNotNull: return false
+        default: return true
         }
     }
 }
