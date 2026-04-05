@@ -297,7 +297,7 @@ final class MainContentCommandActions {
             connectionId: connection.id,
             tabType: .query,
             initialQuery: initialQuery,
-            isNewTab: true
+            intent: .newEmptyTab
         )
         WindowOpener.shared.openNativeTab(payload)
     }

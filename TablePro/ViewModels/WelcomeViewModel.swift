@@ -208,8 +208,10 @@ final class WelcomeViewModel {
 
     func connectToDatabase(_ connection: DatabaseConnection) {
         guard let openWindow else { return }
-        WindowOpener.shared.pendingConnectionId = connection.id
-        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
+        if WindowOpener.shared.openWindow == nil {
+            WindowOpener.shared.openWindow = openWindow
+        }
+        WindowOpener.shared.openNativeTab(EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault))
         NSApplication.shared.closeWindows(withId: "welcome")
 
         Task {
@@ -234,8 +236,10 @@ final class WelcomeViewModel {
 
     func connectAfterInstall(_ connection: DatabaseConnection) {
         guard let openWindow else { return }
-        WindowOpener.shared.pendingConnectionId = connection.id
-        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
+        if WindowOpener.shared.openWindow == nil {
+            WindowOpener.shared.openWindow = openWindow
+        }
+        WindowOpener.shared.openNativeTab(EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault))
         NSApplication.shared.closeWindows(withId: "welcome")
 
         Task {
