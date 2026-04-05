@@ -19,6 +19,7 @@ struct DataBrowserView: View {
     @State private var columnDetails: [ColumnInfo] = []
     @State private var rows: [[String?]] = []
     @State private var isLoading = true
+    @State private var isPageLoading = false
     @State private var appError: AppError?
     @State private var pagination = PaginationState(pageSize: 100, currentPage: 0)
     @State private var showInsertSheet = false
@@ -144,6 +145,10 @@ struct DataBrowserView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .opacity(isPageLoading ? 0.5 : 1)
+        .allowsHitTesting(!isPageLoading)
+        .overlay { if isPageLoading { ProgressView() } }
+        .animation(.default, value: isPageLoading)
         .refreshable { await loadData() }
     }
 
@@ -253,7 +258,9 @@ struct DataBrowserView: View {
             let result = try await session.driver.execute(query: query)
             columns = result.columns
             rows = result.rows
-            columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
+            if columnDetails.isEmpty {
+                columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
+            }
             if pagination.totalRows == nil {
                 await fetchTotalRows(session: session)
             }
@@ -283,24 +290,36 @@ struct DataBrowserView: View {
         pagination.pageSize = newSize
         pagination.currentPage = 0
         pagination.totalRows = nil
-        Task { await loadData() }
+        Task { await navigatePage() }
     }
 
     private func goToPage() {
         guard let page = Int(goToPageInput), page >= 1 else { return }
-        pagination.currentPage = page - 1
-        Task { await loadData() }
+        if let total = pagination.totalRows {
+            let maxPage = max(1, (total + pagination.pageSize - 1) / pagination.pageSize)
+            pagination.currentPage = min(page - 1, maxPage - 1)
+        } else {
+            pagination.currentPage = page - 1
+        }
+        Task { await navigatePage() }
     }
 
     private func goToNextPage() async {
+        guard pagination.hasNextPage else { return }
         pagination.currentPage += 1
-        await loadData()
+        await navigatePage()
     }
 
     private func goToPreviousPage() async {
         guard pagination.currentPage > 0 else { return }
         pagination.currentPage -= 1
+        await navigatePage()
+    }
+
+    private func navigatePage() async {
+        isPageLoading = true
         await loadData()
+        isPageLoading = false
     }
 
     // MARK: - Row Operations
