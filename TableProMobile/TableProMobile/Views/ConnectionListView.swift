@@ -12,6 +12,7 @@ struct ConnectionListView: View {
     @State private var showingAddConnection = false
     @State private var editingConnection: DatabaseConnection?
     @State private var selectedConnection: DatabaseConnection?
+    @State private var navigationPath = NavigationPath()
     @State private var showingGroupManagement = false
     @State private var showingTagManagement = false
     @State private var filterTagId: UUID?
@@ -31,17 +32,19 @@ struct ConnectionListView: View {
 
     var body: some View {
         NavigationSplitView {
-            sidebar
-                .navigationTitle("Connections")
-                .navigationDestination(for: DatabaseConnection.self) { connection in
-                    ConnectedView(connection: connection)
-                }
-                .onChange(of: appState.pendingConnectionId) { _, newId in
-                    navigateToPendingConnection(newId)
-                }
-                .onAppear {
-                    navigateToPendingConnection(appState.pendingConnectionId)
-                }
+            NavigationStack(path: $navigationPath) {
+                sidebar
+                    .navigationTitle("Connections")
+                    .navigationDestination(for: DatabaseConnection.self) { connection in
+                        ConnectedView(connection: connection)
+                    }
+            }
+            .onChange(of: appState.pendingConnectionId) { _, newId in
+                navigateToPendingConnection(newId)
+            }
+            .onAppear {
+                navigateToPendingConnection(appState.pendingConnectionId)
+            }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         filterMenu
@@ -245,6 +248,7 @@ struct ConnectionListView: View {
     private func navigateToPendingConnection(_ id: UUID?) {
         guard let id,
               let connection = appState.connections.first(where: { $0.id == id }) else { return }
+        navigationPath.append(connection)
         selectedConnection = connection
         appState.pendingConnectionId = nil
     }
