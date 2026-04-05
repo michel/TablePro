@@ -22,8 +22,13 @@ struct ConnectionFormView: View {
     @State private var database = ""
     @State private var sslEnabled = false
 
-    // SQLite file picker
-    @State private var showFilePicker = false
+    // File pickers
+    enum ActiveFilePicker: Identifiable {
+        case sqliteDatabase
+        case sshKey
+        var id: Int { hashValue }
+    }
+    @State private var activeFilePicker: ActiveFilePicker?
     @State private var selectedFileURL: URL?
     @State private var showNewDatabaseAlert = false
     @State private var newDatabaseName = ""
@@ -43,7 +48,12 @@ struct ConnectionFormView: View {
     @State private var sshKeyContent = ""
     @State private var sshKeyPassphrase = ""
     @State private var sshKeyInputMode = KeyInputMode.file
-    @State private var showSSHKeyPicker = false
+    private var showFilePicker: Binding<Bool> {
+        Binding(
+            get: { activeFilePicker != nil },
+            set: { if !$0 { activeFilePicker = nil } }
+        )
+    }
 
     enum KeyInputMode: String, CaseIterable {
         case file = "Import File"
@@ -207,13 +217,11 @@ struct ConnectionFormView: View {
                     if let stored = try? appState.secureStore.retrieve(forKey: connKey), !stored.isEmpty {
                         password = stored
                     }
-                    if sshEnabled {
-                        if let sshPwd = try? appState.secureStore.retrieve(forKey: "com.TablePro.sshpassword.\(conn.id.uuidString)"), !sshPwd.isEmpty {
-                            sshPassword = sshPwd
-                        }
-                        if let passphrase = try? appState.secureStore.retrieve(forKey: "com.TablePro.keypassphrase.\(conn.id.uuidString)"), !passphrase.isEmpty {
-                            sshKeyPassphrase = passphrase
-                        }
+                    if let sshPwd = try? appState.secureStore.retrieve(forKey: "com.TablePro.sshpassword.\(conn.id.uuidString)"), !sshPwd.isEmpty {
+                        sshPassword = sshPwd
+                    }
+                    if let passphrase = try? appState.secureStore.retrieve(forKey: "com.TablePro.keypassphrase.\(conn.id.uuidString)"), !passphrase.isEmpty {
+                        sshKeyPassphrase = passphrase
                     }
                 }
             }
@@ -229,33 +237,32 @@ struct ConnectionFormView: View {
                 }
             }
             .fileImporter(
-                isPresented: $showFilePicker,
-                allowedContentTypes: sqliteContentTypes,
+                isPresented: showFilePicker,
+                allowedContentTypes: activeFilePicker == .sqliteDatabase ? sqliteContentTypes : [.data],
                 allowsMultipleSelection: false
             ) { result in
-                handleFilePickerResult(result)
-            }
-            .fileImporter(
-                isPresented: $showSSHKeyPicker,
-                allowedContentTypes: [.data],
-                allowsMultipleSelection: false
-            ) { result in
-                if case .success(let urls) = result, let url = urls.first {
-                    guard url.startAccessingSecurityScopedResource() else { return }
-                    defer { url.stopAccessingSecurityScopedResource() }
-
-                    // Read key content directly — more reliable than copying file
-                    if let content = try? String(contentsOf: url, encoding: .utf8) {
-                        sshKeyContent = content
-                        sshKeyInputMode = .paste
-                    } else {
-                        // Fallback: copy to app Documents
-                        guard let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
-                        let dest = docsDir.appendingPathComponent("ssh_" + url.lastPathComponent)
-                        try? FileManager.default.removeItem(at: dest)
-                        try? FileManager.default.copyItem(at: url, to: dest)
-                        sshKeyPath = dest.path
+                let picker = activeFilePicker
+                activeFilePicker = nil
+                switch picker {
+                case .sqliteDatabase:
+                    handleFilePickerResult(result)
+                case .sshKey:
+                    if case .success(let urls) = result, let url = urls.first {
+                        guard url.startAccessingSecurityScopedResource() else { return }
+                        defer { url.stopAccessingSecurityScopedResource() }
+                        if let content = try? String(contentsOf: url, encoding: .utf8) {
+                            sshKeyContent = content
+                            sshKeyInputMode = .paste
+                        } else {
+                            guard let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+                            let dest = docsDir.appendingPathComponent("ssh_" + url.lastPathComponent)
+                            try? FileManager.default.removeItem(at: dest)
+                            try? FileManager.default.copyItem(at: url, to: dest)
+                            sshKeyPath = dest.path
+                        }
                     }
+                case nil:
+                    break
                 }
             }
             .alert("New Database", isPresented: $showNewDatabaseAlert) {
@@ -300,7 +307,7 @@ struct ConnectionFormView: View {
             }
 
             Button {
-                showFilePicker = true
+                activeFilePicker = .sqliteDatabase
             } label: {
                 Label("Open Database File", systemImage: "folder")
             }
@@ -377,7 +384,7 @@ struct ConnectionFormView: View {
 
                     if sshKeyInputMode == .file {
                         Button {
-                            showSSHKeyPicker = true
+                            activeFilePicker = .sshKey
                         } label: {
                             HStack {
                                 Text(sshKeyPath.isEmpty
