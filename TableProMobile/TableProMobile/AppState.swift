@@ -7,12 +7,14 @@ import Foundation
 import Observation
 import TableProDatabase
 import TableProModels
+import WidgetKit
 
 @MainActor @Observable
 final class AppState {
     var connections: [DatabaseConnection] = []
     var groups: [ConnectionGroup] = []
     var tags: [ConnectionTag] = []
+    var pendingConnectionId: UUID?
     let connectionManager: ConnectionManager
     let syncCoordinator = IOSSyncCoordinator()
     let sshProvider: IOSSSHProvider
@@ -37,11 +39,13 @@ final class AppState {
         groups = groupStorage.load()
         tags = tagStorage.load()
         secureStore.cleanOrphanedCredentials(validConnectionIds: Set(connections.map(\.id)))
+        updateWidgetData()
 
         syncCoordinator.onConnectionsChanged = { [weak self] merged in
             guard let self else { return }
             self.connections = merged
             self.storage.save(merged)
+            self.updateWidgetData()
         }
 
         syncCoordinator.onGroupsChanged = { [weak self] merged in
@@ -67,6 +71,7 @@ final class AppState {
     func addConnection(_ connection: DatabaseConnection) {
         connections.append(connection)
         storage.save(connections)
+        updateWidgetData()
         syncCoordinator.markDirty(connection.id)
         syncCoordinator.scheduleSyncAfterChange()
     }
@@ -75,6 +80,7 @@ final class AppState {
         if let index = connections.firstIndex(where: { $0.id == connection.id }) {
             connections[index] = connection
             storage.save(connections)
+            updateWidgetData()
             syncCoordinator.markDirty(connection.id)
             syncCoordinator.scheduleSyncAfterChange()
         }
@@ -91,6 +97,7 @@ final class AppState {
         try? secureStore.delete(forKey: "com.TablePro.keypassphrase.\(connection.id.uuidString)")
         try? secureStore.delete(forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")
         storage.save(connections)
+        updateWidgetData()
         syncCoordinator.markDeleted(connection.id)
         syncCoordinator.scheduleSyncAfterChange()
     }
@@ -159,6 +166,23 @@ final class AppState {
 
         syncCoordinator.markDeletedTag(tagId)
         syncCoordinator.scheduleSyncAfterChange()
+    }
+
+    // MARK: - Widget
+
+    private func updateWidgetData() {
+        let items = connections.map { conn in
+            WidgetConnectionItem(
+                id: conn.id,
+                name: conn.name.isEmpty ? conn.host : conn.name,
+                type: conn.type.rawValue,
+                host: conn.host,
+                port: conn.port,
+                sortOrder: conn.sortOrder
+            )
+        }
+        SharedConnectionStore.write(items)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     // MARK: - Helpers

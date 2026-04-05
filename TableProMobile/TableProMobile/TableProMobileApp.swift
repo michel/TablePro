@@ -23,6 +23,13 @@ struct TableProMobileApp: App {
                     .environment(appState)
             }
         }
+        .onOpenURL { url in
+            guard url.scheme == "tablepro",
+                  url.host == "connect",
+                  let uuidString = url.pathComponents.dropFirst().first,
+                  let uuid = UUID(uuidString: uuidString) else { return }
+            appState.pendingConnectionId = uuid
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:

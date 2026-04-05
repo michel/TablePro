@@ -36,6 +36,12 @@ struct ConnectionListView: View {
                 .navigationDestination(for: DatabaseConnection.self) { connection in
                     ConnectedView(connection: connection)
                 }
+                .onChange(of: appState.pendingConnectionId) { _, newId in
+                    navigateToPendingConnection(newId)
+                }
+                .onAppear {
+                    navigateToPendingConnection(appState.pendingConnectionId)
+                }
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         filterMenu
@@ -234,6 +240,13 @@ struct ConnectionListView: View {
                 }
             }
         }
+    }
+
+    private func navigateToPendingConnection(_ id: UUID?) {
+        guard let id,
+              let connection = appState.connections.first(where: { $0.id == id }) else { return }
+        selectedConnection = connection
+        appState.pendingConnectionId = nil
     }
 
     private func connectionRow(_ connection: DatabaseConnection) -> some View {
