@@ -117,8 +117,8 @@ struct EditorTabPayloadSourceFileURLTests {
         #expect(payload.sourceFileURL == url)
     }
 
-    @Test("EditorTabPayload isConnectionOnly is true even with sourceFileURL")
-    func isConnectionOnlyUnaffectedBySourceFileURL() {
+    @Test("EditorTabPayload with sourceFileURL still has openContent intent by default")
+    func sourceFileURLDoesNotChangeIntent() {
         let url = URL(fileURLWithPath: "/tmp/test.sql")
         let payload = EditorTabPayload(
             connectionId: UUID(),
@@ -126,7 +126,7 @@ struct EditorTabPayloadSourceFileURLTests {
             sourceFileURL: url
         )
 
-        #expect(payload.isConnectionOnly == true)
+        #expect(payload.intent == .openContent)
     }
 }
 
