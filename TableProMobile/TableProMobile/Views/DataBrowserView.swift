@@ -97,35 +97,33 @@ struct DataBrowserView: View {
                 }
             }
         }
+        .toolbar(rows.isEmpty ? .hidden : .visible, for: .bottomBar)
         .toolbar {
-            if !rows.isEmpty {
-                ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        Task { await goToPreviousPage() }
-                    } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    .disabled(pagination.currentPage == 0 || isLoading)
+            ToolbarItemGroup(placement: .bottomBar) {
+                Button {
+                    Task { await goToPreviousPage() }
+                } label: {
+                    Image(systemName: "chevron.left")
                 }
-                ToolbarItem(placement: .bottomBar) {
-                    Spacer()
+                .disabled(pagination.currentPage == 0 || isLoading)
+
+                Spacer()
+
+                Text(paginationLabel)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+
+                Spacer()
+
+                Button {
+                    Task { await goToNextPage() }
+                } label: {
+                    Image(systemName: "chevron.right")
                 }
-                ToolbarItem(placement: .bottomBar) {
-                    Text(paginationLabel)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                ToolbarItem(placement: .bottomBar) {
-                    Spacer()
-                }
-                ToolbarItem(placement: .bottomBar) {
-                    Button {
-                        Task { await goToNextPage() }
-                    } label: {
-                        Image(systemName: "chevron.right")
-                    }
-                    .disabled(!pagination.hasNextPage || isLoading)
-                }
+                .disabled(!pagination.hasNextPage || isLoading)
             }
         }
         .task { await loadData(isInitial: true) }
@@ -198,6 +196,7 @@ struct DataBrowserView: View {
                 } label: {
                     RowCard(
                         columns: columns,
+                        columnDetails: columnDetails,
                         row: row,
                         maxPreviewColumns: maxPreviewColumns
                     )
@@ -317,11 +316,17 @@ struct DataBrowserView: View {
 
 private struct RowCard: View {
     let columns: [ColumnInfo]
+    let columnDetails: [ColumnInfo]
     let row: [String?]
     let maxPreviewColumns: Int
 
+    private var pkColumnNames: Set<String> {
+        Set(columnDetails.filter(\.isPrimaryKey).map(\.name))
+    }
+
     private var pkPair: (name: String, value: String)? {
-        for (col, val) in zip(columns, row) where col.isPrimaryKey {
+        let pkNames = pkColumnNames
+        for (col, val) in zip(columns, row) where pkNames.contains(col.name) {
             return (col.name, val ?? "NULL")
         }
         if let first = columns.first {
@@ -331,9 +336,10 @@ private struct RowCard: View {
     }
 
     private var previewPairs: [(name: String, value: String)] {
-        let paired = zip(columns, row)
-        return paired
-            .filter { !$0.0.isPrimaryKey }
+        let pkNames = pkColumnNames
+        let titleName = pkPair?.name
+        return zip(columns, row)
+            .filter { !pkNames.contains($0.0.name) && $0.0.name != titleName }
             .prefix(maxPreviewColumns - 1)
             .map { ($0.0.name, $0.1 ?? "NULL") }
     }
