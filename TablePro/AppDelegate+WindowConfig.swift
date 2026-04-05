@@ -267,7 +267,7 @@ extension AppDelegate {
             configuredWindows.insert(windowId)
 
             let pendingConnectionId = MainActor.assumeIsolated {
-                WindowOpener.shared.consumeAnyPendingConnectionId()
+                WindowOpener.shared.consumeOldestPendingConnectionId()
             }
 
             if pendingConnectionId == nil && !isAutoReconnecting {

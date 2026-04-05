@@ -18,8 +18,8 @@ import Testing
 struct WindowTabGroupingTests {
     // MARK: - WindowOpener pending payload tracking
 
-    @Test("openNativeTab without openWindow action drops payload and removes from pending")
-    func openNativeTabWithoutOpenWindowDropsPayload() {
+    @Test("openNativeTab without openWindow falls back to notification and keeps pending")
+    func openNativeTabWithoutOpenWindowFallsBack() {
         let connectionId = UUID()
         let opener = WindowOpener.shared
 
@@ -27,14 +27,17 @@ struct WindowTabGroupingTests {
         let payload = EditorTabPayload(connectionId: connectionId, tabType: .table, tableName: "users")
         opener.openNativeTab(payload)
 
-        #expect(opener.pendingPayloads[payload.id] == nil)
+        // Payload stays pending (notification handler will create the window)
+        #expect(opener.pendingPayloads.contains { $0.id == payload.id })
+        // Clean up
+        opener.acknowledgePayload(payload.id)
     }
 
     @Test("pendingPayloads is empty initially")
     func pendingPayloadsEmptyInitially() {
         let opener = WindowOpener.shared
-        for id in opener.pendingPayloads.keys {
-            opener.acknowledgePayload(id)
+        for entry in opener.pendingPayloads {
+            opener.acknowledgePayload(entry.id)
         }
 
         #expect(opener.pendingPayloads.isEmpty)
@@ -46,7 +49,30 @@ struct WindowTabGroupingTests {
         let payloadId = UUID()
 
         opener.acknowledgePayload(payloadId)
-        #expect(opener.pendingPayloads[payloadId] == nil)
+        #expect(!opener.pendingPayloads.contains { $0.id == payloadId })
+    }
+
+    @Test("consumeOldestPendingConnectionId returns in FIFO order")
+    func consumeOldestReturnsFIFO() {
+        let opener = WindowOpener.shared
+        // Clear any stale state
+        while opener.consumeOldestPendingConnectionId() != nil {}
+
+        let idA = UUID()
+        let idB = UUID()
+        let payloadA = EditorTabPayload(connectionId: idA, tabType: .query)
+        let payloadB = EditorTabPayload(connectionId: idB, tabType: .query)
+
+        opener.openWindow = nil
+        opener.openNativeTab(payloadA)
+        opener.openNativeTab(payloadB)
+
+        let first = opener.consumeOldestPendingConnectionId()
+        let second = opener.consumeOldestPendingConnectionId()
+
+        #expect(first == idA)
+        #expect(second == idB)
+        #expect(opener.consumeOldestPendingConnectionId() == nil)
     }
 
     // MARK: - TabbingIdentifier resolution

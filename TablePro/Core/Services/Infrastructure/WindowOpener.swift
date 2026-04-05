@@ -3,7 +3,7 @@
 //  TablePro
 //
 //  Bridges SwiftUI's openWindow environment action to imperative code.
-//  Stored by ContentView on appear so MainContentCommandActions can open native tabs.
+//  Stored on appear by ContentView, WelcomeViewModel, or ConnectionFormView.
 //
 
 import os
@@ -15,40 +15,42 @@ internal final class WindowOpener {
 
     internal static let shared = WindowOpener()
 
-    /// Set by ContentView when it appears. Safe to store — OpenWindowAction is app-scoped, not view-scoped.
+    /// Set on appear by ContentView, WelcomeViewModel, or ConnectionFormView.
+    /// Safe to store — OpenWindowAction is app-scoped, not view-scoped.
     internal var openWindow: OpenWindowAction?
 
-    /// Payloads for windows that have been requested but not yet acknowledged
-    /// by MainContentView.configureWindow. Keyed by payload.id.
-    /// Stores connectionId so windowDidBecomeKey can compute tabbingIdentifier
-    /// synchronously (before SwiftUI renders) to avoid flicker.
-    internal private(set) var pendingPayloads: [UUID: UUID] = [:]  // [payloadId: connectionId]
+    /// Ordered queue of pending payloads — windows requested via openNativeTab
+    /// but not yet acknowledged by MainContentView.configureWindow.
+    /// Ordered so consumeOldestPendingConnectionId returns the correct entry
+    /// when multiple windows open in quick succession (e.g., tab restore).
+    internal private(set) var pendingPayloads: [(id: UUID, connectionId: UUID)] = []
 
     /// Whether any payloads are pending — used for orphan detection in windowDidBecomeKey.
     internal var hasPendingPayloads: Bool { !pendingPayloads.isEmpty }
 
     /// Opens a new native window tab with the given payload.
+    /// Falls back to .openMainWindow notification if openWindow is not yet available
+    /// (cold launch from Dock menu before any SwiftUI view has appeared).
     internal func openNativeTab(_ payload: EditorTabPayload) {
-        pendingPayloads[payload.id] = payload.connectionId
-        guard let openWindow else {
-            Self.logger.warning("openNativeTab called before openWindow was set — payload dropped")
-            pendingPayloads.removeValue(forKey: payload.id)
-            return
+        pendingPayloads.append((id: payload.id, connectionId: payload.connectionId))
+        if let openWindow {
+            openWindow(id: "main", value: payload)
+        } else {
+            Self.logger.info("openWindow not set — falling back to .openMainWindow notification")
+            NotificationCenter.default.post(name: .openMainWindow, object: payload)
         }
-        openWindow(id: "main", value: payload)
     }
 
     /// Called by MainContentView.configureWindow after the window is fully set up.
     internal func acknowledgePayload(_ id: UUID) {
-        pendingPayloads.removeValue(forKey: id)
+        pendingPayloads.removeAll { $0.id == id }
     }
 
     /// Consumes and returns the connectionId for the oldest pending payload.
-    /// Removes the entry so subsequent calls don't return stale data.
-    internal func consumeAnyPendingConnectionId() -> UUID? {
-        guard let first = pendingPayloads.first else { return nil }
-        pendingPayloads.removeValue(forKey: first.key)
-        return first.value
+    /// Removes the entry so subsequent calls return the next payload in order.
+    internal func consumeOldestPendingConnectionId() -> UUID? {
+        guard !pendingPayloads.isEmpty else { return nil }
+        return pendingPayloads.removeFirst().connectionId
     }
 
     /// Returns the tabbingIdentifier for a connection.

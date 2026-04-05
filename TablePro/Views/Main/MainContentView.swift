@@ -472,6 +472,7 @@ struct MainContentView: View {
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
+                        // columns is [] on initial load — buildFilteredQuery uses SELECT *
                         if !selectedTab.filterState.appliedFilters.isEmpty,
                             let tableName = selectedTab.tableName,
                             let tabIndex = tabManager.selectedTabIndex
@@ -491,6 +492,7 @@ struct MainContentView: View {
                         coordinator.executeTableTabQueryDirectly()
                     }
                 } else {
+                    // Reactive path: fires via onChange(of: sessionVersion) when connection is ready
                     coordinator.needsLazyLoad = true
                 }
             }
