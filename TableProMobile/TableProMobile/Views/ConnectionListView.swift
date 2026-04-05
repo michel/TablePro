@@ -12,10 +12,17 @@ struct ConnectionListView: View {
     @State private var showingAddConnection = false
     @State private var editingConnection: DatabaseConnection?
     @State private var selectedConnection: DatabaseConnection?
+    @State private var showingGroupManagement = false
+    @State private var showingTagManagement = false
+    @State private var filterTagId: UUID?
+    @State private var groupByGroup = false
 
-    private var groupedConnections: [(String, [DatabaseConnection])] {
-        let grouped = Dictionary(grouping: appState.connections) { $0.type.rawValue }
-        return grouped.sorted { $0.key < $1.key }
+    private var displayedConnections: [DatabaseConnection] {
+        var result = appState.connections
+        if let filterTagId {
+            result = result.filter { $0.tagId == filterTagId }
+        }
+        return result.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     private var isSyncing: Bool {
@@ -26,8 +33,12 @@ struct ConnectionListView: View {
         NavigationSplitView {
             sidebar
                 .navigationTitle("Connections")
+                .navigationDestination(for: DatabaseConnection.self) { connection in
+                    ConnectedView(connection: connection)
+                }
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        filterMenu
                         Button {
                             showingAddConnection = true
                         } label: {
@@ -38,7 +49,10 @@ struct ConnectionListView: View {
                         Button {
                             Task {
                                 await appState.syncCoordinator.sync(
-                                    localConnections: appState.connections)
+                                    localConnections: appState.connections,
+                                    localGroups: appState.groups,
+                                    localTags: appState.tags
+                                )
                             }
                         } label: {
                             if isSyncing {
@@ -77,6 +91,12 @@ struct ConnectionListView: View {
                 editingConnection = nil
             }
         }
+        .sheet(isPresented: $showingGroupManagement) {
+            GroupManagementView()
+        }
+        .sheet(isPresented: $showingTagManagement) {
+            TagManagementView()
+        }
     }
 
     @ViewBuilder
@@ -96,53 +116,162 @@ struct ConnectionListView: View {
             ProgressView("Syncing from iCloud...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            List(selection: $selectedConnection) {
-                ForEach(groupedConnections, id: \.0) { sectionTitle, connections in
-                    Section(sectionTitle) {
-                        ForEach(connections) { connection in
-                            ConnectionRow(connection: connection)
-                                .tag(connection)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        if selectedConnection?.id == connection.id {
-                                            selectedConnection = nil
-                                        }
-                                        appState.removeConnection(connection)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+            List {
+                if groupByGroup {
+                    groupedContent
+                } else {
+                    ForEach(displayedConnections) { connection in
+                        connectionRow(connection)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .overlay {
+                if !appState.connections.isEmpty && displayedConnections.isEmpty {
+                    ContentUnavailableView(
+                        "No Matching Connections",
+                        systemImage: "line.3.horizontal.decrease.circle",
+                        description: Text("No connections match the selected filter.")
+                    )
+                }
+            }
+            .refreshable {
+                await appState.syncCoordinator.sync(
+                    localConnections: appState.connections,
+                    localGroups: appState.groups,
+                    localTags: appState.tags
+                )
+            }
+        }
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            Section {
+                Toggle("Group by Folder", isOn: $groupByGroup)
+            }
+
+            if !appState.tags.isEmpty {
+                Section("Filter by Tag") {
+                    Button {
+                        filterTagId = nil
+                    } label: {
+                        HStack {
+                            Text("All")
+                            if filterTagId == nil {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    ForEach(appState.tags) { tag in
+                        Button {
+                            filterTagId = tag.id
+                        } label: {
+                            HStack {
+                                Image(systemName: "circle.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(ConnectionColorPicker.swiftUIColor(for: tag.color))
+                                Text(tag.name)
+                                if filterTagId == tag.id {
+                                    Image(systemName: "checkmark")
                                 }
-                                .contextMenu {
-                                    Button {
-                                        editingConnection = connection
-                                    } label: {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                    Button {
-                                        var duplicate = connection
-                                        duplicate.id = UUID()
-                                        duplicate.name = "\(connection.name) Copy"
-                                        appState.addConnection(duplicate)
-                                    } label: {
-                                        Label("Duplicate", systemImage: "doc.on.doc")
-                                    }
-                                    Divider()
-                                    Button(role: .destructive) {
-                                        if selectedConnection?.id == connection.id {
-                                            selectedConnection = nil
-                                        }
-                                        appState.removeConnection(connection)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
+                            }
                         }
                     }
                 }
             }
-            .listStyle(.sidebar)
-            .refreshable {
-                await appState.syncCoordinator.sync(localConnections: appState.connections)
+
+            Section {
+                Button {
+                    showingGroupManagement = true
+                } label: {
+                    Label("Manage Groups", systemImage: "folder")
+                }
+                Button {
+                    showingTagManagement = true
+                } label: {
+                    Label("Manage Tags", systemImage: "tag")
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+        }
+    }
+
+    @ViewBuilder
+    private var groupedContent: some View {
+        let sortedGroups = appState.groups.sorted { $0.sortOrder < $1.sortOrder }
+
+        ForEach(sortedGroups) { group in
+            let groupConnections = displayedConnections.filter { $0.groupId == group.id }
+
+            if !groupConnections.isEmpty {
+                Section {
+                    ForEach(groupConnections) { connection in
+                        connectionRow(connection)
+                    }
+                } header: {
+                    HStack(spacing: 6) {
+                        if group.color != .none {
+                            Circle()
+                                .fill(ConnectionColorPicker.swiftUIColor(for: group.color))
+                                .frame(width: 8, height: 8)
+                        }
+                        Text(group.name)
+                    }
+                }
+            }
+        }
+
+        let ungrouped = displayedConnections.filter { conn in
+            conn.groupId == nil || !appState.groups.contains { $0.id == conn.groupId }
+        }
+
+        if !ungrouped.isEmpty {
+            Section("Ungrouped") {
+                ForEach(ungrouped) { connection in
+                    connectionRow(connection)
+                }
+            }
+        }
+    }
+
+    private func connectionRow(_ connection: DatabaseConnection) -> some View {
+        NavigationLink(value: connection) {
+            ConnectionRow(connection: connection, tag: appState.tag(for: connection.tagId))
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) {
+                if selectedConnection?.id == connection.id {
+                    selectedConnection = nil
+                }
+                appState.removeConnection(connection)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .contextMenu {
+            Button {
+                editingConnection = connection
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button {
+                var duplicate = connection
+                duplicate.id = UUID()
+                duplicate.name = "\(connection.name) Copy"
+                appState.addConnection(duplicate)
+            } label: {
+                Label("Duplicate", systemImage: "doc.on.doc")
+            }
+            Divider()
+            Button(role: .destructive) {
+                if selectedConnection?.id == connection.id {
+                    selectedConnection = nil
+                }
+                appState.removeConnection(connection)
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }
@@ -150,35 +279,46 @@ struct ConnectionListView: View {
 
 private struct ConnectionRow: View {
     let connection: DatabaseConnection
+    let tag: ConnectionTag?
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: iconName(for: connection.type))
-                .font(.title2)
+                .font(.title3)
                 .foregroundStyle(iconColor(for: connection.type))
-                .frame(width: 36, height: 36)
+                .frame(width: 32, height: 32)
                 .background(iconColor(for: connection.type).opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 7))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.name.isEmpty ? connection.host : connection.name)
                     .font(.body)
-                    .fontWeight(.medium)
 
                 if connection.type != .sqlite {
                     Text(verbatim: "\(connection.host):\(connection.port)")
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
                     Text(connection.database.components(separatedBy: "/").last ?? "database")
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
 
             Spacer()
+
+            if let tag {
+                Text(tag.name)
+                    .font(.caption)
+                    .foregroundStyle(ConnectionColorPicker.swiftUIColor(for: tag.color))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(ConnectionColorPicker.swiftUIColor(for: tag.color).opacity(0.15))
+                    )
+            }
         }
-        .padding(.vertical, 4)
     }
 
     private func iconName(for type: DatabaseType) -> String {

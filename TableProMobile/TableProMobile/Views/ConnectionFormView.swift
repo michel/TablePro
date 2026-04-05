@@ -28,6 +28,10 @@ struct ConnectionFormView: View {
     @State private var showNewDatabaseAlert = false
     @State private var newDatabaseName = ""
 
+    // Organization
+    @State private var groupId: UUID?
+    @State private var tagId: UUID?
+
     // SSH
     @State private var sshEnabled = false
     @State private var sshHost = ""
@@ -88,6 +92,8 @@ struct ConnectionFormView: View {
                     _sshKeyInputMode = State(initialValue: .paste)
                 }
             }
+            _groupId = State(initialValue: connection.groupId)
+            _tagId = State(initialValue: connection.tagId)
             if connection.type == .sqlite {
                 _selectedFileURL = State(initialValue: URL(fileURLWithPath: connection.database))
             }
@@ -111,6 +117,36 @@ struct ConnectionFormView: View {
                         selectedFileURL = nil
                         database = ""
                     }
+                }
+
+                Section("Organization") {
+                    Picker("Group", selection: $groupId) {
+                        Text("None").tag(UUID?.none)
+                        ForEach(appState.groups) { group in
+                            HStack {
+                                Circle()
+                                    .fill(ConnectionColorPicker.swiftUIColor(for: group.color))
+                                    .frame(width: 8, height: 8)
+                                Text(group.name)
+                            }
+                            .tag(Optional(group.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker("Tag", selection: $tagId) {
+                        Text("None").tag(UUID?.none)
+                        ForEach(appState.tags) { tag in
+                            HStack {
+                                Circle()
+                                    .fill(ConnectionColorPicker.swiftUIColor(for: tag.color))
+                                    .frame(width: 8, height: 8)
+                                Text(tag.name)
+                            }
+                            .tag(Optional(tag.id))
+                        }
+                    }
+                    .pickerStyle(.menu)
                 }
 
                 if type == .sqlite {
@@ -500,7 +536,9 @@ struct ConnectionFormView: View {
             username: username,
             database: database,
             sshEnabled: sshEnabled,
-            sslEnabled: sslEnabled
+            sslEnabled: sslEnabled,
+            groupId: groupId,
+            tagId: tagId
         )
         if sshEnabled {
             conn.sshConfiguration = SSHConfiguration(

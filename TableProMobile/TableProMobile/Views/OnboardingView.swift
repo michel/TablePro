@@ -156,7 +156,11 @@ struct OnboardingView: View {
     private func syncFromiCloud() {
         completeOnboarding()
         Task {
-            await appState.syncCoordinator.sync(localConnections: appState.connections)
+            await appState.syncCoordinator.sync(
+                localConnections: appState.connections,
+                localGroups: appState.groups,
+                localTags: appState.tags
+            )
         }
     }
 

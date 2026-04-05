@@ -27,7 +27,13 @@ struct TableProMobileApp: App {
             switch phase {
             case .active:
                 syncTask?.cancel()
-                syncTask = Task { await appState.syncCoordinator.sync(localConnections: appState.connections) }
+                syncTask = Task {
+                    await appState.syncCoordinator.sync(
+                        localConnections: appState.connections,
+                        localGroups: appState.groups,
+                        localTags: appState.tags
+                    )
+                }
             case .background:
                 Task { await appState.connectionManager.disconnectAll() }
             default:
