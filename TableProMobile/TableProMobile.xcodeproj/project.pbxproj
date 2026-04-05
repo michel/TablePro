@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		5A87EEED2F7F893000D028D0 /* TableProSync in Frameworks */ = {isa = PBXBuildFile; productRef = 5A87EEEC2F7F893000D028D0 /* TableProSync */; };
+		5AA136062F82610F00ADCD58 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA136052F82610F00ADCD58 /* WidgetKit.framework */; };
+		5AA136082F82610F00ADCD58 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA136072F82610F00ADCD58 /* SwiftUI.framework */; };
+		5AA136132F82611000ADCD58 /* TableProWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5AA136042F82610F00ADCD58 /* TableProWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		5AA3133A2F7EA5B4008EBA97 /* LibPQ.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA313342F7EA5B4008EBA97 /* LibPQ.xcframework */; };
 		5AA3133C2F7EA5B4008EBA97 /* Hiredis.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA313352F7EA5B4008EBA97 /* Hiredis.xcframework */; };
 		5AA3133E2F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5AA313362F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework */; };
@@ -20,6 +23,30 @@
 		5AB9F3ED2F7C1D03001F3337 /* TableProPluginKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5AB9F3EC2F7C1D03001F3337 /* TableProPluginKit */; };
 		5AB9F3EF2F7C1D03001F3337 /* TableProQuery in Frameworks */ = {isa = PBXBuildFile; productRef = 5AB9F3EE2F7C1D03001F3337 /* TableProQuery */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5AA136112F82611000ADCD58 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5AB9F3D12F7C1C12001F3337 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5AA136032F82610F00ADCD58;
+			remoteInfo = TableProWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5AA136142F82611000ADCD58 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5AA136132F82611000ADCD58 /* TableProWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5A87ECDD2F7F88F200D028D0 /* AIPromptTemplates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIPromptTemplates.swift; sourceTree = "<group>"; };
@@ -480,6 +507,9 @@
 		5A87EEE82F7F891F00D028D0 /* SyncMetadataStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncMetadataStorage.swift; sourceTree = "<group>"; };
 		5A87EEE92F7F891F00D028D0 /* SyncRecordMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRecordMapper.swift; sourceTree = "<group>"; };
 		5A87EEEA2F7F891F00D028D0 /* SyncRecordType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncRecordType.swift; sourceTree = "<group>"; };
+		5AA136042F82610F00ADCD58 /* TableProWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TableProWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5AA136052F82610F00ADCD58 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		5AA136072F82610F00ADCD58 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		5AA313342F7EA5B4008EBA97 /* LibPQ.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = LibPQ.xcframework; path = ../Libs/ios/LibPQ.xcframework; sourceTree = "<group>"; };
 		5AA313352F7EA5B4008EBA97 /* Hiredis.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Hiredis.xcframework; path = ../Libs/ios/Hiredis.xcframework; sourceTree = "<group>"; };
 		5AA313362F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = "OpenSSL-Crypto.xcframework"; path = "../Libs/ios/OpenSSL-Crypto.xcframework"; sourceTree = "<group>"; };
@@ -490,7 +520,34 @@
 		5AB9F3D92F7C1C12001F3337 /* TableProMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TableProMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5AA136172F82611000ADCD58 /* Exceptions for "TableProWidget" folder in "TableProWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5AA136032F82610F00ADCD58 /* TableProWidgetExtension */;
+		};
+		5AA136302F82660900ADCD58 /* Exceptions for "TableProWidget" folder in "TableProMobile" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Shared/SharedConnectionStore.swift,
+				Shared/WidgetConnectionItem.swift,
+			);
+			target = 5AB9F3D82F7C1C12001F3337 /* TableProMobile */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		5AA136092F82610F00ADCD58 /* TableProWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5AA136302F82660900ADCD58 /* Exceptions for "TableProWidget" folder in "TableProMobile" target */,
+				5AA136172F82611000ADCD58 /* Exceptions for "TableProWidget" folder in "TableProWidgetExtension" target */,
+			);
+			path = TableProWidget;
+			sourceTree = "<group>";
+		};
 		5AB9F3DB2F7C1C12001F3337 /* TableProMobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = TableProMobile;
@@ -499,6 +556,15 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		5AA136012F82610F00ADCD58 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5AA136082F82610F00ADCD58 /* SwiftUI.framework in Frameworks */,
+				5AA136062F82610F00ADCD58 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5AB9F3D62F7C1C12001F3337 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -1543,6 +1609,8 @@
 				5AA313372F7EA5B4008EBA97 /* MariaDB.xcframework */,
 				5AA313362F7EA5B4008EBA97 /* OpenSSL-Crypto.xcframework */,
 				5AA313392F7EA5B4008EBA97 /* OpenSSL-SSL.xcframework */,
+				5AA136052F82610F00ADCD58 /* WidgetKit.framework */,
+				5AA136072F82610F00ADCD58 /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -1551,6 +1619,7 @@
 			isa = PBXGroup;
 			children = (
 				5AB9F3DB2F7C1C12001F3337 /* TableProMobile */,
+				5AA136092F82610F00ADCD58 /* TableProWidget */,
 				5AA313332F7EA5B4008EBA97 /* Frameworks */,
 				5AB9F3DA2F7C1C12001F3337 /* Products */,
 			);
@@ -1560,6 +1629,7 @@
 			isa = PBXGroup;
 			children = (
 				5AB9F3D92F7C1C12001F3337 /* TableProMobile.app */,
+				5AA136042F82610F00ADCD58 /* TableProWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1567,6 +1637,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		5AA136032F82610F00ADCD58 /* TableProWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5AA136182F82611000ADCD58 /* Build configuration list for PBXNativeTarget "TableProWidgetExtension" */;
+			buildPhases = (
+				5AA136002F82610F00ADCD58 /* Sources */,
+				5AA136012F82610F00ADCD58 /* Frameworks */,
+				5AA136022F82610F00ADCD58 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5AA136092F82610F00ADCD58 /* TableProWidget */,
+			);
+			name = TableProWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = TableProWidgetExtension;
+			productReference = 5AA136042F82610F00ADCD58 /* TableProWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		5AB9F3D82F7C1C12001F3337 /* TableProMobile */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 5AB9F3E42F7C1C13001F3337 /* Build configuration list for PBXNativeTarget "TableProMobile" */;
@@ -1574,10 +1666,12 @@
 				5AB9F3D52F7C1C12001F3337 /* Sources */,
 				5AB9F3D62F7C1C12001F3337 /* Frameworks */,
 				5AB9F3D72F7C1C12001F3337 /* Resources */,
+				5AA136142F82611000ADCD58 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5AA136122F82611000ADCD58 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				5AB9F3DB2F7C1C12001F3337 /* TableProMobile */,
@@ -1601,9 +1695,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					5AA136032F82610F00ADCD58 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 					5AB9F3D82F7C1C12001F3337 = {
 						CreatedOnToolsVersion = 26.4;
 					};
@@ -1627,11 +1724,19 @@
 			projectRoot = "";
 			targets = (
 				5AB9F3D82F7C1C12001F3337 /* TableProMobile */,
+				5AA136032F82610F00ADCD58 /* TableProWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		5AA136022F82610F00ADCD58 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5AB9F3D72F7C1C12001F3337 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1642,6 +1747,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		5AA136002F82610F00ADCD58 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5AB9F3D52F7C1C12001F3337 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1651,7 +1763,77 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		5AA136122F82611000ADCD58 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5AA136032F82610F00ADCD58 /* TableProWidgetExtension */;
+			targetProxy = 5AA136112F82611000ADCD58 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		5AA136152F82611000ADCD58 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TableProWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TableProWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.TableProMobile.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5AA136162F82611000ADCD58 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = D7HJ5TFYCU;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TableProWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = TableProWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.TablePro.TableProMobile.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		5AB9F3E22F7C1C13001F3337 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1862,6 +2044,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		5AA136182F82611000ADCD58 /* Build configuration list for PBXNativeTarget "TableProWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5AA136152F82611000ADCD58 /* Debug */,
+				5AA136162F82611000ADCD58 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		5AB9F3D42F7C1C12001F3337 /* Build configuration list for PBXProject "TableProMobile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

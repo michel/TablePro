@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import WidgetKit
 
 struct SmallWidgetView: View {
     let connections: [WidgetConnectionItem]
