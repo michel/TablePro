@@ -22,7 +22,8 @@ struct ConnectedView: View {
     @State private var toastMessage: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var selectedTab = ConnectedTab.tables
-    @State private var queryHistory: [String] = []
+    @State private var queryHistory: [QueryHistoryItem] = []
+    private let historyStorage = QueryHistoryStorage()
     @State private var databases: [String] = []
     @State private var activeDatabase: String = ""
     @State private var schemas: [String] = []
@@ -149,7 +150,10 @@ struct ConnectedView: View {
                 }
             }
         }
-        .task { await connect() }
+        .task {
+            await connect()
+            queryHistory = historyStorage.load(for: connection.id)
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active, session != nil {
                 Task { await reconnectIfNeeded() }
@@ -180,7 +184,9 @@ struct ConnectedView: View {
                 QueryEditorView(
                     session: session,
                     tables: tables,
-                    queryHistory: $queryHistory
+                    queryHistory: $queryHistory,
+                    connectionId: connection.id,
+                    historyStorage: historyStorage
                 )
             }
         }

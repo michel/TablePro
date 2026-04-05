@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - iOS: Quick Connect Home Screen widget
 - iOS: page-based pagination for data browser
 - iOS: filter bar with 16 operators, AND/OR logic
+- iOS: persistent query history with timestamps
 
 ## [0.27.4] - 2026-04-05
 

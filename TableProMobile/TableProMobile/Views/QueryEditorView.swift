@@ -21,7 +21,9 @@ struct QueryEditorView: View {
     @State private var isExecuting = false
     @State private var executionTime: TimeInterval?
     @State private var executeTask: Task<Void, Never>?
-    @Binding var queryHistory: [String]
+    @Binding var queryHistory: [QueryHistoryItem]
+    let connectionId: UUID
+    let historyStorage: QueryHistoryStorage
     @State private var showHistory = false
     @FocusState private var editorFocused: Bool
 
@@ -234,21 +236,42 @@ struct QueryEditorView: View {
     private var historySheet: some View {
         NavigationStack {
             List {
-                ForEach(queryHistory.reversed(), id: \.self) { historyQuery in
+                ForEach(queryHistory.reversed()) { item in
                     Button {
-                        query = historyQuery
+                        query = item.query
                         showHistory = false
                     } label: {
-                        Text(verbatim: historyQuery)
-                            .font(.system(.footnote, design: .monospaced))
-                            .lineLimit(3)
-                            .foregroundStyle(.primary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(verbatim: item.query)
+                                .font(.system(.footnote, design: .monospaced))
+                                .lineLimit(3)
+                                .foregroundStyle(.primary)
+                            Text(item.timestamp, style: .relative)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
                 }
+                .onDelete { indexSet in
+                    let reversed = queryHistory.reversed().map(\.id)
+                    for index in indexSet {
+                        historyStorage.delete(reversed[index])
+                    }
+                    queryHistory = historyStorage.load(for: connectionId)
+                }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("Query History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if !queryHistory.isEmpty {
+                        Button("Clear All", role: .destructive) {
+                            historyStorage.clearAll(for: connectionId)
+                            queryHistory = []
+                        }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { showHistory = false }
                 }
@@ -282,12 +305,9 @@ struct QueryEditorView: View {
             self.result = queryResult
             self.executionTime = queryResult.executionTime
 
-            if !queryHistory.contains(trimmed) {
-                queryHistory.append(trimmed)
-                if queryHistory.count > 50 {
-                    queryHistory.removeFirst()
-                }
-            }
+            let item = QueryHistoryItem(query: trimmed, connectionId: connectionId)
+            historyStorage.save(item)
+            queryHistory = historyStorage.load(for: connectionId)
         } catch {
             let context = ErrorContext(operation: "executeQuery")
             self.appError = ErrorClassifier.classify(error, context: context)
