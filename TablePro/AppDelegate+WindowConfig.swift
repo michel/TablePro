@@ -62,13 +62,29 @@ extension AppDelegate {
         openWelcomeWindow()
     }
 
+    @objc func newWindowForTab(_ sender: Any?) {
+        guard let keyWindow = NSApp.keyWindow,
+              let connectionId = MainActor.assumeIsolated({
+                  WindowLifecycleMonitor.shared.connectionId(fromWindow: keyWindow)
+              })
+        else { return }
+
+        let payload = EditorTabPayload(
+            connectionId: connectionId,
+            intent: .newEmptyTab
+        )
+        MainActor.assumeIsolated {
+            WindowOpener.shared.openNativeTab(payload)
+        }
+    }
+
     @objc func connectFromDock(_ sender: NSMenuItem) {
         guard let connectionId = sender.representedObject as? UUID else { return }
         let connections = ConnectionStorage.shared.loadConnections()
         guard let connection = connections.first(where: { $0.id == connectionId }) else { return }
 
-        WindowOpener.shared.pendingConnectionId = connection.id
-        NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
+        let payload = EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault)
+        WindowOpener.shared.openNativeTab(payload)
 
         Task { @MainActor in
             do {
@@ -248,64 +264,49 @@ extension AppDelegate {
         if isMainWindow(window) && !configuredWindows.contains(windowId) {
             window.tabbingMode = .preferred
             window.isRestorable = false
-            let pendingId = MainActor.assumeIsolated { WindowOpener.shared.consumePendingConnectionId() }
+            configuredWindows.insert(windowId)
 
-            // If no code opened this window (pendingId is nil), this is a
-            // SwiftUI WindowGroup state restoration — not a window we created.
-            // Hide it (orderOut, not close) to break the close→restore loop.
-            // Exception: if the window is already part of a tab group, it was
-            // attached by our addTabbedWindow call — not a restoration orphan.
-            // Ordering it out would crash NSWindowStackController.
-            if pendingId == nil && !isAutoReconnecting {
-                configuredWindows.insert(windowId)
+            let pendingConnectionId = MainActor.assumeIsolated {
+                WindowOpener.shared.consumeAnyPendingConnectionId()
+            }
+
+            if pendingConnectionId == nil && !isAutoReconnecting {
                 if let tabbedWindows = window.tabbedWindows, tabbedWindows.count > 1 {
-                    // Already in a tab group — leave it alone
                     return
                 }
                 window.orderOut(nil)
                 return
             }
 
-            let existingIdentifier = NSApp.windows
-                .first { $0 !== window && isMainWindow($0) && $0.isVisible }?
-                .tabbingIdentifier
-            let groupAll = MainActor.assumeIsolated { AppSettingsManager.shared.tabs.groupAllConnectionTabs }
-            let resolvedIdentifier = TabbingIdentifierResolver.resolve(
-                pendingConnectionId: pendingId,
-                existingIdentifier: existingIdentifier,
-                groupAllConnections: groupAll
-            )
-            window.tabbingIdentifier = resolvedIdentifier
-            configuredWindows.insert(windowId)
+            if let connectionId = pendingConnectionId {
+                let groupAll = MainActor.assumeIsolated { AppSettingsManager.shared.tabs.groupAllConnectionTabs }
+                let resolvedIdentifier = WindowOpener.tabbingIdentifier(for: connectionId)
+                window.tabbingIdentifier = resolvedIdentifier
 
-            if !NSWindow.allowsAutomaticWindowTabbing {
-                NSWindow.allowsAutomaticWindowTabbing = true
-            }
+                if !NSWindow.allowsAutomaticWindowTabbing {
+                    NSWindow.allowsAutomaticWindowTabbing = true
+                }
 
-            // Explicitly attach to existing tab group — automatic tabbing
-            // doesn't work when tabbingIdentifier is set after window creation.
-            let matchingWindow: NSWindow?
-            if groupAll {
-                // When grouping all connections, attach to any visible main window
-                // and normalize all existing windows' tabbingIdentifiers so future
-                // windows also match (not just the first one found).
-                let existingMainWindows = NSApp.windows.filter {
-                    $0 !== window && isMainWindow($0) && $0.isVisible
+                let matchingWindow: NSWindow?
+                if groupAll {
+                    let existingMainWindows = NSApp.windows.filter {
+                        $0 !== window && isMainWindow($0) && $0.isVisible
+                    }
+                    for existing in existingMainWindows {
+                        existing.tabbingIdentifier = resolvedIdentifier
+                    }
+                    matchingWindow = existingMainWindows.first
+                } else {
+                    matchingWindow = NSApp.windows.first {
+                        $0 !== window && isMainWindow($0) && $0.isVisible
+                            && $0.tabbingIdentifier == resolvedIdentifier
+                    }
                 }
-                for existing in existingMainWindows {
-                    existing.tabbingIdentifier = resolvedIdentifier
+                if let existingWindow = matchingWindow {
+                    let targetWindow = existingWindow.tabbedWindows?.last ?? existingWindow
+                    targetWindow.addTabbedWindow(window, ordered: .above)
+                    window.makeKeyAndOrderFront(nil)
                 }
-                matchingWindow = existingMainWindows.first
-            } else {
-                matchingWindow = NSApp.windows.first {
-                    $0 !== window && isMainWindow($0) && $0.isVisible
-                        && $0.tabbingIdentifier == resolvedIdentifier
-                }
-            }
-            if let existingWindow = matchingWindow {
-                let targetWindow = existingWindow.tabbedWindows?.last ?? existingWindow
-                targetWindow.addTabbedWindow(window, ordered: .above)
-                window.makeKeyAndOrderFront(nil)
             }
         }
     }
@@ -354,8 +355,8 @@ extension AppDelegate {
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            WindowOpener.shared.pendingConnectionId = connection.id
-            NotificationCenter.default.post(name: .openMainWindow, object: connection.id)
+            let payload = EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault)
+            WindowOpener.shared.openNativeTab(payload)
 
             defer { self.isAutoReconnecting = false }
             do {
