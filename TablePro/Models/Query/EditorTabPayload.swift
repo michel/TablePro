@@ -93,10 +93,8 @@ internal struct EditorTabPayload: Codable, Hashable {
     /// Whether this payload is a "connection-only" payload — just a connectionId
     /// with no specific tab content. Used by MainContentView to decide whether
     /// to create a default tab or restore tabs from storage.
-    /// Note: isNewTab payloads (from the "+" button) are NOT connection-only —
-    /// they are explicit requests to open a new query tab.
     internal var isConnectionOnly: Bool {
-        tabType == .query && tableName == nil && initialQuery == nil && !isNewTab
+        tabType == .query && tableName == nil && initialQuery == nil
     }
 
     /// Create a payload from a persisted QueryTab for restoration
