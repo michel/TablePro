@@ -420,17 +420,24 @@ private struct FilterSheetView: View {
     let onApply: () -> Void
     let onClear: () -> Void
 
+    @State private var draft: [TableFilter] = []
+    @State private var draftLogicMode: FilterLogicMode = .and
+
+    private var hasValidFilters: Bool {
+        draft.contains { $0.isEnabled && $0.isValid }
+    }
+
     private func bindingForFilter(_ id: UUID) -> Binding<TableFilter>? {
-        guard let index = filters.firstIndex(where: { $0.id == id }) else { return nil }
-        return $filters[index]
+        guard let index = draft.firstIndex(where: { $0.id == id }) else { return nil }
+        return $draft[index]
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                if filters.count > 1 {
+                if draft.count > 1 {
                     Section {
-                        Picker("Logic", selection: $logicMode) {
+                        Picker("Logic", selection: $draftLogicMode) {
                             Text("AND").tag(FilterLogicMode.and)
                             Text("OR").tag(FilterLogicMode.or)
                         }
@@ -438,7 +445,7 @@ private struct FilterSheetView: View {
                     }
                 }
 
-                ForEach(filters) { filter in
+                ForEach(draft) { filter in
                     if let binding = bindingForFilter(filter.id) {
                         Section {
                             Picker("Column", selection: binding.columnName) {
@@ -468,20 +475,22 @@ private struct FilterSheetView: View {
                     }
                 }
                 .onDelete { indexSet in
-                    filters.remove(atOffsets: indexSet)
+                    draft.remove(atOffsets: indexSet)
                 }
 
                 Section {
                     Button {
-                        filters.append(TableFilter(columnName: columns.first?.name ?? ""))
+                        draft.append(TableFilter(columnName: columns.first?.name ?? ""))
                     } label: {
                         Label("Add Filter", systemImage: "plus.circle")
                     }
                 }
 
-                if !filters.isEmpty {
+                if !draft.isEmpty {
                     Section {
                         Button("Clear All Filters", role: .destructive) {
+                            filters.removeAll()
+                            logicMode = .and
                             onClear()
                             dismiss()
                         }
@@ -496,11 +505,17 @@ private struct FilterSheetView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Apply") {
+                        filters = draft
+                        logicMode = draftLogicMode
                         onApply()
                         dismiss()
                     }
-                    .disabled(!filters.contains { $0.isEnabled && $0.isValid })
+                    .disabled(!hasValidFilters)
                 }
+            }
+            .onAppear {
+                draft = filters
+                draftLogicMode = logicMode
             }
         }
     }
