@@ -29,7 +29,7 @@ public struct ConnectionGroup: Identifiable, Codable, Hashable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
-        sortOrder = try container.decode(Int.self, forKey: .sortOrder)
+        sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
         color = try container.decodeIfPresent(ConnectionColor.self, forKey: .color) ?? .none
         parentId = try container.decodeIfPresent(UUID.self, forKey: .parentId)
     }
