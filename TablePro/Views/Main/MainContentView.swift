@@ -450,7 +450,13 @@ struct MainContentView: View {
     private func initializeAndRestoreTabs() async {
         guard !hasInitialized else { return }
         hasInitialized = true
-        Task { await coordinator.loadSchemaIfNeeded() }
+
+        // Only load schema if this is the first window for this connection.
+        // Additional windows share the same driver — concurrent schema load
+        // races with health monitor pings and can crash single-connection drivers.
+        if !WindowLifecycleMonitor.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
+            Task { await coordinator.loadSchemaIfNeeded() }
+        }
 
         // If payload provided a specific tab (not connection-only), execute its query immediately
         if let payload, !payload.isConnectionOnly {
