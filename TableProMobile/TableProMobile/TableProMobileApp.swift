@@ -15,12 +15,21 @@ struct TableProMobileApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if appState.hasCompletedOnboarding {
-                ConnectionListView()
-                    .environment(appState)
-            } else {
-                OnboardingView()
-                    .environment(appState)
+            Group {
+                if appState.hasCompletedOnboarding {
+                    ConnectionListView()
+                        .environment(appState)
+                } else {
+                    OnboardingView()
+                        .environment(appState)
+                }
+            }
+            .onOpenURL { url in
+                guard url.scheme == "tablepro",
+                      url.host(percentEncoded: false) == "connect",
+                      let uuidString = url.pathComponents.dropFirst().first,
+                      let uuid = UUID(uuidString: uuidString) else { return }
+                appState.pendingConnectionId = uuid
             }
         }
         .onChange(of: scenePhase) { _, phase in
