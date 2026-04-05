@@ -26,6 +26,8 @@ struct DataBrowserView: View {
     @State private var showDeleteConfirmation = false
     @State private var operationError: AppError?
     @State private var showOperationError = false
+    @State private var showGoToPage = false
+    @State private var goToPageInput = ""
 
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
@@ -67,6 +69,19 @@ struct DataBrowserView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(operationError?.message ?? "")
+            }
+            .alert("Go to Page", isPresented: $showGoToPage) {
+                TextField("Page number", text: $goToPageInput)
+                    .keyboardType(.numberPad)
+                Button("Go") { goToPage() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                if let total = pagination.totalRows {
+                    let totalPages = (total + pagination.pageSize - 1) / pagination.pageSize
+                    Text("Enter a page number (1–\(totalPages))")
+                } else {
+                    Text("Enter a page number")
+                }
             }
     }
 
@@ -163,16 +178,26 @@ struct DataBrowserView: View {
             Spacer()
 
             Menu {
-                ForEach([50, 100, 200, 500], id: \.self) { size in
-                    Button {
-                        changePageSize(size)
-                    } label: {
-                        HStack {
-                            Text("\(size) rows")
-                            if pagination.pageSize == size {
-                                Image(systemName: "checkmark")
+                Section("Rows per Page") {
+                    ForEach([50, 100, 200, 500], id: \.self) { size in
+                        Button {
+                            changePageSize(size)
+                        } label: {
+                            HStack {
+                                Text("\(size) rows")
+                                if pagination.pageSize == size {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
+                    }
+                }
+                Section {
+                    Button {
+                        goToPageInput = ""
+                        showGoToPage = true
+                    } label: {
+                        Label("Go to Page...", systemImage: "arrow.right.to.line")
                     }
                 }
             } label: {
@@ -258,6 +283,12 @@ struct DataBrowserView: View {
         pagination.pageSize = newSize
         pagination.currentPage = 0
         pagination.totalRows = nil
+        Task { await loadData() }
+    }
+
+    private func goToPage() {
+        guard let page = Int(goToPageInput), page >= 1 else { return }
+        pagination.currentPage = page - 1
         Task { await loadData() }
     }
 
