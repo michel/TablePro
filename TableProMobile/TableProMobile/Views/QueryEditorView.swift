@@ -166,6 +166,18 @@ struct QueryEditorView: View {
                             } label: {
                                 Label("Copy Column Name", systemImage: "textformat")
                             }
+                            Divider()
+                            Menu("Copy Row") {
+                                ForEach(ExportFormat.allCases) { format in
+                                    Button(format.rawValue) {
+                                        let text = ClipboardExporter.exportRow(
+                                            columns: result.columns, row: row,
+                                            format: format
+                                        )
+                                        ClipboardExporter.copyToClipboard(text)
+                                    }
+                                }
+                            }
                         }
                     }
                 } header: {
@@ -212,6 +224,22 @@ struct QueryEditorView: View {
                         }
                     } label: {
                         Label("SELECT * FROM ...", systemImage: "text.badge.star")
+                    }
+                }
+
+                if let result, !result.rows.isEmpty {
+                    Section("Copy Results") {
+                        ForEach(ExportFormat.allCases) { format in
+                            Button {
+                                let text = ClipboardExporter.exportRows(
+                                    columns: result.columns, rows: result.rows,
+                                    format: format
+                                )
+                                ClipboardExporter.copyToClipboard(text)
+                            } label: {
+                                Label(format.rawValue, systemImage: "doc.on.clipboard")
+                            }
+                        }
                     }
                 }
 

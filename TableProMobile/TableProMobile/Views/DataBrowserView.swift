@@ -153,6 +153,19 @@ struct DataBrowserView: View {
                         row: row
                     )
                 }
+                .contextMenu {
+                    Menu("Copy Row") {
+                        ForEach(ExportFormat.allCases) { format in
+                            Button(format.rawValue) {
+                                let text = ClipboardExporter.exportRow(
+                                    columns: columns, row: rows[index],
+                                    format: format, tableName: table.name
+                                )
+                                ClipboardExporter.copyToClipboard(text)
+                            }
+                        }
+                    }
+                }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     if !isView && hasPrimaryKeys {
                         Button(role: .destructive) {
@@ -177,6 +190,24 @@ struct DataBrowserView: View {
 
     @ToolbarContentBuilder
     private var topToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                ForEach(ExportFormat.allCases) { format in
+                    Button {
+                        let text = ClipboardExporter.exportRows(
+                            columns: columns, rows: rows,
+                            format: format, tableName: table.name
+                        )
+                        ClipboardExporter.copyToClipboard(text)
+                    } label: {
+                        Label(format.rawValue, systemImage: "doc.on.clipboard")
+                    }
+                }
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .disabled(rows.isEmpty)
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button { showFilterSheet = true } label: {
                 Image(systemName: hasActiveFilters

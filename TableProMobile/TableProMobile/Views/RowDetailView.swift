@@ -128,6 +128,24 @@ struct RowDetailView: View {
         .navigationTitle(String(format: String(localized: "Row %d of %d"), currentIndex + 1, rows.count))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    ForEach(ExportFormat.allCases) { format in
+                        Button {
+                            let text = ClipboardExporter.exportRow(
+                                columns: columns, row: currentRow,
+                                format: format, tableName: table?.name
+                            )
+                            ClipboardExporter.copyToClipboard(text)
+                        } label: {
+                            Label(format.rawValue, systemImage: "doc.on.clipboard")
+                        }
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 if canEdit {
                     if isEditing {
