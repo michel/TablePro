@@ -18,6 +18,7 @@ public enum SyncRecordMapper {
         switch type {
         case .connection: recordName = "Connection_\(id)"
         case .group: recordName = "Group_\(id)"
+        case .tag: recordName = "Tag_\(id)"
         }
         return CKRecord.ID(recordName: recordName, zoneID: zone)
     }
@@ -46,6 +47,9 @@ public enum SyncRecordMapper {
         }
         if let groupId = connection.groupId {
             record["groupId"] = groupId.uuidString as CKRecordValue
+        }
+        if let tagId = connection.tagId {
+            record["tagId"] = tagId.uuidString as CKRecordValue
         }
         if let queryTimeout = connection.queryTimeoutSeconds {
             record["queryTimeoutSeconds"] = Int64(queryTimeout) as CKRecordValue
@@ -104,6 +108,7 @@ public enum SyncRecordMapper {
         let username = record["username"] as? String ?? ""
         let colorTag = record["color"] as? String ?? record["colorTag"] as? String
         let groupId = (record["groupId"] as? String).flatMap { UUID(uuidString: $0) }
+        let tagId = (record["tagId"] as? String).flatMap { UUID(uuidString: $0) }
         let sortOrder = (record["sortOrder"] as? Int64).map { Int($0) } ?? 0
         let isReadOnly = (record["isReadOnly"] as? Int64 ?? 0) != 0
         let queryTimeout = (record["queryTimeoutSeconds"] as? Int64).map { Int($0) }
@@ -153,6 +158,7 @@ public enum SyncRecordMapper {
             sslEnabled: sslEnabled,
             sslConfiguration: sslConfig,
             groupId: groupId,
+            tagId: tagId,
             sortOrder: sortOrder
         )
     }
@@ -184,6 +190,12 @@ public enum SyncRecordMapper {
             record["groupId"] = groupId.uuidString as CKRecordValue
         } else {
             record["groupId"] = nil
+        }
+
+        if let tagId = connection.tagId {
+            record["tagId"] = tagId.uuidString as CKRecordValue
+        } else {
+            record["tagId"] = nil
         }
 
         if let queryTimeout = connection.queryTimeoutSeconds {
@@ -229,6 +241,10 @@ public enum SyncRecordMapper {
 
         record["groupId"] = group.id.uuidString as CKRecordValue
         record["name"] = group.name as CKRecordValue
+        record["color"] = group.color.rawValue as CKRecordValue
+        if let parentId = group.parentId {
+            record["parentId"] = parentId.uuidString as CKRecordValue
+        }
         record["sortOrder"] = Int64(group.sortOrder) as CKRecordValue
         record["modifiedAtLocal"] = Date() as CKRecordValue
         record["schemaVersion"] = schemaVersion as CKRecordValue
@@ -248,7 +264,67 @@ public enum SyncRecordMapper {
         }
 
         let sortOrder = (record["sortOrder"] as? Int64).map { Int($0) } ?? 0
+        let color = (record["color"] as? String).flatMap { ConnectionColor(rawValue: $0) } ?? .none
+        let parentId = (record["parentId"] as? String).flatMap { UUID(uuidString: $0) }
 
-        return ConnectionGroup(id: id, name: name, sortOrder: sortOrder)
+        return ConnectionGroup(id: id, name: name, sortOrder: sortOrder, color: color, parentId: parentId)
+    }
+
+    // MARK: - Update Existing CKRecord with Group
+
+    public static func updateRecord(_ record: CKRecord, with group: ConnectionGroup) {
+        record["groupId"] = group.id.uuidString as CKRecordValue
+        record["name"] = group.name as CKRecordValue
+        record["color"] = group.color.rawValue as CKRecordValue
+        if let parentId = group.parentId {
+            record["parentId"] = parentId.uuidString as CKRecordValue
+        } else {
+            record["parentId"] = nil
+        }
+        record["sortOrder"] = Int64(group.sortOrder) as CKRecordValue
+        record["modifiedAtLocal"] = Date() as CKRecordValue
+    }
+
+    // MARK: - Tag -> CKRecord
+
+    public static func toRecord(_ tag: ConnectionTag, zoneID: CKRecordZone.ID) -> CKRecord {
+        let id = recordID(type: .tag, id: tag.id.uuidString, in: zoneID)
+        let record = CKRecord(recordType: SyncRecordType.tag.rawValue, recordID: id)
+
+        record["tagId"] = tag.id.uuidString as CKRecordValue
+        record["name"] = tag.name as CKRecordValue
+        record["isPreset"] = Int64(tag.isPreset ? 1 : 0) as CKRecordValue
+        record["color"] = tag.color.rawValue as CKRecordValue
+        record["modifiedAtLocal"] = Date() as CKRecordValue
+        record["schemaVersion"] = schemaVersion as CKRecordValue
+
+        return record
+    }
+
+    // MARK: - CKRecord -> Tag
+
+    public static func toTag(_ record: CKRecord) -> ConnectionTag? {
+        guard let tagIdStr = record["tagId"] as? String,
+              let tagId = UUID(uuidString: tagIdStr),
+              let name = record["name"] as? String
+        else {
+            logger.warning("Failed to decode tag from CKRecord: missing required fields")
+            return nil
+        }
+
+        let isPreset = (record["isPreset"] as? Int64 ?? 0) != 0
+        let color = (record["color"] as? String).flatMap { ConnectionColor(rawValue: $0) } ?? .gray
+
+        return ConnectionTag(id: tagId, name: name, isPreset: isPreset, color: color)
+    }
+
+    // MARK: - Update Existing CKRecord with Tag
+
+    public static func updateRecord(_ record: CKRecord, with tag: ConnectionTag) {
+        record["tagId"] = tag.id.uuidString as CKRecordValue
+        record["name"] = tag.name as CKRecordValue
+        record["isPreset"] = Int64(tag.isPreset ? 1 : 0) as CKRecordValue
+        record["color"] = tag.color.rawValue as CKRecordValue
+        record["modifiedAtLocal"] = Date() as CKRecordValue
     }
 }

@@ -20,6 +20,7 @@ public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
     public var sslConfiguration: SSLConfiguration?
 
     public var groupId: UUID?
+    public var tagId: UUID?
     public var sortOrder: Int
 
     public init(
@@ -39,6 +40,7 @@ public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
         sslEnabled: Bool = false,
         sslConfiguration: SSLConfiguration? = nil,
         groupId: UUID? = nil,
+        tagId: UUID? = nil,
         sortOrder: Int = 0
     ) {
         self.id = id
@@ -57,6 +59,7 @@ public struct DatabaseConnection: Identifiable, Codable, Hashable, Sendable {
         self.sslEnabled = sslEnabled
         self.sslConfiguration = sslConfiguration
         self.groupId = groupId
+        self.tagId = tagId
         self.sortOrder = sortOrder
     }
 }
