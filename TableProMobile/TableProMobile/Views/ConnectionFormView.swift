@@ -229,13 +229,6 @@ struct ConnectionFormView: View {
                 }
             }
             .fileImporter(
-                isPresented: $showFilePicker,
-                allowedContentTypes: sqliteContentTypes,
-                allowsMultipleSelection: false
-            ) { result in
-                handleFilePickerResult(result)
-            }
-            .fileImporter(
                 isPresented: $showSSHKeyPicker,
                 allowedContentTypes: [.data],
                 allowsMultipleSelection: false
@@ -310,6 +303,13 @@ struct ConnectionFormView: View {
             } label: {
                 Label("Create New Database", systemImage: "plus.circle")
             }
+        }
+        .fileImporter(
+            isPresented: $showFilePicker,
+            allowedContentTypes: sqliteContentTypes,
+            allowsMultipleSelection: false
+        ) { result in
+            handleFilePickerResult(result)
         }
     }
 
