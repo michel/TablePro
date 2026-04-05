@@ -126,6 +126,15 @@ struct ConnectionListView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .overlay {
+                if !appState.connections.isEmpty && displayedConnections.isEmpty {
+                    ContentUnavailableView(
+                        "No Matching Connections",
+                        systemImage: "line.3.horizontal.decrease.circle",
+                        description: Text("No connections match the selected filter.")
+                    )
+                }
+            }
             .refreshable {
                 await appState.syncCoordinator.sync(
                     localConnections: appState.connections,
