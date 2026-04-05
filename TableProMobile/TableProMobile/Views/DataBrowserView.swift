@@ -214,7 +214,9 @@ struct DataBrowserView: View {
             columns = result.columns
             rows = result.rows
             columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
-            await fetchTotalRows(session: session)
+            if pagination.totalRows == nil {
+                await fetchTotalRows(session: session)
+            }
             isLoading = false
         } catch {
             appError = ErrorClassifier.classify(
