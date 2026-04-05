@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- iOS: connection groups and tags — organize connections with colored groups and tags, synced via iCloud
+- iOS: connection groups and tags
 
 ## [0.27.4] - 2026-04-05
 
