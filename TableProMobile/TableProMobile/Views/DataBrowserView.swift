@@ -19,135 +19,84 @@ struct DataBrowserView: View {
     @State private var columnDetails: [ColumnInfo] = []
     @State private var rows: [[String?]] = []
     @State private var isLoading = true
-    @State private var isLoadingMore = false
     @State private var appError: AppError?
-    @State private var toastMessage: String?
-    @State private var toastTask: Task<Void, Never>?
     @State private var pagination = PaginationState(pageSize: 100, currentPage: 0)
-    @State private var hasMore = true
     @State private var showInsertSheet = false
     @State private var deleteTarget: [(column: String, value: String)]?
     @State private var showDeleteConfirmation = false
     @State private var operationError: AppError?
     @State private var showOperationError = false
 
-    private let maxPreviewColumns = 4
-
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
     }
 
     private var hasPrimaryKeys: Bool {
-        columnDetails.contains { $0.isPrimaryKey }
+        columnDetails.contains(where: \.isPrimaryKey)
+    }
+
+    private var paginationLabel: String {
+        guard !rows.isEmpty else { return "" }
+        let start = pagination.currentOffset + 1
+        let end = pagination.currentOffset + rows.count
+        if let total = pagination.totalRows {
+            return "\(start)–\(end) of \(total)"
+        }
+        return "\(start)–\(end)"
     }
 
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView("Loading data...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let appError {
-                ErrorView(error: appError) {
-                    await loadData()
-                }
-            } else if rows.isEmpty {
-                ContentUnavailableView {
-                    Label("No Data", systemImage: "tray")
-                } description: {
-                    Text("This table is empty.")
-                } actions: {
-                    if !isView {
-                        Button("Insert Row") { showInsertSheet = true }
-                            .buttonStyle(.borderedProminent)
+        content
+            .navigationTitle(table.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { topToolbar }
+            .toolbar(rows.isEmpty ? .hidden : .visible, for: .bottomBar)
+            .toolbar { paginationToolbar }
+            .task { await loadData(isInitial: true) }
+            .sheet(isPresented: $showInsertSheet) { insertSheet }
+            .confirmationDialog("Delete Row", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    if let pkValues = deleteTarget {
+                        Task { await deleteRow(withPKs: pkValues) }
                     }
                 }
-            } else {
-                cardList
+            } message: {
+                Text("Are you sure you want to delete this row? This action cannot be undone.")
             }
-        }
-        .navigationTitle(table.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .status) {
-                Text(verbatim: "\(rows.count) rows")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            .alert(operationError?.title ?? "Error", isPresented: $showOperationError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(operationError?.message ?? "")
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    StructureView(
-                        table: table,
-                        session: session,
-                        databaseType: connection.type
-                    )
-                } label: {
-                    Image(systemName: "info.circle")
-                }
-            }
-            ToolbarItem(placement: .primaryAction) {
+    }
+
+    // MARK: - Content
+
+    @ViewBuilder
+    private var content: some View {
+        if isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let appError {
+            ErrorView(error: appError) { await loadData() }
+        } else if rows.isEmpty {
+            ContentUnavailableView {
+                Label("No Data", systemImage: "tray")
+            } description: {
+                Text("This table is empty.")
+            } actions: {
                 if !isView {
-                    Button {
-                        showInsertSheet = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
+                    Button("Insert Row") { showInsertSheet = true }
+                        .buttonStyle(.borderedProminent)
                 }
             }
-        }
-        .task { await loadData(isInitial: true) }
-        .sheet(isPresented: $showInsertSheet) {
-            InsertRowView(
-                table: table,
-                columnDetails: columnDetails,
-                session: session,
-                databaseType: connection.type,
-                onInserted: {
-                    Task { await loadData() }
-                }
-            )
-        }
-        .alert("Delete Row", isPresented: $showDeleteConfirmation) {
-            Button("Delete", role: .destructive) {
-                if let pkValues = deleteTarget {
-                    Task { await deleteRow(withPKs: pkValues) }
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Are you sure you want to delete this row? This action cannot be undone.")
-        }
-        .overlay(alignment: .bottom) {
-            if let toastMessage {
-                ErrorToast(message: toastMessage)
-                    .onAppear {
-                        toastTask?.cancel()
-                        toastTask = Task {
-                            try? await Task.sleep(nanoseconds: 3_000_000_000)
-                            withAnimation { self.toastMessage = nil }
-                        }
-                    }
-                    .onDisappear {
-                        toastTask?.cancel()
-                        toastTask = nil
-                    }
-            }
-        }
-        .animation(.default, value: toastMessage)
-        .alert(operationError?.title ?? "Error", isPresented: $showOperationError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            VStack {
-                Text(operationError?.message ?? "An unknown error occurred.")
-                if let recovery = operationError?.recovery {
-                    Text(verbatim: recovery)
-                }
-            }
+        } else {
+            rowList
         }
     }
 
-    private var cardList: some View {
+    private var rowList: some View {
         List {
-            // Offset-based identity is acceptable here: rows don't animate/reorder
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                 NavigationLink {
                     RowDetailView(
@@ -158,15 +107,13 @@ struct DataBrowserView: View {
                         session: session,
                         columnDetails: columnDetails,
                         databaseType: connection.type,
-                        onSaved: {
-                            Task { await loadData() }
-                        }
+                        onSaved: { Task { await loadData() } }
                     )
                 } label: {
                     RowCard(
                         columns: columns,
-                        row: row,
-                        maxPreviewColumns: maxPreviewColumns
+                        columnDetails: columnDetails,
+                        row: row
                     )
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -180,51 +127,83 @@ struct DataBrowserView: View {
                     }
                 }
             }
+        }
+        .listStyle(.insetGrouped)
+        .refreshable { await loadData() }
+    }
 
-            if hasMore {
-                Section {
-                    Button {
-                        Task { await loadNextPage() }
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isLoadingMore {
-                                ProgressView()
-                                    .controlSize(.small)
-                                Text("Loading...")
-                            } else {
-                                Label("Load More", systemImage: "arrow.down.circle")
-                            }
-                            Spacer()
-                        }
-                        .foregroundStyle(.blue)
-                    }
-                    .disabled(isLoadingMore)
+    // MARK: - Toolbars
+
+    @ToolbarContentBuilder
+    private var topToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            NavigationLink {
+                StructureView(table: table, session: session, databaseType: connection.type)
+            } label: {
+                Image(systemName: "info.circle")
+            }
+        }
+        if !isView {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showInsertSheet = true } label: {
+                    Image(systemName: "plus")
                 }
             }
         }
-        .listStyle(.plain)
-        .refreshable { await loadData() }
     }
+
+    @ToolbarContentBuilder
+    private var paginationToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            Button { Task { await goToPreviousPage() } } label: {
+                Image(systemName: "chevron.left")
+            }
+            .disabled(pagination.currentPage == 0 || isLoading)
+
+            Spacer()
+
+            Text(paginationLabel)
+                .font(.footnote)
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .fixedSize()
+
+            Spacer()
+
+            Button { Task { await goToNextPage() } } label: {
+                Image(systemName: "chevron.right")
+            }
+            .disabled(!pagination.hasNextPage || isLoading)
+        }
+    }
+
+    private var insertSheet: some View {
+        InsertRowView(
+            table: table,
+            columnDetails: columnDetails,
+            session: session,
+            databaseType: connection.type,
+            onInserted: { Task { await loadData() } }
+        )
+    }
+
+    // MARK: - Data Loading
 
     private func loadData(isInitial: Bool = false) async {
         guard let session else {
             appError = AppError(
                 category: .config,
-                title: "Not Connected",
-                message: "No active database session.",
-                recovery: "Go back and reconnect to the database.",
+                title: String(localized: "Not Connected"),
+                message: String(localized: "No active database session."),
+                recovery: String(localized: "Go back and reconnect to the database."),
                 underlying: nil
             )
             isLoading = false
             return
         }
 
-        if isInitial || rows.isEmpty {
-            isLoading = true
-        }
+        if isInitial || rows.isEmpty { isLoading = true }
         appError = nil
-        pagination.reset()
 
         do {
             let query = SQLBuilder.buildSelect(
@@ -232,119 +211,137 @@ struct DataBrowserView: View {
                 limit: pagination.pageSize, offset: pagination.currentOffset
             )
             let result = try await session.driver.execute(query: query)
-            self.columns = result.columns
-            self.rows = result.rows
-            self.hasMore = result.rows.count >= pagination.pageSize
-
-            // columnDetails (from fetchColumns) provides PK info for edit/delete.
-            // columns (from query result) only have name/type, no PK metadata.
-            self.columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
-
+            columns = result.columns
+            rows = result.rows
+            columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
+            if pagination.totalRows == nil {
+                await fetchTotalRows(session: session)
+            }
             isLoading = false
         } catch {
-            let context = ErrorContext(
-                operation: "loadData",
-                databaseType: connection.type,
-                host: connection.host
+            appError = ErrorClassifier.classify(
+                error,
+                context: ErrorContext(operation: "loadData", databaseType: connection.type, host: connection.host)
             )
-            appError = ErrorClassifier.classify(error, context: context)
             isLoading = false
         }
     }
 
-    private func loadNextPage() async {
-        guard let session else { return }
+    private func fetchTotalRows(session: ConnectionSession) async {
+        do {
+            let countQuery = SQLBuilder.buildCount(table: table.name, type: connection.type)
+            let countResult = try await session.driver.execute(query: countQuery)
+            if let firstRow = countResult.rows.first, let firstCol = firstRow.first {
+                pagination.totalRows = Int(firstCol ?? "0")
+            }
+        } catch {
+            Self.logger.warning("Failed to fetch row count: \(error.localizedDescription, privacy: .public)")
+        }
+    }
 
-        isLoadingMore = true
+    private func goToNextPage() async {
         pagination.currentPage += 1
-
-        do {
-            let query = SQLBuilder.buildSelect(
-                table: table.name, type: connection.type,
-                limit: pagination.pageSize, offset: pagination.currentOffset
-            )
-            let result = try await session.driver.execute(query: query)
-            rows.append(contentsOf: result.rows)
-            hasMore = result.rows.count >= pagination.pageSize
-        } catch {
-            pagination.currentPage -= 1
-            Self.logger.warning("Failed to load next page: \(error.localizedDescription, privacy: .public)")
-            withAnimation { toastMessage = String(localized: "Failed to load more rows") }
-        }
-
-        isLoadingMore = false
+        await loadData()
     }
+
+    private func goToPreviousPage() async {
+        guard pagination.currentPage > 0 else { return }
+        pagination.currentPage -= 1
+        await loadData()
+    }
+
+    // MARK: - Row Operations
 
     private func deleteRow(withPKs pkValues: [(column: String, value: String)]) async {
         guard let session, !pkValues.isEmpty else { return }
-
-        let sql = SQLBuilder.buildDelete(table: table.name, type: connection.type, primaryKeys: pkValues)
-
         do {
-            _ = try await session.driver.execute(query: sql)
+            _ = try await session.driver.execute(
+                query: SQLBuilder.buildDelete(table: table.name, type: connection.type, primaryKeys: pkValues)
+            )
             await loadData()
         } catch {
-            let context = ErrorContext(
-                operation: "deleteRow",
-                databaseType: connection.type,
-                host: connection.host
+            operationError = ErrorClassifier.classify(
+                error,
+                context: ErrorContext(operation: "deleteRow", databaseType: connection.type, host: connection.host)
             )
-            operationError = ErrorClassifier.classify(error, context: context)
             showOperationError = true
         }
     }
 
     private func primaryKeyValues(for row: [String?]) -> [(column: String, value: String)] {
-        columnDetails.enumerated().compactMap { index, col in
-            guard col.isPrimaryKey else { return nil }
-            let colIndex = columns.firstIndex(where: { $0.name == col.name })
-            guard let colIndex, colIndex < row.count, let value = row[colIndex] else { return nil }
+        columnDetails.compactMap { col in
+            guard col.isPrimaryKey,
+                  let colIndex = columns.firstIndex(where: { $0.name == col.name }),
+                  colIndex < row.count,
+                  let value = row[colIndex] else { return nil }
             return (column: col.name, value: value)
         }
     }
 }
 
+// MARK: - Row Card
+
 private struct RowCard: View {
     let columns: [ColumnInfo]
+    let columnDetails: [ColumnInfo]
     let row: [String?]
-    let maxPreviewColumns: Int
 
-    private var sortedPairs: [(column: ColumnInfo, value: String?)] {
-        let paired = zip(columns, row).map { ($0, $1) }
-        let pkPairs = paired.filter { $0.0.isPrimaryKey }
-        let nonPkPairs = paired.filter { !$0.0.isPrimaryKey }
-        return (pkPairs + nonPkPairs).prefix(maxPreviewColumns).map { ($0.0, $0.1) }
+    private static let maxPreview = 4
+
+    private var pkNames: Set<String> {
+        Set(columnDetails.filter(\.isPrimaryKey).map(\.name))
+    }
+
+    private var titlePair: (name: String, value: String)? {
+        let pks = pkNames
+        for (col, val) in zip(columns, row) where pks.contains(col.name) {
+            return (col.name, val ?? "NULL")
+        }
+        guard let first = columns.first else { return nil }
+        return (first.name, row.first.flatMap { $0 } ?? "NULL")
+    }
+
+    private var detailPairs: [(name: String, value: String)] {
+        let pks = pkNames
+        let title = titlePair?.name
+        return zip(columns, row)
+            .filter { !pks.contains($0.0.name) && $0.0.name != title }
+            .prefix(Self.maxPreview - 1)
+            .map { ($0.0.name, $0.1 ?? "NULL") }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(sortedPairs.enumerated()), id: \.offset) { _, pair in
-                HStack(spacing: 8) {
-                    Text(pair.column.name)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(minWidth: 60, alignment: .leading)
-
-                    if let value = pair.value {
-                        Text(verbatim: value)
-                            .font(.subheadline)
-                            .fontWeight(pair.column.isPrimaryKey ? .semibold : .regular)
-                            .lineLimit(1)
-                    } else {
-                        Text(verbatim: "NULL")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .italic()
-                    }
+        VStack(alignment: .leading, spacing: 4) {
+            if let title = titlePair {
+                HStack(spacing: 6) {
+                    Text(title.name)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(verbatim: title.value)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
                 }
             }
 
-            if columns.count > maxPreviewColumns {
-                Text("+\(columns.count - maxPreviewColumns) more columns")
+            ForEach(Array(detailPairs.enumerated()), id: \.offset) { _, pair in
+                HStack(spacing: 6) {
+                    Text(pair.name)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(verbatim: pair.value)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            if columns.count > Self.maxPreview {
+                Text("+\(columns.count - Self.maxPreview) more columns")
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.quaternary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 }
