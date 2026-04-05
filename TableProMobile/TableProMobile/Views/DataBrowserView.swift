@@ -32,7 +32,7 @@ struct DataBrowserView: View {
     @State private var goToPageInput = ""
     @State private var filters: [TableFilter] = []
     @State private var filterLogicMode: FilterLogicMode = .and
-    @State private var showFilterBar = false
+    @State private var showFilterSheet = false
 
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
@@ -65,6 +65,15 @@ struct DataBrowserView: View {
             .toolbar { paginationToolbar }
             .task { await loadData(isInitial: true) }
             .sheet(isPresented: $showInsertSheet) { insertSheet }
+            .sheet(isPresented: $showFilterSheet) {
+                FilterSheetView(
+                    filters: $filters,
+                    logicMode: $filterLogicMode,
+                    columns: columns,
+                    onApply: { applyFilters() },
+                    onClear: { clearFilters() }
+                )
+            }
             .confirmationDialog("Delete Row", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
                     if let pkValues = deleteTarget {
@@ -119,50 +128,12 @@ struct DataBrowserView: View {
         }
     }
 
+    private var activeFilterCount: Int {
+        filters.filter { $0.isEnabled && $0.isValid }.count
+    }
+
     private var rowList: some View {
         List {
-            if showFilterBar {
-                Section {
-                    if filters.count > 1 {
-                        Picker("Logic", selection: $filterLogicMode) {
-                            Text("AND").tag(FilterLogicMode.and)
-                            Text("OR").tag(FilterLogicMode.or)
-                        }
-                        .pickerStyle(.segmented)
-                    }
-
-                    ForEach($filters) { $filter in
-                        FilterRowView(
-                            filter: $filter,
-                            columns: columns,
-                            onDelete: { filters.removeAll { $0.id == filter.id } }
-                        )
-                    }
-
-                    HStack {
-                        Button {
-                            filters.append(TableFilter(columnName: columns.first?.name ?? ""))
-                        } label: {
-                            Label("Add Filter", systemImage: "plus.circle")
-                        }
-                        Spacer()
-                        Button("Apply") {
-                            applyFilters()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!hasActiveFilters)
-                    }
-
-                    if hasActiveFilters {
-                        Button("Clear Filters", role: .destructive) {
-                            clearFilters()
-                        }
-                    }
-                } header: {
-                    Text("Filters")
-                }
-            }
-
             ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                 NavigationLink {
                     RowDetailView(
@@ -207,11 +178,12 @@ struct DataBrowserView: View {
     @ToolbarContentBuilder
     private var topToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button { withAnimation { showFilterBar.toggle() } } label: {
+            Button { showFilterSheet = true } label: {
                 Image(systemName: hasActiveFilters
                     ? "line.3.horizontal.decrease.circle.fill"
                     : "line.3.horizontal.decrease.circle")
             }
+            .badge(activeFilterCount)
         }
         ToolbarItem(placement: .topBarTrailing) {
             NavigationLink {
@@ -438,47 +410,90 @@ struct DataBrowserView: View {
     }
 }
 
-// MARK: - Filter Row
+// MARK: - Filter Sheet
 
-private struct FilterRowView: View {
-    @Binding var filter: TableFilter
+private struct FilterSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var filters: [TableFilter]
+    @Binding var logicMode: FilterLogicMode
     let columns: [ColumnInfo]
-    let onDelete: () -> Void
+    let onApply: () -> Void
+    let onClear: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Picker("Column", selection: $filter.columnName) {
-                    ForEach(columns, id: \.name) { col in
-                        Text(col.name).tag(col.name)
+        NavigationStack {
+            Form {
+                if filters.count > 1 {
+                    Section {
+                        Picker("Logic", selection: $logicMode) {
+                            Text("AND").tag(FilterLogicMode.and)
+                            Text("OR").tag(FilterLogicMode.or)
+                        }
+                        .pickerStyle(.segmented)
                     }
                 }
-                .pickerStyle(.menu)
 
-                Button(role: .destructive) { onDelete() } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .foregroundStyle(.red)
+                ForEach($filters) { $filter in
+                    Section {
+                        Picker("Column", selection: $filter.columnName) {
+                            ForEach(columns, id: \.name) { col in
+                                Text(col.name).tag(col.name)
+                            }
+                        }
+
+                        Picker("Operator", selection: $filter.filterOperator) {
+                            ForEach(FilterOperator.allCases, id: \.self) { op in
+                                Text(op.displayName).tag(op)
+                            }
+                        }
+
+                        if filter.filterOperator.needsValue {
+                            TextField("Value", text: $filter.value)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        }
+
+                        if filter.filterOperator == .between {
+                            TextField("Second value", text: $filter.secondValue)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        }
+                    }
                 }
-                .buttonStyle(.plain)
-            }
+                .onDelete { indexSet in
+                    filters.remove(atOffsets: indexSet)
+                }
 
-            Picker("Operator", selection: $filter.filterOperator) {
-                ForEach(FilterOperator.allCases, id: \.self) { op in
-                    Text(op.displayName).tag(op)
+                Section {
+                    Button {
+                        filters.append(TableFilter(columnName: columns.first?.name ?? ""))
+                    } label: {
+                        Label("Add Filter", systemImage: "plus.circle")
+                    }
+                }
+
+                if !filters.isEmpty {
+                    Section {
+                        Button("Clear All Filters", role: .destructive) {
+                            onClear()
+                            dismiss()
+                        }
+                    }
                 }
             }
-            .pickerStyle(.menu)
-
-            if filter.filterOperator.needsValue {
-                TextField("Value", text: $filter.value)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            }
-
-            if filter.filterOperator == .between {
-                TextField("Second value", text: $filter.secondValue)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+            .navigationTitle("Filters")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Apply") {
+                        onApply()
+                        dismiss()
+                    }
+                    .disabled(!filters.contains { $0.isEnabled && $0.isValid })
+                }
             }
         }
     }
