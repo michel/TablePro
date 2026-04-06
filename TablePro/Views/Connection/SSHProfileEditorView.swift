@@ -221,22 +221,23 @@ struct SSHProfileEditorView: View {
     private var jumpHostsSection: some View {
         Section {
             DisclosureGroup(String(localized: "Jump Hosts")) {
-                ForEach($jumpHosts) { $jumpHost in
+                ForEach(jumpHosts) { jumpHost in
+                    let jumpHostBinding = $jumpHosts.element(jumpHost)
                     DisclosureGroup {
-                        TextField(String(localized: "Host"), text: $jumpHost.host, prompt: Text("bastion.example.com"))
+                        TextField(String(localized: "Host"), text: jumpHostBinding.host, prompt: Text("bastion.example.com"))
                         HStack {
                             TextField(
                                 String(localized: "Port"),
                                 text: Binding(
-                                    get: { String(jumpHost.port) },
-                                    set: { jumpHost.port = Int($0) ?? 22 }
+                                    get: { String(jumpHostBinding.wrappedValue.port) },
+                                    set: { jumpHostBinding.wrappedValue.port = Int($0) ?? 22 }
                                 ),
                                 prompt: Text("22")
                             )
                             .frame(width: 80)
-                            TextField(String(localized: "Username"), text: $jumpHost.username, prompt: Text("admin"))
+                            TextField(String(localized: "Username"), text: jumpHostBinding.username, prompt: Text("admin"))
                         }
-                        Picker(String(localized: "Auth"), selection: $jumpHost.authMethod) {
+                        Picker(String(localized: "Auth"), selection: jumpHostBinding.authMethod) {
                             ForEach(SSHJumpAuthMethod.allCases) { method in
                                 Text(method.rawValue).tag(method)
                             }
@@ -244,9 +245,9 @@ struct SSHProfileEditorView: View {
                         if jumpHost.authMethod == .privateKey {
                             LabeledContent(String(localized: "Key File")) {
                                 HStack {
-                                    TextField("", text: $jumpHost.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
+                                    TextField("", text: jumpHostBinding.privateKeyPath, prompt: Text("~/.ssh/id_rsa"))
                                     Button(String(localized: "Browse")) {
-                                        browseForJumpHostKey(jumpHost: $jumpHost)
+                                        browseForJumpHostKey(jumpHost: jumpHostBinding)
                                     }
                                     .controlSize(.small)
                                 }
