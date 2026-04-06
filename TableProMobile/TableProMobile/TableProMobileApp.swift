@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import CoreSpotlight
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -29,6 +30,11 @@ struct TableProMobileApp: App {
                       url.host(percentEncoded: false) == "connect",
                       let uuidString = url.pathComponents.dropFirst().first,
                       let uuid = UUID(uuidString: uuidString) else { return }
+                appState.pendingConnectionId = uuid
+            }
+            .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                guard let identifier = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                      let uuid = UUID(uuidString: identifier) else { return }
                 appState.pendingConnectionId = uuid
             }
         }
