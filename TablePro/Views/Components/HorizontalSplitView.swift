@@ -68,10 +68,9 @@ struct HorizontalSplitView<Leading: View, Trailing: View>: NSViewRepresentable {
                 splitView.display()
             } else {
                 trailingView.isHidden = false
+                let targetWidth = context.coordinator.savedDividerPosition ?? trailingWidth
                 splitView.adjustSubviews()
-                if let saved = context.coordinator.savedDividerPosition {
-                    splitView.setPosition(splitView.bounds.width - saved, ofDividerAt: 0)
-                }
+                splitView.setPosition(splitView.bounds.width - targetWidth, ofDividerAt: 0)
                 splitView.display()
             }
         }
