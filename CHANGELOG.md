@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.5] - 2026-04-06
+
 ### Added
 
 - iOS: groups, tags, filter, sort, pagination, query history, export to clipboard, Spotlight, Siri Shortcuts, Home Screen widget
@@ -1178,7 +1180,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.27.4...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.27.5...HEAD
+[0.27.5]: https://github.com/TableProApp/TablePro/compare/v0.27.4...v0.27.5
 [0.27.4]: https://github.com/TableProApp/TablePro/compare/v0.27.3...v0.27.4
 [0.27.3]: https://github.com/TableProApp/TablePro/compare/v0.27.2...v0.27.3
 [0.27.2]: https://github.com/TableProApp/TablePro/compare/v0.27.1...v0.27.2
