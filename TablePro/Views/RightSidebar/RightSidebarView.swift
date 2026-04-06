@@ -146,26 +146,12 @@ struct RightSidebarView: View {
 
         return VStack(spacing: 0) {
             // Inline search field
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.tertiary)
-                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                TextField("Search for field...", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.tertiary)
-                            .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            SearchFieldView(
+                placeholder: "Search for field...",
+                text: $searchText,
+                fontSize: ThemeEngine.shared.activeTheme.typography.small
+            )
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
 
             Divider()
 

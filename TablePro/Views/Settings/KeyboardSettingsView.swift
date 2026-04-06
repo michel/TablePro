@@ -19,24 +19,10 @@ struct KeyboardSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Search shortcuts...", text: $searchText)
-                    .textFieldStyle(.plain)
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(8)
-            .background(.quaternary)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            SearchFieldView(
+                placeholder: "Search shortcuts...",
+                text: $searchText
+            )
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 8)
