@@ -499,7 +499,7 @@ final class DataChangeManager {
 
     // MARK: - Core Undo Application
 
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    // swiftlint:disable:next function_body_length
     private func applyDataUndo(_ action: UndoAction) {
         switch action {
         case .cellEdit(let rowIndex, let columnIndex, let columnName, let previousValue, let newValue):

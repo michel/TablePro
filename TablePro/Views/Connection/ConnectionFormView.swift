@@ -1187,20 +1187,6 @@ struct ConnectionFormView: View {
         }
     }
 
-    private func cleanupTestSecrets(for testId: UUID) {
-        ConnectionStorage.shared.deletePassword(for: testId)
-        ConnectionStorage.shared.deleteSSHPassword(for: testId)
-        ConnectionStorage.shared.deleteKeyPassphrase(for: testId)
-        ConnectionStorage.shared.deleteTOTPSecret(for: testId)
-        let secureFieldIds = PluginManager.shared.additionalConnectionFields(for: type)
-            .filter(\.isSecure).map(\.id)
-        ConnectionStorage.shared.deleteAllPluginSecureFields(for: testId, fieldIds: secureFieldIds)
-    }
-
-    private func loadSSHConfig() {
-        sshConfigEntries = SSHConfigParser.parse()
-    }
-
     private func parseConnectionURL() {
         let trimmed = connectionURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -1268,6 +1254,24 @@ struct ConnectionFormView: View {
         case .failure(let error):
             urlParseError = error.localizedDescription
         }
+    }
+}
+
+// MARK: - Test Helpers
+
+private extension ConnectionFormView {
+    func cleanupTestSecrets(for testId: UUID) {
+        ConnectionStorage.shared.deletePassword(for: testId)
+        ConnectionStorage.shared.deleteSSHPassword(for: testId)
+        ConnectionStorage.shared.deleteKeyPassphrase(for: testId)
+        ConnectionStorage.shared.deleteTOTPSecret(for: testId)
+        let secureFieldIds = PluginManager.shared.additionalConnectionFields(for: type)
+            .filter(\.isSecure).map(\.id)
+        ConnectionStorage.shared.deleteAllPluginSecureFields(for: testId, fieldIds: secureFieldIds)
+    }
+
+    func loadSSHConfig() {
+        sshConfigEntries = SSHConfigParser.parse()
     }
 }
 

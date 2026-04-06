@@ -33,7 +33,8 @@ enum PluginError: LocalizedError {
         case .incompatibleVersion(let required, let current):
             return String(format: String(localized: "Plugin requires PluginKit version %d, but app provides version %d"), required, current)
         case .pluginOutdated(let pluginVersion, let requiredVersion):
-            return String(format: String(localized: "Plugin was built with PluginKit version %d, but version %d is required. Please update the plugin."), pluginVersion, requiredVersion)
+            let format = String(localized: "Plugin was built with PluginKit version %d, but version %d is required. Please update the plugin.")
+            return String(format: format, pluginVersion, requiredVersion)
         case .cannotUninstallBuiltIn:
             return String(localized: "Built-in plugins cannot be uninstalled")
         case .notFound:

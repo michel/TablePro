@@ -136,7 +136,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self, selector: #selector(handleDatabaseDidConnect),
             name: .databaseDidConnect, object: nil
         )
-
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
