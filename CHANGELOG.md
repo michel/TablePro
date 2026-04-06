@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - iOS: filter bar with 16 operators, AND/OR logic
 - iOS: persistent query history with timestamps
 - iOS: export to clipboard (JSON, CSV, SQL INSERT)
+- iOS: sort columns with native Picker menu
 
 ## [0.27.4] - 2026-04-05
 

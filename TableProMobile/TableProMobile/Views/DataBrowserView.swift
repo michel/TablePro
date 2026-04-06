@@ -33,6 +33,7 @@ struct DataBrowserView: View {
     @State private var filters: [TableFilter] = []
     @State private var filterLogicMode: FilterLogicMode = .and
     @State private var showFilterSheet = false
+    @State private var sortState = SortState()
 
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
@@ -54,6 +55,32 @@ struct DataBrowserView: View {
 
     private var hasActiveFilters: Bool {
         filters.contains { $0.isEnabled && $0.isValid }
+    }
+
+    private var sortColumnBinding: Binding<String?> {
+        Binding(
+            get: { sortState.columns.first?.name },
+            set: { newColumn in
+                if let column = newColumn {
+                    sortState.columns = [SortColumn(name: column, ascending: true)]
+                } else {
+                    sortState.clear()
+                }
+                applySort()
+            }
+        )
+    }
+
+    private var sortDirectionBinding: Binding<Bool> {
+        Binding(
+            get: { sortState.columns.first?.ascending ?? true },
+            set: { ascending in
+                if let current = sortState.columns.first {
+                    sortState.columns = [SortColumn(name: current.name, ascending: ascending)]
+                }
+                applySort()
+            }
+        )
     }
 
     var body: some View {
@@ -209,6 +236,30 @@ struct DataBrowserView: View {
             .disabled(rows.isEmpty)
         }
         ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Picker("Sort By", selection: sortColumnBinding) {
+                    Text("Default").tag(String?.none)
+                    ForEach(columns, id: \.name) { col in
+                        Text(col.name).tag(Optional(col.name))
+                    }
+                }
+                .pickerStyle(.inline)
+
+                if sortState.isSorting {
+                    Picker("Order", selection: sortDirectionBinding) {
+                        Label("Ascending", systemImage: "chevron.up").tag(true)
+                        Label("Descending", systemImage: "chevron.down").tag(false)
+                    }
+                    .pickerStyle(.inline)
+                }
+            } label: {
+                Image(systemName: sortState.isSorting
+                    ? "arrow.up.arrow.down.circle.fill"
+                    : "arrow.up.arrow.down.circle")
+            }
+            .disabled(columns.isEmpty)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
             Button { showFilterSheet = true } label: {
                 Image(systemName: hasActiveFilters
                     ? "line.3.horizontal.decrease.circle.fill"
@@ -316,6 +367,13 @@ struct DataBrowserView: View {
                 query = SQLBuilder.buildFilteredSelect(
                     table: table.name, type: connection.type,
                     filters: filters, logicMode: filterLogicMode,
+                    sortState: sortState,
+                    limit: pagination.pageSize, offset: pagination.currentOffset
+                )
+            } else if sortState.isSorting {
+                query = SQLBuilder.buildSelect(
+                    table: table.name, type: connection.type,
+                    sortState: sortState,
                     limit: pagination.pageSize, offset: pagination.currentOffset
                 )
             } else {
@@ -425,6 +483,12 @@ struct DataBrowserView: View {
                   let value = row[colIndex] else { return nil }
             return (column: col.name, value: value)
         }
+    }
+
+    private func applySort() {
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        Task { await loadData() }
     }
 
     private func applyFilters() {

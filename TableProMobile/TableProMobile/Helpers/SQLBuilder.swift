@@ -81,6 +81,17 @@ enum SQLBuilder {
         return "INSERT INTO \(quotedTable) (\(cols)) VALUES (\(vals))"
     }
 
+    static func buildSelect(
+        table: String, type: DatabaseType,
+        sortState: SortState,
+        limit: Int, offset: Int
+    ) -> String {
+        let quoted = quoteIdentifier(table, for: type)
+        let orderBy = buildOrderByClause(sortState, for: type)
+        return "SELECT * FROM \(quoted) \(orderBy) LIMIT \(limit) OFFSET \(offset)"
+            .replacingOccurrences(of: "  ", with: " ")
+    }
+
     static func buildFilteredSelect(
         table: String, type: DatabaseType,
         filters: [TableFilter], logicMode: FilterLogicMode,
@@ -96,6 +107,24 @@ enum SQLBuilder {
         return "SELECT * FROM \(quoted) \(whereClause) LIMIT \(limit) OFFSET \(offset)"
     }
 
+    static func buildFilteredSelect(
+        table: String, type: DatabaseType,
+        filters: [TableFilter], logicMode: FilterLogicMode,
+        sortState: SortState,
+        limit: Int, offset: Int
+    ) -> String {
+        let dialect = dialectDescriptor(for: type)
+        let generator = FilterSQLGenerator(dialect: dialect)
+        let whereClause = generator.generateWhereClause(from: filters, logicMode: logicMode)
+        let orderBy = buildOrderByClause(sortState, for: type)
+        let quoted = quoteIdentifier(table, for: type)
+        var sql = "SELECT * FROM \(quoted)"
+        if !whereClause.isEmpty { sql += " \(whereClause)" }
+        if !orderBy.isEmpty { sql += " \(orderBy)" }
+        sql += " LIMIT \(limit) OFFSET \(offset)"
+        return sql
+    }
+
     static func buildFilteredCount(
         table: String, type: DatabaseType,
         filters: [TableFilter], logicMode: FilterLogicMode
@@ -108,6 +137,14 @@ enum SQLBuilder {
             return "SELECT COUNT(*) FROM \(quoted)"
         }
         return "SELECT COUNT(*) FROM \(quoted) \(whereClause)"
+    }
+
+    private static func buildOrderByClause(_ sortState: SortState, for type: DatabaseType) -> String {
+        guard sortState.isSorting else { return "" }
+        let clauses = sortState.columns.map { col in
+            "\(quoteIdentifier(col.name, for: type)) \(col.ascending ? "ASC" : "DESC")"
+        }
+        return "ORDER BY " + clauses.joined(separator: ", ")
     }
 
     private static func dialectDescriptor(for type: DatabaseType) -> SQLDialectDescriptor {
