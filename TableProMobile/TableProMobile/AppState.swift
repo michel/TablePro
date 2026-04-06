@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import CoreSpotlight
 import Foundation
 import Observation
 import TableProDatabase
@@ -40,12 +41,14 @@ final class AppState {
         tags = tagStorage.load()
         secureStore.cleanOrphanedCredentials(validConnectionIds: Set(connections.map(\.id)))
         updateWidgetData()
+        updateSpotlightIndex()
 
         syncCoordinator.onConnectionsChanged = { [weak self] merged in
             guard let self else { return }
             self.connections = merged
             self.storage.save(merged)
             self.updateWidgetData()
+            self.updateSpotlightIndex()
         }
 
         syncCoordinator.onGroupsChanged = { [weak self] merged in
@@ -72,6 +75,7 @@ final class AppState {
         connections.append(connection)
         storage.save(connections)
         updateWidgetData()
+        updateSpotlightIndex()
         syncCoordinator.markDirty(connection.id)
         syncCoordinator.scheduleSyncAfterChange()
     }
@@ -81,6 +85,7 @@ final class AppState {
             connections[index] = connection
             storage.save(connections)
             updateWidgetData()
+            updateSpotlightIndex()
             syncCoordinator.markDirty(connection.id)
             syncCoordinator.scheduleSyncAfterChange()
         }
@@ -98,6 +103,7 @@ final class AppState {
         try? secureStore.delete(forKey: "com.TablePro.sshkeydata.\(connection.id.uuidString)")
         storage.save(connections)
         updateWidgetData()
+        updateSpotlightIndex()
         syncCoordinator.markDeleted(connection.id)
         syncCoordinator.scheduleSyncAfterChange()
     }
@@ -177,6 +183,24 @@ final class AppState {
 
         syncCoordinator.markDeletedTag(tagId)
         syncCoordinator.scheduleSyncAfterChange()
+    }
+
+    // MARK: - Spotlight
+
+    private func updateSpotlightIndex() {
+        let items = connections.map { conn in
+            let attributes = CSSearchableItemAttributeSet(contentType: .item)
+            attributes.title = conn.name.isEmpty ? conn.host : conn.name
+            attributes.contentDescription = "\(conn.type.rawValue) — \(conn.host):\(conn.port)"
+            return CSSearchableItem(
+                uniqueIdentifier: conn.id.uuidString,
+                domainIdentifier: "com.TablePro.connections",
+                attributeSet: attributes
+            )
+        }
+        CSSearchableIndex.default().deleteAllSearchableItems { _ in
+            CSSearchableIndex.default().indexSearchableItems(items)
+        }
     }
 
     // MARK: - Widget
