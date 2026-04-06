@@ -101,8 +101,15 @@ final class DataChangeManager {
     private let undoManager: UndoManager = {
         let manager = UndoManager()
         manager.levelsOfUndo = 100
+        manager.groupsByEvent = false
         return manager
     }()
+
+    private func registerUndoAction(_ handler: @escaping (DataChangeManager) -> Void) {
+        undoManager.beginUndoGrouping()
+        undoManager.registerUndo(withTarget: self, handler: handler)
+        undoManager.endUndoGrouping()
+    }
 
     private var lastUndoResult: UndoResult?
 
@@ -229,7 +236,7 @@ final class DataChangeManager {
                     newValue: newValue
                 ))
             }
-            undoManager.registerUndo(withTarget: self) { target in
+            registerUndoAction { target in
                 target.applyDataUndo(.cellEdit(
                     rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName,
                     previousValue: oldValue, newValue: newValue
@@ -284,7 +291,7 @@ final class DataChangeManager {
             changedRowIndices.insert(rowIndex)
         }
 
-        undoManager.registerUndo(withTarget: self) { target in
+        registerUndoAction { target in
             target.applyDataUndo(.cellEdit(
                 rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName,
                 previousValue: oldValue, newValue: newValue
@@ -304,7 +311,7 @@ final class DataChangeManager {
         changeIndex[RowChangeKey(rowIndex: rowIndex, type: .delete)] = changes.count - 1
         deletedRowIndices.insert(rowIndex)
         changedRowIndices.insert(rowIndex)
-        undoManager.registerUndo(withTarget: self) { target in
+        registerUndoAction { target in
             target.applyDataUndo(.rowDeletion(rowIndex: rowIndex, originalRow: originalRow))
         }
         undoManager.setActionName(String(localized: "Delete Row"))
@@ -333,7 +340,7 @@ final class DataChangeManager {
             changedRowIndices.insert(rowIndex)
             batchData.append((rowIndex: rowIndex, originalRow: originalRow))
         }
-        undoManager.registerUndo(withTarget: self) { target in
+        registerUndoAction { target in
             target.applyDataUndo(.batchRowDeletion(rows: batchData))
         }
         undoManager.setActionName(String(localized: "Delete Rows"))
@@ -348,7 +355,7 @@ final class DataChangeManager {
         changeIndex[RowChangeKey(rowIndex: rowIndex, type: .insert)] = changes.count - 1
         insertedRowIndices.insert(rowIndex)
         changedRowIndices.insert(rowIndex)
-        undoManager.registerUndo(withTarget: self) { target in
+        registerUndoAction { target in
             target.applyDataUndo(.rowInsertion(rowIndex: rowIndex))
         }
         undoManager.setActionName(String(localized: "Insert Row"))
@@ -385,8 +392,68 @@ final class DataChangeManager {
             }
         }
 
+        var newInsertedRowData: [Int: [String?]] = [:]
+        for (key, value) in insertedRowData {
+            if key > rowIndex {
+                newInsertedRowData[key - 1] = value
+            } else {
+                newInsertedRowData[key] = value
+            }
+        }
+        insertedRowData = newInsertedRowData
+
+        var newModifiedCells: [Int: Set<Int>] = [:]
+        for (key, value) in modifiedCells {
+            if key > rowIndex {
+                newModifiedCells[key - 1] = value
+            } else if key < rowIndex {
+                newModifiedCells[key] = value
+            }
+        }
+        modifiedCells = newModifiedCells
+
         rebuildChangeIndex()
         hasChanges = !changes.isEmpty
+    }
+
+    private func shiftRowIndicesUp(from insertionPoint: Int) {
+        for i in 0..<changes.count {
+            if changes[i].rowIndex >= insertionPoint {
+                changes[i].rowIndex += 1
+            }
+        }
+
+        var shiftedInserted = Set<Int>()
+        for idx in insertedRowIndices {
+            shiftedInserted.insert(idx >= insertionPoint ? idx + 1 : idx)
+        }
+        insertedRowIndices = shiftedInserted
+
+        var shiftedDeleted = Set<Int>()
+        for idx in deletedRowIndices {
+            shiftedDeleted.insert(idx >= insertionPoint ? idx + 1 : idx)
+        }
+        deletedRowIndices = shiftedDeleted
+
+        var newInsertedRowData: [Int: [String?]] = [:]
+        for (key, value) in insertedRowData {
+            newInsertedRowData[key >= insertionPoint ? key + 1 : key] = value
+        }
+        insertedRowData = newInsertedRowData
+
+        var newModifiedCells: [Int: Set<Int>] = [:]
+        for (key, value) in modifiedCells {
+            newModifiedCells[key >= insertionPoint ? key + 1 : key] = value
+        }
+        modifiedCells = newModifiedCells
+
+        var newChangedRows = Set<Int>()
+        for idx in changedRowIndices {
+            newChangedRows.insert(idx >= insertionPoint ? idx + 1 : idx)
+        }
+        changedRowIndices = newChangedRows
+
+        rebuildChangeIndex()
     }
 
     func undoBatchRowInsertion(rowIndices: [Int]) {
@@ -413,7 +480,7 @@ final class DataChangeManager {
             insertedRowData.removeValue(forKey: rowIndex)
         }
 
-        undoManager.registerUndo(withTarget: self) { target in
+        registerUndoAction { target in
             target.applyDataUndo(.batchRowInsertion(rowIndices: validRows, rowValues: rowValues))
         }
         undoManager.setActionName(String(localized: "Insert Rows"))
@@ -443,7 +510,7 @@ final class DataChangeManager {
     private func applyDataUndo(_ action: UndoAction) {
         switch action {
         case .cellEdit(let rowIndex, let columnIndex, let columnName, let previousValue, let newValue):
-            undoManager.registerUndo(withTarget: self) { target in
+            registerUndoAction { target in
                 target.applyDataUndo(.cellEdit(
                     rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName,
                     previousValue: newValue, newValue: previousValue
@@ -494,8 +561,6 @@ final class DataChangeManager {
                     }
                 }
             } else {
-                // Redo path: no existing change record, re-apply the edit.
-                // Cell currently holds newValue, changing to previousValue.
                 recordCellChangeForRedo(
                     rowIndex: rowIndex, columnIndex: columnIndex, columnName: columnName,
                     oldValue: newValue, newValue: previousValue
@@ -505,24 +570,23 @@ final class DataChangeManager {
             lastUndoResult = UndoResult(action: action, needsRowRemoval: false, needsRowRestore: false, restoreRow: nil)
 
         case .rowInsertion(let rowIndex):
-            if insertedRowIndices.contains(rowIndex) {
-                // Undo: capture values BEFORE undoRowInsertion clears them
-                let savedValues = insertedRowData[rowIndex]
-                undoManager.registerUndo(withTarget: self) { [savedValues] target in
-                    if let savedValues {
-                        target.insertedRowData[rowIndex] = savedValues
-                    }
-                    target.applyDataUndo(.rowInsertion(rowIndex: rowIndex))
+            let savedValues = insertedRowData[rowIndex]
+            registerUndoAction { [savedValues] target in
+                if let savedValues {
+                    target.insertedRowData[rowIndex] = savedValues
                 }
-                undoManager.setActionName(String(localized: "Insert Row"))
+                target.applyDataUndo(.rowInsertion(rowIndex: rowIndex))
+            }
+            undoManager.setActionName(String(localized: "Insert Row"))
+
+            if insertedRowIndices.contains(rowIndex) {
                 undoRowInsertion(rowIndex: rowIndex)
                 changedRowIndices.insert(rowIndex)
                 lastUndoResult = UndoResult(
                     action: action, needsRowRemoval: true, needsRowRestore: false, restoreRow: nil
                 )
             } else {
-                // Redo: re-insert the row, then register reverse
-                let savedValues = insertedRowData[rowIndex]
+                shiftRowIndicesUp(from: rowIndex)
                 insertedRowIndices.insert(rowIndex)
                 let cellChanges = columns.enumerated().map { index, columnName in
                     CellChange(
@@ -539,15 +603,6 @@ final class DataChangeManager {
                 if let savedValues {
                     insertedRowData[rowIndex] = savedValues
                 }
-                // Register reverse AFTER insertedRowData is populated
-                let valuesToCapture = insertedRowData[rowIndex]
-                undoManager.registerUndo(withTarget: self) { [valuesToCapture] target in
-                    if let valuesToCapture {
-                        target.insertedRowData[rowIndex] = valuesToCapture
-                    }
-                    target.applyDataUndo(.rowInsertion(rowIndex: rowIndex))
-                }
-                undoManager.setActionName(String(localized: "Insert Row"))
                 changedRowIndices.insert(rowIndex)
                 lastUndoResult = UndoResult(
                     action: action, needsRowRemoval: false, needsRowRestore: true, restoreRow: savedValues
@@ -555,20 +610,18 @@ final class DataChangeManager {
             }
 
         case .rowDeletion(let rowIndex, let originalRow):
-            undoManager.registerUndo(withTarget: self) { target in
+            registerUndoAction { target in
                 target.applyDataUndo(.rowDeletion(rowIndex: rowIndex, originalRow: originalRow))
             }
             undoManager.setActionName(String(localized: "Delete Row"))
 
             if deletedRowIndices.contains(rowIndex) {
-                // Undo: restore the deleted row
                 undoRowDeletion(rowIndex: rowIndex)
                 changedRowIndices.insert(rowIndex)
                 lastUndoResult = UndoResult(
                     action: action, needsRowRemoval: false, needsRowRestore: true, restoreRow: originalRow
                 )
             } else {
-                // Redo: re-delete the row
                 redoRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
                 changedRowIndices.insert(rowIndex)
                 lastUndoResult = UndoResult(
@@ -577,14 +630,13 @@ final class DataChangeManager {
             }
 
         case .batchRowDeletion(let rows):
-            undoManager.registerUndo(withTarget: self) { target in
+            registerUndoAction { target in
                 target.applyDataUndo(.batchRowDeletion(rows: rows))
             }
             undoManager.setActionName(String(localized: "Delete Rows"))
 
-            let firstRowDeleted = rows.first.map { deletedRowIndices.contains($0.rowIndex) } ?? false
-            if firstRowDeleted {
-                // Undo: restore all deleted rows
+            let isUndo = rows.contains { deletedRowIndices.contains($0.rowIndex) }
+            if isUndo {
                 for (rowIndex, _) in rows.reversed() {
                     undoRowDeletion(rowIndex: rowIndex)
                     changedRowIndices.insert(rowIndex)
@@ -593,7 +645,6 @@ final class DataChangeManager {
                     action: action, needsRowRemoval: false, needsRowRestore: true, restoreRow: nil
                 )
             } else {
-                // Redo: re-delete all rows
                 for (rowIndex, originalRow) in rows {
                     redoRowDeletion(rowIndex: rowIndex, originalRow: originalRow)
                     changedRowIndices.insert(rowIndex)
@@ -604,14 +655,13 @@ final class DataChangeManager {
             }
 
         case .batchRowInsertion(let rowIndices, let rowValues):
-            undoManager.registerUndo(withTarget: self) { target in
+            registerUndoAction { target in
                 target.applyDataUndo(.batchRowInsertion(rowIndices: rowIndices, rowValues: rowValues))
             }
             undoManager.setActionName(String(localized: "Insert Rows"))
 
             let firstInserted = rowIndices.first.map { insertedRowIndices.contains($0) } ?? false
             if firstInserted {
-                // Undo: remove the inserted rows
                 for rowIndex in rowIndices {
                     removeChangeByKey(rowIndex: rowIndex, type: .insert)
                     insertedRowIndices.remove(rowIndex)
@@ -622,7 +672,6 @@ final class DataChangeManager {
                     action: action, needsRowRemoval: true, needsRowRestore: false, restoreRow: nil
                 )
             } else {
-                // Redo: re-insert the rows
                 for (index, rowIndex) in rowIndices.enumerated().reversed() {
                     guard index < rowValues.count else { continue }
                     let values = rowValues[index]

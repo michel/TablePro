@@ -576,6 +576,8 @@ final class StructureChangeManager {
                     } else {
                         pendingChanges.removeValue(forKey: .column(id))
                     }
+                } else {
+                    pendingChanges[.column(id)] = .addColumn(old)
                 }
             }
 
@@ -584,15 +586,19 @@ final class StructureChangeManager {
                 target.applySchemaUndo(.columnDelete(column: column))
             }
             undoManager.setActionName(String(localized: "Add Column"))
-            workingColumns.removeAll { $0.id == column.id }
-            pendingChanges.removeValue(forKey: .column(column.id))
+            if currentColumns.contains(where: { $0.id == column.id }) {
+                pendingChanges[.column(column.id)] = .deleteColumn(column)
+            } else {
+                workingColumns.removeAll { $0.id == column.id }
+                pendingChanges.removeValue(forKey: .column(column.id))
+            }
 
         case .columnDelete(let column):
             undoManager.registerUndo(withTarget: self) { target in
                 target.applySchemaUndo(.columnAdd(column: column))
             }
             undoManager.setActionName(String(localized: "Delete Column"))
-            if workingColumns.contains(where: { $0.id == column.id }) {
+            if currentColumns.contains(where: { $0.id == column.id }) {
                 pendingChanges.removeValue(forKey: .column(column.id))
             } else {
                 workingColumns.append(column)
@@ -613,6 +619,8 @@ final class StructureChangeManager {
                     } else {
                         pendingChanges.removeValue(forKey: .index(id))
                     }
+                } else {
+                    pendingChanges[.index(id)] = .addIndex(old)
                 }
             }
 
@@ -621,15 +629,19 @@ final class StructureChangeManager {
                 target.applySchemaUndo(.indexDelete(index: index))
             }
             undoManager.setActionName(String(localized: "Add Index"))
-            workingIndexes.removeAll { $0.id == index.id }
-            pendingChanges.removeValue(forKey: .index(index.id))
+            if currentIndexes.contains(where: { $0.id == index.id }) {
+                pendingChanges[.index(index.id)] = .deleteIndex(index)
+            } else {
+                workingIndexes.removeAll { $0.id == index.id }
+                pendingChanges.removeValue(forKey: .index(index.id))
+            }
 
         case .indexDelete(let index):
             undoManager.registerUndo(withTarget: self) { target in
                 target.applySchemaUndo(.indexAdd(index: index))
             }
             undoManager.setActionName(String(localized: "Delete Index"))
-            if workingIndexes.contains(where: { $0.id == index.id }) {
+            if currentIndexes.contains(where: { $0.id == index.id }) {
                 pendingChanges.removeValue(forKey: .index(index.id))
             } else {
                 workingIndexes.append(index)
@@ -650,6 +662,8 @@ final class StructureChangeManager {
                     } else {
                         pendingChanges.removeValue(forKey: .foreignKey(id))
                     }
+                } else {
+                    pendingChanges[.foreignKey(id)] = .addForeignKey(old)
                 }
             }
 
@@ -658,15 +672,19 @@ final class StructureChangeManager {
                 target.applySchemaUndo(.foreignKeyDelete(fk: fk))
             }
             undoManager.setActionName(String(localized: "Add Foreign Key"))
-            workingForeignKeys.removeAll { $0.id == fk.id }
-            pendingChanges.removeValue(forKey: .foreignKey(fk.id))
+            if currentForeignKeys.contains(where: { $0.id == fk.id }) {
+                pendingChanges[.foreignKey(fk.id)] = .deleteForeignKey(fk)
+            } else {
+                workingForeignKeys.removeAll { $0.id == fk.id }
+                pendingChanges.removeValue(forKey: .foreignKey(fk.id))
+            }
 
         case .foreignKeyDelete(let fk):
             undoManager.registerUndo(withTarget: self) { target in
                 target.applySchemaUndo(.foreignKeyAdd(fk: fk))
             }
             undoManager.setActionName(String(localized: "Delete Foreign Key"))
-            if workingForeignKeys.contains(where: { $0.id == fk.id }) {
+            if currentForeignKeys.contains(where: { $0.id == fk.id }) {
                 pendingChanges.removeValue(forKey: .foreignKey(fk.id))
             } else {
                 workingForeignKeys.append(fk)
@@ -687,6 +705,7 @@ final class StructureChangeManager {
             }
         }
 
+        validate()
         hasChanges = !pendingChanges.isEmpty
         reloadVersion += 1
         rebuildVisualStateCache()
