@@ -8,10 +8,12 @@
 import AppKit
 
 enum PasswordPromptHelper {
-    /// Presents a modal alert with a secure text field to collect a password or API token.
-    /// Returns the entered value (may be empty for passwordless databases), or `nil` if the user cancels.
     @MainActor
-    static func prompt(connectionName: String, isAPIToken: Bool = false) -> String? {
+    static func prompt(
+        connectionName: String,
+        isAPIToken: Bool = false,
+        window: NSWindow? = nil
+    ) async -> String? {
         let alert = NSAlert()
         alert.messageText = isAPIToken
             ? String(localized: "API Token Required")
@@ -29,6 +31,16 @@ enum PasswordPromptHelper {
             ? String(localized: "API Token") : String(localized: "Password")
         alert.accessoryView = input
         alert.window.initialFirstResponder = input
+
+        if let window {
+            let response = await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { response in
+                    continuation.resume(returning: response)
+                }
+            }
+            guard response == .alertFirstButtonReturn else { return nil }
+            return input.stringValue
+        }
 
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         return input.stringValue
