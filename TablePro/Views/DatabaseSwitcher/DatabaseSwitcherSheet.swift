@@ -264,12 +264,12 @@ struct DatabaseSwitcherSheet: View {
             Image(systemName: database.icon)
                 .font(.system(size: 14))
                 .foregroundStyle(
-                    isSelected ? .white : (database.isSystemDatabase ? Color(nsColor: .systemOrange) : Color(nsColor: .systemBlue)))
+                    isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : (database.isSystemDatabase ? Color(nsColor: .systemOrange) : Color(nsColor: .systemBlue)))
 
             // Name
             Text(database.name)
                 .font(.system(size: 13))
-                .foregroundStyle(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : .primary)
 
             Spacer()
 
@@ -277,14 +277,14 @@ struct DatabaseSwitcherSheet: View {
             if isCurrent {
                 Text("current")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
+                    .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.7) : .secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
                             .fill(
                                 isSelected
-                                    ? Color.white.opacity(0.15)
+                                    ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.15)
                                     : Color(nsColor: .quaternaryLabelColor))
                     )
             }

@@ -163,18 +163,18 @@ internal struct QuickSwitcherSheet: View {
         return HStack(spacing: 10) {
             Image(systemName: item.iconName)
                 .font(.system(size: ThemeEngine.shared.activeTheme.iconSizes.default))
-                .foregroundStyle(isSelected ? .white : .secondary)
+                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : .secondary)
 
             Text(item.name)
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
-                .foregroundStyle(isSelected ? .white : .primary)
+                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : .primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             if !item.subtitle.isEmpty {
                 Text(item.subtitle)
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.7) : Color.secondary)
+                    .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.7) : Color.secondary)
                     .lineLimit(1)
             }
 
@@ -182,12 +182,12 @@ internal struct QuickSwitcherSheet: View {
 
             Text(item.kindLabel)
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.caption, weight: .medium))
-                .foregroundStyle(isSelected ? .white.opacity(0.7) : .secondary)
+                .foregroundStyle(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.7) : .secondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isSelected ? Color.white.opacity(0.15) : Color(nsColor: .quaternaryLabelColor))
+                        .fill(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.15) : Color(nsColor: .quaternaryLabelColor))
                 )
         }
         .padding(.vertical, 4)

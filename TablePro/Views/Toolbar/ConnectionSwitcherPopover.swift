@@ -234,19 +234,19 @@ struct ConnectionSwitcherPopover: View {
         HStack(spacing: 8) {
             // Color indicator
             Circle()
-                .fill(isHighlighted ? Color.white : connection.displayColor)
+                .fill(isHighlighted ? Color(nsColor: .alternateSelectedControlTextColor) : connection.displayColor)
                 .frame(width: 8, height: 8)
 
             // Connection info
             VStack(alignment: .leading, spacing: 1) {
                 Text(connection.name)
                     .font(.system(size: 13, weight: isActive ? .semibold : .regular))
-                    .foregroundStyle(isHighlighted ? .white : .primary)
+                    .foregroundStyle(isHighlighted ? Color(nsColor: .alternateSelectedControlTextColor) : .primary)
                     .lineLimit(1)
 
                 Text(connectionSubtitle(connection))
                     .font(.system(size: 11))
-                    .foregroundStyle(isHighlighted ? .white.opacity(0.7) : .secondary)
+                    .foregroundStyle(isHighlighted ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.7) : .secondary)
                     .lineLimit(1)
             }
 
@@ -258,23 +258,23 @@ struct ConnectionSwitcherPopover: View {
                     .controlSize(.small)
             } else if isActive {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(isHighlighted ? .white : Color(nsColor: .systemGreen))
+                    .foregroundStyle(isHighlighted ? Color(nsColor: .alternateSelectedControlTextColor) : Color(nsColor: .systemGreen))
                     .font(.system(size: 14))
             } else if isConnected {
                 Circle()
-                    .fill(isHighlighted ? Color.white : Color(nsColor: .systemGreen))
+                    .fill(isHighlighted ? Color(nsColor: .alternateSelectedControlTextColor) : Color(nsColor: .systemGreen))
                     .frame(width: 6, height: 6)
             }
 
             // Database type badge
             Text(connection.type.rawValue.uppercased())
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .foregroundStyle(isHighlighted ? .white : .secondary)
+                .foregroundStyle(isHighlighted ? Color(nsColor: .alternateSelectedControlTextColor) : .secondary)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
                 .background(
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(isHighlighted ? Color.white.opacity(0.2) : Color(nsColor: .separatorColor))
+                        .fill(isHighlighted ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.2) : Color(nsColor: .separatorColor))
                 )
         }
         .padding(.vertical, 2)
