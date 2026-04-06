@@ -44,16 +44,6 @@ internal final class PromptTOTPProvider: TOTPProvider, @unchecked Sendable {
         alert.accessoryView = textField
         alert.window.initialFirstResponder = textField
 
-        if let window = NSApp.keyWindow {
-            var sheetResponse: NSApplication.ModalResponse = .cancel
-            alert.beginSheetModal(for: window) { response in
-                sheetResponse = response
-                NSApp.stopModal()
-            }
-            NSApp.runModal(for: alert.window)
-            return sheetResponse == .alertFirstButtonReturn ? textField.stringValue : nil
-        }
-
         let response = alert.runModal()
         return response == .alertFirstButtonReturn ? textField.stringValue : nil
     }
