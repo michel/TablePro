@@ -198,7 +198,9 @@ final class AppState {
                 attributeSet: attributes
             )
         }
-        CSSearchableIndex.default().deleteAllSearchableItems { _ in
+        if items.isEmpty {
+            CSSearchableIndex.default().deleteAllSearchableItems()
+        } else {
             CSSearchableIndex.default().indexSearchableItems(items)
         }
     }
