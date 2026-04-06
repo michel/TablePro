@@ -407,15 +407,6 @@ struct AppMenuCommands: Commands {
             .keyboardShortcut("-", modifiers: .command)
         }
 
-        CommandGroup(after: .toolbar) {
-            Button {
-                NSApp.keyWindow?.toggleFullScreen(nil)
-            } label: {
-                Text("Enter Full Screen")
-            }
-            .keyboardShortcut("f", modifiers: [.control, .command])
-        }
-
         // Tab navigation shortcuts — native macOS window tabs
         CommandGroup(after: .windowArrangement) {
             // Tab switching by number (Cmd+1 through Cmd+9)
