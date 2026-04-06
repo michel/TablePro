@@ -23,7 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use sheet presentation for all file open/save panels instead of free-floating dialogs
 - Replace event monitor with native SwiftUI .onKeyPress() in connection switcher
 - Extract reusable SearchFieldView component from 4 custom search field implementations
-- Replace custom resize handle with native NSSplitView for inspector panel
+
+### Changed
+
+- Migrate undo system from custom stacks to NSUndoManager — Edit menu now shows "Undo Edit Cell", "Undo Delete Row", etc.
 
 ### Added
 

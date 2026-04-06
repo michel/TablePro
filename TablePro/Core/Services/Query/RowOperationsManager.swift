@@ -160,36 +160,7 @@ final class RowOperationsManager {
     /// - Returns: Updated selection indices
     func undoLastChange(resultRows: inout [[String?]]) -> Set<Int>? {
         guard let result = changeManager.undoLastChange() else { return nil }
-
-        var adjustedSelection: Set<Int>?
-
-        switch result.action {
-        case .cellEdit(let rowIndex, let columnIndex, _, let previousValue, _):
-            if rowIndex < resultRows.count {
-                resultRows[rowIndex][columnIndex] = previousValue
-            }
-
-        case .rowInsertion(let rowIndex):
-            if rowIndex < resultRows.count {
-                resultRows.remove(at: rowIndex)
-                adjustedSelection = Set<Int>()
-            }
-
-        case .rowDeletion:
-            break
-
-        case .batchRowDeletion:
-            break
-
-        case .batchRowInsertion(let rowIndices, let rowValues):
-            for (index, rowIndex) in rowIndices.enumerated().reversed() {
-                guard index < rowValues.count else { continue }
-                guard rowIndex <= resultRows.count else { continue }
-                resultRows.insert(rowValues[index], at: rowIndex)
-            }
-        }
-
-        return adjustedSelection
+        return applyUndoResult(result, resultRows: &resultRows)
     }
 
     /// Redo the last undone change
@@ -199,17 +170,27 @@ final class RowOperationsManager {
     /// - Returns: Updated selection indices
     func redoLastChange(resultRows: inout [[String?]], columns: [String]) -> Set<Int>? {
         guard let result = changeManager.redoLastChange() else { return nil }
+        return applyUndoResult(result, resultRows: &resultRows)
+    }
 
+    private func applyUndoResult(_ result: UndoResult, resultRows: inout [[String?]]) -> Set<Int>? {
         switch result.action {
-        case .cellEdit(let rowIndex, let columnIndex, _, _, let newValue):
+        case .cellEdit(let rowIndex, let columnIndex, _, let previousValue, _):
             if rowIndex < resultRows.count {
-                resultRows[rowIndex][columnIndex] = newValue
+                resultRows[rowIndex][columnIndex] = previousValue
             }
 
         case .rowInsertion(let rowIndex):
-            let newValues = [String?](repeating: nil, count: columns.count)
-            if rowIndex <= resultRows.count {
-                resultRows.insert(newValues, at: rowIndex)
+            if result.needsRowRemoval {
+                if rowIndex < resultRows.count {
+                    resultRows.remove(at: rowIndex)
+                    return Set<Int>()
+                }
+            } else if result.needsRowRestore {
+                let values = result.restoreRow ?? [String?](repeating: nil, count: resultRows.first?.count ?? 0)
+                if rowIndex <= resultRows.count {
+                    resultRows.insert(values, at: rowIndex)
+                }
             }
 
         case .rowDeletion:
@@ -218,10 +199,18 @@ final class RowOperationsManager {
         case .batchRowDeletion:
             break
 
-        case .batchRowInsertion(let rowIndices, _):
-            for rowIndex in rowIndices.sorted(by: >) {
-                guard rowIndex < resultRows.count else { continue }
-                resultRows.remove(at: rowIndex)
+        case .batchRowInsertion(let rowIndices, let rowValues):
+            if result.needsRowRemoval {
+                for rowIndex in rowIndices.sorted(by: >) {
+                    guard rowIndex < resultRows.count else { continue }
+                    resultRows.remove(at: rowIndex)
+                }
+            } else if result.needsRowRestore {
+                for (index, rowIndex) in rowIndices.enumerated().reversed() {
+                    guard index < rowValues.count else { continue }
+                    guard rowIndex <= resultRows.count else { continue }
+                    resultRows.insert(rowValues[index], at: rowIndex)
+                }
             }
         }
 
