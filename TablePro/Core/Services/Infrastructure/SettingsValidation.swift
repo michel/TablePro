@@ -20,13 +20,13 @@ enum SettingsValidationError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .stringTooLong(let field, let maxLength):
-            return String(localized: "\(field) must be \(maxLength) characters or less")
+            return String(format: String(localized: "%@ must be %d characters or less"), field, maxLength)
         case .stringEmpty(let field):
-            return String(localized: "\(field) cannot be empty")
+            return String(format: String(localized: "%@ cannot be empty"), field)
         case .intOutOfRange(let field, let min, let max):
-            return String(localized: "\(field) must be between \(min.formatted()) and \(max.formatted())")
+            return String(format: String(localized: "%@ must be between %@ and %@"), field, min.formatted(), max.formatted())
         case .intNegative(let field):
-            return String(localized: "\(field) cannot be negative")
+            return String(format: String(localized: "%@ cannot be negative"), field)
         }
     }
 }

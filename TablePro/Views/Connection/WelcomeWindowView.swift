@@ -42,7 +42,7 @@ struct WelcomeWindowView: View {
         .confirmationDialog(
             vm.connectionsToDelete.count == 1
                 ? String(localized: "Delete Connection")
-                : String(localized: "Delete \(vm.connectionsToDelete.count) Connections"),
+                : String(format: String(localized: "Delete %d Connections"), vm.connectionsToDelete.count),
             isPresented: $vm.showDeleteConfirmation
         ) {
             Button(String(localized: "Delete"), role: .destructive) {

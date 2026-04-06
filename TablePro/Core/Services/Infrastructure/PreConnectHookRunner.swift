@@ -21,9 +21,9 @@ enum PreConnectHookRunner {
             case let .scriptFailed(exitCode, stderr):
                 let message = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
                 if message.isEmpty {
-                    return String(localized: "Pre-connect script failed with exit code \(exitCode)")
+                    return String(format: String(localized: "Pre-connect script failed with exit code %d"), exitCode)
                 }
-                return String(localized: "Pre-connect script failed (exit \(exitCode)): \(message)")
+                return String(format: String(localized: "Pre-connect script failed (exit %d): %@"), exitCode, message)
             case .timeout:
                 return String(localized: "Pre-connect script timed out after 10 seconds")
             case .cancelled:

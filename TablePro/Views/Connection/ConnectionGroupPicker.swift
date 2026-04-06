@@ -251,7 +251,7 @@ private struct GroupColorPicker: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(String(localized: "Color \(color.rawValue)"))
+                .accessibilityLabel(String(format: String(localized: "Color %@"), color.rawValue))
             }
         }
     }

@@ -38,7 +38,7 @@ struct SectionHeaderView<Actions: View>: View {
                 headerContent
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(String(localized: "\(title), \(isExpanded ? "collapse" : "expand")"))
+            .accessibilityLabel(String(format: String(localized: "%@, %@"), title, isExpanded ? String(localized: "collapse") : String(localized: "expand")))
         } else {
             headerContent
         }

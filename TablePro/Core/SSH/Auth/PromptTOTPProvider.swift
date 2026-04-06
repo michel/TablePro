@@ -45,10 +45,7 @@ internal final class PromptTOTPProvider: TOTPProvider, @unchecked Sendable {
         alert.window.initialFirstResponder = textField
 
         let response = alert.runModal()
-        if response == .alertFirstButtonReturn {
-            return textField.stringValue
-        }
-        return nil
+        return response == .alertFirstButtonReturn ? textField.stringValue : nil
     }
 
     private func handleResult(_ code: String?) throws -> String {

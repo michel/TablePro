@@ -100,7 +100,7 @@ internal final class SafeModeGuard {
 
         return await AlertHelper.confirmDestructive(
             title: operationDescription,
-            message: String(localized: "Are you sure you want to execute this query?\n\n\(preview)"),
+            message: String(format: String(localized: "Are you sure you want to execute this query?\n\n%@"), preview),
             confirmButton: String(localized: "Execute"),
             cancelButton: String(localized: "Cancel"),
             window: window

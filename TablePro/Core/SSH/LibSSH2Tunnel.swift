@@ -84,7 +84,7 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
     // MARK: - Forwarding
 
     func startForwarding(remoteHost: String, remotePort: Int) {
-        libssh2_session_set_blocking(session, 0)
+        sessionQueue.sync { libssh2_session_set_blocking(session, 0) }
 
         forwardingTask = Task.detached { [weak self] in
             guard let self else { return }
@@ -137,7 +137,7 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
     // MARK: - Keep-Alive
 
     func startKeepAlive() {
-        libssh2_keepalive_config(session, 1, 30)
+        sessionQueue.sync { libssh2_keepalive_config(session, 1, 30) }
 
         keepAliveTask = Task.detached { [weak self] in
             guard let self else { return }
@@ -188,24 +188,29 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
         // Close listenFD to stop accepting new connections
         Darwin.close(listenFD)
 
-        // Defer session teardown to a detached task that waits for relays to exit.
+        // Defer session teardown to a detached task that waits for all tasks to exit.
+        let sessionQueue = self.sessionQueue
         let session = self.session
         let socketFD = self.socketFD
         let jumpChain = self.jumpChain
         let connectionId = self.connectionId
+        let forwardingTask = self.forwardingTask
+        let keepAliveTask = self.keepAliveTask
         Task.detached {
-            // Wait for all relay tasks to finish (they'll exit quickly since
-            // socketFD is shut down and isRunning is false)
+            // Wait for all tasks to exit before touching the session.
+            await forwardingTask?.value
+            await keepAliveTask?.value
             for task in currentRelayTasks {
                 await task.value
             }
 
-            // Now safe to close the socket and tear down the session
-            Darwin.close(socketFD)
-
-            libssh2_session_set_blocking(session, 1)
-            tablepro_libssh2_session_disconnect(session, "Closing tunnel")
-            libssh2_session_free(session)
+            // Tear down on sessionQueue to serialize after any pending libssh2 blocks.
+            sessionQueue.sync {
+                Darwin.close(socketFD)
+                libssh2_session_set_blocking(session, 1)
+                tablepro_libssh2_session_disconnect(session, "Closing tunnel")
+                libssh2_session_free(session)
+            }
 
             for hop in jumpChain.reversed() {
                 hop.relayTask?.cancel()
@@ -286,7 +291,7 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
     /// Open a direct-tcpip channel, handling EAGAIN with select().
     /// Must be called on `sessionQueue`.
     private func openDirectTcpipChannel(remoteHost: String, remotePort: Int) -> OpaquePointer? {
-        while true {
+        while isRunning {
             let channel = libssh2_channel_direct_tcpip_ex(
                 session,
                 remoteHost,
@@ -308,6 +313,7 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
                 return nil
             }
         }
+        return nil
     }
 
     /// Bidirectional relay between a client socket and an SSH channel.
@@ -332,9 +338,13 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
             }
         }
 
-        relayTasks.withLock { tasks in
+        let shouldCancel = relayTasks.withLock { tasks -> Bool in
             tasks.removeAll { $0.isCancelled }
             tasks.append(task)
+            return !isAlive.withLock { $0 }
+        }
+        if shouldCancel {
+            task.cancel()
         }
     }
 
@@ -403,8 +413,11 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
                     if written > 0 {
                         totalWritten += written
                     } else if written == Int(LIBSSH2_ERROR_EAGAIN) {
-                        _ = self.waitForSocket(
-                            session: self.session,
+                        let directions = sessionQueue.sync {
+                            libssh2_session_block_directions(self.session)
+                        }
+                        _ = self.waitForSocketDirections(
+                            directions: directions,
                             socketFD: self.socketFD,
                             timeoutMs: 1_000
                         )
@@ -417,9 +430,15 @@ internal final class LibSSH2Tunnel: @unchecked Sendable {
     }
 
     /// Wait for the SSH socket to become ready, based on libssh2's block directions.
+    /// Must be called on `sessionQueue` (reads session state via `libssh2_session_block_directions`).
     private func waitForSocket(session: OpaquePointer, socketFD: Int32, timeoutMs: Int32) -> Bool {
         let directions = libssh2_session_block_directions(session)
+        return waitForSocketDirections(directions: directions, socketFD: socketFD, timeoutMs: timeoutMs)
+    }
 
+    /// Wait for the SSH socket to become ready with pre-fetched block directions.
+    /// Safe to call from any queue since it does not access the session.
+    private func waitForSocketDirections(directions: Int32, socketFD: Int32, timeoutMs: Int32) -> Bool {
         var events: Int16 = 0
         if directions & LIBSSH2_SESSION_BLOCK_INBOUND != 0 {
             events |= Int16(POLLIN)

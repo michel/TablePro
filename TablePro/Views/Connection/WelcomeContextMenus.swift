@@ -19,7 +19,7 @@ extension WelcomeWindowView {
     private func multiSelectionContextMenu(for connection: DatabaseConnection) -> some View {
         Button { vm.connectSelectedConnections() } label: {
             Label(
-                String(localized: "Connect \(vm.selectedConnectionIds.count) Connections"),
+                String(format: String(localized: "Connect %d Connections"), vm.selectedConnectionIds.count),
                 systemImage: "play.fill"
             )
         }
@@ -30,7 +30,7 @@ extension WelcomeWindowView {
             vm.exportConnections(Array(vm.selectedConnections))
         } label: {
             Label(
-                String(localized: "Export \(vm.selectedConnectionIds.count) Connections..."),
+                String(format: String(localized: "Export %d Connections..."), vm.selectedConnectionIds.count),
                 systemImage: "square.and.arrow.up"
             )
         }
@@ -53,7 +53,7 @@ extension WelcomeWindowView {
             vm.showDeleteConfirmation = true
         } label: {
             Label(
-                String(localized: "Delete \(vm.selectedConnectionIds.count) Connections"),
+                String(format: String(localized: "Delete %d Connections"), vm.selectedConnectionIds.count),
                 systemImage: "trash"
             )
         }

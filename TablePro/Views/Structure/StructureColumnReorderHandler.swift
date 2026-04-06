@@ -32,7 +32,7 @@ enum StructureColumnReorderHandler {
             case .sqlGenerationFailed:
                 return String(localized: "Failed to generate SQL for column reorder")
             case .executionFailed(let message):
-                return String(localized: "Column reorder failed: \(message)")
+                return String(format: String(localized: "Column reorder failed: %@"), message)
             }
         }
     }

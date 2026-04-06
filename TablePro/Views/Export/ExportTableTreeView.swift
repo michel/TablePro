@@ -26,13 +26,15 @@ struct ExportTableTreeView: View {
     var body: some View {
         VStack(spacing: 0) {
             List {
-                ForEach($databaseItems) { $database in
-                    DisclosureGroup(isExpanded: $database.isExpanded) {
-                        ForEach($database.tables) { $table in
-                            tableRow(table: $table)
+                ForEach(databaseItems) { database in
+                    let databaseBinding = $databaseItems.element(database)
+                    DisclosureGroup(isExpanded: databaseBinding.isExpanded) {
+                        ForEach(database.tables) { table in
+                            let tableBinding = databaseBinding.tables.element(table)
+                            tableRow(table: tableBinding)
                         }
                     } label: {
-                        databaseLabel(database: database, allTables: $database.tables)
+                        databaseLabel(database: database, allTables: databaseBinding.tables)
                     }
                 }
             }

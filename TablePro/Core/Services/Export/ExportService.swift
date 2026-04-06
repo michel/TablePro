@@ -26,15 +26,15 @@ enum ExportError: LocalizedError {
         case .noTablesSelected:
             return String(localized: "No tables selected for export")
         case .exportFailed(let message):
-            return String(localized: "Export failed: \(message)")
+            return String(format: String(localized: "Export failed: %@"), message)
         case .compressionFailed:
             return String(localized: "Failed to compress data")
         case .fileWriteFailed(let path):
-            return String(localized: "Failed to write file: \(path)")
+            return String(format: String(localized: "Failed to write file: %@"), path)
         case .encodingFailed:
             return String(localized: "Failed to encode content as UTF-8")
         case .formatNotFound(let formatId):
-            return String(localized: "Export format '\(formatId)' not found")
+            return String(format: String(localized: "Export format '%@' not found"), formatId)
         }
     }
 }

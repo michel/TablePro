@@ -145,7 +145,7 @@ struct RegistryPluginDetailView: View {
     private func formattedCount(_ count: Int) -> String {
         let formatted = Self.decimalFormatter.string(from: NSNumber(value: count)) ?? "\(count)"
         return count == 1
-            ? String(localized: "\(formatted) download")
-            : String(localized: "\(formatted) downloads")
+            ? String(format: String(localized: "%@ download"), formatted)
+            : String(format: String(localized: "%@ downloads"), formatted)
     }
 }

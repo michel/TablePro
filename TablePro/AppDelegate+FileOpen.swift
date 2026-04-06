@@ -132,7 +132,7 @@ extension AppDelegate {
             let preview = (sql as NSString).length > 300 ? String(sql.prefix(300)) + "…" : sql
             let confirmed = await AlertHelper.confirmDestructive(
                 title: String(localized: "Open Query from Link"),
-                message: String(localized: "An external link wants to open a query on connection \"\(name)\":\n\n\(preview)"),
+                message: String(format: String(localized: "An external link wants to open a query on connection \"%@\":\n\n%@"), name, preview),
                 confirmButton: String(localized: "Open Query"),
                 cancelButton: String(localized: "Cancel"),
                 window: NSApp.keyWindow
@@ -157,7 +157,7 @@ extension AppDelegate {
             fileOpenLogger.error("Deep link: no connection named '\(connectionName, privacy: .public)'")
             AlertHelper.showErrorSheet(
                 title: String(localized: "Connection Not Found"),
-                message: String(localized: "No saved connection named \"\(connectionName)\"."),
+                message: String(format: String(localized: "No saved connection named \"%@\"."), connectionName),
                 window: NSApp.keyWindow
             )
             return
@@ -191,7 +191,7 @@ extension AppDelegate {
                 {
                     let confirmed = await AlertHelper.confirmDestructive(
                         title: String(localized: "Pre-Connect Script"),
-                        message: String(localized: "Connection \"\(connection.name)\" has a script that will run before connecting:\n\n\(script)"),
+                        message: String(format: String(localized: "Connection \"%@\" has a script that will run before connecting:\n\n%@"), connection.name, script),
                         confirmButton: String(localized: "Run Script"),
                         cancelButton: String(localized: "Cancel"),
                         window: NSApp.keyWindow
@@ -221,7 +221,7 @@ extension AppDelegate {
         let details = "\(type.rawValue)://\(userPart)\(host):\(port)/\(database)"
         let confirmed = await AlertHelper.confirmDestructive(
             title: String(localized: "Import Connection from Link"),
-            message: String(localized: "An external link wants to add a database connection:\n\nName: \(name)\n\(details)"),
+            message: String(format: String(localized: "An external link wants to add a database connection:\n\nName: %@\n%@"), name, details),
             confirmButton: String(localized: "Add Connection"),
             cancelButton: String(localized: "Cancel"),
             window: NSApp.keyWindow

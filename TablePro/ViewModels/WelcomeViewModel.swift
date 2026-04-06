@@ -388,7 +388,7 @@ final class WelcomeViewModel {
             alert.messageText = String(localized: "Import Complete")
             alert.informativeText = count == 1
                 ? String(localized: "1 connection was imported.")
-                : String(localized: "\(count) connections were imported.")
+                : String(format: String(localized: "%d connections were imported."), count)
             alert.icon = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: nil)?
                 .withSymbolConfiguration(.init(paletteColors: [.white, .systemGreen]))
         } else {

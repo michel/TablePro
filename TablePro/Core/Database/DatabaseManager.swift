@@ -140,9 +140,10 @@ final class DatabaseManager {
                 passwordOverride = cached
             } else {
                 let isApiOnly = PluginManager.shared.connectionMode(for: connection.type) == .apiOnly
-                guard let prompted = PasswordPromptHelper.prompt(
+                guard let prompted = await PasswordPromptHelper.prompt(
                     connectionName: connection.name,
-                    isAPIToken: isApiOnly
+                    isAPIToken: isApiOnly,
+                    window: NSApp.keyWindow
                 ) else {
                     removeSessionEntry(for: connection.id)
                     currentSessionId = nil
@@ -754,9 +755,10 @@ final class DatabaseManager {
             var passwordOverride = activeSessions[sessionId]?.cachedPassword
             if session.connection.promptForPassword && passwordOverride == nil {
                 let isApiOnly = PluginManager.shared.connectionMode(for: session.connection.type) == .apiOnly
-                guard let prompted = PasswordPromptHelper.prompt(
+                guard let prompted = await PasswordPromptHelper.prompt(
                     connectionName: session.connection.name,
-                    isAPIToken: isApiOnly
+                    isAPIToken: isApiOnly,
+                    window: NSApp.keyWindow
                 ) else {
                     updateSession(sessionId) { $0.status = .disconnected }
                     return
@@ -827,7 +829,7 @@ final class DatabaseManager {
             Self.logger.error("Manual reconnect failed: \(error.localizedDescription)")
             updateSession(sessionId) { session in
                 session.status = .error(
-                    String(localized: "Reconnect failed: \(error.localizedDescription)"))
+                    String(format: String(localized: "Reconnect failed: %@"), error.localizedDescription))
                 session.clearCachedData()
             }
         }

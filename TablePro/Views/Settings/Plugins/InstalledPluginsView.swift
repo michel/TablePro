@@ -126,7 +126,7 @@ struct InstalledPluginsView: View {
             .buttonStyle(.borderless)
             .disabled(selectedPlugin == nil || selectedPlugin?.source == .builtIn)
             .accessibilityLabel(
-                selectedPlugin.map { String(localized: "Uninstall \($0.name)") }
+                selectedPlugin.map { String(format: String(localized: "Uninstall %@"), $0.name) }
                     ?? String(localized: "Uninstall plugin")
             )
 
@@ -199,7 +199,7 @@ struct InstalledPluginsView: View {
                         .toggleStyle(.switch)
                         .labelsHidden()
                         .controlSize(.small)
-                        .accessibilityLabel(String(localized: "Enable \(selected.name)"))
+                        .accessibilityLabel(String(format: String(localized: "Enable %@"), selected.name))
                     }
 
                     Text("v\(selected.version) · \(selected.source == .builtIn ? String(localized: "Built-in") : String(localized: "User-installed"))")
@@ -319,7 +319,7 @@ struct InstalledPluginsView: View {
         Task { @MainActor in
             let confirmed = await AlertHelper.confirmDestructive(
                 title: String(localized: "Uninstall Plugin?"),
-                message: String(localized: "\"\(plugin.name)\" will be removed from your system. This action cannot be undone."),
+                message: String(format: String(localized: "\"%@\" will be removed from your system. This action cannot be undone."), plugin.name),
                 confirmButton: String(localized: "Uninstall"),
                 cancelButton: String(localized: "Cancel")
             )

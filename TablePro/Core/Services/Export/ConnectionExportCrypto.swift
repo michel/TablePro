@@ -21,7 +21,7 @@ enum ConnectionExportCryptoError: LocalizedError {
         case .corruptData:
             return String(localized: "The encrypted file is corrupt or incomplete")
         case .unsupportedVersion(let v):
-            return String(localized: "Unsupported encryption version \(v)")
+            return String(format: String(localized: "Unsupported encryption version %d"), Int(v))
         }
     }
 }

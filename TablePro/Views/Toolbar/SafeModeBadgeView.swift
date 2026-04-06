@@ -26,7 +26,7 @@ struct SafeModeBadgeView: View {
             }
         }
         .buttonStyle(.plain)
-        .help(String(localized: "Safe Mode: \(safeModeLevel.displayName)"))
+        .help(String(format: String(localized: "Safe Mode: %@"), safeModeLevel.displayName))
         .popover(isPresented: $showPopover) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Safe Mode")

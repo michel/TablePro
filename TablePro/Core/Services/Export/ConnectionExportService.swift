@@ -24,19 +24,19 @@ enum ConnectionExportError: LocalizedError {
         case .encodingFailed:
             return String(localized: "Failed to encode connection data")
         case .fileWriteFailed(let path):
-            return String(localized: "Failed to write file: \(path)")
+            return String(format: String(localized: "Failed to write file: %@"), path)
         case .fileReadFailed(let path):
-            return String(localized: "Failed to read file: \(path)")
+            return String(format: String(localized: "Failed to read file: %@"), path)
         case .invalidFormat:
             return String(localized: "This file is not a valid TablePro export")
         case .unsupportedVersion(let version):
-            return String(localized: "This file requires a newer version of TablePro (format version \(version))")
+            return String(format: String(localized: "This file requires a newer version of TablePro (format version %d)"), version)
         case .decodingFailed(let detail):
-            return String(localized: "Failed to parse connection file: \(detail)")
+            return String(format: String(localized: "Failed to parse connection file: %@"), detail)
         case .requiresPassphrase:
             return String(localized: "This file is encrypted and requires a passphrase")
         case .decryptionFailed(let detail):
-            return String(localized: "Decryption failed: \(detail)")
+            return String(format: String(localized: "Decryption failed: %@"), detail)
         }
     }
 }

@@ -79,7 +79,7 @@ enum ToolbarConnectionState: Equatable {
         case .connecting: return String(localized: "Connecting...")
         case .connected: return String(localized: "Connected")
         case .executing: return String(localized: "Executing...")
-        case .error(let message): return String(localized: "Error: \(message)")
+        case .error(let message): return String(format: String(localized: "Error: %@"), message)
         }
     }
 
@@ -212,11 +212,11 @@ final class ConnectionToolbarState {
         var parts: [String] = [connectionState.description]
 
         if let latency = latencyMs {
-            parts.append(String(localized: "Latency: \(latency)ms"))
+            parts.append(String(format: String(localized: "Latency: %dms"), latency))
         }
 
         if let lag = replicationLagSeconds {
-            parts.append(String(localized: "Replication lag: \(lag)s"))
+            parts.append(String(format: String(localized: "Replication lag: %ds"), lag))
         }
 
         parts.append(safeModeLevel.displayName)

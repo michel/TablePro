@@ -11,8 +11,8 @@ import SwiftUI
 enum TableRowLogic {
     static func accessibilityLabel(table: TableInfo, isPendingDelete: Bool, isPendingTruncate: Bool) -> String {
         var label = table.type == .view
-            ? String(localized: "View: \(table.name)")
-            : String(localized: "Table: \(table.name)")
+            ? String(format: String(localized: "View: %@"), table.name)
+            : String(format: String(localized: "Table: %@"), table.name)
         if isPendingDelete {
             label += ", " + String(localized: "pending delete")
         } else if isPendingTruncate {

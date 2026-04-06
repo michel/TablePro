@@ -1109,7 +1109,7 @@ struct ConnectionFormView: View {
                 let isApiOnly = PluginManager.shared.connectionMode(for: type) == .apiOnly
                 let testPwOverride: String? = promptForPassword
                     ? (password.isEmpty
-                        ? PasswordPromptHelper.prompt(connectionName: name.isEmpty ? host : name, isAPIToken: isApiOnly)
+                        ? await PasswordPromptHelper.prompt(connectionName: name.isEmpty ? host : name, isAPIToken: isApiOnly, window: NSApp.keyWindow)
                         : password)
                     : nil
                 guard !promptForPassword || testPwOverride != nil else {

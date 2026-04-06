@@ -21,9 +21,9 @@ enum SSHTunnelError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .tunnelCreationFailed(let message):
-            return String(localized: "SSH tunnel creation failed: \(message)")
+            return String(format: String(localized: "SSH tunnel creation failed: %@"), message)
         case .tunnelAlreadyExists(let id):
-            return String(localized: "SSH tunnel already exists for connection: \(id.uuidString)")
+            return String(format: String(localized: "SSH tunnel already exists for connection: %@"), id.uuidString)
         case .noAvailablePort:
             return String(localized: "No available local port for SSH tunnel")
         case .authenticationFailed:

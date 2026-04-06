@@ -114,7 +114,7 @@ extension MainContentCoordinator {
         guard PluginManager.shared.supportsImport(for: connection.type) else {
             AlertHelper.showErrorSheet(
                 title: String(localized: "Import Not Supported"),
-                message: String(localized: "SQL import is not supported for \(connection.type.rawValue) connections."),
+                message: String(format: String(localized: "SQL import is not supported for %@ connections."), connection.type.rawValue),
                 window: nil
             )
             return

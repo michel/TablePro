@@ -33,12 +33,12 @@ struct TableOperationDialog: View {
         switch operationType {
         case .drop:
             return tableCount > 1
-                ? String(localized: "Drop \(tableCount) tables")
-                : String(localized: "Drop table '\(tableName)'")
+                ? String(format: String(localized: "Drop %d tables"), tableCount)
+                : String(format: String(localized: "Drop table '%@'"), tableName)
         case .truncate:
             return tableCount > 1
-                ? String(localized: "Truncate \(tableCount) tables")
-                : String(localized: "Truncate table '\(tableName)'")
+                ? String(format: String(localized: "Truncate %d tables"), tableCount)
+                : String(format: String(localized: "Truncate table '%@'"), tableName)
         }
     }
 
