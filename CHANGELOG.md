@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix potential hang when coordinator deallocates during save
+- Fix Cmd+W save not persisting data grid changes (sidebar edits intercepted save path)
+
 ## [0.27.5] - 2026-04-06
 
 ### Added

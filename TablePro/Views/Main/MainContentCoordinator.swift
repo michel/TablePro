@@ -410,6 +410,9 @@ final class MainContentCoordinator {
     }
 
     deinit {
+        saveCompletionContinuation?.resume(returning: false)
+        saveCompletionContinuation = nil
+
         let connectionId = connection.id
         let alreadyHandled = _didTeardown.withLock { $0 } || _teardownScheduled.withLock { $0 }
 
