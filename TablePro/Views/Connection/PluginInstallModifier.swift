@@ -33,7 +33,7 @@ struct PluginInstallModifier: ViewModifier {
                 }
             } message: {
                 if let conn = connection {
-                    Text(String(localized: "The \(conn.type.rawValue) plugin is not installed. Would you like to download it from the plugin marketplace?"))
+                    Text(String(format: String(localized: "The %@ plugin is not installed. Would you like to download it from the plugin marketplace?"), conn.type.rawValue))
                 }
             }
             .alert(

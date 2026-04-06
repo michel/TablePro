@@ -46,7 +46,7 @@ struct ConnectionStatusView: View {
             .truncationMode(.middle)
             .frame(maxWidth: 280)
             .accessibilityLabel(
-                String(localized: "Database type: \(formattedDatabaseInfo)")
+                String(format: String(localized: "Database type: %@"), formattedDatabaseInfo)
             )
             .help("Database: \(formattedDatabaseInfo)")
     }
@@ -65,8 +65,8 @@ struct ConnectionStatusView: View {
             }
             .buttonStyle(.plain)
             .help(safeModeLevel == .readOnly
-                ? String(localized: "Current database: \(databaseName) (read-only, ⌘K to switch)")
-                : String(localized: "Current database: \(databaseName) (⌘K to switch)"))
+                ? String(format: String(localized: "Current database: %@ (read-only, ⌘K to switch)"), databaseName)
+                : String(format: String(localized: "Current database: %@ (⌘K to switch)"), databaseName))
         }
     }
 

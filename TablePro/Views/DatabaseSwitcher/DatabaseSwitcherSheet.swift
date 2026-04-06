@@ -387,8 +387,8 @@ struct DatabaseSwitcherSheet: View {
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
 
                 Text(isSchemaMode
-                    ? String(localized: "No schemas match \"\(viewModel.searchText)\"")
-                    : String(localized: "No databases match \"\(viewModel.searchText)\""))
+                    ? String(format: String(localized: "No schemas match \"%@\""), viewModel.searchText)
+                    : String(format: String(localized: "No databases match \"%@\""), viewModel.searchText))
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                     .foregroundStyle(.secondary)
             }

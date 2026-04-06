@@ -17,7 +17,7 @@ enum DecompressionError: LocalizedError {
         case .decompressFailed:
             return String(localized: "Failed to decompress .gz file")
         case .fileReadFailed(let message):
-            return String(localized: "Failed to read file: \(message)")
+            return String(format: String(localized: "Failed to read file: %@"), message)
         }
     }
 }

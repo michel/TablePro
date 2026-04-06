@@ -25,15 +25,15 @@ enum PluginError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidBundle(let reason):
-            return String(localized: "Invalid plugin bundle: \(reason)")
+            return String(format: String(localized: "Invalid plugin bundle: %@"), reason)
         case .signatureInvalid(let detail):
-            return String(localized: "Plugin code signature verification failed: \(detail)")
+            return String(format: String(localized: "Plugin code signature verification failed: %@"), detail)
         case .checksumMismatch:
             return String(localized: "Plugin checksum does not match expected value")
         case .incompatibleVersion(let required, let current):
-            return String(localized: "Plugin requires PluginKit version \(required), but app provides version \(current)")
+            return String(format: String(localized: "Plugin requires PluginKit version %d, but app provides version %d"), required, current)
         case .pluginOutdated(let pluginVersion, let requiredVersion):
-            return String(localized: "Plugin was built with PluginKit version \(pluginVersion), but version \(requiredVersion) is required. Please update the plugin.")
+            return String(format: String(localized: "Plugin was built with PluginKit version %d, but version %d is required. Please update the plugin."), pluginVersion, requiredVersion)
         case .cannotUninstallBuiltIn:
             return String(localized: "Built-in plugins cannot be uninstalled")
         case .notFound:
@@ -41,19 +41,19 @@ enum PluginError: LocalizedError {
         case .noCompatibleBinary:
             return String(localized: "Plugin does not contain a compatible binary for this architecture")
         case .installFailed(let reason):
-            return String(localized: "Plugin installation failed: \(reason)")
+            return String(format: String(localized: "Plugin installation failed: %@"), reason)
         case .pluginConflict(let existingName):
-            return String(localized: "A built-in plugin \"\(existingName)\" already provides this bundle ID")
+            return String(format: String(localized: "A built-in plugin \"%@\" already provides this bundle ID"), existingName)
         case .appVersionTooOld(let minimumRequired, let currentApp):
-            return String(localized: "Plugin requires app version \(minimumRequired) or later, but current version is \(currentApp)")
+            return String(format: String(localized: "Plugin requires app version %@ or later, but current version is %@"), minimumRequired, currentApp)
         case .downloadFailed(let reason):
-            return String(localized: "Plugin download failed: \(reason)")
+            return String(format: String(localized: "Plugin download failed: %@"), reason)
         case .pluginNotInstalled(let databaseType):
-            return String(localized: "The \(databaseType) plugin is not installed. You can download it from the plugin marketplace.")
+            return String(format: String(localized: "The %@ plugin is not installed. You can download it from the plugin marketplace."), databaseType)
         case .incompatibleWithCurrentApp(let minimumRequired):
-            return String(localized: "This plugin requires TablePro \(minimumRequired) or later")
+            return String(format: String(localized: "This plugin requires TablePro %@ or later"), minimumRequired)
         case .invalidDescriptor(let pluginId, let reason):
-            return String(localized: "Plugin '\(pluginId)' has an invalid descriptor: \(reason)")
+            return String(format: String(localized: "Plugin '%@' has an invalid descriptor: %@"), pluginId, reason)
         }
     }
 }

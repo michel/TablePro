@@ -62,7 +62,7 @@ enum DatabaseError: Error, LocalizedError {
         case .invalidCredentials:
             return String(localized: "Invalid username or password")
         case .fileNotFound(let path):
-            return String(localized: "Database file not found: \(path)")
+            return String(format: String(localized: "Database file not found: %@"), path)
         case .notConnected:
             return String(localized: "Not connected to database")
         case .unsupportedOperation:

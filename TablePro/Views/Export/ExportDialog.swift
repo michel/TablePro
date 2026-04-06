@@ -603,7 +603,7 @@ struct ExportDialog: View {
             isLoading = false
             AlertHelper.showErrorSheet(
                 title: String(localized: "Export Error"),
-                message: String(localized: "Failed to load databases: \(error.localizedDescription)"),
+                message: String(format: String(localized: "Failed to load databases: %@"), error.localizedDescription),
                 window: nil
             )
         }
@@ -709,9 +709,9 @@ struct ExportDialog: View {
 
         let formatName = currentPlugin.map { type(of: $0).formatDisplayName } ?? config.formatId.uppercased()
         if isQueryResultsMode {
-            savePanel.message = String(localized: "Export \(queryResultsRowCount) row(s) to \(formatName)")
+            savePanel.message = String(format: String(localized: "Export %d row(s) to %@"), queryResultsRowCount, formatName)
         } else {
-            savePanel.message = String(localized: "Export \(exportableCount) table(s) to \(formatName)")
+            savePanel.message = String(format: String(localized: "Export %d table(s) to %@"), exportableCount, formatName)
         }
 
         savePanel.begin { response in

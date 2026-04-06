@@ -99,7 +99,7 @@ struct SyncStatusIndicator: View {
                 let formatter = RelativeDateTimeFormatter()
                 formatter.unitsStyle = .full
                 let relative = formatter.localizedString(for: lastSync, relativeTo: Date())
-                return String(localized: "Last synced \(relative)")
+                return String(format: String(localized: "Last synced %@"), relative)
             }
             return String(localized: "iCloud Sync is active")
         case .syncing:

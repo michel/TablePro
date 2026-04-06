@@ -381,7 +381,7 @@ struct DataGridSettings: Codable, Equatable {
         if sanitized.isEmpty {
             return String(localized: "NULL display cannot be empty")
         } else if sanitized.count > maxLength {
-            return String(localized: "NULL display must be \(maxLength) characters or less")
+            return String(format: String(localized: "NULL display must be %d characters or less"), maxLength)
         } else if nullDisplay != sanitized {
             return String(localized: "NULL display contains invalid characters (newlines/tabs)")
         }
@@ -392,7 +392,7 @@ struct DataGridSettings: Codable, Equatable {
     var defaultPageSizeValidationError: String? {
         let range = SettingsValidationRules.defaultPageSizeRange
         if defaultPageSize < range.lowerBound || defaultPageSize > range.upperBound {
-            return String(localized: "Page size must be between \(range.lowerBound.formatted()) and \(range.upperBound.formatted())")
+            return String(format: String(localized: "Page size must be between %@ and %@"), range.lowerBound.formatted(), range.upperBound.formatted())
         }
         return nil
     }

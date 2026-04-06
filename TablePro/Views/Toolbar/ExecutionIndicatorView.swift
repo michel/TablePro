@@ -34,14 +34,14 @@ struct ExecutionIndicatorView: View {
                 Text(chProgress.formattedSummary)
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.small, weight: .regular, design: .monospaced))
                     .foregroundStyle(ThemeEngine.shared.colors.toolbar.tertiaryTextSwiftUI)
-                    .accessibilityLabel(String(localized: "Last query: \(chProgress.formattedSummary)"))
+                    .accessibilityLabel(String(format: String(localized: "Last query: %@"), chProgress.formattedSummary))
                     .help("Last query execution summary")
             } else if let duration = lastDuration {
                 Text(formattedDuration(duration))
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.small, weight: .regular, design: .monospaced))
                     .foregroundStyle(ThemeEngine.shared.colors.toolbar.tertiaryTextSwiftUI)
                     .accessibilityLabel(
-                        String(localized: "Last query took \(formattedDuration(duration))")
+                        String(format: String(localized: "Last query took %@"), formattedDuration(duration))
                     )
                     .help("Last query execution time")
             } else {
@@ -63,14 +63,14 @@ struct ExecutionIndicatorView: View {
             return String(localized: "<1ms")
         } else if duration < 1.0 {
             let ms = String(format: "%.0f", duration * 1_000)
-            return String(localized: "\(ms)ms")
+            return String(format: String(localized: "%@ms"), ms)
         } else if duration < 60.0 {
             let secs = String(format: "%.2f", duration)
-            return String(localized: "\(secs)s")
+            return String(format: String(localized: "%@s"), secs)
         } else {
             let minutes = Int(duration) / 60
             let seconds = Int(duration) % 60
-            return String(localized: "\(minutes)m \(seconds)s")
+            return String(format: String(localized: "%dm %ds"), minutes, seconds)
         }
     }
 }

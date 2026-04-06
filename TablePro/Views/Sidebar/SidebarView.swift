@@ -183,8 +183,8 @@ struct SidebarView: View {
 
     private var emptyState: some View {
         let entityName = PluginManager.shared.tableEntityName(for: viewModel.databaseType)
-        let noItemsLabel = String(localized: "No \(entityName)")
-        let noItemsDetail = String(localized: "This database has no \(entityName.lowercased()) yet.")
+        let noItemsLabel = String(format: String(localized: "No %@"), entityName)
+        let noItemsDetail = String(format: String(localized: "This database has no %@ yet."), entityName.lowercased())
         return VStack(spacing: 6) {
             Image(systemName: "tablecells")
                 .font(.system(size: 28, weight: .thin))
@@ -205,9 +205,9 @@ struct SidebarView: View {
 
     private var tableList: some View {
         let entityLabel = PluginManager.shared.tableEntityName(for: viewModel.databaseType)
-        let noMatchLabel = String(localized: "No matching \(entityLabel.lowercased())")
-        let helpLabel = String(localized: "Right-click to show all \(entityLabel.lowercased())")
-        let showAllLabel = String(localized: "Show All \(entityLabel)")
+        let noMatchLabel = String(format: String(localized: "No matching %@"), entityLabel.lowercased())
+        let helpLabel = String(format: String(localized: "Right-click to show all %@"), entityLabel.lowercased())
+        let showAllLabel = String(format: String(localized: "Show All %@"), entityLabel)
         return List(selection: selectedTablesBinding) {
             if filteredTables.isEmpty {
                 ContentUnavailableView(

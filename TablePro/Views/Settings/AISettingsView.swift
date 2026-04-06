@@ -177,7 +177,7 @@ struct AISettingsView: View {
             Toggle(String(localized: "Include query results"), isOn: $settings.includeQueryResults)
 
             Stepper(
-                String(localized: "Max schema tables: \(settings.maxSchemaTables)"),
+                String(format: String(localized: "Max schema tables: %d"), settings.maxSchemaTables),
                 value: $settings.maxSchemaTables,
                 in: 1...100
             )

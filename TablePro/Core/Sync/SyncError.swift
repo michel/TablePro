@@ -30,13 +30,13 @@ enum SyncError: LocalizedError, Equatable {
         case .zoneNotFound:
             return String(localized: "Sync zone not found. A full sync will be performed.")
         case .serverError(let message):
-            return String(localized: "iCloud server error: \(message)")
+            return String(format: String(localized: "iCloud server error: %@"), message)
         case .conflictDetected:
             return String(localized: "A sync conflict was detected and needs to be resolved.")
         case .encodingFailed(let detail):
-            return String(localized: "Failed to encode sync data: \(detail)")
+            return String(format: String(localized: "Failed to encode sync data: %@"), detail)
         case .unknown(let message):
-            return String(localized: "An unknown sync error occurred: \(message)")
+            return String(format: String(localized: "An unknown sync error occurred: %@"), message)
         }
     }
 

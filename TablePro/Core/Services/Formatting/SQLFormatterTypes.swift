@@ -52,11 +52,11 @@ enum SQLFormatterError: LocalizedError {
         case .emptyInput:
             return String(localized: "Cannot format empty SQL")
         case .dialectUnsupported(let type):
-            return String(localized: "Formatting not supported for \(type.rawValue)")
+            return String(format: String(localized: "Formatting not supported for %@"), type.rawValue)
         case .invalidCursorPosition(let pos, let max):
-            return String(localized: "Cursor position \(pos) exceeds SQL length (\(max))")
+            return String(format: String(localized: "Cursor position %d exceeds SQL length (%d)"), pos, max)
         case .internalError(let message):
-            return String(localized: "Formatter error: \(message)")
+            return String(format: String(localized: "Formatter error: %@"), message)
         }
     }
 }

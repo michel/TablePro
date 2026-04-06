@@ -113,7 +113,7 @@ final class DataGridCellFactory {
         cell.stringValue = "\(row + 1)"
         cell.textColor = visualState.isDeleted ? ThemeEngine.shared.colors.dataGrid.deletedText : .secondaryLabelColor
         if Self.cachedVoiceOverEnabled {
-            cellView.setAccessibilityLabel(String(localized: "Row \(row + 1)"))
+            cellView.setAccessibilityLabel(String(format: String(localized: "Row %d"), row + 1))
         }
 
         return cellView
@@ -291,7 +291,7 @@ final class DataGridCellFactory {
         if !isLargeDataset && Self.cachedVoiceOverEnabled {
             let accessibilityValue = rawValue ?? String(localized: "NULL")
             cell.setAccessibilityLabel(
-                String(localized: "Row \(row + 1), column \(columnIndex + 1): \(accessibilityValue)")
+                String(format: String(localized: "Row %d, column %d: %@"), row + 1, columnIndex + 1, accessibilityValue)
             )
         }
 

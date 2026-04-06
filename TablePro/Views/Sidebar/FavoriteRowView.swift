@@ -40,7 +40,7 @@ internal struct FavoriteRowView: View {
 
     private var accessibilityDescription: String {
         if let keyword = favorite.keyword, !keyword.isEmpty {
-            return "\(favorite.name), \(String(localized: "keyword: \(keyword)"))"
+            return "\(favorite.name), \(String(format: String(localized: "keyword: %@"), keyword))"
         }
         return favorite.name
     }

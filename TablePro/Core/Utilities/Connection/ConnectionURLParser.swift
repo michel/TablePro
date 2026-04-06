@@ -64,7 +64,7 @@ enum ConnectionURLParseError: Error, LocalizedError, Equatable {
         case .invalidURL:
             return String(localized: "Invalid connection URL format")
         case .unsupportedScheme(let scheme):
-            return String(localized: "Unsupported database scheme: \(scheme)")
+            return String(format: String(localized: "Unsupported database scheme: %@"), scheme)
         case .missingHost:
             return String(localized: "Connection URL must include a host")
         }

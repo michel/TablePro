@@ -48,7 +48,7 @@ struct SchemaStatementGenerator {
                 throw NSError(
                     domain: "SchemaStatementGenerator",
                     code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: String(localized: "Unsupported schema operation: \(change.description)")]
+                    userInfo: [NSLocalizedDescriptionKey: String(format: String(localized: "Unsupported schema operation: %@"), change.description)]
                 )
             }
             let sql = stmt.sql.hasSuffix(";") ? stmt.sql : stmt.sql + ";"

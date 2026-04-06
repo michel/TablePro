@@ -131,7 +131,7 @@ struct DataGridView: NSViewRepresentable {
                 column.headerToolTip = "\(columnName) (\(typeName))"
             }
             column.headerCell.setAccessibilityLabel(
-                String(localized: "Column: \(columnName)")
+                String(format: String(localized: "Column: %@"), columnName)
             )
             column.width = context.coordinator.cellFactory.calculateOptimalColumnWidth(
                 for: columnName,
@@ -401,7 +401,7 @@ struct DataGridView: NSViewRepresentable {
                         column.headerToolTip = "\(columnName) (\(typeName))"
                     }
                     column.headerCell.setAccessibilityLabel(
-                        String(localized: "Column: \(columnName)")
+                        String(format: String(localized: "Column: %@"), columnName)
                     )
                     if willRestoreWidths {
                         column.width = columnLayout.columnWidths[columnName] ?? 100
