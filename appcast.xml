@@ -3,6 +3,55 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.27.5</title>
+            <pubDate>Mon, 06 Apr 2026 12:39:06 +0000</pubDate>
+            <sparkle:version>58</sparkle:version>
+            <sparkle:shortVersionString>0.27.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>iOS: groups, tags, filter, sort, pagination, query history, export to clipboard, Spotlight, Siri Shortcuts, Home Screen widget</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Fix crashes in SSH tunnel, export dialog, and jump host removal</li>
+<li>Fix data races in storage layers (MainActor isolation)</li>
+<li>Use native sheet presentation for all dialogs and file pickers</li>
+<li>Replace event monitors and timing hacks with native SwiftUI APIs</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Migrate undo system to NSUndoManager</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.5/TablePro-0.27.5-arm64.zip" length="24073866" type="application/octet-stream" sparkle:edSignature="equHcgY2wXNf+vXsE8FbmL+PlYT4wlkiTALrcBLapijvc3symZX37kGqHSYdVOI4uP7ViHofymimdNccYU+4AA=="/>
+        </item>
+        <item>
+            <title>0.27.5</title>
+            <pubDate>Mon, 06 Apr 2026 12:39:07 +0000</pubDate>
+            <sparkle:version>58</sparkle:version>
+            <sparkle:shortVersionString>0.27.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>iOS: groups, tags, filter, sort, pagination, query history, export to clipboard, Spotlight, Siri Shortcuts, Home Screen widget</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Fix crashes in SSH tunnel, export dialog, and jump host removal</li>
+<li>Fix data races in storage layers (MainActor isolation)</li>
+<li>Use native sheet presentation for all dialogs and file pickers</li>
+<li>Replace event monitors and timing hacks with native SwiftUI APIs</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Migrate undo system to NSUndoManager</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.27.5/TablePro-0.27.5-x86_64.zip" length="23331564" type="application/octet-stream" sparkle:edSignature="FwpHHzgCvSNNetNDIt1MeazlFme3/X0pCZtVVhxTNtfq3F203pnQ7fw+tvetbR7BtJYSRqowObyr226TteyCBQ=="/>
+        </item>
+        <item>
             <title>0.27.4</title>
             <pubDate>Sun, 05 Apr 2026 07:56:07 +0000</pubDate>
             <sparkle:version>57</sparkle:version>
