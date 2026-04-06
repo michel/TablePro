@@ -10,6 +10,7 @@ import os
 import TableProPluginKit
 
 /// Service for persisting database connections
+@MainActor
 final class ConnectionStorage {
     static let shared = ConnectionStorage()
     private static let logger = Logger(subsystem: "com.TablePro", category: "ConnectionStorage")
@@ -188,13 +189,6 @@ final class ConnectionStorage {
     }
 
     // MARK: - Keychain (Password Storage)
-
-    // Thread safety note (SVC-15): SecItemCopyMatching is synchronous but all call sites
-    // are already off the main thread:
-    //   - MySQLDriver.connect() / PostgreSQLDriver.connect() — non-@MainActor async funcs
-    //   - DatabaseManager — uses Task.detached for SSH/key passphrase loads
-    //   - ConnectionFormView — single-item lookup during form population (negligible latency)
-    // No async wrapper is needed; adding one would add complexity without measurable benefit.
 
     func savePassword(_ password: String, for connectionId: UUID) {
         let key = "com.TablePro.password.\(connectionId.uuidString)"

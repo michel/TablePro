@@ -513,20 +513,18 @@ final class DatabaseManager {
             return connection
         }
 
-        // Load Keychain credentials off the main thread to avoid blocking UI
-        let (storedSshPassword, keyPassphrase, totpSecret) = await Task.detached {
-            if isProfile {
-                let pwd = SSHProfileStorage.shared.loadSSHPassword(for: secretOwnerId)
-                let phrase = SSHProfileStorage.shared.loadKeyPassphrase(for: secretOwnerId)
-                let totp = SSHProfileStorage.shared.loadTOTPSecret(for: secretOwnerId)
-                return (pwd, phrase, totp)
-            } else {
-                let pwd = ConnectionStorage.shared.loadSSHPassword(for: secretOwnerId)
-                let phrase = ConnectionStorage.shared.loadKeyPassphrase(for: secretOwnerId)
-                let totp = ConnectionStorage.shared.loadTOTPSecret(for: secretOwnerId)
-                return (pwd, phrase, totp)
-            }
-        }.value
+        let storedSshPassword: String?
+        let keyPassphrase: String?
+        let totpSecret: String?
+        if isProfile {
+            storedSshPassword = SSHProfileStorage.shared.loadSSHPassword(for: secretOwnerId)
+            keyPassphrase = SSHProfileStorage.shared.loadKeyPassphrase(for: secretOwnerId)
+            totpSecret = SSHProfileStorage.shared.loadTOTPSecret(for: secretOwnerId)
+        } else {
+            storedSshPassword = ConnectionStorage.shared.loadSSHPassword(for: secretOwnerId)
+            keyPassphrase = ConnectionStorage.shared.loadKeyPassphrase(for: secretOwnerId)
+            totpSecret = ConnectionStorage.shared.loadTOTPSecret(for: secretOwnerId)
+        }
 
         let sshPassword = sshPasswordOverride ?? storedSshPassword
 

@@ -7,6 +7,7 @@ import Foundation
 import os
 
 /// Service for persisting connection groups
+@MainActor
 final class GroupStorage {
     static let shared = GroupStorage()
     private static let logger = Logger(subsystem: "com.TablePro", category: "GroupStorage")
