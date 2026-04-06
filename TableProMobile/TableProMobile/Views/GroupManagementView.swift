@@ -64,9 +64,6 @@ struct GroupManagementView: View {
             .navigationTitle("Groups")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     EditButton()
                     Button {
@@ -74,6 +71,7 @@ struct GroupManagementView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    Button("Done") { dismiss() }
                 }
             }
             .sheet(isPresented: $showingAddGroup) {

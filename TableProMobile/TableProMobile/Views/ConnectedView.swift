@@ -23,7 +23,7 @@ struct ConnectedView: View {
     @State private var showFailureAlert = false
     @State private var selectedTab = ConnectedTab.tables
     @State private var queryHistory: [QueryHistoryItem] = []
-    private let historyStorage = QueryHistoryStorage()
+    @State private var historyStorage = QueryHistoryStorage()
     @State private var databases: [String] = []
     @State private var activeDatabase: String = ""
     @State private var schemas: [String] = []

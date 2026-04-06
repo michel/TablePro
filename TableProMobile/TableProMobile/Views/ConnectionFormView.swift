@@ -98,7 +98,7 @@ struct ConnectionFormView: View {
                 _sshAuthMethod = State(initialValue: ssh.authMethod)
                 _sshKeyPath = State(initialValue: ssh.privateKeyPath ?? "")
                 _sshKeyContent = State(initialValue: ssh.privateKeyData ?? "")
-                if ssh.privateKeyData != nil && !ssh.privateKeyData!.isEmpty {
+                if let keyData = ssh.privateKeyData, !keyData.isEmpty {
                     _sshKeyInputMode = State(initialValue: .paste)
                 }
             }
@@ -603,7 +603,7 @@ struct ConnectionFormView: View {
         }
 
         if storageFailed {
-            credentialError = "Some credentials could not be saved to the keychain. You may need to re-enter them later."
+            credentialError = String(localized: "Some credentials could not be saved to the keychain. You may need to re-enter them later.")
             showCredentialError = true
         }
 

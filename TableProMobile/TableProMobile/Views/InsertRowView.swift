@@ -137,7 +137,7 @@ struct InsertRowView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 if let recovery = operationError?.recovery {
-                    Text("\(operationError?.message ?? "")\n\(recovery)")
+                    Text(verbatim: "\(operationError?.message ?? "") \(recovery)")
                 } else {
                     Text(operationError?.message ?? "")
                 }

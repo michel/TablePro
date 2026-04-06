@@ -385,6 +385,9 @@ struct DataBrowserView: View {
             let result = try await session.driver.execute(query: query)
             columns = result.columns
             rows = result.rows
+            if rows.count < pagination.pageSize, pagination.totalRows == nil {
+                pagination.totalRows = pagination.currentOffset + rows.count
+            }
             if columnDetails.isEmpty {
                 columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
             }

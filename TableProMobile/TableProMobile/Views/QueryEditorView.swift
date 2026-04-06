@@ -344,6 +344,7 @@ struct QueryEditorView: View {
 
         editorFocused = false
         isExecuting = true
+        defer { isExecuting = false }
         appError = nil
         result = nil
 
@@ -359,7 +360,5 @@ struct QueryEditorView: View {
             let context = ErrorContext(operation: "executeQuery")
             self.appError = ErrorClassifier.classify(error, context: context)
         }
-
-        isExecuting = false
     }
 }
