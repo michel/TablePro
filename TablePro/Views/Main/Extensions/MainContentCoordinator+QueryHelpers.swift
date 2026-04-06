@@ -392,6 +392,7 @@ extension MainContentCoordinator {
             var errTab = tabManager.tabs[idx]
             errTab.errorMessage = error.localizedDescription
             errTab.isExecuting = false
+            errTab.lastExecutedAt = Date()
             tabManager.tabs[idx] = errTab
         }
         toolbarState.setExecuting(false)

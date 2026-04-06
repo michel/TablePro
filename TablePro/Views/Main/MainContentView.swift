@@ -326,6 +326,7 @@ struct MainContentView: View {
                     tab.tabType == .table
                         && (tab.resultRows.isEmpty || tab.rowBuffer.isEvicted)
                         && (tab.lastExecutedAt == nil || tab.rowBuffer.isEvicted)
+                        && tab.errorMessage == nil
                         && !tab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 } ?? false
             if needsLazyLoad && !hasPendingEdits && isConnected {
