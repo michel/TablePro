@@ -137,7 +137,7 @@ struct SessionStateFactoryTests {
     @MainActor
     func connectionOnlyPayload_isNewTab_createsDefaultTab() {
         let conn = TestFixtures.makeConnection()
-        let payload = EditorTabPayload(connectionId: conn.id, tabType: .query, isNewTab: true)
+        let payload = EditorTabPayload(connectionId: conn.id, tabType: .query, intent: .newEmptyTab)
 
         let state = SessionStateFactory.create(connection: conn, payload: payload)
 

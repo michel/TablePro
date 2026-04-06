@@ -605,9 +605,9 @@ private struct OpenWindowHandler: View {
             }
             .onReceive(NotificationCenter.default.publisher(for: .openMainWindow)) { notification in
                 if let payload = notification.object as? EditorTabPayload {
-                    openWindow(id: "main", value: payload)
+                    WindowOpener.shared.openNativeTab(payload)
                 } else if let connectionId = notification.object as? UUID {
-                    openWindow(id: "main", value: EditorTabPayload(connectionId: connectionId))
+                    WindowOpener.shared.openNativeTab(EditorTabPayload(connectionId: connectionId))
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openSettingsWindow)) { _ in

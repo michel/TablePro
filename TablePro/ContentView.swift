@@ -49,11 +49,14 @@ struct ContentView: View {
         }
         _windowTitle = State(initialValue: defaultTitle)
 
-        // For Cmd+T (new tab), the session already exists. Resolve synchronously
-        // to avoid the "Connecting..." flash while waiting for async onChange.
+        // Resolve session synchronously to avoid "Connecting..." flash.
+        // For payload with connectionId: look up that specific session.
+        // For nil payload (native tab bar "+"): fall back to current session.
         var resolvedSession: ConnectionSession?
         if let connectionId = payload?.connectionId {
             resolvedSession = DatabaseManager.shared.activeSessions[connectionId]
+        } else if let currentId = DatabaseManager.shared.currentSessionId {
+            resolvedSession = DatabaseManager.shared.activeSessions[currentId]
         }
         _currentSession = State(initialValue: resolvedSession)
 

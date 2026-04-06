@@ -949,8 +949,10 @@ struct ConnectionFormView: View {
     }
 
     private func connectToDatabase(_ connection: DatabaseConnection) {
-        WindowOpener.shared.pendingConnectionId = connection.id
-        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
+        if WindowOpener.shared.openWindow == nil {
+            WindowOpener.shared.openWindow = openWindow
+        }
+        WindowOpener.shared.openNativeTab(EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault))
         NSApplication.shared.closeWindows(withId: "welcome")
 
         Task {
@@ -990,8 +992,10 @@ struct ConnectionFormView: View {
     }
 
     private func connectAfterInstall(_ connection: DatabaseConnection) {
-        WindowOpener.shared.pendingConnectionId = connection.id
-        openWindow(id: "main", value: EditorTabPayload(connectionId: connection.id))
+        if WindowOpener.shared.openWindow == nil {
+            WindowOpener.shared.openWindow = openWindow
+        }
+        WindowOpener.shared.openNativeTab(EditorTabPayload(connectionId: connection.id, intent: .restoreOrDefault))
         NSApplication.shared.closeWindows(withId: "welcome")
 
         Task {

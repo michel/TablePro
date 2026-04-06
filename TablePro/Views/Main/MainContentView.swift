@@ -452,18 +452,18 @@ struct MainContentView: View {
         hasInitialized = true
         Task { await coordinator.loadSchemaIfNeeded() }
 
-        // If payload provided a specific tab (not connection-only), execute its query immediately
-        if let payload, !payload.isConnectionOnly {
-            if payload.skipAutoExecute {
-                // Don't execute now — query will fire when user clicks this tab
-                // (handled by didBecomeKeyNotification)
-                return
-            }
+        guard let payload else {
+            await handleRestoreOrDefault()
+            return
+        }
+
+        switch payload.intent {
+        case .openContent:
+            if payload.skipAutoExecute { return }
             if let selectedTab = tabManager.selectedTab,
                 selectedTab.tabType == .table,
                 !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                // Fast path: connection already ready
                 if let session = DatabaseManager.shared.activeSessions[connection.id],
                     session.isConnected
                 {
@@ -472,11 +472,11 @@ struct MainContentView: View {
                     {
                         Task { await coordinator.switchDatabase(to: selectedTab.databaseName) }
                     } else {
+                        // columns is [] on initial load — buildFilteredQuery uses SELECT *
                         if !selectedTab.filterState.appliedFilters.isEmpty,
                             let tableName = selectedTab.tableName,
                             let tabIndex = tabManager.selectedTabIndex
                         {
-                            // columns is [] on initial load — buildFilteredQuery uses SELECT *
                             let filteredQuery = coordinator.queryBuilder.buildFilteredQuery(
                                 tableName: tableName,
                                 filters: selectedTab.filterState.appliedFilters,
@@ -499,12 +499,16 @@ struct MainContentView: View {
             if let sourceURL = payload.sourceFileURL {
                 WindowLifecycleMonitor.shared.registerSourceFile(sourceURL, windowId: windowId)
             }
-            return
-        }
 
-        // Connection-only payload or nil payload -- restore tabs from storage
-        // If other windows already exist for this connection, this is a "new tab"
-        // from the native macOS "+" button -- just add a single empty query tab.
+        case .newEmptyTab:
+            return
+
+        case .restoreOrDefault:
+            await handleRestoreOrDefault()
+        }
+    }
+
+    private func handleRestoreOrDefault() async {
         if WindowLifecycleMonitor.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
             if tabManager.tabs.isEmpty {
                 tabManager.addTab(databaseName: connection.database)
@@ -512,12 +516,8 @@ struct MainContentView: View {
             return
         }
 
-        // No existing windows -- restore tabs from storage (first window on connection)
         let result = await coordinator.persistence.restoreFromDisk()
         if !result.tabs.isEmpty {
-            // Rebuild base queries for table tabs to strip stale filter/sort WHERE clauses.
-            // Filter state is not persisted, so the stored query may contain orphaned conditions
-            // that reference columns from a different schema — causing errors on restore.
             var restoredTabs = result.tabs
             for i in restoredTabs.indices where restoredTabs[i].tabType == .table {
                 if let tableName = restoredTabs[i].tableName {
@@ -529,41 +529,31 @@ struct MainContentView: View {
                 }
             }
 
-            // Find the selected tab, or use the first one
             let selectedId = result.selectedTabId
             let selectedIndex = restoredTabs.firstIndex(where: { $0.id == selectedId }) ?? 0
 
-            // Keep only the selected tab for this window
             let selectedTab = restoredTabs[selectedIndex]
             tabManager.tabs = [selectedTab]
             tabManager.selectedTabId = selectedTab.id
 
-            // Open remaining tabs as new native window-tabs
             let remainingTabs = restoredTabs.enumerated()
                 .filter { $0.offset != selectedIndex }
                 .map(\.element)
 
             if !remainingTabs.isEmpty {
-                // Delay to let the first window finish setup
                 Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 100_000_000)
                     for tab in remainingTabs {
-                        let payload = EditorTabPayload(
+                        let restorePayload = EditorTabPayload(
                             from: tab, connectionId: connection.id, skipAutoExecute: true)
-                        WindowOpener.shared.openNativeTab(payload)
-                        // Small delay between opens to avoid overwhelming AppKit
-                        try? await Task.sleep(nanoseconds: 50_000_000)
+                        WindowOpener.shared.openNativeTab(restorePayload)
                     }
-                    // Re-activate the selected tab's window so it stays in front
                     viewWindow?.makeKeyAndOrderFront(nil)
                 }
             }
 
-            // Execute query for the selected tab if it's a table tab
             if selectedTab.tabType == .table,
                 !selectedTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                // Fast path: connection already ready
                 if let session = DatabaseManager.shared.activeSessions[connection.id],
                     session.isConnected
                 {
@@ -578,7 +568,6 @@ struct MainContentView: View {
                         coordinator.executeTableTabQueryDirectly()
                     }
                 } else {
-                    // Reactive path: fires via onChange(of: sessionVersion) when connection is ready
                     coordinator.needsLazyLoad = true
                 }
             }
@@ -623,9 +612,9 @@ struct MainContentView: View {
         } else {
             window.subtitle = connection.name
         }
-        window.tabbingIdentifier = AppSettingsManager.shared.tabs.groupAllConnectionTabs
-            ? "com.TablePro.main"
-            : "com.TablePro.main.\(connection.id.uuidString)"
+
+        let resolvedId = WindowOpener.tabbingIdentifier(for: connection.id)
+        window.tabbingIdentifier = resolvedId
         window.tabbingMode = .preferred
         coordinator.windowId = windowId
 
@@ -638,6 +627,10 @@ struct MainContentView: View {
         viewWindow = window
         coordinator.contentWindow = window
         isKeyWindow = window.isKeyWindow
+
+        if let payloadId = payload?.id {
+            WindowOpener.shared.acknowledgePayload(payloadId)
+        }
 
         // Native proxy icon (Cmd+click shows path in Finder) and dirty dot
         window.representedURL = tabManager.selectedTab?.sourceFileURL

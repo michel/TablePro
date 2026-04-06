@@ -48,54 +48,57 @@ enum SessionStateFactory {
             toolbarSt.databaseName = String(dbIndex)
         }
 
-        // Initialize single tab based on payload.
-        // For isConnectionOnly (Cmd+T new tab), create a default query tab eagerly
-        // so MainContentView doesn't flash "No tabs open" before initializeAndRestoreTabs runs.
-        if let payload, !payload.isConnectionOnly {
-            switch payload.tabType {
-            case .table:
-                if let tableName = payload.tableName {
-                    if payload.isPreview {
-                        tabMgr.addPreviewTableTab(
-                            tableName: tableName,
-                            databaseType: connection.type,
-                            databaseName: payload.databaseName ?? connection.database
-                        )
+        if let payload {
+            switch payload.intent {
+            case .openContent:
+                switch payload.tabType {
+                case .table:
+                    toolbarSt.isTableTab = true
+                    if let tableName = payload.tableName {
+                        if payload.isPreview {
+                            tabMgr.addPreviewTableTab(
+                                tableName: tableName,
+                                databaseType: connection.type,
+                                databaseName: payload.databaseName ?? connection.database
+                            )
+                        } else {
+                            tabMgr.addTableTab(
+                                tableName: tableName,
+                                databaseType: connection.type,
+                                databaseName: payload.databaseName ?? connection.database
+                            )
+                        }
+                        if let index = tabMgr.selectedTabIndex {
+                            tabMgr.tabs[index].isView = payload.isView
+                            tabMgr.tabs[index].isEditable = !payload.isView
+                            tabMgr.tabs[index].schemaName = payload.schemaName
+                            if payload.showStructure {
+                                tabMgr.tabs[index].showStructure = true
+                            }
+                            if let initialFilter = payload.initialFilterState {
+                                tabMgr.tabs[index].filterState = initialFilter
+                                filterMgr.restoreFromTabState(initialFilter)
+                            }
+                        }
                     } else {
-                        tabMgr.addTableTab(
-                            tableName: tableName,
-                            databaseType: connection.type,
-                            databaseName: payload.databaseName ?? connection.database
-                        )
+                        tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
                     }
-                    if let index = tabMgr.selectedTabIndex {
-                        tabMgr.tabs[index].isView = payload.isView
-                        tabMgr.tabs[index].isEditable = !payload.isView
-                        tabMgr.tabs[index].schemaName = payload.schemaName
-                        if payload.showStructure {
-                            tabMgr.tabs[index].showStructure = true
-                        }
-                        if let initialFilter = payload.initialFilterState {
-                            tabMgr.tabs[index].filterState = initialFilter
-                            filterMgr.restoreFromTabState(initialFilter)
-                        }
-                    }
-                } else {
-                    tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
+                case .query:
+                    tabMgr.addTab(
+                        initialQuery: payload.initialQuery,
+                        databaseName: payload.databaseName ?? connection.database,
+                        sourceFileURL: payload.sourceFileURL
+                    )
+                case .createTable:
+                    tabMgr.addCreateTableTab(
+                        databaseName: payload.databaseName ?? connection.database
+                    )
                 }
-            case .query:
-                tabMgr.addTab(
-                    initialQuery: payload.initialQuery,
-                    databaseName: payload.databaseName ?? connection.database,
-                    sourceFileURL: payload.sourceFileURL
-                )
-            case .createTable:
-                tabMgr.addCreateTableTab(
-                    databaseName: payload.databaseName ?? connection.database
-                )
+            case .newEmptyTab:
+                tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
+            case .restoreOrDefault:
+                break
             }
-        } else if payload?.isNewTab == true {
-            tabMgr.addTab(databaseName: payload?.databaseName ?? connection.database)
         }
 
         let coord = MainContentCoordinator(

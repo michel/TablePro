@@ -158,13 +158,11 @@ final class SidebarViewModel {
             NSLog("[SidebarVM] onAppear: tables not empty (%d), skipping", tables.count)
             return
         }
-        Task { @MainActor in
-            if DatabaseManager.shared.driver(for: connectionId) != nil {
-                NSLog("[SidebarVM] onAppear: driver found, loading tables")
-                loadTables()
-            } else {
-                NSLog("[SidebarVM] onAppear: driver is nil for %@", connectionId.uuidString)
-            }
+        if DatabaseManager.shared.driver(for: connectionId) != nil {
+            NSLog("[SidebarVM] onAppear: driver found, loading tables")
+            loadTables()
+        } else {
+            NSLog("[SidebarVM] onAppear: driver is nil for %@", connectionId.uuidString)
         }
     }
 

@@ -3,7 +3,7 @@
 //  TablePro
 //
 //  Bridges SwiftUI's openWindow environment action to imperative code.
-//  Stored by ContentView on appear so MainContentCommandActions can open native tabs.
+//  Stored on appear by ContentView, WelcomeViewModel, or ConnectionFormView.
 //
 
 import os
@@ -15,55 +15,49 @@ internal final class WindowOpener {
 
     internal static let shared = WindowOpener()
 
-    /// Set by ContentView when it appears. Safe to store — OpenWindowAction is app-scoped, not view-scoped.
+    /// Set on appear by ContentView, WelcomeViewModel, or ConnectionFormView.
+    /// Safe to store — OpenWindowAction is app-scoped, not view-scoped.
     internal var openWindow: OpenWindowAction?
 
-    /// The connectionId for the next window about to be opened.
-    /// Set by `openNativeTab` before calling `openWindow`, consumed by
-    /// `AppDelegate.windowDidBecomeKey` to set the correct `tabbingIdentifier`.
-    internal var pendingConnectionId: UUID?
+    /// Ordered queue of pending payloads — windows requested via openNativeTab
+    /// but not yet acknowledged by MainContentView.configureWindow.
+    /// Ordered so consumeOldestPendingConnectionId returns the correct entry
+    /// when multiple windows open in quick succession (e.g., tab restore).
+    internal private(set) var pendingPayloads: [(id: UUID, connectionId: UUID)] = []
+
+    /// Whether any payloads are pending — used for orphan detection in windowDidBecomeKey.
+    internal var hasPendingPayloads: Bool { !pendingPayloads.isEmpty }
 
     /// Opens a new native window tab with the given payload.
-    /// Stores the connectionId so AppDelegate can set the correct tabbingIdentifier.
+    /// Falls back to .openMainWindow notification if openWindow is not yet available
+    /// (cold launch from Dock menu before any SwiftUI view has appeared).
     internal func openNativeTab(_ payload: EditorTabPayload) {
-        pendingConnectionId = payload.connectionId
-        guard let openWindow else {
-            Self.logger.warning("openNativeTab called before openWindow was set — payload dropped")
-            return
+        pendingPayloads.append((id: payload.id, connectionId: payload.connectionId))
+        if let openWindow {
+            openWindow(id: "main", value: payload)
+        } else {
+            Self.logger.info("openWindow not set — falling back to .openMainWindow notification")
+            NotificationCenter.default.post(name: .openMainWindow, object: payload)
         }
-        openWindow(id: "main", value: payload)
     }
 
-    /// Returns and clears the pending connectionId (consume-once pattern).
-    internal func consumePendingConnectionId() -> UUID? {
-        defer { pendingConnectionId = nil }
-        return pendingConnectionId
+    /// Called by MainContentView.configureWindow after the window is fully set up.
+    internal func acknowledgePayload(_ id: UUID) {
+        pendingPayloads.removeAll { $0.id == id }
     }
-}
 
-/// Pure logic for resolving the tabbingIdentifier for a new main window.
-/// Extracted for testability — no AppKit dependencies.
-internal enum TabbingIdentifierResolver {
-    /// Resolve the tabbingIdentifier for a new main window.
-    /// - Parameters:
-    ///   - pendingConnectionId: The connectionId from WindowOpener (if a tab was just opened)
-    ///   - existingIdentifier: The tabbingIdentifier from an existing visible main window (if any)
-    ///   - groupAllConnections: When true, all windows share one tab group regardless of connection
-    /// - Returns: The tabbingIdentifier to assign to the new window
-    internal static func resolve(
-        pendingConnectionId: UUID?,
-        existingIdentifier: String?,
-        groupAllConnections: Bool = false
-    ) -> String {
-        if groupAllConnections {
+    /// Consumes and returns the connectionId for the oldest pending payload.
+    /// Removes the entry so subsequent calls return the next payload in order.
+    internal func consumeOldestPendingConnectionId() -> UUID? {
+        guard !pendingPayloads.isEmpty else { return nil }
+        return pendingPayloads.removeFirst().connectionId
+    }
+
+    /// Returns the tabbingIdentifier for a connection.
+    internal static func tabbingIdentifier(for connectionId: UUID) -> String {
+        if AppSettingsManager.shared.tabs.groupAllConnectionTabs {
             return "com.TablePro.main"
         }
-        if let connectionId = pendingConnectionId {
-            return "com.TablePro.main.\(connectionId.uuidString)"
-        }
-        if let existing = existingIdentifier {
-            return existing
-        }
-        return "com.TablePro.main"
+        return "com.TablePro.main.\(connectionId.uuidString)"
     }
 }

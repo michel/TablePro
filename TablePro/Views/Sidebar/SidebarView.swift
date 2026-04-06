@@ -149,13 +149,17 @@ struct SidebarView: View {
     private var tablesContent: some View {
         if let error = viewModel.errorMessage {
             errorState(message: error)
-        } else if tables.isEmpty && viewModel.isLoading {
+        } else if tables.isEmpty && hasActiveConnection {
             loadingState
         } else if tables.isEmpty {
             emptyState
         } else {
             tableList
         }
+    }
+
+    private var hasActiveConnection: Bool {
+        viewModel.isLoading || DatabaseManager.shared.driver(for: connectionId) != nil
     }
 
     private var loadingState: some View {
