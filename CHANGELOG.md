@@ -7,31 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- File picker dialog appears behind the connection form window
-- Fix crash when removing jump hosts from SSH tunnel configuration
-- Fix crash when export dialog refreshes database list while tree view is displayed
-- Use sheet presentation for password and TOTP prompts instead of blocking modal dialogs
-- Fix localized strings with interpolation creating untranslatable dynamic keys
-- Fix crash when closing window during SSH tunnel connection (use-after-free in libssh2)
-- Fix potential deadlock in SSH host key verification prompts (semaphore → async/await)
-- Fix data race in ConnectionStorage, GroupStorage, and TagStorage (added @MainActor isolation)
-- Add schema versioning to SQLite databases (query history, favorites) for future migrations
-- Use semantic selected-text color instead of hardcoded white in selected rows
-- Use proper CommandGroup for full-screen shortcut instead of event monitor
-- Use sheet presentation for all file open/save panels instead of free-floating dialogs
-- Replace event monitor with native SwiftUI .onKeyPress() in connection switcher
-- Extract reusable SearchFieldView component from 4 custom search field implementations
-- Replace timing hacks with structured signals (polling loops, arbitrary delays)
-
-### Changed
-
-- Migrate undo system from custom stacks to NSUndoManager — Edit menu now shows "Undo Edit Cell", "Undo Delete Row", etc.
-
 ### Added
 
 - iOS: groups, tags, filter, sort, pagination, query history, export to clipboard, Spotlight, Siri Shortcuts, Home Screen widget
+
+### Fixed
+
+- Fix crashes in SSH tunnel, export dialog, and jump host removal
+- Fix data races in storage layers (MainActor isolation)
+- Use native sheet presentation for all dialogs and file pickers
+- Replace event monitors and timing hacks with native SwiftUI APIs
+
+### Changed
+
+- Migrate undo system to NSUndoManager
 
 ## [0.27.4] - 2026-04-05
 
