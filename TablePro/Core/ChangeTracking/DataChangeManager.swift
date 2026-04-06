@@ -98,7 +98,7 @@ final class DataChangeManager {
         return lo
     }
 
-    let undoManager: UndoManager = {
+    private let undoManager: UndoManager = {
         let manager = UndoManager()
         manager.levelsOfUndo = 100
         manager.groupsByEvent = false
@@ -606,6 +606,7 @@ final class DataChangeManager {
                 for rowIndex in rowIndices {
                     removeChangeByKey(rowIndex: rowIndex, type: .insert)
                     insertedRowIndices.remove(rowIndex)
+                    insertedRowData.removeValue(forKey: rowIndex)
                     changedRowIndices.insert(rowIndex)
                 }
                 lastUndoResult = UndoResult(

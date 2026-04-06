@@ -96,9 +96,10 @@ final class StructureChangeManager {
         // Reset working state
         resetWorkingState()
 
-        // Clear changes
+        // Clear changes and undo history
         pendingChanges.removeAll()
         validationErrors.removeAll()
+        undoManager.removeAllActions()
         hasChanges = false
 
         // Increment reloadVersion to trigger DataGridView column width recalculation
@@ -673,8 +674,9 @@ final class StructureChangeManager {
             }
 
         case .primaryKeyChange(let old, _):
+            let current = workingPrimaryKey
             undoManager.registerUndo(withTarget: self) { target in
-                target.applySchemaUndo(.primaryKeyChange(old: self.workingPrimaryKey, new: old))
+                target.applySchemaUndo(.primaryKeyChange(old: current, new: old))
             }
             undoManager.setActionName(String(localized: "Change Primary Key"))
             workingPrimaryKey = old
