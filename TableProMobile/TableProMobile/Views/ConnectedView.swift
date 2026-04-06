@@ -84,15 +84,17 @@ struct ConnectedView: View {
         }
         .navigationTitle(displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Tab", selection: $selectedTab) {
-                    Text("Tables").tag(ConnectedTab.tables)
-                    Text("Query").tag(ConnectedTab.query)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
+        .safeAreaInset(edge: .top) {
+            Picker("Tab", selection: $selectedTab) {
+                Text("Tables").tag(ConnectedTab.tables)
+                Text("Query").tag(ConnectedTab.query)
             }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(.bar)
+        }
+        .toolbar {
             if supportsDatabaseSwitching && databases.count > 1 {
                 ToolbarItem(placement: .topBarLeading) {
                     Menu {
