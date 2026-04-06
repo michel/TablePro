@@ -714,7 +714,8 @@ struct ExportDialog: View {
             savePanel.message = String(format: String(localized: "Export %d table(s) to %@"), exportableCount, formatName)
         }
 
-        savePanel.begin { response in
+        guard let window = NSApp.keyWindow else { return }
+        savePanel.beginSheetModal(for: window) { response in
             guard response == .OK, let url = savePanel.url else { return }
 
             Task {
