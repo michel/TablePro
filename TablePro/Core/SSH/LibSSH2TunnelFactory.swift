@@ -38,10 +38,10 @@ internal enum LibSSH2TunnelFactory {
         remoteHost: String,
         remotePort: Int,
         localPort: Int
-    ) throws -> LibSSH2Tunnel {
+    ) async throws -> LibSSH2Tunnel {
         _ = initialized
 
-        let chain = try buildAuthenticatedChain(
+        let chain = try await buildAuthenticatedChain(
             config: config,
             credentials: credentials,
             queueLabel: "com.TablePro.ssh.hop.\(connectionId.uuidString)"
@@ -83,10 +83,10 @@ internal enum LibSSH2TunnelFactory {
     static func testConnection(
         config: SSHConfiguration,
         credentials: SSHTunnelCredentials
-    ) throws {
+    ) async throws {
         _ = initialized
 
-        let chain = try buildAuthenticatedChain(
+        let chain = try await buildAuthenticatedChain(
             config: config,
             credentials: credentials,
             queueLabel: "com.TablePro.ssh.test-hop"
@@ -119,7 +119,7 @@ internal enum LibSSH2TunnelFactory {
         config: SSHConfiguration,
         credentials: SSHTunnelCredentials,
         queueLabel: String
-    ) throws -> AuthenticatedChain {
+    ) async throws -> AuthenticatedChain {
         let targetHost: String
         let targetPort: Int
 
@@ -141,7 +141,7 @@ internal enum LibSSH2TunnelFactory {
 
             do {
                 // Verify host key
-                try verifyHostKey(session: session, hostname: targetHost, port: targetPort)
+                try await verifyHostKey(session: session, hostname: targetHost, port: targetPort)
 
                 // Authenticate first hop
                 if let firstJump = config.jumpHosts.first {
@@ -218,7 +218,7 @@ internal enum LibSSH2TunnelFactory {
 
                         do {
                             // Verify host key for next hop
-                            try verifyHostKey(session: nextSession, hostname: nextHost, port: nextPort)
+                            try await verifyHostKey(session: nextSession, hostname: nextHost, port: nextPort)
 
                             // Authenticate next hop
                             if jumpIndex + 1 < jumps.count {
@@ -416,7 +416,7 @@ internal enum LibSSH2TunnelFactory {
         session: OpaquePointer,
         hostname: String,
         port: Int
-    ) throws {
+    ) async throws {
         var keyLength = 0
         var keyType: Int32 = 0
         guard let keyPtr = libssh2_session_hostkey(session, &keyLength, &keyType) else {
@@ -426,7 +426,7 @@ internal enum LibSSH2TunnelFactory {
         let keyData = Data(bytes: keyPtr, count: keyLength)
         let keyTypeName = HostKeyStore.keyTypeName(keyType)
 
-        try HostKeyVerifier.verify(
+        try await HostKeyVerifier.verify(
             keyData: keyData,
             keyType: keyTypeName,
             hostname: hostname,

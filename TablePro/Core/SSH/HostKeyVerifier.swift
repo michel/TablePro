@@ -15,8 +15,6 @@ internal enum HostKeyVerifier {
     private static let logger = Logger(subsystem: "com.TablePro", category: "HostKeyVerifier")
 
     /// Verify the host key, prompting the user if needed.
-    /// This method blocks the calling thread while showing UI prompts.
-    /// Must be called from a background thread.
     /// - Parameters:
     ///   - keyData: The raw host key bytes from the SSH session
     ///   - keyType: The key type string (e.g. "ssh-rsa", "ssh-ed25519")
@@ -28,7 +26,7 @@ internal enum HostKeyVerifier {
         keyType: String,
         hostname: String,
         port: Int
-    ) throws {
+    ) async throws {
         let result = HostKeyStore.shared.verify(
             keyData: keyData,
             keyType: keyType,
@@ -43,7 +41,7 @@ internal enum HostKeyVerifier {
 
         case .unknown(let fingerprint, let keyType):
             logger.info("Unknown host key for [\(hostname)]:\(port), prompting user")
-            let accepted = promptUnknownHost(
+            let accepted = await promptUnknownHost(
                 hostname: hostname,
                 port: port,
                 fingerprint: fingerprint,
@@ -62,7 +60,7 @@ internal enum HostKeyVerifier {
 
         case .mismatch(let expected, let actual):
             logger.warning("Host key mismatch for [\(hostname)]:\(port)")
-            let accepted = promptHostKeyMismatch(
+            let accepted = await promptHostKeyMismatch(
                 hostname: hostname,
                 port: port,
                 expected: expected,
@@ -83,85 +81,87 @@ internal enum HostKeyVerifier {
 
     // MARK: - UI Prompts
 
-    /// Show a dialog asking the user whether to trust an unknown host
-    /// Blocks the calling thread until the user responds.
+    @MainActor
     private static func promptUnknownHost(
         hostname: String,
         port: Int,
         fingerprint: String,
         keyType: String
-    ) -> Bool {
-        let semaphore = DispatchSemaphore(value: 0)
-        var accepted = false
-
+    ) async -> Bool {
         let hostDisplay = "[\(hostname)]:\(port)"
         let title = String(localized: "Unknown SSH Host")
-        let message = String(localized: """
-            The authenticity of host '\(hostDisplay)' can't be established.
+        let message = String(
+            format: String(localized: """
+                The authenticity of host '%@' can't be established.
 
-            \(keyType) key fingerprint is:
-            \(fingerprint)
+                %@ key fingerprint is:
+                %@
 
-            Are you sure you want to continue connecting?
-            """)
+                Are you sure you want to continue connecting?
+                """),
+            hostDisplay,
+            keyType,
+            fingerprint
+        )
 
-        DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.messageText = title
-            alert.informativeText = message
-            alert.alertStyle = .informational
-            alert.addButton(withTitle: String(localized: "Trust"))
-            alert.addButton(withTitle: String(localized: "Cancel"))
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: String(localized: "Trust"))
+        alert.addButton(withTitle: String(localized: "Cancel"))
 
-            let response = alert.runModal()
-            accepted = (response == .alertFirstButtonReturn)
-            semaphore.signal()
+        if let window = NSApp.keyWindow {
+            return await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { response in
+                    continuation.resume(returning: response == .alertFirstButtonReturn)
+                }
+            }
         }
-
-        semaphore.wait()
-        return accepted
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
-    /// Show a warning dialog about a changed host key (potential MITM attack)
-    /// Blocks the calling thread until the user responds.
+    @MainActor
     private static func promptHostKeyMismatch(
         hostname: String,
         port: Int,
         expected: String,
         actual: String
-    ) -> Bool {
-        let semaphore = DispatchSemaphore(value: 0)
-        var accepted = false
-
+    ) async -> Bool {
         let hostDisplay = "[\(hostname)]:\(port)"
         let title = String(localized: "SSH Host Key Changed")
-        let message = String(localized: """
-            WARNING: The host key for '\(hostDisplay)' has changed!
+        let message = String(
+            format: String(localized: """
+                WARNING: The host key for '%@' has changed!
 
-            This could mean someone is doing something malicious, or the server was reinstalled.
+                This could mean someone is doing something malicious, or the server was reinstalled.
 
-            Previous fingerprint: \(expected)
-            Current fingerprint: \(actual)
-            """)
+                Previous fingerprint: %@
+                Current fingerprint: %@
+                """),
+            hostDisplay,
+            expected,
+            actual
+        )
 
-        DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.messageText = title
-            alert.informativeText = message
-            alert.alertStyle = .critical
-            alert.addButton(withTitle: String(localized: "Connect Anyway"))
-            alert.addButton(withTitle: String(localized: "Disconnect"))
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: String(localized: "Connect Anyway"))
+        alert.addButton(withTitle: String(localized: "Disconnect"))
 
-            // Make "Disconnect" the default button (Return key) instead of "Connect Anyway"
-            alert.buttons[1].keyEquivalent = "\r"
-            alert.buttons[0].keyEquivalent = ""
+        // Make "Disconnect" the default button (Return key) instead of "Connect Anyway"
+        alert.buttons[1].keyEquivalent = "\r"
+        alert.buttons[0].keyEquivalent = ""
 
-            let response = alert.runModal()
-            accepted = (response == .alertFirstButtonReturn)
-            semaphore.signal()
+        if let window = NSApp.keyWindow {
+            return await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { response in
+                    continuation.resume(returning: response == .alertFirstButtonReturn)
+                }
+            }
         }
-
-        semaphore.wait()
-        return accepted
+        return alert.runModal() == .alertFirstButtonReturn
     }
 }
