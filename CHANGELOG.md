@@ -31,14 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- iOS: connection groups and tags
-- iOS: Quick Connect Home Screen widget
-- iOS: page-based pagination for data browser
-- iOS: filter bar with 16 operators, AND/OR logic
-- iOS: persistent query history with timestamps
-- iOS: export to clipboard (JSON, CSV, SQL INSERT)
-- iOS: sort columns with native Picker menu
-- iOS: Spotlight search and Siri Shortcuts for connections
+- iOS: groups, tags, filter, sort, pagination, query history, export to clipboard, Spotlight, Siri Shortcuts, Home Screen widget
 
 ## [0.27.4] - 2026-04-05
 
