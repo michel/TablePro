@@ -108,6 +108,7 @@ extension MainContentCoordinator {
             let needsLazyQuery = newTab.tabType == .table
                 && (newTab.resultRows.isEmpty || isEvicted)
                 && (newTab.lastExecutedAt == nil || isEvicted)
+                && newTab.errorMessage == nil
                 && !newTab.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
             if needsLazyQuery {
