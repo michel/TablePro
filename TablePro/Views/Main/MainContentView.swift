@@ -277,8 +277,7 @@ struct MainContentView: View {
             .onChange(of: tabManager.selectedTabId) { _, newTabId in
                 pendingTabSwitch?.cancel()
                 pendingTabSwitch = Task { @MainActor in
-                    // Let other onChange handlers (tabs, resultColumns) settle first
-                    try? await Task.sleep(for: .milliseconds(16))
+                    await Task.yield()
                     guard !Task.isCancelled else { return }
                     handleTabSelectionChange(from: previousSelectedTabId, to: newTabId)
                     previousSelectedTabId = newTabId

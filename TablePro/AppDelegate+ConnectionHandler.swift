@@ -264,10 +264,18 @@ extension AppDelegate {
         Task { @MainActor [weak self] in
             defer { self?.isProcessingQueuedURLs = false }
 
-            var ready = false
-            for _ in 0..<25 {
-                if WindowOpener.shared.openWindow != nil { ready = true; break }
-                try? await Task.sleep(for: .milliseconds(200))
+            let ready = await withTaskGroup(of: Bool.self) { group in
+                group.addTask {
+                    await WindowOpener.shared.waitUntilReady()
+                    return true
+                }
+                group.addTask {
+                    try? await Task.sleep(for: .seconds(5))
+                    return false
+                }
+                let result = await group.next() ?? false
+                group.cancelAll()
+                return result
             }
             guard let self else { return }
             if !ready {
