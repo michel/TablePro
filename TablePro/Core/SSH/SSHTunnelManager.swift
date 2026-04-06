@@ -102,16 +102,14 @@ actor SSHTunnelManager {
         // Try ports until one works
         for localPort in localPortCandidates() {
             do {
-                let tunnel = try await Task.detached {
-                    try LibSSH2TunnelFactory.createTunnel(
-                        connectionId: connectionId,
-                        config: config,
-                        credentials: credentials,
-                        remoteHost: remoteHost,
-                        remotePort: remotePort,
-                        localPort: localPort
-                    )
-                }.value
+                let tunnel = try await LibSSH2TunnelFactory.createTunnel(
+                    connectionId: connectionId,
+                    config: config,
+                    credentials: credentials,
+                    remoteHost: remoteHost,
+                    remotePort: remotePort,
+                    localPort: localPort
+                )
 
                 tunnel.onDeath = { [weak self] id in
                     Task { [weak self] in
@@ -176,12 +174,10 @@ actor SSHTunnelManager {
         config: SSHConfiguration,
         credentials: SSHTunnelCredentials
     ) async throws {
-        try await Task.detached {
-            try LibSSH2TunnelFactory.testConnection(
-                config: config,
-                credentials: credentials
-            )
-        }.value
+        try await LibSSH2TunnelFactory.testConnection(
+            config: config,
+            credentials: credentials
+        )
     }
 
     /// Check if a tunnel exists for a connection
