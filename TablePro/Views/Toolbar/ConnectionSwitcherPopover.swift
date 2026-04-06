@@ -15,7 +15,6 @@ struct ConnectionSwitcherPopover: View {
     @State private var savedConnections: [DatabaseConnection] = []
     @State private var isConnecting: UUID?
     @State private var selectedIndex: Int = 0
-    @State private var keyMonitor: Any?
 
     @Environment(\.openWindow) private var openWindow
 
@@ -157,61 +156,30 @@ struct ConnectionSwitcherPopover: View {
                     selectedIndex = idx
                 }
             }
-            installKeyMonitor()
         }
-        .onDisappear {
-            removeKeyMonitor()
-        }
-    }
-
-    // MARK: - Keyboard Navigation
-
-    private func installKeyMonitor() {
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        .onExitCommand { onDismiss?() }
+        .onKeyPress(.return) {
             let items = allItems
-            switch event.keyCode {
-            case KeyCode.upArrow.rawValue:
-                if selectedIndex > 0 {
-                    selectedIndex -= 1
-                }
-                return nil
-            case KeyCode.downArrow.rawValue:
-                if selectedIndex < items.count - 1 {
-                    selectedIndex += 1
-                }
-                return nil
-            case KeyCode.return.rawValue:
-                guard selectedIndex >= 0, selectedIndex < items.count else { return event }
-                switch items[selectedIndex] {
-                case .session(let session):
-                    switchToSession(session.id)
-                case .saved(let connection):
-                    connectToSaved(connection)
-                }
-                return nil
-            case KeyCode.escape.rawValue:
-                onDismiss?()
-                return nil
-            case KeyCode.j.rawValue where event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.control):
-                if selectedIndex < items.count - 1 {
-                    selectedIndex += 1
-                }
-                return nil
-            case KeyCode.k.rawValue where event.modifierFlags.contains(.control):
-                if selectedIndex > 0 {
-                    selectedIndex -= 1
-                }
-                return nil
-            default:
-                return event
+            guard selectedIndex >= 0, selectedIndex < items.count else { return .ignored }
+            switch items[selectedIndex] {
+            case .session(let session): switchToSession(session.id)
+            case .saved(let connection): connectToSaved(connection)
             }
+            return .handled
         }
-    }
-
-    private func removeKeyMonitor() {
-        if let monitor = keyMonitor {
-            NSEvent.removeMonitor(monitor)
-            keyMonitor = nil
+        .onKeyPress(.upArrow) {
+            moveSelection(by: -1)
+        }
+        .onKeyPress(.downArrow) {
+            moveSelection(by: 1)
+        }
+        .onKeyPress(characters: .init(charactersIn: "j"), phases: [.down, .repeat]) { keyPress in
+            guard keyPress.modifiers.contains(.control) else { return .ignored }
+            return moveSelection(by: 1)
+        }
+        .onKeyPress(characters: .init(charactersIn: "k"), phases: [.down, .repeat]) { keyPress in
+            guard keyPress.modifiers.contains(.control) else { return .ignored }
+            return moveSelection(by: -1)
         }
     }
 
@@ -220,6 +188,13 @@ struct ConnectionSwitcherPopover: View {
     private enum ConnectionItem {
         case session(ConnectionSession)
         case saved(DatabaseConnection)
+    }
+
+    private func moveSelection(by offset: Int) -> KeyPress.Result {
+        let newIndex = selectedIndex + offset
+        guard newIndex >= 0, newIndex < allItems.count else { return .handled }
+        selectedIndex = newIndex
+        return .handled
     }
 
     // MARK: - Subviews

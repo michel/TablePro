@@ -226,7 +226,13 @@ struct ContentView: View {
         } detail: {
             // MARK: - Detail (Main workspace with optional right sidebar)
             if let currentSession = currentSession, let rightPanelState, let sessionState {
-                HStack(spacing: 0) {
+                HorizontalSplitView(
+                    isTrailingCollapsed: !rightPanelState.isPresented,
+                    trailingWidth: Bindable(rightPanelState).panelWidth,
+                    minTrailingWidth: RightPanelState.minWidth,
+                    maxTrailingWidth: RightPanelState.maxWidth,
+                    autosaveName: "InspectorSplit"
+                ) {
                     MainContentView(
                         connection: currentSession.connection,
                         payload: payload,
@@ -244,23 +250,15 @@ struct ContentView: View {
                         toolbarState: sessionState.toolbarState,
                         coordinator: sessionState.coordinator
                     )
-                    .frame(maxWidth: .infinity)
-
-                    if rightPanelState.isPresented {
-                        PanelResizeHandle(panelWidth: Bindable(rightPanelState).panelWidth)
-                        Divider()
-                        UnifiedRightPanelView(
-                            state: rightPanelState,
-                            inspectorContext: inspectorContext,
-                            connection: currentSession.connection,
-                            tables: currentSession.tables
-                        )
-                        .frame(width: rightPanelState.panelWidth)
-                        .background(Color(nsColor: .windowBackgroundColor))
-                        .transition(.move(edge: .trailing))
-                    }
+                } trailing: {
+                    UnifiedRightPanelView(
+                        state: rightPanelState,
+                        inspectorContext: inspectorContext,
+                        connection: currentSession.connection,
+                        tables: currentSession.tables
+                    )
+                    .background(Color(nsColor: .windowBackgroundColor))
                 }
-                .animation(.easeInOut(duration: 0.2), value: rightPanelState.isPresented)
             } else {
                 VStack(spacing: 16) {
                     ProgressView()
@@ -429,10 +427,6 @@ struct ContentView: View {
         Task {
             await DatabaseManager.shared.disconnectSession(sessionId)
         }
-    }
-
-    private func saveCurrentSessionState() {
-        // State is automatically saved through bindings
     }
 
     // MARK: - Persistence

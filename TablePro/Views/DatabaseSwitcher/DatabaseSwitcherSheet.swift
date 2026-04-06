@@ -155,31 +155,13 @@ struct DatabaseSwitcherSheet: View {
     private var toolbar: some View {
         HStack(spacing: 8) {
             // Search
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
-                    .foregroundStyle(.tertiary)
-
-                TextField(isSchemaMode
+            SearchFieldView(
+                placeholder: isSchemaMode
                     ? String(localized: "Search schemas...")
                     : String(localized: "Search databases..."),
-                    text: $viewModel.searchText)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
-                    .focused($focus, equals: .search)
-
-                if !viewModel.searchText.isEmpty {
-                    Button(action: { viewModel.searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .cornerRadius(6)
+                text: $viewModel.searchText
+            )
+            .focused($focus, equals: .search)
 
             // Refresh
             Button(action: {

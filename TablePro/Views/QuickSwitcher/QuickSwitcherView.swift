@@ -95,28 +95,11 @@ internal struct QuickSwitcherSheet: View {
     // MARK: - Search Toolbar
 
     private var searchToolbar: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
-                .foregroundStyle(.tertiary)
-
-            TextField("Search tables, views, databases...", text: $viewModel.searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
-                .focused($focus, equals: .search)
-
-            if !viewModel.searchText.isEmpty {
-                Button(action: { viewModel.searchText = "" }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .cornerRadius(6)
+        SearchFieldView(
+            placeholder: "Search tables, views, databases...",
+            text: $viewModel.searchText
+        )
+        .focused($focus, equals: .search)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
