@@ -191,7 +191,7 @@ final class AppState {
         let items = connections.map { conn in
             let attributes = CSSearchableItemAttributeSet(contentType: .item)
             attributes.title = conn.name.isEmpty ? conn.host : conn.name
-            attributes.contentDescription = "\(conn.type.rawValue) — \(conn.host):\(conn.port)"
+            attributes.contentDescription = "\(conn.type.rawValue) · \(conn.host):\(conn.port)"
             return CSSearchableItem(
                 uniqueIdentifier: conn.id.uuidString,
                 domainIdentifier: "com.TablePro.connections",
