@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extract reusable SearchFieldView component from 4 custom search field implementations
 - Replace custom resize handle with native NSSplitView for inspector panel
 
+### Changed
+
+- Migrate undo system from custom stacks to NSUndoManager — Edit menu now shows "Undo Edit Cell", "Undo Delete Row", etc.
+
 ### Added
 
 - iOS: connection groups and tags
