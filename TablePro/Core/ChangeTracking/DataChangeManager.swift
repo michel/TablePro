@@ -505,23 +505,24 @@ final class DataChangeManager {
             lastUndoResult = UndoResult(action: action, needsRowRemoval: false, needsRowRestore: false, restoreRow: nil)
 
         case .rowInsertion(let rowIndex):
-            let savedValues = insertedRowData[rowIndex]
-            undoManager.registerUndo(withTarget: self) { [savedValues] target in
-                // Restore saved values so the reverse operation can access them
-                if let savedValues {
-                    target.insertedRowData[rowIndex] = savedValues
-                }
-                target.applyDataUndo(.rowInsertion(rowIndex: rowIndex))
-            }
-            undoManager.setActionName(String(localized: "Insert Row"))
-
             if insertedRowIndices.contains(rowIndex) {
+                // Undo: capture values BEFORE undoRowInsertion clears them
+                let savedValues = insertedRowData[rowIndex]
+                undoManager.registerUndo(withTarget: self) { [savedValues] target in
+                    if let savedValues {
+                        target.insertedRowData[rowIndex] = savedValues
+                    }
+                    target.applyDataUndo(.rowInsertion(rowIndex: rowIndex))
+                }
+                undoManager.setActionName(String(localized: "Insert Row"))
                 undoRowInsertion(rowIndex: rowIndex)
                 changedRowIndices.insert(rowIndex)
                 lastUndoResult = UndoResult(
                     action: action, needsRowRemoval: true, needsRowRestore: false, restoreRow: nil
                 )
             } else {
+                // Redo: re-insert the row, then register reverse
+                let savedValues = insertedRowData[rowIndex]
                 insertedRowIndices.insert(rowIndex)
                 let cellChanges = columns.enumerated().map { index, columnName in
                     CellChange(
@@ -538,6 +539,15 @@ final class DataChangeManager {
                 if let savedValues {
                     insertedRowData[rowIndex] = savedValues
                 }
+                // Register reverse AFTER insertedRowData is populated
+                let valuesToCapture = insertedRowData[rowIndex]
+                undoManager.registerUndo(withTarget: self) { [valuesToCapture] target in
+                    if let valuesToCapture {
+                        target.insertedRowData[rowIndex] = valuesToCapture
+                    }
+                    target.applyDataUndo(.rowInsertion(rowIndex: rowIndex))
+                }
+                undoManager.setActionName(String(localized: "Insert Row"))
                 changedRowIndices.insert(rowIndex)
                 lastUndoResult = UndoResult(
                     action: action, needsRowRemoval: false, needsRowRestore: true, restoreRow: savedValues
@@ -629,6 +639,7 @@ final class DataChangeManager {
                     let rowChange = RowChange(rowIndex: rowIndex, type: .insert, cellChanges: cellChanges)
                     changes.append(rowChange)
                     insertedRowIndices.insert(rowIndex)
+                    insertedRowData[rowIndex] = values
                 }
 
                 rebuildChangeIndex()
