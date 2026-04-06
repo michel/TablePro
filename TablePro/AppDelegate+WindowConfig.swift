@@ -151,22 +151,6 @@ extension AppDelegate {
         NotificationCenter.default.post(name: .openWelcomeWindow, object: nil)
     }
 
-    func configureWelcomeWindow() {
-        Task { @MainActor [weak self] in
-            for _ in 0 ..< 5 {
-                guard let self else { return }
-                let found = NSApp.windows.contains(where: { self.isWelcomeWindow($0) })
-                if found {
-                    for window in NSApp.windows where self.isWelcomeWindow(window) {
-                        self.configureWelcomeWindowStyle(window)
-                    }
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(50))
-            }
-        }
-    }
-
     private func configureWelcomeWindowStyle(_ window: NSWindow) {
         window.standardWindowButton(.miniaturizeButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isHidden = true

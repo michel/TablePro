@@ -250,11 +250,10 @@ extension MainContentCoordinator {
     ) {
         let isNonSQL = PluginManager.shared.editorLanguage(for: connectionType) != .sql
 
-        // Phase 2a: Exact row count
+        // Phase 2a: Exact row count (background priority to let Phase 1 render first)
         // Redis/non-SQL drivers don't support SELECT COUNT(*); use approximate count instead.
-        Task { [weak self] in
+        Task(priority: .background) { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: 200_000_000)
             guard !self.isTearingDown else { return }
             guard let mainDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
@@ -289,9 +288,8 @@ extension MainContentCoordinator {
         // Phase 2b: Fetch enum/set values (not applicable for non-SQL databases)
         guard !isNonSQL else { return }
         guard let enumDriver = DatabaseManager.shared.driver(for: connectionId) else { return }
-        Task { [weak self] in
+        Task(priority: .background) { [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: 200_000_000)
             guard !self.isTearingDown else { return }
 
             // Use schema if available, otherwise fetch column info for enum parsing

@@ -59,6 +59,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     /// Prevents duplicate connections when the same file is opened twice rapidly.
     var connectingFilePaths = Set<String>()
 
+    /// Connection share file URL pending consumption by WelcomeViewModel.setUp()
+    var pendingConnectionShareURL: URL?
+
     // MARK: - NSApplicationDelegate
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -104,8 +107,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Task.detached(priority: .background) {
             _ = QueryHistoryStorage.shared
         }
-
-        configureWelcomeWindow()
 
         let settings = AppSettingsStorage.shared.loadGeneral()
         if settings.startupBehavior == .reopenLast,

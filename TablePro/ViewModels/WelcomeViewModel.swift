@@ -181,6 +181,12 @@ final class WelcomeViewModel {
 
         loadConnections()
         linkedConnections = LinkedFolderWatcher.shared.linkedConnections
+
+        if let appDelegate = NSApp.delegate as? AppDelegate,
+           let pendingURL = appDelegate.pendingConnectionShareURL {
+            appDelegate.pendingConnectionShareURL = nil
+            activeSheet = .importFile(pendingURL)
+        }
     }
 
     deinit {
@@ -504,15 +510,25 @@ final class WelcomeViewModel {
     }
 
     func focusConnectionFormWindow() {
+        if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "connection-form" }) {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        var observer: NSObjectProtocol?
+        observer = NotificationCenter.default.addObserver(
+            forName: NSWindow.didBecomeKeyNotification,
+            object: nil,
+            queue: .main
+        ) { notification in
+            guard let window = notification.object as? NSWindow,
+                  window.identifier?.rawValue == "connection-form" else { return }
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+        }
+
         Task { @MainActor in
-            for _ in 0..<10 {
-                for window in NSApp.windows where
-                    window.identifier?.rawValue == "connection-form" {
-                    window.makeKeyAndOrderFront(nil)
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(20))
-            }
+            try? await Task.sleep(for: .milliseconds(500))
+            if let observer { NotificationCenter.default.removeObserver(observer) }
         }
     }
 
