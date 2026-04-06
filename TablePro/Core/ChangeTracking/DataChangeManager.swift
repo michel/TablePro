@@ -665,6 +665,11 @@ final class DataChangeManager {
                     action: action, needsRowRemoval: true, needsRowRestore: false, restoreRow: nil
                 )
             } else {
+                // Shift existing rows up for each insertion point (ascending order)
+                for rowIndex in rowIndices.sorted() {
+                    shiftRowIndicesUp(from: rowIndex)
+                }
+
                 for (index, rowIndex) in rowIndices.enumerated().reversed() {
                     guard index < rowValues.count else { continue }
                     let values = rowValues[index]
