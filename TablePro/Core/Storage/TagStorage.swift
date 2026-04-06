@@ -9,6 +9,7 @@ import Foundation
 import os
 
 /// Service for persisting the global tag library
+@MainActor
 final class TagStorage {
     static let shared = TagStorage()
     private static let logger = Logger(subsystem: "com.TablePro", category: "TagStorage")

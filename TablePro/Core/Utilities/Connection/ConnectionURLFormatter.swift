@@ -5,6 +5,7 @@
 
 import Foundation
 
+@MainActor
 struct ConnectionURLFormatter {
     static func format(
         _ connection: DatabaseConnection,
