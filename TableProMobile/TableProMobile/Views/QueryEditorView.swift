@@ -26,8 +26,6 @@ struct QueryEditorView: View {
     let historyStorage: QueryHistoryStorage
     @State private var showHistory = false
     @State private var showClearHistoryConfirmation = false
-    @FocusState private var editorFocused: Bool
-
     var body: some View {
         VStack(spacing: 0) {
             editorSection
@@ -45,16 +43,8 @@ struct QueryEditorView: View {
 
     private var editorSection: some View {
         VStack(spacing: 0) {
-            TextEditor(text: $query)
-                .font(.system(.body, design: .monospaced))
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .keyboardType(.asciiCapable)
-                .scrollContentBackground(.hidden)
+            SQLHighlightTextView(text: $query)
                 .frame(minHeight: 80, maxHeight: result != nil || appError != nil ? 120 : 250)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .focused($editorFocused)
 
             if executionTime != nil || result != nil {
                 HStack {
@@ -342,7 +332,7 @@ struct QueryEditorView: View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        editorFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         isExecuting = true
         defer { isExecuting = false }
         appError = nil
