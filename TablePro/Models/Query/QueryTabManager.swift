@@ -1,0 +1,204 @@
+//
+//  QueryTabManager.swift
+//  TablePro
+//
+
+import Foundation
+import Observation
+import os
+
+/// Manager for query tabs
+@MainActor @Observable
+final class QueryTabManager {
+    var tabs: [QueryTab] = [] {
+        didSet { _tabIndexMapDirty = true }
+    }
+
+    var selectedTabId: UUID?
+
+    @ObservationIgnored private var _tabIndexMap: [UUID: Int] = [:]
+    @ObservationIgnored private var _tabIndexMapDirty = true
+
+    private func rebuildTabIndexMapIfNeeded() {
+        guard _tabIndexMapDirty else { return }
+        _tabIndexMap = Dictionary(uniqueKeysWithValues: tabs.enumerated().map { ($1.id, $0) })
+        _tabIndexMapDirty = false
+    }
+
+    var tabIds: [UUID] { tabs.map(\.id) }
+
+    var selectedTab: QueryTab? {
+        if let index = selectedTabIndex { return tabs[index] }
+        return selectedTabId == nil ? tabs.first : nil
+    }
+
+    var selectedTabIndex: Int? {
+        guard let id = selectedTabId else { return nil }
+        rebuildTabIndexMapIfNeeded()
+        return _tabIndexMap[id]
+    }
+
+    init() {
+        // Start with no tabs - shows empty state
+        tabs = []
+        selectedTabId = nil
+    }
+
+    // MARK: - Tab Management
+
+    func addTab(initialQuery: String? = nil, title: String? = nil, databaseName: String = "", sourceFileURL: URL? = nil) {
+        if let sourceFileURL,
+           let existingIndex = tabs.firstIndex(where: { $0.sourceFileURL == sourceFileURL }) {
+            if let query = initialQuery {
+                tabs[existingIndex].query = query
+            }
+            selectedTabId = tabs[existingIndex].id
+            return
+        }
+
+        let queryCount = tabs.count(where: { $0.tabType == .query })
+        let tabTitle = title ?? "Query \(queryCount + 1)"
+        var newTab = QueryTab(title: tabTitle, tabType: .query)
+
+        if let query = initialQuery {
+            newTab.query = query
+            newTab.hasUserInteraction = true
+        }
+
+        newTab.databaseName = databaseName
+        newTab.sourceFileURL = sourceFileURL
+        if sourceFileURL != nil {
+            newTab.savedFileContent = newTab.query
+        }
+        tabs.append(newTab)
+        selectedTabId = newTab.id
+    }
+
+    func addTableTab(
+        tableName: String,
+        databaseType: DatabaseType = .mysql,
+        databaseName: String = "",
+        quoteIdentifier: ((String) -> String)? = nil
+    ) {
+        // Check if table tab already exists (match on databaseName)
+        if let existingTab = tabs.first(where: {
+            $0.tabType == .table && $0.tableName == tableName && $0.databaseName == databaseName
+        }) {
+            selectedTabId = existingTab.id
+            return
+        }
+
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+        let query = QueryTab.buildBaseTableQuery(
+            tableName: tableName, databaseType: databaseType, quoteIdentifier: quoteIdentifier
+        )
+        var newTab = QueryTab(
+            title: tableName,
+            query: query,
+            tabType: .table,
+            tableName: tableName
+        )
+        newTab.pagination = PaginationState(pageSize: pageSize)
+        newTab.databaseName = databaseName
+        tabs.append(newTab)
+        selectedTabId = newTab.id
+    }
+
+    func addCreateTableTab(databaseName: String = "") {
+        let tabTitle = String(localized: "Create Table")
+        var newTab = QueryTab(title: tabTitle, tabType: .createTable)
+        newTab.databaseName = databaseName
+        newTab.isEditable = false
+        newTab.hasUserInteraction = true
+        tabs.append(newTab)
+        selectedTabId = newTab.id
+    }
+
+    func addPreviewTableTab(
+        tableName: String,
+        databaseType: DatabaseType = .mysql,
+        databaseName: String = "",
+        quoteIdentifier: ((String) -> String)? = nil
+    ) {
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+        let query = QueryTab.buildBaseTableQuery(
+            tableName: tableName, databaseType: databaseType, quoteIdentifier: quoteIdentifier
+        )
+        var newTab = QueryTab(
+            title: tableName,
+            query: query,
+            tabType: .table,
+            tableName: tableName
+        )
+        newTab.pagination = PaginationState(pageSize: pageSize)
+        newTab.databaseName = databaseName
+        newTab.isPreview = true
+        tabs.append(newTab)
+        selectedTabId = newTab.id
+    }
+
+    /// Replace the currently selected tab's content with a new table.
+    /// - Returns: `true` if the replacement happened (caller should run the query),
+    ///   `false` if there is no selected tab.
+    @discardableResult
+    func replaceTabContent(
+        tableName: String, databaseType: DatabaseType = .mysql,
+        isView: Bool = false, databaseName: String = "",
+        schemaName: String? = nil, isPreview: Bool = false,
+        quoteIdentifier: ((String) -> String)? = nil
+    ) -> Bool {
+        guard let selectedId = selectedTabId,
+              let selectedIndex = tabs.firstIndex(where: { $0.id == selectedId })
+        else {
+            return false
+        }
+
+        let query = QueryTab.buildBaseTableQuery(
+            tableName: tableName,
+            databaseType: databaseType,
+            schemaName: schemaName,
+            quoteIdentifier: quoteIdentifier
+        )
+        let pageSize = AppSettingsManager.shared.dataGrid.defaultPageSize
+
+        // Build locally and write back once to avoid 14 CoW copies (UI-11).
+        var tab = tabs[selectedIndex]
+        tab.rowBuffer = RowBuffer()
+        tab.title = tableName
+        tab.tableName = tableName
+        tab.query = query
+        tab.resultVersion += 1
+        tab.executionTime = nil
+        tab.statusMessage = nil
+        tab.errorMessage = nil
+        tab.lastExecutedAt = nil
+        tab.showStructure = false
+        tab.sortState = SortState()
+        tab.selectedRowIndices = []
+        tab.pendingChanges = TabPendingChanges()
+        tab.hasUserInteraction = false
+        tab.isView = isView
+        tab.isEditable = !isView
+        tab.filterState = TabFilterState()
+        tab.columnLayout = ColumnLayoutState()
+        tab.pagination = PaginationState(pageSize: pageSize)
+        tab.databaseName = databaseName
+        tab.schemaName = schemaName
+        tab.isPreview = isPreview
+        tabs[selectedIndex] = tab
+        return true
+    }
+
+    func updateTab(_ tab: QueryTab) {
+        if let index = tabs.firstIndex(where: { $0.id == tab.id }) {
+            tabs[index] = tab
+        }
+    }
+
+    deinit {
+        #if DEBUG
+        Logger(subsystem: "com.TablePro", category: "QueryTabManager")
+            .debug("QueryTabManager deallocated")
+        #endif
+    }
+}
