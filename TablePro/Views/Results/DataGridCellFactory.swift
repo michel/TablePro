@@ -273,7 +273,6 @@ final class DataGridCellFactory {
             } else {
                 gridCell.changeBackgroundColor = nil
             }
-            gridCell.needsDisplay = true
         }
 
         // Focus ring
