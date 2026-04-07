@@ -311,11 +311,8 @@ extension AppDelegate {
     }
 
     private func postSQLFilesWhenReady(urls: [URL]) {
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(100))
-            if !NSApp.windows.contains(where: { self?.isMainWindow($0) == true && $0.isKeyWindow }) {
-                connectionLogger.warning("postSQLFilesWhenReady: no key main window, posting anyway")
-            }
+        Task { @MainActor in
+            await waitForConnection(timeout: .seconds(3))
             NotificationCenter.default.post(name: .openSQLFiles, object: urls)
         }
     }
@@ -343,7 +340,7 @@ extension AppDelegate {
                     object: nil,
                     userInfo: ["connectionId": connectionId, "schema": schema]
                 )
-                try? await Task.sleep(for: .milliseconds(500))
+                await waitForNotification(.refreshData, timeout: .seconds(3))
             }
 
             if let tableName = parsed.tableName {
@@ -356,7 +353,7 @@ extension AppDelegate {
                 WindowOpener.shared.openNativeTab(payload)
 
                 if parsed.filterColumn != nil || parsed.filterCondition != nil {
-                    try? await Task.sleep(for: .milliseconds(300))
+                    await waitForNotification(.refreshData, timeout: .seconds(3))
                     NotificationCenter.default.post(
                         name: .applyURLFilter,
                         object: nil,
@@ -395,6 +392,33 @@ extension AppDelegate {
                 forName: .databaseDidConnect,
                 object: nil,
                 queue: .main
+            ) { _ in
+                timeoutTask.cancel()
+                resumeOnce()
+            }
+        }
+    }
+
+    private func waitForNotification(_ name: Notification.Name, timeout: Duration) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            var didResume = false
+            var observer: NSObjectProtocol?
+
+            func resumeOnce() {
+                guard !didResume else { return }
+                didResume = true
+                if let obs = observer {
+                    NotificationCenter.default.removeObserver(obs)
+                }
+                continuation.resume()
+            }
+
+            let timeoutTask = Task { @MainActor in
+                try? await Task.sleep(for: timeout)
+                resumeOnce()
+            }
+            observer = NotificationCenter.default.addObserver(
+                forName: name, object: nil, queue: .main
             ) { _ in
                 timeoutTask.cancel()
                 resumeOnce()
@@ -443,7 +467,7 @@ extension AppDelegate {
         // User cancelled password prompt — no error dialog needed
         if error is CancellationError { return }
 
-        try? await Task.sleep(for: .milliseconds(200))
+        await Task.yield()
         AlertHelper.showErrorSheet(
             title: String(localized: "Connection Failed"),
             message: error.localizedDescription,
