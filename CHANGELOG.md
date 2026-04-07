@@ -7,13 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.28.0] - 2026-04-07
-
 ### Added
 
 - Smart value detection: auto-render UUIDs in BINARY(16) columns and timestamps in integer columns
 - Per-column "Display As" override via column header context menu
 - iOS: safe mode (Off, Confirm Writes, Read-Only) per connection
+- iOS: FK navigation — tap to preview referenced row
 
 ### Fixed
 
