@@ -72,8 +72,9 @@ struct CompletionTextField: NSViewRepresentable {
         func controlTextDidChange(_ notification: Notification) {
             guard let textField = notification.object as? NSTextField else { return }
             let newValue = textField.stringValue
-            let grew = newValue.count > previousTextLength
-            previousTextLength = newValue.count
+            let newLength = (newValue as NSString).length
+            let grew = newLength > previousTextLength
+            previousTextLength = newLength
             text.wrappedValue = newValue
 
             if grew, !newValue.isEmpty,
