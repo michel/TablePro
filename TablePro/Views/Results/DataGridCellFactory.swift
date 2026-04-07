@@ -264,12 +264,8 @@ final class DataGridCellFactory {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
 
-        // Update background color
-        if isDeleted {
-            cellView.layer?.backgroundColor = ThemeEngine.shared.colors.dataGrid.deletedCG
-        } else if isInserted {
-            cellView.layer?.backgroundColor = ThemeEngine.shared.colors.dataGrid.insertedCG
-        } else if isModified {
+        // Per-cell modified background (row view handles deleted/inserted via drawBackground)
+        if isModified && !isDeleted && !isInserted {
             cellView.layer?.backgroundColor = ThemeEngine.shared.colors.dataGrid.modifiedCG
         } else {
             cellView.layer?.backgroundColor = nil
