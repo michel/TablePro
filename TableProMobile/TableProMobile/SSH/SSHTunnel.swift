@@ -307,7 +307,10 @@ actor SSHTunnel {
             socketFD = -1
         }
 
-        // Free session off-actor to avoid blocking
+        // Free session off-actor to avoid blocking the actor (libssh2_session_disconnect
+        // can take seconds on a slow network). The detached thread acquires sessionLock
+        // first, which serializes with the relay thread's libssh2 calls — the relay
+        // will see isAlive == false after its current locked operation and exit.
         let sess = session
         session = nil
         let lock = sessionLock
@@ -452,6 +455,7 @@ actor SSHTunnel {
             // Channel -> Client
             if pollFDs[1].revents & Int16(POLLIN) != 0 {
                 lock.lock()
+                guard aliveFlag.value else { lock.unlock(); return }
                 let readResult = Int(tablepro_libssh2_channel_read(channel, buffer, bufferSize))
                 let eof = libssh2_channel_eof(channel)
                 lock.unlock()
@@ -478,6 +482,7 @@ actor SSHTunnel {
                 var totalWritten = 0
                 while totalWritten < Int(clientRead) {
                     lock.lock()
+                    guard aliveFlag.value else { lock.unlock(); return }
                     let written = Int(tablepro_libssh2_channel_write(
                         channel,
                         buffer.advanced(by: totalWritten),

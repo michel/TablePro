@@ -23,6 +23,10 @@ enum SQLBuilder {
     static func escapeString(_ value: String) -> String {
         value
             .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\0", with: "\\0")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\u{1a}", with: "\\Z")
             .replacingOccurrences(of: "'", with: "''")
     }
 
