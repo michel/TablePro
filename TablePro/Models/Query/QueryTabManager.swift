@@ -164,6 +164,7 @@ final class QueryTabManager {
         // Build locally and write back once to avoid 14 CoW copies (UI-11).
         var tab = tabs[selectedIndex]
         tab.rowBuffer = RowBuffer()
+        tab.tabType = .table
         tab.title = tableName
         tab.tableName = tableName
         tab.query = query
