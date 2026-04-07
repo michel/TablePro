@@ -121,6 +121,7 @@ struct DataGridSettings: Codable, Equatable {
     var showAlternateRows: Bool
     var showRowNumbers: Bool
     var autoShowInspector: Bool
+    var enableSmartValueDetection: Bool
 
     static let `default` = DataGridSettings(
         rowHeight: .normal,
@@ -129,7 +130,8 @@ struct DataGridSettings: Codable, Equatable {
         defaultPageSize: 1_000,
         showAlternateRows: true,
         showRowNumbers: true,
-        autoShowInspector: false
+        autoShowInspector: false,
+        enableSmartValueDetection: true
     )
 
     init(
@@ -139,7 +141,8 @@ struct DataGridSettings: Codable, Equatable {
         defaultPageSize: Int = 1_000,
         showAlternateRows: Bool = true,
         showRowNumbers: Bool = true,
-        autoShowInspector: Bool = false
+        autoShowInspector: Bool = false,
+        enableSmartValueDetection: Bool = true
     ) {
         self.rowHeight = rowHeight
         self.dateFormat = dateFormat
@@ -148,6 +151,7 @@ struct DataGridSettings: Codable, Equatable {
         self.showAlternateRows = showAlternateRows
         self.showRowNumbers = showRowNumbers
         self.autoShowInspector = autoShowInspector
+        self.enableSmartValueDetection = enableSmartValueDetection
     }
 
     init(from decoder: Decoder) throws {
@@ -160,6 +164,7 @@ struct DataGridSettings: Codable, Equatable {
         showAlternateRows = try container.decodeIfPresent(Bool.self, forKey: .showAlternateRows) ?? true
         showRowNumbers = try container.decodeIfPresent(Bool.self, forKey: .showRowNumbers) ?? true
         autoShowInspector = try container.decodeIfPresent(Bool.self, forKey: .autoShowInspector) ?? false
+        enableSmartValueDetection = try container.decodeIfPresent(Bool.self, forKey: .enableSmartValueDetection) ?? true
     }
 
     // MARK: - Validated Properties

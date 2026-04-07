@@ -21,9 +21,22 @@ extension MainContentView {
         let row = tab.resultRows[firstIndex]
         var data: [(column: String, value: String?, type: String)] = []
 
+        let service = ValueDisplayFormatService.shared
+        let connId = coordinator.connection.id
+        let tblName = tab.tableName
+
         for (i, col) in tab.resultColumns.enumerated() {
-            let value = i < row.count ? row[i] : nil
+            var value = i < row.count ? row[i] : nil
             let type = i < tab.columnTypes.count ? tab.columnTypes[i].displayName : "string"
+
+            // Apply display format if active
+            if let rawValue = value {
+                let format = service.effectiveFormat(columnName: col, connectionId: connId, tableName: tblName)
+                if format != .raw {
+                    value = ValueDisplayFormatService.applyFormat(rawValue, format: format)
+                }
+            }
+
             data.append((column: col, value: value, type: type))
         }
 

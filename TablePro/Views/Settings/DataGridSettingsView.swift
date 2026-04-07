@@ -44,6 +44,8 @@ struct DataGridSettingsView: View {
                 Toggle("Show row numbers", isOn: $settings.showRowNumbers)
 
                 Toggle("Auto-show inspector on row select", isOn: $settings.autoShowInspector)
+
+                Toggle("Smart value detection", isOn: $settings.enableSmartValueDetection)
             }
 
             Section("Pagination") {

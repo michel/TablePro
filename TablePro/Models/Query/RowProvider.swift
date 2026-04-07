@@ -86,6 +86,7 @@ final class InMemoryRowProvider: RowProvider {
     private(set) var columnForeignKeys: [String: ForeignKeyInfo]
     private(set) var columnEnumValues: [String: [String]]
     private(set) var columnNullable: [String: Bool]
+    private(set) var columnDisplayFormats: [ValueDisplayFormat?] = []
 
     var totalRowCount: Int {
         bufferRowCount + appendedRows.count
@@ -213,7 +214,8 @@ final class InMemoryRowProvider: RowProvider {
         var rowCache = [String?](repeating: nil, count: columnCount)
         for col in 0..<min(src.count, columnCount) {
             let ct = col < columnTypes.count ? columnTypes[col] : nil
-            rowCache[col] = CellDisplayFormatter.format(src[col], columnType: ct)
+            let format = col < columnDisplayFormats.count ? columnDisplayFormats[col] : nil
+            rowCache[col] = CellDisplayFormatter.format(src[col], columnType: ct, displayFormat: format)
         }
         displayCache[cacheKey] = rowCache
         evictDisplayCacheIfNeeded(nearKey: cacheKey)
@@ -237,7 +239,8 @@ final class InMemoryRowProvider: RowProvider {
             var rowCache = [String?](repeating: nil, count: columnCount)
             for col in 0..<min(src.count, columnCount) {
                 let ct = col < columnTypes.count ? columnTypes[col] : nil
-                rowCache[col] = CellDisplayFormatter.format(src[col], columnType: ct)
+                let format = col < columnDisplayFormats.count ? columnDisplayFormats[col] : nil
+                rowCache[col] = CellDisplayFormatter.format(src[col], columnType: ct, displayFormat: format)
             }
             displayCache[cacheKey] = rowCache
         }
@@ -246,6 +249,12 @@ final class InMemoryRowProvider: RowProvider {
     /// Invalidate entire display cache (after settings change, full reload).
     func invalidateDisplayCache() {
         displayCache.removeAll()
+    }
+
+    /// Update display formats and invalidate the cache so cells re-render.
+    func updateDisplayFormats(_ formats: [ValueDisplayFormat?]) {
+        columnDisplayFormats = formats
+        invalidateDisplayCache()
     }
 
     /// Release cached data to free memory when this provider is no longer active.

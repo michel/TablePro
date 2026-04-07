@@ -103,6 +103,38 @@ extension TableViewCoordinator {
         filterItem.target = self
         menu.addItem(filterItem)
 
+        // "Display As" submenu for value display format overrides
+        if let dataColumnIndex = DataGridView.columnIndex(from: column.identifier) {
+            let columnType = dataColumnIndex < rowProvider.columnTypes.count ? rowProvider.columnTypes[dataColumnIndex] : nil
+            let applicableFormats = ValueDisplayFormat.applicableFormats(for: columnType)
+            if applicableFormats.count > 1 {
+                let displaySubmenu = NSMenu()
+                let currentFormat = ValueDisplayFormatService.shared.effectiveFormat(
+                    columnName: baseName,
+                    connectionId: connectionId,
+                    tableName: tableName
+                )
+                for format in applicableFormats {
+                    let item = NSMenuItem(
+                        title: format.displayName,
+                        action: #selector(setDisplayFormat(_:)),
+                        keyEquivalent: ""
+                    )
+                    item.representedObject = DisplayFormatMenuItem(
+                        columnName: baseName,
+                        columnIndex: dataColumnIndex,
+                        format: format
+                    )
+                    item.target = self
+                    item.state = (format == currentFormat) ? .on : .off
+                    displaySubmenu.addItem(item)
+                }
+                let displayItem = NSMenuItem(title: String(localized: "Display As"), action: nil, keyEquivalent: "")
+                displayItem.submenu = displaySubmenu
+                menu.addItem(displayItem)
+            }
+        }
+
         menu.addItem(NSMenuItem.separator())
 
         let sizeToFitItem = NSMenuItem(title: String(localized: "Size to Fit"), action: #selector(sizeColumnToFit(_:)), keyEquivalent: "")
@@ -194,5 +226,51 @@ extension TableViewCoordinator {
             column.width = width
         }
         hasUserResizedColumns = true
+    }
+
+    @objc func setDisplayFormat(_ sender: NSMenuItem) {
+        guard let info = sender.representedObject as? DisplayFormatMenuItem else { return }
+
+        let formatToStore: ValueDisplayFormat? = (info.format == .raw) ? nil : info.format
+
+        if let connId = connectionId, let table = tableName {
+            ValueDisplayFormatService.shared.setOverride(
+                formatToStore,
+                columnName: info.columnName,
+                connectionId: connId,
+                tableName: table
+            )
+        }
+
+        // Update the provider's format array and refresh
+        var formats = rowProvider.columnDisplayFormats
+        while formats.count <= info.columnIndex {
+            formats.append(nil)
+        }
+        formats[info.columnIndex] = (info.format == .raw) ? nil : info.format
+        rowProvider.updateDisplayFormats(formats)
+
+        guard let tableView else { return }
+        let visibleRect = tableView.visibleRect
+        let visibleRange = tableView.rows(in: visibleRect)
+        if visibleRange.length > 0 {
+            tableView.reloadData(
+                forRowIndexes: IndexSet(integersIn: visibleRange.location..<(visibleRange.location + visibleRange.length)),
+                columnIndexes: IndexSet(integersIn: 0..<tableView.numberOfColumns)
+            )
+        }
+    }
+}
+
+/// Payload for the "Display As" context menu item
+private final class DisplayFormatMenuItem {
+    let columnName: String
+    let columnIndex: Int
+    let format: ValueDisplayFormat
+
+    init(columnName: String, columnIndex: Int, format: ValueDisplayFormat) {
+        self.columnName = columnName
+        self.columnIndex = columnIndex
+        self.format = format
     }
 }

@@ -504,9 +504,11 @@ struct MainEditorContentView: View {
     }
 
     private func makeRowProvider(for tab: QueryTab) -> InMemoryRowProvider {
+        let provider: InMemoryRowProvider
+
         // Use active ResultSet data when available (multi-statement results)
         if let rs = tab.activeResultSet, !rs.resultColumns.isEmpty {
-            return InMemoryRowProvider(
+            provider = InMemoryRowProvider(
                 rowBuffer: rs.rowBuffer,
                 sortIndices: sortIndicesForTab(tab),
                 columns: rs.resultColumns,
@@ -516,17 +518,76 @@ struct MainEditorContentView: View {
                 columnEnumValues: rs.columnEnumValues,
                 columnNullable: rs.columnNullable
             )
+        } else {
+            provider = InMemoryRowProvider(
+                rowBuffer: tab.rowBuffer,
+                sortIndices: sortIndicesForTab(tab),
+                columns: tab.resultColumns,
+                columnDefaults: tab.columnDefaults,
+                columnTypes: tab.columnTypes,
+                columnForeignKeys: tab.columnForeignKeys,
+                columnEnumValues: tab.columnEnumValues,
+                columnNullable: tab.columnNullable
+            )
         }
-        return InMemoryRowProvider(
-            rowBuffer: tab.rowBuffer,
-            sortIndices: sortIndicesForTab(tab),
-            columns: tab.resultColumns,
-            columnDefaults: tab.columnDefaults,
-            columnTypes: tab.columnTypes,
-            columnForeignKeys: tab.columnForeignKeys,
-            columnEnumValues: tab.columnEnumValues,
-            columnNullable: tab.columnNullable
-        )
+
+        applyDisplayFormats(to: provider, tab: tab)
+        return provider
+    }
+
+    private func applyDisplayFormats(to provider: InMemoryRowProvider, tab: QueryTab) {
+        let columns = provider.columns
+        let columnTypes = provider.columnTypes
+        guard !columns.isEmpty else { return }
+
+        let settings = AppSettingsManager.shared.dataGrid
+        let service = ValueDisplayFormatService.shared
+
+        // Auto-detect formats when the setting is enabled
+        var detected: [ValueDisplayFormat?] = Array(repeating: nil, count: columns.count)
+        if settings.enableSmartValueDetection {
+            let sampleRows: [[String?]]? = {
+                let rows = tab.activeResultSet?.resultRows ?? tab.resultRows
+                return rows.isEmpty ? nil : Array(rows.prefix(10))
+            }()
+            detected = ValueDisplayDetector.detect(
+                columns: columns,
+                columnTypes: columnTypes,
+                sampleValues: sampleRows
+            )
+
+            // Update service's auto-detected formats
+            var autoMap: [String: ValueDisplayFormat] = [:]
+            for (i, format) in detected.enumerated() where i < columns.count {
+                if let format {
+                    autoMap[columns[i]] = format
+                }
+            }
+            service.setAutoDetectedFormats(autoMap, connectionId: connectionId, tableName: tab.tableName)
+        } else {
+            service.clearAutoDetectedFormats(connectionId: connectionId, tableName: tab.tableName)
+        }
+
+        // Merge with stored overrides (override > detection > nil)
+        let connId = connectionId
+        let tblName = tab.tableName
+        var merged = detected
+
+        if let tblName {
+            if let overrides = ValueDisplayFormatStorage.shared.load(for: tblName, connectionId: connId) {
+                for (i, colName) in columns.enumerated() {
+                    if let overrideFormat = overrides[colName] {
+                        while merged.count <= i { merged.append(nil) }
+                        merged[i] = overrideFormat
+                    }
+                }
+            }
+        }
+
+        // Only set if there's at least one non-nil format
+        if merged.contains(where: { $0 != nil }) {
+            provider.updateDisplayFormats(merged)
+        }
     }
 
     /// Returns sort index permutation for a tab, or nil if no sorting is needed.

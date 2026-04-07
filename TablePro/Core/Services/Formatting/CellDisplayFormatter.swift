@@ -12,12 +12,15 @@ import Foundation
 enum CellDisplayFormatter {
     static let maxDisplayLength = 10_000
 
-    static func format(_ rawValue: String?, columnType: ColumnType?) -> String? {
+    static func format(_ rawValue: String?, columnType: ColumnType?, displayFormat: ValueDisplayFormat? = nil) -> String? {
         guard let value = rawValue, !value.isEmpty else { return rawValue }
 
         var displayValue = value
 
-        if let columnType {
+        // Apply explicit display format when set (non-raw)
+        if let displayFormat, displayFormat != .raw {
+            displayValue = ValueDisplayFormatService.applyFormat(value, format: displayFormat)
+        } else if let columnType {
             if columnType.isDateType {
                 if let formatted = DateFormattingService.shared.format(dateString: displayValue) {
                     displayValue = formatted
