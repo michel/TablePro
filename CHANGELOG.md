@@ -9,11 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix potential hang when coordinator deallocates during save
-- Fix Cmd+W save not persisting data grid changes (sidebar edits intercepted save path)
-- Move theme loading, AI chat history, and SSH config parsing off the main thread
-- Show error feedback when connection fails from Connection Switcher popover
-- Log errors for license deactivation failures and Redis database switch failures
+- Fix Cmd+W save not persisting data grid changes
+- Show error feedback when connection fails from Connection Switcher
+- Move theme, AI chat, and SSH config file loading off the main thread
 
 ## [0.27.5] - 2026-04-06
 
