@@ -590,7 +590,7 @@ final class MainContentCommandActions {
     }
 
     func toggleRightSidebar() {
-        rightPanelState.isPresented.toggle()
+        RightPanelVisibility.shared.isPresented.toggle()
     }
 
     func toggleResults() {

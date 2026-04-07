@@ -313,7 +313,7 @@ final class MainContentCoordinator {
     }
 
     func showAIChatPanel() {
-        rightPanelState?.isPresented = true
+        RightPanelVisibility.shared.isPresented = true
         rightPanelState?.activeTab = .aiChat
     }
 

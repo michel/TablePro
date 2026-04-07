@@ -220,8 +220,8 @@ struct ContentView: View {
                     )
                     .frame(maxWidth: .infinity)
 
-                    if rightPanelState.isPresented {
-                        PanelResizeHandle(panelWidth: Bindable(rightPanelState).panelWidth)
+                    if RightPanelVisibility.shared.isPresented {
+                        PanelResizeHandle(panelWidth: Bindable(RightPanelVisibility.shared).panelWidth)
                         Divider()
                         UnifiedRightPanelView(
                             state: rightPanelState,
@@ -229,12 +229,12 @@ struct ContentView: View {
                             connection: currentSession.connection,
                             tables: currentSession.tables
                         )
-                        .frame(width: rightPanelState.panelWidth)
+                        .frame(width: RightPanelVisibility.shared.panelWidth)
                         .background(Color(nsColor: .windowBackgroundColor))
                         .transition(.move(edge: .trailing))
                     }
                 }
-                .animation(.easeInOut(duration: 0.2), value: rightPanelState.isPresented)
+                .animation(.easeInOut(duration: 0.2), value: RightPanelVisibility.shared.isPresented)
             } else {
                 VStack(spacing: 16) {
                     ProgressView()

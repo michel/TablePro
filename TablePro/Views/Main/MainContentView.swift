@@ -373,7 +373,7 @@ struct MainContentView: View {
                     AppSettingsManager.shared.dataGrid.autoShowInspector,
                     tabManager.selectedTab?.tabType == .table
                 {
-                    rightPanelState.isPresented = true
+                    RightPanelVisibility.shared.isPresented = true
                 }
                 // Deferred: expensive inspector rebuild coalesced with other triggers
                 scheduleInspectorUpdate()
