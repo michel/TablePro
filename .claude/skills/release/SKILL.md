@@ -85,11 +85,11 @@ and `CURRENT_PROJECT_VERSION = 1`:
 - **TableProPluginKit** framework
 - **Bundled plugins** (included in app bundle): MySQLDriverPlugin,
   PostgreSQLDriverPlugin, SQLiteDriverPlugin, plus export plugins
-  (CSV, JSON, SQL export)
+  (CSV, JSON, SQL export, XLSX, MQL, SQLImport)
 - **Separate plugin bundles** (not included in app bundle, distributed
   independently): OracleDriverPlugin, ClickHouseDriverPlugin,
   DuckDBDriverPlugin, MSSQLDriverPlugin, MongoDBDriverPlugin,
-  RedisDriverPlugin, XLSXExportPlugin, MQLExportPlugin, SQLImportPlugin
+  RedisDriverPlugin
 
 Use `replace_all: true` for each edit — the main app target's version
 values are always unique (e.g., `MARKETING_VERSION = 0.16.1` and
@@ -231,7 +231,7 @@ each for changes:
 
 ```bash
 # Built-in plugins (bundled in app) and shared framework — skip these:
-BUILTIN="MySQLDriverPlugin|PostgreSQLDriverPlugin|SQLiteDriverPlugin|CSVExportPlugin|JSONExportPlugin|SQLExportPlugin|TableProPluginKit"
+BUILTIN="MySQLDriverPlugin|PostgreSQLDriverPlugin|SQLiteDriverPlugin|CSVExportPlugin|JSONExportPlugin|SQLExportPlugin|XLSXExportPlugin|MQLExportPlugin|SQLImportPlugin|TableProPluginKit"
 
 # Discover all separate plugin directories dynamically:
 for dir in Plugins/*/; do
@@ -240,7 +240,6 @@ for dir in Plugins/*/; do
   echo "$dirname" | grep -qE "^($BUILTIN)$" && continue
 
   # Derive tag name from directory (e.g., OracleDriverPlugin -> oracle,
-  # XLSXExportPlugin -> xlsx, SQLImportPlugin -> sqlimport,
   # CloudflareD1DriverPlugin -> d1, EtcdDriverPlugin -> etcd)
   # Strip "DriverPlugin" or "ExportPlugin" or "ImportPlugin" suffix,
   # then lowercase. For "CloudflareD1", use "d1". Apply custom mappings
@@ -260,7 +259,7 @@ done
 The tag name derivation must match the CI workflow's mapping. Known
 mappings: `CloudflareD1DriverPlugin` → `d1`, `EtcdDriverPlugin` →
 `etcd`. For standard plugins, strip the suffix and lowercase (e.g.,
-`OracleDriverPlugin` → `oracle`, `XLSXExportPlugin` → `xlsx`).
+`OracleDriverPlugin` → `oracle`).
 
 If `LAST_TAG` is empty (never released), check for changes since the
 beginning of the repo.
