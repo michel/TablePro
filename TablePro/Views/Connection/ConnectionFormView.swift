@@ -1271,7 +1271,10 @@ private extension ConnectionFormView {
     }
 
     func loadSSHConfig() {
-        sshConfigEntries = SSHConfigParser.parse()
+        Task {
+            let entries = await Task.detached { SSHConfigParser.parse() }.value
+            sshConfigEntries = entries
+        }
     }
 }
 
