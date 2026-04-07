@@ -161,7 +161,7 @@ struct ConnectedView: View {
     }
 
     private var connectedContent: some View {
-        VStack(spacing: 0) {
+        Group {
             switch selectedTab {
             case .tables:
                 TableListView(
@@ -170,6 +170,7 @@ struct ConnectedView: View {
                     session: session,
                     onRefresh: { await refreshTables() }
                 )
+                .id(ConnectedTab.tables)
             case .query:
                 QueryEditorView(
                     session: session,
@@ -179,6 +180,7 @@ struct ConnectedView: View {
                     connectionId: connection.id,
                     historyStorage: historyStorage
                 )
+                .id(ConnectedTab.query)
             }
         }
     }
