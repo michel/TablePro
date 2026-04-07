@@ -150,7 +150,7 @@ final class AIChatViewModel {
     /// Clear all recent conversations
     func clearConversation() {
         cancelStream()
-        chatStorage.deleteAll()
+        Task { await chatStorage.deleteAll() }
         conversations.removeAll()
         messages.removeAll()
         activeConversationID = nil
@@ -209,9 +209,8 @@ final class AIChatViewModel {
 
     /// Load saved conversations from disk
     func loadConversations() {
-        let storage = chatStorage
         Task {
-            let loaded = await Task.detached { storage.loadAll() }.value
+            let loaded = await chatStorage.loadAll()
             conversations = loaded
             if let mostRecent = loaded.first {
                 activeConversationID = mostRecent.id
@@ -263,7 +262,7 @@ final class AIChatViewModel {
 
     /// Delete a conversation
     func deleteConversation(_ id: UUID) {
-        chatStorage.delete(id)
+        Task { await chatStorage.delete(id) }
         conversations.removeAll { $0.id == id }
         if activeConversationID == id {
             activeConversationID = nil
@@ -282,7 +281,7 @@ final class AIChatViewModel {
             conversation.updatedAt = Date()
             conversation.updateTitle()
             conversation.connectionName = connection?.name
-            chatStorage.save(conversation)
+            Task { await chatStorage.save(conversation) }
 
             if let index = conversations.firstIndex(where: { $0.id == existingID }) {
                 conversations[index] = conversation
@@ -294,7 +293,7 @@ final class AIChatViewModel {
                 connectionName: connection?.name
             )
             conversation.updateTitle()
-            chatStorage.save(conversation)
+            Task { await chatStorage.save(conversation) }
             activeConversationID = conversation.id
             conversations.insert(conversation, at: 0)
         }
@@ -306,6 +305,10 @@ final class AIChatViewModel {
     private func trimMessagesIfNeeded() {
         if messages.count > Self.maxMessageCount {
             messages.removeFirst(messages.count - Self.maxMessageCount)
+        }
+        // Ensure conversation starts with a user message (required by some providers)
+        while messages.first?.role == .assistant {
+            messages.removeFirst()
         }
     }
 
