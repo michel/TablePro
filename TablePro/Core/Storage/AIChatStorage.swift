@@ -9,7 +9,7 @@ import Foundation
 import os
 
 /// Manages persistent storage of AI chat conversations as individual JSON files
-final class AIChatStorage {
+actor AIChatStorage {
     static let shared = AIChatStorage()
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "AIChatStorage")
@@ -40,11 +40,17 @@ final class AIChatStorage {
             Self.logger.error("Application Support directory unavailable, falling back to temporary directory")
             appSupport = FileManager.default.temporaryDirectory
         }
-        directory = appSupport
+        let dir = appSupport
             .appendingPathComponent("TablePro", isDirectory: true)
             .appendingPathComponent("ai_chats", isDirectory: true)
+        directory = dir
 
-        createDirectoryIfNeeded()
+        // Create directory inline since actor init is nonisolated
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        } catch {
+            Self.logger.error("Failed to create ai_chats directory: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Public Methods
@@ -103,25 +109,17 @@ final class AIChatStorage {
     /// Delete all conversations
     func deleteAll() {
         do {
-            if FileManager.default.fileExists(atPath: directory.path) {
-                try FileManager.default.removeItem(at: directory)
-                createDirectoryIfNeeded()
+            let files = try FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: nil,
+                options: .skipsHiddenFiles
+            )
+            for file in files where file.pathExtension == "json" {
+                try FileManager.default.removeItem(at: file)
             }
         } catch {
             Self.logger.error("Failed to delete all conversations: \(error.localizedDescription)")
         }
     }
 
-    // MARK: - Private
-
-    private func createDirectoryIfNeeded() {
-        do {
-            try FileManager.default.createDirectory(
-                at: directory,
-                withIntermediateDirectories: true
-            )
-        } catch {
-            Self.logger.error("Failed to create ai_chats directory: \(error.localizedDescription)")
-        }
-    }
 }

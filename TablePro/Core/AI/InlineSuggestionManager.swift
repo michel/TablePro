@@ -188,6 +188,7 @@ final class InlineSuggestionManager {
 
         currentTask = Task { [weak self] in
             guard let self else { return }
+            self.suggestionOffset = cursorOffset
 
             do {
                 let suggestion = try await self.fetchSuggestion(textBefore: textBefore, fullQuery: fullText)
@@ -198,7 +199,6 @@ final class InlineSuggestionManager {
                 guard !cleaned.isEmpty else { return }
 
                 self.currentSuggestion = cleaned
-                self.suggestionOffset = cursorOffset
                 self.showGhostText(cleaned, at: cursorOffset)
             } catch {
                 if !Task.isCancelled {
@@ -386,18 +386,15 @@ final class InlineSuggestionManager {
 
                 switch event.keyCode {
                 case 48: // Tab — accept suggestion
-                    Task { @MainActor [weak self] in
-                        self?.acceptSuggestion()
-                    }
+                    self.acceptSuggestion()
                     return nil
 
                 case 53: // Escape — dismiss suggestion
-                    Task { @MainActor [weak self] in
-                        self?.dismissSuggestion()
-                    }
+                    self.dismissSuggestion()
                     return nil
 
                 default:
+                    // Deferred: must return the event to AppKit first, then dismiss
                     Task { @MainActor [weak self] in
                         self?.dismissSuggestion()
                     }
