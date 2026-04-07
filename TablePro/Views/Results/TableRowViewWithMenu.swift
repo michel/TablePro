@@ -12,51 +12,23 @@ import AppKit
 final class TableRowViewWithMenu: NSTableRowView {
     weak var coordinator: TableViewCoordinator?
     var rowIndex: Int = 0
-    var changeState: RowChangeState = .none
-
-    enum RowChangeState {
-        case none
-        case modified
-        case inserted
-        case deleted
-    }
 
     override var isSelected: Bool {
         didSet {
             if isSelected != oldValue {
-                updateCellBackgrounds()
-            }
-        }
-    }
-
-    override func drawBackground(in dirtyRect: NSRect) {
-        super.drawBackground(in: dirtyRect)
-        guard !isSelected, let color = changeStateColor else { return }
-        color.setFill()
-        dirtyRect.fill()
-    }
-
-    override func drawSelection(in dirtyRect: NSRect) {
-        super.drawSelection(in: dirtyRect)
-        guard let color = changeStateColor else { return }
-        color.withAlphaComponent(0.3).setFill()
-        dirtyRect.fill()
-    }
-
-    private var changeStateColor: NSColor? {
-        switch changeState {
-        case .none: return nil
-        case .modified: return ThemeEngine.shared.colors.dataGrid.modified
-        case .inserted: return ThemeEngine.shared.colors.dataGrid.inserted
-        case .deleted: return ThemeEngine.shared.colors.dataGrid.deleted
-        }
-    }
-
-    private func updateCellBackgrounds() {
-        for subview in subviews {
-            guard let cellView = subview as? NSTableCellView else { continue }
-            if isSelected {
-                cellView.layer?.backgroundColor = nil
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                for subview in subviews {
+                    guard let cellView = subview as? NSTableCellView else { continue }
+                    cellView.layer?.backgroundColor = isSelected ? nil : cellView.layer?.backgroundColor
+                }
+                CATransaction.commit()
+                if !isSelected {
+                    coordinator?.tableView?.reloadData(
+                        forRowIndexes: IndexSet(integer: rowIndex),
+                        columnIndexes: IndexSet(integersIn: 0..<(coordinator?.tableView?.numberOfColumns ?? 0))
+                    )
+                }
             }
         }
     }

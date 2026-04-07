@@ -73,18 +73,6 @@ extension TableViewCoordinator {
         rowView.identifier = Self.rowViewIdentifier
         rowView.coordinator = self
         rowView.rowIndex = row
-
-        let state = visualState(for: row)
-        if state.isDeleted {
-            rowView.changeState = .deleted
-        } else if state.isInserted {
-            rowView.changeState = .inserted
-        } else if !state.modifiedColumns.isEmpty {
-            rowView.changeState = .modified
-        } else {
-            rowView.changeState = .none
-        }
-
         return rowView
     }
 }
