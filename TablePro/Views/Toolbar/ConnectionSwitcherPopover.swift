@@ -302,7 +302,17 @@ struct ConnectionSwitcherPopover: View {
         // Open a new window, then connect — window shows "Connecting..." until ready
         openWindowForDifferentConnection(EditorTabPayload(connectionId: connection.id))
         Task {
-            try? await DatabaseManager.shared.connectToSession(connection)
+            do {
+                try await DatabaseManager.shared.connectToSession(connection)
+            } catch {
+                await MainActor.run {
+                    AlertHelper.showErrorSheet(
+                        title: String(localized: "Connection Failed"),
+                        message: error.localizedDescription,
+                        window: NSApp.keyWindow
+                    )
+                }
+            }
             await MainActor.run {
                 isConnecting = nil
             }

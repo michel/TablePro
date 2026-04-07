@@ -288,7 +288,11 @@ final class DatabaseManager {
                     initialDb = 0
                 }
                 if initialDb != 0 {
-                    try? await (driver as? PluginDriverAdapter)?.switchDatabase(to: String(initialDb))
+                    do {
+                        try await (driver as? PluginDriverAdapter)?.switchDatabase(to: String(initialDb))
+                    } catch {
+                        Self.logger.error("Failed to switch to database \(initialDb): \(error.localizedDescription)")
+                    }
                 }
                 activeSessions[connection.id]?.currentDatabase = String(initialDb)
             }
