@@ -12,6 +12,7 @@ import Foundation
 import Observation
 import os
 import SwiftUI
+import TableProPluginKit
 
 /// Provides command actions for MainContentView, accessible via @FocusedValue
 @MainActor
@@ -261,6 +262,48 @@ final class MainContentCommandActions {
             selectedRowIndices.wrappedValue = indices
             editingCell.wrappedValue = cell
         }
+    }
+
+    // MARK: - Per-Window State (replaces AppState.shared for menu enablement)
+
+    var isConnected: Bool { coordinator != nil }
+
+    var safeModeLevel: SafeModeLevel { connection.safeModeLevel }
+
+    var isReadOnly: Bool { safeModeLevel.blocksAllWrites }
+
+    var editorLanguage: EditorLanguage {
+        PluginManager.shared.editorLanguage(for: connection.type)
+    }
+
+    var currentDatabaseType: DatabaseType { connection.type }
+
+    var supportsDatabaseSwitching: Bool {
+        PluginManager.shared.supportsDatabaseSwitching(for: connection.type)
+    }
+
+    var isCurrentTabEditable: Bool {
+        coordinator?.tabManager.selectedTab?.isEditable == true
+    }
+
+    var isTableTab: Bool {
+        coordinator?.toolbarState.isTableTab ?? false
+    }
+
+    var hasRowSelection: Bool {
+        !selectedRowIndices.wrappedValue.isEmpty
+    }
+
+    var hasTableSelection: Bool {
+        !selectedTables.wrappedValue.isEmpty
+    }
+
+    var hasQueryText: Bool {
+        !(coordinator?.tabManager.selectedTab?.query.isEmpty ?? true)
+    }
+
+    var hasStructureChanges: Bool {
+        AppState.shared.hasStructureChanges
     }
 
     // MARK: - Unsaved Changes Check
