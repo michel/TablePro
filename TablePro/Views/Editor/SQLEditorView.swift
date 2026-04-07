@@ -20,6 +20,7 @@ struct SQLEditorView: View {
     var schemaProvider: SQLSchemaProvider?
     var databaseType: DatabaseType?
     var connectionId: UUID?
+    var connectionAIPolicy: AIConnectionPolicy?
     @Binding var vimMode: VimMode
     var onCloseTab: (() -> Void)?
     var onExecuteQuery: (() -> Void)?
@@ -100,6 +101,7 @@ struct SQLEditorView: View {
                     completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)
                 }
                 coordinator.schemaProvider = schemaProvider
+                coordinator.connectionAIPolicy = connectionAIPolicy
                 coordinator.onCloseTab = onCloseTab
                 coordinator.onExecuteQuery = onExecuteQuery
                 coordinator.onAIExplain = onAIExplain
@@ -115,6 +117,7 @@ struct SQLEditorView: View {
                         completionAdapter = SQLCompletionAdapter(schemaProvider: schemaProvider, databaseType: databaseType)
                     }
                     coordinator.schemaProvider = schemaProvider
+                    coordinator.connectionAIPolicy = connectionAIPolicy
                     coordinator.onCloseTab = onCloseTab
                     coordinator.onExecuteQuery = onExecuteQuery
                     coordinator.onAIExplain = onAIExplain

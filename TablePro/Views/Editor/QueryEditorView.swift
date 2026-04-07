@@ -21,6 +21,7 @@ struct QueryEditorView: View {
     var schemaProvider: SQLSchemaProvider?
     var databaseType: DatabaseType?
     var connectionId: UUID?
+    var connectionAIPolicy: AIConnectionPolicy?
     var onCloseTab: (() -> Void)?
     var onExecuteQuery: (() -> Void)?
     var onExplain: ((ClickHouseExplainVariant?) -> Void)?
@@ -48,6 +49,7 @@ struct QueryEditorView: View {
                 schemaProvider: schemaProvider,
                 databaseType: databaseType,
                 connectionId: connectionId,
+                connectionAIPolicy: connectionAIPolicy,
                 vimMode: $vimMode,
                 onCloseTab: onCloseTab,
                 onExecuteQuery: onExecuteQuery,

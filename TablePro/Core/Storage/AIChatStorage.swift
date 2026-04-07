@@ -48,6 +48,10 @@ actor AIChatStorage {
         // Create directory inline since actor init is nonisolated
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try FileManager.default.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: dir.path
+            )
         } catch {
             Self.logger.error("Failed to create ai_chats directory: \(error.localizedDescription)")
         }
@@ -61,7 +65,7 @@ actor AIChatStorage {
 
         do {
             let data = try Self.encoder.encode(conversation)
-            try data.write(to: fileURL, options: .atomic)
+            try data.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         } catch {
             Self.logger.error("Failed to save conversation \(conversation.id): \(error.localizedDescription)")
         }
