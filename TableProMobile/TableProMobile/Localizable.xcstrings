@@ -2,7 +2,26 @@
   "sourceLanguage" : "en",
   "strings" : {
     "%@" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        }
+      }
     },
     "%@ · %@" : {
       "localizations" : {
@@ -11,11 +30,104 @@
             "state" : "new",
             "value" : "%1$@ · %2$@"
           }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ → %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ → %2$@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ → %2$@"
+          }
+        }
+      }
+    },
+    "%@.%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@.%2$@"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@.%2$@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@.%2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@.%2$@"
+          }
         }
       }
     },
     "%lld" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld"
+          }
+        }
+      }
     },
     "%lld of %lld" : {
       "localizations" : {
@@ -24,61 +136,199 @@
             "state" : "new",
             "value" : "%1$lld of %2$lld"
           }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$lld"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld trên %2$lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$lld"
+          }
         }
       }
     },
     "%lld rows" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld satır"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld dòng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld行"
+          }
+        }
+      }
     },
     "+%lld more columns" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%lld sütun daha"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "+%lld cột khác"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "还有%lld列"
           }
         }
       }
     },
     "A fast, lightweight database client for your iPhone and iPad." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone ve iPad için hızlı, hafif veritabanı istemcisi."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ứng dụng quản lý cơ sở dữ liệu nhanh và nhẹ cho iPhone và iPad."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "适用于iPhone和iPad的快速轻量数据库客户端。"
+          }
         }
       }
     },
-    "Add a database connection to get started." : {
+    "AND" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AND"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Thêm kết nối cơ sở dữ liệu để bắt đầu."
+            "value" : "AND"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AND"
           }
         }
       }
     },
     "Add Connection" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı Ekle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Thêm kết nối"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加连接"
+          }
         }
       }
     },
     "Add Filter" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtre Ekle"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thêm bộ lọc"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加筛选"
+          }
+        }
+      }
+    },
+    "Add a database connection to get started." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başlamak için bir veritabanı bağlantısı ekleyin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thêm kết nối cơ sở dữ liệu để bắt đầu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加数据库连接以开始使用。"
+          }
+        }
+      }
     },
     "All" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tümü"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tất cả"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
           }
         }
       }
@@ -86,69 +336,154 @@
     "An unknown error occurred." : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bilinmeyen bir hata oluştu."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đã xảy ra lỗi không xác định."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发生未知错误。"
+          }
         }
       }
     },
-    "AND" : {
-
-    },
     "Apply" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uygula"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Áp dụng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用"
+          }
+        }
+      }
     },
     "Are you sure you want to delete this row? This action cannot be undone." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu satırı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bạn có chắc muốn xóa dòng này? Thao tác này không thể hoàn tác."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确定要删除此行吗？此操作无法撤销。"
+          }
         }
       }
     },
     "Ascending" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artan"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tăng dần"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "升序"
+          }
+        }
+      }
     },
     "Auth Method" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kimlik Doğrulama"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Phương thức xác thực"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "认证方式"
           }
         }
       }
     },
     "Authentication Failed" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kimlik Doğrulama Başarısız"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Xác thực thất bại"
           }
-        }
-      }
-    },
-    "auto-increment" : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "tự tăng"
+            "value" : "认证失败"
           }
         }
       }
     },
     "Cancel" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İptal"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hủy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
           }
         }
       }
@@ -156,474 +491,1255 @@
     "Cannot Save" : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kaydedilemedi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không thể lưu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存"
           }
         }
       }
     },
     "Check your %@ username and password." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ kullanıcı adı ve şifrenizi kontrol edin."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kiểm tra tên đăng nhập và mật khẩu %@."
           }
-        }
-      }
-    },
-    "Check your connection settings." : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kiểm tra cài đặt kết nối."
-          }
-        }
-      }
-    },
-    "Check your network connection and server availability." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra kết nối mạng và trạng thái máy chủ."
-          }
-        }
-      }
-    },
-    "Check your query and try again." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra truy vấn và thử lại."
+            "value" : "请检查%@的用户名和密码。"
           }
         }
       }
     },
     "Check your SQL syntax." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SQL söz dizimini kontrol edin."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kiểm tra cú pháp SQL."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查SQL语法。"
           }
         }
       }
     },
     "Check your SSH host, port, and credentials." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH sunucu, port ve kimlik bilgilerini kontrol edin."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kiểm tra máy chủ, cổng và thông tin xác thực SSH."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查SSH主机、端口和凭证。"
           }
         }
       }
     },
     "Check your SSH username, password, or private key." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH kullanıcı adı, şifre veya özel anahtarı kontrol edin."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kiểm tra tên đăng nhập, mật khẩu hoặc khóa riêng SSH."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查SSH用户名、密码或私钥。"
+          }
+        }
+      }
+    },
+    "Check your connection settings." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı ayarlarını kontrol edin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra cài đặt kết nối."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查连接设置。"
+          }
+        }
+      }
+    },
+    "Check your network connection and server availability." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ağ bağlantısını ve sunucu durumunu kontrol edin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra kết nối mạng và trạng thái máy chủ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查网络连接和服务器状态。"
+          }
+        }
+      }
+    },
+    "Check your query and try again." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorgunuzu kontrol edin ve tekrar deneyin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra truy vấn và thử lại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查查询后重试。"
           }
         }
       }
     },
     "Choose a connection from the sidebar." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kenar çubuğundan bir bağlantı seçin."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chọn kết nối từ thanh bên."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从侧栏选择一个连接。"
           }
         }
       }
     },
     "Clear" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temizle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Xóa"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除"
+          }
         }
       }
     },
     "Clear All" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tümünü Temizle"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xoá tất cả"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部清除"
+          }
+        }
+      }
     },
     "Clear All Filters" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tüm Filtreleri Temizle"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xoá tất cả bộ lọc"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除所有筛选"
+          }
+        }
+      }
     },
     "Clear All History" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tüm Geçmişi Temizle"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xoá tất cả lịch sử"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除所有历史"
+          }
+        }
+      }
     },
     "Clear History" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geçmişi Temizle"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Xoá lịch sử"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除历史"
+          }
+        }
+      }
     },
     "Color" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Renk"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Màu sắc"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "颜色"
+          }
         }
       }
     },
     "Column" : {
-
-    },
-    "Columns" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sütun"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cột"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列"
+          }
+        }
+      }
+    },
+    "Columns" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sütunlar"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cột"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列"
           }
         }
       }
     },
     "Configuration Error" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yapılandırma Hatası"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lỗi cấu hình"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "配置错误"
           }
         }
       }
     },
     "Connecting to %@..." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bağlanılıyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang kết nối đến %@..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在连接%@..."
           }
         }
       }
     },
     "Connection" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接"
           }
         }
       }
     },
     "Connection Failed" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı Başarısız"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kết nối thất bại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接失败"
           }
         }
       }
     },
     "Connection refused. The server may not be running or the port is incorrect." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı reddedildi. Sunucu çalışmıyor veya port yanlış olabilir."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kết nối bị từ chối. Máy chủ có thể chưa chạy hoặc cổng không đúng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接被拒绝。服务器可能未运行或端口不正确。"
           }
         }
       }
     },
     "Connection successful" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı başarılı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kết nối thành công"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接成功"
           }
         }
       }
     },
     "Connections" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantılar"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接"
           }
         }
       }
     },
     "Continue" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devam"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tiếp tục"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
           }
         }
       }
     },
     "Copy Column Name" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sütun Adını Kopyala"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sao chép tên cột"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制列名"
+          }
         }
       }
     },
     "Copy Results" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonuçları Kopyala"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sao chép kết quả"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制结果"
+          }
+        }
+      }
     },
     "Copy Row" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satırı Kopyala"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sao chép dòng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制行"
+          }
+        }
+      }
     },
     "Copy Value" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Değeri Kopyala"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sao chép giá trị"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制值"
           }
         }
       }
     },
     "Create" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oluştur"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tạo"
           }
-        }
-      }
-    },
-    "Create a group to organize your connections." : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tạo nhóm để sắp xếp các kết nối."
-          }
-        }
-      }
-    },
-    "Create a tag to organize your connections." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo nhãn để sắp xếp các kết nối."
+            "value" : "创建"
           }
         }
       }
     },
     "Create New Database" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni Veritabanı Oluştur"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tạo cơ sở dữ liệu mới"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建新数据库"
+          }
+        }
+      }
+    },
+    "Create a group to organize your connections." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantılarınızı düzenlemek için bir grup oluşturun."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo nhóm để sắp xếp các kết nối."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建分组来整理连接。"
+          }
+        }
+      }
+    },
+    "Create a tag to organize your connections." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantılarınızı düzenlemek için bir etiket oluşturun."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo nhãn để sắp xếp các kết nối."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建标签来整理连接。"
           }
         }
       }
     },
     "Database" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cơ sở dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据库"
           }
         }
       }
     },
     "Database File" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı Dosyası"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tệp cơ sở dữ liệu"
           }
-        }
-      }
-    },
-    "Database name" : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tên cơ sở dữ liệu"
+            "value" : "数据库文件"
           }
         }
       }
     },
     "Database Name" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı Adı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tên cơ sở dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据库名称"
           }
         }
       }
     },
     "Database Type" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı Türü"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loại cơ sở dữ liệu"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据库类型"
+          }
+        }
+      }
+    },
+    "Database name" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı adı"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tên cơ sở dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据库名称"
+          }
         }
       }
     },
     "Default" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Varsayılan"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mặc định"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认"
+          }
+        }
+      }
     },
     "Default: %@" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Varsayılan: %@"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mặc định: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认：%@"
           }
         }
       }
     },
     "Delete" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sil"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Xóa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
           }
         }
       }
     },
     "Delete Row" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satırı Sil"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Xóa dòng"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除行"
+          }
         }
       }
     },
     "Descending" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Azalan"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giảm dần"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "降序"
+          }
+        }
+      }
     },
     "Done" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitti"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Xong"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
           }
         }
       }
     },
     "Duplicate" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çoğalt"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhân đôi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制"
           }
         }
       }
     },
     "Edit" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Düzenle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sửa"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑"
           }
         }
       }
     },
     "Edit Connection" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantıyı Düzenle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sửa kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑连接"
           }
         }
       }
     },
     "Edit Group" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grubu Düzenle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sửa nhóm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑分组"
           }
         }
       }
     },
     "Edit Tag" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketi Düzenle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sửa nhãn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑标签"
           }
         }
       }
     },
     "Enter a name for the new SQLite database." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni SQLite veritabanı için bir ad girin."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhập tên cho cơ sở dữ liệu SQLite mới."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入新SQLite数据库的名称。"
+          }
         }
       }
     },
     "Enter a page number" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sayfa numarası girin"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhập số trang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入页码"
+          }
+        }
+      }
     },
     "Enter a page number (1–%lld)" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sayfa numarası girin (1–%lld)"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nhập số trang (1–%lld)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入页码（1–%lld）"
+          }
+        }
+      }
     },
     "Error" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hata"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lỗi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "错误"
+          }
+        }
+      }
+    },
+    "Execute" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalıştır"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thực thi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "执行"
+          }
+        }
+      }
+    },
+    "Execute Write Query?" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yazma Sorgusu Çalıştırılsın mı?"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thực thi truy vấn ghi?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "执行写入查询？"
           }
         }
       }
     },
     "Executed queries will appear here." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalıştırılan sorgular burada görünecek."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Các truy vấn đã thực thi sẽ hiển thị ở đây."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已执行的查询将显示在这里。"
           }
         }
       }
     },
     "Executing..." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Çalıştırılıyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang thực thi..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在执行..."
           }
         }
       }
@@ -631,20 +1747,44 @@
     "Failed to load more rows" : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daha fazla satır yüklenemedi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không thể tải thêm dòng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加载更多行失败"
           }
         }
       }
     },
     "Failed to refresh tables" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablolar yenilenemedi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không thể làm mới bảng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刷新表失败"
           }
         }
       }
@@ -652,143 +1792,375 @@
     "Failed to save credentials." : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kimlik bilgileri kaydedilemedi."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không thể lưu thông tin xác thực."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存凭证失败。"
           }
         }
       }
     },
     "Failed to switch database" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı değiştirilemedi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không thể chuyển cơ sở dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换数据库失败"
           }
         }
       }
     },
     "Failed to switch schema" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Şema değiştirilemedi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không thể chuyển schema"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "切换架构失败"
           }
         }
       }
     },
     "Filter by Tag" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etikete Göre Filtrele"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lọc theo nhãn"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按标签筛选"
+          }
         }
       }
     },
     "Filters" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtreler"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bộ lọc"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筛选"
+          }
+        }
+      }
     },
     "Foreign Keys" : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yabancı Anahtarlar"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Khóa ngoại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外键"
           }
         }
       }
     },
     "Get Started" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Başla"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bắt đầu"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始使用"
+          }
         }
       }
     },
     "Go" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Git"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đi"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "前往"
+          }
+        }
+      }
     },
     "Go back and reconnect to the database." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geri dönün ve veritabanına yeniden bağlanın."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quay lại và kết nối lại cơ sở dữ liệu."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回并重新连接数据库。"
+          }
         }
       }
     },
     "Go to Page" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sayfaya Git"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đến trang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳转到页"
+          }
+        }
+      }
     },
     "Go to Page..." : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sayfaya Git..."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đến trang..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳转到页..."
+          }
+        }
+      }
     },
     "Group" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grup"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhóm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分组"
           }
         }
       }
     },
     "Group by Folder" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klasöre Göre Grupla"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhóm theo thư mục"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按文件夹分组"
           }
         }
       }
     },
     "Groups" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gruplar"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhóm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分组"
           }
         }
       }
     },
     "History" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geçmiş"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lịch sử"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史"
           }
         }
       }
     },
     "Host" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Máy chủ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主机"
           }
         }
       }
     },
     "Import connections from your Mac" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mac'inizden bağlantıları içe aktarın"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhập kết nối từ máy Mac"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从Mac导入连接"
           }
         }
       }
@@ -796,40 +2168,88 @@
     "Indexes" : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dizinler"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chỉ mục"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "索引"
           }
         }
       }
     },
     "Input Method" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giriş Yöntemi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Phương thức nhập"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入方式"
           }
         }
       }
     },
     "Insert Row" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satır Ekle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Thêm dòng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "插入行"
           }
         }
       }
     },
     "Keychain Warning" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anahtar Zinciri Uyarısı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cảnh báo Keychain"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "钥匙串警告"
           }
         }
       }
@@ -837,10 +2257,22 @@
     "Load More" : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daha Fazla Yükle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tải thêm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加载更多"
           }
         }
       }
@@ -848,20 +2280,44 @@
     "Loading data..." : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veriler yükleniyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang tải dữ liệu..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载数据..."
           }
         }
       }
     },
     "Loading structure..." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yapı yükleniyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang tải cấu trúc..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载结构..."
           }
         }
       }
@@ -869,173 +2325,506 @@
     "Loading..." : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yükleniyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang tải..."
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载..."
+          }
         }
       }
     },
     "Logic" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mantık"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "逻辑"
+          }
+        }
+      }
     },
     "Manage Groups" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupları Yönet"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quản lý nhóm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理分组"
           }
         }
       }
     },
     "Manage Tags" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketleri Yönet"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Quản lý nhãn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理标签"
+          }
+        }
+      }
+    },
+    "NULL" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NULL"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NULL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NULL"
           }
         }
       }
     },
     "Name" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ad"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tên"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "名称"
           }
         }
       }
     },
     "New Connection" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni Bağlantı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kết nối mới"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建连接"
           }
         }
       }
     },
     "New Database" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni Veritabanı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cơ sở dữ liệu mới"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建数据库"
           }
         }
       }
     },
     "New Group" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni Grup"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhóm mới"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新建分组"
           }
         }
       }
     },
     "New Tag" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni Etiket"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhãn mới"
           }
-        }
-      }
-    },
-    "No active database session." : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Không có phiên cơ sở dữ liệu nào đang hoạt động."
+            "value" : "新建标签"
           }
         }
       }
     },
     "No Connections" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chưa có kết nối"
           }
-        }
-      }
-    },
-    "No connections match the selected filter." : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Không có kết nối nào khớp với bộ lọc đã chọn."
+            "value" : "无连接"
           }
         }
       }
     },
     "No Data" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veri Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không có dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无数据"
           }
         }
       }
     },
     "No Foreign Keys" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yabancı Anahtar Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không có khóa ngoại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无外键"
           }
         }
       }
     },
     "No Groups" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grup Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chưa có nhóm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无分组"
           }
         }
       }
     },
     "No History" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geçmiş Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chưa có lịch sử"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无历史记录"
           }
         }
       }
     },
     "No Indexes" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dizin Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không có chỉ mục"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无索引"
           }
         }
       }
     },
     "No Matching Connections" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eşleşen Bağlantı Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không có kết nối phù hợp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无匹配的连接"
+          }
+        }
+      }
+    },
+    "No Referenced Row" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Referans Satır Yok"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có dòng tham chiếu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无引用行"
+          }
+        }
+      }
+    },
+    "No Results" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonuç Yok"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có kết quả"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无结果"
+          }
+        }
+      }
+    },
+    "No Tables" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablo Yok"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có bảng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无表"
+          }
+        }
+      }
+    },
+    "No Tags" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiket Yok"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chưa có nhãn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无标签"
+          }
+        }
+      }
+    },
+    "No active database session." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktif veritabanı oturumu yok."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có phiên cơ sở dữ liệu nào đang hoạt động."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无活动的数据库会话。"
+          }
+        }
+      }
+    },
+    "No connections match the selected filter." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seçili filtreyle eşleşen bağlantı yok."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có kết nối nào khớp với bộ lọc đã chọn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有连接匹配所选筛选条件。"
           }
         }
       }
@@ -1043,460 +2832,943 @@
     "No primary key values found." : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birincil anahtar değeri bulunamadı."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không tìm thấy giá trị khóa chính."
           }
-        }
-      }
-    },
-    "No Results" : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Không có kết quả"
+            "value" : "未找到主键值。"
           }
         }
       }
     },
-    "No Tables" : {
+    "No row found in %@ where %@ = '%@'" : {
       "localizations" : {
-        "vi" : {
+        "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Không có bảng"
+            "value" : "%@ tablosunda %@ = '%@' olan satır bulunamadı"
           }
-        }
-      }
-    },
-    "No Tags" : {
-      "localizations" : {
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chưa có nhãn"
+            "value" : "Không tìm thấy dòng trong %@ với %@ = '%@'"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在%@中未找到%@ = '%@'的行"
           }
         }
       }
     },
     "None" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yok"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Không"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
           }
         }
       }
     },
     "Not Connected" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlı Değil"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chưa kết nối"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未连接"
+          }
         }
       }
     },
-    "NULL" : {
-
-    },
     "Nullable" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boş Olabilir"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cho phép NULL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可为空"
           }
         }
       }
     },
     "OK" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tamam"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "OK"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好"
+          }
         }
       }
     },
     "ON DELETE %@" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ON DELETE %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ON DELETE %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ON DELETE %@"
+          }
+        }
+      }
     },
     "ON UPDATE %@" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ON UPDATE %@"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ON UPDATE %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ON UPDATE %@"
+          }
+        }
+      }
+    },
+    "OR" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OR"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OR"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OR"
+          }
+        }
+      }
     },
     "Open Connection" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı Aç"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开连接"
+          }
+        }
+      }
     },
     "Open Database File" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı Dosyası Aç"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mở tệp cơ sở dữ liệu"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开数据库文件"
+          }
         }
       }
     },
     "Opens a database connection in TablePro" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TablePro ile veritabanı bağlantısı açar"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mở kết nối cơ sở dữ liệu trong TablePro"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在TablePro中打开数据库连接"
+          }
+        }
+      }
     },
     "Operator" : {
-
-    },
-    "OR" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İşleç"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toán tử"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "运算符"
+          }
+        }
+      }
     },
     "Order" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sıralama"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thứ tự"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序"
+          }
+        }
+      }
     },
     "Organization" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Organizasyon"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tổ chức"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "组织"
+          }
         }
       }
     },
     "Page number" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sayfa numarası"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Số trang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "页码"
+          }
+        }
+      }
     },
     "Passphrase (optional)" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Parola (isteğe bağlı)"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mật khẩu khóa (tùy chọn)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码短语（可选）"
           }
         }
       }
     },
     "Password" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Şifre"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mật khẩu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "密码"
           }
         }
       }
     },
     "Paste private key (PEM format)" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Özel anahtarı yapıştırın (PEM formatı)"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dán khóa riêng (định dạng PEM)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "粘贴私钥（PEM格式）"
           }
         }
       }
     },
     "Port" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Port"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cổng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "端口"
           }
         }
       }
     },
     "Primary" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birincil"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chính"
           }
-        }
-      }
-    },
-    "primary key" : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "khóa chính"
+            "value" : "主键"
           }
         }
       }
     },
     "Primary Key" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birincil Anahtar"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Khóa chính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主键"
           }
         }
       }
     },
     "Private Key" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Özel Anahtar"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Khóa riêng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "私钥"
           }
         }
       }
     },
     "Query" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorgu"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Truy vấn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查询"
           }
         }
       }
     },
     "Query Error" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorgu Hatası"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lỗi truy vấn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查询错误"
           }
         }
       }
     },
     "Query History" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorgu Geçmişi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Lịch sử truy vấn"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查询历史"
+          }
         }
       }
     },
-    "read-only" : {
+    "Reload" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yenile"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "chỉ đọc"
+            "value" : "Tải lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新加载"
+          }
+        }
+      }
+    },
+    "Results Cleared" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sonuçlar Temizlendi"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đã xoá kết quả"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "结果已清除"
+          }
+        }
+      }
+    },
+    "Results cleared due to memory pressure." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bellek yetersizliği nedeniyle sonuçlar temizlendi."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kết quả đã bị xoá do thiếu bộ nhớ."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "因内存不足，结果已清除。"
           }
         }
       }
     },
     "Retry" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tekrar Dene"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Thử lại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
           }
         }
       }
     },
     "Row %d of %d" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satır %d / %d"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Dòng %d / %d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第%d行 / 共%d行"
           }
         }
       }
     },
     "Row updated" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Satır güncellendi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đã cập nhật dòng"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "行已更新"
+          }
         }
       }
     },
     "Rows per Page" : {
-
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sayfa Başına Satır"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Số dòng mỗi trang"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每页行数"
+          }
+        }
+      }
     },
     "Run a Query" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sorgu Çalıştır"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chạy truy vấn"
           }
-        }
-      }
-    },
-    "Save" : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lưu"
-          }
-        }
-      }
-    },
-    "Search tables" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tìm bảng"
-          }
-        }
-      }
-    },
-    "Second value" : {
-
-    },
-    "Section" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Phần"
+            "value" : "运行查询"
           }
         }
       }
     },
     "SELECT * FROM ..." : {
-
-    },
-    "Select a Connection" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SELECT * FROM ..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chọn kết nối"
+            "value" : "SELECT * FROM ..."
           }
-        }
-      }
-    },
-    "Select Private Key" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chọn khóa riêng"
+            "value" : "SELECT * FROM ..."
           }
         }
       }
-    },
-    "Server" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ"
-          }
-        }
-      }
-    },
-    "Set up a new database connection" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thiết lập kết nối cơ sở dữ liệu mới"
-          }
-        }
-      }
-    },
-    "Skip" : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bỏ qua"
-          }
-        }
-      }
-    },
-    "Some credentials could not be saved to the keychain. You may need to re-enter them later." : {
-
-    },
-    "Sort By" : {
-
     },
     "SSH Host" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Sunucu"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Máy chủ SSH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH主机"
           }
         }
       }
     },
     "SSH Password" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Şifresi"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Mật khẩu SSH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH密码"
           }
         }
       }
     },
     "SSH Port" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Port"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cổng SSH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH端口"
           }
         }
       }
     },
     "SSH Server" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Sunucu"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Máy chủ SSH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH服务器"
           }
         }
       }
     },
     "SSH Tunnel" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Tüneli"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đường hầm SSH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH隧道"
           }
         }
       }
     },
     "SSH Tunnel Failed" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Tüneli Başarısız"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đường hầm SSH thất bại"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH隧道失败"
           }
         }
       }
     },
     "SSH Username" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH Kullanıcı Adı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tên đăng nhập SSH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH用户名"
           }
         }
       }
     },
     "SSL" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSL"
+          }
+        },
         "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSL"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "SSL"
@@ -1504,183 +3776,708 @@
         }
       }
     },
+    "Safe Mode" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Güvenli Mod"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chế độ an toàn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全模式"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kaydet"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lưu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
+    },
+    "Search tables" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablo ara"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tìm bảng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索表"
+          }
+        }
+      }
+    },
+    "Second value" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İkinci değer"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giá trị thứ hai"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第二个值"
+          }
+        }
+      }
+    },
+    "Section" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bölüm"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phần"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分区"
+          }
+        }
+      }
+    },
+    "Select Private Key" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Özel Anahtar Seç"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chọn khóa riêng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择私钥"
+          }
+        }
+      }
+    },
+    "Select a Connection" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı Seç"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chọn kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择连接"
+          }
+        }
+      }
+    },
+    "Server" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máy chủ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器"
+          }
+        }
+      }
+    },
+    "Set up a new database connection" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni bir veritabanı bağlantısı kurun"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thiết lập kết nối cơ sở dữ liệu mới"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置新的数据库连接"
+          }
+        }
+      }
+    },
+    "Skip" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atla"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bỏ qua"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过"
+          }
+        }
+      }
+    },
+    "Some credentials could not be saved to the keychain. You may need to re-enter them later." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bazı kimlik bilgileri anahtar zincirine kaydedilemedi. Daha sonra tekrar girmeniz gerekebilir."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể lưu một số thông tin xác thực vào keychain. Bạn có thể cần nhập lại sau."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分凭证无法保存到钥匙串，稍后可能需要重新输入。"
+          }
+        }
+      }
+    },
+    "Sort By" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sıralama"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sắp xếp theo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序方式"
+          }
+        }
+      }
+    },
     "Switching..." : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Değiştiriliyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang chuyển..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在切换..."
           }
         }
       }
     },
     "Sync from iCloud" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud'dan Eşitle"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đồng bộ từ iCloud"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从iCloud同步"
           }
         }
       }
     },
     "Syncing from iCloud..." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iCloud'dan eşitleniyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang đồng bộ từ iCloud..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在从iCloud同步..."
           }
         }
       }
     },
     "Tab" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sekme"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tab"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签页"
           }
         }
       }
     },
     "Tables" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablolar"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bảng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表"
           }
         }
       }
     },
     "Tag" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiket"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhãn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签"
           }
         }
       }
     },
     "Tags" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiketler"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nhãn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "标签"
           }
         }
       }
     },
     "Test Connection" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantıyı Test Et"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Kiểm tra kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测试连接"
           }
         }
       }
     },
     "Testing..." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test ediliyor..."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đang kiểm tra..."
           }
-        }
-      }
-    },
-    "The operation violates a database constraint." : {
-      "localizations" : {
-        "vi" : {
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Thao tác vi phạm ràng buộc cơ sở dữ liệu."
-          }
-        }
-      }
-    },
-    "The server is not responding. Check the host and port." : {
-      "localizations" : {
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ không phản hồi. Kiểm tra máy chủ và cổng."
+            "value" : "正在测试..."
           }
         }
       }
     },
     "The SSH server may be unreachable or running a different protocol." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH sunucusuna ulaşılamıyor veya farklı bir protokol çalıştırıyor olabilir."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Máy chủ SSH có thể không truy cập được hoặc đang chạy giao thức khác."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH服务器可能无法访问或运行了不同的协议。"
           }
         }
       }
     },
     "The SSH tunnel connected but could not forward to the database port." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH tüneli bağlandı ancak veritabanı portuna yönlendirilemedi."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Đường hầm SSH đã kết nối nhưng không thể chuyển tiếp đến cổng cơ sở dữ liệu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH隧道已连接但无法转发到数据库端口。"
+          }
+        }
+      }
+    },
+    "The operation violates a database constraint." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İşlem bir veritabanı kısıtlamasını ihlal ediyor."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thao tác vi phạm ràng buộc cơ sở dữ liệu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "操作违反了数据库约束。"
+          }
+        }
+      }
+    },
+    "The server is not responding. Check the host and port." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu yanıt vermiyor. Sunucu ve portu kontrol edin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máy chủ không phản hồi. Kiểm tra máy chủ và cổng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器无响应。请检查主机和端口。"
           }
         }
       }
     },
     "The table or column does not exist." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablo veya sütun mevcut değil."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bảng hoặc cột không tồn tại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表或列不存在。"
+          }
+        }
+      }
+    },
+    "This connection is in read-only mode. Write queries are not allowed." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu bağlantı salt okunur modda. Yazma sorgularına izin verilmiyor."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kết nối này ở chế độ chỉ đọc. Không cho phép truy vấn ghi."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此连接为只读模式，不允许写入查询。"
           }
         }
       }
     },
     "This database has no tables." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu veritabanında tablo yok."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cơ sở dữ liệu này không có bảng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此数据库没有表。"
+          }
+        }
+      }
+    },
+    "This query will modify data. Are you sure you want to continue?" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu sorgu verileri değiştirecek. Devam etmek istediğinizden emin misiniz?"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Truy vấn này sẽ thay đổi dữ liệu. Bạn có chắc muốn tiếp tục?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此查询将修改数据，确定要继续吗？"
           }
         }
       }
     },
     "This table has no foreign key relationships." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu tablonun yabancı anahtar ilişkisi yok."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bảng này không có quan hệ khóa ngoại."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此表没有外键关系。"
           }
         }
       }
     },
     "This table has no indexes." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu tablonun dizini yok."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bảng này không có chỉ mục."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此表没有索引。"
           }
         }
       }
     },
     "This table is empty." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu tablo boş."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bảng này trống."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此表为空。"
           }
         }
       }
@@ -1688,50 +4485,110 @@
     "This table needs a primary key to identify the row." : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bu tablonun satırı tanımlamak için birincil anahtara ihtiyacı var."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bảng này cần khóa chính để xác định dòng."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此表需要主键来标识行。"
           }
         }
       }
     },
     "Ungrouped" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gruplanmamış"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chưa phân nhóm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未分组"
           }
         }
       }
     },
     "Unique" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benzersiz"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Duy nhất"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "唯一"
           }
         }
       }
     },
     "Username" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kullanıcı Adı"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tên đăng nhập"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用户名"
           }
         }
       }
     },
     "Value" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Değer"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Giá trị"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "值"
           }
         }
       }
@@ -1739,30 +4596,154 @@
     "Views" : {
       "extractionState" : "stale",
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Görünümler"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "View"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "视图"
           }
         }
       }
     },
     "Welcome to TablePro" : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TablePro'ya Hoş Geldiniz"
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chào mừng đến TablePro"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欢迎使用TablePro"
+          }
+        }
+      }
+    },
+    "Write Query Blocked" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yazma Sorgusu Engellendi"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Truy vấn ghi bị chặn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写入查询被阻止"
           }
         }
       }
     },
     "Write SQL and tap the play button." : {
       "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SQL yazın ve çalıştır düğmesine dokunun."
+          }
+        },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Viết SQL và nhấn nút chạy."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编写SQL并点击运行按钮。"
+          }
+        }
+      }
+    },
+    "auto-increment" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otomatik artış"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tự tăng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自增"
+          }
+        }
+      }
+    },
+    "primary key" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "birincil anahtar"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "khóa chính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主键"
+          }
+        }
+      }
+    },
+    "read-only" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "salt okunur"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "chỉ đọc"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只读"
           }
         }
       }
