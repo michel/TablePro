@@ -11,27 +11,6 @@ import Sparkle
 import SwiftUI
 import TableProPluginKit
 
-// MARK: - App State for Menu Commands
-
-@MainActor
-@Observable
-final class AppState {
-    static let shared = AppState()
-    var isConnected: Bool = false
-    var safeModeLevel: SafeModeLevel = .silent
-    var isReadOnly: Bool { safeModeLevel.blocksAllWrites }
-    var editorLanguage: EditorLanguage = .sql
-    var currentDatabaseType: DatabaseType?
-    var supportsDatabaseSwitching: Bool = true
-    var isCurrentTabEditable: Bool = false  // True when current tab is an editable table
-    var hasRowSelection: Bool = false  // True when rows are selected in data grid
-    var hasTableSelection: Bool = false  // True when tables are selected in sidebar
-    var isHistoryPanelVisible: Bool = false  // Global history panel visibility
-    var hasQueryText: Bool = false  // True when current editor has non-empty query
-    var hasStructureChanges: Bool = false  // True when structure view has pending schema changes
-    var isTableTab: Bool = false  // True when current tab is a table tab (not query)
-}
-
 // MARK: - Pasteboard Commands
 
 /// Custom Commands struct for pasteboard operations

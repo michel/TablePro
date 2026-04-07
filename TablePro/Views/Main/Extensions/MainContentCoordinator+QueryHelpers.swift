@@ -194,11 +194,6 @@ extension MainContentCoordinator {
             cachedTableColumnNames[cacheKey] = columns
         }
 
-        AppState.shared.isCurrentTabEditable = updatedTab.isEditable
-            && !updatedTab.isView && updatedTab.tableName != nil
-        toolbarState.isTableTab = updatedTab.tabType == .table
-        AppState.shared.isTableTab = updatedTab.tabType == .table
-
         let resolvedPK: String?
         if let pk = metadata?.primaryKeyColumn {
             resolvedPK = pk

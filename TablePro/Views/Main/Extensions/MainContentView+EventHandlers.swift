@@ -96,14 +96,12 @@ extension MainContentView {
         let action = TableSelectionAction.resolve(oldTables: oldTables, newTables: newTables)
 
         guard case .navigate(let tableName, let isView) = action else {
-            AppState.shared.hasTableSelection = !newTables.isEmpty
             return
         }
 
         // Only navigate when this is the focused window.
         // Prevents feedback loops when shared sidebar state syncs across native tabs.
         guard isKeyWindow else {
-            AppState.shared.hasTableSelection = !newTables.isEmpty
             return
         }
 
@@ -120,7 +118,6 @@ extension MainContentView {
 
         switch result {
         case .skip:
-            AppState.shared.hasTableSelection = !newTables.isEmpty
             return
         case .openInPlace:
             selectedRowIndices = []
@@ -131,7 +128,6 @@ extension MainContentView {
             coordinator.openTableTab(tableName, isView: isView)
         }
 
-        AppState.shared.hasTableSelection = !newTables.isEmpty
     }
 
     /// Keep sidebar selection in sync with the current window's tab.

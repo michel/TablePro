@@ -112,12 +112,6 @@ struct ContentView: View {
                                 payload: payload
                             )
                         }
-                        AppState.shared.isConnected = true
-                        AppState.shared.safeModeLevel = session.connection.safeModeLevel
-                        AppState.shared.editorLanguage = PluginManager.shared.editorLanguage(for: session.connection.type)
-                        AppState.shared.currentDatabaseType = session.connection.type
-                        AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
-                            for: session.connection.type)
                     }
                 } else {
                     currentSession = nil
@@ -151,25 +145,6 @@ struct ContentView: View {
                     }()
                 guard isOurWindow else { return }
 
-                if let session = DatabaseManager.shared.activeSessions[connectionId] {
-                    AppState.shared.isConnected = true
-                    AppState.shared.safeModeLevel = session.connection.safeModeLevel
-                    AppState.shared.editorLanguage = PluginManager.shared.editorLanguage(for: session.connection.type)
-                    AppState.shared.currentDatabaseType = session.connection.type
-                    AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
-                        for: session.connection.type)
-                } else {
-                    AppState.shared.isConnected = false
-                    AppState.shared.safeModeLevel = .silent
-                    AppState.shared.editorLanguage = .sql
-                    AppState.shared.currentDatabaseType = nil
-                    AppState.shared.supportsDatabaseSwitching = true
-                }
-            }
-            .onChange(of: sessionState?.toolbarState.safeModeLevel) { _, newLevel in
-                if let level = newLevel {
-                    AppState.shared.safeModeLevel = level
-                }
             }
     }
 
@@ -373,12 +348,6 @@ struct ContentView: View {
                 sessionState = nil
                 currentSession = nil
                 columnVisibility = .detailOnly
-                AppState.shared.isConnected = false
-                AppState.shared.safeModeLevel = .silent
-                AppState.shared.editorLanguage = .sql
-                AppState.shared.currentDatabaseType = nil
-                AppState.shared.supportsDatabaseSwitching = true
-
                 // Window cleanup is handled by windowWillClose (opens welcome)
                 // and windowDidBecomeKey (hides restored orphan windows).
                 // Do NOT close windows here — it triggers SwiftUI state
@@ -404,12 +373,6 @@ struct ContentView: View {
                 payload: payload
             )
         }
-        AppState.shared.isConnected = true
-        AppState.shared.safeModeLevel = newSession.connection.safeModeLevel
-        AppState.shared.editorLanguage = PluginManager.shared.editorLanguage(for: newSession.connection.type)
-        AppState.shared.currentDatabaseType = newSession.connection.type
-        AppState.shared.supportsDatabaseSwitching = PluginManager.shared.supportsDatabaseSwitching(
-            for: newSession.connection.type)
     }
 
     // MARK: - Actions

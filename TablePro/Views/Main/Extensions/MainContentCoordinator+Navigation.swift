@@ -96,9 +96,7 @@ extension MainContentCoordinator {
                 tabManager.tabs[tabIndex].isEditable = !isView
                 tabManager.tabs[tabIndex].schemaName = currentSchema
                 tabManager.tabs[tabIndex].pagination.reset()
-                AppState.shared.isCurrentTabEditable = !isView && tableName.isEmpty == false
                 toolbarState.isTableTab = true
-                AppState.shared.isTableTab = true
             }
             // In-place navigation needs selectRedisDatabaseAndQuery to ensure the correct
             // database is SELECTed and session state is updated before querying.
@@ -128,7 +126,6 @@ extension MainContentCoordinator {
                 if let tabIndex = tabManager.selectedTabIndex {
                     tabManager.tabs[tabIndex].pagination.reset()
                     toolbarState.isTableTab = true
-                AppState.shared.isTableTab = true
                 }
                 restoreColumnLayoutForTable(tableName)
                 restoreFiltersForTable(tableName)
@@ -209,9 +206,7 @@ extension MainContentCoordinator {
                 if let tabIndex = previewCoordinator.tabManager.selectedTabIndex {
                     previewCoordinator.tabManager.tabs[tabIndex].showStructure = showStructure
                     previewCoordinator.tabManager.tabs[tabIndex].pagination.reset()
-                    AppState.shared.isCurrentTabEditable = !isView && !tableName.isEmpty
                     previewCoordinator.toolbarState.isTableTab = true
-                    AppState.shared.isTableTab = true
                 }
                 preview.window.makeKeyAndOrderFront(nil)
                 previewCoordinator.restoreColumnLayoutForTable(tableName)
@@ -277,9 +272,7 @@ extension MainContentCoordinator {
             if let tabIndex = tabManager.selectedTabIndex {
                 tabManager.tabs[tabIndex].showStructure = showStructure
                 tabManager.tabs[tabIndex].pagination.reset()
-                AppState.shared.isCurrentTabEditable = !isView && !tableName.isEmpty
                 toolbarState.isTableTab = true
-                AppState.shared.isTableTab = true
             }
             restoreColumnLayoutForTable(tableName)
             restoreFiltersForTable(tableName)

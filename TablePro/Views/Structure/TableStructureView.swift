@@ -68,12 +68,7 @@ struct TableStructureView: View {
         .onChange(of: columns) { onColumnsChanged() }
         .onChange(of: indexes) { onIndexesChanged() }
         .onChange(of: foreignKeys) { onForeignKeysChanged() }
-        .onChange(of: selectedRows) { _, newSelection in
-            AppState.shared.hasRowSelection = !newSelection.isEmpty
-        }
         .onAppear {
-            AppState.shared.isCurrentTabEditable = (selectedTab != .ddl)
-            AppState.shared.hasRowSelection = !selectedRows.isEmpty
             coordinator?.toolbarState.hasStructureChanges = structureChangeManager.hasChanges
 
             // Wire action handler for direct coordinator calls
@@ -90,8 +85,6 @@ struct TableStructureView: View {
             coordinator?.structureActions = actionHandler
         }
         .onDisappear {
-            AppState.shared.isCurrentTabEditable = false
-            AppState.shared.hasRowSelection = false
             coordinator?.toolbarState.hasStructureChanges = false
             coordinator?.structureActions = nil
         }
