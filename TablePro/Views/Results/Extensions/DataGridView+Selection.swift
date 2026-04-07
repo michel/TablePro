@@ -35,9 +35,7 @@ extension TableViewCoordinator {
 
         let newSelection = Set(tableView.selectedRowIndexes.map { $0 })
         if newSelection != selectedRowIndices {
-            DispatchQueue.main.async { [weak self] in
-                self?.selectedRowIndices = newSelection
-            }
+            selectedRowIndices = newSelection
         }
 
         if let keyTableView = tableView as? KeyHandlingTableView {

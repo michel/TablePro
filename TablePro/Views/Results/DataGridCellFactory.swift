@@ -158,11 +158,9 @@ final class DataGridCellFactory {
             cell = textField
             isNewCell = false
         } else {
-            cellView = NSTableCellView()
+            cellView = DataGridCellView()
             cellView.identifier = cellViewId
             cellView.wantsLayer = true
-            cellView.layerContentsRedrawPolicy = .onSetNeedsDisplay
-            cellView.canDrawSubviewsIntoLayer = true
 
             cell = CellTextField()
             cell.font = ThemeEngine.shared.dataGridFonts.regular
@@ -264,15 +262,17 @@ final class DataGridCellFactory {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
 
-        // Update background color
-        if isDeleted {
-            cellView.layer?.backgroundColor = ThemeEngine.shared.colors.dataGrid.deletedCG
-        } else if isInserted {
-            cellView.layer?.backgroundColor = ThemeEngine.shared.colors.dataGrid.insertedCG
-        } else if isModified {
-            cellView.layer?.backgroundColor = ThemeEngine.shared.colors.dataGrid.modifiedCG
-        } else {
-            cellView.layer?.backgroundColor = nil
+        // Update background color for change states (drawn via DataGridCellView.draw)
+        if let gridCell = cellView as? DataGridCellView {
+            if isDeleted {
+                gridCell.changeBackgroundColor = ThemeEngine.shared.colors.dataGrid.deleted
+            } else if isInserted {
+                gridCell.changeBackgroundColor = ThemeEngine.shared.colors.dataGrid.inserted
+            } else if isModified {
+                gridCell.changeBackgroundColor = ThemeEngine.shared.colors.dataGrid.modified
+            } else {
+                gridCell.changeBackgroundColor = nil
+            }
         }
 
         // Focus ring
