@@ -77,7 +77,6 @@ struct MainEditorContentView: View {
 
     // MARK: - Environment
 
-    @Environment(AppState.self) private var appState
 
     /// Returns the cached AnyChangeManager, creating it on first access.
     private var currentChangeManager: AnyChangeManager {
@@ -92,7 +91,7 @@ struct MainEditorContentView: View {
     // MARK: - Body
 
     var body: some View {
-        let isHistoryVisible = appState.isHistoryPanelVisible
+        let isHistoryVisible = coordinator.toolbarState.isHistoryPanelVisible
 
         VStack(spacing: 0) {
             // Native macOS window tabs replace the custom tab bar.
@@ -237,10 +236,10 @@ struct MainEditorContentView: View {
 
     private func updateHasQueryText() {
         if let tab = tabManager.selectedTab, tab.tabType == .query {
-            appState.hasQueryText = !tab.query.trimmingCharacters(in: .whitespacesAndNewlines)
+            coordinator.toolbarState.hasQueryText = !tab.query.trimmingCharacters(in: .whitespacesAndNewlines)
                 .isEmpty
         } else {
-            appState.hasQueryText = false
+            coordinator.toolbarState.hasQueryText = false
         }
     }
 

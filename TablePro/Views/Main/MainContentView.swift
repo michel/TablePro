@@ -61,7 +61,6 @@ struct MainContentView: View {
 
     // MARK: - Environment
 
-    @Environment(AppState.self) private var appState
 
     // MARK: - Initialization
 
@@ -187,7 +186,7 @@ struct MainContentView: View {
             hasDataChanges: changeManager.hasChanges,
             pendingTruncates: pendingTruncates,
             pendingDeletes: pendingDeletes,
-            hasStructureChanges: appState.hasStructureChanges,
+            hasStructureChanges: toolbarState.hasStructureChanges,
             isFileDirty: tabManager.selectedTab?.isFileDirty ?? false
         )
     }
@@ -581,7 +580,7 @@ struct MainContentView: View {
             changeManager.hasChanges
             || !pendingTruncates.isEmpty
             || !pendingDeletes.isEmpty
-            || AppState.shared.hasStructureChanges
+            || toolbarState.hasStructureChanges
         let hasFileChanges = tabManager.selectedTab?.isFileDirty ?? false
         toolbarState.hasDataPendingChanges = hasDataChanges
         toolbarState.hasPendingChanges = hasDataChanges || hasFileChanges

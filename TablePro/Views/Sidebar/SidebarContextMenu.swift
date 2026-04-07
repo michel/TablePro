@@ -101,7 +101,7 @@ struct SidebarContextMenu: View {
         if SidebarContextMenuLogic.importVisible(
             isView: isView,
             supportsImport: PluginManager.shared.supportsImport(
-                for: AppState.shared.currentDatabaseType ?? .mysql
+                for: coordinator?.connection.type ?? .mysql
             )
         ) {
             Button("Import...") {

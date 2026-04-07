@@ -36,7 +36,6 @@ final class AppState {
 
 /// Custom Commands struct for pasteboard operations
 struct PasteboardCommands: Commands {
-    var appState: AppState
     var settingsManager: AppSettingsManager
     @FocusedValue(\.commandActions) var actions: MainContentCommandActions?
 
@@ -55,8 +54,8 @@ struct PasteboardCommands: Commands {
             Button("Copy") {
                 let action = PasteboardActionRouter.resolveCopyAction(
                     firstResponder: NSApp.keyWindow?.firstResponder,
-                    hasRowSelection: appState.hasRowSelection,
-                    hasTableSelection: appState.hasTableSelection
+                    hasRowSelection: actions?.hasRowSelection ?? false,
+                    hasTableSelection: actions?.hasTableSelection ?? false
                 )
                 switch action {
                 case .textCopy:
@@ -73,18 +72,18 @@ struct PasteboardCommands: Commands {
                 actions?.copySelectedRowsWithHeaders()
             }
             .optionalKeyboardShortcut(shortcut(for: .copyWithHeaders))
-            .disabled(!appState.hasRowSelection)
+            .disabled(!(actions?.hasRowSelection ?? false))
 
             Button("Copy as JSON") {
                 actions?.copySelectedRowsAsJson()
             }
             .optionalKeyboardShortcut(shortcut(for: .copyAsJson))
-            .disabled(!appState.hasRowSelection)
+            .disabled(!(actions?.hasRowSelection ?? false))
 
             Button("Paste") {
                 let action = PasteboardActionRouter.resolvePasteAction(
                     firstResponder: NSApp.keyWindow?.firstResponder,
-                    isCurrentTabEditable: appState.isCurrentTabEditable
+                    isCurrentTabEditable: actions?.isCurrentTabEditable ?? false
                 )
                 switch action {
                 case .textPaste:
@@ -99,7 +98,7 @@ struct PasteboardCommands: Commands {
                 actions?.deleteSelectedRows()
             }
             .optionalKeyboardShortcut(shortcut(for: .delete))
-            .disabled(!appState.isCurrentTabEditable && !appState.hasTableSelection)
+            .disabled(!(actions?.isCurrentTabEditable ?? false) && !(actions?.hasTableSelection ?? false))
 
             Divider()
 
@@ -122,7 +121,6 @@ struct PasteboardCommands: Commands {
 /// All menu commands extracted into a separate Commands struct so that AppState
 /// changes only re-evaluate the menu items — NOT the Scene body / WindowGroups.
 struct AppMenuCommands: Commands {
-    var appState: AppState
     var settingsManager: AppSettingsManager
     var updaterBridge: UpdaterBridge
     @FocusedValue(\.commandActions) var actions: MainContentCommandActions?
@@ -169,36 +167,36 @@ struct AppMenuCommands: Commands {
                 actions?.newTab()
             }
             .optionalKeyboardShortcut(shortcut(for: .newTab))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("New View...") {
                 actions?.createView()
             }
-            .disabled(!appState.isConnected || appState.isReadOnly)
+            .disabled(!(actions?.isConnected ?? false) || actions?.isReadOnly ?? false)
 
             Button("Open Database...") {
                 actions?.openDatabaseSwitcher()
             }
             .optionalKeyboardShortcut(shortcut(for: .openDatabase))
-            .disabled(!appState.isConnected || !appState.supportsDatabaseSwitching)
+            .disabled(!(actions?.isConnected ?? false) || !(actions?.supportsDatabaseSwitching ?? false))
 
             Button(String(localized: "Open File...")) {
                 actions?.openSQLFile()
             }
             .optionalKeyboardShortcut(shortcut(for: .openFile))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Switch Connection...") {
                 NotificationCenter.default.post(name: .openConnectionSwitcher, object: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .switchConnection))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Quick Switcher...") {
                 actions?.openQuickSwitcher()
             }
             .optionalKeyboardShortcut(shortcut(for: .quickSwitcher))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Divider()
 
@@ -206,25 +204,25 @@ struct AppMenuCommands: Commands {
                 actions?.saveChanges()
             }
             .optionalKeyboardShortcut(shortcut(for: .saveChanges))
-            .disabled(!appState.isConnected || appState.isReadOnly)
+            .disabled(!(actions?.isConnected ?? false) || actions?.isReadOnly ?? false)
 
             Button(String(localized: "Save As...")) {
                 actions?.saveFileAs()
             }
             .optionalKeyboardShortcut(shortcut(for: .saveAs))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button {
                 actions?.previewSQL()
             } label: {
-                if let dbType = appState.currentDatabaseType {
+                if let dbType = actions?.currentDatabaseType {
                     Text(String(format: String(localized: "Preview %@"), PluginManager.shared.queryLanguageName(for: dbType)))
                 } else {
                     Text("Preview SQL")
                 }
             }
             .optionalKeyboardShortcut(shortcut(for: .previewSQL))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Close Tab") {
                 if let actions {
@@ -241,13 +239,13 @@ struct AppMenuCommands: Commands {
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .refresh))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Explain Query") {
                 actions?.explainQuery()
             }
             .optionalKeyboardShortcut(shortcut(for: .explainQuery))
-            .disabled(!appState.isConnected || !appState.hasQueryText)
+            .disabled(!(actions?.isConnected ?? false) || !(actions?.hasQueryText ?? false))
 
             Divider()
 
@@ -265,19 +263,19 @@ struct AppMenuCommands: Commands {
                 actions?.exportTables()
             }
             .optionalKeyboardShortcut(shortcut(for: .export))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Export Results...") {
                 actions?.exportQueryResults()
             }
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
-            if appState.currentDatabaseType.map({ PluginManager.shared.supportsImport(for: $0) }) ?? true {
+            if actions.map({ PluginManager.shared.supportsImport(for: $0.currentDatabaseType) }) ?? true {
                 Button("Import...") {
                     actions?.importTables()
                 }
                 .optionalKeyboardShortcut(shortcut(for: .importData))
-                .disabled(!appState.isConnected || appState.isReadOnly)
+                .disabled(!(actions?.isConnected ?? false) || actions?.isReadOnly ?? false)
             }
         }
 
@@ -312,7 +310,7 @@ struct AppMenuCommands: Commands {
         }
 
         // Edit menu - pasteboard commands with FocusedValue support
-        PasteboardCommands(appState: appState, settingsManager: settingsManager)
+        PasteboardCommands(settingsManager: settingsManager)
 
         // Edit menu - row operations (after pasteboard)
         CommandGroup(after: .pasteboard) {
@@ -322,13 +320,13 @@ struct AppMenuCommands: Commands {
                 actions?.addNewRow()
             }
             .optionalKeyboardShortcut(shortcut(for: .addRow))
-            .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
+            .disabled(!(actions?.isCurrentTabEditable ?? false) || actions?.isReadOnly ?? false)
 
             Button("Duplicate Row") {
                 actions?.duplicateRow()
             }
             .optionalKeyboardShortcut(shortcut(for: .duplicateRow))
-            .disabled(!appState.isCurrentTabEditable || appState.isReadOnly)
+            .disabled(!(actions?.isCurrentTabEditable ?? false) || actions?.isReadOnly ?? false)
 
             Divider()
 
@@ -337,7 +335,7 @@ struct AppMenuCommands: Commands {
                 actions?.truncateTables()
             }
             .optionalKeyboardShortcut(shortcut(for: .truncateTable))
-            .disabled(!appState.hasTableSelection || appState.isReadOnly)
+            .disabled(!(actions?.hasTableSelection ?? false) || actions?.isReadOnly ?? false)
         }
 
         // View menu
@@ -346,13 +344,13 @@ struct AppMenuCommands: Commands {
                 NSApp.sendAction(#selector(NSSplitViewController.toggleSidebar(_:)), to: nil, from: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .toggleTableBrowser))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Toggle Inspector") {
                 actions?.toggleRightSidebar()
             }
             .optionalKeyboardShortcut(shortcut(for: .toggleInspector))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Divider()
 
@@ -360,13 +358,13 @@ struct AppMenuCommands: Commands {
                 actions?.toggleFilterPanel()
             }
             .optionalKeyboardShortcut(shortcut(for: .toggleFilters))
-            .disabled(!appState.isConnected || !appState.isTableTab)
+            .disabled(!(actions?.isConnected ?? false) || !(actions?.isTableTab ?? false))
 
             Button("Toggle History") {
                 actions?.toggleHistoryPanel()
             }
             .optionalKeyboardShortcut(shortcut(for: .toggleHistory))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Divider()
 
@@ -374,25 +372,25 @@ struct AppMenuCommands: Commands {
                 actions?.toggleResults()
             }
             .optionalKeyboardShortcut(shortcut(for: .toggleResults))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Previous Result") {
                 actions?.previousResultTab()
             }
             .optionalKeyboardShortcut(shortcut(for: .previousResultTab))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Next Result") {
                 actions?.nextResultTab()
             }
             .optionalKeyboardShortcut(shortcut(for: .nextResultTab))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Button("Close Result Tab") {
                 actions?.closeResultTab()
             }
             .optionalKeyboardShortcut(shortcut(for: .closeResultTab))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             Divider()
 
@@ -418,7 +416,7 @@ struct AppMenuCommands: Commands {
                     KeyEquivalent(Character(String(number))),
                     modifiers: .command
                 )
-                .disabled(!appState.isConnected)
+                .disabled(!(actions?.isConnected ?? false))
             }
 
             Divider()
@@ -428,28 +426,28 @@ struct AppMenuCommands: Commands {
                 NSApp.sendAction(#selector(NSWindow.selectPreviousTab(_:)), to: nil, from: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .showPreviousTabBrackets))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             // Next tab (Cmd+Shift+]) — delegate to native macOS tab switching
             Button("Show Next Tab") {
                 NSApp.sendAction(#selector(NSWindow.selectNextTab(_:)), to: nil, from: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .showNextTabBrackets))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             // Previous tab (Cmd+Option+Left)
             Button("Previous Tab") {
                 NSApp.sendAction(#selector(NSWindow.selectPreviousTab(_:)), to: nil, from: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .previousTabArrows))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
 
             // Next tab (Cmd+Option+Right)
             Button("Next Tab") {
                 NSApp.sendAction(#selector(NSWindow.selectNextTab(_:)), to: nil, from: nil)
             }
             .optionalKeyboardShortcut(shortcut(for: .nextTabArrows))
-            .disabled(!appState.isConnected)
+            .disabled(!(actions?.isConnected ?? false))
         }
 
         // Help menu
@@ -514,7 +512,6 @@ struct TableProApp: App {
         // Each native window-tab gets its own ContentView with independent state.
         WindowGroup(id: "main", for: EditorTabPayload.self) { $payload in
             ContentView(payload: payload)
-                .environment(AppState.shared)
                 .background(OpenWindowHandler())
         }
         .windowStyle(.automatic)
@@ -529,7 +526,6 @@ struct TableProApp: App {
 
         .commands {
             AppMenuCommands(
-                appState: AppState.shared,
                 settingsManager: AppSettingsManager.shared,
                 updaterBridge: updaterBridge
             )
