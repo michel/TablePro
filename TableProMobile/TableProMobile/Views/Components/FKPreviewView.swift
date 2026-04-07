@@ -65,12 +65,18 @@ struct FKPreviewView: View {
         do {
             let quoted = SQLBuilder.quoteIdentifier(fk.referencedTable, for: databaseType)
             let quotedCol = SQLBuilder.quoteIdentifier(fk.referencedColumn, for: databaseType)
-            let escapedValue = value.replacingOccurrences(of: "'", with: "''")
-            let query = "SELECT * FROM \(quoted) WHERE \(quotedCol) = '\(escapedValue)' LIMIT 1"
+            let sqlValue: String
+            if Int64(value) != nil || Double(value) != nil {
+                sqlValue = value
+            } else {
+                sqlValue = "'\(value.replacingOccurrences(of: "'", with: "''"))'"
+            }
+            let query = "SELECT * FROM \(quoted) WHERE \(quotedCol) = \(sqlValue) LIMIT 1"
             let result = try await session.driver.execute(query: query)
             columns = result.columns
             row = result.rows.first
         } catch {
+            print("FK preview error: \(error)")
             row = nil
         }
         isLoading = false
