@@ -170,7 +170,6 @@ struct ConnectedView: View {
                     session: session,
                     onRefresh: { await refreshTables() }
                 )
-                .id(ConnectedTab.tables)
             case .query:
                 QueryEditorView(
                     session: session,
@@ -180,9 +179,9 @@ struct ConnectedView: View {
                     connectionId: connection.id,
                     historyStorage: historyStorage
                 )
-                .id(ConnectedTab.query)
             }
         }
+        .animation(.default, value: selectedTab)
     }
 
     private func connect() async {
