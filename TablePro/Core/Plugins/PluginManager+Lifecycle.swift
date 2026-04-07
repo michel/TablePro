@@ -191,6 +191,6 @@ extension PluginManager {
         queryBuildingDriverCache.removeAll()
 
         Self.logger.info("Uninstalled plugin '\(id)'")
-        _needsRestart = true
+        needsRestartStorage = true
     }
 }

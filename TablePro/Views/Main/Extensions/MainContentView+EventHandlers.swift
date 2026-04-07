@@ -127,7 +127,6 @@ extension MainContentView {
         case .replacePreviewTab, .openNewPreviewTab:
             coordinator.openTableTab(tableName, isView: isView)
         }
-
     }
 
     /// Keep sidebar selection in sync with the current window's tab.

@@ -144,7 +144,6 @@ struct ContentView: View {
                             || notificationWindow.subtitle == "\(name) — Preview"
                     }()
                 guard isOurWindow else { return }
-
             }
     }
 

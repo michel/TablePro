@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.27.6] - 2026-04-07
+
 ### Fixed
 
 - Fix excessive idle ping traffic (40-50 SELECT 1/sec) caused by AsyncStream iterator recreation and orphaned monitor tasks
@@ -1189,7 +1191,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.27.5...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.27.6...HEAD
+[0.27.6]: https://github.com/TableProApp/TablePro/compare/v0.27.5...v0.27.6
 [0.27.5]: https://github.com/TableProApp/TablePro/compare/v0.27.4...v0.27.5
 [0.27.4]: https://github.com/TableProApp/TablePro/compare/v0.27.3...v0.27.4
 [0.27.3]: https://github.com/TableProApp/TablePro/compare/v0.27.2...v0.27.3

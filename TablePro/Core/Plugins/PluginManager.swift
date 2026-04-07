@@ -25,13 +25,13 @@ final class PluginManager {
 
     private static let needsRestartKey = "com.TablePro.needsRestart"
 
-    var _needsRestart: Bool = UserDefaults.standard.bool(
+    var needsRestartStorage: Bool = UserDefaults.standard.bool(
         forKey: needsRestartKey
     ) {
-        didSet { UserDefaults.standard.set(_needsRestart, forKey: Self.needsRestartKey) }
+        didSet { UserDefaults.standard.set(needsRestartStorage, forKey: Self.needsRestartKey) }
     }
 
-    var needsRestart: Bool { _needsRestart }
+    var needsRestart: Bool { needsRestartStorage }
 
     internal(set) var driverPlugins: [String: any DriverPlugin] = [:]
 
@@ -126,7 +126,7 @@ final class PluginManager {
         Task {
             let loaded = await Self.loadBundlesOffMain(pending)
             self.pendingPluginURLs.removeAll()
-            self._needsRestart = false
+            self.needsRestartStorage = false
             self.registerLoadedPlugins(loaded)
             self.validateDependencies()
             self.hasFinishedInitialLoad = true
@@ -282,7 +282,7 @@ final class PluginManager {
     /// Normal startup uses `loadPlugins()` which loads bundles off the main thread.
     func loadPendingPlugins(clearRestartFlag: Bool = false) {
         if clearRestartFlag {
-            _needsRestart = false
+            needsRestartStorage = false
         }
         guard !pendingPluginURLs.isEmpty else { return }
         let pending = pendingPluginURLs
