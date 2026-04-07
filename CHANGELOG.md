@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move theme, AI chat, and SSH config file loading off the main thread
 - Replace fixed delays in deep link handling with event-driven waits
 - Fix change-state background covering row selection highlight in data grid
+- Fix window not fitting on smaller/portrait displays
 
 ## [0.27.5] - 2026-04-06
 
