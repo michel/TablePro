@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-04-07
+
 ### Added
 
 - Smart value detection: auto-render UUIDs in BINARY(16) columns and timestamps in integer columns
 - Per-column "Display As" override via column header context menu
 - iOS: safe mode (Off, Confirm Writes, Read-Only) per connection
-
-## [0.27.6] - 2026-04-07
 
 ### Fixed
 
@@ -1198,8 +1198,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.27.6...HEAD
-[0.27.6]: https://github.com/TableProApp/TablePro/compare/v0.27.5...v0.27.6
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/TableProApp/TablePro/compare/v0.27.5...v0.28.0
 [0.27.5]: https://github.com/TableProApp/TablePro/compare/v0.27.4...v0.27.5
 [0.27.4]: https://github.com/TableProApp/TablePro/compare/v0.27.3...v0.27.4
 [0.27.3]: https://github.com/TableProApp/TablePro/compare/v0.27.2...v0.27.3
