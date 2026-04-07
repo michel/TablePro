@@ -30,7 +30,7 @@ struct PanelResizeHandle: View {
                         isDragging = true
                         // Dragging left increases panel width (handle is on the leading edge)
                         let newWidth = panelWidth - value.translation.width
-                        panelWidth = min(max(newWidth, RightPanelState.minWidth), RightPanelState.maxWidth)
+                        panelWidth = min(max(newWidth, RightPanelVisibility.minWidth), RightPanelVisibility.maxWidth)
                     }
                     .onEnded { _ in
                         isDragging = false

@@ -2,7 +2,7 @@
 //  RightPanelStateTests.swift
 //  TableProTests
 //
-//  Tests for RightPanelState persistence of isPresented via UserDefaults.
+//  Tests for RightPanelVisibility persistence and RightPanelState teardown.
 //
 
 import Foundation
@@ -13,72 +13,33 @@ import Testing
 struct RightPanelStateTests {
     private static let key = "com.TablePro.rightPanel.isPresented"
 
-    /// Yields to the main dispatch queue so deferred DispatchQueue.main.async blocks execute.
-    private func yieldToMainQueue() async {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.main.async {
-                continuation.resume()
-            }
-        }
-    }
-
     @Test("isPresented defaults to false when no UserDefaults value")
     @MainActor
     func defaultsToFalse() {
         UserDefaults.standard.removeObject(forKey: Self.key)
-        let state = RightPanelState()
-        #expect(state.isPresented == false)
+        let visibility = RightPanelVisibility.shared
+        visibility.isPresented = false
+        #expect(visibility.isPresented == false)
     }
 
-    @Test("isPresented initializes from UserDefaults when true")
+    @Test("isPresented persists to UserDefaults on change")
     @MainActor
-    func initializesFromUserDefaults() {
-        UserDefaults.standard.set(true, forKey: Self.key)
-        let state = RightPanelState()
-        #expect(state.isPresented == true)
-        UserDefaults.standard.removeObject(forKey: Self.key)
-    }
-
-    @Test("isPresented persists to UserDefaults on change (deferred)")
-    @MainActor
-    func persistsOnChange() async {
-        UserDefaults.standard.removeObject(forKey: Self.key)
-        let state = RightPanelState()
-        state.isPresented = true
-        // UserDefaults write is deferred via DispatchQueue.main.async
-        await yieldToMainQueue()
+    func persistsOnChange() {
+        let visibility = RightPanelVisibility.shared
+        visibility.isPresented = true
         #expect(UserDefaults.standard.bool(forKey: Self.key) == true)
-        state.isPresented = false
-        await yieldToMainQueue()
+        visibility.isPresented = false
         #expect(UserDefaults.standard.bool(forKey: Self.key) == false)
-        UserDefaults.standard.removeObject(forKey: Self.key)
     }
 
-    @Test("isPresented does not persist synchronously (deferred write)")
+    @Test("visibility is shared across references")
     @MainActor
-    func doesNotPersistSynchronously() async {
-        UserDefaults.standard.removeObject(forKey: Self.key)
-        let state = RightPanelState()
-        state.isPresented = true
-        // Write is deferred — UserDefaults should still be false immediately
-        #expect(UserDefaults.standard.bool(forKey: Self.key) == false)
-        // Drain so the deferred write completes before next test
-        await yieldToMainQueue()
-        UserDefaults.standard.removeObject(forKey: Self.key)
-    }
-
-    @Test("new instance reads persisted state from previous instance")
-    @MainActor
-    func newInstanceReadsPersisted() async {
-        UserDefaults.standard.removeObject(forKey: Self.key)
-        let state1 = RightPanelState()
-        state1.isPresented = true
-        // Wait for deferred UserDefaults write
-        await yieldToMainQueue()
-
-        let state2 = RightPanelState()
-        #expect(state2.isPresented == true)
-        UserDefaults.standard.removeObject(forKey: Self.key)
+    func sharedInstance() {
+        let a = RightPanelVisibility.shared
+        let b = RightPanelVisibility.shared
+        a.isPresented = true
+        #expect(b.isPresented == true)
+        a.isPresented = false
     }
 
     @Test("teardown is idempotent - calling twice does not crash")
