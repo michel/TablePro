@@ -15,15 +15,17 @@ internal final class WindowOpener {
 
     internal static let shared = WindowOpener()
 
-    private var readyContinuation: CheckedContinuation<Void, Never>?
+    private var readyContinuations: [CheckedContinuation<Void, Never>] = []
 
     /// Set on appear by ContentView, WelcomeViewModel, or ConnectionFormView.
     /// Safe to store — OpenWindowAction is app-scoped, not view-scoped.
     internal var openWindow: OpenWindowAction? {
         didSet {
             if openWindow != nil {
-                readyContinuation?.resume()
-                readyContinuation = nil
+                for continuation in readyContinuations {
+                    continuation.resume()
+                }
+                readyContinuations.removeAll()
             }
         }
     }
@@ -35,7 +37,7 @@ internal final class WindowOpener {
             if openWindow != nil {
                 continuation.resume()
             } else {
-                readyContinuation = continuation
+                readyContinuations.append(continuation)
             }
         }
     }
