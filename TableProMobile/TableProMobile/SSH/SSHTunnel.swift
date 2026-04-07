@@ -307,17 +307,22 @@ actor SSHTunnel {
             socketFD = -1
         }
 
-        // Acquire sessionLock before freeing the session. The relay thread holds
-        // this lock during libssh2 calls, so this blocks until any in-flight
-        // libssh2 operation completes. The relay will see isAlive == false on its
-        // next iteration and exit, preventing use-after-free.
-        if let sess = session {
-            session = nil
-            sessionLock.lock()
-            libssh2_session_set_blocking(sess, 1)
-            tablepro_libssh2_session_disconnect(sess, "Closing tunnel")
-            libssh2_session_free(sess)
-            sessionLock.unlock()
+        // Free session off-actor to avoid blocking the actor (libssh2_session_disconnect
+        // can take seconds on a slow network). The detached thread acquires sessionLock
+        // first, which serializes with the relay thread's libssh2 calls — the relay
+        // will see isAlive == false after its current locked operation and exit.
+        let sess = session
+        session = nil
+        let lock = sessionLock
+        if let sess {
+            nonisolated(unsafe) let unsafeSess = sess
+            Thread.detachNewThread {
+                lock.lock()
+                libssh2_session_set_blocking(unsafeSess, 1)
+                tablepro_libssh2_session_disconnect(unsafeSess, "Closing tunnel")
+                libssh2_session_free(unsafeSess)
+                lock.unlock()
+            }
         }
 
         Self.logger.info("Tunnel closed (local port \(self.localPort))")
@@ -450,6 +455,7 @@ actor SSHTunnel {
             // Channel -> Client
             if pollFDs[1].revents & Int16(POLLIN) != 0 {
                 lock.lock()
+                guard aliveFlag.value else { lock.unlock(); return }
                 let readResult = Int(tablepro_libssh2_channel_read(channel, buffer, bufferSize))
                 let eof = libssh2_channel_eof(channel)
                 lock.unlock()
@@ -476,6 +482,7 @@ actor SSHTunnel {
                 var totalWritten = 0
                 while totalWritten < Int(clientRead) {
                     lock.lock()
+                    guard aliveFlag.value else { lock.unlock(); return }
                     let written = Int(tablepro_libssh2_channel_write(
                         channel,
                         buffer.advanced(by: totalWritten),

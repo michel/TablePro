@@ -121,7 +121,7 @@ struct DataBrowserView: View {
                 guard !rows.isEmpty else { return }
                 Self.logger.warning("Memory warning received — clearing \(rows.count) rows")
                 rows = []
-                memoryWarningMessage = String(localized: "Memory pressure — results cleared. Pull to refresh.")
+                memoryWarningMessage = String(localized: "Results cleared due to memory pressure.")
             }
             .overlay(alignment: .center) {
                 if let message = memoryWarningMessage, rows.isEmpty, !isLoading, appError == nil {

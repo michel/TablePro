@@ -28,7 +28,6 @@ enum SQLBuilder {
             .replacingOccurrences(of: "\r", with: "\\r")
             .replacingOccurrences(of: "\u{1a}", with: "\\Z")
             .replacingOccurrences(of: "'", with: "''")
-            .replacingOccurrences(of: "\"", with: "\\\"")
     }
 
     static func buildCount(table: String, type: DatabaseType) -> String {

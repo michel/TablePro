@@ -333,7 +333,7 @@ private actor PostgreSQLActor {
         guard let conn else { return nil }
         let version = PQserverVersion(conn)
         if version == 0 { return nil }
-        let major = version / 10_000
+        let major = version / 10000 // swiftlint:disable:this number_separator
         let minor = (version / 100) % 100
         let patch = version % 100
         // PostgreSQL 10+ uses two-component versioning (major.patch)
@@ -430,15 +430,18 @@ nonisolated private func pgOidToTypeName(_ oid: UInt32) -> String {
     case 700: return "real"
     case 701: return "double precision"
     case 869: return "inet"
-    case 1_042: return "char"
-    case 1_043: return "varchar"
-    case 1_082: return "date"
-    case 1_083: return "time"
-    case 1_114: return "timestamp"
-    case 1_184: return "timestamptz"
-    case 1_700: return "numeric"
-    case 2_950: return "uuid"
-    case 3_802: return "jsonb"
+    // PostgreSQL OID constants — separators would obscure the wire-protocol values
+    // swiftlint:disable number_separator
+    case 1042: return "char"
+    case 1043: return "varchar"
+    case 1082: return "date"
+    case 1083: return "time"
+    case 1114: return "timestamp"
+    case 1184: return "timestamptz"
+    case 1700: return "numeric"
+    case 2950: return "uuid"
+    case 3802: return "jsonb"
+    // swiftlint:enable number_separator
     default: return "unknown"
     }
 }
