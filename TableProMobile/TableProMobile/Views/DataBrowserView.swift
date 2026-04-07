@@ -35,6 +35,8 @@ struct DataBrowserView: View {
     @State private var showFilterSheet = false
     @State private var sortState = SortState()
     @State private var rowListGeneration = 0
+    @State private var foreignKeys: [ForeignKeyInfo] = []
+    @State private var fkPreviewItem: FKPreviewItem?
     @State private var memoryWarningMessage: String?
 
     private var isView: Bool {
@@ -101,6 +103,14 @@ struct DataBrowserView: View {
                     columns: columns,
                     onApply: { applyFilters() },
                     onClear: { clearFilters() }
+                )
+            }
+            .sheet(item: $fkPreviewItem) { item in
+                FKPreviewView(
+                    fk: item.fk,
+                    value: item.value,
+                    session: session,
+                    databaseType: connection.type
                 )
             }
             .confirmationDialog("Delete Row", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
@@ -195,6 +205,7 @@ struct DataBrowserView: View {
                         columnDetails: columnDetails,
                         databaseType: connection.type,
                         safeModeLevel: connection.safeModeLevel,
+                        foreignKeys: foreignKeys,
                         onSaved: { Task { await loadData() } }
                     )
                 } label: {
@@ -213,6 +224,28 @@ struct DataBrowserView: View {
                                     format: format, tableName: table.name
                                 )
                                 ClipboardExporter.copyToClipboard(text)
+                            }
+                        }
+                    }
+                    if !foreignKeys.isEmpty {
+                        let rowFKs = foreignKeys.filter { fk in
+                            guard let colIndex = columns.firstIndex(where: { $0.name == fk.column }),
+                                  colIndex < rows[index].count,
+                                  rows[index][colIndex] != nil else { return false }
+                            return true
+                        }
+                        if !rowFKs.isEmpty {
+                            Divider()
+                            ForEach(rowFKs, id: \.name) { fk in
+                                Button {
+                                    if let colIndex = columns.firstIndex(where: { $0.name == fk.column }),
+                                       colIndex < rows[index].count,
+                                       let value = rows[index][colIndex] {
+                                        fkPreviewItem = FKPreviewItem(fk: fk, value: value)
+                                    }
+                                } label: {
+                                    Label("\(fk.column) → \(fk.referencedTable)", systemImage: "arrow.right.circle")
+                                }
                             }
                         }
                     }
@@ -415,6 +448,13 @@ struct DataBrowserView: View {
             }
             if columnDetails.isEmpty {
                 columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
+            }
+            if foreignKeys.isEmpty {
+                do {
+                    foreignKeys = try await session.driver.fetchForeignKeys(table: table.name, schema: nil)
+                } catch {
+                    Self.logger.warning("Failed to fetch foreign keys: \(error.localizedDescription, privacy: .public)")
+                }
             }
             if pagination.totalRows == nil {
                 await fetchTotalRows(session: session)

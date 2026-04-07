@@ -16,6 +16,7 @@ struct RowDetailView: View {
     let columnDetails: [ColumnInfo]
     let databaseType: DatabaseType
     let safeModeLevel: SafeModeLevel
+    let foreignKeys: [ForeignKeyInfo]
     var onSaved: (() -> Void)?
 
     @State private var currentIndex: Int
@@ -25,6 +26,7 @@ struct RowDetailView: View {
     @State private var operationError: AppError?
     @State private var showOperationError = false
     @State private var showSaveSuccess = false
+    @State private var fkPreviewItem: FKPreviewItem?
 
     init(
         columns: [ColumnInfo],
@@ -35,6 +37,7 @@ struct RowDetailView: View {
         columnDetails: [ColumnInfo] = [],
         databaseType: DatabaseType = .sqlite,
         safeModeLevel: SafeModeLevel = .off,
+        foreignKeys: [ForeignKeyInfo] = [],
         onSaved: (() -> Void)? = nil
     ) {
         self.columns = columns
@@ -44,6 +47,7 @@ struct RowDetailView: View {
         self.columnDetails = columnDetails
         self.databaseType = databaseType
         self.safeModeLevel = safeModeLevel
+        self.foreignKeys = foreignKeys
         self.onSaved = onSaved
         _currentIndex = State(initialValue: initialIndex)
     }
@@ -88,6 +92,20 @@ struct RowDetailView: View {
                                     Label("Copy Column Name", systemImage: "textformat")
                                 }
                             }
+                        if let fk = foreignKeys.first(where: { $0.column == column.name }), let value {
+                            Button {
+                                fkPreviewItem = FKPreviewItem(fk: fk, value: value)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .font(.caption2)
+                                    Text("\(fk.referencedTable).\(fk.referencedColumn)")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 } header: {
                     HStack(spacing: 6) {
@@ -180,7 +198,6 @@ struct RowDetailView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button {
                     withAnimation { currentIndex -= 1 }
-                    if isEditing { startEditing() }
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -198,7 +215,6 @@ struct RowDetailView: View {
 
                 Button {
                     withAnimation { currentIndex += 1 }
-                    if isEditing { startEditing() }
                 } label: {
                     Image(systemName: "chevron.right")
                 }
@@ -213,6 +229,14 @@ struct RowDetailView: View {
             } else {
                 Text(operationError?.message ?? "")
             }
+        }
+        .sheet(item: $fkPreviewItem) { item in
+            FKPreviewView(
+                fk: item.fk,
+                value: item.value,
+                session: session,
+                databaseType: databaseType
+            )
         }
     }
 
@@ -324,6 +348,7 @@ struct RowDetailView: View {
 
         guard !changes.isEmpty else {
             isEditing = false
+            editedValues = []
             return
         }
 
