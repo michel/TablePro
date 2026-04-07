@@ -186,6 +186,9 @@ final class ConnectionToolbarState {
     /// Whether the structure view has pending schema changes
     var hasStructureChanges: Bool = false
 
+    /// Whether the current editor has non-empty query text
+    var hasQueryText: Bool = false
+
     /// Whether the history panel is visible
     var isHistoryPanelVisible: Bool = false
 

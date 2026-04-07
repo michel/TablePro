@@ -33,7 +33,7 @@ struct QueryEditorView: View {
     @State private var vimMode: VimMode = .normal
 
     var body: some View {
-        let hasQuery = appState.hasQueryText
+        let hasQuery = !queryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
         VStack(alignment: .leading, spacing: 0) {
             // Editor header with toolbar (above editor, higher z-index)

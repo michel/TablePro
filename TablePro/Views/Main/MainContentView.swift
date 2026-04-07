@@ -187,7 +187,7 @@ struct MainContentView: View {
             hasDataChanges: changeManager.hasChanges,
             pendingTruncates: pendingTruncates,
             pendingDeletes: pendingDeletes,
-            hasStructureChanges: appState.hasStructureChanges,
+            hasStructureChanges: toolbarState.hasStructureChanges,
             isFileDirty: tabManager.selectedTab?.isFileDirty ?? false
         )
     }

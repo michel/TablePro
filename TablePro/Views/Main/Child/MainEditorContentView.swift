@@ -237,10 +237,10 @@ struct MainEditorContentView: View {
 
     private func updateHasQueryText() {
         if let tab = tabManager.selectedTab, tab.tabType == .query {
-            appState.hasQueryText = !tab.query.trimmingCharacters(in: .whitespacesAndNewlines)
+            coordinator.toolbarState.hasQueryText = !tab.query.trimmingCharacters(in: .whitespacesAndNewlines)
                 .isEmpty
         } else {
-            appState.hasQueryText = false
+            coordinator.toolbarState.hasQueryText = false
         }
     }
 
