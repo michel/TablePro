@@ -14,7 +14,6 @@ import TableProPluginKit
 struct QueryEditorView: View {
     private static let logger = Logger(subsystem: "com.TablePro", category: "QueryEditorView")
 
-    @Environment(AppState.self) private var appState
 
     @Binding var queryText: String
     @Binding var cursorPositions: [CursorPosition]

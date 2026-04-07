@@ -512,7 +512,6 @@ struct TableProApp: App {
         // Each native window-tab gets its own ContentView with independent state.
         WindowGroup(id: "main", for: EditorTabPayload.self) { $payload in
             ContentView(payload: payload)
-                .environment(AppState.shared)
                 .background(OpenWindowHandler())
         }
         .windowStyle(.automatic)

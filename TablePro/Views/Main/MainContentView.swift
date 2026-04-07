@@ -61,7 +61,6 @@ struct MainContentView: View {
 
     // MARK: - Environment
 
-    @Environment(AppState.self) private var appState
 
     // MARK: - Initialization
 
