@@ -358,22 +358,27 @@ final class MainContentCommandActions {
             return
         }
 
-        // Sidebar edits
+        // Data grid changes take priority (synced to sidebar editState,
+        // and the data grid path uses the correct plugin driver for SQL generation)
+        if coordinator.changeManager.hasChanges {
+            let saved = await withCheckedContinuation { continuation in
+                coordinator.saveCompletionContinuation = continuation
+                saveChanges()
+            }
+            if saved {
+                performClose()
+            }
+            return
+        }
+
+        // Sidebar-only edits (made directly in the inspector panel)
         if rightPanelState.editState.hasEdits {
             rightPanelState.onSave?()
             performClose()
             return
         }
 
-        // Data grid changes: await the async save via continuation
-        let saved = await withCheckedContinuation { continuation in
-            coordinator.saveCompletionContinuation = continuation
-            saveChanges()
-        }
-
-        if saved {
-            performClose()
-        }
+        performClose()
     }
 
     private func saveFileToSourceURL() {
