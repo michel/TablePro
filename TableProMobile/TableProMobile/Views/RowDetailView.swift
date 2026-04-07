@@ -16,6 +16,7 @@ struct RowDetailView: View {
     let columnDetails: [ColumnInfo]
     let databaseType: DatabaseType
     let safeModeLevel: SafeModeLevel
+    let foreignKeys: [ForeignKeyInfo]
     var onSaved: (() -> Void)?
 
     @State private var currentIndex: Int
@@ -25,6 +26,9 @@ struct RowDetailView: View {
     @State private var operationError: AppError?
     @State private var showOperationError = false
     @State private var showSaveSuccess = false
+    @State private var fkPreviewFk: ForeignKeyInfo?
+    @State private var fkPreviewValue: String?
+    @State private var showFKPreview = false
 
     init(
         columns: [ColumnInfo],
@@ -35,6 +39,7 @@ struct RowDetailView: View {
         columnDetails: [ColumnInfo] = [],
         databaseType: DatabaseType = .sqlite,
         safeModeLevel: SafeModeLevel = .off,
+        foreignKeys: [ForeignKeyInfo] = [],
         onSaved: (() -> Void)? = nil
     ) {
         self.columns = columns
@@ -44,6 +49,7 @@ struct RowDetailView: View {
         self.columnDetails = columnDetails
         self.databaseType = databaseType
         self.safeModeLevel = safeModeLevel
+        self.foreignKeys = foreignKeys
         self.onSaved = onSaved
         _currentIndex = State(initialValue: initialIndex)
     }
@@ -88,6 +94,22 @@ struct RowDetailView: View {
                                     Label("Copy Column Name", systemImage: "textformat")
                                 }
                             }
+                        if let fk = foreignKeys.first(where: { $0.column == column.name }), let value {
+                            Button {
+                                fkPreviewFk = fk
+                                fkPreviewValue = value
+                                showFKPreview = true
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .font(.caption2)
+                                    Text("\(fk.referencedTable).\(fk.referencedColumn)")
+                                        .font(.caption2)
+                                }
+                                .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 } header: {
                     HStack(spacing: 6) {
@@ -212,6 +234,16 @@ struct RowDetailView: View {
                 Text(verbatim: "\(operationError?.message ?? "") \(recovery)")
             } else {
                 Text(operationError?.message ?? "")
+            }
+        }
+        .sheet(isPresented: $showFKPreview) {
+            if let fk = fkPreviewFk, let value = fkPreviewValue {
+                FKPreviewView(
+                    fk: fk,
+                    value: value,
+                    session: session,
+                    databaseType: databaseType
+                )
             }
         }
     }
