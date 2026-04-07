@@ -104,6 +104,15 @@ extension TableViewCoordinator {
         let value = rowProvider.value(atRow: rowIndex, column: columnIndex) ?? "NULL"
         let columnTypes = rowProvider.columnTypes
         let columnType = columnTypes.indices.contains(columnIndex) ? columnTypes[columnIndex] : nil
+
+        // Use formatted value when a display format is active
+        let formats = rowProvider.columnDisplayFormats
+        if columnIndex < formats.count, let format = formats[columnIndex], format != .raw {
+            let formatted = ValueDisplayFormatService.applyFormat(value, format: format)
+            ClipboardService.shared.writeText(formatted)
+            return
+        }
+
         let copyValue = BlobFormattingService.shared.formatIfNeeded(value, columnType: columnType, for: .copy)
         ClipboardService.shared.writeText(copyValue)
     }

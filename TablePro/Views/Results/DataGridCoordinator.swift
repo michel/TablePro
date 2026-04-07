@@ -175,6 +175,13 @@ final class TableViewCoordinator: NSObject, NSTableViewDelegate, NSTableViewData
                 // Check for data format changes that need cell re-rendering.
                 let dataChanged = prev.dateFormat != settings.dateFormat
                     || prev.nullDisplay != settings.nullDisplay
+                    || prev.enableSmartValueDetection != settings.enableSmartValueDetection
+
+                // When smart detection is toggled off, clear display formats so they stop being applied
+                if prev.enableSmartValueDetection != settings.enableSmartValueDetection
+                    && !settings.enableSmartValueDetection {
+                    self.rowProvider.updateDisplayFormats([])
+                }
 
                 if dataChanged {
                     self.rowProvider.invalidateDisplayCache()
