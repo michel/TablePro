@@ -161,7 +161,7 @@ struct ConnectedView: View {
     }
 
     private var connectedContent: some View {
-        Group {
+        VStack(spacing: 0) {
             switch selectedTab {
             case .tables:
                 TableListView(
@@ -181,7 +181,6 @@ struct ConnectedView: View {
                 )
             }
         }
-        .animation(.default, value: selectedTab)
     }
 
     private func connect() async {
