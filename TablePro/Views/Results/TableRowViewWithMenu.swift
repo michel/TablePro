@@ -13,26 +13,6 @@ final class TableRowViewWithMenu: NSTableRowView {
     weak var coordinator: TableViewCoordinator?
     var rowIndex: Int = 0
 
-    override var isSelected: Bool {
-        didSet {
-            if isSelected != oldValue {
-                CATransaction.begin()
-                CATransaction.setDisableActions(true)
-                for subview in subviews {
-                    guard let cellView = subview as? NSTableCellView else { continue }
-                    cellView.layer?.backgroundColor = isSelected ? nil : cellView.layer?.backgroundColor
-                }
-                CATransaction.commit()
-                if !isSelected {
-                    coordinator?.tableView?.reloadData(
-                        forRowIndexes: IndexSet(integer: rowIndex),
-                        columnIndexes: IndexSet(integersIn: 0..<(coordinator?.tableView?.numberOfColumns ?? 0))
-                    )
-                }
-            }
-        }
-    }
-
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let coordinator = coordinator,
               let tableView = coordinator.tableView else { return nil }
