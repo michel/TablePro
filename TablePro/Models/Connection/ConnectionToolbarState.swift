@@ -183,6 +183,12 @@ final class ConnectionToolbarState {
     /// Whether there are pending data grid changes (for SQL preview button)
     var hasDataPendingChanges: Bool = false
 
+    /// Whether the structure view has pending schema changes
+    var hasStructureChanges: Bool = false
+
+    /// Whether the history panel is visible
+    var isHistoryPanelVisible: Bool = false
+
     /// Whether the SQL review popover is showing
     var showSQLReviewPopover: Bool = false
 
