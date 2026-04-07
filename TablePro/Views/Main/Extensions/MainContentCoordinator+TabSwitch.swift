@@ -49,10 +49,8 @@ extension MainContentCoordinator {
             columnVisibilityManager.restoreFromColumnLayout(newTab.columnLayout.hiddenColumns)
 
             selectedRowIndices = newTab.selectedRowIndices
-            AppState.shared.isCurrentTabEditable = newTab.isEditable && !newTab.isView && newTab.tableName != nil
             toolbarState.isTableTab = newTab.tabType == .table
             toolbarState.isResultsCollapsed = newTab.isResultsCollapsed
-            AppState.shared.isTableTab = newTab.tabType == .table
 
             // Configure change manager without triggering reload yet — we'll fire a single
             // reloadVersion bump below after everything is set up.
@@ -122,10 +120,8 @@ extension MainContentCoordinator {
                 changeManager.reloadVersion += 1
             }
         } else {
-            AppState.shared.isCurrentTabEditable = false
             toolbarState.isTableTab = false
             toolbarState.isResultsCollapsed = false
-            AppState.shared.isTableTab = false
             filterStateManager.clearAll()
         }
     }

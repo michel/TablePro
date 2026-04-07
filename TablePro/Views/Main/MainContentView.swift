@@ -369,8 +369,6 @@ struct MainContentView: View {
                 }
             }
             .onChange(of: selectedRowIndices) { _, newIndices in
-                // Synchronous: cheap state updates that don't cascade
-                AppState.shared.hasRowSelection = !newIndices.isEmpty
                 if !newIndices.isEmpty,
                     AppSettingsManager.shared.dataGrid.autoShowInspector,
                     tabManager.selectedTab?.tabType == .table

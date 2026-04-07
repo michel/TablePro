@@ -87,9 +87,7 @@ extension MainContentCoordinator {
         // Update editable state for menu items
         if let tabIndex = tabManager.selectedTabIndex {
             let tab = tabManager.tabs[tabIndex]
-            AppState.shared.isCurrentTabEditable = tab.isEditable && !tab.isView && tab.tableName != nil
             toolbarState.isTableTab = tab.tabType == .table
-            AppState.shared.isTableTab = tab.tabType == .table
         }
 
         if needsQuery {

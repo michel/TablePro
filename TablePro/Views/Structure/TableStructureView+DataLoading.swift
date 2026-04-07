@@ -95,8 +95,6 @@ extension TableStructureView {
     // MARK: - Lifecycle Callbacks
 
     func onSelectedTabChanged(_ new: StructureTab) {
-        AppState.shared.isCurrentTabEditable = (new != .ddl && new != .parts)
-
         Task {
             await loadTabDataIfNeeded(new)
         }

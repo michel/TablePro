@@ -257,9 +257,6 @@ struct MainEditorContentView: View {
                 else { return }
 
                 tabManager.tabs[index].query = newValue
-                AppState.shared.hasQueryText = !newValue.trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                ).isEmpty
 
                 // Update window dirty indicator and toolbar for file-backed tabs
                 if tabManager.tabs[index].sourceFileURL != nil {
