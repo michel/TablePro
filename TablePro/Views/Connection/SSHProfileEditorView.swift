@@ -95,8 +95,11 @@ struct SSHProfileEditorView: View {
         }
         .frame(minWidth: 480, minHeight: 500)
         .onAppear {
-            sshConfigEntries = SSHConfigParser.parse()
             loadExistingProfile()
+        }
+        .task {
+            let entries = await Task.detached { SSHConfigParser.parse() }.value
+            sshConfigEntries = entries
         }
         .onChange(of: host) { _, _ in testSucceeded = false }
         .onChange(of: port) { _, _ in testSucceeded = false }
