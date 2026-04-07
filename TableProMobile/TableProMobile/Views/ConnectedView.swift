@@ -127,7 +127,7 @@ struct ConnectedView: View {
                     .disabled(isSwitching)
                 }
             }
-            if supportsSchemas && schemas.count > 1 {
+            if supportsSchemas && schemas.count > 1 && selectedTab == .tables {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         ForEach(schemas, id: \.self) { schema in
