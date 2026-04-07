@@ -73,8 +73,11 @@ extension DatabaseManager {
                 // Post notification to refresh UI
                 NotificationCenter.default.post(name: .refreshData, object: nil)
             } catch {
-                // Rollback on error
-                try? await driver.rollbackTransaction()
+                do {
+                    try await driver.rollbackTransaction()
+                } catch {
+                    Self.logger.error("Rollback failed after schema change error: \(error.localizedDescription)")
+                }
                 throw DatabaseError.queryFailed("Schema change failed: \(error.localizedDescription)")
             }
         }

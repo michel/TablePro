@@ -76,6 +76,8 @@ internal final class EditorEventRouter {
                 guard var ref = self.editors[key], !ref.needsFirstResponderCheck else { return }
                 ref.needsFirstResponderCheck = true
                 self.editors[key] = ref
+                // Deferred to next run loop iteration to coalesce multiple
+                // didUpdateNotification fires into one checkFirstResponderChange() call.
                 DispatchQueue.main.async { [weak self] in
                     guard let self else { return }
                     self.editors[key]?.needsFirstResponderCheck = false
