@@ -358,9 +358,11 @@ final class MainContentCommandActions {
             return
         }
 
-        // Data grid changes take priority (synced to sidebar editState,
-        // and the data grid path uses the correct plugin driver for SQL generation)
-        if coordinator.changeManager.hasChanges {
+        // Data grid changes or pending table operations take priority
+        let hasDataChanges = coordinator.changeManager.hasChanges
+            || !pendingTruncates.wrappedValue.isEmpty
+            || !pendingDeletes.wrappedValue.isEmpty
+        if hasDataChanges {
             let saved = await withCheckedContinuation { continuation in
                 coordinator.saveCompletionContinuation = continuation
                 saveChanges()
@@ -374,6 +376,13 @@ final class MainContentCommandActions {
         // Sidebar-only edits (made directly in the inspector panel)
         if rightPanelState.editState.hasEdits {
             rightPanelState.onSave?()
+            performClose()
+            return
+        }
+
+        // File save (query editor with source file)
+        if coordinator.tabManager.selectedTab?.isFileDirty == true {
+            saveFileToSourceURL()
             performClose()
             return
         }
