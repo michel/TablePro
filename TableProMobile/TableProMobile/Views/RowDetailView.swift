@@ -198,7 +198,6 @@ struct RowDetailView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 Button {
                     withAnimation { currentIndex -= 1 }
-                    if isEditing { startEditing() }
                 } label: {
                     Image(systemName: "chevron.left")
                 }
@@ -216,7 +215,6 @@ struct RowDetailView: View {
 
                 Button {
                     withAnimation { currentIndex += 1 }
-                    if isEditing { startEditing() }
                 } label: {
                     Image(systemName: "chevron.right")
                 }
@@ -350,6 +348,7 @@ struct RowDetailView: View {
 
         guard !changes.isEmpty else {
             isEditing = false
+            editedValues = []
             return
         }
 

@@ -450,7 +450,11 @@ struct DataBrowserView: View {
                 columnDetails = try await session.driver.fetchColumns(table: table.name, schema: nil)
             }
             if foreignKeys.isEmpty {
-                foreignKeys = (try? await session.driver.fetchForeignKeys(table: table.name, schema: nil)) ?? []
+                do {
+                    foreignKeys = try await session.driver.fetchForeignKeys(table: table.name, schema: nil)
+                } catch {
+                    Self.logger.warning("Failed to fetch foreign keys: \(error.localizedDescription, privacy: .public)")
+                }
             }
             if pagination.totalRows == nil {
                 await fetchTotalRows(session: session)

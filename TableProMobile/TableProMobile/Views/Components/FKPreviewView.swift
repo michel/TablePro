@@ -3,6 +3,7 @@
 //  TableProMobile
 //
 
+import os
 import SwiftUI
 import TableProDatabase
 import TableProModels
@@ -14,6 +15,8 @@ struct FKPreviewItem: Identifiable {
 }
 
 struct FKPreviewView: View {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "FKPreviewView")
+
     @Environment(\.dismiss) private var dismiss
     let fk: ForeignKeyInfo
     let value: String
@@ -71,18 +74,13 @@ struct FKPreviewView: View {
         do {
             let quoted = SQLBuilder.quoteIdentifier(fk.referencedTable, for: databaseType)
             let quotedCol = SQLBuilder.quoteIdentifier(fk.referencedColumn, for: databaseType)
-            let sqlValue: String
-            if Int64(value) != nil || Double(value) != nil {
-                sqlValue = value
-            } else {
-                sqlValue = "'\(value.replacingOccurrences(of: "'", with: "''"))'"
-            }
-            let query = "SELECT * FROM \(quoted) WHERE \(quotedCol) = \(sqlValue) LIMIT 1"
+            let escapedValue = value.replacingOccurrences(of: "'", with: "''")
+            let query = "SELECT * FROM \(quoted) WHERE \(quotedCol) = '\(escapedValue)' LIMIT 1"
             let result = try await session.driver.execute(query: query)
             columns = result.columns
             row = result.rows.first
         } catch {
-            print("FK preview error: \(error)")
+            Self.logger.warning("FK preview failed: \(error.localizedDescription, privacy: .public)")
             row = nil
         }
         isLoading = false
