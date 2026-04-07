@@ -303,7 +303,7 @@ final class MainContentCommandActions {
     }
 
     var hasStructureChanges: Bool {
-        AppState.shared.hasStructureChanges
+        coordinator?.toolbarState.hasStructureChanges ?? false
     }
 
     // MARK: - Unsaved Changes Check
@@ -588,7 +588,7 @@ final class MainContentCommandActions {
     // MARK: - UI Operations (Group A — Called Directly)
 
     func toggleHistoryPanel() {
-        AppState.shared.isHistoryPanelVisible.toggle()
+        coordinator?.toolbarState.isHistoryPanelVisible.toggle()
     }
 
     func toggleRightSidebar() {

@@ -581,7 +581,7 @@ struct MainContentView: View {
             changeManager.hasChanges
             || !pendingTruncates.isEmpty
             || !pendingDeletes.isEmpty
-            || AppState.shared.hasStructureChanges
+            || toolbarState.hasStructureChanges
         let hasFileChanges = tabManager.selectedTab?.isFileDirty ?? false
         toolbarState.hasDataPendingChanges = hasDataChanges
         toolbarState.hasPendingChanges = hasDataChanges || hasFileChanges

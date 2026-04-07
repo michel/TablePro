@@ -92,7 +92,7 @@ struct MainEditorContentView: View {
     // MARK: - Body
 
     var body: some View {
-        let isHistoryVisible = appState.isHistoryPanelVisible
+        let isHistoryVisible = coordinator.toolbarState.isHistoryPanelVisible
 
         VStack(spacing: 0) {
             // Native macOS window tabs replace the custom tab bar.
