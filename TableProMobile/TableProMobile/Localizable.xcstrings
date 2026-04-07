@@ -223,24 +223,24 @@
         }
       }
     },
-    "AND" : {
+    "Add a database connection to get started." : {
       "localizations" : {
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AND"
+            "value" : "Başlamak için bir veritabanı bağlantısı ekleyin."
           }
         },
         "vi" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AND"
+            "value" : "Thêm kết nối cơ sở dữ liệu để bắt đầu."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AND"
+            "value" : "添加数据库连接以开始使用。"
           }
         }
       }
@@ -289,28 +289,6 @@
         }
       }
     },
-    "Add a database connection to get started." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Başlamak için bir veritabanı bağlantısı ekleyin."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thêm kết nối cơ sở dữ liệu để bắt đầu."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "添加数据库连接以开始使用。"
-          }
-        }
-      }
-    },
     "All" : {
       "localizations" : {
         "tr" : {
@@ -352,6 +330,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "发生未知错误。"
+          }
+        }
+      }
+    },
+    "AND" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AND"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AND"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AND"
           }
         }
       }
@@ -466,6 +466,28 @@
         }
       }
     },
+    "auto-increment" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otomatik artış"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tự tăng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自增"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "localizations" : {
         "tr" : {
@@ -533,72 +555,6 @@
         }
       }
     },
-    "Check your SQL syntax." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SQL söz dizimini kontrol edin."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra cú pháp SQL."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请检查SQL语法。"
-          }
-        }
-      }
-    },
-    "Check your SSH host, port, and credentials." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SSH sunucu, port ve kimlik bilgilerini kontrol edin."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra máy chủ, cổng và thông tin xác thực SSH."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请检查SSH主机、端口和凭证。"
-          }
-        }
-      }
-    },
-    "Check your SSH username, password, or private key." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SSH kullanıcı adı, şifre veya özel anahtarı kontrol edin."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kiểm tra tên đăng nhập, mật khẩu hoặc khóa riêng SSH."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请检查SSH用户名、密码或私钥。"
-          }
-        }
-      }
-    },
     "Check your connection settings." : {
       "localizations" : {
         "tr" : {
@@ -661,6 +617,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请检查查询后重试。"
+          }
+        }
+      }
+    },
+    "Check your SQL syntax." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SQL söz dizimini kontrol edin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra cú pháp SQL."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查SQL语法。"
+          }
+        }
+      }
+    },
+    "Check your SSH host, port, and credentials." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH sunucu, port ve kimlik bilgilerini kontrol edin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra máy chủ, cổng và thông tin xác thực SSH."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查SSH主机、端口和凭证。"
+          }
+        }
+      }
+    },
+    "Check your SSH username, password, or private key." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH kullanıcı adı, şifre veya özel anahtarı kontrol edin."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kiểm tra tên đăng nhập, mật khẩu hoặc khóa riêng SSH."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请检查SSH用户名、密码或私钥。"
           }
         }
       }
@@ -1150,28 +1172,6 @@
         }
       }
     },
-    "Create New Database" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yeni Veritabanı Oluştur"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tạo cơ sở dữ liệu mới"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "创建新数据库"
-          }
-        }
-      }
-    },
     "Create a group to organize your connections." : {
       "localizations" : {
         "tr" : {
@@ -1212,6 +1212,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "创建标签来整理连接。"
+          }
+        }
+      }
+    },
+    "Create New Database" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni Veritabanı Oluştur"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tạo cơ sở dữ liệu mới"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "创建新数据库"
           }
         }
       }
@@ -1260,6 +1282,28 @@
         }
       }
     },
+    "Database name" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veritabanı adı"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tên cơ sở dữ liệu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据库名称"
+          }
+        }
+      }
+    },
     "Database Name" : {
       "localizations" : {
         "tr" : {
@@ -1300,28 +1344,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "数据库类型"
-          }
-        }
-      }
-    },
-    "Database name" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Veritabanı adı"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tên cơ sở dữ liệu"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "数据库名称"
           }
         }
       }
@@ -2411,28 +2433,6 @@
         }
       }
     },
-    "NULL" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NULL"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NULL"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "NULL"
-          }
-        }
-      }
-    },
     "Name" : {
       "localizations" : {
         "tr" : {
@@ -2543,6 +2543,28 @@
         }
       }
     },
+    "No active database session." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktif veritabanı oturumu yok."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có phiên cơ sở dữ liệu nào đang hoạt động."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无活动的数据库会话。"
+          }
+        }
+      }
+    },
     "No Connections" : {
       "localizations" : {
         "tr" : {
@@ -2561,6 +2583,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无连接"
+          }
+        }
+      }
+    },
+    "No connections match the selected filter." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seçili filtreyle eşleşen bağlantı yok."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không có kết nối nào khớp với bộ lọc đã chọn."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有连接匹配所选筛选条件。"
           }
         }
       }
@@ -2697,6 +2741,29 @@
         }
       }
     },
+    "No primary key values found." : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birincil anahtar değeri bulunamadı."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không tìm thấy giá trị khóa chính."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到主键值。"
+          }
+        }
+      }
+    },
     "No Referenced Row" : {
       "localizations" : {
         "tr" : {
@@ -2737,6 +2804,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无结果"
+          }
+        }
+      }
+    },
+    "No row found in %@ where %@ = '%@'" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ tablosunda %@ = '%@' olan satır bulunamadı"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không tìm thấy dòng trong %@ với %@ = '%@'"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在%@中未找到%@ = '%@'的行"
           }
         }
       }
@@ -2785,95 +2874,6 @@
         }
       }
     },
-    "No active database session." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aktif veritabanı oturumu yok."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có phiên cơ sở dữ liệu nào đang hoạt động."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无活动的数据库会话。"
-          }
-        }
-      }
-    },
-    "No connections match the selected filter." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Seçili filtreyle eşleşen bağlantı yok."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không có kết nối nào khớp với bộ lọc đã chọn."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有连接匹配所选筛选条件。"
-          }
-        }
-      }
-    },
-    "No primary key values found." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Birincil anahtar değeri bulunamadı."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không tìm thấy giá trị khóa chính."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到主键值。"
-          }
-        }
-      }
-    },
-    "No row found in %@ where %@ = '%@'" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ tablosunda %@ = '%@' olan satır bulunamadı"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không tìm thấy dòng trong %@ với %@ = '%@'"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "在%@中未找到%@ = '%@'的行"
-          }
-        }
-      }
-    },
     "None" : {
       "localizations" : {
         "tr" : {
@@ -2914,6 +2914,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未连接"
+          }
+        }
+      }
+    },
+    "NULL" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NULL"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NULL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NULL"
           }
         }
       }
@@ -3006,28 +3028,6 @@
         }
       }
     },
-    "OR" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OR"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OR"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OR"
-          }
-        }
-      }
-    },
     "Open Connection" : {
       "localizations" : {
         "tr" : {
@@ -3112,6 +3112,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "运算符"
+          }
+        }
+      }
+    },
+    "OR" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OR"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OR"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OR"
           }
         }
       }
@@ -3292,6 +3314,28 @@
         }
       }
     },
+    "primary key" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "birincil anahtar"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "khóa chính"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主键"
+          }
+        }
+      }
+    },
     "Primary Key" : {
       "localizations" : {
         "tr" : {
@@ -3398,6 +3442,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查询历史"
+          }
+        }
+      }
+    },
+    "read-only" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "salt okunur"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "chỉ đọc"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只读"
           }
         }
       }
@@ -3578,6 +3644,116 @@
         }
       }
     },
+    "Safe Mode" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Güvenli Mod"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chế độ an toàn"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安全模式"
+          }
+        }
+      }
+    },
+    "Save" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kaydet"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lưu"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存"
+          }
+        }
+      }
+    },
+    "Search tables" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablo ara"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tìm bảng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索表"
+          }
+        }
+      }
+    },
+    "Second value" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "İkinci değer"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Giá trị thứ hai"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第二个值"
+          }
+        }
+      }
+    },
+    "Section" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bölüm"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phần"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分区"
+          }
+        }
+      }
+    },
     "SELECT * FROM ..." : {
       "localizations" : {
         "tr" : {
@@ -3596,6 +3772,161 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SELECT * FROM ..."
+          }
+        }
+      }
+    },
+    "Select a Connection" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı Seç"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chọn kết nối"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择连接"
+          }
+        }
+      }
+    },
+    "Select Private Key" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Özel Anahtar Seç"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chọn khóa riêng"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择私钥"
+          }
+        }
+      }
+    },
+    "Server" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sunucu"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máy chủ"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器"
+          }
+        }
+      }
+    },
+    "Set up a new database connection" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yeni bir veritabanı bağlantısı kurun"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thiết lập kết nối cơ sở dữ liệu mới"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置新的数据库连接"
+          }
+        }
+      }
+    },
+    "Skip" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Atla"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bỏ qua"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跳过"
+          }
+        }
+      }
+    },
+    "Some credentials could not be saved to the keychain. You may need to re-enter them later." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bazı kimlik bilgileri anahtar zincirine kaydedilemedi. Daha sonra tekrar girmeniz gerekebilir."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Không thể lưu một số thông tin xác thực vào keychain. Bạn có thể cần nhập lại sau."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分凭证无法保存到钥匙串，稍后可能需要重新输入。"
+          }
+        }
+      }
+    },
+    "Sort By" : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sıralama"
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sắp xếp theo"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排序方式"
           }
         }
       }
@@ -3772,271 +4103,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SSL"
-          }
-        }
-      }
-    },
-    "Safe Mode" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Güvenli Mod"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chế độ an toàn"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "安全模式"
-          }
-        }
-      }
-    },
-    "Save" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kaydet"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lưu"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存"
-          }
-        }
-      }
-    },
-    "Search tables" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tablo ara"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tìm bảng"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索表"
-          }
-        }
-      }
-    },
-    "Second value" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "İkinci değer"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Giá trị thứ hai"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "第二个值"
-          }
-        }
-      }
-    },
-    "Section" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bölüm"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Phần"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分区"
-          }
-        }
-      }
-    },
-    "Select Private Key" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Özel Anahtar Seç"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chọn khóa riêng"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择私钥"
-          }
-        }
-      }
-    },
-    "Select a Connection" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bağlantı Seç"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chọn kết nối"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择连接"
-          }
-        }
-      }
-    },
-    "Server" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sunucu"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "服务器"
-          }
-        }
-      }
-    },
-    "Set up a new database connection" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yeni bir veritabanı bağlantısı kurun"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thiết lập kết nối cơ sở dữ liệu mới"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "设置新的数据库连接"
-          }
-        }
-      }
-    },
-    "Skip" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Atla"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bỏ qua"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "跳过"
-          }
-        }
-      }
-    },
-    "Some credentials could not be saved to the keychain. You may need to re-enter them later." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bazı kimlik bilgileri anahtar zincirine kaydedilemedi. Daha sonra tekrar girmeniz gerekebilir."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Không thể lưu một số thông tin xác thực vào keychain. Bạn có thể cần nhập lại sau."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "部分凭证无法保存到钥匙串，稍后可能需要重新输入。"
-          }
-        }
-      }
-    },
-    "Sort By" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sıralama"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sắp xếp theo"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "排序方式"
           }
         }
       }
@@ -4240,50 +4306,6 @@
         }
       }
     },
-    "The SSH server may be unreachable or running a different protocol." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SSH sunucusuna ulaşılamıyor veya farklı bir protokol çalıştırıyor olabilir."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Máy chủ SSH có thể không truy cập được hoặc đang chạy giao thức khác."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SSH服务器可能无法访问或运行了不同的协议。"
-          }
-        }
-      }
-    },
-    "The SSH tunnel connected but could not forward to the database port." : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SSH tüneli bağlandı ancak veritabanı portuna yönlendirilemedi."
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Đường hầm SSH đã kết nối nhưng không thể chuyển tiếp đến cổng cơ sở dữ liệu."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SSH隧道已连接但无法转发到数据库端口。"
-          }
-        }
-      }
-    },
     "The operation violates a database constraint." : {
       "localizations" : {
         "tr" : {
@@ -4324,6 +4346,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "服务器无响应。请检查主机和端口。"
+          }
+        }
+      }
+    },
+    "The SSH server may be unreachable or running a different protocol." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH sunucusuna ulaşılamıyor veya farklı bir protokol çalıştırıyor olabilir."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Máy chủ SSH có thể không truy cập được hoặc đang chạy giao thức khác."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH服务器可能无法访问或运行了不同的协议。"
+          }
+        }
+      }
+    },
+    "The SSH tunnel connected but could not forward to the database port." : {
+      "localizations" : {
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH tüneli bağlandı ancak veritabanı portuna yönlendirilemedi."
+          }
+        },
+        "vi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Đường hầm SSH đã kết nối nhưng không thể chuyển tiếp đến cổng cơ sở dữ liệu."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SSH隧道已连接但无法转发到数据库端口。"
           }
         }
       }
@@ -4678,72 +4744,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编写SQL并点击运行按钮。"
-          }
-        }
-      }
-    },
-    "auto-increment" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "otomatik artış"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "tự tăng"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自增"
-          }
-        }
-      }
-    },
-    "primary key" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "birincil anahtar"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "khóa chính"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "主键"
-          }
-        }
-      }
-    },
-    "read-only" : {
-      "localizations" : {
-        "tr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "salt okunur"
-          }
-        },
-        "vi" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "chỉ đọc"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只读"
           }
         }
       }
