@@ -5965,6 +5965,9 @@
         }
       }
     },
+    "Change Primary Key" : {
+
+    },
     "Character Set" : {
       "localizations" : {
         "tr" : {
@@ -10610,7 +10613,6 @@
       }
     },
     "Delete Column" : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -10699,7 +10701,6 @@
       }
     },
     "Delete Foreign Key" : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -10744,7 +10745,6 @@
       }
     },
     "Delete Index" : {
-      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -10815,6 +10815,12 @@
           }
         }
       }
+    },
+    "Delete Row" : {
+
+    },
+    "Delete Rows" : {
+
     },
     "Delete Selected" : {
       "localizations" : {
@@ -11690,6 +11696,12 @@
         }
       }
     },
+    "Edit Cell" : {
+
+    },
+    "Edit Column" : {
+
+    },
     "Edit Connection" : {
       "localizations" : {
         "tr" : {
@@ -11734,6 +11746,12 @@
           }
         }
       }
+    },
+    "Edit Foreign Key" : {
+
+    },
+    "Edit Index" : {
+
     },
     "Edit Profile..." : {
       "localizations" : {
@@ -17115,6 +17133,12 @@
           }
         }
       }
+    },
+    "Insert Row" : {
+
+    },
+    "Insert Rows" : {
+
     },
     "INSERT Statement(s)" : {
       "localizations" : {
@@ -28525,6 +28549,7 @@
       }
     },
     "Search for field..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -28636,6 +28661,7 @@
       }
     },
     "Search shortcuts..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -28658,6 +28684,7 @@
       }
     },
     "Search tables, views, databases..." : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
