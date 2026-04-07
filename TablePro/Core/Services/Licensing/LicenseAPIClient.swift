@@ -62,8 +62,11 @@ final class LicenseAPIClient {
     /// Deactivate a license key from this machine
     func deactivate(request: LicenseDeactivationRequest) async throws {
         let url = baseURL.appendingPathComponent("deactivate")
-        let _: SignedLicensePayload? = try? await post(url: url, body: request)
-        // Deactivation succeeds as long as we don't get an error
+        do {
+            let _: SignedLicensePayload? = try await post(url: url, body: request)
+        } catch {
+            Self.logger.error("License deactivation failed: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Private
