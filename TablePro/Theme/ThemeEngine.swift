@@ -108,6 +108,7 @@ internal final class ThemeEngine {
     // MARK: - Init
 
     private init() {
+        let allThemes = ThemeStorage.loadAllThemes()
         // Start with the default theme; AppSettingsManager.init() will call
         // updateAppearanceAndTheme() to activate the correct preferred theme.
         let theme = ThemeDefinition.default
@@ -116,14 +117,9 @@ internal final class ThemeEngine {
         self.colors = ResolvedThemeColors(from: theme)
         self.editorFonts = EditorFontCache(from: theme.fonts)
         self.dataGridFonts = DataGridFontCacheResolved(from: theme.fonts)
-        self.availableThemes = [theme]
+        self.availableThemes = allThemes
 
         observeAccessibilityChanges()
-
-        Task {
-            let themes = await Task.detached { ThemeStorage.loadAllThemes() }.value
-            self.availableThemes = themes
-        }
     }
 
     // MARK: - Theme Lifecycle
@@ -218,10 +214,7 @@ internal final class ThemeEngine {
     }
 
     func reloadAvailableThemes() {
-        Task {
-            let themes = await Task.detached { ThemeStorage.loadAllThemes() }.value
-            self.availableThemes = themes
-        }
+        availableThemes = ThemeStorage.loadAllThemes()
     }
 
     // MARK: - Editor Font Size Zoom

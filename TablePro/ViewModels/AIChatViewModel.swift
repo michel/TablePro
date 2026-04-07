@@ -209,14 +209,11 @@ final class AIChatViewModel {
 
     /// Load saved conversations from disk
     func loadConversations() {
-        let storage = chatStorage
-        Task {
-            let loaded = await Task.detached { storage.loadAll() }.value
-            conversations = loaded
-            if let mostRecent = loaded.first {
-                activeConversationID = mostRecent.id
-                messages = mostRecent.messages
-            }
+        conversations = chatStorage.loadAll()
+        // Restore most recent conversation if available
+        if let mostRecent = conversations.first {
+            activeConversationID = mostRecent.id
+            messages = mostRecent.messages
         }
     }
 
