@@ -49,6 +49,9 @@ final class InlineSuggestionManager {
     /// Shared schema provider (passed from coordinator, avoids duplicate schema fetches)
     private var schemaProvider: SQLSchemaProvider?
 
+    /// Connection-level AI policy — blocks suggestions when `.never`
+    var connectionPolicy: AIConnectionPolicy?
+
     /// Guard against double-uninstall (deinit + destroy can both call uninstall)
     private var isUninstalled = false
 
@@ -89,6 +92,7 @@ final class InlineSuggestionManager {
         removeScrollObserver()
 
         schemaProvider = nil
+        connectionPolicy = nil
         controller = nil
     }
 
@@ -132,6 +136,7 @@ final class InlineSuggestionManager {
         let settings = AppSettingsManager.shared.ai
         guard settings.enabled else { return false }
         guard settings.inlineSuggestEnabled else { return false }
+        if connectionPolicy == .never { return false }
         guard let controller else { return false }
         guard let textView = controller.textView else { return false }
 

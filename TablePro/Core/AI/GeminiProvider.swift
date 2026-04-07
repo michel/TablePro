@@ -107,12 +107,13 @@ final class GeminiProvider: AIProvider {
     }
 
     func fetchAvailableModels() async throws -> [String] {
-        guard let url = URL(string: "\(endpoint)/v1beta/models?key=\(apiKey)") else {
+        guard let url = URL(string: "\(endpoint)/v1beta/models") else {
             throw AIProviderError.invalidEndpoint(endpoint)
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
         let (data, response) = try await session.data(for: request)
 
@@ -147,12 +148,13 @@ final class GeminiProvider: AIProvider {
     }
 
     func testConnection() async throws -> Bool {
-        guard let url = URL(string: "\(endpoint)/v1beta/models?key=\(apiKey)") else {
+        guard let url = URL(string: "\(endpoint)/v1beta/models") else {
             throw AIProviderError.invalidEndpoint(endpoint)
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
         let (data, response) = try await session.data(for: request)
 
@@ -183,7 +185,7 @@ final class GeminiProvider: AIProvider {
     ) throws -> URLRequest {
         guard let encodedModel = model.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
               let url = URL(
-            string: "\(endpoint)/v1beta/models/\(encodedModel):streamGenerateContent?alt=sse&key=\(apiKey)"
+            string: "\(endpoint)/v1beta/models/\(encodedModel):streamGenerateContent?alt=sse"
         ) else {
             throw AIProviderError.invalidEndpoint(endpoint)
         }
@@ -191,6 +193,7 @@ final class GeminiProvider: AIProvider {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")
 
         var body: [String: Any] = [
             "generationConfig": ["maxOutputTokens": 8_192]

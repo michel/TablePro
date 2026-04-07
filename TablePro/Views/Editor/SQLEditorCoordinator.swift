@@ -23,6 +23,8 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     @ObservationIgnored weak var controller: TextViewController?
     /// Shared schema provider for inline AI suggestions (avoids duplicate schema fetches)
     @ObservationIgnored var schemaProvider: SQLSchemaProvider?
+    /// Connection-level AI policy for inline suggestions
+    @ObservationIgnored var connectionAIPolicy: AIConnectionPolicy?
     @ObservationIgnored private var contextMenu: AIEditorContextMenu?
     @ObservationIgnored private var inlineSuggestionManager: InlineSuggestionManager?
     @ObservationIgnored private var editorSettingsObserver: NSObjectProtocol?
@@ -218,6 +220,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
 
     private func installInlineSuggestionManager(controller: TextViewController) {
         let manager = InlineSuggestionManager()
+        manager.connectionPolicy = connectionAIPolicy
         manager.install(controller: controller, schemaProvider: schemaProvider)
         inlineSuggestionManager = manager
     }

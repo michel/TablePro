@@ -200,6 +200,7 @@ struct MainEditorContentView: View {
                         schemaProvider: coordinator.schemaProvider,
                         databaseType: coordinator.connection.type,
                         connectionId: coordinator.connection.id,
+                        connectionAIPolicy: coordinator.connection.aiPolicy ?? AppSettingsManager.shared.ai.defaultConnectionPolicy,
                         onCloseTab: {
                             NSApp.keyWindow?.close()
                         },
