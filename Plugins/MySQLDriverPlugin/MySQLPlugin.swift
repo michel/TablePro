@@ -28,6 +28,9 @@ final class MySQLPlugin: NSObject, TableProPlugin, DriverPlugin {
     // MARK: - UI/Capability Metadata
 
     static let urlSchemes: [String] = ["mysql"]
+    static let explainVariants: [ExplainVariant] = [
+        ExplainVariant(id: "explain", label: "EXPLAIN", sqlPrefix: "EXPLAIN FORMAT=JSON"),
+    ]
     static let brandColorHex = "#FF9500"
     static let systemDatabaseNames: [String] = ["information_schema", "mysql", "performance_schema", "sys"]
     static let columnTypesByCategory: [String: [String]] = [

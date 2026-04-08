@@ -834,6 +834,8 @@ final class MainContentCoordinator {
         tab.isExecuting = true
         tab.executionTime = nil
         tab.errorMessage = nil
+        tab.explainText = nil
+        tab.explainPlan = nil
         tabManager.tabs[index] = tab
         toolbarState.setExecuting(true)
 

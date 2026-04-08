@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Maintenance tools via table context menu (VACUUM, ANALYZE, OPTIMIZE, REINDEX, CHECK TABLE, etc.)
+- EXPLAIN plan visualization with diagram, tree, and raw views (PostgreSQL, MySQL)
 
 ### Fixed
 

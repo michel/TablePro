@@ -124,9 +124,17 @@ struct QueryEditorView: View {
             PluginMetadataRegistry.shared.snapshot(forTypeId: $0.pluginTypeId)?.explainVariants
         } ?? []
 
-        if variants.isEmpty {
+        if variants.count <= 1 {
             Button {
-                onExplain?(nil)
+                if let variant = variants.first {
+                    if let handler = onExplainVariant {
+                        handler(variant)
+                    } else {
+                        onExplain?(nil)
+                    }
+                } else {
+                    onExplain?(nil)
+                }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "chart.bar.doc.horizontal")
