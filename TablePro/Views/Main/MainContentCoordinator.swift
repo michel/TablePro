@@ -701,6 +701,8 @@ final class MainContentCoordinator {
                 tabManager.tabs[tabIndex].query = existingQuery + "\n\n" + query
             }
             tabManager.tabs[tabIndex].hasUserInteraction = true
+        } else if tabManager.tabs.isEmpty {
+            tabManager.addTab(initialQuery: query, databaseName: connection.database)
         } else {
             let payload = EditorTabPayload(
                 connectionId: connection.id,
