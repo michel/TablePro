@@ -51,33 +51,26 @@ final class AIChatViewModel {
 
     // MARK: - AI Action Dispatch
 
-    private var queryLanguage: String {
-        guard let type = connection?.type else { return "sql" }
-        return PluginManager.shared.editorLanguage(for: type).codeBlockTag
-    }
-
-    private var queryTypeName: String {
-        guard let type = connection?.type else { return "SQL query" }
-        return "\(PluginManager.shared.queryLanguageName(for: type)) query"
-    }
-
     func handleFixError(query: String, error: String) {
         startNewConversation()
-        let prompt = "Fix this \(queryTypeName) error:\n\nQuery:\n```\(queryLanguage)\n\(query)\n```\n\nError: \(error)"
+        let databaseType = connection?.type ?? .mysql
+        let prompt = AIPromptTemplates.fixError(query: query, error: error, databaseType: databaseType)
         sendWithContext(prompt: prompt, feature: .fixError)
     }
 
     func handleExplainSelection(_ selectedText: String) {
         guard !selectedText.isEmpty else { return }
         startNewConversation()
-        let prompt = "Explain this \(queryTypeName):\n```\(queryLanguage)\n\(selectedText)\n```"
+        let databaseType = connection?.type ?? .mysql
+        let prompt = AIPromptTemplates.explainQuery(selectedText, databaseType: databaseType)
         sendWithContext(prompt: prompt, feature: .explainQuery)
     }
 
     func handleOptimizeSelection(_ selectedText: String) {
         guard !selectedText.isEmpty else { return }
         startNewConversation()
-        let prompt = "Optimize this \(queryTypeName):\n```\(queryLanguage)\n\(selectedText)\n```"
+        let databaseType = connection?.type ?? .mysql
+        let prompt = AIPromptTemplates.optimizeQuery(selectedText, databaseType: databaseType)
         sendWithContext(prompt: prompt, feature: .optimizeQuery)
     }
 
@@ -318,8 +311,7 @@ final class AIChatViewModel {
 
         let settings = AppSettingsManager.shared.ai
 
-        // Resolve provider from feature routing or use first enabled provider
-        guard let (config, apiKey) = AIProviderFactory.resolveProvider(for: feature, settings: settings) else {
+        guard let resolved = AIProviderFactory.resolve(for: feature, settings: settings) else {
             errorMessage = String(localized: "No AI provider configured. Go to Settings > AI to add one.")
             return
         }
@@ -342,8 +334,6 @@ final class AIChatViewModel {
             }
         }
 
-        let provider = AIProviderFactory.createProvider(for: config, apiKey: apiKey)
-        let model = AIProviderFactory.resolveModel(for: feature, config: config, settings: settings)
         let systemPrompt = buildSystemPrompt(settings: settings)
 
         // Create assistant message placeholder
@@ -361,9 +351,9 @@ final class AIChatViewModel {
             do {
                 // Exclude the empty assistant placeholder from sent messages
                 let chatMessages = Array(self.messages.dropLast())
-                let stream = provider.streamChat(
+                let stream = resolved.provider.streamChat(
                     messages: chatMessages,
-                    model: model,
+                    model: resolved.model,
                     systemPrompt: systemPrompt
                 )
 
@@ -431,5 +421,51 @@ final class AIChatViewModel {
             settings: settings,
             identifierQuote: idQuote
         )
+    }
+
+    // MARK: - Schema Context
+
+    func fetchSchemaContext() async {
+        let settings = AppSettingsManager.shared.ai
+        guard settings.includeSchema,
+              let connection,
+              let driver = DatabaseManager.shared.driver(for: connection.id)
+        else { return }
+
+        let tablesToFetch = Array(tables.prefix(settings.maxSchemaTables))
+        var columns: [String: [ColumnInfo]] = [:]
+        var foreignKeys: [String: [ForeignKeyInfo]] = [:]
+
+        for table in tablesToFetch {
+            if let schemaProvider {
+                let cached = await schemaProvider.getColumns(for: table.name)
+                if !cached.isEmpty {
+                    columns[table.name] = cached
+                }
+            }
+
+            if columns[table.name] == nil {
+                do {
+                    let cols = try await driver.fetchColumns(table: table.name)
+                    columns[table.name] = cols
+                } catch {
+                    Self.logger.warning(
+                        "Failed to fetch columns for table '\(table.name)': \(error.localizedDescription)"
+                    )
+                }
+            }
+        }
+
+        do {
+            let fkResult = try await driver.fetchForeignKeys(forTables: tablesToFetch.map(\.name))
+            for (table, fks) in fkResult {
+                foreignKeys[table] = fks
+            }
+        } catch {
+            Self.logger.warning("Failed to bulk fetch foreign keys: \(error.localizedDescription)")
+        }
+
+        columnsByTable = columns
+        foreignKeysByTable = foreignKeys
     }
 }

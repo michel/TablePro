@@ -216,12 +216,9 @@ final class InlineSuggestionManager {
     private func fetchSuggestion(textBefore: String, fullQuery: String) async throws -> String {
         let settings = AppSettingsManager.shared.ai
 
-        guard let (config, apiKey) = AIProviderFactory.resolveProvider(for: .inlineSuggest, settings: settings) else {
+        guard let resolved = AIProviderFactory.resolve(for: .inlineSuggest, settings: settings) else {
             throw AIProviderError.networkError("No AI provider configured")
         }
-
-        let model = AIProviderFactory.resolveModel(for: .inlineSuggest, config: config, settings: settings)
-        let provider = AIProviderFactory.createProvider(for: config, apiKey: apiKey)
 
         let userMessage = AIPromptTemplates.inlineSuggest(textBefore: textBefore, fullQuery: fullQuery)
         let messages = [
@@ -231,9 +228,9 @@ final class InlineSuggestionManager {
         let systemPrompt = await buildSystemPrompt()
 
         var accumulated = ""
-        let stream = provider.streamChat(
+        let stream = resolved.provider.streamChat(
             messages: messages,
-            model: model,
+            model: resolved.model,
             systemPrompt: systemPrompt
         )
 

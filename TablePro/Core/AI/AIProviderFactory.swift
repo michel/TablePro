@@ -9,29 +9,53 @@ import Foundation
 
 /// Factory for creating AI provider instances
 enum AIProviderFactory {
-    /// Create an AI provider for the given configuration
+    /// Resolved provider ready for use
+    struct ResolvedProvider {
+        let provider: AIProvider
+        let model: String
+        let config: AIProviderConfig
+    }
+
+    private static var cachedProviders: [UUID: (apiKey: String?, provider: AIProvider)] = [:]
+
+    /// Create or return a cached AI provider for the given configuration
     static func createProvider(
         for config: AIProviderConfig,
         apiKey: String?
     ) -> AIProvider {
+        if let cached = cachedProviders[config.id], cached.apiKey == apiKey {
+            return cached.provider
+        }
+
+        let provider: AIProvider
         switch config.type {
         case .claude:
-            return AnthropicProvider(
+            provider = AnthropicProvider(
                 endpoint: config.endpoint,
                 apiKey: apiKey ?? ""
             )
         case .gemini:
-            return GeminiProvider(
+            provider = GeminiProvider(
                 endpoint: config.endpoint,
                 apiKey: apiKey ?? ""
             )
         case .openAI, .openRouter, .ollama, .custom:
-            return OpenAICompatibleProvider(
+            provider = OpenAICompatibleProvider(
                 endpoint: config.endpoint,
                 apiKey: apiKey,
                 providerType: config.type
             )
         }
+        cachedProviders[config.id] = (apiKey, provider)
+        return provider
+    }
+
+    static func invalidateCache() {
+        cachedProviders.removeAll()
+    }
+
+    static func invalidateCache(for configID: UUID) {
+        cachedProviders.removeValue(forKey: configID)
     }
 
     static func resolveProvider(
@@ -61,5 +85,15 @@ enum AIProviderFactory {
             return route.model
         }
         return config.model
+    }
+
+    /// Resolve provider, model, and config in one step
+    static func resolve(for feature: AIFeature, settings: AISettings) -> ResolvedProvider? {
+        guard let (config, apiKey) = resolveProvider(for: feature, settings: settings) else {
+            return nil
+        }
+        let model = resolveModel(for: feature, config: config, settings: settings)
+        let provider = createProvider(for: config, apiKey: apiKey)
+        return ResolvedProvider(provider: provider, model: model, config: config)
     }
 }

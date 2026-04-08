@@ -55,6 +55,21 @@ enum AIProviderError: Error, LocalizedError {
         }
     }
 
+    /// Base HTTP error mapping — providers can override for custom status codes
+    static func mapHTTPError(statusCode: Int, body: String) -> AIProviderError {
+        let message = parseErrorMessage(from: body) ?? body
+        switch statusCode {
+        case 401:
+            return .authenticationFailed(message)
+        case 429:
+            return .rateLimited
+        case 404:
+            return .modelNotFound(message)
+        default:
+            return .serverError(statusCode, message)
+        }
+    }
+
     /// Extract human-readable message from provider JSON error responses.
     /// Supports Anthropic (`{"error":{"message":"..."}}`), OpenAI, and Gemini formats.
     static func parseErrorMessage(from body: String) -> String? {
@@ -66,5 +81,18 @@ enum AIProviderError: Error, LocalizedError {
             return nil
         }
         return message
+    }
+}
+
+// MARK: - Shared Helpers
+
+extension AIProvider {
+    func collectErrorBody(from bytes: URLSession.AsyncBytes) async throws -> String {
+        var body = ""
+        for try await line in bytes.lines {
+            body += line
+            if (body as NSString).length > 2_000 { break }
+        }
+        return body
     }
 }

@@ -233,6 +233,7 @@ struct AISettingsView: View {
     private func removeProvider(_ id: UUID) {
         settings.providers.removeAll { $0.id == id }
         AIKeyStorage.shared.deleteAPIKey(for: id)
+        AIProviderFactory.invalidateCache(for: id)
         if selectedProviderID == id {
             selectedProviderID = nil
         }
@@ -263,6 +264,7 @@ struct AISettingsView: View {
             settings.providers.append(provider)
         }
 
+        AIProviderFactory.invalidateCache(for: provider.id)
         isAddingNewProvider = false
     }
 

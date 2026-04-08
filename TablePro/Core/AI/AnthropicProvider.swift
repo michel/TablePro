@@ -46,7 +46,7 @@ final class AnthropicProvider: AIProvider {
 
                     guard httpResponse.statusCode == 200 else {
                         let errorBody = try await collectErrorBody(from: bytes)
-                        throw mapHTTPError(
+                        throw AIProviderError.mapHTTPError(
                             statusCode: httpResponse.statusCode,
                             body: errorBody
                         )
@@ -153,7 +153,7 @@ final class AnthropicProvider: AIProvider {
         }
 
         let body = String(data: data, encoding: .utf8) ?? ""
-        throw mapHTTPError(statusCode: statusCode, body: body)
+        throw AIProviderError.mapHTTPError(statusCode: statusCode, body: body)
     }
 
     // MARK: - Private
@@ -237,31 +237,4 @@ final class AnthropicProvider: AIProvider {
         return outputTokens
     }
 
-    private func collectErrorBody(
-        from bytes: URLSession.AsyncBytes
-    ) async throws -> String {
-        var body = ""
-        for try await line in bytes.lines {
-            body += line
-            if (body as NSString).length > 2_000 { break }
-        }
-        return body
-    }
-
-    private func mapHTTPError(statusCode: Int, body: String) -> AIProviderError {
-        let message = AIProviderError.parseErrorMessage(from: body) ?? body
-
-        switch statusCode {
-        case 400:
-            return .serverError(statusCode, message)
-        case 401:
-            return .authenticationFailed(message)
-        case 429:
-            return .rateLimited
-        case 404:
-            return .modelNotFound(message)
-        default:
-            return .serverError(statusCode, message)
-        }
-    }
 }
