@@ -191,11 +191,11 @@ struct SidebarView: View {
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
             Text(noItemsLabel)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
                 .foregroundStyle(Color(nsColor: .secondaryLabelColor))
 
             Text(noItemsDetail)
-                .font(.system(size: 11))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

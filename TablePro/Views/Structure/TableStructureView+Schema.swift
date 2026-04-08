@@ -121,6 +121,7 @@ extension TableStructureView {
                         Image(systemName: "textformat.size.smaller")
                             .frame(width: 24, height: 24)
                     }
+                    .accessibilityLabel(String(localized: "Decrease font size"))
                     Text("\(Int(ddlFontSize))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -129,6 +130,7 @@ extension TableStructureView {
                         Image(systemName: "textformat.size.larger")
                             .frame(width: 24, height: 24)
                     }
+                    .accessibilityLabel(String(localized: "Increase font size"))
                 }
                 .buttonStyle(.borderless)
 
@@ -137,7 +139,7 @@ extension TableStructureView {
                 if showCopyConfirmation {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                            .foregroundStyle(Color(nsColor: .systemGreen))
                         Text("Copied!")
                     }
                     .transition(.opacity)

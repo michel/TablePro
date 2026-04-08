@@ -151,7 +151,7 @@ struct SyncSettingsView: View {
                 .controlSize(.small)
             }
             .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.large))
             .padding()
 
             Spacer()

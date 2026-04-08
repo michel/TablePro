@@ -31,6 +31,7 @@ struct InlineErrorBanner: View {
             }
             .buttonStyle(.plain)
             .help(String(localized: "Copy error message"))
+            .accessibilityLabel(String(localized: "Copy error message"))
             if let onDismiss {
                 Button { onDismiss() } label: {
                     Image(systemName: "xmark")
@@ -38,6 +39,7 @@ struct InlineErrorBanner: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(String(localized: "Dismiss error"))
             }
         }
         .padding(.horizontal, 12)

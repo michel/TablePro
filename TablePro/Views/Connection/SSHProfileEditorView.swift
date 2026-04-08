@@ -269,9 +269,12 @@ struct SSHProfileEditorView: View {
                                 let idToRemove = jumpHost.id
                                 withAnimation { jumpHosts.removeAll { $0.id == idToRemove } }
                             } label: {
-                                Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                                Image(systemName: "minus.circle.fill")
+                                    .frame(width: 24, height: 24)
+                                    .foregroundStyle(Color(nsColor: .systemRed))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel(String(localized: "Remove jump host"))
                         }
                     }
                 }
@@ -326,7 +329,7 @@ struct SSHProfileEditorView: View {
                             .controlSize(.small)
                     } else {
                         Image(systemName: testSucceeded ? "checkmark.circle.fill" : "bolt.horizontal")
-                            .foregroundStyle(testSucceeded ? .green : .secondary)
+                            .foregroundStyle(testSucceeded ? Color(nsColor: .systemGreen) : .secondary)
                     }
                     Text("Test Connection")
                 }

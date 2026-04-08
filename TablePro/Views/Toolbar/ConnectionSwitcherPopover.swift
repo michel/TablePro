@@ -66,7 +66,7 @@ struct ConnectionSwitcherPopover: View {
                             }
                             .buttonStyle(.plain)
                             .listRowBackground(
-                                RoundedRectangle(cornerRadius: 4)
+                                RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small)
                                     .fill(
                                         index == selectedIndex
                                             ? Color(nsColor: .selectedContentBackgroundColor)
@@ -100,7 +100,7 @@ struct ConnectionSwitcherPopover: View {
                             }
                             .buttonStyle(.plain)
                             .listRowBackground(
-                                RoundedRectangle(cornerRadius: 4)
+                                RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small)
                                     .fill(
                                         itemIndex == selectedIndex
                                             ? Color(nsColor: .selectedContentBackgroundColor)

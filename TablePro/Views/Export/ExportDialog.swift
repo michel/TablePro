@@ -288,7 +288,7 @@ struct ExportDialog: View {
                     if isProGatedFormat(config.formatId) {
                         Text(String(localized: "XLSX export requires a Pro license."))
                             .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color(nsColor: .systemOrange))
                         Button(String(localized: "Activate License...")) {
                             showActivationSheet = true
                         }
@@ -306,7 +306,7 @@ struct ExportDialog: View {
                         if let plugin = currentPlugin, !type(of: plugin).perTableOptionColumns.isEmpty, exportableCount < selectedCount {
                             Text("\(selectedCount - exportableCount) skipped (no options)")
                                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(Color(nsColor: .systemOrange))
                         }
                     }
                 }
@@ -356,7 +356,7 @@ struct ExportDialog: View {
                 if let validationError = fileNameValidationError {
                     Text(validationError)
                         .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color(nsColor: .systemRed))
                 }
             }
             .padding(16)

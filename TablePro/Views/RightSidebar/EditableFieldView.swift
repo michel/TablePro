@@ -91,10 +91,10 @@ internal struct FieldDetailView: View {
             if isTruncated && !isLoadingFullValue {
                 Text("truncated")
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.tiny, weight: .medium))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color(nsColor: .systemOrange))
                     .padding(.horizontal, 5)
                     .padding(.vertical, 1)
-                    .background(.orange.opacity(0.15))
+                    .background(Color(nsColor: .systemOrange).opacity(0.15))
                     .clipShape(Capsule())
             }
         }

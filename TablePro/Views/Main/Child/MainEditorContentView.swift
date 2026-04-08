@@ -761,7 +761,7 @@ struct MainEditorContentView: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small)
                                 .fill(Color(nsColor: .quaternaryLabelColor))
                         )
                     Text(
@@ -787,7 +787,7 @@ struct MainEditorContentView: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(
-                            RoundedRectangle(cornerRadius: 4)
+                            RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small)
                                 .fill(Color(nsColor: .quaternaryLabelColor))
                         )
                     Text("Switch Database")

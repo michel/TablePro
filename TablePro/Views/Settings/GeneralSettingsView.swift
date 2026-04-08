@@ -54,7 +54,7 @@ struct GeneralSettingsView: View {
                         Text("\(seconds) seconds").tag(seconds)
                     }
                 }
-                .help("Maximum time to wait for a query to complete. Set to 0 for no limit. Applied to new connections.")
+                .help(String(localized: "Maximum time to wait for a query to complete. Set to 0 for no limit. Applied to new connections."))
             }
 
             Section("Software Update") {

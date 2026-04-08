@@ -211,11 +211,11 @@ internal struct FavoritesTabView: View {
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
             Text("No Favorites")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
                 .foregroundStyle(Color(nsColor: .secondaryLabelColor))
 
             Text("Save frequently used queries\nfor quick access.")
-                .font(.system(size: 11))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
                 .multilineTextAlignment(.center)
 
@@ -238,7 +238,7 @@ internal struct FavoritesTabView: View {
                 .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
 
             Text("No Matching Favorites")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body, weight: .medium))
                 .foregroundStyle(Color(nsColor: .secondaryLabelColor))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

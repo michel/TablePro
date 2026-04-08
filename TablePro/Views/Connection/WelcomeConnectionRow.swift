@@ -40,7 +40,7 @@ struct WelcomeConnectionRow: View {
                             .padding(.horizontal, ThemeEngine.shared.activeTheme.spacing.xxs)
                             .padding(.vertical, ThemeEngine.shared.activeTheme.spacing.xxxs)
                             .background(
-                                RoundedRectangle(cornerRadius: 4).fill(
+                                RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small).fill(
                                     tag.color.color.opacity(0.15)))
                     }
                 }

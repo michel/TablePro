@@ -49,7 +49,7 @@ struct ConnectionSSHTunnelView: View {
                     Section {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(Color(nsColor: .systemYellow))
                             Text("Selected SSH profile no longer exists.")
                         }
                         Button("Switch to Inline Configuration") {
@@ -309,9 +309,12 @@ struct ConnectionSSHTunnelView: View {
                                     let idToRemove = jumpHost.id
                                     withAnimation { jumpHosts.removeAll { $0.id == idToRemove } }
                                 } label: {
-                                    Image(systemName: "minus.circle.fill").foregroundStyle(.red)
+                                    Image(systemName: "minus.circle.fill")
+                                        .frame(width: 24, height: 24)
+                                        .foregroundStyle(Color(nsColor: .systemRed))
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel(String(localized: "Remove jump host"))
                             }
                         }
                     }

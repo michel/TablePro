@@ -169,14 +169,14 @@ internal struct QuickSwitcherSheet: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small)
                         .fill(isSelected ? Color(nsColor: .alternateSelectedControlTextColor).opacity(0.15) : Color(nsColor: .quaternaryLabelColor))
                 )
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .listRowBackground(
-            RoundedRectangle(cornerRadius: 4)
+            RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small)
                 .fill(isSelected ? Color(nsColor: .selectedContentBackgroundColor) : Color.clear)
                 .padding(.horizontal, 4)
         )

@@ -66,7 +66,7 @@ struct FilterPanelView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 80)
                 .accessibilityLabel(String(localized: "Filter logic mode"))
-                .help("Match ALL filters (AND) or ANY filter (OR)")
+                .help(String(localized: "Match ALL filters (AND) or ANY filter (OR)"))
             }
 
             Spacer()
@@ -94,8 +94,8 @@ struct FilterPanelView: View {
         .padding(.vertical, ThemeEngine.shared.activeTheme.spacing.xs)
         .background(Color(nsColor: .controlBackgroundColor))
         .contentShape(Rectangle())
-        .alert("Save Filter Preset", isPresented: $showSavePresetAlert) {
-            TextField("Preset Name", text: $newPresetName)
+        .alert(String(localized: "Save Filter Preset"), isPresented: $showSavePresetAlert) {
+            TextField(String(localized: "Preset Name"), text: $newPresetName)
             Button("Cancel", role: .cancel) {}
             Button("Save") {
                 guard !newPresetName.isEmpty else { return }

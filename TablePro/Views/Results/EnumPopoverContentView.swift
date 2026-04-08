@@ -37,7 +37,7 @@ struct EnumPopoverContentView: View {
         VStack(spacing: 0) {
             TextField("Search...", text: $searchText)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 13))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
 
@@ -70,19 +70,19 @@ struct EnumPopoverContentView: View {
     private func rowLabel(for value: String) -> some View {
         if value == enumNullMarker {
             Text(value)
-                .font(.system(size: 12, design: .monospaced).italic())
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium, design: .monospaced).italic())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else if value == currentValue {
             Text(value)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium, design: .monospaced))
                 .foregroundStyle(.tint)
                 .lineLimit(1)
                 .truncationMode(.tail)
         } else {
             Text(value)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium, design: .monospaced))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)

@@ -20,7 +20,7 @@ struct QuerySuccessView: View {
             // Success icon
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color(nsColor: .systemGreen))
 
             // Success message
             Text("Query executed successfully")

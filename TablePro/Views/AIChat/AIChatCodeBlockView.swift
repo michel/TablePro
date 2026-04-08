@@ -14,8 +14,6 @@ struct AIChatCodeBlockView: View {
     let language: String?
 
     @State private var isCopied: Bool = false
-    @State private var cachedHighlight: AttributedString?
-    @State private var cachedCodeLength: Int = 0
     @FocusedValue(\.commandActions) private var actions
 
     var body: some View {
@@ -37,7 +35,7 @@ struct AIChatCodeBlockView: View {
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(Color(nsColor: .separatorColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .clipShape(RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small))
             }
 
             Spacer()
@@ -78,8 +76,12 @@ struct AIChatCodeBlockView: View {
 
     private var codeContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            if isSQL || isMongoDB {
-                Text(cachedHighlight ?? AttributedString(code))
+            if isSQL {
+                Text(highlightedSQL(code))
+                    .textSelection(.enabled)
+                    .padding(10)
+            } else if isMongoDB {
+                Text(highlightedJavaScript(code))
                     .textSelection(.enabled)
                     .padding(10)
             } else if isRedis {
@@ -94,20 +96,6 @@ struct AIChatCodeBlockView: View {
                     .padding(10)
             }
         }
-        .onAppear {
-            recomputeHighlight()
-        }
-        .onChange(of: code) {
-            let newLen = (code as NSString).length
-            if newLen - cachedCodeLength >= 50 {
-                recomputeHighlight()
-            }
-        }
-    }
-
-    private func recomputeHighlight() {
-        cachedHighlight = isSQL ? highlightedSQL(code) : highlightedJavaScript(code)
-        cachedCodeLength = (code as NSString).length
     }
 
     private var isSQL: Bool {
@@ -369,9 +357,9 @@ private struct CodeBlockGroupBoxStyle: GroupBoxStyle {
             configuration.content
         }
         .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.large))
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.large)
                 .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
         )
     }

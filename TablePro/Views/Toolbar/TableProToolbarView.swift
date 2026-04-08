@@ -68,7 +68,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("Connection", systemImage: "network")
                     }
-                    .help("Switch Connection (⌘⌥C)")
+                    .help(String(localized: "Switch Connection (⌘⌥C)"))
                     .popover(isPresented: $showConnectionSwitcher) {
                         ConnectionSwitcherPopover {
                             showConnectionSwitcher = false
@@ -83,7 +83,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Label("Database", systemImage: "cylinder")
                         }
-                        .help("Open Database (⌘K)")
+                        .help(String(localized: "Open Database (⌘K)"))
                         .disabled(
                             state.connectionState != .connected
                                 || PluginManager.shared.connectionMode(for: state.databaseType) == .fileBased)
@@ -96,7 +96,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("Refresh", systemImage: "arrow.clockwise")
                     }
-                    .help("Refresh (⌘R)")
+                    .help(String(localized: "Refresh (⌘R)"))
                     .disabled(state.connectionState != .connected)
 
                     Button {
@@ -104,7 +104,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("Save Changes", systemImage: "checkmark.circle.fill")
                     }
-                    .help("Save Changes (⌘S)")
+                    .help(String(localized: "Save Changes (⌘S)"))
                     .disabled(!state.hasPendingChanges || state.connectionState != .connected)
                     .tint(.accentColor)
                 }
@@ -123,7 +123,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("Quick Switcher", systemImage: "magnifyingglass")
                     }
-                    .help("Quick Switcher (⌘P)")
+                    .help(String(localized: "Quick Switcher (⌘P)"))
                     .disabled(state.connectionState != .connected)
 
                     Button {
@@ -131,7 +131,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("New Tab", systemImage: "plus.rectangle")
                     }
-                    .help("New Query Tab (⌘T)")
+                    .help(String(localized: "New Query Tab (⌘T)"))
                 }
 
                 ToolbarItem(placement: .primaryAction) {
@@ -140,7 +140,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
                     }
-                    .help("Toggle Filters (⌘F)")
+                    .help(String(localized: "Toggle Filters (⌘F)"))
                     .disabled(state.connectionState != .connected || !state.isTableTab)
                 }
 
@@ -151,7 +151,7 @@ struct TableProToolbar: ViewModifier {
                         let langName = PluginManager.shared.queryLanguageName(for: state.databaseType)
                         Label("Preview \(langName)", systemImage: "eye")
                     }
-                    .help("Preview \(PluginManager.shared.queryLanguageName(for: state.databaseType)) (⌘⇧P)")
+                    .help(String(format: String(localized: "Preview %@ (⌘⇧P)"), PluginManager.shared.queryLanguageName(for: state.databaseType)))
                     .disabled(!state.hasDataPendingChanges || state.connectionState != .connected)
                     .popover(isPresented: $state.showSQLReviewPopover) {
                         SQLReviewPopover(statements: state.previewStatements, databaseType: state.databaseType)
@@ -179,7 +179,7 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("Inspector", systemImage: "sidebar.trailing")
                     }
-                    .help("Toggle Inspector (⌘⌥B)")
+                    .help(String(localized: "Toggle Inspector (⌘⌥B)"))
                 }
 
                 // MARK: - Secondary Action (Overflow)
@@ -190,14 +190,14 @@ struct TableProToolbar: ViewModifier {
                     } label: {
                         Label("History", systemImage: "clock")
                     }
-                    .help("Toggle Query History (⌘Y)")
+                    .help(String(localized: "Toggle Query History (⌘Y)"))
 
                     Button {
                         actions?.exportTables()
                     } label: {
                         Label("Export", systemImage: "square.and.arrow.up")
                     }
-                    .help("Export Data (⌘⇧E)")
+                    .help(String(localized: "Export Data (⌘⇧E)"))
                     .disabled(state.connectionState != .connected)
 
                     if PluginManager.shared.supportsImport(for: state.databaseType) {
@@ -206,7 +206,7 @@ struct TableProToolbar: ViewModifier {
                         } label: {
                             Label("Import", systemImage: "square.and.arrow.down")
                         }
-                        .help("Import Data (⌘⇧I)")
+                        .help(String(localized: "Import Data (⌘⇧I)"))
                         .disabled(state.connectionState != .connected || state.safeModeLevel.blocksAllWrites)
                     }
                 }

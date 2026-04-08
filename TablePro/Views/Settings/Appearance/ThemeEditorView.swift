@@ -36,7 +36,7 @@ internal struct ThemeEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             Text(theme.name)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.title3, weight: .semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -97,11 +97,11 @@ internal struct ThemeEditorView: View {
             Text(theme.isBuiltIn
                 ? String(localized: "This is a built-in theme.")
                 : String(localized: "This is a registry theme."))
-                .font(.system(size: 13))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
                 .foregroundStyle(.secondary)
 
             Text(String(localized: "Duplicate it to customize colors and layout."))
-                .font(.system(size: 11))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.small))
                 .foregroundStyle(.tertiary)
 
             Button(String(localized: "Duplicate Theme")) {

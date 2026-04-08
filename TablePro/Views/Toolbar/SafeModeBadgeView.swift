@@ -25,6 +25,7 @@ struct SafeModeBadgeView: View {
         }
         .buttonStyle(.plain)
         .help(String(format: String(localized: "Safe Mode: %@"), safeModeLevel.displayName))
+        .accessibilityLabel(String(format: String(localized: "Safe Mode: %@"), safeModeLevel.displayName))
         .popover(isPresented: $showPopover) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Safe Mode")
@@ -47,6 +48,7 @@ struct SafeModeBadgeView: View {
             }
             .padding()
             .frame(width: 220)
+            .onExitCommand { showPopover = false }
         }
         .onChange(of: safeModeLevel) { oldValue, newValue in
             if newValue.requiresPro && !isProUnlocked {

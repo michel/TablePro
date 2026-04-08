@@ -235,7 +235,7 @@ struct TableStructureView: View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.largeTitle)
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color(nsColor: .systemOrange))
             Text(message)
                 .foregroundStyle(.secondary)
         }

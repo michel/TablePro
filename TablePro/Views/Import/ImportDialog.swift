@@ -159,7 +159,7 @@ struct ImportDialog: View {
                         selectFile()
                     }
                     .buttonStyle(.link)
-                    .font(.system(size: 12))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium))
                 }
 
                 HStack(spacing: 16) {
@@ -167,7 +167,7 @@ struct ImportDialog: View {
                         ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file),
                         systemImage: "chart.bar.doc.horizontal"
                     )
-                    .font(.system(size: 12))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium))
                     .foregroundStyle(.secondary)
 
                     if isCountingStatements {
@@ -175,12 +175,12 @@ struct ImportDialog: View {
                             ProgressView()
                                 .controlSize(.small)
                             Text("Counting...")
-                                .font(.system(size: 12))
+                                .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium))
                                 .foregroundStyle(.secondary)
                         }
                     } else if statementCount > 0 {
                         Label("\(statementCount) statements", systemImage: "list.bullet")
-                            .font(.system(size: 12))
+                            .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -192,7 +192,7 @@ struct ImportDialog: View {
     private var formatPickerView: some View {
         HStack(spacing: 8) {
             Text("Format:")
-                .font(.system(size: 13))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
                 .frame(width: 80, alignment: .leading)
 
             Picker("", selection: $selectedFormatId) {
@@ -210,14 +210,14 @@ struct ImportDialog: View {
     private var filePreviewView: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Preview")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium, weight: .semibold))
                 .foregroundStyle(.primary)
 
             SQLCodePreview(text: $filePreview)
                 .frame(height: availableFormats.count > 1 ? 220 : 280)
-                .cornerRadius(6)
+                .clipShape(RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.medium))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.medium)
                         .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
                 )
         }
@@ -226,14 +226,14 @@ struct ImportDialog: View {
     private var optionsView: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Options")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium, weight: .semibold))
                 .foregroundStyle(.primary)
 
             VStack(alignment: .leading, spacing: 12) {
                 // Encoding picker (always shown, independent of plugin)
                 HStack(spacing: 8) {
                     Text("Encoding:")
-                        .font(.system(size: 13))
+                        .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
                         .frame(width: 80, alignment: .leading)
 
                     Picker("", selection: $selectedEncoding) {

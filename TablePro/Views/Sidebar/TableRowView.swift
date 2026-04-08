@@ -22,14 +22,14 @@ enum TableRowLogic {
     }
 
     static func iconColor(table: TableInfo, isPendingDelete: Bool, isPendingTruncate: Bool) -> Color {
-        if isPendingDelete { return .red }
-        if isPendingTruncate { return .orange }
-        return table.type == .view ? .purple : .blue
+        if isPendingDelete { return Color(nsColor: .systemRed) }
+        if isPendingTruncate { return Color(nsColor: .systemOrange) }
+        return table.type == .view ? Color(nsColor: .systemPurple) : Color(nsColor: .systemBlue)
     }
 
     static func textColor(isPendingDelete: Bool, isPendingTruncate: Bool) -> Color {
-        if isPendingDelete { return .red }
-        if isPendingTruncate { return .orange }
+        if isPendingDelete { return Color(nsColor: .systemRed) }
+        if isPendingTruncate { return Color(nsColor: .systemOrange) }
         return .primary
     }
 }
@@ -53,12 +53,12 @@ struct TableRow: View {
                 if isPendingDelete {
                     Image(systemName: "minus.circle.fill")
                         .font(.system(size: ThemeEngine.shared.activeTheme.typography.caption))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color(nsColor: .systemRed))
                         .offset(x: 4, y: 4)
                 } else if isPendingTruncate {
                     Image(systemName: "exclamationmark.circle.fill")
                         .font(.system(size: ThemeEngine.shared.activeTheme.typography.caption))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color(nsColor: .systemOrange))
                         .offset(x: 4, y: 4)
                 }
             }

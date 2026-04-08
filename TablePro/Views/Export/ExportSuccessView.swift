@@ -30,10 +30,10 @@ struct ExportSuccessView: View {
             // Title and message
             VStack(spacing: 6) {
                 Text("Success")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.title3, weight: .semibold))
 
                 Text("Export completed successfully")
-                    .font(.system(size: 13))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
                     .foregroundStyle(.secondary)
             }
 
@@ -57,7 +57,7 @@ struct ExportSuccessView: View {
             // Don't show again checkbox
             Toggle("Don't show this again", isOn: $localDontShowAgain)
                 .toggleStyle(.checkbox)
-                .font(.system(size: 12))
+                .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium))
                 .foregroundStyle(.secondary)
         }
         .padding(24)

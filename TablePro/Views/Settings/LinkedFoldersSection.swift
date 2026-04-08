@@ -85,10 +85,12 @@ struct LinkedFoldersSection: View {
                 removeFolder(folder)
             } label: {
                 Image(systemName: "trash")
+                    .frame(width: 24, height: 24)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
             .help(String(localized: "Remove Folder"))
+            .accessibilityLabel(String(localized: "Remove folder"))
         }
     }
 
@@ -131,6 +133,6 @@ private struct ProBadge: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
-            .background(.orange, in: RoundedRectangle(cornerRadius: 3))
+            .background(Color(nsColor: .systemOrange), in: RoundedRectangle(cornerRadius: 3))
     }
 }

@@ -74,8 +74,8 @@ internal extension SafeModeLevel {
     var badgeColor: Color {
         switch self {
         case .silent: return .secondary
-        case .alert, .alertFull: return .orange
-        case .safeMode, .safeModeFull, .readOnly: return .red
+        case .alert, .alertFull: return Color(nsColor: .systemOrange)
+        case .safeMode, .safeModeFull, .readOnly: return Color(nsColor: .systemRed)
         }
     }
 }
