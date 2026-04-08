@@ -112,6 +112,10 @@ public protocol PluginDatabaseDriver: AnyObject, Sendable {
     func foreignKeyDisableStatements() -> [String]?
     func foreignKeyEnableStatements() -> [String]?
 
+    // Maintenance operations (optional — return nil if not supported)
+    func supportedMaintenanceOperations() -> [String]?
+    func maintenanceStatements(operation: String, table: String?, schema: String?, options: [String: String]) -> [String]?
+
     // EXPLAIN query building (optional)
     func buildExplainQuery(_ sql: String) -> String?
 
@@ -243,6 +247,9 @@ public extension PluginDatabaseDriver {
     func dropObjectStatement(name: String, objectType: String, schema: String?, cascade: Bool) -> String? { nil }
     func foreignKeyDisableStatements() -> [String]? { nil }
     func foreignKeyEnableStatements() -> [String]? { nil }
+
+    func supportedMaintenanceOperations() -> [String]? { nil }
+    func maintenanceStatements(operation: String, table: String?, schema: String?, options: [String: String]) -> [String]? { nil }
 
     func buildExplainQuery(_ sql: String) -> String? { nil }
 

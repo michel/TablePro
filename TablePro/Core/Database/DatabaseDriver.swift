@@ -309,6 +309,9 @@ extension DatabaseDriver {
 
     func fetchApproximateRowCount(table: String) async throws -> Int? { nil }
 
+    func supportedMaintenanceOperations() -> [String]? { nil }
+    func maintenanceStatements(operation: String, table: String?, options: [String: String]) -> [String]? { nil }
+
     /// Default: no schema support (MySQL/SQLite don't use schemas in the same way)
     func fetchSchemas() async throws -> [String] { [] }
 

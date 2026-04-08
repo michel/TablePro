@@ -140,4 +140,44 @@ extension MainContentCoordinator {
             self?.activeSheet = .importDialog
         }
     }
+
+    // MARK: - Maintenance
+
+    func supportedMaintenanceOperations() -> [String] {
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return [] }
+        return driver.supportedMaintenanceOperations() ?? []
+    }
+
+    func showMaintenanceSheet(operation: String, tableName: String) {
+        activeSheet = .maintenance(operation: operation, tableName: tableName)
+    }
+
+    func executeMaintenance(operation: String, tableName: String, options: [String: String]) {
+        guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
+        guard let statements = driver.maintenanceStatements(
+            operation: operation, table: tableName, options: options
+        ) else { return }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                var lastResult: QueryResult?
+                for sql in statements {
+                    lastResult = try await driver.execute(query: sql)
+                }
+                await AlertHelper.showInfoSheet(
+                    title: String(format: String(localized: "%@ completed"), operation),
+                    message: lastResult?.statusMessage
+                        ?? String(format: String(localized: "%@ on %@ completed successfully."), operation, tableName),
+                    window: self.contentWindow
+                )
+            } catch {
+                await AlertHelper.showErrorSheet(
+                    title: String(format: String(localized: "%@ failed"), operation),
+                    message: error.localizedDescription,
+                    window: self.contentWindow
+                )
+            }
+        }
+    }
 }

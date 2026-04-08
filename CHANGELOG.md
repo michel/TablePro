@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Maintenance tools via table context menu (VACUUM, ANALYZE, OPTIMIZE, REINDEX, CHECK TABLE, etc.)
+
 ### Fixed
 
 - Fix macOS HIG compliance: system colors, accessibility labels, theme tokens, localization

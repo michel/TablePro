@@ -182,6 +182,13 @@ struct MainContentView: View {
                     coordinator.handleQuickSwitcherSelection(item)
                 }
             )
+        case .maintenance(let operation, let tableName):
+            MaintenanceSheet(
+                operation: operation,
+                tableName: tableName,
+                databaseType: connection.type,
+                onExecute: coordinator.executeMaintenance
+            )
         }
     }
 
