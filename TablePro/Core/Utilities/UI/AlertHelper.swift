@@ -12,7 +12,7 @@ import AppKit
 @MainActor
 final class AlertHelper {
     /// Tries multiple sources to find a presentable window, minimizing runModal() fallback usage.
-    private static func resolveWindow(_ window: NSWindow?) -> NSWindow? {
+    static func resolveWindow(_ window: NSWindow?) -> NSWindow? {
         window ?? NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first { $0.isVisible }
     }
 
