@@ -111,6 +111,19 @@ struct SidebarContextMenu: View {
             .disabled(isReadOnly)
         }
 
+        if let ops = coordinator?.supportedMaintenanceOperations(), !ops.isEmpty, hasSelection {
+            Menu(String(localized: "Maintenance")) {
+                ForEach(ops, id: \.self) { op in
+                    Button(op) {
+                        if let table = clickedTable?.name {
+                            coordinator?.showMaintenanceSheet(operation: op, tableName: table)
+                        }
+                    }
+                }
+            }
+            .disabled(isReadOnly)
+        }
+
         Divider()
 
         if !isView {

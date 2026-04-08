@@ -395,6 +395,16 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
         pluginDriver.foreignKeyEnableStatements()
     }
 
+    // MARK: - Maintenance Operations
+
+    func supportedMaintenanceOperations() -> [String]? {
+        pluginDriver.supportedMaintenanceOperations()
+    }
+
+    func maintenanceStatements(operation: String, table: String?, options: [String: String]) -> [String]? {
+        pluginDriver.maintenanceStatements(operation: operation, table: table, schema: pluginDriver.currentSchema, options: options)
+    }
+
     // MARK: - All Tables Metadata SQL
 
     func allTablesMetadataSQL(schema: String?) -> String? {

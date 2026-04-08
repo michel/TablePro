@@ -605,6 +605,26 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         "EXPLAIN \(sql)"
     }
 
+    // MARK: - Maintenance
+
+    func supportedMaintenanceOperations() -> [String]? {
+        ["OPTIMIZE TABLE", "ANALYZE TABLE", "CHECK TABLE", "REPAIR TABLE"]
+    }
+
+    func maintenanceStatements(operation: String, table: String?, schema: String?, options: [String: String]) -> [String]? {
+        guard let table else { return nil }
+        let quoted = quoteIdentifier(table)
+        switch operation {
+        case "OPTIMIZE TABLE": return ["OPTIMIZE TABLE \(quoted)"]
+        case "ANALYZE TABLE": return ["ANALYZE TABLE \(quoted)"]
+        case "CHECK TABLE":
+            let mode = options["mode"] ?? "MEDIUM"
+            return ["CHECK TABLE \(quoted) \(mode)"]
+        case "REPAIR TABLE": return ["REPAIR TABLE \(quoted)"]
+        default: return nil
+        }
+    }
+
     // MARK: - Create Table DDL
 
     func generateCreateTableSQL(definition: PluginCreateTableDefinition) -> String? {

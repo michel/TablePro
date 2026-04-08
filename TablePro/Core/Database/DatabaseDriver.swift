@@ -121,6 +121,15 @@ protocol DatabaseDriver: AnyObject {
     /// Create a new database
     func createDatabase(name: String, charset: String, collation: String?) async throws
 
+    // MARK: - Maintenance
+
+    /// Returns the list of supported maintenance operations (e.g. "VACUUM", "ANALYZE").
+    /// Returns nil if maintenance is not supported.
+    func supportedMaintenanceOperations() -> [String]?
+
+    /// Generates SQL statements for a maintenance operation.
+    func maintenanceStatements(operation: String, table: String?, options: [String: String]) -> [String]?
+
     // MARK: - Query Cancellation
 
     /// Cancel the currently running query, if any.
@@ -308,6 +317,9 @@ extension DatabaseDriver {
     }
 
     func fetchApproximateRowCount(table: String) async throws -> Int? { nil }
+
+    func supportedMaintenanceOperations() -> [String]? { nil }
+    func maintenanceStatements(operation: String, table: String?, options: [String: String]) -> [String]? { nil }
 
     /// Default: no schema support (MySQL/SQLite don't use schemas in the same way)
     func fetchSchemas() async throws -> [String] { [] }

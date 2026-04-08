@@ -37,8 +37,18 @@ enum ActiveSheet: Identifiable {
     case importDialog
     case quickSwitcher
     case exportQueryResults
+    case maintenance(operation: String, tableName: String)
 
-    var id: Self { self }
+    var id: String {
+        switch self {
+        case .databaseSwitcher: "databaseSwitcher"
+        case .exportDialog: "exportDialog"
+        case .importDialog: "importDialog"
+        case .quickSwitcher: "quickSwitcher"
+        case .exportQueryResults: "exportQueryResults"
+        case .maintenance: "maintenance"
+        }
+    }
 }
 
 /// Coordinator managing MainContentView business logic

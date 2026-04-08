@@ -166,6 +166,33 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         "EXPLAIN \(sql)"
     }
 
+    // MARK: - Maintenance
+
+    func supportedMaintenanceOperations() -> [String]? {
+        ["VACUUM", "ANALYZE", "REINDEX", "CLUSTER"]
+    }
+
+    func maintenanceStatements(operation: String, table: String?, schema: String?, options: [String: String]) -> [String]? {
+        let target = table.map { quoteIdentifier($0) }
+        switch operation {
+        case "VACUUM":
+            var opts: [String] = []
+            if options["full"] == "true" { opts.append("FULL") }
+            if options["analyze"] == "true" { opts.append("ANALYZE") }
+            if options["verbose"] == "true" { opts.append("VERBOSE") }
+            let optClause = opts.isEmpty ? "" : "(\(opts.joined(separator: ", "))) "
+            return [target.map { "VACUUM \(optClause)\($0)" } ?? "VACUUM"]
+        case "ANALYZE":
+            return [target.map { "ANALYZE \($0)" } ?? "ANALYZE"]
+        case "REINDEX":
+            return [target.map { "REINDEX TABLE \($0)" } ?? "REINDEX DATABASE CONCURRENTLY"]
+        case "CLUSTER":
+            return target.map { ["CLUSTER \($0)"] }
+        default:
+            return nil
+        }
+    }
+
     // MARK: - View Templates
 
     func createViewTemplate() -> String? {

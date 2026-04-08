@@ -432,6 +432,22 @@ final class SQLitePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         "EXPLAIN QUERY PLAN \(sql)"
     }
 
+    // MARK: - Maintenance
+
+    func supportedMaintenanceOperations() -> [String]? {
+        ["VACUUM", "ANALYZE", "REINDEX", "Integrity Check"]
+    }
+
+    func maintenanceStatements(operation: String, table: String?, schema: String?, options: [String: String]) -> [String]? {
+        switch operation {
+        case "VACUUM": return ["VACUUM"]
+        case "ANALYZE": return table.map { ["ANALYZE \(quoteIdentifier($0))"] } ?? ["ANALYZE"]
+        case "REINDEX": return table.map { ["REINDEX \(quoteIdentifier($0))"] } ?? ["REINDEX"]
+        case "Integrity Check": return ["PRAGMA integrity_check"]
+        default: return nil
+        }
+    }
+
     // MARK: - View Templates
 
     func createViewTemplate() -> String? {
