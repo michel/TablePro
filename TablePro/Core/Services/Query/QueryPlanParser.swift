@@ -245,7 +245,9 @@ struct SQLitePlanParser: QueryPlanParser {
             }
         }
 
-        let rootChildren = buildChildren(parentId: nodes[0].parent == 0 ? -1 : nodes[0].parent)
+        // Find the minimum parent ID to use as the virtual root parent
+        let minParent = nodes.map(\.parent).min() ?? 0
+        let rootChildren = buildChildren(parentId: minParent)
         let rootNode: QueryPlanNode
         if rootChildren.count == 1 {
             rootNode = rootChildren[0]
