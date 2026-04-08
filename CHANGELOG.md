@@ -9,10 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Replace hardcoded colors with system semantic colors for high-contrast mode
-- Add accessibility labels, popover Escape dismissal, and proper hit targets
-- Replace hardcoded font sizes and corner radii with theme tokens
-- Localize unlocalized tooltip and alert strings
+- Fix macOS HIG compliance: system colors, accessibility labels, theme tokens, localization
 
 ## [0.28.0] - 2026-04-07
 
