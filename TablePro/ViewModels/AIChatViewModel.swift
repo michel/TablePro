@@ -74,6 +74,15 @@ final class AIChatViewModel {
         sendWithContext(prompt: prompt, feature: .optimizeQuery)
     }
 
+    func editMessage(_ message: AIChatMessage) {
+        guard message.role == .user, !isStreaming else { return }
+        guard let idx = messages.firstIndex(where: { $0.id == message.id }) else { return }
+
+        inputText = message.content
+        messages.removeSubrange(idx...)
+        persistCurrentConversation()
+    }
+
     // MARK: - Constants
 
     /// Maximum number of messages to keep in memory to prevent unbounded growth

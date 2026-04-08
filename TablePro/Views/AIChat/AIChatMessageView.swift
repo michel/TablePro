@@ -14,28 +14,44 @@ struct AIChatMessageView: View {
     let message: AIChatMessage
     var onRetry: (() -> Void)?
     var onRegenerate: (() -> Void)?
+    var onEdit: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             if message.role == .user {
-                // User: timestamp header, then message text
-                HStack(spacing: 4) {
-                    Spacer()
-                    Text("You")
-                        .fontWeight(.medium)
-                    Text("·")
-                    Text(message.timestamp, style: .time)
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
+                // User: timestamp header, then message text in tinted bubble
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Spacer()
+                        Text("You")
+                            .fontWeight(.medium)
+                        Text("·")
+                        Text(message.timestamp, style: .time)
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
 
-                Markdown(message.content)
-                    .markdownTheme(.tableProChat)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    Markdown(message.content)
+                        .markdownTheme(.tableProChat)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let onEdit {
+                        HStack {
+                            Spacer()
+                            Button { onEdit() } label: {
+                                Image(systemName: "pencil")
+                                    .font(.caption2)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.tertiary)
+                            .help(String(localized: "Edit message"))
+                        }
+                    }
+                }
+                .padding(8)
+                .background(Color.accentColor.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {
                 // Assistant: role header above content
                 roleHeader
