@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix macOS HIG compliance: system colors, accessibility labels, theme tokens, localization
+- Fix idle ping spin loop caused by exhausted AsyncStream iterator (#618)
 
 ## [0.28.0] - 2026-04-07
 
