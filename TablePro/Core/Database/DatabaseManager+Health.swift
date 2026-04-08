@@ -15,6 +15,7 @@ import TableProPluginKit
 extension DatabaseManager {
     /// Start health monitoring for a connection
     internal func startHealthMonitor(for connectionId: UUID) async {
+        Self.logger.info("startHealthMonitor called for \(connectionId) (existing monitors: \(self.healthMonitors.count))")
         // Stop any existing monitor
         await stopHealthMonitor(for: connectionId)
 
@@ -30,18 +31,20 @@ extension DatabaseManager {
                     let maxStale = max(queryTimeout, 300) // At least 5 minutes
                     if let startTime = await self.queryStartTimes[connectionId],
                        Date().timeIntervalSince(startTime) < maxStale {
+                        Self.logger.debug("Ping skipped — query in-flight for \(connectionId)")
                         return true // Query still within expected time
                     }
-                    // Query appears stuck — fall through to ping
+                    Self.logger.warning("Ping proceeding despite in-flight query (stale after \(maxStale)s) for \(connectionId)")
                 }
                 guard let mainDriver = await self.activeSessions[connectionId]?.driver else {
+                    Self.logger.debug("Ping skipped — no active driver for \(connectionId)")
                     return false
                 }
                 do {
                     _ = try await mainDriver.execute(query: "SELECT 1")
                     return true
                 } catch {
-                    Self.logger.debug("Ping failed: \(error.localizedDescription)")
+                    Self.logger.debug("Ping failed for \(connectionId): \(error.localizedDescription)")
                     return false
                 }
             },
@@ -149,6 +152,7 @@ extension DatabaseManager {
     /// Stop health monitoring for a connection
     internal func stopHealthMonitor(for connectionId: UUID) async {
         if let monitor = healthMonitors.removeValue(forKey: connectionId) {
+            Self.logger.info("stopHealthMonitor: stopping monitor for \(connectionId) (remaining: \(self.healthMonitors.count))")
             await monitor.stopMonitoring()
         }
     }
