@@ -51,7 +51,7 @@ final class OpenAICompatibleProvider: AIProvider {
 
                     guard httpResponse.statusCode == 200 else {
                         let errorBody = try await collectErrorBody(from: bytes)
-                        throw mapHTTPError(
+                        throw AIProviderError.mapHTTPError(
                             statusCode: httpResponse.statusCode,
                             body: errorBody
                         )
@@ -319,31 +319,4 @@ final class OpenAICompatibleProvider: AIProvider {
         return models.compactMap { $0["name"] as? String }.sorted()
     }
 
-    // MARK: - Helpers
-
-    private func collectErrorBody(
-        from bytes: URLSession.AsyncBytes
-    ) async throws -> String {
-        var body = ""
-        for try await line in bytes.lines {
-            body += line
-            if (body as NSString).length > 2_000 { break }
-        }
-        return body
-    }
-
-    private func mapHTTPError(statusCode: Int, body: String) -> AIProviderError {
-        let message = AIProviderError.parseErrorMessage(from: body) ?? body
-
-        switch statusCode {
-        case 401:
-            return .authenticationFailed(message)
-        case 429:
-            return .rateLimited
-        case 404:
-            return .modelNotFound(message)
-        default:
-            return .serverError(statusCode, message)
-        }
-    }
 }

@@ -17,7 +17,7 @@ struct AIChatPanelView: View {
 
     @Bindable var viewModel: AIChatViewModel
     private let settingsManager = AppSettingsManager.shared
-    @State private var isNearBottom: Bool = true
+    @State private var isUserScrolledUp = false
 
     private var hasConfiguredProvider: Bool {
         settingsManager.ai.providers.contains(where: { $0.isEnabled })
@@ -48,7 +48,7 @@ struct AIChatPanelView: View {
         }
         .task(id: tables) {
             viewModel.tables = tables
-            await fetchSchemaContext()
+            await viewModel.fetchSchemaContext()
         }
         .alert(
             String(localized: "Allow AI Access"),
@@ -132,32 +132,28 @@ struct AIChatPanelView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Empty State
+    // MARK: - Empty States
 
     private var emptyState: some View {
-        ContentUnavailableView {
-            Label(String(localized: "Ask AI about your database"), systemImage: "sparkles")
-        } description: {
-            Text(String(localized: "Get help writing queries, explaining schemas, or fixing errors."))
-        }
+        EmptyStateView(
+            icon: "sparkles",
+            title: String(localized: "Ask AI about your database"),
+            description: String(localized: "Get help writing queries, explaining schemas, or fixing errors.")
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - No Provider State
-
     private var noProviderState: some View {
-        ContentUnavailableView {
-            Label(String(localized: "Set Up AI Provider"), systemImage: "sparkles")
-        } description: {
-            Text(String(localized: "Configure an AI provider in Settings to start chatting."))
-        } actions: {
-            SettingsLink {
-                Text(String(localized: "Go to Settings…"))
-            }
-            .simultaneousGesture(TapGesture().onEnded {
+        EmptyStateView(
+            icon: "gear",
+            title: String(localized: "AI Not Configured"),
+            description: String(localized: "Configure an AI provider in Settings to start chatting."),
+            actionTitle: String(localized: "Go to Settings…"),
+            action: {
                 UserDefaults.standard.set(SettingsTab.ai.rawValue, forKey: "selectedSettingsTab")
-            })
-        }
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -188,43 +184,30 @@ struct AIChatPanelView: View {
                         }
                     }
 
-                    // Invisible bottom anchor to track scroll position
                     Color.clear
                         .frame(height: 1)
                         .id("bottomAnchor")
-                        .onAppear { isNearBottom = true }
-                        .onDisappear { isNearBottom = false }
+                        .onAppear { isUserScrolledUp = false }
+                        .onDisappear { isUserScrolledUp = true }
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
             }
             .scrollIndicators(.hidden)
             .onAppear {
-                if !viewModel.messages.isEmpty {
-                    // Delay to let ScrollView finish layout before scrolling
-                    DispatchQueue.main.async {
-                        proxy.scrollTo("bottomAnchor", anchor: .bottom)
-                    }
-                }
+                scrollToBottom(proxy: proxy)
             }
             .onChange(of: viewModel.messages.last?.content) {
-                if isNearBottom {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo("bottomAnchor", anchor: .bottom)
-                    }
+                if !isUserScrolledUp {
+                    scrollToBottom(proxy: proxy)
                 }
             }
             .onChange(of: viewModel.messages.count) {
-                // Always scroll on new message (user just sent a message)
-                withAnimation(.easeOut(duration: 0.2)) {
-                    proxy.scrollTo("bottomAnchor", anchor: .bottom)
-                }
+                isUserScrolledUp = false
+                scrollToBottom(proxy: proxy)
             }
             .onChange(of: viewModel.activeConversationID) {
-                // Scroll to bottom when switching conversations
-                DispatchQueue.main.async {
-                    proxy.scrollTo("bottomAnchor", anchor: .bottom)
-                }
+                scrollToBottom(proxy: proxy)
             }
         }
     }
@@ -307,57 +290,14 @@ struct AIChatPanelView: View {
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "AIChatPanelView")
 
-    /// Fetch column and foreign key info for tables and populate the view model.
-    /// Reuses cached columns from the shared `SQLSchemaProvider` when available,
-    /// falling back to direct driver queries only for uncached data.
-    /// Respects AI settings (`includeSchema`, `maxSchemaTables`).
-    private func fetchSchemaContext() async {
-        let settings = AppSettingsManager.shared.ai
-        guard settings.includeSchema,
-              let driver = DatabaseManager.shared.driver(for: connection.id)
-        else { return }
-
-        let tablesToFetch = Array(tables.prefix(settings.maxSchemaTables))
-        var columns: [String: [ColumnInfo]] = [:]
-        var foreignKeys: [String: [ForeignKeyInfo]] = [:]
-
-        let provider = viewModel.schemaProvider
-
-        for table in tablesToFetch {
-            if let provider {
-                let cached = await provider.getColumns(for: table.name)
-                if !cached.isEmpty {
-                    columns[table.name] = cached
-                }
-            }
-
-            if columns[table.name] == nil {
-                do {
-                    let cols = try await driver.fetchColumns(table: table.name)
-                    columns[table.name] = cols
-                } catch {
-                    Self.logger.warning(
-                        "Failed to fetch columns for table '\(table.name)': \(error.localizedDescription)"
-                    )
-                }
-            }
-        }
-
-        // Fetch foreign keys for the needed tables in bulk
-        do {
-            let fkResult = try await driver.fetchForeignKeys(forTables: tablesToFetch.map(\.name))
-            for (table, fks) in fkResult {
-                foreignKeys[table] = fks
-            }
-        } catch {
-            Self.logger.warning("Failed to bulk fetch foreign keys: \(error.localizedDescription)")
-        }
-
-        viewModel.columnsByTable = columns
-        viewModel.foreignKeysByTable = foreignKeys
-    }
-
     // MARK: - Helpers
+
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        guard let lastID = viewModel.messages.last?.id else { return }
+        withAnimation(.easeOut(duration: 0.2)) {
+            proxy.scrollTo(lastID, anchor: .bottom)
+        }
+    }
 
     private func updateContext() {
         viewModel.currentQuery = currentQuery
