@@ -66,6 +66,10 @@ struct AIChatCodeBlockView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .disabled(actions == nil)
+                .help(actions == nil
+                    ? String(localized: "Focus the query editor to insert")
+                    : String(localized: "Insert into editor"))
             }
         }
     }

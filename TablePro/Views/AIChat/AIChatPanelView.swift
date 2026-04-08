@@ -18,6 +18,7 @@ struct AIChatPanelView: View {
     @Bindable var viewModel: AIChatViewModel
     private let settingsManager = AppSettingsManager.shared
     @State private var isUserScrolledUp = false
+    @State private var scrollProxy: ScrollViewProxy?
 
     private var hasConfiguredProvider: Bool {
         settingsManager.ai.providers.contains(where: { $0.isEnabled })
@@ -110,13 +111,18 @@ struct AIChatPanelView: View {
                 }
                 .disabled(viewModel.conversations.isEmpty)
             } label: {
-                HStack(spacing: 4) {
+                VStack(spacing: 2) {
                     let title = viewModel.conversations
                         .first(where: { $0.id == viewModel.activeConversationID })?.title
                         .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     Text(title.isEmpty ? String(localized: "New Chat") : title)
                         .font(.headline)
                         .foregroundStyle(.primary)
+                    if let connectionName = viewModel.connection?.name {
+                        Text(connectionName)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
             .menuStyle(.borderlessButton)
@@ -160,6 +166,7 @@ struct AIChatPanelView: View {
     // MARK: - Message List
 
     private var messageList: some View {
+        ZStack(alignment: .bottom) {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
@@ -177,7 +184,9 @@ struct AIChatPanelView: View {
                             AIChatMessageView(
                                 message: message,
                                 onRetry: shouldShowRetry(for: message) ? { viewModel.retry() } : nil,
-                                onRegenerate: shouldShowRegenerate(for: message) ? { viewModel.regenerate() } : nil
+                                onRegenerate: shouldShowRegenerate(for: message) ? { viewModel.regenerate() } : nil,
+                                onEdit: message.role == .user && !viewModel.isStreaming
+                                    ? { viewModel.editMessage(message) } : nil
                             )
                             .padding(.vertical, 4)
                             .id(message.id)
@@ -195,6 +204,7 @@ struct AIChatPanelView: View {
             }
             .scrollIndicators(.hidden)
             .onAppear {
+                scrollProxy = proxy
                 scrollToBottom(proxy: proxy)
             }
             .onChange(of: viewModel.messages.last?.content) {
@@ -209,6 +219,23 @@ struct AIChatPanelView: View {
             .onChange(of: viewModel.activeConversationID) {
                 scrollToBottom(proxy: proxy)
             }
+        }
+
+        if isUserScrolledUp, let proxy = scrollProxy {
+            Button {
+                isUserScrolledUp = false
+                scrollToBottom(proxy: proxy)
+            } label: {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.title2)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .padding(.bottom, 8)
+            .transition(.opacity)
+            .animation(.easeInOut(duration: 0.2), value: isUserScrolledUp)
+        }
         }
     }
 
