@@ -441,8 +441,8 @@ final class SQLitePluginDriver: PluginDatabaseDriver, @unchecked Sendable {
     func maintenanceStatements(operation: String, table: String?, schema: String?, options: [String: String]) -> [String]? {
         switch operation {
         case "VACUUM": return ["VACUUM"]
-        case "ANALYZE": return table.map { ["ANALYZE \($0)"] } ?? ["ANALYZE"]
-        case "REINDEX": return table.map { ["REINDEX \($0)"] } ?? ["REINDEX"]
+        case "ANALYZE": return table.map { ["ANALYZE \(quoteIdentifier($0))"] } ?? ["ANALYZE"]
+        case "REINDEX": return table.map { ["REINDEX \(quoteIdentifier($0))"] } ?? ["REINDEX"]
         case "Integrity Check": return ["PRAGMA integrity_check"]
         default: return nil
         }

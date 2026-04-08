@@ -121,6 +121,7 @@ struct SidebarContextMenu: View {
                     }
                 }
             }
+            .disabled(isReadOnly)
         }
 
         Divider()
