@@ -164,7 +164,8 @@ actor SQLSchemaProvider {
         guard !tables.isEmpty, let connection = connectionInfo else { return nil }
 
         var columnsByTable: [String: [ColumnInfo]] = [:]
-        for table in tables {
+        let tablesToFetch = Array(tables.prefix(settings.maxSchemaTables))
+        for table in tablesToFetch {
             let columns = await getColumns(for: table.name)
             if !columns.isEmpty {
                 columnsByTable[table.name.lowercased()] = columns

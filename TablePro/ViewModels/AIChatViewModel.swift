@@ -445,22 +445,26 @@ final class AIChatViewModel {
         var columns: [String: [ColumnInfo]] = [:]
         var foreignKeys: [String: [ForeignKeyInfo]] = [:]
 
-        for table in tablesToFetch {
-            if let schemaProvider {
-                let cached = await schemaProvider.getColumns(for: table.name)
-                if !cached.isEmpty {
-                    columns[table.name] = cached
+        await withTaskGroup(of: (String, [ColumnInfo]).self) { group in
+            for table in tablesToFetch {
+                group.addTask { [schemaProvider] in
+                    if let schemaProvider {
+                        let cached = await schemaProvider.getColumns(for: table.name)
+                        if !cached.isEmpty {
+                            return (table.name, cached)
+                        }
+                    }
+                    do {
+                        let cols = try await driver.fetchColumns(table: table.name)
+                        return (table.name, cols)
+                    } catch {
+                        return (table.name, [])
+                    }
                 }
             }
-
-            if columns[table.name] == nil {
-                do {
-                    let cols = try await driver.fetchColumns(table: table.name)
-                    columns[table.name] = cols
-                } catch {
-                    Self.logger.warning(
-                        "Failed to fetch columns for table '\(table.name)': \(error.localizedDescription)"
-                    )
+            for await (tableName, cols) in group {
+                if !cols.isEmpty {
+                    columns[tableName] = cols
                 }
             }
         }
