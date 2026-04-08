@@ -212,6 +212,9 @@ struct MainEditorContentView: View {
                                 coordinator.runExplainQuery()
                             }
                         },
+                        onExplainVariant: { variant in
+                            coordinator.runVariantExplain(variant)
+                        },
                         onAIExplain: { text in
                             coordinator.showAIChatPanel()
                             coordinator.aiViewModel?.handleExplainSelection(text)
@@ -299,7 +302,8 @@ struct MainEditorContentView: View {
                 .id(tableName)
                 .frame(maxHeight: .infinity)
             } else if let explainText = tab.explainText {
-                ExplainResultView(text: explainText, executionTime: tab.explainExecutionTime)
+                ExplainResultView(text: explainText, executionTime: tab.explainExecutionTime, plan: tab.explainPlan)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Result tab bar (when multiple result sets)
                 if tab.resultSets.count > 1 {
@@ -363,7 +367,9 @@ struct MainEditorContentView: View {
                 }
             }
 
-            statusBar(tab: tab)
+            if tab.explainText == nil {
+                statusBar(tab: tab)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

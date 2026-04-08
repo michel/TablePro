@@ -39,6 +39,10 @@ final class PostgreSQLPlugin: NSObject, TableProPlugin, DriverPlugin {
     static let brandColorHex = "#336791"
     static let systemDatabaseNames: [String] = ["postgres", "template0", "template1"]
     static let supportsSchemaSwitching = true
+    static let explainVariants: [ExplainVariant] = [
+        ExplainVariant(id: "explain", label: "EXPLAIN", sqlPrefix: "EXPLAIN (FORMAT JSON)"),
+        ExplainVariant(id: "analyze", label: "EXPLAIN ANALYZE", sqlPrefix: "EXPLAIN (ANALYZE, FORMAT JSON)"),
+    ]
     static let databaseGroupingStrategy: GroupingStrategy = .bySchema
     static let columnTypesByCategory: [String: [String]] = [
         "Integer": ["SMALLINT", "INTEGER", "BIGINT", "SERIAL", "BIGSERIAL", "SMALLSERIAL"],

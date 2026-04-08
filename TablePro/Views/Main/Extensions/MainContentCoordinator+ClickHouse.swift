@@ -56,13 +56,14 @@ extension MainContentCoordinator {
         guard let stmt = statements.first else { return }
 
         let explainSQL = "\(variant.sqlPrefix) \(stmt)"
+        let tabId = tabManager.tabs[index].id
 
         Task { @MainActor in
             guard let driver = DatabaseManager.shared.driver(for: connectionId) else { return }
 
-            tabManager.tabs[index].isExecuting = true
-            tabManager.tabs[index].explainText = nil
-            tabManager.tabs[index].explainExecutionTime = nil
+            if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                tabManager.tabs[idx].isExecuting = true
+            }
             toolbarState.setExecuting(true)
 
             do {
@@ -74,13 +75,25 @@ extension MainContentCoordinator {
                     row.compactMap { $0 }.joined(separator: "\t")
                 }.joined(separator: "\n")
 
-                tabManager.tabs[index].explainText = text
-                tabManager.tabs[index].explainExecutionTime = duration
+                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                    tabManager.tabs[idx].explainText = text
+                    tabManager.tabs[idx].explainExecutionTime = duration
+
+                    if let parser = QueryPlanParserFactory.parser(for: connection.type) {
+                        tabManager.tabs[idx].explainPlan = parser.parse(rawText: text)
+                    } else {
+                        tabManager.tabs[idx].explainPlan = nil
+                    }
+                    tabManager.tabs[idx].isExecuting = false
+                }
             } catch {
-                tabManager.tabs[index].explainText = "Error: \(error.localizedDescription)"
+                if let idx = tabManager.tabs.firstIndex(where: { $0.id == tabId }) {
+                    tabManager.tabs[idx].explainText = "Error: \(error.localizedDescription)"
+                    tabManager.tabs[idx].explainPlan = nil
+                    tabManager.tabs[idx].isExecuting = false
+                }
             }
 
-            tabManager.tabs[index].isExecuting = false
             toolbarState.setExecuting(false)
         }
     }

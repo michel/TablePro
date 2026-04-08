@@ -74,6 +74,7 @@ struct QueryTab: Identifiable, Equatable {
     var showStructure: Bool  // Toggle to show structure view instead of data
     var explainText: String?
     var explainExecutionTime: TimeInterval?
+    var explainPlan: QueryPlan?
 
     // Per-tab change tracking (preserves changes when switching tabs)
     var pendingChanges: TabPendingChanges
