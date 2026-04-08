@@ -34,7 +34,7 @@ struct QueryPlanDiagramView: View {
     let plan: QueryPlan
 
     @State private var magnification: CGFloat = 1.0
-    @State private var selectedNodeId: UUID?
+    @State private var selectedNode: SelectedNodeID?
 
     var body: some View {
         let positioned = layoutNodes(plan.rootNode, depth: 0, xOffset: 0, parentId: nil)
@@ -65,8 +65,8 @@ struct QueryPlanDiagramView: View {
             zoomControls
                 .padding(12)
         }
-        .popover(item: $selectedNodeId) { nodeId in
-            if let node = findNode(nodeId, in: plan.rootNode) {
+        .popover(item: $selectedNode) { selected in
+            if let node = findNode(selected.id, in: plan.rootNode) {
                 nodeDetailPopover(node)
             }
         }
@@ -76,7 +76,7 @@ struct QueryPlanDiagramView: View {
 
     private func diagramNode(_ pos: PositionedNode) -> some View {
         let node = pos.node
-        let isSelected = selectedNodeId == pos.id
+        let isSelected = selectedNode?.id == pos.id
 
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 4) {
@@ -129,7 +129,8 @@ struct QueryPlanDiagramView: View {
                     lineWidth: isSelected ? 2 : 1
                 )
         )
-        .onTapGesture { selectedNodeId = pos.id }
+        .onTapGesture { selectedNode = SelectedNodeID(id: pos.id) }
+        .accessibilityLabel("\(node.operation)\(node.relation.map { " on \($0)" } ?? "")")
     }
 
     // MARK: - Zoom
@@ -329,8 +330,8 @@ struct QueryPlanDiagramView: View {
     }
 }
 
-// MARK: - UUID Identifiable
+// MARK: - Identifiable Wrapper
 
-extension UUID: @retroactive Identifiable {
-    public var id: UUID { self }
+private struct SelectedNodeID: Identifiable {
+    let id: UUID
 }

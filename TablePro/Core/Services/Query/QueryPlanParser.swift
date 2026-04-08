@@ -274,7 +274,7 @@ struct IndentedTextPlanParser: QueryPlanParser {
         }
         let parsed: [ParsedLine] = lines.map { line in
             let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
-            let indent = line.count - trimmed.count
+            let indent = (line as NSString).length - (String(trimmed) as NSString).length
             return ParsedLine(indent: indent, text: String(trimmed))
         }
 
