@@ -54,7 +54,7 @@ struct SchemaPreviewSheet: View {
             // Footer
             HStack {
                 Toggle("Don't show this again", isOn: $skipPreview)
-                    .help("You can re-enable this in Settings")
+                    .help(String(localized: "You can re-enable this in Settings"))
 
                 Spacer()
 
@@ -122,7 +122,7 @@ struct SchemaPreviewSheet: View {
                 .font(.caption)
         }
         .buttonStyle(.borderless)
-        .help("Copy this statement to clipboard")
+        .help(String(localized: "Copy this statement to clipboard"))
     }
 }
 

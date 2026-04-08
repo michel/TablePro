@@ -244,7 +244,7 @@ struct AIChatPanelView: View {
     private func errorBanner(_ message: String) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.yellow)
+                .foregroundStyle(Color(nsColor: .systemYellow))
             Text(message)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -254,10 +254,11 @@ struct AIChatPanelView: View {
                 viewModel.errorMessage = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.caption2)
+                    .frame(width: 24, height: 24)
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "Dismiss error"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -289,7 +290,7 @@ struct AIChatPanelView: View {
                         viewModel.cancelStream()
                     } label: {
                         Image(systemName: "stop.circle.fill")
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color(nsColor: .systemRed))
                     }
                     .buttonStyle(.plain)
                     .help(String(localized: "Stop Generating"))

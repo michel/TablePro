@@ -162,7 +162,7 @@ struct OnboardingContentView: View {
         VStack(spacing: ThemeEngine.shared.activeTheme.spacing.md) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color(nsColor: .systemGreen))
 
             Text("You're all set!")
                 .font(.system(size: 22, weight: .bold, design: .rounded))

@@ -30,7 +30,7 @@ struct BrowsePluginsView: View {
             }
             await downloadCountService.fetchCounts(for: registryClient.manifest)
         }
-        .alert("Installation Failed", isPresented: $showErrorAlert) {
+        .alert(String(localized: "Installation Failed"), isPresented: $showErrorAlert) {
             Button("OK") {}
         } message: {
             Text(errorMessage)

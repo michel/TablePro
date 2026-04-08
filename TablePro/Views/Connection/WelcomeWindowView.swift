@@ -132,7 +132,7 @@ struct WelcomeWindowView: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .help("New Connection (⌘N)")
+                .help(String(localized: "New Connection (⌘N)"))
 
                 Button(action: { vm.pendingMoveToNewGroup = []; vm.activeSheet = .newGroup(parentId: nil) }) {
                     Image(systemName: "folder.badge.plus")

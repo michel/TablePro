@@ -81,6 +81,7 @@ private extension HistoryPanelView {
                     .buttonStyle(.borderless)
                     .disabled(entries.isEmpty)
                     .help(String(localized: "Clear all history"))
+                    .accessibilityLabel(String(localized: "Clear all history"))
 
                     Picker("", selection: $dateFilter) {
                         ForEach(UIDateFilter.allCases, id: \.self) { filter in

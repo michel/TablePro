@@ -84,7 +84,7 @@ struct QueryEditorView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
-            .help("Clear Query")
+            .help(String(localized: "Clear Query"))
 
             // Format button
             Button(action: formatQuery) {
@@ -92,7 +92,7 @@ struct QueryEditorView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
-            .help("Format Query (⌥⌘F)")
+            .help(String(localized: "Format Query (⌥⌘F)"))
             .keyboardShortcut("f", modifiers: [.option, .command])
 
             Divider()

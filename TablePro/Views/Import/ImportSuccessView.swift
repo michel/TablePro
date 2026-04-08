@@ -20,16 +20,16 @@ struct ImportSuccessView: View {
 
             VStack(spacing: 6) {
                 Text("Import Successful")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: ThemeEngine.shared.activeTheme.typography.title3, weight: .semibold))
 
                 if let result {
                     Text("\(result.executedStatements) statements executed")
-                        .font(.system(size: 13))
+                        .font(.system(size: ThemeEngine.shared.activeTheme.typography.body))
                         .foregroundStyle(.secondary)
 
                     let formattedTime = String(format: "%.2f", result.executionTime)
                     Text(String(format: String(localized: "%@ seconds"), formattedTime))
-                        .font(.system(size: 12))
+                        .font(.system(size: ThemeEngine.shared.activeTheme.typography.medium))
                         .foregroundStyle(.secondary)
                 }
             }

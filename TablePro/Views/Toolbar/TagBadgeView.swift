@@ -30,7 +30,7 @@ struct TagBadgeView: View {
                     .fill(tag.color.color.opacity(0.2))
             )
             .padding(.leading, ThemeEngine.shared.activeTheme.spacing.xs)
-            .help("Tag: \(tag.name)")
+            .help(String(format: String(localized: "Tag: %@"), tag.name))
             .accessibilityLabel("Tag: \(tag.name)")
     }
 }

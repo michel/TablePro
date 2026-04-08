@@ -171,7 +171,7 @@ struct DatabaseSwitcherSheet: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
-            .help("Refresh database list")
+            .help(String(localized: "Refresh database list"))
 
             // Create (only for non-SQLite)
             if databaseType != .sqlite && !isSchemaMode {
@@ -180,7 +180,7 @@ struct DatabaseSwitcherSheet: View {
                         .frame(width: 24, height: 24)
                 }
                 .buttonStyle(.borderless)
-                .help("Create new database")
+                .help(String(localized: "Create new database"))
             }
         }
         .padding(.horizontal, 12)

@@ -698,28 +698,28 @@ extension ConnectionFormView {
                 String(localized: "~/.pgpass not found"),
                 systemImage: "exclamationmark.triangle.fill"
             )
-            .foregroundStyle(.yellow)
+            .foregroundStyle(Color(nsColor: .systemYellow))
             .font(.caption)
         case .badPermissions:
             Label(
                 String(localized: "~/.pgpass has incorrect permissions (needs chmod 0600)"),
                 systemImage: "xmark.circle.fill"
             )
-            .foregroundStyle(.red)
+            .foregroundStyle(Color(nsColor: .systemRed))
             .font(.caption)
         case .matchFound:
             Label(
                 String(localized: "~/.pgpass found — matching entry exists"),
                 systemImage: "checkmark.circle.fill"
             )
-            .foregroundStyle(.green)
+            .foregroundStyle(Color(nsColor: .systemGreen))
             .font(.caption)
         case .noMatch:
             Label(
                 String(localized: "~/.pgpass found — no matching entry"),
                 systemImage: "exclamationmark.triangle.fill"
             )
-            .foregroundStyle(.yellow)
+            .foregroundStyle(Color(nsColor: .systemYellow))
             .font(.caption)
         }
     }

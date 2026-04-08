@@ -35,7 +35,7 @@ struct PaginationControlsView: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.borderless)
-            .help("Pagination Settings")
+            .help(String(localized: "Pagination Settings"))
             .popover(isPresented: $showSettings, arrowEdge: .top) {
                 settingsPopover
             }
@@ -64,7 +64,7 @@ struct PaginationControlsView: View {
             }
             .buttonStyle(.borderless)
             .disabled(!pagination.hasPreviousPage || pagination.isLoading)
-            .help("Previous Page (⌘[)")
+            .help(String(localized: "Previous Page (⌘[)"))
             .keyboardShortcut("[", modifiers: .command)
 
             // Page indicator: "1 of 25"
@@ -86,7 +86,7 @@ struct PaginationControlsView: View {
             }
             .buttonStyle(.borderless)
             .disabled(!pagination.hasNextPage || pagination.isLoading)
-            .help("Next Page (⌘])")
+            .help(String(localized: "Next Page (⌘])"))
             .keyboardShortcut("]", modifiers: .command)
         }
     }

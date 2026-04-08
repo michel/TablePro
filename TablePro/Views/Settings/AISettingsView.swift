@@ -86,6 +86,7 @@ struct AISettingsView: View {
                     }
                     .buttonStyle(.borderless)
                     .disabled(selectedProviderID == nil)
+                    .accessibilityLabel(String(localized: "Remove provider"))
 
                     Divider()
                         .frame(height: 16)
@@ -97,6 +98,7 @@ struct AISettingsView: View {
                             .frame(width: 24, height: 24)
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel(String(localized: "Add provider"))
 
                     Spacer()
 
@@ -111,6 +113,7 @@ struct AISettingsView: View {
                     }
                     .buttonStyle(.borderless)
                     .disabled(selectedProviderID == nil)
+                    .accessibilityLabel(String(localized: "Edit provider"))
                 }
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
@@ -454,7 +457,7 @@ private struct AIProviderEditorSheet: View {
                 HStack {
                     Text(error)
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Color(nsColor: .systemRed))
                     Button {
                         fetchModels()
                     } label: {
@@ -493,11 +496,11 @@ private struct AIProviderEditorSheet: View {
             if case .success = testResult {
                 Text(String(localized: "Connection successful"))
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color(nsColor: .systemGreen))
             } else if case .failure(let message) = testResult {
                 Text(message)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color(nsColor: .systemRed))
                     .lineLimit(2)
             }
         }
@@ -597,8 +600,8 @@ private struct AIProviderEditorSheet: View {
 
     private var testResultColor: Color {
         switch testResult {
-        case .success: return .green
-        case .failure: return .red
+        case .success: return Color(nsColor: .systemGreen)
+        case .failure: return Color(nsColor: .systemRed)
         case .none: return .secondary
         }
     }

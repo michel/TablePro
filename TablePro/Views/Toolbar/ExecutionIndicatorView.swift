@@ -35,7 +35,7 @@ struct ExecutionIndicatorView: View {
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.small, weight: .regular, design: .monospaced))
                     .foregroundStyle(ThemeEngine.shared.colors.toolbar.tertiaryTextSwiftUI)
                     .accessibilityLabel(String(format: String(localized: "Last query: %@"), chProgress.formattedSummary))
-                    .help("Last query execution summary")
+                    .help(String(localized: "Last query execution summary"))
             } else if let duration = lastDuration {
                 Text(formattedDuration(duration))
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.small, weight: .regular, design: .monospaced))
@@ -43,13 +43,13 @@ struct ExecutionIndicatorView: View {
                     .accessibilityLabel(
                         String(format: String(localized: "Last query took %@"), formattedDuration(duration))
                     )
-                    .help("Last query execution time")
+                    .help(String(localized: "Last query execution time"))
             } else {
                 Text("--")
                     .font(.system(size: ThemeEngine.shared.activeTheme.typography.small, weight: .regular, design: .monospaced))
                     .foregroundStyle(.quaternary)
                     .accessibilityLabel(String(localized: "No query executed yet"))
-                    .help("Run a query to see execution time")
+                    .help(String(localized: "Run a query to see execution time"))
             }
         }
         .padding(.trailing, ThemeEngine.shared.activeTheme.spacing.xs)

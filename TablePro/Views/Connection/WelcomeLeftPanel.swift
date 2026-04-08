@@ -100,7 +100,7 @@ struct WelcomeButtonStyle: ButtonStyle {
             .padding(.vertical, ThemeEngine.shared.activeTheme.spacing.sm)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.large)
                     .fill(
                         Color(
                             nsColor: configuration.isPressed

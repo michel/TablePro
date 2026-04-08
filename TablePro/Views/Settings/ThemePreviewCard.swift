@@ -63,9 +63,9 @@ struct ThemePreviewCard: View {
     private var compactCard: some View {
         thumbnail
             .frame(width: 72, height: 45)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .clipShape(RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small))
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
+                RoundedRectangle(cornerRadius: ThemeEngine.shared.activeTheme.cornerRadius.small)
                     .strokeBorder(isActive ? Color.accentColor : Color.clear, lineWidth: 0.5)
             )
     }

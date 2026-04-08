@@ -22,7 +22,7 @@ extension ConnectionFormView {
                                 .controlSize(.small)
                         } else if testSucceeded {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Color(nsColor: .systemGreen))
                         } else {
                             Image(systemName: "bolt.horizontal")
                                 .foregroundStyle(.secondary)
@@ -106,7 +106,7 @@ extension ConnectionFormView {
             if let urlParseError {
                 Text(urlParseError)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Color(nsColor: .systemRed))
             }
 
             HStack {
