@@ -78,12 +78,8 @@ struct AIChatCodeBlockView: View {
 
     private var codeContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            if isSQL {
-                Text(currentHighlight { highlightedSQL(code) })
-                    .textSelection(.enabled)
-                    .padding(10)
-            } else if isMongoDB {
-                Text(currentHighlight { highlightedJavaScript(code) })
+            if isSQL || isMongoDB {
+                Text(cachedHighlight ?? AttributedString(code))
                     .textSelection(.enabled)
                     .padding(10)
             } else if isRedis {
@@ -98,26 +94,20 @@ struct AIChatCodeBlockView: View {
                     .padding(10)
             }
         }
+        .onAppear {
+            recomputeHighlight()
+        }
         .onChange(of: code) {
             let newLen = (code as NSString).length
-            // Re-highlight when code grows by 50+ chars to avoid per-token work during streaming
             if newLen - cachedCodeLength >= 50 {
-                cachedHighlight = isSQL ? highlightedSQL(code) : highlightedJavaScript(code)
-                cachedCodeLength = newLen
+                recomputeHighlight()
             }
         }
     }
 
-    private func currentHighlight(_ compute: () -> AttributedString) -> AttributedString {
-        if let cached = cachedHighlight, (code as NSString).length - cachedCodeLength < 50 {
-            return cached
-        }
-        let result = compute()
-        DispatchQueue.main.async {
-            cachedHighlight = result
-            cachedCodeLength = (code as NSString).length
-        }
-        return result
+    private func recomputeHighlight() {
+        cachedHighlight = isSQL ? highlightedSQL(code) : highlightedJavaScript(code)
+        cachedCodeLength = (code as NSString).length
     }
 
     private var isSQL: Bool {

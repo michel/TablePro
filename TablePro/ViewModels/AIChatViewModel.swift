@@ -458,6 +458,7 @@ final class AIChatViewModel {
                         let cols = try await driver.fetchColumns(table: table.name)
                         return (table.name, cols)
                     } catch {
+                        Self.logger.debug("Schema context: failed to fetch columns for '\(table.name)'")
                         return (table.name, [])
                     }
                 }
