@@ -85,7 +85,9 @@ struct PostgreSQLPlanParser: QueryPlanParser {
 
 // MARK: - MySQL JSON Parser
 
-/// Parses MySQL `EXPLAIN FORMAT=JSON` output.
+/// Parses MySQL and MariaDB `EXPLAIN FORMAT=JSON` output.
+/// Handles both MySQL's flat structure and MariaDB's nested structure
+/// (query_block → filesort → temporary_table → nested_loop).
 struct MySQLPlanParser: QueryPlanParser {
     func parse(rawText: String) -> QueryPlan? {
         guard let data = rawText.data(using: .utf8),
@@ -96,7 +98,10 @@ struct MySQLPlanParser: QueryPlanParser {
             return nil
         }
 
-        let rootNode = parseQueryBlock(queryBlock)
+        let cost = queryBlock["cost"] as? Double
+            ?? (queryBlock["cost_info"] as? [String: Any])?["query_cost"].flatMap { Double("\($0)") }
+        let rootNode = parseBlock(queryBlock, operation: "Query Block", cost: cost)
+
         var queryPlan = QueryPlan(
             rootNode: rootNode,
             planningTime: nil,
@@ -107,16 +112,17 @@ struct MySQLPlanParser: QueryPlanParser {
         return queryPlan
     }
 
-    private func parseQueryBlock(_ block: [String: Any]) -> QueryPlanNode {
+    /// Recursively parse a JSON dict, looking for known operation keys.
+    private func parseBlock(_ dict: [String: Any], operation: String, cost: Double?) -> QueryPlanNode {
         var children: [QueryPlanNode] = []
 
-        // Parse table access
-        if let table = block["table"] as? [String: Any] {
+        // Direct table access
+        if let table = dict["table"] as? [String: Any] {
             children.append(parseTable(table))
         }
 
-        // Parse nested loop joins
-        if let nestedLoop = block["nested_loop"] as? [[String: Any]] {
+        // Nested loop (array of table entries)
+        if let nestedLoop = dict["nested_loop"] as? [[String: Any]] {
             for item in nestedLoop {
                 if let table = item["table"] as? [String: Any] {
                     children.append(parseTable(table))
@@ -124,19 +130,41 @@ struct MySQLPlanParser: QueryPlanParser {
             }
         }
 
-        // Parse ordering/grouping operations
-        if let orderingOp = block["ordering_operation"] as? [String: Any] {
-            children.append(parseOrderingOp(orderingOp))
+        // MariaDB: filesort wraps the inner plan
+        if let filesort = dict["filesort"] as? [String: Any] {
+            let sortKey = filesort["sort_key"] as? String
+            let sortOp = sortKey.map { "Sort (\($0))" } ?? "Sort"
+            let inner = parseBlock(filesort, operation: sortOp, cost: nil)
+            if !inner.children.isEmpty {
+                children = [inner]
+            }
         }
 
-        let costInfo = block["cost_info"] as? [String: Any]
-        let queryCost = (costInfo?["query_cost"] as? String).flatMap { Double($0) }
+        // MariaDB: temporary_table wraps nested_loop
+        if let tempTable = dict["temporary_table"] as? [String: Any] {
+            let inner = parseBlock(tempTable, operation: "Temporary Table", cost: nil)
+            if !inner.children.isEmpty {
+                children = inner.children
+            }
+        }
+
+        // MySQL: ordering_operation
+        if let orderingOp = dict["ordering_operation"] as? [String: Any] {
+            let inner = parseBlock(orderingOp, operation: "Sort", cost: nil)
+            children.append(inner)
+        }
+
+        // MySQL: grouping_operation
+        if let groupingOp = dict["grouping_operation"] as? [String: Any] {
+            let inner = parseBlock(groupingOp, operation: "Group", cost: nil)
+            children.append(inner)
+        }
 
         return QueryPlanNode(
-            operation: "Query Block",
+            operation: operation,
             relation: nil, schema: nil, alias: nil,
             estimatedStartupCost: nil,
-            estimatedTotalCost: queryCost,
+            estimatedTotalCost: cost,
             estimatedRows: nil, estimatedWidth: nil,
             actualStartupTime: nil, actualTotalTime: nil,
             actualRows: nil, actualLoops: nil,
@@ -146,53 +174,33 @@ struct MySQLPlanParser: QueryPlanParser {
     }
 
     private func parseTable(_ table: [String: Any]) -> QueryPlanNode {
-        let costInfo = table["cost_info"] as? [String: Any]
-        let readCost = (costInfo?["read_cost"] as? String).flatMap { Double($0) }
-        let rows = table["rows_examined_per_scan"] as? Int ?? table["rows_produced_per_join"] as? Int
+        // MariaDB uses "cost" directly, MySQL uses "cost_info.read_cost"
+        let cost = table["cost"] as? Double
+            ?? (table["cost_info"] as? [String: Any])?["read_cost"].flatMap { Double("\($0)") }
+        let rows = table["rows"] as? Int
+            ?? table["rows_examined_per_scan"] as? Int
+            ?? table["rows_produced_per_join"] as? Int
 
         var properties: [String: String] = [:]
         if let key = table["key"] as? String { properties["Key"] = key }
         if let ref = table["ref"] as? [String] { properties["Ref"] = ref.joined(separator: ", ") }
-        if let extra = table["attached_condition"] as? String { properties["Filter"] = extra }
+        if let cond = table["attached_condition"] as? String { properties["Filter"] = cond }
+        if let filtered = table["filtered"] as? Double, filtered < 100 {
+            properties["Filtered"] = String(format: "%.0f%%", filtered)
+        }
 
         return QueryPlanNode(
             operation: table["access_type"] as? String ?? "ALL",
             relation: table["table_name"] as? String,
-            schema: nil,
-            alias: nil,
+            schema: nil, alias: nil,
             estimatedStartupCost: nil,
-            estimatedTotalCost: readCost,
+            estimatedTotalCost: cost,
             estimatedRows: rows,
             estimatedWidth: nil,
             actualStartupTime: nil, actualTotalTime: nil,
             actualRows: nil, actualLoops: nil,
             properties: properties,
             children: []
-        )
-    }
-
-    private func parseOrderingOp(_ op: [String: Any]) -> QueryPlanNode {
-        var children: [QueryPlanNode] = []
-        if let nestedLoop = op["nested_loop"] as? [[String: Any]] {
-            for item in nestedLoop {
-                if let table = item["table"] as? [String: Any] {
-                    children.append(parseTable(table))
-                }
-            }
-        }
-        if let table = op["table"] as? [String: Any] {
-            children.append(parseTable(table))
-        }
-
-        return QueryPlanNode(
-            operation: op["using_filesort"] as? Bool == true ? "Sort" : "Order",
-            relation: nil, schema: nil, alias: nil,
-            estimatedStartupCost: nil, estimatedTotalCost: nil,
-            estimatedRows: nil, estimatedWidth: nil,
-            actualStartupTime: nil, actualTotalTime: nil,
-            actualRows: nil, actualLoops: nil,
-            properties: [:],
-            children: children
         )
     }
 }
