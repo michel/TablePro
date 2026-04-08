@@ -50,6 +50,11 @@ struct QueryPlanDiagramView: View {
 
                     ForEach(positioned) { pos in
                         diagramNode(pos)
+                            .popover(isPresented: popoverBinding(for: pos.id)) {
+                                if let node = findNode(pos.id, in: plan.rootNode) {
+                                    nodeDetailPopover(node)
+                                }
+                            }
                             .position(x: pos.rect.midX, y: pos.rect.midY)
                     }
                 }
@@ -64,11 +69,6 @@ struct QueryPlanDiagramView: View {
 
             zoomControls
                 .padding(12)
-        }
-        .popover(item: $selectedNode) { selected in
-            if let node = findNode(selected.id, in: plan.rootNode) {
-                nodeDetailPopover(node)
-            }
         }
     }
 
@@ -316,6 +316,15 @@ struct QueryPlanDiagramView: View {
                 .font(.system(.caption, design: .monospaced))
                 .textSelection(.enabled)
         }
+    }
+
+    // MARK: - Popover Binding
+
+    private func popoverBinding(for nodeId: UUID) -> Binding<Bool> {
+        Binding(
+            get: { selectedNode?.id == nodeId },
+            set: { if !$0 { selectedNode = nil } }
+        )
     }
 
     // MARK: - Find Node
