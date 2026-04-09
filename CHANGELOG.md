@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- ER diagram visualization with Sugiyama layered layout, crow's foot notation, drag-to-reposition, position persistence, compact mode, and PNG export (#186)
+
 ## [0.29.0] - 2026-04-09
 
 ### Added

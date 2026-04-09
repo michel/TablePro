@@ -10,6 +10,7 @@ enum TabType: Equatable, Codable, Hashable {
     case query       // SQL editor tab
     case table       // Direct table view tab
     case createTable // Create new table tab
+    case erDiagram   // ER diagram tab
 }
 
 /// Minimal representation of a tab for persistence
@@ -23,6 +24,7 @@ struct PersistedTab: Codable {
     var databaseName: String = ""
     var schemaName: String?
     var sourceFileURL: URL?
+    var erDiagramSchemaKey: String?
 }
 
 /// Stores pending changes for a tab (used to preserve state when switching tabs)
