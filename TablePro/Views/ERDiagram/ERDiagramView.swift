@@ -10,6 +10,7 @@ struct ERDiagramView: View {
     @State private var dragStartPositions: [UUID: CGPoint] = [:]
     @State private var canvasOffset: CGPoint = .zero
     @State private var panStart: CGPoint?
+    @State private var scrollMonitor: Any?
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "ERDiagramView")
 
@@ -62,12 +63,21 @@ struct ERDiagramView: View {
             }
             .frame(width: geo.size.width, height: geo.size.height)
             .clipped()
-            .overlay(ScrollWheelView { delta in
+        }
+        .onAppear {
+            scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
                 canvasOffset = CGPoint(
-                    x: canvasOffset.x + delta.x,
-                    y: canvasOffset.y + delta.y
+                    x: canvasOffset.x + event.scrollingDeltaX,
+                    y: canvasOffset.y + event.scrollingDeltaY
                 )
-            })
+                return event
+            }
+        }
+        .onDisappear {
+            if let monitor = scrollMonitor {
+                NSEvent.removeMonitor(monitor)
+                scrollMonitor = nil
+            }
         }
     }
 
@@ -223,41 +233,3 @@ private struct NodeHeightPreferenceKey: PreferenceKey {
     }
 }
 
-// MARK: - Scroll Wheel (NSViewRepresentable)
-
-private struct ScrollWheelView: NSViewRepresentable {
-    let onScroll: (CGPoint) -> Void
-
-    func makeNSView(context: Context) -> ScrollWheelNSView {
-        let view = ScrollWheelNSView()
-        view.onScroll = onScroll
-        return view
-    }
-
-    func updateNSView(_ nsView: ScrollWheelNSView, context: Context) {
-        nsView.onScroll = onScroll
-    }
-}
-
-private final class ScrollWheelNSView: NSView {
-    var onScroll: ((CGPoint) -> Void)?
-
-    override func scrollWheel(with event: NSEvent) {
-        let delta = CGPoint(x: event.scrollingDeltaX, y: event.scrollingDeltaY)
-        onScroll?(delta)
-    }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { false }
-
-    override func mouseDown(with event: NSEvent) {
-        nextResponder?.mouseDown(with: event)
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        nextResponder?.mouseDragged(with: event)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        nextResponder?.mouseUp(with: event)
-    }
-}
