@@ -58,6 +58,7 @@ struct ERDiagramView: View {
                     nodeLayer
                 }
                 .frame(width: viewModel.canvasSize.width, height: viewModel.canvasSize.height)
+                .drawingGroup()
                 .scaleEffect(viewModel.magnification, anchor: .topLeading)
                 .offset(x: canvasOffset.x, y: canvasOffset.y)
             }
