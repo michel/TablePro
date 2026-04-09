@@ -229,6 +229,7 @@ enum ERDiagramLayout {
         // Top-to-bottom: y = layer row, x = position within layer (center-aligned)
         let padding: CGFloat = 40
         var currentY: CGFloat = padding
+        let totalConnectedNodes = connectedLayers.reduce(0) { $0 + $1.count }
 
         for layer in connectedLayers {
             let layerWidth = CGFloat(layer.count) * nodeWidth + CGFloat(max(layer.count - 1, 0)) * horizontalGap
@@ -236,7 +237,7 @@ enum ERDiagramLayout {
             var maxHeight: CGFloat = 0
 
             // Center the layer horizontally
-            let totalWidth = max(layerWidth, CGFloat(connectedLayers.flatMap { $0 }.count) * (nodeWidth + horizontalGap))
+            let totalWidth = max(layerWidth, CGFloat(totalConnectedNodes) * (nodeWidth + horizontalGap))
             let layerOffset = (totalWidth - layerWidth) / 2
             currentX += layerOffset
 

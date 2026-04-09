@@ -41,6 +41,7 @@ final class ERDiagramViewModel {
 
     var canvasOffset: CGPoint = .zero
     var viewportSize: CGSize = .zero
+    var isMouseOverCanvas = false
 
     // MARK: - Drag State
 

@@ -490,7 +490,7 @@ final class WelcomeViewModel {
         var order = 0
         var dirtyIds: [String] = []
         for i in connections.indices {
-            let isUngrouped = connections[i].groupId == nil || !updatedValidGroupIds.contains(connections[i].groupId!)
+            let isUngrouped = connections[i].groupId.map { !updatedValidGroupIds.contains($0) } ?? true
             if isUngrouped {
                 if connections[i].sortOrder != order {
                     connections[i].sortOrder = order

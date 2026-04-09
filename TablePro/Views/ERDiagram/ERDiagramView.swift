@@ -7,7 +7,6 @@ struct ERDiagramView: View {
     @Bindable var viewModel: ERDiagramViewModel
     @State private var selectedNodeId: UUID?
     @State private var scrollMonitor: Any?
-    @State private var isMouseOverCanvas = false
     @State private var currentCursor: NSCursor?
     @State private var magnifyStartMag: CGFloat?
 
@@ -122,7 +121,7 @@ struct ERDiagramView: View {
         .onContinuousHover { phase in
             switch phase {
             case .active(let location):
-                isMouseOverCanvas = true
+                viewModel.isMouseOverCanvas = true
                 guard !viewModel.isDragging else { return }
                 let desired: NSCursor? = nodeAt(point: location) != nil ? .openHand : nil
                 if desired !== currentCursor {
@@ -131,7 +130,7 @@ struct ERDiagramView: View {
                     currentCursor = desired
                 }
             case .ended:
-                isMouseOverCanvas = false
+                viewModel.isMouseOverCanvas = false
                 if currentCursor != nil {
                     NSCursor.pop()
                     currentCursor = nil
@@ -143,7 +142,7 @@ struct ERDiagramView: View {
         .onAppear {
             guard scrollMonitor == nil else { return }
             scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
-                guard isMouseOverCanvas else { return event }
+                guard viewModel.isMouseOverCanvas else { return event }
                 if event.modifierFlags.contains(.command) {
                     let zoomDelta = event.scrollingDeltaY * 0.01
                     viewModel.zoom(to: viewModel.magnification + zoomDelta)
