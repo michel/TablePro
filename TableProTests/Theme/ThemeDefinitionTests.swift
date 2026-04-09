@@ -139,13 +139,13 @@ struct ThemeDefinitionTests {
 
     @Test("Font resolver always exposes System Mono")
     func resolverExposesSystemMono() {
-        let families = EditorFontResolver.availableMonospacedFamilies()
+        let families = EditorFontResolver.availableMonospacedFamilies
         #expect(families.contains { $0.id == EditorFontResolver.systemMonoId })
     }
 
     @Test("System Mono is first in picker list")
     func systemMonoFirst() {
-        let families = EditorFontResolver.availableMonospacedFamilies()
+        let families = EditorFontResolver.availableMonospacedFamilies
         #expect(families.first?.id == EditorFontResolver.systemMonoId)
     }
 
@@ -176,7 +176,7 @@ struct ThemeDefinitionTests {
 
     @Test("Resolver list has unique IDs")
     func resolverListHasUniqueIds() {
-        let ids = EditorFontResolver.availableMonospacedFamilies().map(\.id)
+        let ids = EditorFontResolver.availableMonospacedFamilies.map(\.id)
         #expect(Set(ids).count == ids.count)
     }
 
@@ -195,7 +195,7 @@ struct ThemeDefinitionTests {
 
     @Test("All resolver font families are monospaced")
     func allResolverFamiliesAreMonospaced() {
-        let families = EditorFontResolver.availableMonospacedFamilies()
+        let families = EditorFontResolver.availableMonospacedFamilies
         for family in families where family.id != EditorFontResolver.systemMonoId {
             let font = EditorFontResolver.resolve(familyId: family.id, size: 12)
             #expect(font.fontDescriptor.symbolicTraits.contains(.monoSpace))
