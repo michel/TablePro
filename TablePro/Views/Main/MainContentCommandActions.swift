@@ -474,6 +474,10 @@ final class MainContentCommandActions {
         coordinator?.createNewTable()
     }
 
+    func showERDiagram() {
+        coordinator?.showERDiagram()
+    }
+
     // MARK: - Tab Navigation (Group A — Called Directly)
 
     func selectTab(number: Int) {

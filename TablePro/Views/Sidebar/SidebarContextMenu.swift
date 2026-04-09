@@ -77,6 +77,10 @@ struct SidebarContextMenu: View {
         }
         .disabled(clickedTable == nil)
 
+        Button(String(localized: "View ER Diagram")) {
+            coordinator?.showERDiagram()
+        }
+
         Button("Copy Name") {
             let names: [String]
             if selectedTables.isEmpty, let table = clickedTable {

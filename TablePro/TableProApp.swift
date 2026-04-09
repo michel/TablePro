@@ -226,6 +226,11 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .explainQuery))
             .disabled(!(actions?.isConnected ?? false) || !(actions?.hasQueryText ?? false))
 
+            Button(String(localized: "View ER Diagram")) {
+                actions?.showERDiagram()
+            }
+            .disabled(!(actions?.isConnected ?? false))
+
             Divider()
 
             Button(String(localized: "Export Connections...")) {
