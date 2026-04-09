@@ -165,7 +165,7 @@ enum ERDiagramLayout {
         return result
     }
 
-    // MARK: - Coordinate Assignment
+    // MARK: - Coordinate Assignment (top-to-bottom, center-aligned)
 
     private static func assignCoordinates(
         orderedLayers: [[UUID]],
@@ -177,22 +177,74 @@ enum ERDiagramLayout {
             uniqueKeysWithValues: graph.nodes.map { ($0.id, $0.displayColumns.count) }
         )
 
-        var currentX: CGFloat = nodeWidth / 2 + 40
+        // Separate connected and isolated layers
+        let allConnected = Set(graph.edges.flatMap { [$0.fromTable, $0.toTable] })
+        var connectedLayers: [[UUID]] = []
+        var isolatedNodes: [UUID] = []
 
         for layer in orderedLayers {
-            var currentY: CGFloat = 40
-            var maxWidth: CGFloat = 0
+            var connected: [UUID] = []
+            for nodeId in layer {
+                let tableName = graph.nodes.first { $0.id == nodeId }?.tableName ?? ""
+                if allConnected.contains(tableName) {
+                    connected.append(nodeId)
+                } else {
+                    isolatedNodes.append(nodeId)
+                }
+            }
+            if !connected.isEmpty {
+                connectedLayers.append(connected)
+            }
+        }
+
+        // Top-to-bottom: y = layer row, x = position within layer (center-aligned)
+        let padding: CGFloat = 40
+        var currentY: CGFloat = padding
+
+        for layer in connectedLayers {
+            let layerWidth = CGFloat(layer.count) * nodeWidth + CGFloat(max(layer.count - 1, 0)) * horizontalGap
+            var currentX = padding + (nodeWidth / 2)
+            var maxHeight: CGFloat = 0
+
+            // Center the layer horizontally
+            let totalWidth = max(layerWidth, CGFloat(connectedLayers.flatMap { $0 }.count) * (nodeWidth + horizontalGap))
+            let layerOffset = (totalWidth - layerWidth) / 2
+            currentX += layerOffset
 
             for nodeId in layer {
                 let colCount = nodeColumnCounts[nodeId] ?? 1
                 let height = nodeHeights?[nodeId] ?? estimateHeight(columnCount: colCount)
 
                 positions[nodeId] = CGPoint(x: currentX, y: currentY + height / 2)
-                currentY += height + verticalGap
-                maxWidth = max(maxWidth, nodeWidth)
+                currentX += nodeWidth + horizontalGap
+                maxHeight = max(maxHeight, height)
             }
 
-            currentX += maxWidth + horizontalGap
+            currentY += maxHeight + verticalGap
+        }
+
+        // Place isolated tables in a grid below the connected layers
+        if !isolatedNodes.isEmpty {
+            currentY += verticalGap
+            let gridColumns = max(Int(sqrt(Double(isolatedNodes.count))), 3)
+            var col = 0
+            var rowMaxHeight: CGFloat = 0
+
+            for nodeId in isolatedNodes {
+                let colCount = nodeColumnCounts[nodeId] ?? 1
+                let height = nodeHeights?[nodeId] ?? estimateHeight(columnCount: colCount)
+                let x = padding + nodeWidth / 2 + CGFloat(col) * (nodeWidth + horizontalGap)
+
+                positions[nodeId] = CGPoint(x: x, y: currentY + height / 2)
+                rowMaxHeight = max(rowMaxHeight, height)
+
+                col += 1
+                if col >= gridColumns {
+                    col = 0
+                    currentY += rowMaxHeight + verticalGap
+                    rowMaxHeight = 0
+                }
+            }
         }
 
         return positions
