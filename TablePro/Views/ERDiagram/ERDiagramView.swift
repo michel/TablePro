@@ -8,6 +8,8 @@ struct ERDiagramView: View {
     @State private var selectedNodeId: UUID?
     @State private var dragOffsets: [UUID: CGSize] = [:]
     @State private var dragStartPositions: [UUID: CGPoint] = [:]
+    @State private var canvasOffset: CGPoint = .zero
+    @State private var panStart: CGPoint?
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "ERDiagramView")
 
@@ -44,19 +46,41 @@ struct ERDiagramView: View {
     // MARK: - Diagram Content
 
     private var diagramContent: some View {
-        ScrollView([.horizontal, .vertical]) {
+        GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                edgeCanvas
-                nodeLayer
+                // Background — catches pan gestures on empty space
+                Color.clear
+                    .contentShape(Rectangle())
+                    .gesture(panGesture)
+
+                ZStack(alignment: .topLeading) {
+                    edgeCanvas
+                    nodeLayer
+                }
+                .frame(width: viewModel.canvasSize.width, height: viewModel.canvasSize.height)
+                .scaleEffect(viewModel.magnification, anchor: .topLeading)
+                .offset(x: canvasOffset.x, y: canvasOffset.y)
             }
-            .frame(width: viewModel.canvasSize.width, height: viewModel.canvasSize.height)
-            .scaleEffect(viewModel.magnification, anchor: .topLeading)
-            .frame(
-                width: viewModel.canvasSize.width * viewModel.magnification,
-                height: viewModel.canvasSize.height * viewModel.magnification,
-                alignment: .topLeading
-            )
+            .frame(width: geo.size.width, height: geo.size.height)
+            .clipped()
         }
+    }
+
+    private var panGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                if panStart == nil {
+                    panStart = canvasOffset
+                }
+                let start = panStart ?? .zero
+                canvasOffset = CGPoint(
+                    x: start.x + value.translation.width,
+                    y: start.y + value.translation.height
+                )
+            }
+            .onEnded { _ in
+                panStart = nil
+            }
     }
 
     // MARK: - Edge Canvas
