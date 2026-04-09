@@ -24,6 +24,13 @@ struct ForeignKeyPreviewView: View {
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "FKPreview")
 
+    private var referencedTableDisplay: String {
+        if let schema = fkInfo.referencedSchema {
+            return "\(schema).\(fkInfo.referencedTable)"
+        }
+        return fkInfo.referencedTable
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -41,7 +48,7 @@ struct ForeignKeyPreviewView: View {
 
     private var header: some View {
         HStack {
-            Text("\(fkInfo.column) → \(fkInfo.referencedTable).\(fkInfo.referencedColumn)")
+            Text("\(fkInfo.column) → \(referencedTableDisplay).\(fkInfo.referencedColumn)")
                 .font(.system(size: ThemeEngine.shared.activeTheme.typography.small, design: .monospaced))
                 .foregroundStyle(.secondary)
             Spacer()
@@ -118,7 +125,7 @@ struct ForeignKeyPreviewView: View {
                 onNavigate()
             } label: {
                 Label(
-                    String(format: String(localized: "Open %@"), fkInfo.referencedTable),
+                    String(format: String(localized: "Open %@"), referencedTableDisplay),
                     systemImage: "arrow.right"
                 )
             }
@@ -145,7 +152,12 @@ struct ForeignKeyPreviewView: View {
             return
         }
 
-        let quotedTable = driver.quoteIdentifier(fkInfo.referencedTable)
+        let quotedTable: String
+        if let schema = fkInfo.referencedSchema {
+            quotedTable = "\(driver.quoteIdentifier(schema)).\(driver.quoteIdentifier(fkInfo.referencedTable))"
+        } else {
+            quotedTable = driver.quoteIdentifier(fkInfo.referencedTable)
+        }
         let quotedColumn = driver.quoteIdentifier(fkInfo.referencedColumn)
         let escapedValue = driver.escapeStringLiteral(value)
 

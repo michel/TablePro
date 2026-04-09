@@ -52,8 +52,16 @@ struct TableQueryBuilder {
 
     // MARK: - Query Building
 
+    private func qualifiedTable(_ tableName: String, schema: String?) -> String {
+        if let schema {
+            return "\(quote(schema)).\(quote(tableName))"
+        }
+        return quote(tableName)
+    }
+
     func buildBaseQuery(
         tableName: String,
+        schemaName: String? = nil,
         sortState: SortState? = nil,
         columns: [String] = [],
         limit: Int = 200,
@@ -70,7 +78,7 @@ struct TableQueryBuilder {
             }
         }
 
-        let quotedTable = quote(tableName)
+        let quotedTable = qualifiedTable(tableName, schema: schemaName)
         let selectClause = buildSelectClause(columns: columns, exclusions: columnExclusions)
         var query = "SELECT \(selectClause) FROM \(quotedTable)"
 
@@ -84,6 +92,7 @@ struct TableQueryBuilder {
 
     func buildFilteredQuery(
         tableName: String,
+        schemaName: String? = nil,
         filters: [TableFilter],
         logicMode: FilterLogicMode = .and,
         sortState: SortState? = nil,
@@ -106,7 +115,7 @@ struct TableQueryBuilder {
             }
         }
 
-        let quotedTable = quote(tableName)
+        let quotedTable = qualifiedTable(tableName, schema: schemaName)
         let selectClause = buildSelectClause(columns: columns, exclusions: columnExclusions)
         var query = "SELECT \(selectClause) FROM \(quotedTable)"
 

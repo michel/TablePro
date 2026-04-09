@@ -612,6 +612,9 @@
         }
       }
     },
+    "%@ completed" : {
+
+    },
     "%@ download" : {
       "localizations" : {
         "tr" : {
@@ -655,6 +658,9 @@
           }
         }
       }
+    },
+    "%@ failed" : {
+
     },
     "%@ is already assigned to \"%@\". Reassigning will remove it from that action." : {
       "localizations" : {
@@ -787,6 +793,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 必须在 %@ 和 %@ 之间"
+          }
+        }
+      }
+    },
+    "%@ on %@ completed successfully." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ on %2$@ completed successfully."
           }
         }
       }
@@ -1032,6 +1048,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@/%@ 行"
+          }
+        }
+      }
+    },
+    "%@%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$@"
           }
         }
       }
@@ -1522,6 +1548,9 @@
           }
         }
       }
+    },
+    "%lld rows" : {
+
     },
     "%lld seconds" : {
       "localizations" : {
@@ -2239,6 +2268,9 @@
         }
       }
     },
+    "1,000,000" : {
+
+    },
     "2" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2659,6 +2691,9 @@
         }
       }
     },
+    "100,000" : {
+
+    },
     "500" : {
       "localizations" : {
         "tr" : {
@@ -3074,6 +3109,9 @@
         }
       }
     },
+    "Actual" : {
+
+    },
     "Add" : {
       "localizations" : {
         "tr" : {
@@ -3428,6 +3466,9 @@
         }
       }
     },
+    "Add provider" : {
+
+    },
     "Add Provider" : {
       "localizations" : {
         "tr" : {
@@ -3603,6 +3644,9 @@
           }
         }
       }
+    },
+    "AI Not Configured" : {
+
     },
     "AI Policy" : {
       "localizations" : {
@@ -4114,6 +4158,9 @@
         }
       }
     },
+    "Always count" : {
+
+    },
     "An external link wants to add a database connection:\n\nName: %@\n%@" : {
       "localizations" : {
         "en" : {
@@ -4191,6 +4238,9 @@
           }
         }
       }
+    },
+    "ANALYZE (update statistics after vacuum)" : {
+
     },
     "and" : {
       "localizations" : {
@@ -6097,6 +6147,9 @@
         }
       }
     },
+    "CHANGED" : {
+
+    },
     "Character Set" : {
       "localizations" : {
         "tr" : {
@@ -6207,6 +6260,9 @@
           }
         }
       }
+    },
+    "Check mode:" : {
+
     },
     "Check Status" : {
       "localizations" : {
@@ -8659,6 +8715,9 @@
         }
       }
     },
+    "Copy EXPLAIN output to clipboard" : {
+
+    },
     "Copy Name" : {
       "localizations" : {
         "tr" : {
@@ -8901,6 +8960,9 @@
           }
         }
       }
+    },
+    "Count rows if estimate less than:" : {
+
     },
     "Counting..." : {
       "localizations" : {
@@ -10391,6 +10453,9 @@
         }
       }
     },
+    "Decrease font size" : {
+
+    },
     "Decrypt" : {
       "localizations" : {
         "tr" : {
@@ -11243,6 +11308,9 @@
         }
       }
     },
+    "Diagram" : {
+
+    },
     "Digits" : {
       "localizations" : {
         "tr" : {
@@ -11441,6 +11509,9 @@
           }
         }
       }
+    },
+    "Dismiss error" : {
+
     },
     "Display" : {
       "localizations" : {
@@ -12130,6 +12201,9 @@
         }
       }
     },
+    "Edit message" : {
+
+    },
     "Edit Profile..." : {
       "localizations" : {
         "en" : {
@@ -12157,6 +12231,9 @@
           }
         }
       }
+    },
+    "Edit provider" : {
+
     },
     "Edit Provider" : {
       "localizations" : {
@@ -13290,6 +13367,9 @@
         }
       }
     },
+    "Execution: %.3fms" : {
+
+    },
     "expand" : {
       "localizations" : {
         "tr" : {
@@ -14119,6 +14199,9 @@
           }
         }
       }
+    },
+    "EXTENDED" : {
+
     },
     "Extra Large" : {
       "localizations" : {
@@ -14977,6 +15060,9 @@
         }
       }
     },
+    "FAST" : {
+
+    },
     "Favorites" : {
       "localizations" : {
         "tr" : {
@@ -15556,6 +15642,9 @@
         }
       }
     },
+    "Focus the query editor to insert" : {
+
+    },
     "Folder name" : {
       "localizations" : {
         "tr" : {
@@ -15799,6 +15888,9 @@
           }
         }
       }
+    },
+    "FULL (rewrites entire table, blocks access)" : {
+
     },
     "Function" : {
       "localizations" : {
@@ -17379,6 +17471,9 @@
         }
       }
     },
+    "Increase font size" : {
+
+    },
     "INDEX" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -17584,6 +17679,9 @@
           }
         }
       }
+    },
+    "Insert into editor" : {
+
     },
     "Insert Row" : {
       "localizations" : {
@@ -20173,6 +20271,9 @@
           }
         }
       }
+    },
+    "MEDIUM" : {
+
     },
     "METADATA" : {
       "localizations" : {
@@ -24564,6 +24665,9 @@
         }
       }
     },
+    "Planning: %.3fms" : {
+
+    },
     "Please select a column" : {
       "localizations" : {
         "tr" : {
@@ -26457,6 +26561,9 @@
         }
       }
     },
+    "QUICK" : {
+
+    },
     "Quick search across all columns..." : {
       "extractionState" : "stale",
       "localizations" : {
@@ -26613,6 +26720,9 @@
           }
         }
       }
+    },
+    "Raw" : {
+
     },
     "Raw SQL" : {
       "localizations" : {
@@ -27377,6 +27487,9 @@
         }
       }
     },
+    "Remove folder" : {
+
+    },
     "Remove Folder" : {
       "localizations" : {
         "tr" : {
@@ -27421,6 +27534,9 @@
         }
       }
     },
+    "Remove jump host" : {
+
+    },
     "Remove license from this machine" : {
       "localizations" : {
         "tr" : {
@@ -27442,6 +27558,9 @@
           }
         }
       }
+    },
+    "Remove provider" : {
+
     },
     "Rename" : {
       "localizations" : {
@@ -30243,6 +30362,7 @@
       }
     },
     "Set Up AI Provider" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -33448,6 +33568,9 @@
         }
       }
     },
+    "Tables with more estimated rows use approximate counts to avoid slow COUNT(*) queries" : {
+
+    },
     "Tablespace" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -35368,6 +35491,9 @@
         }
       }
     },
+    "Tree" : {
+
+    },
     "true" : {
       "localizations" : {
         "tr" : {
@@ -36562,6 +36688,9 @@
         }
       }
     },
+    "using %@" : {
+
+    },
     "UTC_TIMESTAMP()" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -36766,6 +36895,9 @@
           }
         }
       }
+    },
+    "VERBOSE (print progress)" : {
+
     },
     "Verification Code Required" : {
       "localizations" : {
@@ -37866,6 +37998,9 @@
         }
       }
     },
+    "Zoom in" : {
+
+    },
     "Zoom In" : {
       "localizations" : {
         "tr" : {
@@ -37887,6 +38022,9 @@
           }
         }
       }
+    },
+    "Zoom out" : {
+
     },
     "Zoom Out" : {
       "localizations" : {

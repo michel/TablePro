@@ -416,22 +416,27 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 kcu.column_name,
                 ccu.table_name AS referenced_table,
                 ccu.column_name AS referenced_column,
+                ccu.table_schema AS referenced_schema,
                 rc.delete_rule,
                 rc.update_rule
             FROM information_schema.table_constraints tc
             JOIN information_schema.key_column_usage kcu
                 ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
             JOIN information_schema.referential_constraints rc
                 ON tc.constraint_name = rc.constraint_name
+                AND tc.constraint_schema = rc.constraint_schema
             JOIN information_schema.constraint_column_usage ccu
                 ON rc.unique_constraint_name = ccu.constraint_name
+                AND rc.unique_constraint_schema = ccu.constraint_schema
             WHERE tc.table_name = '\(escapeLiteral(table))'
+                AND tc.table_schema = '\(escapedSchema)'
                 AND tc.constraint_type = 'FOREIGN KEY'
             ORDER BY tc.constraint_name
             """
         let result = try await execute(query: query)
         return result.rows.compactMap { row in
-            guard row.count >= 6,
+            guard row.count >= 7,
                   let name = row[0],
                   let column = row[1],
                   let refTable = row[2],
@@ -442,8 +447,9 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 column: column,
                 referencedTable: refTable,
                 referencedColumn: refColumn,
-                onDelete: row[4] ?? "NO ACTION",
-                onUpdate: row[5] ?? "NO ACTION"
+                referencedSchema: row[4],
+                onDelete: row[5] ?? "NO ACTION",
+                onUpdate: row[6] ?? "NO ACTION"
             )
         }
     }
@@ -456,6 +462,7 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 kcu.column_name,
                 ccu.table_name AS referenced_table,
                 ccu.column_name AS referenced_column,
+                ccu.table_schema AS referenced_schema,
                 rc.delete_rule,
                 rc.update_rule
             FROM information_schema.table_constraints tc
@@ -475,7 +482,7 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
         let result = try await execute(query: query)
         var grouped: [String: [PluginForeignKeyInfo]] = [:]
         for row in result.rows {
-            guard row.count >= 7,
+            guard row.count >= 8,
                   let tableName = row[0],
                   let name = row[1],
                   let column = row[2],
@@ -487,8 +494,9 @@ final class PostgreSQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 column: column,
                 referencedTable: refTable,
                 referencedColumn: refColumn,
-                onDelete: row[5] ?? "NO ACTION",
-                onUpdate: row[6] ?? "NO ACTION"
+                referencedSchema: row[5],
+                onDelete: row[6] ?? "NO ACTION",
+                onUpdate: row[7] ?? "NO ACTION"
             )
             grouped[tableName, default: []].append(fk)
         }

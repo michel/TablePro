@@ -116,13 +116,17 @@ struct ForeignKeyPopoverContentView: View {
             return
         }
 
-        let quotedTable = driver.quoteIdentifier(fkInfo.referencedTable)
+        let quotedTable: String
+        if let schema = fkInfo.referencedSchema {
+            quotedTable = "\(driver.quoteIdentifier(schema)).\(driver.quoteIdentifier(fkInfo.referencedTable))"
+        } else {
+            quotedTable = driver.quoteIdentifier(fkInfo.referencedTable)
+        }
         let quotedColumn = driver.quoteIdentifier(fkInfo.referencedColumn)
 
-        // Try to find a display column (first text-like column that isn't the FK column)
         var displayColumn: String?
         do {
-            let columnInfos = try await driver.fetchColumns(table: fkInfo.referencedTable)
+            let columnInfos = try await driver.fetchColumns(table: fkInfo.referencedTable, schema: fkInfo.referencedSchema)
             displayColumn = columnInfos.first(where: { col in
                 col.name != fkInfo.referencedColumn &&
                 !col.isPrimaryKey &&

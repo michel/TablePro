@@ -37,11 +37,14 @@ extension MainContentCoordinator {
             currentDatabase = connection.database
         }
 
+        let targetSchema = fkInfo.referencedSchema ?? DatabaseManager.shared.session(for: connectionId)?.currentSchema
+
         // Fast path: referenced table is already the active tab — just apply filter
         if let current = tabManager.selectedTab,
            current.tabType == .table,
            current.tableName == referencedTable,
-           current.databaseName == currentDatabase {
+           current.databaseName == currentDatabase,
+           current.schemaName == targetSchema {
             applyFKFilter(filter, for: referencedTable)
             // Persist so tab switch restore picks it up
             if let idx = tabManager.selectedTabIndex {
@@ -63,6 +66,7 @@ extension MainContentCoordinator {
                 tabType: .table,
                 tableName: referencedTable,
                 databaseName: currentDatabase,
+                schemaName: targetSchema,
                 isView: false,
                 initialFilterState: fkFilterState
             )
@@ -70,14 +74,12 @@ extension MainContentCoordinator {
             return
         }
 
-        // Replace current tab content with the referenced table
-        let currentSchema = DatabaseManager.shared.session(for: connectionId)?.currentSchema
         let needsQuery = tabManager.replaceTabContent(
             tableName: referencedTable,
             databaseType: connection.type,
             isView: false,
             databaseName: currentDatabase,
-            schemaName: currentSchema
+            schemaName: targetSchema
         )
 
         if needsQuery, let tabIndex = tabManager.selectedTabIndex {
@@ -98,6 +100,7 @@ extension MainContentCoordinator {
             let tab = tabManager.tabs[tabIndex]
             let filteredQuery = queryBuilder.buildFilteredQuery(
                 tableName: referencedTable,
+                schemaName: fkInfo.referencedSchema,
                 filters: [filter],
                 columns: tab.resultColumns,
                 limit: tab.pagination.pageSize,

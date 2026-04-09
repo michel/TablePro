@@ -65,6 +65,9 @@ protocol DatabaseDriver: AnyObject {
     /// Fetch columns for a specific table
     func fetchColumns(table: String) async throws -> [ColumnInfo]
 
+    /// Fetch columns for a table in a specific schema (for cross-schema FK lookups)
+    func fetchColumns(table: String, schema: String?) async throws -> [ColumnInfo]
+
     /// Fetch columns for ALL tables in a single batch query (avoids N+1).
     /// Returns a dictionary keyed by table name.
     /// Default implementation falls back to per-table fetchColumns.
@@ -213,6 +216,10 @@ extension DatabaseDriver {
     func generateColumnDefinitionSQL(column: PluginColumnDefinition) -> String? { nil }
     func generateIndexDefinitionSQL(index: PluginIndexDefinition, tableName: String?) -> String? { nil }
     func generateForeignKeyDefinitionSQL(fk: PluginForeignKeyDefinition) -> String? { nil }
+
+    func fetchColumns(table: String, schema: String?) async throws -> [ColumnInfo] {
+        try await fetchColumns(table: table)
+    }
 
     func testConnection() async throws -> Bool {
         try await connect()

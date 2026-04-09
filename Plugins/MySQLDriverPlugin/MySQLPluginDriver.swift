@@ -322,6 +322,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 kcu.COLUMN_NAME,
                 kcu.REFERENCED_TABLE_NAME,
                 kcu.REFERENCED_COLUMN_NAME,
+                kcu.REFERENCED_TABLE_SCHEMA,
                 rc.DELETE_RULE,
                 rc.UPDATE_RULE
             FROM information_schema.KEY_COLUMN_USAGE kcu
@@ -346,8 +347,9 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             return PluginForeignKeyInfo(
                 name: name, column: column,
                 referencedTable: refTable, referencedColumn: refColumn,
-                onDelete: (row[safe: 4] ?? nil) ?? "NO ACTION",
-                onUpdate: (row[safe: 5] ?? nil) ?? "NO ACTION"
+                referencedSchema: row[safe: 4] ?? nil,
+                onDelete: (row[safe: 5] ?? nil) ?? "NO ACTION",
+                onUpdate: (row[safe: 6] ?? nil) ?? "NO ACTION"
             )
         }
     }
@@ -363,6 +365,7 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
                 kcu.COLUMN_NAME,
                 kcu.REFERENCED_TABLE_NAME,
                 kcu.REFERENCED_COLUMN_NAME,
+                kcu.REFERENCED_TABLE_SCHEMA,
                 rc.DELETE_RULE,
                 rc.UPDATE_RULE
             FROM information_schema.KEY_COLUMN_USAGE kcu
@@ -387,8 +390,9 @@ final class MySQLPluginDriver: PluginDatabaseDriver, @unchecked Sendable {
             let fk = PluginForeignKeyInfo(
                 name: name, column: column,
                 referencedTable: refTable, referencedColumn: refColumn,
-                onDelete: (row[safe: 5] ?? nil) ?? "NO ACTION",
-                onUpdate: (row[safe: 6] ?? nil) ?? "NO ACTION"
+                referencedSchema: row[safe: 5] ?? nil,
+                onDelete: (row[safe: 6] ?? nil) ?? "NO ACTION",
+                onUpdate: (row[safe: 7] ?? nil) ?? "NO ACTION"
             )
             grouped[tableName, default: []].append(fk)
         }

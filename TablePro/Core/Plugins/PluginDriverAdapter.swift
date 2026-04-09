@@ -127,7 +127,16 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
 
     func fetchColumns(table: String) async throws -> [ColumnInfo] {
         let pluginColumns = try await pluginDriver.fetchColumns(table: table, schema: pluginDriver.currentSchema)
-        return pluginColumns.map { col in
+        return mapPluginColumns(pluginColumns)
+    }
+
+    func fetchColumns(table: String, schema: String?) async throws -> [ColumnInfo] {
+        let pluginColumns = try await pluginDriver.fetchColumns(table: table, schema: schema ?? pluginDriver.currentSchema)
+        return mapPluginColumns(pluginColumns)
+    }
+
+    private func mapPluginColumns(_ pluginColumns: [PluginColumnInfo]) -> [ColumnInfo] {
+        pluginColumns.map { col in
             ColumnInfo(
                 name: col.name,
                 dataType: col.dataType,
@@ -163,6 +172,7 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
                 column: fk.column,
                 referencedTable: fk.referencedTable,
                 referencedColumn: fk.referencedColumn,
+                referencedSchema: fk.referencedSchema,
                 onDelete: fk.onDelete,
                 onUpdate: fk.onUpdate
             )
@@ -255,7 +265,8 @@ final class PluginDriverAdapter: DatabaseDriver, SchemaSwitchable {
         for (table, fks) in pluginResult {
             result[table] = fks.map { fk in
                 ForeignKeyInfo(name: fk.name, column: fk.column, referencedTable: fk.referencedTable,
-                               referencedColumn: fk.referencedColumn, onDelete: fk.onDelete, onUpdate: fk.onUpdate)
+                               referencedColumn: fk.referencedColumn, referencedSchema: fk.referencedSchema,
+                               onDelete: fk.onDelete, onUpdate: fk.onUpdate)
             }
         }
         return result

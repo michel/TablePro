@@ -118,6 +118,7 @@ public struct ForeignKeyInfo: Sendable {
     public let column: String
     public let referencedTable: String
     public let referencedColumn: String
+    public let referencedSchema: String?
     public let onDelete: String
     public let onUpdate: String
 
@@ -126,6 +127,7 @@ public struct ForeignKeyInfo: Sendable {
         column: String,
         referencedTable: String,
         referencedColumn: String,
+        referencedSchema: String? = nil,
         onDelete: String = "NO ACTION",
         onUpdate: String = "NO ACTION"
     ) {
@@ -133,6 +135,7 @@ public struct ForeignKeyInfo: Sendable {
         self.column = column
         self.referencedTable = referencedTable
         self.referencedColumn = referencedColumn
+        self.referencedSchema = referencedSchema
         self.onDelete = onDelete
         self.onUpdate = onUpdate
     }
@@ -239,6 +242,7 @@ public extension ForeignKeyInfo {
             column: plugin.column,
             referencedTable: plugin.referencedTable,
             referencedColumn: plugin.referencedColumn,
+            referencedSchema: plugin.referencedSchema,
             onDelete: plugin.onDelete,
             onUpdate: plugin.onUpdate
         )

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix cross-schema foreign key preview, edit, and navigation for PostgreSQL and MySQL (#644)
 - Fix macOS HIG compliance: system colors, accessibility labels, theme tokens, localization
 - Fix idle ping spin loop caused by exhausted AsyncStream iterator (#618)
 - Skip exact row count for large tables — use database statistics estimate (#519)

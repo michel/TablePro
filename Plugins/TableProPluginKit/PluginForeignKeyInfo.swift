@@ -5,6 +5,7 @@ public struct PluginForeignKeyInfo: Codable, Sendable {
     public let column: String
     public let referencedTable: String
     public let referencedColumn: String
+    public let referencedSchema: String?
     public let onDelete: String
     public let onUpdate: String
 
@@ -13,6 +14,7 @@ public struct PluginForeignKeyInfo: Codable, Sendable {
         column: String,
         referencedTable: String,
         referencedColumn: String,
+        referencedSchema: String? = nil,
         onDelete: String = "NO ACTION",
         onUpdate: String = "NO ACTION"
     ) {
@@ -20,6 +22,7 @@ public struct PluginForeignKeyInfo: Codable, Sendable {
         self.column = column
         self.referencedTable = referencedTable
         self.referencedColumn = referencedColumn
+        self.referencedSchema = referencedSchema
         self.onDelete = onDelete
         self.onUpdate = onUpdate
     }

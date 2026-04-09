@@ -89,6 +89,7 @@ struct QueryResultMappingTests {
             column: "user_id",
             referencedTable: "users",
             referencedColumn: "id",
+            referencedSchema: "other_schema",
             onDelete: "CASCADE",
             onUpdate: "NO ACTION"
         )
@@ -96,6 +97,7 @@ struct QueryResultMappingTests {
         #expect(fk.name == "fk_user")
         #expect(fk.column == "user_id")
         #expect(fk.referencedTable == "users")
+        #expect(fk.referencedSchema == "other_schema")
         #expect(fk.onDelete == "CASCADE")
     }
 }

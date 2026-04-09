@@ -125,8 +125,27 @@ struct ForeignKeyInfo: Identifiable, Hashable {
     let column: String
     let referencedTable: String
     let referencedColumn: String
+    let referencedSchema: String?
     let onDelete: String  // CASCADE, SET NULL, RESTRICT, NO ACTION
     let onUpdate: String
+
+    init(
+        name: String,
+        column: String,
+        referencedTable: String,
+        referencedColumn: String,
+        referencedSchema: String? = nil,
+        onDelete: String = "NO ACTION",
+        onUpdate: String = "NO ACTION"
+    ) {
+        self.name = name
+        self.column = column
+        self.referencedTable = referencedTable
+        self.referencedColumn = referencedColumn
+        self.referencedSchema = referencedSchema
+        self.onDelete = onDelete
+        self.onUpdate = onUpdate
+    }
 }
 
 /// Connection status
