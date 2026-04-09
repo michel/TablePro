@@ -82,10 +82,21 @@ struct ERDiagramView: View {
     private var nodeLayer: some View {
         ForEach(viewModel.graph.nodes) { node in
             ERTableNodeView(node: node, isSelected: selectedNodeId == node.id)
+                .fixedSize()
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .preference(key: NodeHeightPreferenceKey.self, value: [node.id: geo.size.height])
+                    }
+                )
                 .position(nodePosition(for: node.id))
                 .gesture(dragGesture(for: node.id))
                 .onTapGesture { selectedNodeId = selectedNodeId == node.id ? nil : node.id }
-                .background(nodeHeightReader(for: node.id))
+        }
+        .onPreferenceChange(NodeHeightPreferenceKey.self) { heights in
+            for (id, height) in heights {
+                viewModel.nodeHeights[id] = height
+            }
         }
     }
 
@@ -120,17 +131,6 @@ struct ERDiagramView: View {
             }
     }
 
-    // MARK: - Node Height Measurement
-
-    private func nodeHeightReader(for nodeId: UUID) -> some View {
-        GeometryReader { geo in
-            Color.clear
-                .onAppear { viewModel.nodeHeights[nodeId] = geo.size.height }
-                .onChange(of: geo.size.height) { _, newHeight in
-                    viewModel.nodeHeights[nodeId] = newHeight
-                }
-        }
-    }
 
     // MARK: - Export
 
@@ -177,5 +177,15 @@ struct ERDiagramView: View {
             else { return }
             try? pngData.write(to: url)
         }
+    }
+}
+
+// MARK: - Preference Key
+
+private struct NodeHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: [UUID: CGFloat] = [:]
+
+    static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
+        value.merge(nextValue()) { _, new in new }
     }
 }
