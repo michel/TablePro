@@ -91,7 +91,11 @@ struct ERDiagramView: View {
                 )
                 .position(nodePosition(for: node.id))
                 .gesture(dragGesture(for: node.id))
-                .onTapGesture { selectedNodeId = selectedNodeId == node.id ? nil : node.id }
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        selectedNodeId = selectedNodeId == node.id ? nil : node.id
+                    }
+                )
         }
         .onPreferenceChange(NodeHeightPreferenceKey.self) { heights in
             for (id, height) in heights {
