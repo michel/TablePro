@@ -35,11 +35,10 @@ struct QueryPlanDiagramView: View {
 
     @State private var magnification: CGFloat = 1.0
     @State private var selectedNode: SelectedNodeID?
+    @State private var positioned: [PositionedNode] = []
+    @State private var canvasSize: CGSize = CGSize(width: 400, height: 300)
 
     var body: some View {
-        let positioned = layoutNodes(plan.rootNode, depth: 0, xOffset: 0, parentId: nil)
-        let canvasSize = computeCanvasSize(positioned)
-
         ZStack(alignment: .bottomTrailing) {
             ScrollView([.horizontal, .vertical]) {
                 ZStack(alignment: .topLeading) {
@@ -69,6 +68,11 @@ struct QueryPlanDiagramView: View {
 
             zoomControls
                 .padding(12)
+        }
+        .onAppear {
+            let nodes = layoutNodes(plan.rootNode, depth: 0, xOffset: 0, parentId: nil)
+            positioned = nodes
+            canvasSize = calculateCanvasSize(nodes)
         }
     }
 
@@ -228,7 +232,7 @@ struct QueryPlanDiagramView: View {
         return maxX - minX
     }
 
-    private func computeCanvasSize(_ nodes: [PositionedNode]) -> CGSize {
+    private func calculateCanvasSize(_ nodes: [PositionedNode]) -> CGSize {
         let maxX = nodes.map { $0.rect.maxX }.max() ?? 400
         let maxY = nodes.map { $0.rect.maxY }.max() ?? 300
         return CGSize(

@@ -12,6 +12,7 @@ struct ERDiagramView: View {
     @State private var canvasOffset: CGPoint = .zero
     @State private var panStart: CGPoint?
     @State private var scrollMonitor: Any?
+    @State private var isMouseOverCanvas = false
 
     private static let logger = Logger(subsystem: "com.TablePro", category: "ERDiagramView")
 
@@ -53,10 +54,18 @@ struct ERDiagramView: View {
                 .scaleEffect(viewModel.magnification, anchor: .topLeading)
                 .offset(x: canvasOffset.x, y: canvasOffset.y)
                 .clipped()
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    selectedNodeId = nodeAt(point: location)
+                }
                 .gesture(combinedGesture)
+        }
+        .onContinuousHover { phase in
+            isMouseOverCanvas = phase != .ended
         }
         .onAppear {
             scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                guard isMouseOverCanvas else { return event }
                 let multiplier: CGFloat = event.hasPreciseScrollingDeltas ? 1.0 : 10.0
                 canvasOffset = CGPoint(
                     x: canvasOffset.x + event.scrollingDeltaX * multiplier,
@@ -245,13 +254,7 @@ struct ERDiagramView: View {
                 dragNodeStart = nil
                 panStart = nil
             }
-            .simultaneously(with: TapGesture().onEnded {})
     }
-
-    // MARK: - Tap (via click location)
-
-    // Note: Tap for selection is handled via onTapGesture on the GeometryReader
-    // because Canvas doesn't support per-element tap
 
     // MARK: - Export
 

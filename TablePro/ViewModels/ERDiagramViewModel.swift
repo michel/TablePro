@@ -41,6 +41,9 @@ final class ERDiagramViewModel {
     private(set) var computedLayout: [UUID: CGPoint] = [:]
     private(set) var positionOverrides: [UUID: CGPoint] = [:]
     var nodeHeights: [UUID: CGFloat] = [:]
+    private var layoutTask: Task<Void, Never>?
+    private(set) var cachedNodeRects: [UUID: CGRect] = [:]
+    private var columnCountByNodeId: [UUID: Int] = [:]
 
     // MARK: - Initialization
 
@@ -74,6 +77,7 @@ final class ERDiagramViewModel {
                 ERDiagramLayout.compute(graph: builtGraph)
             }.value
             computedLayout = layout
+            invalidateCachedRects()
             loadPersistedPositions()
             loadState = .loaded
 
@@ -92,6 +96,14 @@ final class ERDiagramViewModel {
 
     func setPositionOverride(nodeId: UUID, position: CGPoint) {
         positionOverrides[nodeId] = position
+        let height = nodeHeights[nodeId]
+            ?? ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[nodeId] ?? 1)
+        cachedNodeRects[nodeId] = CGRect(
+            x: position.x - ERDiagramLayout.nodeWidth / 2,
+            y: position.y - height / 2,
+            width: ERDiagramLayout.nodeWidth,
+            height: height
+        )
     }
 
     func persistPositions() {
@@ -105,8 +117,19 @@ final class ERDiagramViewModel {
 
     func resetLayout() {
         positionOverrides.removeAll()
-        computedLayout = ERDiagramLayout.compute(graph: graph, nodeHeights: nodeHeights)
         ERDiagramPositionStorage.shared.clear(connectionId: connectionId, schemaKey: schemaKey)
+        invalidateCachedRects()
+        let currentGraph = graph
+        let heights = nodeHeights
+        layoutTask?.cancel()
+        layoutTask = Task {
+            let layout = await Task.detached {
+                ERDiagramLayout.compute(graph: currentGraph, nodeHeights: heights)
+            }.value
+            guard !Task.isCancelled else { return }
+            computedLayout = layout
+            invalidateCachedRects()
+        }
     }
 
     // MARK: - Compact Mode
@@ -122,13 +145,17 @@ final class ERDiagramViewModel {
             }
             return updated
         }
+        invalidateCachedRects()
         let currentGraph = graph
         let heights = nodeHeights
-        Task {
+        layoutTask?.cancel()
+        layoutTask = Task {
             let layout = await Task.detached {
                 ERDiagramLayout.compute(graph: currentGraph, nodeHeights: heights)
             }.value
+            guard !Task.isCancelled else { return }
             computedLayout = layout
+            invalidateCachedRects()
         }
     }
 
@@ -138,11 +165,9 @@ final class ERDiagramViewModel {
         guard !graph.nodes.isEmpty else { return CGSize(width: 800, height: 600) }
         var maxX: CGFloat = 0
         var maxY: CGFloat = 0
-        for node in graph.nodes {
-            let pos = position(for: node.id)
-            let height = nodeHeights[node.id] ?? ERDiagramLayout.estimateHeight(columnCount: node.displayColumns.count)
-            maxX = max(maxX, pos.x + ERDiagramLayout.nodeWidth / 2)
-            maxY = max(maxY, pos.y + height / 2)
+        for (_, rect) in cachedNodeRects {
+            maxX = max(maxX, rect.maxX)
+            maxY = max(maxY, rect.maxY)
         }
         return CGSize(width: maxX + 80, height: maxY + 80)
     }
@@ -150,17 +175,35 @@ final class ERDiagramViewModel {
     // MARK: - Node Rect (for edge rendering)
 
     func nodeRect(for nodeId: UUID) -> CGRect {
+        if let cached = cachedNodeRects[nodeId] { return cached }
         let center = position(for: nodeId)
         let height = nodeHeights[nodeId]
-            ?? ERDiagramLayout.estimateHeight(
-                columnCount: graph.nodes.first { $0.id == nodeId }?.displayColumns.count ?? 1
-            )
+            ?? ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[nodeId] ?? 1)
         return CGRect(
             x: center.x - ERDiagramLayout.nodeWidth / 2,
             y: center.y - height / 2,
             width: ERDiagramLayout.nodeWidth,
             height: height
         )
+    }
+
+    // MARK: - Cache Invalidation
+
+    func invalidateCachedRects() {
+        columnCountByNodeId = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, $0.displayColumns.count) })
+        var rects: [UUID: CGRect] = [:]
+        for node in graph.nodes {
+            let center = position(for: node.id)
+            let height = nodeHeights[node.id]
+                ?? ERDiagramLayout.estimateHeight(columnCount: columnCountByNodeId[node.id] ?? 1)
+            rects[node.id] = CGRect(
+                x: center.x - ERDiagramLayout.nodeWidth / 2,
+                y: center.y - height / 2,
+                width: ERDiagramLayout.nodeWidth,
+                height: height
+            )
+        }
+        cachedNodeRects = rects
     }
 
     // MARK: - Private

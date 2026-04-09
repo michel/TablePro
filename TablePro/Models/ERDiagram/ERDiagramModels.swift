@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 // MARK: - Table Node
@@ -111,13 +112,10 @@ enum ERDiagramGraphBuilder {
     }
 
     private static func stableId(for name: String) -> UUID {
-        let data = Data(name.utf8)
-        var bytes = [UInt8](repeating: 0, count: 16)
-        for (i, byte) in data.enumerated() {
-            bytes[i % 16] ^= byte
-        }
-        // Set UUID version 4 and variant bits for RFC 4122 compliance
-        bytes[6] = (bytes[6] & 0x0F) | 0x40
+        let hash = SHA256.hash(data: Data(name.utf8))
+        var bytes = [UInt8](hash.prefix(16))
+        // Set UUID version 5 and variant bits for RFC 4122 compliance
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
         bytes[8] = (bytes[8] & 0x3F) | 0x80
         return UUID(uuid: (
             bytes[0], bytes[1], bytes[2], bytes[3],

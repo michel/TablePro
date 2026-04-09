@@ -1,8 +1,10 @@
 import Foundation
+import os
 
 /// Sugiyama-style layered layout for ER diagrams.
 /// Produces node center positions from a graph of tables and FK edges.
 enum ERDiagramLayout {
+    private static let logger = Logger(subsystem: "com.TablePro", category: "ERDiagramLayout")
     static let nodeWidth: CGFloat = 220
     static let horizontalGap: CGFloat = 60
     static let verticalGap: CGFloat = 40
@@ -51,21 +53,32 @@ enum ERDiagramLayout {
         var dag = adjacency
         var backEdges: [(UUID, UUID)] = []
 
-        func dfs(_ node: UUID) {
-            visited.insert(node)
-            onStack.insert(node)
-            for neighbor in adjacency[node] ?? [] {
-                if onStack.contains(neighbor) {
-                    backEdges.append((node, neighbor))
-                } else if !visited.contains(neighbor) {
-                    dfs(neighbor)
+        for startNode in nodeIds where !visited.contains(startNode) {
+            // Iterative DFS using explicit stack
+            // Each entry: (node, neighborIndex)
+            var stack: [(node: UUID, idx: Int)] = [(startNode, 0)]
+            visited.insert(startNode)
+            onStack.insert(startNode)
+
+            while !stack.isEmpty {
+                let (node, idx) = stack[stack.count - 1]
+                let neighbors = adjacency[node] ?? []
+
+                if idx < neighbors.count {
+                    stack[stack.count - 1].idx += 1
+                    let neighbor = neighbors[idx]
+                    if onStack.contains(neighbor) {
+                        backEdges.append((node, neighbor))
+                    } else if !visited.contains(neighbor) {
+                        visited.insert(neighbor)
+                        onStack.insert(neighbor)
+                        stack.append((neighbor, 0))
+                    }
+                } else {
+                    onStack.remove(node)
+                    stack.removeLast()
                 }
             }
-            onStack.remove(node)
-        }
-
-        for node in nodeIds where !visited.contains(node) {
-            dfs(node)
         }
 
         for (from, to) in backEdges {
@@ -112,7 +125,11 @@ enum ERDiagramLayout {
         }
 
         // Assign any unvisited nodes (disconnected) to layer 0
-        for id in nodeIds where layerAssignment[id] == nil {
+        let unassigned = nodeIds.filter { layerAssignment[$0] == nil }
+        if !unassigned.isEmpty {
+            logger.debug("Sugiyama: \(unassigned.count) nodes fell through to layer 0 (disconnected or cycle remnants)")
+        }
+        for id in unassigned {
             layerAssignment[id] = 0
         }
 
@@ -173,9 +190,10 @@ enum ERDiagramLayout {
         nodeHeights: [UUID: CGFloat]?
     ) -> [UUID: CGPoint] {
         var positions: [UUID: CGPoint] = [:]
-        let nodeColumnCounts: [UUID: Int] = Dictionary(
-            uniqueKeysWithValues: graph.nodes.map { ($0.id, $0.displayColumns.count) }
+        let nodeById: [UUID: ERTableNode] = Dictionary(
+            uniqueKeysWithValues: graph.nodes.map { ($0.id, $0) }
         )
+        let nodeColumnCounts: [UUID: Int] = nodeById.mapValues(\.displayColumns.count)
 
         // Separate connected and isolated layers
         let allConnected = Set(graph.edges.flatMap { [$0.fromTable, $0.toTable] })
@@ -185,7 +203,7 @@ enum ERDiagramLayout {
         for layer in orderedLayers {
             var connected: [UUID] = []
             for nodeId in layer {
-                let tableName = graph.nodes.first { $0.id == nodeId }?.tableName ?? ""
+                let tableName = nodeById[nodeId]?.tableName ?? ""
                 if allConnected.contains(tableName) {
                     connected.append(nodeId)
                 } else {

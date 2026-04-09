@@ -89,6 +89,9 @@
         }
       }
     },
+    "?" : {
+
+    },
     ".%@" : {
       "localizations" : {
         "tr" : {
@@ -7576,6 +7579,9 @@
         }
       }
     },
+    "Compact Mode" : {
+
+    },
     "Compress the file using Gzip" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -12992,6 +12998,9 @@
         }
       }
     },
+    "ER Diagram" : {
+
+    },
     "Error" : {
       "localizations" : {
         "tr" : {
@@ -13755,6 +13764,9 @@
           }
         }
       }
+    },
+    "Export as PNG" : {
+
     },
     "Export completed successfully" : {
       "localizations" : {
@@ -19763,6 +19775,9 @@
         }
       }
     },
+    "Loading schema..." : {
+
+    },
     "Loading schemas..." : {
       "localizations" : {
         "tr" : {
@@ -21640,6 +21655,9 @@
           }
         }
       }
+    },
+    "No columns" : {
+
     },
     "No Columns Defined" : {
       "localizations" : {
@@ -27926,6 +27944,9 @@
           }
         }
       }
+    },
+    "Reset Layout" : {
+
     },
     "Reset to Defaults" : {
       "localizations" : {
@@ -37170,6 +37191,9 @@
           }
         }
       }
+    },
+    "View ER Diagram" : {
+
     },
     "View Mode" : {
       "localizations" : {
