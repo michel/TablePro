@@ -61,5 +61,33 @@ fi
 # Mark as downloaded
 touch "$MARKER"
 
-LIB_COUNT=$(find "$LIBS_DIR" -name '*.a' | wc -l | tr -d ' ')
+LIB_COUNT=$(find "$LIBS_DIR" -maxdepth 1 -name '*.a' | wc -l | tr -d ' ')
 echo "Downloaded $LIB_COUNT static libraries."
+
+# --- iOS xcframeworks ---
+IOS_ARCHIVE="tablepro-libs-ios-v1.tar.gz"
+IOS_DIR="$LIBS_DIR/ios"
+IOS_MARKER="$IOS_DIR/.downloaded"
+
+if [[ -f "$IOS_MARKER" && "${1:-}" != "--force" ]]; then
+  echo "iOS libraries already downloaded."
+elif [[ -d "$IOS_DIR" && "$(find "$IOS_DIR" -name '*.xcframework' -maxdepth 1 2>/dev/null | wc -l | tr -d ' ')" -gt 0 && "${1:-}" != "--force" ]]; then
+  echo "Found xcframeworks in $IOS_DIR — skipping iOS download."
+else
+  echo "Downloading iOS static libraries..."
+  if command -v gh &>/dev/null; then
+    gh release download "$LIBS_TAG" \
+      --repo "$REPO" \
+      --pattern "$IOS_ARCHIVE" \
+      --dir /tmp \
+      --clobber
+  else
+    curl -fSL -o "/tmp/$IOS_ARCHIVE" "https://github.com/$REPO/releases/download/$LIBS_TAG/$IOS_ARCHIVE"
+  fi
+  mkdir -p "$IOS_DIR"
+  tar xzf "/tmp/$IOS_ARCHIVE" -C "$IOS_DIR"
+  rm -f "/tmp/$IOS_ARCHIVE"
+  touch "$IOS_MARKER"
+  FW_COUNT=$(find "$IOS_DIR" -name '*.xcframework' -maxdepth 1 | wc -l | tr -d ' ')
+  echo "Downloaded $FW_COUNT iOS xcframeworks."
+fi

@@ -36,36 +36,18 @@ tar xjpf "$BUILD_DIR/postgresql.tar.bz2" -C "$BUILD_DIR"
 PG_SRC="$BUILD_DIR/postgresql-$PG_VERSION"
 echo "   Done."
 
-# --- Generate pg_config.h and other headers on macOS host ---
-# Run configure natively with minimal PATH to avoid shell slowness
+# --- Generate config headers manually (no configure needed for cross-compile) ---
+# PostgreSQL's autoconf configure is unreliable for cross-compilation and slow.
+# We generate the required headers directly with known-good values for iOS/arm64.
 
-echo "=> Generating config headers (native configure)..."
+echo "=> Generating config headers..."
 NATIVE_DIR="$BUILD_DIR/pg-native"
 cp -R "$PG_SRC" "$NATIVE_DIR"
 cd "$NATIVE_DIR"
 
-PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin" \
-    ./configure \
-    --without-readline --without-icu --without-gssapi \
-    --without-zstd --without-ssl > "$BUILD_DIR/configure.log" 2>&1 &
-CONFIGURE_PID=$!
+mkdir -p "$NATIVE_DIR/src/include"
 
-# Wait up to 120 seconds
-for i in $(seq 1 120); do
-    if ! kill -0 $CONFIGURE_PID 2>/dev/null; then
-        break
-    fi
-    sleep 1
-done
-
-if kill -0 $CONFIGURE_PID 2>/dev/null; then
-    echo "   Configure timed out — generating headers manually..."
-    kill $CONFIGURE_PID 2>/dev/null || true
-    wait $CONFIGURE_PID 2>/dev/null || true
-
-    # Generate pg_config.h manually
-    mkdir -p "$NATIVE_DIR/src/include"
-    cat > "$NATIVE_DIR/src/include/pg_config.h" << 'PGCFG'
+cat > "$NATIVE_DIR/src/include/pg_config.h" << 'PGCFG'
 #define PG_MAJORVERSION "17"
 #define PG_MAJORVERSION_NUM 17
 #define PG_MINORVERSION_NUM 4
@@ -150,17 +132,17 @@ if kill -0 $CONFIGURE_PID 2>/dev/null; then
 #define HAVE_INT64_TIMESTAMP 1
 PGCFG
 
-    cat > "$NATIVE_DIR/src/include/pg_config_ext.h" << 'PGCFGEXT'
+cat > "$NATIVE_DIR/src/include/pg_config_ext.h" << 'PGCFGEXT'
 #define PG_INT64_TYPE long int
 PGCFGEXT
 
-    cat > "$NATIVE_DIR/src/include/pg_config_os.h" << 'PGCFGOS'
+cat > "$NATIVE_DIR/src/include/pg_config_os.h" << 'PGCFGOS'
 /* Darwin (macOS/iOS) */
 #define HAVE_DECL_STRLCAT 1
 #define HAVE_DECL_STRLCPY 1
 PGCFGOS
 
-    cat > "$NATIVE_DIR/src/include/pg_config_paths.h" << 'PGPATHS'
+cat > "$NATIVE_DIR/src/include/pg_config_paths.h" << 'PGPATHS'
 #define PGBINDIR "/usr/local/pgsql/bin"
 #define PGSHAREDIR "/usr/local/pgsql/share"
 #define SYSCONFDIR "/usr/local/pgsql/etc"
@@ -175,9 +157,7 @@ PGCFGOS
 #define MANDIR "/usr/local/pgsql/share/man"
 PGPATHS
 
-else
-    echo "   Native configure completed."
-fi
+echo "   Done."
 
 # --- Locate OpenSSL ---
 
