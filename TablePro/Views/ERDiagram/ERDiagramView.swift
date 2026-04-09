@@ -66,9 +66,10 @@ struct ERDiagramView: View {
         }
         .onAppear {
             scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
+                let multiplier: CGFloat = event.hasPreciseScrollingDeltas ? 1.0 : 10.0
                 canvasOffset = CGPoint(
-                    x: canvasOffset.x + event.scrollingDeltaX,
-                    y: canvasOffset.y + event.scrollingDeltaY
+                    x: canvasOffset.x + event.scrollingDeltaX * multiplier,
+                    y: canvasOffset.y + event.scrollingDeltaY * multiplier
                 )
                 return event
             }
