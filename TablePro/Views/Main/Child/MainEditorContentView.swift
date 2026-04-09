@@ -191,20 +191,19 @@ struct MainEditorContentView: View {
 
     @ViewBuilder
     private func erDiagramContent(tab: QueryTab) -> some View {
-        let vm = erDiagramViewModel(for: tab)
-        ERDiagramView(viewModel: vm)
-    }
-
-    private func erDiagramViewModel(for tab: QueryTab) -> ERDiagramViewModel {
-        if let existing = erDiagramViewModels[tab.id] {
-            return existing
+        if let vm = erDiagramViewModels[tab.id] {
+            ERDiagramView(viewModel: vm)
+        } else {
+            ProgressView(String(localized: "Loading schema..."))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    let vm = ERDiagramViewModel(
+                        connectionId: connection.id,
+                        schemaKey: tab.erDiagramSchemaKey ?? tab.databaseName
+                    )
+                    erDiagramViewModels[tab.id] = vm
+                }
         }
-        let vm = ERDiagramViewModel(
-            connectionId: connection.id,
-            schemaKey: tab.erDiagramSchemaKey ?? tab.databaseName
-        )
-        erDiagramViewModels[tab.id] = vm
-        return vm
     }
 
     // MARK: - Query Tab Content
