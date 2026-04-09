@@ -90,7 +90,7 @@ struct ERDiagramView: View {
                     }
                 )
                 .position(nodePosition(for: node.id))
-                .gesture(dragGesture(for: node.id))
+                .highPriorityGesture(dragGesture(for: node.id))
                 .simultaneousGesture(
                     TapGesture().onEnded {
                         selectedNodeId = selectedNodeId == node.id ? nil : node.id
