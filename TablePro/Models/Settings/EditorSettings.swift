@@ -9,22 +9,14 @@ import Foundation
 internal struct FontFamilyOption: Equatable, Identifiable, Sendable {
     let id: String
     let displayName: String
-    let isRecommended: Bool
 }
 
 internal enum EditorFontResolver {
     static let systemMonoId = "System Mono"
 
-    private static let recommendedFamilies: Set<String> = [
-        "SF Mono",
-        "Menlo",
-        "Monaco",
-        "Courier New",
-    ]
-
-    static func availableMonospacedFamilies() -> [FontFamilyOption] {
+    static let availableMonospacedFamilies: [FontFamilyOption] = {
         var options: [FontFamilyOption] = [
-            FontFamilyOption(id: systemMonoId, displayName: systemMonoId, isRecommended: true)
+            FontFamilyOption(id: systemMonoId, displayName: systemMonoId)
         ]
 
         let familyNames = NSFontManager.shared.availableFontFamilies
@@ -37,17 +29,11 @@ internal enum EditorFontResolver {
         var seen: Set<String> = [systemMonoId]
         for family in familyNames where !seen.contains(family) {
             seen.insert(family)
-            options.append(
-                FontFamilyOption(
-                    id: family,
-                    displayName: family,
-                    isRecommended: recommendedFamilies.contains(family)
-                )
-            )
+            options.append(FontFamilyOption(id: family, displayName: family))
         }
 
         return options
-    }
+    }()
 
     static func resolve(familyId: String, size: CGFloat) -> NSFont {
         guard familyId != systemMonoId else {
@@ -66,11 +52,6 @@ internal enum EditorFontResolver {
     static func isAvailable(familyId: String) -> Bool {
         guard familyId != systemMonoId else { return true }
         return isMonospacedFamily(familyId)
-    }
-
-    static func displayName(for familyId: String) -> String {
-        guard !familyId.isEmpty else { return systemMonoId }
-        return familyId
     }
 
     private static func isMonospacedFamily(_ familyId: String) -> Bool {

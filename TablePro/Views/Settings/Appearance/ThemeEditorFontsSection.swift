@@ -98,7 +98,7 @@ struct ThemeEditorFontsSection: View {
             get: { selection },
             set: { onChange($0) }
         )) {
-            ForEach(EditorFontResolver.availableMonospacedFamilies()) { font in
+            ForEach(EditorFontResolver.availableMonospacedFamilies) { font in
                 Text(font.displayName).tag(font.id)
             }
         }
