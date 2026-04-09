@@ -48,7 +48,6 @@ struct ERDiagramView: View {
     private var diagramContent: some View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
-                // Background — catches pan gestures on empty space
                 Color.clear
                     .contentShape(Rectangle())
                     .gesture(panGesture)
@@ -63,6 +62,12 @@ struct ERDiagramView: View {
             }
             .frame(width: geo.size.width, height: geo.size.height)
             .clipped()
+            .overlay(ScrollWheelView { delta in
+                canvasOffset = CGPoint(
+                    x: canvasOffset.x + delta.x,
+                    y: canvasOffset.y + delta.y
+                )
+            })
         }
     }
 
@@ -215,5 +220,44 @@ private struct NodeHeightPreferenceKey: PreferenceKey {
 
     static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
         value.merge(nextValue()) { _, new in new }
+    }
+}
+
+// MARK: - Scroll Wheel (NSViewRepresentable)
+
+private struct ScrollWheelView: NSViewRepresentable {
+    let onScroll: (CGPoint) -> Void
+
+    func makeNSView(context: Context) -> ScrollWheelNSView {
+        let view = ScrollWheelNSView()
+        view.onScroll = onScroll
+        return view
+    }
+
+    func updateNSView(_ nsView: ScrollWheelNSView, context: Context) {
+        nsView.onScroll = onScroll
+    }
+}
+
+private final class ScrollWheelNSView: NSView {
+    var onScroll: ((CGPoint) -> Void)?
+
+    override func scrollWheel(with event: NSEvent) {
+        let delta = CGPoint(x: event.scrollingDeltaX, y: event.scrollingDeltaY)
+        onScroll?(delta)
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { false }
+
+    override func mouseDown(with event: NSEvent) {
+        nextResponder?.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        nextResponder?.mouseDragged(with: event)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        nextResponder?.mouseUp(with: event)
     }
 }
