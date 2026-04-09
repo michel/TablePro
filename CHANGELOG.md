@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - ER diagram with interactive layout, crow's foot notation, and PNG export (#186)
 - Space key toggles FK preview popover (#648)
+- Connection drag-to-reorder in iOS app with iCloud sync (#652)
 
 ### Fixed
 
