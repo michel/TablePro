@@ -9,7 +9,7 @@ TablePro is a native macOS database client (SwiftUI + AppKit) — a fast, lightw
 - **Source**: `TablePro/` — `Core/` (business logic, services), `Views/` (UI), `Models/` (data structures), `ViewModels/`, `Extensions/`, `Theme/`
 - **Plugins**: `Plugins/` — `.tableplugin` bundles + `TableProPluginKit` shared framework. Built-in (bundled in app): MySQL, PostgreSQL, SQLite, ClickHouse, MSSQL, Redis, CSV, JSON, SQL export, MQL. Separately distributed via plugin registry: MongoDB, Oracle, DuckDB, Cassandra, Etcd, CloudflareD1, DynamoDB, BigQuery
 - **C bridges**: Each plugin contains its own C bridge module (e.g., `Plugins/MySQLDriverPlugin/CMariaDB/`, `Plugins/PostgreSQLDriverPlugin/CLibPQ/`)
-- **Static libs**: `Libs/` — pre-built `libmariadb*.a`, `libpq*.a`, etc. Downloaded from GitHub Releases via `scripts/download-libs.sh` (not in git)
+- **Static libs**: `Libs/` — pre-built `libmariadb*.a`, `libpq*.a`, etc. `Libs/ios/` — xcframeworks for iOS (Hiredis, LibPQ, MariaDB, OpenSSL, LibSSH2). Both downloaded from GitHub Releases via `scripts/download-libs.sh` (not in git)
 - **SPM deps**: CodeEditSourceEditor (`main` branch, tree-sitter editor), Sparkle (2.8.1, auto-update), OracleNIO. Managed via Xcode, no `Package.swift`.
 
 ## Build & Development Commands
@@ -58,6 +58,10 @@ tar czf /tmp/tablepro-libs-v1.tar.gz -C Libs .
 gh release upload libs-v1 /tmp/tablepro-libs-v1.tar.gz --clobber --repo TableProApp/TablePro
 # 4. Commit the updated checksums
 git add Libs/checksums.sha256 && git commit -m "build: update static library checksums"
+
+# iOS xcframeworks (Libs/ios/*.xcframework)
+tar czf /tmp/tablepro-libs-ios-v1.tar.gz -C Libs/ios .
+gh release upload libs-v1 /tmp/tablepro-libs-ios-v1.tar.gz --clobber --repo TableProApp/TablePro
 ```
 
 ## Architecture
