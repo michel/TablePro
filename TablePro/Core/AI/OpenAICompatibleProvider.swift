@@ -318,5 +318,4 @@ final class OpenAICompatibleProvider: AIProvider {
 
         return models.compactMap { $0["name"] as? String }.sorted()
     }
-
 }

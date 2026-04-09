@@ -196,8 +196,8 @@ struct QueryPlanDiagramView: View {
                 childPositions.append(contentsOf: childNodes)
             }
 
-            let firstChildX = childPositions.filter { $0.parentId == node.id }.first?.rect.midX ?? xOffset
-            let lastChildX = childPositions.filter { $0.parentId == node.id }.last?.rect.midX ?? xOffset
+            let firstChildX = childPositions.first { $0.parentId == node.id }?.rect.midX ?? xOffset
+            let lastChildX = childPositions.last { $0.parentId == node.id }?.rect.midX ?? xOffset
             let centerX = (firstChildX + lastChildX) / 2
 
             let rect = CGRect(

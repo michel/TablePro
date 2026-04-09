@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-04-09
+
 ### Added
 
 - Maintenance tools via table context menu (VACUUM, ANALYZE, OPTIMIZE, REINDEX, CHECK TABLE, etc.)
@@ -1211,7 +1213,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/TableProApp/TablePro/compare/v0.28.0...v0.29.0
 [0.28.0]: https://github.com/TableProApp/TablePro/compare/v0.27.5...v0.28.0
 [0.27.5]: https://github.com/TableProApp/TablePro/compare/v0.27.4...v0.27.5
 [0.27.4]: https://github.com/TableProApp/TablePro/compare/v0.27.3...v0.27.4
