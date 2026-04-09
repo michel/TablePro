@@ -17,13 +17,17 @@ struct ConnectionListView: View {
     @State private var showingTagManagement = false
     @State private var filterTagId: UUID?
     @State private var groupByGroup = false
+    @State private var editMode: EditMode = .inactive
 
     private var displayedConnections: [DatabaseConnection] {
         var result = appState.connections
         if let filterTagId {
             result = result.filter { $0.tagId == filterTagId }
         }
-        return result.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        return result.sorted {
+            if $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
     }
 
     private var isSyncing: Bool {
@@ -42,6 +46,11 @@ struct ConnectionListView: View {
                 .toolbar {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         filterMenu
+                        if filterTagId == nil && !appState.connections.isEmpty {
+                            Button(editMode == .active ? "Done" : "Edit") {
+                                editMode = editMode == .active ? .inactive : .active
+                            }
+                        }
                         Button {
                             showingAddConnection = true
                         } label: {
@@ -70,6 +79,12 @@ struct ConnectionListView: View {
                 }
             .onChange(of: appState.pendingConnectionId) { _, newId in
                 navigateToPendingConnection(newId)
+            }
+            .onChange(of: filterTagId) {
+                editMode = .inactive
+            }
+            .onChange(of: groupByGroup) {
+                editMode = .inactive
             }
             .onAppear {
                 navigateToPendingConnection(appState.pendingConnectionId)
@@ -132,6 +147,14 @@ struct ConnectionListView: View {
                     ForEach(displayedConnections) { connection in
                         connectionRow(connection)
                     }
+                    .onMove { source, destination in
+                        var items = displayedConnections
+                        items.move(fromOffsets: source, toOffset: destination)
+                        for index in items.indices {
+                            items[index].sortOrder = index
+                        }
+                        appState.reorderConnections(items)
+                    }
                 }
             }
             .listStyle(.insetGrouped)
@@ -144,6 +167,7 @@ struct ConnectionListView: View {
                     )
                 }
             }
+            .environment(\.editMode, $editMode)
             .refreshable {
                 await appState.syncCoordinator.sync(
                     localConnections: appState.connections,
@@ -219,6 +243,22 @@ struct ConnectionListView: View {
                     ForEach(groupConnections) { connection in
                         connectionRow(connection)
                     }
+                    .onMove { source, destination in
+                        var items = groupConnections
+                        items.move(fromOffsets: source, toOffset: destination)
+                        var all = appState.connections
+                        for (i, item) in items.enumerated() {
+                            if let idx = all.firstIndex(where: { $0.id == item.id }) {
+                                all[idx].sortOrder = i
+                            }
+                        }
+                        all.sort {
+                            if $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+                            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                        }
+                        for index in all.indices { all[index].sortOrder = index }
+                        appState.reorderConnections(all)
+                    }
                 } header: {
                     HStack(spacing: 6) {
                         if group.color != .none {
@@ -240,6 +280,22 @@ struct ConnectionListView: View {
             Section("Ungrouped") {
                 ForEach(ungrouped) { connection in
                     connectionRow(connection)
+                }
+                .onMove { source, destination in
+                    var items = ungrouped
+                    items.move(fromOffsets: source, toOffset: destination)
+                    var all = appState.connections
+                    for (i, item) in items.enumerated() {
+                        if let idx = all.firstIndex(where: { $0.id == item.id }) {
+                            all[idx].sortOrder = i
+                        }
+                    }
+                    all.sort {
+                        if $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+                        return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+                    }
+                    for index in all.indices { all[index].sortOrder = index }
+                    appState.reorderConnections(all)
                 }
             }
         }
