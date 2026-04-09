@@ -95,6 +95,16 @@ final class AppState {
         didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "com.TablePro.hasCompletedOnboarding") }
     }
 
+    func reorderConnections(_ reordered: [DatabaseConnection]) {
+        connections = reordered
+        storage.save(connections)
+        updateWidgetData()
+        for connection in reordered {
+            syncCoordinator.markDirty(connection.id)
+        }
+        syncCoordinator.scheduleSyncAfterChange()
+    }
+
     func removeConnection(_ connection: DatabaseConnection) {
         connections.removeAll { $0.id == connection.id }
         try? connectionManager.deletePassword(for: connection.id)
