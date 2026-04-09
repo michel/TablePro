@@ -6,8 +6,9 @@ import UniformTypeIdentifiers
 struct ERDiagramView: View {
     @Bindable var viewModel: ERDiagramViewModel
     @State private var selectedNodeId: UUID?
-    @State private var dragOffsets: [UUID: CGSize] = [:]
-    @State private var dragStartPositions: [UUID: CGPoint] = [:]
+    @State private var draggingNodeId: UUID?
+    @State private var dragStart: CGPoint?
+    @State private var dragNodeStart: CGPoint?
     @State private var canvasOffset: CGPoint = .zero
     @State private var panStart: CGPoint?
     @State private var scrollMonitor: Any?
@@ -47,23 +48,12 @@ struct ERDiagramView: View {
     // MARK: - Diagram Content
 
     private var diagramContent: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .topLeading) {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .gesture(panGesture)
-
-                ZStack(alignment: .topLeading) {
-                    edgeCanvas
-                    nodeLayer
-                }
-                .frame(width: viewModel.canvasSize.width, height: viewModel.canvasSize.height)
-                .drawingGroup()
+        GeometryReader { _ in
+            diagramCanvas
                 .scaleEffect(viewModel.magnification, anchor: .topLeading)
                 .offset(x: canvasOffset.x, y: canvasOffset.y)
-            }
-            .frame(width: geo.size.width, height: geo.size.height)
-            .clipped()
+                .clipped()
+                .gesture(combinedGesture)
         }
         .onAppear {
             scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
@@ -83,124 +73,192 @@ struct ERDiagramView: View {
         }
     }
 
-    private var panGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                if panStart == nil {
-                    panStart = canvasOffset
-                }
-                let start = panStart ?? .zero
-                canvasOffset = CGPoint(
-                    x: start.x + value.translation.width,
-                    y: start.y + value.translation.height
-                )
-            }
-            .onEnded { _ in
-                panStart = nil
-            }
-    }
+    // MARK: - Single Canvas (draws everything)
 
-    // MARK: - Edge Canvas
-
-    private var edgeCanvas: some View {
+    private var diagramCanvas: some View {
         Canvas { context, _ in
-            let nodeRects = Dictionary(
-                uniqueKeysWithValues: viewModel.graph.nodes.map { ($0.id, viewModel.nodeRect(for: $0.id)) }
-            )
+            let nodeRects = buildNodeRects()
+
+            // Draw edges
             ERDiagramEdgeRenderer.drawEdges(
                 context: context,
                 edges: viewModel.graph.edges,
                 nodeRects: nodeRects,
                 nodeIndex: viewModel.graph.nodeIndex
             )
+
+            // Draw nodes
+            for node in viewModel.graph.nodes {
+                guard let rect = nodeRects[node.id] else { continue }
+                drawTableNode(context: &context, node: node, rect: rect)
+            }
         }
         .frame(width: viewModel.canvasSize.width, height: viewModel.canvasSize.height)
-        .allowsHitTesting(false)
     }
 
-    // MARK: - Node Layer
+    // MARK: - Node Drawing (imperative)
 
-    private var nodeLayer: some View {
-        ForEach(viewModel.graph.nodes) { node in
-            ERTableNodeView(node: node, isSelected: selectedNodeId == node.id)
-                .fixedSize()
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .preference(key: NodeHeightPreferenceKey.self, value: [node.id: geo.size.height])
-                    }
-                )
-                .position(nodePosition(for: node.id))
-                .highPriorityGesture(dragGesture(for: node.id))
-                .simultaneousGesture(
-                    TapGesture().onEnded {
-                        selectedNodeId = selectedNodeId == node.id ? nil : node.id
-                    }
-                )
+    private func drawTableNode(context: inout GraphicsContext, node: ERTableNode, rect: CGRect) {
+        let isSelected = selectedNodeId == node.id
+        let cornerRadius: CGFloat = 6
+        let roundedRect = RoundedRectangle(cornerRadius: cornerRadius)
+        let path = Path(roundedRect: rect, cornerRadius: cornerRadius)
+
+        // Background
+        context.fill(path, with: .color(Color(nsColor: .controlBackgroundColor)))
+
+        // Border
+        let borderColor = isSelected ? Color.accentColor : Color(nsColor: .separatorColor)
+        context.stroke(path, with: .color(borderColor), lineWidth: isSelected ? 2 : 1)
+
+        // Header background
+        let headerHeight: CGFloat = ERDiagramLayout.headerHeight
+        let headerRect = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: headerHeight)
+        let headerPath = Path { p in
+            p.addRoundedRect(
+                in: headerRect,
+                cornerRadii: RectangleCornerRadii(topLeading: cornerRadius, topTrailing: cornerRadius)
+            )
         }
-        .onPreferenceChange(NodeHeightPreferenceKey.self) { heights in
-            for (id, height) in heights {
-                viewModel.nodeHeights[id] = height
+        context.fill(headerPath, with: .color(Color.accentColor.opacity(0.08)))
+
+        // Header text
+        let headerText = Text(node.tableName)
+            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+        context.draw(
+            context.resolve(headerText),
+            at: CGPoint(x: rect.minX + 28, y: rect.minY + headerHeight / 2),
+            anchor: .leading
+        )
+
+        // Table icon
+        let iconText = Text(Image(systemName: "tablecells"))
+            .font(.system(size: 10))
+            .foregroundStyle(.secondary)
+        context.draw(
+            context.resolve(iconText),
+            at: CGPoint(x: rect.minX + 10, y: rect.minY + headerHeight / 2),
+            anchor: .leading
+        )
+
+        // Header divider
+        let dividerY = rect.minY + headerHeight
+        var dividerPath = Path()
+        dividerPath.move(to: CGPoint(x: rect.minX, y: dividerY))
+        dividerPath.addLine(to: CGPoint(x: rect.maxX, y: dividerY))
+        context.stroke(dividerPath, with: .color(Color(nsColor: .separatorColor)), lineWidth: 0.5)
+
+        // Column rows
+        let rowHeight = ERDiagramLayout.columnRowHeight
+        for (idx, col) in node.displayColumns.enumerated() {
+            let rowY = dividerY + CGFloat(idx) * rowHeight + rowHeight / 2
+
+            // PK/FK badge
+            if col.isPrimaryKey {
+                let badge = Text(Image(systemName: "key.fill")).font(.system(size: 8)).foregroundStyle(.yellow)
+                context.draw(context.resolve(badge), at: CGPoint(x: rect.minX + 14, y: rowY), anchor: .center)
+            } else if col.isForeignKey {
+                let badge = Text(Image(systemName: "link")).font(.system(size: 8)).foregroundStyle(.blue)
+                context.draw(context.resolve(badge), at: CGPoint(x: rect.minX + 14, y: rowY), anchor: .center)
             }
+
+            // Column name
+            let nameText = Text(col.name).font(.system(size: 11, design: .monospaced))
+            context.draw(
+                context.resolve(nameText),
+                at: CGPoint(x: rect.minX + 24, y: rowY),
+                anchor: .leading
+            )
+
+            // Column type
+            let typeText = Text(col.dataType)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(.secondary)
+            context.draw(
+                context.resolve(typeText),
+                at: CGPoint(x: rect.maxX - 8, y: rowY),
+                anchor: .trailing
+            )
         }
     }
 
-    // MARK: - Drag
+    // MARK: - Hit Testing
 
-    private func nodePosition(for nodeId: UUID) -> CGPoint {
-        let base = viewModel.position(for: nodeId)
-        let offset = dragOffsets[nodeId] ?? .zero
-        return CGPoint(x: base.x + offset.width, y: base.y + offset.height)
+    private func nodeAt(point: CGPoint) -> UUID? {
+        let canvasPoint = CGPoint(
+            x: (point.x - canvasOffset.x) / viewModel.magnification,
+            y: (point.y - canvasOffset.y) / viewModel.magnification
+        )
+        let rects = buildNodeRects()
+        for (id, rect) in rects where rect.contains(canvasPoint) {
+            return id
+        }
+        return nil
     }
 
-    private func dragGesture(for nodeId: UUID) -> some Gesture {
-        DragGesture()
+    private func buildNodeRects() -> [UUID: CGRect] {
+        Dictionary(uniqueKeysWithValues: viewModel.graph.nodes.map { ($0.id, viewModel.nodeRect(for: $0.id)) })
+    }
+
+    // MARK: - Combined Gesture (pan + node drag)
+
+    private var combinedGesture: some Gesture {
+        DragGesture(minimumDistance: 2)
             .onChanged { value in
-                if dragStartPositions[nodeId] == nil {
-                    dragStartPositions[nodeId] = viewModel.position(for: nodeId)
+                if dragStart == nil {
+                    // First event — determine if dragging a node or panning
+                    let hitNode = nodeAt(point: value.startLocation)
+                    draggingNodeId = hitNode
+                    dragStart = value.startLocation
+
+                    if let nodeId = hitNode {
+                        dragNodeStart = viewModel.position(for: nodeId)
+                    } else {
+                        panStart = canvasOffset
+                    }
                 }
-                dragOffsets[nodeId] = value.translation
-            }
-            .onEnded { value in
-                let base = dragStartPositions[nodeId] ?? viewModel.position(for: nodeId)
-                viewModel.setPositionOverride(
-                    nodeId: nodeId,
-                    position: CGPoint(
-                        x: base.x + value.translation.width,
-                        y: base.y + value.translation.height
+
+                if let nodeId = draggingNodeId, let nodeStart = dragNodeStart {
+                    // Dragging a node
+                    let scaledDelta = CGSize(
+                        width: value.translation.width / viewModel.magnification,
+                        height: value.translation.height / viewModel.magnification
                     )
-                )
-                dragOffsets[nodeId] = nil
-                dragStartPositions[nodeId] = nil
-                viewModel.persistPositions()
+                    viewModel.setPositionOverride(
+                        nodeId: nodeId,
+                        position: CGPoint(x: nodeStart.x + scaledDelta.width, y: nodeStart.y + scaledDelta.height)
+                    )
+                } else if let start = panStart {
+                    // Panning the canvas
+                    canvasOffset = CGPoint(
+                        x: start.x + value.translation.width,
+                        y: start.y + value.translation.height
+                    )
+                }
             }
+            .onEnded { _ in
+                if draggingNodeId != nil {
+                    viewModel.persistPositions()
+                }
+                draggingNodeId = nil
+                dragStart = nil
+                dragNodeStart = nil
+                panStart = nil
+            }
+            .simultaneously(with: TapGesture().onEnded {})
     }
 
+    // MARK: - Tap (via click location)
+
+    // Note: Tap for selection is handled via onTapGesture on the GeometryReader
+    // because Canvas doesn't support per-element tap
 
     // MARK: - Export
 
     private func exportDiagram() {
-        let exportView = ZStack(alignment: .topLeading) {
-            Canvas { context, _ in
-                let nodeRects = Dictionary(
-                    uniqueKeysWithValues: viewModel.graph.nodes.map { ($0.id, viewModel.nodeRect(for: $0.id)) }
-                )
-                ERDiagramEdgeRenderer.drawEdges(
-                    context: context,
-                    edges: viewModel.graph.edges,
-                    nodeRects: nodeRects,
-                    nodeIndex: viewModel.graph.nodeIndex
-                )
-            }
+        let exportView = diagramCanvas
             .frame(width: viewModel.canvasSize.width, height: viewModel.canvasSize.height)
-
-            ForEach(viewModel.graph.nodes) { node in
-                ERTableNodeView(node: node, isSelected: false)
-                    .position(viewModel.position(for: node.id))
-            }
-        }
-        .frame(width: viewModel.canvasSize.width, height: viewModel.canvasSize.height)
-        .background(Color(nsColor: ThemeEngine.shared.colors.sidebar.background))
+            .background(Color(nsColor: ThemeEngine.shared.colors.sidebar.background))
 
         let renderer = ImageRenderer(content: exportView)
         renderer.scale = 2.0
@@ -224,14 +282,3 @@ struct ERDiagramView: View {
         }
     }
 }
-
-// MARK: - Preference Key
-
-private struct NodeHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: [UUID: CGFloat] = [:]
-
-    static func reduce(value: inout [UUID: CGFloat], nextValue: () -> [UUID: CGFloat]) {
-        value.merge(nextValue()) { _, new in new }
-    }
-}
-
