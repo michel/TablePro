@@ -41,6 +41,19 @@ final class ConnectionStorage {
             let connections = storedConnections.map { stored in
                 stored.toConnection()
             }
+
+            // Migration: assign sortOrder from array position for pre-existing data
+            if connections.count > 1 && connections.allSatisfy({ $0.sortOrder == 0 }) {
+                var migrated = connections
+                for i in migrated.indices { migrated[i].sortOrder = i }
+                let migratedStored = migrated.map { StoredConnection(from: $0) }
+                if let data = try? encoder.encode(migratedStored) {
+                    defaults.set(data, forKey: connectionsKey)
+                }
+                cachedConnections = migrated
+                return migrated
+            }
+
             cachedConnections = connections
             return connections
         } catch {
@@ -371,6 +384,9 @@ private struct StoredConnection: Codable {
     // Startup commands
     let startupCommands: String?
 
+    // Sort order for sync
+    let sortOrder: Int
+
     // TOTP configuration
     let totpMode: String
     let totpAlgorithm: String
@@ -440,6 +456,9 @@ private struct StoredConnection: Codable {
         // Startup commands
         self.startupCommands = connection.startupCommands
 
+        // Sort order
+        self.sortOrder = connection.sortOrder
+
         // Plugin-driven additional fields
         self.additionalFields = connection.additionalFields.isEmpty ? nil : connection.additionalFields
     }
@@ -455,7 +474,7 @@ private struct StoredConnection: Codable {
         case isReadOnly // Legacy key for migration reading only
         case aiPolicy
         case mongoAuthSource, mongoReadPreference, mongoWriteConcern, redisDatabase
-        case mssqlSchema, oracleServiceName, startupCommands
+        case mssqlSchema, oracleServiceName, startupCommands, sortOrder
         case additionalFields
     }
 
@@ -492,6 +511,7 @@ private struct StoredConnection: Codable {
         try container.encodeIfPresent(aiPolicy, forKey: .aiPolicy)
         try container.encodeIfPresent(redisDatabase, forKey: .redisDatabase)
         try container.encodeIfPresent(startupCommands, forKey: .startupCommands)
+        try container.encode(sortOrder, forKey: .sortOrder)
         try container.encodeIfPresent(additionalFields, forKey: .additionalFields)
     }
 
@@ -554,6 +574,7 @@ private struct StoredConnection: Codable {
         mssqlSchema = try container.decodeIfPresent(String.self, forKey: .mssqlSchema)
         oracleServiceName = try container.decodeIfPresent(String.self, forKey: .oracleServiceName)
         startupCommands = try container.decodeIfPresent(String.self, forKey: .startupCommands)
+        sortOrder = try container.decodeIfPresent(Int.self, forKey: .sortOrder) ?? 0
         additionalFields = try container.decodeIfPresent([String: String].self, forKey: .additionalFields)
     }
 
@@ -621,6 +642,7 @@ private struct StoredConnection: Codable {
             aiPolicy: parsedAIPolicy,
             redisDatabase: redisDatabase,
             startupCommands: startupCommands,
+            sortOrder: sortOrder,
             additionalFields: mergedFields
         )
     }

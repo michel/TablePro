@@ -231,20 +231,40 @@ struct ERDiagramView: View {
         let edges = viewModel.graph.edges
         let nodeIndex = viewModel.graph.nodeIndex
 
-        return Canvas { context, _ in
-            ERDiagramEdgeRenderer.drawEdges(
-                context: context,
-                edges: edges,
-                nodeRects: nodeRects,
-                nodeIndex: nodeIndex
-            )
-            for node in nodes {
-                guard let rect = nodeRects[node.id] else { continue }
-                ERDiagramNodeRenderer.drawNode(context: &context, node: node, rect: rect, isSelected: false)
-            }
+        let padding: CGFloat = 40
+        var minX: CGFloat = .infinity, minY: CGFloat = .infinity
+        var maxX: CGFloat = 0, maxY: CGFloat = 0
+        for (_, rect) in nodeRects {
+            minX = min(minX, rect.minX)
+            minY = min(minY, rect.minY)
+            maxX = max(maxX, rect.maxX)
+            maxY = max(maxY, rect.maxY)
         }
-        .frame(width: viewModel.cachedCanvasSize.width, height: viewModel.cachedCanvasSize.height)
-        .background(Color(nsColor: .controlBackgroundColor))
+        guard minX.isFinite else {
+            return AnyView(Color.clear.frame(width: 100, height: 100))
+        }
+        let exportWidth = maxX - minX + padding * 2
+        let exportHeight = maxY - minY + padding * 2
+        let offsetX = -minX + padding
+        let offsetY = -minY + padding
+
+        return AnyView(
+            Canvas { context, _ in
+                context.translateBy(x: offsetX, y: offsetY)
+                ERDiagramEdgeRenderer.drawEdges(
+                    context: context,
+                    edges: edges,
+                    nodeRects: nodeRects,
+                    nodeIndex: nodeIndex
+                )
+                for node in nodes {
+                    guard let rect = nodeRects[node.id] else { continue }
+                    ERDiagramNodeRenderer.drawNode(context: &context, node: node, rect: rect, isSelected: false)
+                }
+            }
+            .frame(width: exportWidth, height: exportHeight)
+            .background(Color(nsColor: .controlBackgroundColor))
+        )
     }
 
     private func copyDiagramToClipboard() {
