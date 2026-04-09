@@ -71,6 +71,7 @@ struct MainEditorContentView: View {
     // Per-tab row provider cache — avoids recreation on every SwiftUI render.
     @State private var tabProviderCache: [UUID: RowProviderCacheEntry] = [:]
     @State private var cachedChangeManager: AnyChangeManager?
+    @State private var erDiagramViewModels: [UUID: ERDiagramViewModel] = [:]
     @State private var favoriteDialogQuery: FavoriteDialogQuery?
 
     // Native macOS window tabs — no LRU tracking needed (single tab per window)
@@ -120,7 +121,7 @@ struct MainEditorContentView: View {
             )
         }
         .onChange(of: tabManager.tabIds) { _, newIds in
-            guard !sortCache.isEmpty || !tabProviderCache.isEmpty else {
+            guard !sortCache.isEmpty || !tabProviderCache.isEmpty || !erDiagramViewModels.isEmpty else {
                 coordinator.cleanupSortCache(openTabIds: Set(newIds))
                 return
             }
@@ -128,6 +129,7 @@ struct MainEditorContentView: View {
             sortCache = sortCache.filter { openTabIds.contains($0.key) }
             coordinator.cleanupSortCache(openTabIds: openTabIds)
             tabProviderCache = tabProviderCache.filter { openTabIds.contains($0.key) }
+            erDiagramViewModels = erDiagramViewModels.filter { openTabIds.contains($0.key) }
         }
         .onChange(of: tabManager.selectedTabId) { _, newId in
             updateHasQueryText()
@@ -180,7 +182,32 @@ struct MainEditorContentView: View {
                 connection: connection,
                 coordinator: coordinator
             )
+        case .erDiagram:
+            erDiagramContent(tab: tab)
         }
+    }
+
+    // MARK: - ER Diagram Tab Content
+
+    @ViewBuilder
+    private func erDiagramContent(tab: QueryTab) -> some View {
+        Group {
+            if let vm = erDiagramViewModels[tab.id] {
+                ERDiagramView(viewModel: vm)
+            } else {
+                ProgressView(String(localized: "Loading schema..."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .onAppear {
+                        guard erDiagramViewModels[tab.id] == nil else { return }
+                        let vm = ERDiagramViewModel(
+                            connectionId: connection.id,
+                            schemaKey: tab.erDiagramSchemaKey ?? tab.databaseName
+                        )
+                        erDiagramViewModels[tab.id] = vm
+                    }
+            }
+        }
+        .id(tab.id)
     }
 
     // MARK: - Query Tab Content

@@ -224,7 +224,7 @@ struct SQLitePlanParser: QueryPlanParser {
                 nodes.append((id: id, parent: parent, detail: parts[3].trimmingCharacters(in: .whitespaces)))
             } else {
                 // Fallback: treat entire line as a detail node
-                nodes.append((id: nodes.count, parent: nodes.isEmpty ? -1 : 0, detail: line))
+                nodes.append((id: nodes.count, parent: -1, detail: line))
             }
         }
 

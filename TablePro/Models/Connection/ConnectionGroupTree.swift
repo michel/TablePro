@@ -55,6 +55,7 @@ func buildGroupTree(
 
         let groupConnections = connections
             .filter { $0.groupId == group.id }
+            .sorted { $0.sortOrder != $1.sortOrder ? $0.sortOrder < $1.sortOrder : $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         for conn in groupConnections {
             children.append(.connection(conn))
         }
@@ -67,6 +68,7 @@ func buildGroupTree(
             guard let groupId = conn.groupId else { return true }
             return !validGroupIds.contains(groupId)
         }
+        .sorted { $0.sortOrder != $1.sortOrder ? $0.sortOrder < $1.sortOrder : $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         for conn in ungrouped {
             items.append(.connection(conn))
         }

@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Space key toggles FK preview popover on selected cell, rebindable in Settings > Keyboard (#648)
+- ER diagram with interactive layout, crow's foot notation, and PNG export (#186)
+- Space key toggles FK preview popover (#648)
 
 ### Fixed
 
-- Accept SQLAlchemy-style connection URLs with driver hints (e.g., `postgresql+psycopg://`) (#642)
+- Accept SQLAlchemy-style connection URLs with driver hints (#642)
 
 ## [0.29.0] - 2026-04-09
 

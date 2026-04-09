@@ -185,6 +185,7 @@ struct DatabaseConnection: Identifiable, Hashable {
     var additionalFields: [String: String] = [:]
     var redisDatabase: Int?
     var startupCommands: String?
+    var sortOrder: Int
 
     var mongoAuthSource: String? {
         get { additionalFields["mongoAuthSource"]?.nilIfEmpty }
@@ -267,6 +268,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         mssqlSchema: String? = nil,
         oracleServiceName: String? = nil,
         startupCommands: String? = nil,
+        sortOrder: Int = 0,
         additionalFields: [String: String]? = nil
     ) {
         self.id = id
@@ -286,6 +288,7 @@ struct DatabaseConnection: Identifiable, Hashable {
         self.aiPolicy = aiPolicy
         self.redisDatabase = redisDatabase
         self.startupCommands = startupCommands
+        self.sortOrder = sortOrder
         if let additionalFields {
             self.additionalFields = additionalFields
         } else {

@@ -155,7 +155,7 @@ struct ForeignKeyPopoverContentView: View {
             let result = try await driver.execute(query: query)
             var values: [FKValue] = []
             for row in result.rows {
-                guard let idVal = row.first ?? nil else { continue }
+                guard !row.isEmpty, let idVal = row[0] else { continue }
                 let displayVal: String
                 if displayColumn != nil, row.count > 1, let second = row[1] {
                     displayVal = "\(idVal) — \(second)"

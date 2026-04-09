@@ -485,7 +485,25 @@ final class WelcomeViewModel {
         }
 
         connections.move(fromOffsets: globalSource, toOffset: globalDestination)
+
+        let updatedValidGroupIds = Set(groups.map(\.id))
+        var order = 0
+        var dirtyIds: [String] = []
+        for i in connections.indices {
+            let isUngrouped = connections[i].groupId.map { !updatedValidGroupIds.contains($0) } ?? true
+            if isUngrouped {
+                if connections[i].sortOrder != order {
+                    connections[i].sortOrder = order
+                    dirtyIds.append(connections[i].id.uuidString)
+                }
+                order += 1
+            }
+        }
+
         storage.saveConnections(connections)
+        if !dirtyIds.isEmpty {
+            SyncChangeTracker.shared.markDirty(.connection, ids: dirtyIds)
+        }
         rebuildTree()
     }
 
@@ -506,7 +524,21 @@ final class WelcomeViewModel {
         }
 
         connections.move(fromOffsets: globalSource, toOffset: globalDestination)
+
+        var order = 0
+        var dirtyIds: [String] = []
+        for i in connections.indices where connections[i].groupId == group.id {
+            if connections[i].sortOrder != order {
+                connections[i].sortOrder = order
+                dirtyIds.append(connections[i].id.uuidString)
+            }
+            order += 1
+        }
+
         storage.saveConnections(connections)
+        if !dirtyIds.isEmpty {
+            SyncChangeTracker.shared.markDirty(.connection, ids: dirtyIds)
+        }
         rebuildTree()
     }
 

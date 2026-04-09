@@ -114,6 +114,17 @@ final class QueryTabManager {
         selectedTabId = newTab.id
     }
 
+    func addERDiagramTab(schemaKey: String, databaseName: String = "") {
+        let tabTitle = String(localized: "ER Diagram")
+        var newTab = QueryTab(title: tabTitle, tabType: .erDiagram)
+        newTab.databaseName = databaseName
+        newTab.erDiagramSchemaKey = schemaKey
+        newTab.isEditable = false
+        newTab.hasUserInteraction = true
+        tabs.append(newTab)
+        selectedTabId = newTab.id
+    }
+
     func addPreviewTableTab(
         tableName: String,
         databaseType: DatabaseType = .mysql,

@@ -72,6 +72,7 @@ struct QueryTab: Identifiable, Equatable {
     var databaseName: String  // Database this tab was opened in (for multi-database restore)
     var schemaName: String?  // Schema this tab was opened in (for multi-schema restore, e.g. PostgreSQL)
     var showStructure: Bool  // Toggle to show structure view instead of data
+    var erDiagramSchemaKey: String?
     var explainText: String?
     var explainExecutionTime: TimeInterval?
     var explainPlan: QueryPlan?
@@ -199,6 +200,7 @@ struct QueryTab: Identifiable, Equatable {
         self.databaseName = persisted.databaseName
         self.schemaName = persisted.schemaName
         self.showStructure = false
+        self.erDiagramSchemaKey = persisted.erDiagramSchemaKey
         self.pendingChanges = TabPendingChanges()
         self.selectedRowIndices = []
         self.sortState = SortState()
@@ -278,7 +280,8 @@ struct QueryTab: Identifiable, Equatable {
             isView: isView,
             databaseName: databaseName,
             schemaName: schemaName,
-            sourceFileURL: sourceFileURL
+            sourceFileURL: sourceFileURL,
+            erDiagramSchemaKey: erDiagramSchemaKey
         )
     }
 

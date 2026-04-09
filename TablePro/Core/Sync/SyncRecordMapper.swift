@@ -62,6 +62,7 @@ struct SyncRecordMapper {
         record["safeModeLevel"] = connection.safeModeLevel.rawValue as CKRecordValue
         record["modifiedAtLocal"] = Date() as CKRecordValue
         record["schemaVersion"] = schemaVersion as CKRecordValue
+        record["sortOrder"] = Int64(connection.sortOrder) as CKRecordValue
 
         if let tagId = connection.tagId {
             record["tagId"] = tagId.uuidString as CKRecordValue
@@ -128,6 +129,7 @@ struct SyncRecordMapper {
         let aiPolicyRaw = record["aiPolicy"] as? String
         let redisDatabase = (record["redisDatabase"] as? Int64).map { Int($0) }
         let startupCommands = record["startupCommands"] as? String
+        let sortOrder = (record["sortOrder"] as? Int64).map { Int($0) } ?? 0
         let sshProfileId = (record["sshProfileId"] as? String).flatMap { UUID(uuidString: $0) }
 
         var sshConfig = SSHConfiguration()
@@ -163,6 +165,7 @@ struct SyncRecordMapper {
             aiPolicy: aiPolicyRaw.flatMap { AIConnectionPolicy(rawValue: $0) },
             redisDatabase: redisDatabase,
             startupCommands: startupCommands,
+            sortOrder: sortOrder,
             additionalFields: additionalFields
         )
     }

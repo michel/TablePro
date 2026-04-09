@@ -232,6 +232,11 @@ struct AppMenuCommands: Commands {
             .optionalKeyboardShortcut(shortcut(for: .previewFKReference))
             .disabled(!(actions?.isConnected ?? false))
 
+            Button(String(localized: "View ER Diagram")) {
+                actions?.showERDiagram()
+            }
+            .disabled(!(actions?.isConnected ?? false))
+
             Divider()
 
             Button(String(localized: "Export Connections...")) {

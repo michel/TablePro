@@ -1691,6 +1691,16 @@
         }
       }
     },
+    "%lld tables, %lld relationships" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld tables, %2$lld relationships"
+          }
+        }
+      }
+    },
     "%lld-%lld of %@ rows" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -6314,6 +6324,9 @@
         }
       }
     },
+    "Choose a location to save the diagram as PNG." : {
+
+    },
     "Choose a query from the list\nto see its full content here." : {
       "localizations" : {
         "tr" : {
@@ -7575,6 +7588,9 @@
           }
         }
       }
+    },
+    "Compact Mode" : {
+
     },
     "Compress the file using Gzip" : {
       "extractionState" : "stale",
@@ -12992,6 +13008,9 @@
         }
       }
     },
+    "ER Diagram" : {
+
+    },
     "Error" : {
       "localizations" : {
         "tr" : {
@@ -13756,6 +13775,9 @@
         }
       }
     },
+    "Export as PNG" : {
+
+    },
     "Export completed successfully" : {
       "localizations" : {
         "tr" : {
@@ -13889,6 +13911,9 @@
           }
         }
       }
+    },
+    "Export ER Diagram" : {
+
     },
     "Export Error" : {
       "localizations" : {
@@ -14904,6 +14929,9 @@
         }
       }
     },
+    "Failed to render the diagram image." : {
+
+    },
     "Failed to Save Changes" : {
       "localizations" : {
         "tr" : {
@@ -15597,6 +15625,9 @@
           }
         }
       }
+    },
+    "Fit to Window" : {
+
     },
     "Fix Error" : {
       "localizations" : {
@@ -19763,6 +19794,9 @@
         }
       }
     },
+    "Loading schema..." : {
+
+    },
     "Loading schemas..." : {
       "localizations" : {
         "tr" : {
@@ -22681,6 +22715,9 @@
           }
         }
       }
+    },
+    "No tables found" : {
+
     },
     "No tables selected for export" : {
       "localizations" : {
@@ -27930,6 +27967,9 @@
         }
       }
     },
+    "Reset Layout" : {
+
+    },
     "Reset to Defaults" : {
       "localizations" : {
         "tr" : {
@@ -27951,6 +27991,9 @@
           }
         }
       }
+    },
+    "Reset Zoom" : {
+
     },
     "Restart TablePro for the language change to take full effect." : {
       "localizations" : {
@@ -37173,6 +37216,9 @@
           }
         }
       }
+    },
+    "View ER Diagram" : {
+
     },
     "View Mode" : {
       "localizations" : {

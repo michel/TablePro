@@ -47,13 +47,15 @@ internal struct EditorTabPayload: Codable, Hashable {
     internal let initialFilterState: TabFilterState?
     /// Source file URL for .sql files opened from disk (used for deduplication)
     internal let sourceFileURL: URL?
+    /// Schema key for ER diagram tabs
+    internal let erDiagramSchemaKey: String?
     /// The intent behind creating this tab
     internal let intent: TabIntent
 
     private enum CodingKeys: String, CodingKey {
         case id, connectionId, tabType, tableName, databaseName, schemaName
         case initialQuery, isView, showStructure, skipAutoExecute, isPreview
-        case initialFilterState, sourceFileURL, intent
+        case initialFilterState, sourceFileURL, erDiagramSchemaKey, intent
         // Legacy key for backward decoding only
         case isNewTab
     }
@@ -72,6 +74,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         isPreview: Bool = false,
         initialFilterState: TabFilterState? = nil,
         sourceFileURL: URL? = nil,
+        erDiagramSchemaKey: String? = nil,
         intent: TabIntent = .openContent
     ) {
         self.id = id
@@ -87,6 +90,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.isPreview = isPreview
         self.initialFilterState = initialFilterState
         self.sourceFileURL = sourceFileURL
+        self.erDiagramSchemaKey = erDiagramSchemaKey
         self.intent = intent
     }
 
@@ -105,6 +109,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         isPreview = try container.decodeIfPresent(Bool.self, forKey: .isPreview) ?? false
         initialFilterState = try container.decodeIfPresent(TabFilterState.self, forKey: .initialFilterState)
         sourceFileURL = try container.decodeIfPresent(URL.self, forKey: .sourceFileURL)
+        erDiagramSchemaKey = try container.decodeIfPresent(String.self, forKey: .erDiagramSchemaKey)
         if let decodedIntent = try container.decodeIfPresent(TabIntent.self, forKey: .intent) {
             intent = decodedIntent
         } else {
@@ -128,6 +133,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         try container.encode(isPreview, forKey: .isPreview)
         try container.encodeIfPresent(initialFilterState, forKey: .initialFilterState)
         try container.encodeIfPresent(sourceFileURL, forKey: .sourceFileURL)
+        try container.encodeIfPresent(erDiagramSchemaKey, forKey: .erDiagramSchemaKey)
         try container.encode(intent, forKey: .intent)
     }
 
@@ -146,6 +152,7 @@ internal struct EditorTabPayload: Codable, Hashable {
         self.isPreview = false
         self.initialFilterState = nil
         self.sourceFileURL = tab.sourceFileURL
+        self.erDiagramSchemaKey = tab.erDiagramSchemaKey
         self.intent = .openContent
     }
 }
