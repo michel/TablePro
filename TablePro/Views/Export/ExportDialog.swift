@@ -41,7 +41,7 @@ struct ExportDialog: View {
 
     private var connection: DatabaseConnection {
         switch mode {
-        case .tables(let conn, _): return conn
+        case .tables(let conn, _, _): return conn
         case .queryResults(let conn, _, _): return conn
         }
     }
@@ -59,7 +59,14 @@ struct ExportDialog: View {
     }
 
     private var preselectedTables: Set<String> {
-        if case .tables(_, let tables) = mode {
+        if case .tables(_, let tables, _) = mode {
+            return tables
+        }
+        return []
+    }
+
+    private var sidebarTables: [TableInfo] {
+        if case .tables(_, _, let tables) = mode {
             return tables
         }
         return []
@@ -118,6 +125,7 @@ struct ExportDialog: View {
                 }
                 isLoading = false
             } else {
+                populateFromSidebarTables()
                 await loadDatabaseItems()
             }
         }
@@ -511,6 +519,33 @@ struct ExportDialog: View {
 
     // MARK: - Actions
 
+    /// Instantly populate the current database from sidebar tables (no network).
+    private func populateFromSidebarTables() {
+        guard !sidebarTables.isEmpty else { return }
+        let dbName = connection.database
+        let tableItems = sidebarTables.map { table in
+            ExportTableItem(
+                name: table.name,
+                databaseName: dbName,
+                type: table.type,
+                isSelected: preselectedTables.contains(table.name)
+            )
+        }
+        let item = ExportDatabaseItem(
+            name: dbName.isEmpty ? "Tables" : dbName,
+            tables: tableItems,
+            isExpanded: true
+        )
+        databaseItems = [item]
+        isLoading = false
+
+        if preselectedTables.count == 1, let first = preselectedTables.first {
+            config.fileName = first
+        } else if !dbName.isEmpty {
+            config.fileName = dbName
+        }
+    }
+
     @MainActor
     private func loadDatabaseItems() async {
         guard let driver = DatabaseManager.shared.driver(for: connection.id) else {
@@ -714,17 +749,14 @@ struct ExportDialog: View {
             savePanel.message = String(format: String(localized: "Export %d table(s) to %@"), exportableCount, formatName)
         }
 
-        guard let keyWindow = NSApp.keyWindow else { return }
-        let window = keyWindow.sheetParent ?? keyWindow
-        savePanel.beginSheetModal(for: window) { response in
-            guard response == .OK, let url = savePanel.url else { return }
+        let response = savePanel.runModal()
+        guard response == .OK, let url = savePanel.url else { return }
 
-            Task {
-                if self.isQueryResultsMode {
-                    await self.startQueryResultsExport(to: url)
-                } else {
-                    await self.startExport(to: url)
-                }
+        Task {
+            if self.isQueryResultsMode {
+                await self.startQueryResultsExport(to: url)
+            } else {
+                await self.startExport(to: url)
             }
         }
     }

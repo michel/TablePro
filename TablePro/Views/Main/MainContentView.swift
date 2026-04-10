@@ -117,6 +117,16 @@ struct MainContentView: View {
 
     // MARK: - Sheet Content
 
+    /// Connection with the active database from the current session,
+    /// so export/import dialogs see the database the user actually switched to.
+    private var connectionWithCurrentDatabase: DatabaseConnection {
+        var conn = connection
+        if let currentDB = DatabaseManager.shared.session(for: connection.id)?.currentDatabase {
+            conn.database = currentDB
+        }
+        return conn
+    }
+
     /// Returns the appropriate sheet view for the given `ActiveSheet` case.
     /// Uses a dismissal binding that sets `coordinator.activeSheet = nil` when the
     /// child view sets `isPresented = false`.
@@ -148,11 +158,13 @@ struct MainContentView: View {
                 }
             )
         case .exportDialog:
+            let exportConnection = connectionWithCurrentDatabase
             ExportDialog(
                 isPresented: dismissBinding,
                 mode: .tables(
-                    connection: connection,
-                    preselectedTables: Set(sidebarState.selectedTables.map(\.name))
+                    connection: exportConnection,
+                    preselectedTables: Set(sidebarState.selectedTables.map(\.name)),
+                    sidebarTables: tables
                 )
             )
         case .exportQueryResults:
@@ -160,7 +172,7 @@ struct MainContentView: View {
                 ExportDialog(
                     isPresented: dismissBinding,
                     mode: .queryResults(
-                        connection: connection,
+                        connection: connectionWithCurrentDatabase,
                         rowBuffer: tab.rowBuffer,
                         suggestedFileName: tab.tableName ?? "query_results"
                     )
