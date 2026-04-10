@@ -50,6 +50,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
     @ObservationIgnored var onAIOptimize: ((String) -> Void)?
     @ObservationIgnored var onSaveAsFavorite: ((String) -> Void)?
     @ObservationIgnored var onFormatSQL: (() -> Void)?
+    @ObservationIgnored var databaseType: DatabaseType?
 
     /// Whether the editor text view is currently the first responder.
     /// Used to guard cursor propagation — when the find panel highlights
@@ -172,6 +173,7 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         onAIExplain = nil
         onAIOptimize = nil
         onSaveAsFavorite = nil
+        onFormatSQL = nil
         schemaProvider = nil
         contextMenu = nil
         vimEngine = nil
@@ -183,6 +185,17 @@ final class SQLEditorCoordinator: TextViewCoordinator {
         EditorEventRouter.shared.unregister(self)
         Self.logger.debug("SQLEditorCoordinator destroyed")
         cleanupMonitors()
+    }
+
+    func revive() {
+        guard didDestroy else { return }
+        didDestroy = false
+        if let controller, let textView = controller.textView {
+            EditorEventRouter.shared.register(self, textView: textView)
+        }
+        if contextMenu == nil, let controller {
+            installAIContextMenu(controller: controller)
+        }
     }
 
     // MARK: - AI Context Menu
@@ -212,6 +225,9 @@ final class SQLEditorCoordinator: TextViewCoordinator {
 
     /// Called by EditorEventRouter when a right-click is detected in this editor's text view.
     func showContextMenu(for event: NSEvent, in textView: TextView) {
+        if contextMenu == nil, let controller {
+            installAIContextMenu(controller: controller)
+        }
         guard let menu = contextMenu else { return }
         NSMenu.popUpContextMenu(menu, with: event, for: textView)
     }
