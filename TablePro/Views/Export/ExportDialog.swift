@@ -16,6 +16,7 @@ import UniformTypeIdentifiers
 struct ExportDialog: View {
     @Binding var isPresented: Bool
     let mode: ExportMode
+    var sidebarTables: [TableInfo] = []
 
     // MARK: - State
 
@@ -41,7 +42,7 @@ struct ExportDialog: View {
 
     private var connection: DatabaseConnection {
         switch mode {
-        case .tables(let conn, _, _): return conn
+        case .tables(let conn, _): return conn
         case .queryResults(let conn, _, _): return conn
         }
     }
@@ -59,14 +60,7 @@ struct ExportDialog: View {
     }
 
     private var preselectedTables: Set<String> {
-        if case .tables(_, let tables, _) = mode {
-            return tables
-        }
-        return []
-    }
-
-    private var sidebarTables: [TableInfo] {
-        if case .tables(_, _, let tables) = mode {
+        if case .tables(_, let tables) = mode {
             return tables
         }
         return []
@@ -538,12 +532,17 @@ struct ExportDialog: View {
         )
         databaseItems = [item]
         isLoading = false
+    }
 
-        if preselectedTables.count == 1, let first = preselectedTables.first {
-            config.fileName = first
-        } else if !dbName.isEmpty {
-            config.fileName = dbName
+    /// Build a lookup of user-toggled selection state from current `databaseItems`.
+    private func currentSelectionState() -> [String: Bool] {
+        var state: [String: Bool] = [:]
+        for db in databaseItems {
+            for table in db.tables {
+                state["\(db.name).\(table.name)"] = table.isSelected
+            }
         }
+        return state
     }
 
     @MainActor
@@ -558,6 +557,9 @@ struct ExportDialog: View {
             return
         }
 
+        // Snapshot user-toggled selections before replacing items
+        let priorSelections = currentSelectionState()
+
         do {
             var items: [ExportDatabaseItem] = []
 
@@ -569,20 +571,23 @@ struct ExportDialog: View {
                 let defaultSchema = PluginManager.shared.defaultSchemaName(for: dbType)
                 for schema in schemas {
                     let tables = try await fetchTablesForSchema(schema, driver: driver)
+                    let isDefaultSchema = schema.caseInsensitiveCompare(defaultSchema) == .orderedSame
                     let tableItems = tables.map { table in
-                        ExportTableItem(
+                        let key = "\(schema).\(table.name)"
+                        let selected = priorSelections[key]
+                            ?? (isDefaultSchema && preselectedTables.contains(table.name))
+                        return ExportTableItem(
                             name: table.name,
                             databaseName: schema,
                             type: table.type,
-                            isSelected: schema.caseInsensitiveCompare(defaultSchema) == .orderedSame
-                                && preselectedTables.contains(table.name)
+                            isSelected: selected
                         )
                     }
                     if !tableItems.isEmpty {
                         items.append(ExportDatabaseItem(
                             name: schema,
                             tables: tableItems,
-                            isExpanded: schema.caseInsensitiveCompare(defaultSchema) == .orderedSame
+                            isExpanded: isDefaultSchema
                         ))
                     }
                 }
@@ -595,26 +600,31 @@ struct ExportDialog: View {
                 let fallbackName = PluginManager.shared.defaultGroupName(for: dbType)
                 let dbItem = try await buildFlatDatabaseItem(
                     driver: driver,
-                    name: connection.database.isEmpty ? fallbackName : connection.database
+                    name: connection.database.isEmpty ? fallbackName : connection.database,
+                    priorSelections: priorSelections
                 )
                 if let dbItem { items.append(dbItem) }
             case .byDatabase:
                 let databases = try await driver.fetchDatabases()
                 for dbName in databases {
                     let tables = try await fetchTablesForDatabase(dbName, driver: driver)
+                    let isCurrentDB = dbName == connection.database
                     let tableItems = tables.map { table in
-                        ExportTableItem(
+                        let key = "\(dbName).\(table.name)"
+                        let selected = priorSelections[key]
+                            ?? (isCurrentDB && preselectedTables.contains(table.name))
+                        return ExportTableItem(
                             name: table.name,
                             databaseName: dbName,
                             type: table.type,
-                            isSelected: dbName == connection.database && preselectedTables.contains(table.name)
+                            isSelected: selected
                         )
                     }
                     if !tableItems.isEmpty {
                         items.append(ExportDatabaseItem(
                             name: dbName,
                             tables: tableItems,
-                            isExpanded: dbName == connection.database
+                            isExpanded: isCurrentDB
                         ))
                     }
                 }
@@ -646,15 +656,18 @@ struct ExportDialog: View {
 
     private func buildFlatDatabaseItem(
         driver: DatabaseDriver,
-        name: String
+        name: String,
+        priorSelections: [String: Bool] = [:]
     ) async throws -> ExportDatabaseItem? {
         let tables = try await driver.fetchTables()
         let tableItems = tables.map { table in
-            ExportTableItem(
+            let key = "\(name).\(table.name)"
+            let selected = priorSelections[key] ?? preselectedTables.contains(table.name)
+            return ExportTableItem(
                 name: table.name,
                 databaseName: "",
                 type: table.type,
-                isSelected: preselectedTables.contains(table.name)
+                isSelected: selected
             )
         }
         guard !tableItems.isEmpty else { return nil }

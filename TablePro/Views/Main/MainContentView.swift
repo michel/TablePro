@@ -163,9 +163,9 @@ struct MainContentView: View {
                 isPresented: dismissBinding,
                 mode: .tables(
                     connection: exportConnection,
-                    preselectedTables: Set(sidebarState.selectedTables.map(\.name)),
-                    sidebarTables: tables
-                )
+                    preselectedTables: Set(sidebarState.selectedTables.map(\.name))
+                ),
+                sidebarTables: tables
             )
         case .exportQueryResults:
             if let tab = coordinator.tabManager.selectedTab {
