@@ -220,18 +220,6 @@ These are **non-negotiable** — never skip them:
 
 6. **Commit messages**: Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). Single line only, no description body. Examples: `docs: fix installation instructions for unsigned app`, `fix: prevent crash on empty query result`, `feat: add CSV export`.
 
-## Agent Execution Strategy
-
-- **Plans must include edge cases.** When creating implementation plans, identify edge cases, thread safety concerns, and boundary conditions. Include them as explicit checklist items in the plan — don't defer discovery to code review.
-- **Implementation includes self-review.** Before committing, agents must check: thread safety (lock coverage, race conditions), all code paths (loops, early returns, between iterations), error handling, and flag/state reset logic. This eliminates the review→fix→review cycle.
-- **Tests are part of implementation, not a separate step.** When implementing a feature, write tests in the same commit or immediately after — don't wait for a separate `/write-tests` invocation. The implementation agent should include test writing in its scope.
-- **Always use team agents** for implementation work. Use the Agent tool (not subagents/tasks) to delegate coding to specialized agents (e.g., `feature-dev:feature-dev`, `feature-dev:code-architect`, `code-simplifier:code-simplifier`).
-- **Always parallelize** independent tasks. Launch multiple agents in a single message.
-- **Main context = orchestrator only.** Read files, launch agents, summarize results, update tracking. Never do heavy implementation directly.
-- **Agent prompts must be self-contained.** Include file paths, the specific problem, and clear instructions.
-- **Use worktree isolation** (`isolation: "worktree"`) for agents making code changes. This keeps the main branch clean and allows parallel work without conflicts.
-- **Implementation standards** (apply to ALL new features and refactors): Clean architecture, correct macOS/Apple platform approach, proper design patterns, no backward compatibility hacks, easy to maintain and extensible. Always include these requirements in agent prompts.
-
 ## Performance Pitfalls
 
 These have caused real production bugs — be aware when working in editor/autocomplete/persistence code:
