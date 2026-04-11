@@ -78,6 +78,10 @@ extension DatabaseManager {
             sshPasswordOverride: sshPassword
         )
 
+        // Detect whether buildEffectiveConnection created a tunnel by checking
+        // if the returned connection was redirected to localhost (tunnel endpoint)
+        let tunnelWasCreated = testConnection.host == "127.0.0.1" && testConnection.port != connection.port
+
         let result: Bool
         do {
             let driver = try DatabaseDriverFactory.createDriver(
@@ -86,7 +90,7 @@ extension DatabaseManager {
             )
             result = try await driver.testConnection()
         } catch {
-            if connection.sshConfig.enabled {
+            if tunnelWasCreated {
                 do {
                     try await SSHTunnelManager.shared.closeTunnel(connectionId: connection.id)
                 } catch {
@@ -96,7 +100,7 @@ extension DatabaseManager {
             throw error
         }
 
-        if connection.sshConfig.enabled {
+        if tunnelWasCreated {
             do {
                 try await SSHTunnelManager.shared.closeTunnel(connectionId: connection.id)
             } catch {
