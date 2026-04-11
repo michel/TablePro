@@ -3,6 +3,55 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.31.0</title>
+            <pubDate>Sat, 11 Apr 2026 19:31:15 +0000</pubDate>
+            <sparkle:version>64</sparkle:version>
+            <sparkle:shortVersionString>0.31.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>Server Dashboard: active sessions, metrics, slow queries (PostgreSQL, MySQL, MSSQL, ClickHouse, DuckDB, SQLite)</li>
+<li>Handoff support between iOS and macOS</li>
+<li>iOS: full-text search in data browser, state restoration, iPad keyboard shortcuts</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Sidebar table loading refactored: single source of truth, explicit loading states, no race conditions on database switch</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Create Database dialog now shows correct options per database type (encoding/LC_COLLATE for PostgreSQL, hidden for Redis/etcd)</li>
+<li>SSH tunnel with `~/.ssh/config` profiles (#672): `Include` directives, token expansion, multi-word `Host` filtering</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.31.0/TablePro-0.31.0-arm64.zip" length="24570827" type="application/octet-stream" sparkle:edSignature="Sveav1OEos56x3fDbWyF82eWXk1y+YlyeT1ZLqdp1chXcm/tisrnh8BbNMXCpmJS+YAtKKC6DewqhA9G2tyQCg=="/>
+        </item>
+        <item>
+            <title>0.31.0</title>
+            <pubDate>Sat, 11 Apr 2026 19:31:16 +0000</pubDate>
+            <sparkle:version>64</sparkle:version>
+            <sparkle:shortVersionString>0.31.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Added</h3>
+<ul>
+<li>Server Dashboard: active sessions, metrics, slow queries (PostgreSQL, MySQL, MSSQL, ClickHouse, DuckDB, SQLite)</li>
+<li>Handoff support between iOS and macOS</li>
+<li>iOS: full-text search in data browser, state restoration, iPad keyboard shortcuts</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Sidebar table loading refactored: single source of truth, explicit loading states, no race conditions on database switch</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Create Database dialog now shows correct options per database type (encoding/LC_COLLATE for PostgreSQL, hidden for Redis/etcd)</li>
+<li>SSH tunnel with `~/.ssh/config` profiles (#672): `Include` directives, token expansion, multi-word `Host` filtering</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.31.0/TablePro-0.31.0-x86_64.zip" length="23858408" type="application/octet-stream" sparkle:edSignature="gTmBvk1aTnLCro+ycypscx5d+i4wYwk7CUK4pt14dcvgVFJwU9KEx8pYgTryA6HBCHQe6pu8MUd86d4Y5IBJDA=="/>
+        </item>
+        <item>
             <title>0.30.1</title>
             <pubDate>Fri, 10 Apr 2026 15:57:55 +0000</pubDate>
             <sparkle:version>63</sparkle:version>
