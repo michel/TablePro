@@ -72,6 +72,11 @@ struct ConnectedView: View {
                 }
             } else {
                 connectedContent
+                    .userActivity("com.TablePro.viewConnection") { activity in
+                        activity.title = connection.name.isEmpty ? connection.host : connection.name
+                        activity.isEligibleForHandoff = true
+                        activity.userInfo = ["connectionId": connection.id.uuidString]
+                    }
                     .allowsHitTesting(!isSwitching)
                     .overlay {
                         if isSwitching {
@@ -106,6 +111,14 @@ struct ConnectedView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .background(.bar)
+        }
+        .background {
+            Button("") { selectedTab = .tables }
+                .keyboardShortcut("1", modifiers: .command)
+                .hidden()
+            Button("") { selectedTab = .query }
+                .keyboardShortcut("2", modifiers: .command)
+                .hidden()
         }
         .toolbar {
             if connection.safeModeLevel != .off {

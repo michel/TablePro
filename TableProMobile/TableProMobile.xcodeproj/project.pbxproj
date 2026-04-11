@@ -537,6 +537,13 @@
 			);
 			target = 5AB9F3D82F7C1C12001F3337 /* TableProMobile */;
 		};
+		5AB9F3DC2F7C1C13001F3337 /* Exceptions for "TableProMobile" folder in "TableProMobile" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5AB9F3D82F7C1C12001F3337 /* TableProMobile */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -551,6 +558,9 @@
 		};
 		5AB9F3DB2F7C1C12001F3337 /* TableProMobile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5AB9F3DC2F7C1C13001F3337 /* Exceptions for "TableProMobile" folder in "TableProMobile" target */,
+			);
 			path = TableProMobile;
 			sourceTree = "<group>";
 		};
@@ -1973,6 +1983,7 @@
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TableProMobile/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -2015,6 +2026,7 @@
 				DEVELOPMENT_TEAM = D7HJ5TFYCU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TableProMobile/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = TablePro;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";

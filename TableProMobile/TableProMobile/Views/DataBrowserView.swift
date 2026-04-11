@@ -41,8 +41,11 @@ struct DataBrowserView: View {
     @State private var foreignKeys: [ForeignKeyInfo] = []
     @State private var fkPreviewItem: FKPreviewItem?
     @State private var memoryWarningMessage: String?
+    @State private var showShareSheet = false
+    @State private var shareText = ""
     @State private var hapticSuccess = false
     @State private var hapticError = false
+    @State private var showStructure = false
 
     private var isView: Bool {
         table.type == .view || table.type == .materializedView
@@ -102,6 +105,14 @@ struct DataBrowserView: View {
 
     var body: some View {
         searchableContent
+            .userActivity("com.TablePro.viewTable") { activity in
+                activity.title = table.name
+                activity.isEligibleForHandoff = true
+                activity.userInfo = [
+                    "connectionId": connection.id.uuidString,
+                    "tableName": table.name
+                ]
+            }
             .toolbar { topToolbar }
             .toolbar(rows.isEmpty && !hasActiveSearch && !hasActiveFilters ? .hidden : .visible, for: .bottomBar)
             .toolbar { paginationToolbar }
@@ -123,6 +134,9 @@ struct DataBrowserView: View {
                     session: session,
                     databaseType: connection.type
                 )
+            }
+            .sheet(isPresented: $showShareSheet) {
+                ActivityViewController(items: [shareText])
             }
             .confirmationDialog("Delete Row", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
@@ -161,6 +175,9 @@ struct DataBrowserView: View {
             }
             .sensoryFeedback(.success, trigger: hapticSuccess)
             .sensoryFeedback(.error, trigger: hapticError)
+            .navigationDestination(isPresented: $showStructure) {
+                StructureView(table: table, session: session, databaseType: connection.type)
+            }
             .alert("Go to Page", isPresented: $showGoToPage) {
                 TextField("Page number", text: $goToPageInput)
                     .keyboardType(.numberPad)
@@ -250,7 +267,19 @@ struct DataBrowserView: View {
                         row: row
                     )
                 }
+                .hoverEffect()
                 .contextMenu {
+                    Menu("Share Row") {
+                        ForEach(ExportFormat.allCases) { format in
+                            Button(format.rawValue) {
+                                shareText = ClipboardExporter.exportRow(
+                                    columns: columns, row: row,
+                                    format: format, tableName: table.name
+                                )
+                                showShareSheet = true
+                            }
+                        }
+                    }
                     Menu("Copy Row") {
                         ForEach(ExportFormat.allCases) { format in
                             Button(format.rawValue) {
@@ -313,25 +342,6 @@ struct DataBrowserView: View {
     private var topToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                ForEach(ExportFormat.allCases) { format in
-                    Button {
-                        let text = ClipboardExporter.exportRows(
-                            columns: columns, rows: rows,
-                            format: format, tableName: table.name
-                        )
-                        ClipboardExporter.copyToClipboard(text)
-                    } label: {
-                        Label(format.rawValue, systemImage: "doc.on.clipboard")
-                    }
-                }
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .accessibilityLabel(Text("Export"))
-            }
-            .disabled(rows.isEmpty)
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
                 Picker("Sort By", selection: sortColumnBinding) {
                     Text("Default").tag(String?.none)
                     ForEach(columns, id: \.name) { col in
@@ -365,11 +375,26 @@ struct DataBrowserView: View {
             .badge(activeFilterCount)
         }
         ToolbarItem(placement: .topBarTrailing) {
-            NavigationLink {
-                StructureView(table: table, session: session, databaseType: connection.type)
+            Menu {
+                Button { showStructure = true } label: {
+                    Label("Table Structure", systemImage: "info.circle")
+                }
+                Divider()
+                Section("Export") {
+                    ForEach(ExportFormat.allCases) { format in
+                        Button {
+                            let text = ClipboardExporter.exportRows(
+                                columns: columns, rows: rows,
+                                format: format, tableName: table.name
+                            )
+                            ClipboardExporter.copyToClipboard(text)
+                        } label: {
+                            Label(format.rawValue, systemImage: "doc.on.clipboard")
+                        }
+                    }
+                }
             } label: {
-                Image(systemName: "info.circle")
-                    .accessibilityLabel(Text("Table Structure"))
+                Image(systemName: "ellipsis.circle")
             }
         }
         if !isView && !connection.safeModeLevel.blocksWrites {
