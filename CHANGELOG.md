@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Full-text search across all columns in iOS data browser
 - Server Dashboard with active sessions, server metrics, and slow query monitoring (PostgreSQL, MySQL, MSSQL, ClickHouse, DuckDB, SQLite)
 
 ## [0.30.1] - 2026-04-10

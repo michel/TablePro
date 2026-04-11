@@ -30,6 +30,9 @@ struct DataBrowserView: View {
     @State private var showOperationError = false
     @State private var showGoToPage = false
     @State private var goToPageInput = ""
+    @State private var searchText = ""
+    @State private var activeSearchText = ""
+    @State private var searchTask: Task<Void, Never>?
     @State private var filters: [TableFilter] = []
     @State private var filterLogicMode: FilterLogicMode = .and
     @State private var showFilterSheet = false
@@ -55,6 +58,14 @@ struct DataBrowserView: View {
             return "\(start)–\(end) of \(total)"
         }
         return "\(start)–\(end)"
+    }
+
+    private var hasActiveSearch: Bool {
+        !activeSearchText.isEmpty
+    }
+
+    private var isRedis: Bool {
+        connection.type == .redis
     }
 
     private var hasActiveFilters: Bool {
@@ -88,11 +99,9 @@ struct DataBrowserView: View {
     }
 
     var body: some View {
-        content
-            .navigationTitle(table.name)
-            .navigationBarTitleDisplayMode(.inline)
+        searchableContent
             .toolbar { topToolbar }
-            .toolbar(rows.isEmpty ? .hidden : .visible, for: .bottomBar)
+            .toolbar(rows.isEmpty && !hasActiveSearch && !hasActiveFilters ? .hidden : .visible, for: .bottomBar)
             .toolbar { paginationToolbar }
             .task { await loadData(isInitial: true) }
             .sheet(isPresented: $showInsertSheet) { insertSheet }
@@ -163,6 +172,26 @@ struct DataBrowserView: View {
             }
     }
 
+    @ViewBuilder
+    private var searchableContent: some View {
+        if isRedis {
+            content
+                .navigationTitle(table.name)
+                .navigationBarTitleDisplayMode(.inline)
+        } else {
+            content
+                .navigationTitle(table.name)
+                .navigationBarTitleDisplayMode(.inline)
+                .searchable(text: $searchText, prompt: "Search all columns")
+                .onSubmit(of: .search) { applySearch() }
+                .onChange(of: searchText) { oldValue, newValue in
+                    if newValue.isEmpty, !oldValue.isEmpty, hasActiveSearch {
+                        clearSearch()
+                    }
+                }
+        }
+    }
+
     // MARK: - Content
 
     @ViewBuilder
@@ -172,6 +201,8 @@ struct DataBrowserView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let appError {
             ErrorView(error: appError) { await loadData() }
+        } else if rows.isEmpty, hasActiveSearch {
+            ContentUnavailableView.search(text: activeSearchText)
         } else if rows.isEmpty {
             ContentUnavailableView {
                 Label("No Data", systemImage: "tray")
@@ -220,7 +251,7 @@ struct DataBrowserView: View {
                         ForEach(ExportFormat.allCases) { format in
                             Button(format.rawValue) {
                                 let text = ClipboardExporter.exportRow(
-                                    columns: columns, row: rows[index],
+                                    columns: columns, row: row,
                                     format: format, tableName: table.name
                                 )
                                 ClipboardExporter.copyToClipboard(text)
@@ -230,8 +261,8 @@ struct DataBrowserView: View {
                     if !foreignKeys.isEmpty {
                         let rowFKs = foreignKeys.filter { fk in
                             guard let colIndex = columns.firstIndex(where: { $0.name == fk.column }),
-                                  colIndex < rows[index].count,
-                                  rows[index][colIndex] != nil else { return false }
+                                  colIndex < row.count,
+                                  row[colIndex] != nil else { return false }
                             return true
                         }
                         if !rowFKs.isEmpty {
@@ -239,8 +270,8 @@ struct DataBrowserView: View {
                             ForEach(rowFKs, id: \.name) { fk in
                                 Button {
                                     if let colIndex = columns.firstIndex(where: { $0.name == fk.column }),
-                                       colIndex < rows[index].count,
-                                       let value = rows[index][colIndex] {
+                                       colIndex < row.count,
+                                       let value = row[colIndex] {
                                         fkPreviewItem = FKPreviewItem(fk: fk, value: value)
                                     }
                                 } label: {
@@ -253,7 +284,7 @@ struct DataBrowserView: View {
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     if !isView && hasPrimaryKeys && !connection.safeModeLevel.blocksWrites {
                         Button(role: .destructive) {
-                            deleteTarget = primaryKeyValues(for: rows[index])
+                            deleteTarget = primaryKeyValues(for: row)
                             showDeleteConfirmation = true
                         } label: {
                             Label("Delete", systemImage: "trash")
@@ -290,6 +321,7 @@ struct DataBrowserView: View {
                 }
             } label: {
                 Image(systemName: "square.and.arrow.up")
+                    .accessibilityLabel(Text("Export"))
             }
             .disabled(rows.isEmpty)
         }
@@ -314,6 +346,7 @@ struct DataBrowserView: View {
                 Image(systemName: sortState.isSorting
                     ? "arrow.up.arrow.down.circle.fill"
                     : "arrow.up.arrow.down.circle")
+                    .accessibilityLabel(Text("Sort"))
             }
             .disabled(columns.isEmpty)
         }
@@ -322,6 +355,7 @@ struct DataBrowserView: View {
                 Image(systemName: hasActiveFilters
                     ? "line.3.horizontal.decrease.circle.fill"
                     : "line.3.horizontal.decrease.circle")
+                    .accessibilityLabel(Text("Filter"))
             }
             .badge(activeFilterCount)
         }
@@ -330,12 +364,14 @@ struct DataBrowserView: View {
                 StructureView(table: table, session: session, databaseType: connection.type)
             } label: {
                 Image(systemName: "info.circle")
+                    .accessibilityLabel(Text("Table Structure"))
             }
         }
         if !isView && !connection.safeModeLevel.blocksWrites {
             ToolbarItem(placement: .primaryAction) {
                 Button { showInsertSheet = true } label: {
                     Image(systemName: "plus")
+                        .accessibilityLabel(Text("Insert Row"))
                 }
             }
         }
@@ -421,7 +457,20 @@ struct DataBrowserView: View {
 
         do {
             let query: String
-            if hasActiveFilters {
+            if hasActiveSearch {
+                let searchableColumns = columns.filter { col in
+                    let upper = col.typeName.uppercased()
+                    return !upper.contains("BLOB") && !upper.contains("BYTEA") && !upper.contains("BINARY")
+                        && !upper.contains("VARBINARY") && !upper.contains("IMAGE")
+                }
+                query = SQLBuilder.buildSearchSelect(
+                    table: table.name, type: connection.type,
+                    searchText: activeSearchText, searchColumns: searchableColumns,
+                    filters: filters, logicMode: filterLogicMode,
+                    sortState: sortState,
+                    limit: pagination.pageSize, offset: pagination.currentOffset
+                )
+            } else if hasActiveFilters {
                 query = SQLBuilder.buildFilteredSelect(
                     table: table.name, type: connection.type,
                     filters: filters, logicMode: filterLogicMode,
@@ -472,7 +521,18 @@ struct DataBrowserView: View {
     private func fetchTotalRows(session: ConnectionSession) async {
         do {
             let countQuery: String
-            if hasActiveFilters {
+            if hasActiveSearch {
+                let searchableColumns = columns.filter { col in
+                    let upper = col.typeName.uppercased()
+                    return !upper.contains("BLOB") && !upper.contains("BYTEA") && !upper.contains("BINARY")
+                        && !upper.contains("VARBINARY") && !upper.contains("IMAGE")
+                }
+                countQuery = SQLBuilder.buildSearchCount(
+                    table: table.name, type: connection.type,
+                    searchText: activeSearchText, searchColumns: searchableColumns,
+                    filters: filters, logicMode: filterLogicMode
+                )
+            } else if hasActiveFilters {
                 countQuery = SQLBuilder.buildFilteredCount(
                     table: table.name, type: connection.type,
                     filters: filters, logicMode: filterLogicMode
@@ -558,6 +618,24 @@ struct DataBrowserView: View {
         pagination.currentPage = 0
         pagination.totalRows = nil
         Task { await loadData() }
+    }
+
+    private func applySearch() {
+        activeSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasActiveSearch, !columns.isEmpty else { return }
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        searchTask?.cancel()
+        searchTask = Task { await loadData() }
+    }
+
+    private func clearSearch() {
+        searchText = ""
+        activeSearchText = ""
+        pagination.currentPage = 0
+        pagination.totalRows = nil
+        searchTask?.cancel()
+        searchTask = Task { await loadData() }
     }
 
     private func applyFilters() {
@@ -781,5 +859,6 @@ private struct RowCard: View {
             }
         }
         .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
     }
 }
