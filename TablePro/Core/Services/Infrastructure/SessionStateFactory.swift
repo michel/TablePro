@@ -7,9 +7,6 @@
 //
 
 import Foundation
-import os
-
-private let factoryLogger = Logger(subsystem: "com.TablePro", category: "SessionStateFactory")
 
 @MainActor
 enum SessionStateFactory {
@@ -87,7 +84,6 @@ enum SessionStateFactory {
                         tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
                     }
                 case .query:
-                    factoryLogger.debug("openContent/query: title=\(payload.tabTitle ?? "nil"), query=\(String((payload.initialQuery ?? "").prefix(50)))")
                     tabMgr.addTab(
                         initialQuery: payload.initialQuery,
                         title: payload.tabTitle,
@@ -109,10 +105,8 @@ enum SessionStateFactory {
             case .newEmptyTab:
                 let allTabs = MainContentCoordinator.allTabs(for: connection.id)
                 let title = QueryTabManager.nextQueryTitle(existingTabs: allTabs)
-                factoryLogger.debug("newEmptyTab: title=\(title), existingTabs=\(allTabs.count)")
                 tabMgr.addTab(title: title, databaseName: payload.databaseName ?? connection.database)
             case .restoreOrDefault:
-                factoryLogger.debug("restoreOrDefault: no tabs added in factory (deferred to handleRestoreOrDefault)")
                 break
             }
         }

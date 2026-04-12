@@ -6,10 +6,7 @@
 //  for MainContentView. Extracted to reduce main view complexity.
 //
 
-import os
 import SwiftUI
-
-private let setupLogger = Logger(subsystem: "com.TablePro", category: "MainContentView+Setup")
 
 extension MainContentView {
     // MARK: - Initialization
@@ -77,7 +74,6 @@ extension MainContentView {
 
     private func handleRestoreOrDefault() async {
         if WindowLifecycleMonitor.shared.hasOtherWindows(for: connection.id, excluding: windowId) {
-            setupLogger.debug("handleRestoreOrDefault: other windows exist, adding empty tab")
             if tabManager.tabs.isEmpty {
                 tabManager.addTab(databaseName: connection.database)
             }
@@ -85,10 +81,6 @@ extension MainContentView {
         }
 
         let result = await coordinator.persistence.restoreFromDisk()
-        setupLogger.info("handleRestoreOrDefault: restored \(result.tabs.count) tabs from disk (source=\(String(describing: result.source)))")
-        for tab in result.tabs {
-            setupLogger.debug("  restored tab: \(tab.title) query=\(String(tab.query.prefix(50)))")
-        }
         if !result.tabs.isEmpty {
             var restoredTabs = result.tabs
             for i in restoredTabs.indices where restoredTabs[i].tabType == .table {
@@ -112,11 +104,9 @@ extension MainContentView {
             let remainingTabs = Array(restoredTabs.dropFirst())
 
             if !remainingTabs.isEmpty {
-                setupLogger.debug("handleRestoreOrDefault: opening \(remainingTabs.count) remaining tabs as native windows")
                 let selectedWasFirst = firstTab.id == selectedId
                 Task { @MainActor in
                     for tab in remainingTabs {
-                        setupLogger.debug("  opening native tab: \(tab.title)")
                         let restorePayload = EditorTabPayload(
                             from: tab, connectionId: connection.id, skipAutoExecute: true)
                         WindowOpener.shared.openNativeTab(restorePayload)
@@ -168,7 +158,6 @@ extension MainContentView {
     /// Update window title, proxy icon, and dirty dot based on the selected tab.
     func updateWindowTitleAndFileState() {
         let selectedTab = tabManager.selectedTab
-        let oldTitle = windowTitle
         if selectedTab?.tabType == .serverDashboard {
             windowTitle = String(localized: "Server Dashboard")
         } else if selectedTab?.tabType == .createTable {
@@ -181,10 +170,6 @@ extension MainContentView {
             windowTitle = (selectedTab?.tabType == .table ? selectedTab?.tableName : nil)
                 ?? selectedTab?.title
                 ?? (tabManager.tabs.isEmpty ? connection.name : queryLabel)
-        }
-        if windowTitle != oldTitle {
-            let typeStr = selectedTab.map { $0.tabType == .table ? "table" : "query" } ?? "nil"
-            setupLogger.debug("updateWindowTitle: '\(oldTitle)' → '\(self.windowTitle)' (tab.title=\(selectedTab?.title ?? "nil"), tabType=\(typeStr), tableName=\(selectedTab?.tableName ?? "nil"))")
         }
         viewWindow?.representedURL = selectedTab?.sourceFileURL
         viewWindow?.isDocumentEdited = selectedTab?.isFileDirty ?? false

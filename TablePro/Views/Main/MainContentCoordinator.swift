@@ -325,16 +325,9 @@ final class MainContentCoordinator {
                 // Skip isTearingDown check: during Cmd+Q, onDisappear fires
                 // markTeardownScheduled() before willTerminate, and we still
                 // need to save here.
-                guard self.isFirstCoordinatorForConnection() else {
-                    Self.logger.debug("willTerminate: skipping (not first coordinator for \(self.connectionId))")
-                    return
-                }
+                guard self.isFirstCoordinatorForConnection() else { return }
                 let allTabs = Self.aggregatedTabs(for: self.connectionId)
                 let selectedId = Self.aggregatedSelectedTabId(for: self.connectionId)
-                Self.logger.info("willTerminate: saving \(allTabs.count) tabs for \(self.connectionId), selected=\(selectedId?.uuidString ?? "nil")")
-                for tab in allTabs {
-                    Self.logger.debug("  tab: \(tab.title) query=\(String(tab.query.prefix(50)))")
-                }
                 self.persistence.saveNowSync(
                     tabs: allTabs,
                     selectedTabId: selectedId
@@ -388,17 +381,14 @@ final class MainContentCoordinator {
     }
 
     func refreshTables() async {
-        Self.logger.debug("refreshTables: start (connectionId=\(self.connectionId))")
         sidebarLoadingState = .loading
         guard let driver = DatabaseManager.shared.driver(for: connectionId) else {
-            Self.logger.warning("refreshTables: no driver, setting error state")
             sidebarLoadingState = .error(String(localized: "Not connected"))
             return
         }
         do {
             let tables = try await driver.fetchTables()
                 .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-            Self.logger.debug("refreshTables: fetched \(tables.count) tables")
             DatabaseManager.shared.updateSession(connectionId) { $0.tables = tables }
             let currentDb = DatabaseManager.shared.session(for: connectionId)?.activeDatabase
             await schemaProvider.resetForDatabase(currentDb, tables: tables, driver: driver)
@@ -426,10 +416,8 @@ final class MainContentCoordinator {
                 }
             }
 
-            Self.logger.debug("refreshTables: done, state=.loaded")
             sidebarLoadingState = .loaded
         } catch {
-            Self.logger.error("refreshTables: failed: \(error.localizedDescription)")
             sidebarLoadingState = .error(error.localizedDescription)
         }
     }

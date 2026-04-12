@@ -5,10 +5,7 @@
 //  Created by Ngo Quoc Dat on 16/12/25.
 //
 
-import os
 import SwiftUI
-
-private let sidebarLogger = Logger(subsystem: "com.TablePro", category: "SidebarView")
 
 // MARK: - SidebarView
 
@@ -118,11 +115,7 @@ struct SidebarView: View {
         }
         .onAppear {
             coordinator?.sidebarViewModel = viewModel
-            let state = coordinator?.sidebarLoadingState ?? .idle
-            let tableCount = tables.count
-            sidebarLogger.debug("onAppear: loadingState=\(String(describing: state)), tables=\(tableCount), coordinator=\(coordinator != nil)")
-            if state == .idle && !tables.isEmpty {
-                sidebarLogger.debug("onAppear: healing .idle -> .loaded (tables=\(tableCount))")
+            if coordinator?.sidebarLoadingState == .idle && !tables.isEmpty {
                 coordinator?.sidebarLoadingState = .loaded
             }
             // Update toolbar version if driver connected before this window's observer was set up
@@ -137,7 +130,6 @@ struct SidebarView: View {
             // .idle -> .loaded (no fetching, no cache reads). The old version called
             // loadTables() which fetched from stale schema provider cache.
             if !newTables.isEmpty && coordinator?.sidebarLoadingState == .idle {
-                sidebarLogger.debug("onChange(tables): healing .idle -> .loaded (tables=\(newTables.count))")
                 coordinator?.sidebarLoadingState = .loaded
             }
         }
