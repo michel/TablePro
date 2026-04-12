@@ -3,6 +3,41 @@
     <channel>
         <title>TablePro</title>
         <item>
+            <title>0.31.2</title>
+            <pubDate>Sun, 12 Apr 2026 18:00:14 +0000</pubDate>
+            <sparkle:version>66</sparkle:version>
+            <sparkle:shortVersionString>0.31.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h3>Fixed</h3>
+<ul>
+<li>Query tabs always named "Query 1" instead of incrementing (#695)</li>
+<li>Sidebar empty in new or restored window tabs (#694)</li>
+<li>Tab titles, order, and persistence lost on quit/restore</li>
+<li>PostgreSQL version display for v10+ (#698)</li>
+<li>License activation metadata and deactivation error handling</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.31.2/TablePro-0.31.2-arm64.zip" length="24576297" type="application/octet-stream" sparkle:edSignature="09fczpRZtRZ7ywU1CS7FdFhBHe71CSSEAyT5B07NKN+6bi9ccXukusNx2VLxYrLFtHtUNSZNC4xHwmGlxHovAA=="/>
+        </item>
+        <item>
+            <title>0.31.2</title>
+            <pubDate>Sun, 12 Apr 2026 18:00:15 +0000</pubDate>
+            <sparkle:version>66</sparkle:version>
+            <sparkle:shortVersionString>0.31.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h3>Fixed</h3>
+<ul>
+<li>Query tabs always named "Query 1" instead of incrementing (#695)</li>
+<li>Sidebar empty in new or restored window tabs (#694)</li>
+<li>Tab titles, order, and persistence lost on quit/restore</li>
+<li>PostgreSQL version display for v10+ (#698)</li>
+<li>License activation metadata and deactivation error handling</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/TableProApp/TablePro/releases/download/v0.31.2/TablePro-0.31.2-x86_64.zip" length="23865033" type="application/octet-stream" sparkle:edSignature="4qe/RwHL7GemOpooISJkOOZgPOm7DsIQy1sKpmnaDWMIfX4CWbgJbQhUN1FNWCozmAf1k+1XRrAf5dIONE29Ag=="/>
+        </item>
+        <item>
             <title>0.31.1</title>
             <pubDate>Sat, 11 Apr 2026 20:35:05 +0000</pubDate>
             <sparkle:version>65</sparkle:version>
