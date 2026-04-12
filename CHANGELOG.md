@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.2] - 2026-04-13
+
 ### Fixed
 
 - Query tabs always named "Query 1" instead of incrementing (#695)
@@ -1270,7 +1272,8 @@ TablePro is a native macOS database client built with SwiftUI and AppKit, design
     - Custom SQL query templates
     - Performance optimized for large datasets
 
-[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.31.1...HEAD
+[Unreleased]: https://github.com/TableProApp/TablePro/compare/v0.31.2...HEAD
+[0.31.2]: https://github.com/TableProApp/TablePro/compare/v0.31.1...v0.31.2
 [0.31.1]: https://github.com/TableProApp/TablePro/compare/v0.31.0...v0.31.1
 [0.31.0]: https://github.com/TableProApp/TablePro/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/TableProApp/TablePro/compare/v0.30.0...v0.30.1
