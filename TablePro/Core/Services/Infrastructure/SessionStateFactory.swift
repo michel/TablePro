@@ -102,7 +102,9 @@ enum SessionStateFactory {
                     tabMgr.addServerDashboardTab()
                 }
             case .newEmptyTab:
-                tabMgr.addTab(databaseName: payload.databaseName ?? connection.database)
+                let allTabs = MainContentCoordinator.allTabs(for: connection.id)
+                let title = QueryTabManager.nextQueryTitle(excluding: allTabs)
+                tabMgr.addTab(title: title, databaseName: payload.databaseName ?? connection.database)
             case .restoreOrDefault:
                 break
             }

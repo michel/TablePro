@@ -44,6 +44,21 @@ final class QueryTabManager {
         selectedTabId = nil
     }
 
+    // MARK: - Tab Naming
+
+    /// Generate next query tab title by finding the max "Query N" number across the given tabs.
+    /// Called with all tabs from all windows for the same connection to avoid duplicate names.
+    static func nextQueryTitle(excluding existingTabs: [QueryTab]) -> String {
+        let maxNumber = existingTabs
+            .filter { $0.tabType == .query }
+            .compactMap { tab -> Int? in
+                guard tab.title.hasPrefix("Query ") else { return nil }
+                return Int(tab.title.dropFirst(6))
+            }
+            .max() ?? 0
+        return "Query \(maxNumber + 1)"
+    }
+
     // MARK: - Tab Management
 
     func addTab(initialQuery: String? = nil, title: String? = nil, databaseName: String = "", sourceFileURL: URL? = nil) {
@@ -56,8 +71,7 @@ final class QueryTabManager {
             return
         }
 
-        let queryCount = tabs.count(where: { $0.tabType == .query })
-        let tabTitle = title ?? "Query \(queryCount + 1)"
+        let tabTitle = title ?? Self.nextQueryTitle(excluding: tabs)
         var newTab = QueryTab(title: tabTitle, tabType: .query)
 
         if let query = initialQuery {

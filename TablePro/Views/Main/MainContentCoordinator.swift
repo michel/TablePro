@@ -199,7 +199,13 @@ final class MainContentCoordinator {
     }
 
     /// Collect all tabs from all active coordinators for a given connectionId.
-    /// Preview tabs are excluded from persistence since they are temporary.
+    static func allTabs(for connectionId: UUID) -> [QueryTab] {
+        activeCoordinators.values
+            .filter { $0.connectionId == connectionId }
+            .flatMap { $0.tabManager.tabs }
+    }
+
+    /// Collect non-preview tabs for persistence.
     private static func aggregatedTabs(for connectionId: UUID) -> [QueryTab] {
         activeCoordinators.values
             .filter { $0.connectionId == connectionId }
