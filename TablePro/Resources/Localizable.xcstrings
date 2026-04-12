@@ -10805,6 +10805,7 @@
       }
     },
     "Deactivation Failed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "tr" : {
           "stringUnit" : {
@@ -20105,6 +20106,12 @@
           }
         }
       }
+    },
+    "License Removed" : {
+
+    },
+    "License removed from this Mac, but the server could not be reached. The activation slot may not be freed until it expires." : {
+
     },
     "License signature verification failed." : {
       "localizations" : {
