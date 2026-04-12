@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- New query tabs always named "Query 1" instead of incrementing (#695)
+- Sidebar empty when opening new native window tab (#694)
+- Tab restore losing tab titles and showing table names instead of query names
+- Quit-time persistence skipping save when all windows fire onDisappear before willTerminate
+- Restored tabs appearing in wrong order (now preserves left-to-right window tab position)
+- PostgreSQL version display incorrect for v10+ (#698)
 - License settings showing stale app version instead of current version
 - Deactivation not reporting server-side failure to user
 
